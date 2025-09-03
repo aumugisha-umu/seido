@@ -1,0 +1,212 @@
+---
+globs: *.tsx,*.ts
+description: Guide pour composants UI modernes avec shadcn et couleurs contemporaines - À utiliser uniquement pour les demandes UX/UI
+---
+
+# Composants UI Modernes & Couleurs
+
+## 🎨 Thème Clean-Slate - Variables Design System
+
+### Variables CSS Principales (oklch)
+```tsx
+// Couleurs de base du thème clean-slate
+--background: oklch(0.9842 0.0034 247.8575)    // Background principal
+--foreground: oklch(0.2795 0.0368 260.0310)    // Texte principal
+--muted: oklch(0.9670 0.0029 264.5419)         // Backgrounds muted
+--muted-foreground: oklch(0.5510 0.0234 264.3637) // Texte secondaire
+--border: oklch(0.8717 0.0093 258.3382)        // Bordures
+--input: oklch(0.8717 0.0093 258.3382)         // Inputs
+```
+
+### Variables Primaires & Accent
+```tsx
+// Couleur primaire du système
+--primary: oklch(0.5854 0.2041 277.1173)       // Primary pour actions
+--primary-foreground: oklch(1.0000 0 0)        // Texte sur primary
+
+// Couleurs sémantiques
+--secondary: oklch(0.9276 0.0058 264.5313)     // Secondary actions
+--accent: oklch(0.9299 0.0334 272.7879)        // Accents subtils
+--destructive: oklch(0.6368 0.2078 25.3313)    // Erreurs/suppressions
+```
+
+### Système de Couleurs Complexes
+```tsx
+// Utilisation des variables Tailwind
+bg-background, text-foreground              // Base system
+bg-muted, text-muted-foreground            // Éléments secondaires
+bg-primary, text-primary-foreground        // Actions principales
+bg-destructive/10, text-destructive        // États d'erreur avec opacité
+```
+
+### Nouvelles Typographies Clean-Slate
+```tsx
+// Fonts intégrées dans le thème
+--font-sans: Inter, sans-serif              // Corps et interface
+--font-serif: Merriweather, serif           // Titres élégants
+--font-mono: JetBrains Mono, monospace     // Code et données
+```
+
+## 🧩 Composants Shadcn Optimisés
+
+### Utilisation Systematique
+- **Toujours utiliser** [components/ui](mdc:components/ui) comme base
+- **Personnaliser** les variants avec Tailwind
+- **Étendre** les composants pour les besoins spécifiques
+
+### Composants Prioritaires SaaS
+```tsx
+// Navigation et feedback
+Button, Badge, Tooltip, Popover
+Card, Separator, Progress
+
+// Formulaires et inputs
+Input, Textarea, Select, Switch
+Checkbox, RadioGroup, Slider
+
+// Layout et organisation  
+Tabs, Accordion, Dialog, Sheet
+Table, DataTable, Pagination
+```
+
+### Micro-interactions Sobres avec Clean-Slate
+```tsx
+// Hover states du système
+hover:bg-muted hover:shadow-md
+
+// Transitions douces optimisées
+transition-all duration-200 ease-out
+
+// Loading states avec design system
+animate-pulse (usage limité)
+
+// Focus states avec variables système
+focus:ring-2 focus:ring-primary/20
+focus:outline-ring/50
+
+// Nouvelles ombres du thème
+shadow-sm, shadow-md, shadow-lg, shadow-xl
+```
+
+### Système d'Ombres Clean-Slate
+```tsx
+// Variables d'ombres intégrées
+--shadow-2xs: 0px 4px 8px -1px hsl(0 0% 0% / 0.05)
+--shadow-sm: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 1px 2px -2px hsl(0 0% 0% / 0.10)
+--shadow-lg: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 4px 6px -2px hsl(0 0% 0% / 0.10)
+--shadow-xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 8px 10px -2px hsl(0 0% 0% / 0.10)
+
+// Utilisation dans les composants
+className="shadow-sm hover:shadow-md transition-all"
+className="shadow-lg shadow-primary/10"  // Ombres colorées subtiles
+```
+
+## 📱 Optimisations Viewport & Compacité
+
+### Tailles de Texte Optimisées
+```tsx
+// Headlines principales (responsive et compactes)
+text-3xl lg:text-5xl  // Au lieu de text-4xl lg:text-6xl
+
+// Descriptions
+text-lg              // Au lieu de text-xl
+
+// Cards et composants
+text-sm              // Pour titres de cards
+text-xs              // Pour descriptions secondaires
+
+// Badges et métriques  
+text-sm              // Au lieu de text-base
+```
+
+### Espacements Compacts pour Viewport
+```tsx
+// Sections principales
+pt-12 pb-8          // Au lieu de pt-16 pb-12
+
+// Espacements entre éléments
+space-y-5           // Au lieu de space-y-6
+space-y-3           // Au lieu de space-y-4
+
+// Padding des composants
+p-4                 // Au lieu de p-6 pour cards
+px-6 py-3           // Au lieu de px-8 py-4 pour boutons
+```
+
+### Composants Redimensionnés
+```tsx
+// Icons et éléments graphiques
+w-10 h-10           // Au lieu de w-12 h-12
+shadow-md           // Au lieu de shadow-lg (généralement)
+
+// Containers et grids
+gap-4 gap-6         // Au lieu de gap-6 gap-8
+max-w-4xl          // Au lieu de max-w-5xl (contextuellement)
+```
+
+### Layout Horizontal pour Cards Compactes
+```tsx
+// Structure optimisée pour viewport
+<div className="flex items-start gap-3">
+  <div className="w-10 h-10 flex-shrink-0">  // Icon fixe à gauche
+    <Icon />
+  </div>
+  <div className="flex-1">                    // Contenu flexible
+    <h3>Titre</h3>
+    <p>Description</p>
+  </div>
+</div>
+
+// Benefits : plus d'informations, moins d'espace vertical
+// Meilleure lisibilité sur mobile
+// Icônes toujours visibles et alignées
+```
+
+## 🎯 Effets Visuels Équilibrés
+
+### Backgrounds avec Design System
+```tsx
+// Base système clean-slate
+bg-background, bg-card, bg-muted
+
+// Gradients subtils avec variables système
+bg-gradient-to-b from-muted to-background
+bg-gradient-to-br from-primary/5 to-background
+
+// Backgrounds avec opacité
+bg-primary/10, bg-destructive/10, bg-green-500/10
+
+// États hover cohérents
+hover:bg-muted hover:bg-primary/5
+```
+
+### Shadows avec Variables Clean-Slate
+```tsx
+// Utilisation des variables d'ombres
+shadow-sm hover:shadow-md transition-all
+
+// Ombres colorées avec primary
+shadow-lg shadow-primary/10
+
+// Ombres contextuelles pour états
+shadow-md shadow-destructive/10  // Erreurs
+shadow-lg shadow-green-500/10    // Succès
+
+// Ombres pour élévation
+shadow-xl  // Modals, dropdowns
+```
+
+### Borders avec Variables Système
+```tsx
+// Bordures système
+border border-border
+border-2 border-primary (accent)
+
+// Séparateurs avec variables
+divide-border
+border-b border-border
+
+// Bordures contextuelles
+border-destructive/20  // États d'erreur
+border-green-500/20    // États de succès
+```

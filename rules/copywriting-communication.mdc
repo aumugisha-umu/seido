@@ -1,0 +1,158 @@
+---
+alwaysApply: false
+description: Guide de copywriting et communication pour SaaS B2B - À utiliser uniquement pour les demandes UX/UI
+---
+
+# UX Writing & Communication SaaS App
+
+## 🎯 Principes UX Writing Application SaaS
+
+### Ton et Style Interface
+- **Clair et direct** : Éviter le jargon métier, privilégier la compréhension
+- **Orienté tâches** : Aider l'utilisateur dans ses workflows quotidiens
+- **Guidant** : Indiquer clairement les prochaines étapes
+- **Contextuel** : Adapter le message à l'état de l'application
+
+### Structure Messages Interface
+```
+🎯 Action claire (Que puis-je faire ici?)
+📋 Contexte nécessaire (Quel est l'état actuel?)  
+🚀 Prochaine étape évidente (Comment continuer?)
+```
+
+## 📝 Formules de Copywriting Efficaces
+
+### Titres Dashboard - Clarté & Contexte
+```tsx
+// ✅ Titres d'interface clairs avec status
+"Interventions en cours (8 actives)"
+// + text-primary pour le nombre
+
+// ✅ États explicites avec thème clean-slate
+"Planning aujourd'hui - 3 interventions programmées"
+// + text-muted-foreground pour les détails
+
+// ✅ Métriques contextuelles 
+"Cette semaine : 12 terminées, 4 en cours, 2 en attente"
+// + couleurs design system : success, primary, warning
+```
+
+### Descriptions de Fonctionnalités
+```tsx
+// ❌ Feature-focused
+"Ticketing intelligent avec workflow automatisé"
+
+// ✅ Benefit-focused  
+"Plus jamais d'intervention oubliée : 
+ suivi automatique de A à Z"
+
+// ✅ Avec chiffres concrets
+"Divisez par 3 le temps de coordination 
+ grâce au ticketing intelligent"
+```
+
+### Actions Interface Spécifiques
+```tsx
+// ❌ Génériques
+"Valider", "OK", "Envoyer"
+
+// ✅ Actions contextuelles métier
+"Créer l'intervention"
+"Assigner à Marc (plombier)"  
+"Programmer pour demain 14h"
+"Marquer comme terminé"
+"Notifier le locataire"
+```
+
+## 🎨 Microcopy et UX Writing
+
+### Messages d'Erreur Interface
+```tsx
+// ❌ Technique
+"Validation failed: required field"
+
+// ✅ Guidant et contextualisé
+"Merci d'indiquer le type d'intervention 
+ pour continuer la création"
+```
+
+### États de Chargement Contextuels
+```tsx
+// ❌ Basique  
+"Chargement..."
+
+// ✅ Contextualisé métier
+"Création de l'intervention... ⚡"
+"Notification du prestataire... 📱"
+"Synchronisation du planning... 📅"
+"Sauvegarde automatique... 💾"
+```
+
+### Tooltips Guidants Interface
+```tsx
+// ✅ Explication contextuelle + aide
+"Planning collaboratif : Le locataire et le prestataire 
+ voient vos créneaux proposés et peuvent confirmer 
+ leur disponibilité directement."
+
+// ✅ Statuts avec explication
+"En attente validation : L'intervention attend 
+ votre approbation avant d'être programmée."
+```
+
+## 📊 Templates de Copywriting SaaS
+
+### Section Dashboard
+```markdown
+## [Nom de la section]
+**[Action principale disponible]**
+
+### État actuel
+[Résumé des données importantes]
+
+### Actions disponibles
+[Liste des tâches que l'utilisateur peut effectuer]
+
+### Données clés
+- ✅ [Métrique importante 1]
+- ✅ [Métrique importante 2]  
+- ✅ [Métrique importante 3]
+
+### Action recommandée
+[Prochaine étape suggérée avec bouton contextuel]
+```
+
+### Notifications Application
+```tsx
+// ✅ Structure optimale interface
+Titre: [Action] [Statut] - [Contexte]
+
+[Nom utilisateur],
+
+[État/Action qui s'est produite]
+[Impact sur le workflow]
+
+[Prochaine action possible/recommandée]
+
+// Exemple concret :
+"Intervention terminée - Appartement 3B
+
+Marc (plombier) a marqué l'intervention 
+comme terminée avec photos à l'appui.
+
+→ Valider et clôturer l'intervention"
+```
+
+## 🚀 Optimisation Continue
+
+### A/B Testing Prioritaire
+1. **Headlines principales** : Impact sur conversion
+2. **CTA buttons** : Texte, couleur, position
+3. **Descriptions de valeur** : Long vs court
+4. **Témoignages** : Position et format
+
+### Métriques de Copywriting
+- **Taux de conversion** par page/section
+- **Temps passé** sur les descriptions
+- **Clics sur CTA** par variante
+- **Feedback utilisateur** sur clarté

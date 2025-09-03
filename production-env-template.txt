@@ -1,0 +1,20 @@
+# Configuration Supabase Production
+# Copiez ce contenu dans votre .env.local après avoir récupéré vos clés de production
+
+# URLs Supabase Production
+NEXT_PUBLIC_SUPABASE_URL=https://[your-project-id].supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ[your-anon-key-here]
+
+# Instructions:
+# 1. Créez votre projet sur https://supabase.com/dashboard
+# 2. Remplacez [your-project-id] par votre project ID réel
+# 3. Remplacez [your-anon-key-here] par votre clé anonyme réelle
+# 4. Copiez ces lignes dans .env.local
+
+# Pour retrouver vos clés:
+# Dashboard Supabase > Settings > API
+# - Project URL 
+# - Project API keys > anon public
+
+# Note: Plus besoin de configuration locale Docker !
+# L'application utilise maintenant directement la base de données en ligne.

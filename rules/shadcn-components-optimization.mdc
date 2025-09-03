@@ -1,0 +1,309 @@
+---
+globs: *.tsx,*.ts,components/**/*
+description: Optimisation et utilisation avancée des composants shadcn/ui - À utiliser uniquement pour les demandes UX/UI
+---
+
+# Optimisation Composants Shadcn/UI
+
+## 🏗️ Architecture des Composants
+
+### Structure de Dossiers SaaS App
+```
+components/
+├── ui/               # Composants shadcn clean-slate de base
+├── dashboards/       # Composants spécifiques dashboards par rôle
+├── intervention/     # Composants métier intervention
+├── forms/            # Formulaires SaaS complexes
+├── navigation/       # Sidebar, header, breadcrumbs
+├── feedback/         # Notifications, alerts, confirmations
+├── data-display/     # Tables, cards, métriques
+└── layout/          # Grids, containers, sections app
+```
+
+### Étendre les Composants Shadcn
+```tsx
+// ✅ Extension propre avec variants personnalisés
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+interface ActionButtonProps extends ButtonProps {
+  intent?: "success" | "warning" | "info"
+  loading?: boolean
+}
+
+export function ActionButton({ 
+  intent, 
+  loading, 
+  children, 
+  className,
+  ...props 
+}: ActionButtonProps) {
+  return (
+    <Button
+      className={cn(
+        // Styles de base conservés
+        "transition-all duration-200",
+        // Variants avec design system clean-slate
+        {
+          "bg-green-600 hover:bg-green-700": intent === "success",
+          "bg-yellow-500 hover:bg-yellow-600": intent === "warning", 
+          "bg-primary hover:bg-primary/90": intent === "info",
+          "opacity-50 cursor-not-allowed": loading,
+        },
+        className
+      )}
+      disabled={loading || props.disabled}
+      {...props}
+    >
+      {loading ? (
+        <>
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+          Traitement...
+        </>
+      ) : (
+        children
+      )}
+    </Button>
+  )
+}
+```
+
+## 🎨 Patterns d'Optimisation UX
+
+### Composite Components (Recommandé)
+```tsx
+// ✅ Composant composite réutilisable
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+
+interface DashboardCardProps {
+  title: string
+  description: string
+  status: "active" | "pending" | "completed"
+  metric?: string | number
+  icon: React.ReactNode
+  actions?: React.ReactNode
+}
+
+export function DashboardCard({ 
+  title, 
+  description, 
+  status,
+  metric, 
+  icon, 
+  actions 
+}: DashboardCardProps) {
+  const statusColors = {
+    active: "bg-green-50 text-green-700 border-green-200",
+    pending: "bg-yellow-50 text-yellow-700 border-yellow-200", 
+    completed: "bg-primary/10 text-primary border-primary/20"
+  }
+
+  return (
+    <Card className="group hover:shadow-lg transition-all duration-300">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="text-primary group-hover:scale-110 transition-transform">
+              {icon}
+            </div>
+            <CardTitle className="text-lg">{title}</CardTitle>
+          </div>
+          <Badge className={statusColors[status]}>
+            {status}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground mb-4">{description}</p>
+        {actions && (
+          <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {actions}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+### Smart Form Components
+```tsx
+// ✅ Formulaire intelligent avec validation
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+
+export function SmartContactForm() {
+  const form = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      email: "",
+      company: "",
+      message: ""
+    }
+  })
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email professionnel</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="vous@entreprise.com"
+                  type="email"
+                  className="focus:ring-2 focus:ring-primary/20"
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <Button 
+          type="submit" 
+          className="w-full"
+          loading={form.formState.isSubmitting}
+        >
+          🚀 Démarrer l'essai gratuit
+        </Button>
+      </form>
+    </Form>
+  )
+}
+```
+
+## ⚡ Performance et Optimisations
+
+### Lazy Loading des Composants Lourds
+```tsx
+// ✅ Import paresseux pour composants complexes
+const DataTable = lazy(() => import("@/components/ui/data-table"))
+const Chart = lazy(() => import("@/components/charts/chart"))
+
+export function Dashboard() {
+  return (
+    <div>
+      <Suspense fallback={<TableSkeleton />}>
+        <DataTable data={data} />
+      </Suspense>
+      
+      <Suspense fallback={<ChartSkeleton />}>
+        <Chart data={chartData} />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+### Composants Skeleton Cohérents
+```tsx
+// ✅ Skeletons qui matchent la structure finale
+export function FeatureCardSkeleton() {
+  return (
+    <Card className="p-6">
+      <div className="flex items-center space-x-3 mb-4">
+        <Skeleton className="h-8 w-8 rounded-full" />
+        <Skeleton className="h-6 w-32" />
+      </div>
+      <Skeleton className="h-4 w-full mb-2" />
+      <Skeleton className="h-4 w-2/3" />
+    </Card>
+  )
+}
+```
+
+## 🎭 States et Feedback Utilisateur
+
+### États de Loading Contextualisés
+```tsx
+// ✅ Loading states spécifiques au contexte
+<Button loading={isCreatingTicket}>
+  {isCreatingTicket ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Création en cours...
+    </>
+  ) : (
+    <>
+      <Plus className="mr-2 h-4 w-4" />
+      Créer un ticket
+    </>
+  )}
+</Button>
+```
+
+### Feedback Success Immédiat
+```tsx
+// ✅ Confirmation visuelle + sonore (optionnel)
+const handleSuccess = () => {
+  toast({
+    title: "✅ Ticket créé avec succès",
+    description: "Votre locataire a été notifié automatiquement",
+    duration: 4000,
+  })
+  
+  // Animation de succès sur l'élément
+  setShowSuccess(true)
+  setTimeout(() => setShowSuccess(false), 2000)
+}
+```
+
+## 🔄 Réutilisabilité et Maintenance
+
+### Props Interface Cohérentes
+```tsx
+// ✅ Interface standardisée pour tous les composants
+interface BaseComponentProps {
+  className?: string
+  loading?: boolean
+  disabled?: boolean
+  size?: "sm" | "md" | "lg"
+  variant?: "default" | "secondary" | "destructive"
+  children?: React.ReactNode
+}
+
+// Extension pour composants spécialisés
+interface TicketCardProps extends BaseComponentProps {
+  ticket: Ticket
+  onStatusChange?: (status: TicketStatus) => void
+  showActions?: boolean
+}
+```
+
+### Hooks Partagés
+```tsx
+// ✅ Logique réutilisable dans des hooks personnalisés
+export function useOptimisticUpdate<T>() {
+  const [optimisticState, setOptimisticState] = useState<T>()
+  const [isLoading, setIsLoading] = useState(false)
+  
+  const updateOptimistically = useCallback(async (
+    newState: T, 
+    asyncAction: () => Promise<T>
+  ) => {
+    setOptimisticState(newState) // Mise à jour immédiate
+    setIsLoading(true)
+    
+    try {
+      const result = await asyncAction()
+      setOptimisticState(result) // Confirmation serveur
+    } catch (error) {
+      setOptimisticState(undefined) // Rollback en cas d'erreur
+      toast.error("Une erreur s'est produite")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+  
+  return { optimisticState, isLoading, updateOptimistically }
+}
+```

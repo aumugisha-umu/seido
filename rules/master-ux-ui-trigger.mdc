@@ -1,0 +1,106 @@
+---
+alwaysApply: false
+---
+# 🎯 Master UX/UI Trigger - Détection des Demandes Design
+
+## 🔍 Détection Automatique des Demandes UX/UI
+
+si l'utilisateur débute le prompt par ** , ne pas appliquer les cursor rules et arreter la lecture du fichier ici.
+
+Ce fichier master analyse chaque demande pour déterminer si elle concerne l'UX/UI.
+**UNIQUEMENT** dans ces cas, référencer les règles UX/UI spécialisées.
+
+### 🎨 Mots-clés Déclencheurs UX/UI
+
+#### Design & Interface
+- **Composants** : "composant", "component", "bouton", "button", "card", "modal"
+- **Layout** : "layout", "mise en page", "grille", "grid", "responsive", "mobile"
+- **Couleurs** : "couleur", "color", "palette", "thème", "theme", "style"
+- **Typographie** : "police", "font", "texte", "typography", "titre", "heading"
+
+#### Expérience Utilisateur
+- **Navigation** : "navigation", "menu", "breadcrumb", "sidebar", "navbar"
+- **Interactions** : "clic", "click", "hover", "animation", "transition", "feedback"
+- **Formulaires** : "formulaire", "form", "input", "validation", "champ"
+- **États** : "loading", "erreur", "success", "état", "state"
+
+#### Actions UX Spécifiques
+- **Optimisation** : "optimise", "améliore", "réduis les clics", "simplifie"
+- **Interface** : "interface", "UI", "UX", "design", "ergonomie", "utilisabilité"
+- **Modernisation** : "moderne", "tendance", "2024", "2025", "rafraîchir"
+- **Accessibilité** : "accessibilité", "accessibility", "a11y", "contraste"
+
+### 📝 Copywriting & Communication
+- **Messages** : "copywriting", "copy", "message", "texte", "contenu"
+- **CTA** : "call-to-action", "CTA", "bouton d'action", "appel à l'action"
+- **Ton** : "ton", "voix", "communication", "wording", "formulation"
+- **Conversion** : "conversion", "engagement", "persuasion", "vente"
+
+### 🚀 Sections Spécifiques SaaS App
+- **Dashboard** : "dashboard", "tableau de bord", "overview", "analytics", "métriques"
+- **Gestion** : "gestion", "administration", "paramètres", "configuration"
+- **Workflows** : "processus", "workflow", "automatisation", "pipeline"
+- **Données** : "rapport", "export", "sync", "intégration", "notification"
+
+## ⚡ Instructions de Déclenchement
+
+### SI demande contient des mots-clés UX/UI, ou si elle implique la modification visuelle d'un composant, ALORS :
+
+1. **🔍 Recherche obligatoire** des meilleures pratiques SaaS app
+2. **📋 Appliquer le workflow complet** défini dans les règles UX/UI
+3. **🎨 Utiliser le thème clean-slate** avec composants shadcn
+4. **📝 Optimiser l'UX writing** pour applications SaaS
+5. **✅ Valider selon les critères** de productivité et accessibilité
+
+### Références aux Règles UX/UI Spécialisées :
+- [ux-ui-saas-best-practices.mdc](mdc:.cursor/rules/ux-ui-saas-best-practices.mdc)
+- [ux-optimization-interactions.mdc](mdc:.cursor/rules/ux-optimization-interactions.mdc) 
+- [ui-components-modern.mdc](mdc:.cursor/rules/ui-components-modern.mdc)
+- [copywriting-communication.mdc](mdc:.cursor/rules/copywriting-communication.mdc)
+- [shadcn-components-optimization.mdc](mdc:.cursor/rules/shadcn-components-optimization.mdc)
+- [ux-workflow-process.mdc](mdc:.cursor/rules/ux-workflow-process.mdc)
+
+## ❌ Exemples de Demandes NON-UX/UI
+
+Ces demandes ne doivent PAS déclencher les règles UX/UI :
+- "Ajoute une fonction de calcul"
+- "Corrige le bug de connexion à l'API"
+- "Installe une nouvelle dépendance"
+- "Explique comment fonctionne React"
+- "Debug l'erreur TypeScript"
+- "Optimise les performances serveur"
+
+## ✅ Exemples de Demandes UX/UI
+
+Ces demandes DOIVENT déclencher les règles UX/UI :
+- "Améliore le dashboard gestionnaire"
+- "Optimise le workflow d'intervention"
+- "Rends la navigation plus intuitive" 
+- "Modernise les composants avec clean-slate"
+- "Améliore l'UX writing des notifications"
+- "Ajoute des micro-interactions dashboard"
+- "Optimise l'interface mobile"
+- "Améliore l'accessibilité des formulaires"
+
+## 🤖 Instructions pour l'Agent
+
+### Workflow de Décision :
+1. **Analyser la demande** : Contient-elle des mots-clés UX/UI ?
+2. **Si OUI** : Appliquer TOUTES les règles UX/UI spécialisées
+3. **Si NON** : Procéder normalement sans les règles UX/UI
+4. **Si DOUTE** : Demander clarification à l'utilisateur
+
+### Messages de Confirmation :
+```
+🎨 Demande UX/UI détectée ! J'applique le workflow complet :
+- 🔍 Recherche des meilleures pratiques SaaS app
+- ⚡ Optimisation des interactions dashboard
+- 🎨 Design clean-slate avec thème moderne
+- 📝 UX writing orienté productivité utilisateur
+```
+
+### En Cas de Non-Détection :
+```
+Cette demande ne semble pas concerner l'UX/UI. 
+Si vous souhaitez une optimisation design, précisez-le !
+```

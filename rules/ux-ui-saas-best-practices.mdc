@@ -1,0 +1,39 @@
+---
+alwaysApply: false
+description: Guide des meilleures pratiques UX/UI pour applications SaaS modernes - À utiliser uniquement pour les demandes UX/UI
+---
+
+# Meilleures Pratiques UX/UI SaaS
+
+## Recherche et Benchmarking SaaS App Obligatoire
+Avant toute modification UX/UI, **TOUJOURS** :
+1. 🔍 **Rechercher les meilleures pratiques actuelles** pour dashboards SaaS B2B
+2. 📊 **Analyser les leaders du marché** (Notion, Linear, Monday.com, Airtable, Asana, etc.)
+3. 🎯 **Identifier les patterns UX reconnus** pour workflows d'applications métier
+
+## Principes Fondamentaux SaaS
+
+### 🚀 Performance et Réactivité App
+- **Temps de chargement** : < 1 seconde pour les interactions courantes
+- **Feedback immédiat** : States loading avec contexte ("Création intervention...")
+- **Optimistic UI** : Mise à jour immédiate avec rollback intelligent
+- **Skeleton loading** : Composants qui matchent la structure finale
+
+### 🎨 Design System Clean-Slate
+- **Espacement** : Variables spacing système (var(--spacing))
+- **Typographie** : Inter (interface), Merriweather (titres), JetBrains Mono (code)
+- **Couleurs** : Variables oklch() du thème clean-slate
+- **Ombres** : Système d'ombres intégré (--shadow-sm, --shadow-md, --shadow-lg)
+- **Consistance** : Design tokens cohérents dans toute l'application
+
+### 📱 Mobile-First & Responsive
+- **Approche mobile-first** obligatoire
+- **Points de rupture** : xs(320px), sm(640px), md(768px), lg(1024px), xl(1280px)
+- **Touch targets** : Minimum 44px x 44px
+- **Navigation** : Adaptée aux gestes tactiles
+
+### ♿ Accessibilité
+- **Contraste** : Ratio minimum 4.5:1 pour le texte
+- **Navigation clavier** : Tab, Enter, Espace, flèches
+- **Screen readers** : Alt text, labels, descriptions
+- **Focus visible** : Indicateurs clairs pour la navigation clavier

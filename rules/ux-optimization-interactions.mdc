@@ -1,0 +1,142 @@
+---
+alwaysApply: false
+description: Optimisation UX - Réduction des clics et amélioration des interactions - À utiliser uniquement pour les demandes UX/UI
+---
+
+# Optimisation UX - Interactions Intelligentes
+
+## 🎯 Principe de Base : Moins de Clics = Meilleure UX
+
+### Analyse Systématique Avant Implémentation
+Pour chaque élément d'interface, **SE DEMANDER** :
+
+1. **❓ Est-ce vraiment nécessaire ?**
+   - Cet élément apporte-t-il une valeur réelle à l'utilisateur ?
+   - Peut-on fusionner avec un autre élément ?
+
+2. **🔄 Peut-on l'automatiser ?**
+   - L'action peut-elle se déclencher automatiquement ?
+   - Y a-t-il un comportement par défaut intelligent ?
+
+3. **👀 Peut-on l'afficher directement ?**
+   - Au lieu de "cliquer pour voir", montrer directement
+   - Utiliser des previews, tooltips, inline expansion
+
+4. **⚡ Peut-on réduire les étapes ?**
+   - Combiner plusieurs actions en une
+   - Utiliser des shortcuts et raccourcis
+
+## 🚀 Patterns d'Optimisation UX Modernes
+
+### Auto-révélation Progressive Dashboard
+```tsx
+// ❌ Mauvais : Clic obligatoire pour voir le statut intervention
+<Button>Voir détails intervention</Button>
+
+// ✅ Bon : Affichage direct avec design system clean-slate
+<Card className="group hover:bg-muted transition-colors">
+  <CardHeader>
+    <h3 className="text-foreground">Intervention #{id}</h3>
+    <div className="text-sm text-muted-foreground mt-2">
+      <Badge variant="outline">{status}</Badge>
+      <span className="ml-2">{assignedTo}</span>
+      {/* Détails métier toujours visibles */}
+    </div>
+  </CardHeader>
+</Card>
+```
+
+### Actions Contextuelles Dashboard
+```tsx
+// ✅ Actions métier qui apparaissent au hover
+<div className="group relative">
+  <InterventionCard />
+  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+    <Button size="sm" variant="ghost">Assigner</Button>
+    <Button size="sm" variant="ghost" className="text-primary">Programmer</Button>
+    <Button size="sm" variant="ghost" className="text-destructive">Annuler</Button>
+  </div>
+</div>
+```
+
+### Inline Editing
+```tsx
+// ✅ Édition directe sans modal/page séparée
+<div 
+  contentEditable
+  className="hover:bg-muted/50 rounded px-2 py-1 cursor-text"
+  onBlur={handleSave}
+>
+  {content}
+</div>
+```
+
+### Smart Defaults & Pré-remplissage
+```tsx
+// ✅ Formulaires intelligents
+<Input 
+  defaultValue={suggestedValue}
+  placeholder="Suggéré: {suggestedValue}"
+/>
+```
+
+## 📊 Anti-Patterns à Éviter
+
+### ❌ Surcharge Cognitive
+- Trop d'options visibles simultanément
+- Boutons sans hiérarchie claire
+- Informations non organisées
+
+### ❌ Friction Inutile
+- Confirmations pour actions non-destructives  
+- Multi-étapes pour actions simples
+- Rechargements de page évitables
+
+### ❌ Manque de Feedback
+- Actions sans confirmation visuelle
+- États de chargement absents  
+- Erreurs sans explication claire
+
+## 🎨 Exemples Concrets d'Optimisation Minimaliste
+
+### Gestion d'Interventions
+```tsx
+// ✅ Statuts avec design system + actions contextuelles
+<InterventionCard className="border border-border hover:bg-muted">
+  <StatusBadge variant="outline" className="text-muted-foreground">
+    {status}
+  </StatusBadge>
+  <QuickActions className="opacity-0 group-hover:opacity-100">
+    <Button size="sm" variant="ghost">Programmer</Button>
+    <Button size="sm" variant="ghost" className="text-primary">Terminer</Button>
+  </QuickActions>
+</InterventionCard>
+```
+
+### Upload de Documents Intervention
+```tsx
+// ✅ Interface clean-slate + feedback contextuel
+<DropZone className="border-2 border-dashed border-border hover:border-primary">
+  <FilePreview className="text-muted-foreground" />
+  <UploadProgress className="h-2 bg-muted rounded" />
+  <p className="text-sm text-muted-foreground">
+    Photos avant/après, devis, factures...
+  </p>
+</DropZone>
+```
+
+### Navigation Dashboard
+```tsx
+// ✅ Navigation avec design system
+<Breadcrumb className="text-muted-foreground">
+  <BreadcrumbItem className="hover:text-primary" />
+  <BreadcrumbSeparator className="text-muted-foreground" />
+</Breadcrumb>
+
+// Sidebar avec thème
+<Sidebar className="bg-sidebar border-r border-sidebar-border">
+  <SidebarContent className="text-sidebar-foreground">
+    {/* Navigation principale */}
+  </SidebarContent>
+</Sidebar>
+```

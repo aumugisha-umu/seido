@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Home, Users, Search, Filter, MapPin, Eye, ChevronDown, ChevronRight, User } from "lucide-react"
+import { useManagerStats } from "@/hooks/use-manager-stats"
 
 interface PropertySelectorProps {
   mode: "view" | "select"
@@ -33,10 +35,10 @@ export default function PropertySelector({
 }: PropertySelectorProps) {
   const router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<number[]>([])
+  const { data, loading, error } = useManagerStats()
 
-  const buildings: any[] = []
-
-  const individualLots: any[] = []
+  const buildings = data?.buildings || []
+  const individualLots: any[] = [] // Pour l'instant, on garde les lots individuels vides
 
   const toggleBuildingExpansion = (buildingId: number) => {
     setExpandedBuildings((prev) =>
@@ -45,17 +47,11 @@ export default function PropertySelector({
   }
 
   const getTotalLots = () => {
-    const buildingLots = buildings.reduce((sum, building) => sum + building.lots.length, 0)
-    return buildingLots + individualLots.length
+    return data?.stats.lotsCount || 0
   }
 
   const getOccupiedLots = () => {
-    const buildingOccupied = buildings.reduce(
-      (sum, building) => sum + building.lots.filter((lot) => lot.status === "occupied").length,
-      0,
-    )
-    const individualOccupied = individualLots.filter((lot) => lot.status === "occupied").length
-    return buildingOccupied + individualOccupied
+    return data?.stats.occupiedLotsCount || 0
   }
 
   const getOverallOccupancyRate = () => {
@@ -75,15 +71,27 @@ export default function PropertySelector({
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
               <Building2 className="h-4 w-4 text-blue-500" />
-              <span className="text-sm font-medium">{buildings.length} Bâtiments</span>
+              {loading ? (
+                <Skeleton className="h-4 w-20" />
+              ) : (
+                <span className="text-sm font-medium">{buildings.length} Bâtiments</span>
+              )}
             </div>
             <div className="flex items-center space-x-2">
               <Home className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-medium">{getTotalLots()} Lots</span>
+              {loading ? (
+                <Skeleton className="h-4 w-16" />
+              ) : (
+                <span className="text-sm font-medium">{getTotalLots()} Lots</span>
+              )}
             </div>
             <div className="flex items-center space-x-2">
               <Users className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium">{getOverallOccupancyRate()}% Occupés</span>
+              {loading ? (
+                <Skeleton className="h-4 w-20" />
+              ) : (
+                <span className="text-sm font-medium">{getOverallOccupancyRate()}% Occupés</span>
+              )}
             </div>
           </div>
           {showActions && mode === "view" && (
@@ -91,7 +99,7 @@ export default function PropertySelector({
               <Button 
                 size="sm" 
                 className="flex items-center space-x-2"
-                onClick={() => router.push('/dashboard/gestionnaire/nouveau-batiment')}
+                onClick={() => router.push('/gestionnaire/nouveau-batiment')}
               >
                 <Building2 className="h-4 w-4" />
                 <span>Nouveau bâtiment</span>
@@ -100,7 +108,7 @@ export default function PropertySelector({
                 size="sm" 
                 variant="outline" 
                 className="flex items-center space-x-2 bg-transparent"
-                onClick={() => router.push('/dashboard/gestionnaire/nouveau-lot')}
+                onClick={() => router.push('/gestionnaire/nouveau-lot')}
               >
                 <Home className="h-4 w-4" />
                 <span>Nouveau lot</span>
@@ -170,12 +178,34 @@ export default function PropertySelector({
 
           <TabsContent value="buildings">
             <div className="space-y-4">
-              {buildings.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="border rounded-lg">
+                      <div className="flex items-center justify-between p-4 bg-gray-50">
+                        <div className="flex items-center space-x-4">
+                          <Skeleton className="h-8 w-8 rounded" />
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg" />
+                          <div>
+                            <Skeleton className="h-4 w-32 mb-2" />
+                            <Skeleton className="h-3 w-48" />
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-6">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-8 w-16" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : buildings.length === 0 ? (
                 <div className="text-center py-12">
                   <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun bâtiment</h3>
                   <p className="text-gray-600 mb-4">Commencez par ajouter votre premier bâtiment</p>
-                  <Button onClick={() => router.push('/dashboard/gestionnaire/nouveau-batiment')}>
+                  <Button onClick={() => router.push('/gestionnaire/nouveau-batiment')}>
                     <Building2 className="h-4 w-4 mr-2" />
                     Ajouter un bâtiment
                   </Button>
@@ -349,7 +379,7 @@ export default function PropertySelector({
                   <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot individuel</h3>
                   <p className="text-gray-600 mb-4">Commencez par ajouter votre premier lot</p>
-                  <Button onClick={() => router.push('/dashboard/gestionnaire/nouveau-lot')}>
+                  <Button onClick={() => router.push('/gestionnaire/nouveau-lot')}>
                     <Home className="h-4 w-4 mr-2" />
                     Ajouter un lot
                   </Button>

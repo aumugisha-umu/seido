@@ -11,30 +11,33 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Building2, Eye, EyeOff, Check, CheckCircle, Mail } from "lucide-react"
+import { Building2, Eye, EyeOff, Check, CheckCircle, Mail, User, Phone } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { userService, teamService, contactService } from "@/lib/database-service"
+import { supabase } from "@/lib/supabase"
 
 export default function SignupPage() {
   const router = useRouter()
-  const { signUp, user, loading } = useAuth()
+  const { signUp, signIn, user, loading } = useAuth()
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
+    phone: "",
     acceptTerms: false,
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  
 
   // Rediriger si déjà connecté
   useEffect(() => {
     if (!loading && user) {
-      router.push(`/dashboard/${user.role}`)
+      router.push(`/${user.role}/dashboard`)
     }
   }, [user, loading, router])
 
@@ -44,6 +47,258 @@ export default function SignupPage() {
     { text: "Une minuscule", met: /[a-z]/.test(formData.password) },
     { text: "Un chiffre", met: /\d/.test(formData.password) },
   ]
+
+  // Fonction pour générer un email de test unique
+  const generateDemoEmail = () => {
+    const timestamp = Date.now()
+    const randomNum = Math.floor(Math.random() * 1000)
+    return `arthur+${timestamp}${randomNum}@seido.pm`
+  }
+
+  // Fonction pour obtenir le prochain numéro email disponible depuis l'API
+  const getNextEmailNumber = async (): Promise<number> => {
+    try {
+      const response = await fetch('/api/demo-email-counter')
+      if (!response.ok) {
+        throw new Error('Failed to fetch email counter')
+      }
+      const data = await response.json()
+      console.log("📧 Next email number from server:", data.nextEmailNumber)
+      return data.nextEmailNumber
+    } catch (error) {
+      console.warn("Impossible de lire le compteur depuis l'API:", error)
+      return Date.now() % 10000 // Fallback avec timestamp
+    }
+  }
+
+  // Fonction pour sauvegarder le dernier numéro utilisé via l'API
+  const saveLastEmailNumber = async (number: number): Promise<void> => {
+    try {
+      const response = await fetch('/api/demo-email-counter', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ lastEmailNumber: number })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save email counter')
+      }
+      
+      const data = await response.json()
+      console.log("📝 Saved last email number to server:", number)
+      console.log("🎯 Total demo environments:", data.totalEnvironments)
+    } catch (error) {
+      console.warn("Impossible de sauvegarder le compteur via l'API:", error)
+    }
+  }
+
+  // Fonction pour générer un email avec un numéro incrémental
+  const generateIncrementalEmail = (number: number) => {
+    return `arthur+${number}@seido.pm`
+  }
+
+  // Générer un nom et prénom aléatoire réaliste
+  const generateRandomName = () => {
+    const prenoms = [
+      "Alexandre", "Antoine", "Arthur", "Baptiste", "Benjamin", "Charles", "Clément", "Damien", "David", "Étienne",
+      "François", "Gabriel", "Guillaume", "Hugo", "Jean", "Julien", "Lucas", "Maxime", "Nicolas", "Olivier",
+      "Pierre", "Quentin", "Raphaël", "Sébastien", "Thomas", "Vincent", "Yann", "Adrien", "Aurélien", "Mathieu",
+      "Amélie", "Anne", "Camille", "Charlotte", "Claire", "Élise", "Emma", "Julie", "Laura", "Léa",
+      "Louise", "Manon", "Marie", "Mathilde", "Pauline", "Sarah", "Sophie", "Valérie", "Virginie", "Zoé"
+    ]
+    
+    const noms = [
+      "Martin", "Bernard", "Thomas", "Petit", "Robert", "Richard", "Durand", "Dubois", "Moreau", "Laurent",
+      "Simon", "Michel", "Lefebvre", "Leroy", "Roux", "David", "Bertrand", "Morel", "Fournier", "Girard",
+      "Bonnet", "Dupont", "Lambert", "Fontaine", "Rousseau", "Vincent", "Muller", "Lefevre", "Faure", "Andre",
+      "Mercier", "Blanc", "Guerin", "Boyer", "Garnier", "Chevalier", "Francois", "Legrand", "Gauthier", "Garcia",
+      "Perrin", "Robin", "Clement", "Morin", "Nicolas", "Henry", "Roussel", "Matthieu", "Gautier", "Masson"
+    ]
+
+    const randomPrenom = prenoms[Math.floor(Math.random() * prenoms.length)]
+    const randomNom = noms[Math.floor(Math.random() * noms.length)]
+    
+    return {
+      firstName: randomPrenom,
+      lastName: randomNom,
+      fullName: `${randomPrenom} ${randomNom}`
+    }
+  }
+
+  // Créer un utilisateur demo avec équipe complète
+  const handleDemoSignup = async () => {
+    setError("")
+    setIsLoading(true)
+
+    try {
+      const demoPassword = "Wxcvbn123"
+      const mainUserName = generateRandomName()
+      let currentEmailNumber = await getNextEmailNumber()
+      
+      console.log("🧪 Creating main demo user:", mainUserName.fullName)
+      console.log("📧 Starting email numbers from:", currentEmailNumber)
+      
+      // 1. Créer l'utilisateur gestionnaire principal
+      const { user: mainAuthUser, error: mainAuthError } = await signUp({
+        email: generateDemoEmail(),
+        password: demoPassword,
+        name: mainUserName.fullName,
+        phone: undefined,
+      })
+
+      if (mainAuthError || !mainAuthUser) {
+        setError("Erreur lors de la création du compte demo principal: " + (mainAuthError?.message || "Erreur inconnue"))
+        return
+      }
+
+      console.log("✅ Main user created:", mainAuthUser.id)
+
+      // 2. Récupérer l'équipe du gestionnaire principal
+      const userTeams = await teamService.getUserTeams(mainAuthUser.id)
+      if (userTeams.length === 0) {
+        setError("Aucune équipe trouvée pour l'utilisateur principal")
+        return
+      }
+      
+      const mainTeam = userTeams[0]
+      console.log("🏢 Main team found:", mainTeam.id, "for user:", mainAuthUser.id)
+      console.log("📋 Team details:", { id: mainTeam.id, name: mainTeam.name })
+
+      // 3. Créer 3 gestionnaires additionnels et les ajouter à l'équipe
+      console.log("👥 Creating 3 additional managers...")
+      
+      const additionalManagers = []
+      for (let i = 1; i <= 3; i++) {
+        try {
+          const managerName = generateRandomName()
+          const managerEmail = generateIncrementalEmail(currentEmailNumber)
+          
+          console.log(`📝 Creating manager ${i}: ${managerName.fullName} (${managerEmail})`)
+          
+          // Créer un UUID fictif pour le gestionnaire demo
+          const managerId = crypto.randomUUID()
+          
+          // Créer le profil utilisateur directement (sans auth Supabase)
+          const managerProfile = await userService.create({
+            id: managerId,
+            email: managerEmail,
+            name: managerName.fullName,
+            role: 'gestionnaire',
+            phone: `06${Math.floor(Math.random() * 10000000).toString().padStart(8, '0')}`
+          })
+
+          // Ajouter à l'équipe
+          await teamService.addMember(mainTeam.id, managerId, 'member')
+
+          additionalManagers.push(managerProfile)
+          console.log(`✅ Manager ${i} created and added to team`)
+          
+          // Incrémenter le numéro d'email pour le prochain
+          currentEmailNumber++
+          
+        } catch (error) {
+          console.error(`❌ Error creating manager ${i}:`, error)
+          // En cas d'erreur, on continue mais on incrémente quand même pour éviter les conflits
+          currentEmailNumber++
+        }
+      }
+
+      // 4. Créer 3 locataires comme contacts
+      console.log("🏠 Creating 3 tenant contacts...")
+      
+      const tenantContacts = []
+      for (let i = 1; i <= 3; i++) {
+        try {
+          const tenantName = generateRandomName()
+          const tenantEmail = generateIncrementalEmail(currentEmailNumber)
+          
+          console.log(`📝 Creating tenant contact ${i}: ${tenantName.fullName} (${tenantEmail}) for team: ${mainTeam.id}`)
+          
+          const tenantContact = await contactService.create({
+            name: tenantName.fullName,
+            email: tenantEmail,
+            phone: `06${Math.floor(Math.random() * 10000000).toString().padStart(8, '0')}`,
+            company: 'Locataire',
+            speciality: 'autre',
+            notes: 'Contact créé automatiquement - Locataire demo',
+            team_id: mainTeam.id,
+            is_active: true
+          })
+
+          tenantContacts.push(tenantContact)
+          console.log(`✅ Tenant contact ${i} created with team_id:`, tenantContact.team_id)
+          
+          // Incrémenter le numéro d'email pour le prochain
+          currentEmailNumber++
+          
+        } catch (error) {
+          console.error(`❌ Error creating tenant contact ${i}:`, error)
+          // En cas d'erreur, on continue mais on incrémente quand même pour éviter les conflits
+          currentEmailNumber++
+        }
+      }
+
+      // 5. Créer 3 prestataires comme contacts
+      console.log("🔧 Creating 3 provider contacts...")
+      
+      const specialities = ['plomberie', 'electricite', 'chauffage']
+      const providerContacts = []
+      
+      for (let i = 1; i <= 3; i++) {
+        try {
+          const providerName = generateRandomName()
+          const providerEmail = generateIncrementalEmail(currentEmailNumber)
+          const speciality = specialities[i - 1]
+          
+          console.log(`📝 Creating provider contact ${i}: ${providerName.fullName} (${providerEmail}) - ${speciality} for team: ${mainTeam.id}`)
+          
+          const providerContact = await contactService.create({
+            name: providerName.fullName,
+            email: providerEmail,
+            phone: `06${Math.floor(Math.random() * 10000000).toString().padStart(8, '0')}`,
+            company: `${providerName.lastName} ${speciality.charAt(0).toUpperCase() + speciality.slice(1)}`,
+            speciality: speciality,
+            notes: `Contact créé automatiquement - Prestataire ${speciality} demo`,
+            team_id: mainTeam.id,
+            is_active: true
+          })
+
+          providerContacts.push(providerContact)
+          console.log(`✅ Provider contact ${i} created with team_id:`, providerContact.team_id)
+          
+          // Incrémenter le numéro d'email pour le prochain
+          currentEmailNumber++
+          
+        } catch (error) {
+          console.error(`❌ Error creating provider contact ${i}:`, error)
+          // En cas d'erreur, on continue mais on incrémente quand même pour éviter les conflits
+          currentEmailNumber++
+        }
+      }
+
+      console.log("🎉 Demo environment created successfully!")
+      console.log(`✅ Main user: ${mainAuthUser.name}`)
+      console.log(`✅ Additional managers: ${additionalManagers.length}`)
+      console.log(`✅ Tenant contacts: ${tenantContacts.length}`)
+      console.log(`✅ Provider contacts: ${providerContacts.length}`)
+      console.log(`🏢 All contacts linked to team: ${mainTeam.id} (${mainTeam.name})`)
+
+      // Sauvegarder le dernier numéro d'email utilisé
+      await saveLastEmailNumber(currentEmailNumber - 1)
+      console.log(`📧 Last email number saved: ${currentEmailNumber - 1}`)
+
+      // Redirection vers le dashboard du gestionnaire principal
+      router.push(`/${mainAuthUser.role}/dashboard`)
+      
+    } catch (error) {
+      console.error("❌ Erreur d'inscription demo:", error)
+      setError("Une erreur est survenue lors de la création de l'environnement demo")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,7 +343,7 @@ export default function SignupPage() {
         email: formData.email.trim(),
         password: formData.password,
         name: fullName,
-        role: "gestionnaire",
+        phone: formData.phone.trim() || undefined,
       })
 
       if (authError) {
@@ -98,9 +353,11 @@ export default function SignupPage() {
           setError("Erreur lors de la création du compte: " + authError.message)
         }
       } else if (authUser) {
-        console.log("✅ Compte créé avec succès", authUser)
-        setError("") // Clear any previous errors
-        setSuccess(true) // Afficher le message de succès
+        // Signup réussi avec utilisateur connecté - redirection automatique
+        console.log("✅ Compte créé avec succès, redirection vers dashboard")
+        router.push(`/${authUser.role}/dashboard`)
+      } else {
+        setError("Erreur inattendue lors de la création du compte")
       }
     } catch (error) {
       console.error("Erreur d'inscription:", error)
@@ -109,6 +366,9 @@ export default function SignupPage() {
       setIsLoading(false)
     }
   }
+
+
+
 
   const updateFormData = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -129,47 +389,11 @@ export default function SignupPage() {
                 Rejoindre SEIDO
               </CardTitle>
               <CardDescription className="text-muted-foreground text-base mt-2">
-                Créez votre compte pour commencer
+                Créez votre compte et accédez immédiatement à votre espace
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            {success ? (
-              <div className="text-center space-y-6">
-                <div className="flex justify-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-foreground">
-                    Compte créé avec succès !
-                  </h3>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-blue-800">
-                      <Mail className="w-5 h-5" />
-                      <span className="font-medium">Vérifiez votre email</span>
-                    </div>
-                    <p className="text-sm text-blue-700">
-                      Un email de confirmation a été envoyé à <strong>{formData.email}</strong>. 
-                      Cliquez sur le lien de confirmation avant de vous connecter.
-                    </p>
-                    <p className="text-xs text-blue-600">
-                      N'oubliez pas de vérifier vos spams si vous ne trouvez pas l'email.
-                    </p>
-                  </div>
-                  <Link
-                    href="/auth/login"
-                    className="inline-block w-full"
-                  >
-                    <Button className="w-full bg-primary hover:bg-primary/90">
-                      Aller à la connexion
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <>
                 <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
                   <Alert variant="destructive">
@@ -300,6 +524,21 @@ export default function SignupPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-foreground font-medium">
+                  <Phone className="w-4 h-4 inline mr-1" />
+                  Téléphone (optionnel)
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="Votre numéro de téléphone"
+                  value={formData.phone}
+                  onChange={(e) => updateFormData("phone", e.target.value)}
+                  className="bg-input border-border h-11 transition-colors focus:border-primary"
+                />
+              </div>
+
               {/* Terms and Conditions Section */}
               <div className="bg-muted/30 border border-muted rounded-lg p-4">
                 <div className="flex items-start space-x-3">
@@ -340,9 +579,42 @@ export default function SignupPage() {
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all duration-200"
                 disabled={isLoading || !formData.acceptTerms}
               >
-                {isLoading ? "Création du compte..." : "Créer mon compte"}
+                {isLoading ? "Création du compte..." : "Créer mon compte et accéder"}
               </Button>
               </form>
+
+              {/* Demo User Button - Development only */}
+              {process.env.NODE_ENV === 'development' && (
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-muted/50" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">ou pour tester</span>
+                  </div>
+                </div>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDemoSignup}
+                  className="w-full mt-4 border-2 border-dashed border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 hover:text-amber-800 transition-all duration-200"
+                  disabled={isLoading}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  {isLoading ? "Création de l'environnement demo..." : "Créer environnement demo complet"}
+                </Button>
+                
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Crée automatiquement : 1 gestionnaire principal + 3 gestionnaires équipe + 3 locataires + 3 prestataires
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 text-center">
+                  Emails auto-générés (arthur+X@seido.pm) • Mot de passe : Wxcvbn123 • Tracking serveur
+                </p>
+
+              </div>
+              )}
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-muted-foreground">
@@ -355,8 +627,6 @@ export default function SignupPage() {
                   </Link>
                 </p>
               </div>
-              </>
-            )}
           </CardContent>
         </Card>
       </div>

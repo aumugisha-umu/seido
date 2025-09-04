@@ -1,16 +1,41 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Wrench, Calendar, MapPin, Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
+import { TeamCheckModal } from "@/components/team-check-modal"
 
 export default function PrestataireDashboard() {
   const { user, loading } = useAuth()
+  const [teamCheckComplete, setTeamCheckComplete] = useState(false)
+  const router = useRouter()
 
-  if (loading) return <div>Chargement...</div>
-  if (!user) return <div>Utilisateur non connecté</div>
+  // Afficher le loading pendant l'auth
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Si pas d'utilisateur, rediriger
+  if (!user) {
+    router.push('/auth/login')
+    return null
+  }
+
+  // Afficher la vérification d'équipe si pas encore complétée
+  if (!teamCheckComplete) {
+    return <TeamCheckModal onTeamResolved={() => setTeamCheckComplete(true)} />
+  }
 
   return (
     <div className="space-y-6">

@@ -29,22 +29,25 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
   }
 
   const handleProfile = () => {
-    router.push(`/dashboard/${role}/profile`)
+    router.push(`/${role}/profile`)
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center space-x-2 h-auto p-1 hover:bg-muted/50">
+        <Button 
+          variant="ghost" 
+          className="flex items-center space-x-3 h-auto px-3 py-2 border border-transparent hover:bg-gray-100 hover:border-gray-300 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
+        >
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <span className="text-primary-foreground font-medium text-sm">{userInitial}</span>
           </div>
-          <span className="text-foreground font-medium">{userName}</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <span className="text-gray-700 font-medium hidden sm:block">{userName}</span>
+          <ChevronDown className="h-4 w-4 text-gray-500" />
         </Button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 mt-2">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userName}</p>
@@ -70,8 +73,7 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
         
         <DropdownMenuItem 
           onClick={handleLogout} 
-          className="cursor-pointer text-destructive focus:text-destructive"
-          variant="destructive"
+          className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
         >
           <LogOut className="mr-2 h-4 w-4" />
           <span>Se déconnecter</span>

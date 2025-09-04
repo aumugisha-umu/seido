@@ -8,12 +8,14 @@ interface AuthContextType {
   user: AuthUser | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ user: AuthUser | null; error: AuthError | null }>
-  signUp: (data: { email: string; password: string; name: string; role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
+  signUp: (data: { email: string; password: string; name: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
+  completeProfile: (data: { firstName: string; lastName: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>
   updateProfile: (updates: Partial<AuthUser>) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   refreshUser: () => Promise<void>
   resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>
+  getCurrentAuthSession: () => Promise<{ authUser: any | null; error: AuthError | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -57,8 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result
   }
 
-  const signUp = async (data: { email: string; password: string; name: string; role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'; phone?: string }) => {
+  const signUp = async (data: { email: string; password: string; name: string; phone?: string }) => {
     const result = await authService.signUp(data)
+    if (result.user) {
+      setUser(result.user)
+    }
+    return result
+  }
+
+  const completeProfile = async (data: { firstName: string; lastName: string; phone?: string }) => {
+    const result = await authService.completeProfile(data)
     if (result.user) {
       setUser(result.user)
     }
@@ -90,16 +100,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await authService.resendConfirmation(email)
   }
 
+  const getCurrentAuthSession = async () => {
+    return await authService.getCurrentAuthSession()
+  }
+
   const value = {
     user,
     loading,
     signIn,
     signUp,
+    completeProfile,
     signOut,
     resetPassword,
     updateProfile,
     refreshUser,
     resendConfirmation,
+    getCurrentAuthSession,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

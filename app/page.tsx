@@ -76,7 +76,7 @@ export default function HomePage() {
                 <li>• Rapports et analytics</li>
                 <li>• Support technique</li>
               </ul>
-              <Link href="/dashboard/admin">
+              <Link href="/admin/dashboard">
                 <Button variant="outline" size="sm" className="w-full bg-transparent">
                   Voir la démo
                 </Button>
@@ -99,7 +99,7 @@ export default function HomePage() {
                 <li>• Gestion des locataires</li>
                 <li>• Rapports financiers</li>
               </ul>
-              <Link href="/dashboard/gestionnaire">
+              <Link href="/gestionnaire/dashboard">
                 <Button variant="outline" size="sm" className="w-full bg-transparent">
                   Voir la démo
                 </Button>
@@ -122,7 +122,7 @@ export default function HomePage() {
                 <li>• Planning optimisé</li>
                 <li>• Suivi des travaux</li>
               </ul>
-              <Link href="/dashboard/prestataire">
+              <Link href="/prestataire/dashboard">
                 <Button variant="outline" size="sm" className="w-full bg-transparent">
                   Voir la démo
                 </Button>
@@ -145,7 +145,7 @@ export default function HomePage() {
                 <li>• Communication directe</li>
                 <li>• Historique des actions</li>
               </ul>
-              <Link href="/dashboard/locataire">
+              <Link href="/locataire/dashboard">
                 <Button variant="outline" size="sm" className="w-full bg-transparent">
                   Voir la démo
                 </Button>

@@ -8,10 +8,37 @@ import { Progress } from "@/components/ui/progress"
 import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarChart3, UserPlus, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
+import { TeamCheckModal } from "@/components/team-check-modal"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function GestionnaireDashboard() {
+  const { user, loading } = useAuth()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
+  const [teamCheckComplete, setTeamCheckComplete] = useState(false)
   const router = useRouter()
+
+  // Afficher le loading pendant l'auth
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Si pas d'utilisateur, rediriger
+  if (!user) {
+    router.push('/auth/login')
+    return null
+  }
+
+  // Afficher la vérification d'équipe si pas encore complétée
+  if (!teamCheckComplete) {
+    return <TeamCheckModal onTeamResolved={() => setTeamCheckComplete(true)} />
+  }
 
   const handleContactSubmit = (contactData: any) => {
     console.log("[v0] Contact created:", contactData)
@@ -31,7 +58,7 @@ export default function GestionnaireDashboard() {
             size="sm"
             variant="outline"
             className="bg-background"
-            onClick={() => router.push("/dashboard/gestionnaire/nouveau-batiment")}
+            onClick={() => router.push("/gestionnaire/nouveau-batiment")}
           >
             <Building2 className="h-4 w-4 mr-2" />
             Nouveau bâtiment
@@ -40,7 +67,7 @@ export default function GestionnaireDashboard() {
             size="sm"
             variant="outline"
             className="bg-background"
-            onClick={() => router.push("/dashboard/gestionnaire/nouveau-lot")}
+            onClick={() => router.push("/gestionnaire/nouveau-lot")}
           >
             <Home className="h-4 w-4 mr-2" />
             Nouveau lot
@@ -149,7 +176,7 @@ export default function GestionnaireDashboard() {
               <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">Aucune intervention</h3>
               <p className="text-muted-foreground mb-4">Les interventions apparaîtront ici une fois créées</p>
-              <Button onClick={() => router.push("/dashboard/gestionnaire/nouvelle-intervention")}>
+              <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
                 <Plus className="h-4 w-4 mr-2" />
                 Créer une intervention
               </Button>

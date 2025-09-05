@@ -166,44 +166,9 @@ export default function SignupPage() {
       console.log("🏢 Main team found:", mainTeam.id, "for user:", mainAuthUser.id)
       console.log("📋 Team details:", { id: mainTeam.id, name: mainTeam.name })
 
-      // 3. Créer 3 gestionnaires additionnels et les ajouter à l'équipe
-      console.log("👥 Creating 3 additional managers...")
-      
-      const additionalManagers = []
-      for (let i = 1; i <= 3; i++) {
-        try {
-          const managerName = generateRandomName()
-          const managerEmail = generateIncrementalEmail(currentEmailNumber)
-          
-          console.log(`📝 Creating manager ${i}: ${managerName.fullName} (${managerEmail})`)
-          
-          // Créer un UUID fictif pour le gestionnaire demo
-          const managerId = crypto.randomUUID()
-          
-          // Créer le profil utilisateur directement (sans auth Supabase)
-          const managerProfile = await userService.create({
-            id: managerId,
-            email: managerEmail,
-            name: managerName.fullName,
-            role: 'gestionnaire',
-            phone: `06${Math.floor(Math.random() * 10000000).toString().padStart(8, '0')}`
-          })
-
-          // Ajouter à l'équipe
-          await teamService.addMember(mainTeam.id, managerId, 'member')
-
-          additionalManagers.push(managerProfile)
-          console.log(`✅ Manager ${i} created and added to team`)
-          
-          // Incrémenter le numéro d'email pour le prochain
-          currentEmailNumber++
-          
-        } catch (error) {
-          console.error(`❌ Error creating manager ${i}:`, error)
-          // En cas d'erreur, on continue mais on incrémente quand même pour éviter les conflits
-          currentEmailNumber++
-        }
-      }
+      // 3. ✅ CORRECTION: Ne créer QUE le gestionnaire principal (pas d'additionnels)
+      console.log("✅ Gestionnaire principal créé - pas de gestionnaires additionnels")
+      console.log("🔧 Cela évite les problèmes de synchronisation auth/database")
 
       // 4. Créer 3 locataires comme contacts
       console.log("🏠 Creating 3 tenant contacts...")
@@ -280,7 +245,7 @@ export default function SignupPage() {
 
       console.log("🎉 Demo environment created successfully!")
       console.log(`✅ Main user: ${mainAuthUser.name}`)
-      console.log(`✅ Additional managers: ${additionalManagers.length}`)
+      console.log(`✅ Additional managers: 0 (removed to fix sync issues)`)
       console.log(`✅ Tenant contacts: ${tenantContacts.length}`)
       console.log(`✅ Provider contacts: ${providerContacts.length}`)
       console.log(`🏢 All contacts linked to team: ${mainTeam.id} (${mainTeam.name})`)
@@ -353,8 +318,11 @@ export default function SignupPage() {
           setError("Erreur lors de la création du compte: " + authError.message)
         }
       } else if (authUser) {
-        // Signup réussi avec utilisateur connecté - redirection automatique
-        console.log("✅ Compte créé avec succès, redirection vers dashboard")
+        // ✅ PHASE 4: Redirection signup réactivée
+        console.log("✅ [SIGNUP-PHASE4] Compte créé avec succès, redirection vers dashboard")
+        console.log("🔄 [SIGNUP-PHASE4] Redirection vers:", `/${authUser.role}/dashboard`)
+        
+        console.log("🚀 [SIGNUP-PHASE4] Redirection après inscription réussie")
         router.push(`/${authUser.role}/dashboard`)
       } else {
         setError("Erreur inattendue lors de la création du compte")

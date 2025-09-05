@@ -44,10 +44,21 @@ export default function LoginPage() {
       setShowConfirmationSuccess(true)
     }
 
-    // Redirection automatique si utilisateur déjà connecté
-    if (!loading && user) {
-      console.log('🔄 [LOGIN] User already connected, redirecting to:', `/${user.role}/dashboard`)
+    // ✅ PHASE 4: Redirection automatique réactivée (middleware stable)
+    if (!loading && user && user.id && user.email && user.role) {
+      console.log('🔄 [LOGIN-PHASE4] User détecté - redirection automatique vers:', user.role)
+      console.log('👤 [LOGIN-PHASE4] User data:', {
+        id: user.id ? 'present' : 'missing',
+        email: user.email ? 'present' : 'missing',
+        role: user.role,
+        name: user.name
+      })
+      
+      // Redirection immédiate maintenant que le middleware est stable
+      console.log('🚀 [LOGIN-PHASE4] Redirection automatique vers dashboard')
       window.location.href = `/${user.role}/dashboard`
+    } else {
+      console.log('🔄 [LOGIN-PHASE4] État auth:', { loading, hasUser: !!user })
     }
   }, [user, loading, searchParams, router])
 
@@ -76,11 +87,12 @@ export default function LoginPage() {
           setError("Erreur de connexion : " + authError.message)
         }
       } else if (authUser) {
-        console.log("✅ [LOGIN] Connexion réussie", authUser)
-        console.log("🔄 [LOGIN] Redirection vers:", `/${authUser.role}/dashboard`)
+        console.log("✅ [LOGIN-PHASE4] Connexion réussie", authUser)
+        console.log("🔄 [LOGIN-PHASE4] Redirection vers:", `/${authUser.role}/dashboard`)
         setError("") // Clear any previous errors
         
-        // Redirection complète pour s'assurer que les cookies sont bien transmis
+        // ✅ PHASE 4: Redirection réactivée
+        console.log("🚀 [LOGIN-PHASE4] Redirection après connexion réussie")
         window.location.href = `/${authUser.role}/dashboard`
       }
     } catch (error) {
@@ -211,7 +223,11 @@ export default function LoginPage() {
         console.error("❌ Demo login error:", loginError)
         setError("Erreur de connexion: " + loginError.message)
       } else if (authUser) {
-        console.log("✅ Demo login successful:", authUser.name)
+        console.log("✅ [LOGIN-PHASE4] Demo login successful:", authUser.name)
+        console.log("🔄 [LOGIN-PHASE4] Demo redirection vers:", `/${authUser.role}/dashboard`)
+        
+        // ✅ PHASE 4: Redirection demo réactivée
+        console.log("🚀 [LOGIN-PHASE4] Redirection demo vers dashboard")
         window.location.href = `/${authUser.role}/dashboard`
       } else {
         setError("Erreur de connexion inattendue")
@@ -223,6 +239,7 @@ export default function LoginPage() {
       setIsLoadingDemo(false)
     }
   }
+
 
   // Charger les utilisateurs demo au montage du composant (development only)
   useEffect(() => {
@@ -358,6 +375,7 @@ export default function LoginPage() {
                 {isLoading ? "Connexion..." : "Se connecter"}
               </Button>
             </form>
+
 
 
 

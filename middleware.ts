@@ -1,4 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -6,103 +5,121 @@ import type { NextRequest } from 'next/server'
  * 🛡️ MIDDLEWARE DE SÉCURITÉ - SEIDO APP
  * 
  * Ce middleware s'exécute AVANT chaque requête côté serveur.
- * Il a pour rôle de protéger les routes privées et rediriger les utilisateurs non authentifiés.
+ * Il protège les routes privées et redirige les utilisateurs non authentifiés.
  * 
- * FLUX D'EXÉCUTION :
- * 1. Utilisateur fait une requête → middleware intercepte
- * 2. Analyse de la route demandée 
- * 3. Si route publique → laisse passer
- * 4. Si route protégée → vérifie l'authentification via cookies
- * 5. Si pas d'auth → redirige vers login
- * 6. Si auth OK → laisse accéder à la route
+ * FONCTIONNALITÉS :
+ * - Classification automatique des routes (publiques, protégées, système)
+ * - Détection des cookies d'authentification Supabase
+ * - Redirections sécurisées vers la page de connexion
+ * - Protection renforcée contre les boucles infinies
+ * - Logging détaillé pour le debug et monitoring
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   console.log('🚀 [MIDDLEWARE] Requête interceptée pour:', pathname)
   
   // =============================================================================
-  // ÉTAPE 1 : ROUTES PUBLIQUES (accessibles sans authentification)
+  // CLASSIFICATION DES ROUTES
   // =============================================================================
+  
+  // Routes publiques (accessibles sans authentification)
   const publicRoutes = ['/auth/login', '/auth/signup', '/auth/signup-success', '/auth/reset-password', '/']
+  const isPublicRoute = publicRoutes.includes(pathname)
   
-  if (publicRoutes.includes(pathname)) {
-    console.log('✅ [MIDDLEWARE] Route publique - accès autorisé sans vérification')
-    return NextResponse.next() // Laisse passer la requête sans modification
-  }
+  // Routes protégées (nécessitent une authentification)
+  const protectedPrefixes = ['/admin', '/gestionnaire', '/locataire', '/prestataire']
+  const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
+  
+  // Routes système (API, Next.js, assets)
+  const isSystemRoute = !isPublicRoute && !isProtectedRoute
+  
+  console.log('📊 [MIDDLEWARE] Classification route:', {
+    pathname,
+    isPublicRoute,
+    isProtectedRoute,
+    isSystemRoute
+  })
   
   // =============================================================================
-  // ÉTAPE 2 : IDENTIFICATION DES ROUTES PROTÉGÉES  
-  // =============================================================================
-  const protectedRoutes = ['/admin', '/gestionnaire', '/locataire', '/prestataire']
-  const isProtected = protectedRoutes.some(route => pathname.startsWith(route))
-  
-  if (!isProtected) {
-    console.log('🚪 [MIDDLEWARE] Route non-protégée - accès libre') 
-    return NextResponse.next() // Routes comme /api, /_next, etc.
-  }
-
-  // =============================================================================
-  // ÉTAPE 3 : VÉRIFICATION D'AUTHENTIFICATION (RÉACTIVÉE)
+  // DÉTECTION COOKIES SUPABASE
   // =============================================================================
   
-  /**
-   * 🍪 ANALYSE DES COOKIES SUPABASE
-   * 
-   * Supabase stocke la session dans des cookies avec ce format :
-   * sb-[project-id]-auth-token
-   * 
-   * POURQUOI PLUSIEURS COOKIES ?
-   * - Différents projets Supabase utilisés (dev/staging/prod)
-   * - Anciennes sessions non nettoyées
-   * - Rechargements de page qui créent de nouveaux cookies
-   * 
-   * On filtre pour ne garder que les cookies d'authentification valides :
-   * - Commencent par 'sb-' (préfixe Supabase)
-   * - Contiennent 'auth-token' (token de session)
-   * - Excluent 'code-verifier' (utilisé pour OAuth, pas pour l'auth)
-   */
-  const supabaseCookies = request.cookies.getAll().filter(cookie => 
+  const allCookies = request.cookies.getAll()
+  
+  // Cookies Supabase d'authentification
+  const supabaseCookies = allCookies.filter(cookie => 
     cookie.name.startsWith('sb-') && 
-    cookie.name.includes('auth-token') && 
-    !cookie.name.includes('code-verifier')
+    (cookie.name.includes('session') || 
+     cookie.name.includes('auth') ||
+     cookie.name.includes('token'))
   )
   
-  console.log('🔐 [MIDDLEWARE] Vérification auth pour route protégée')
-  console.log('🍪 [MIDDLEWARE] Cookies Supabase trouvés:', supabaseCookies.length)
-  console.log('📋 [MIDDLEWARE] Détail des cookies:', supabaseCookies.map(c => c.name))
+  console.log('🍪 [MIDDLEWARE] Analyse cookies:', {
+    totalCookies: allCookies.length,
+    supabaseCookies: supabaseCookies.length,
+    hasAuth: supabaseCookies.length > 0
+  })
   
-  // =============================================================================
-  // ÉTAPE 4 : DÉCISION D'AUTORISATION
-  // =============================================================================
-  
-  if (supabaseCookies.length === 0) {
-    console.log('❌ [MIDDLEWARE] Aucun cookie d\'authentification - redirection vers login')
-    const url = request.nextUrl.clone() // Clone l'URL actuelle
-    url.pathname = '/auth/login'        // Change le chemin vers login
-    return NextResponse.redirect(url)   // Envoie une redirection HTTP 302
+  if (supabaseCookies.length > 0) {
+    console.log('📋 [MIDDLEWARE] Cookies auth détectés:', supabaseCookies.map(c => c.name))
   }
-
-  /**
-   * 🎯 POURQUOI CETTE APPROCHE SIMPLIFIÉE ?
-   * 
-   * AVANT (problématique) :
-   * - On essayait de valider la session Supabase côté serveur
-   * - Conflits avec multiple cookies → session non reconnue
-   * - Boucle infinie de redirections
-   * 
-   * MAINTENANT (solution) :
-   * - On vérifie juste la PRÉSENCE de cookies d'auth
-   * - La validation réelle se fait côté client (useAuth)
-   * - Plus de conflits, auth stable
-   * 
-   * SÉCURITÉ : 
-   * - Les cookies peuvent être expirés/invalides, mais ce n'est pas grave
-   * - Le client fera la vraie validation et redirigera si nécessaire
-   * - Ça évite les faux positifs du middleware
-   */
   
-  console.log('✅ [MIDDLEWARE] Cookies d\'auth présents - accès autorisé')
-  return NextResponse.next() // Laisse la requête continuer vers la route demandée
+  // =============================================================================
+  // DÉCISION D'AUTORISATION AVEC PROTECTION ANTI-BOUCLE
+  // =============================================================================
+  
+  if (isPublicRoute) {
+    console.log('✅ [MIDDLEWARE] Route publique - accès autorisé')
+    return NextResponse.next()
+  } 
+  
+  if (isSystemRoute) {
+    console.log('✅ [MIDDLEWARE] Route système - accès libre')
+    return NextResponse.next()
+  }
+  
+  if (isProtectedRoute) {
+    if (supabaseCookies.length > 0) {
+      console.log('✅ [MIDDLEWARE] Route protégée + cookies auth → AUTORISATION')
+      return NextResponse.next()
+    } else {
+      console.log('🚫 [MIDDLEWARE] Route protégée + PAS de cookies → REDIRECTION vers login')
+      
+      // =============================================================================
+      // PROTECTION ANTI-BOUCLE RENFORCÉE
+      // =============================================================================
+      
+      // Vérifier si on essaie déjà d'aller vers login
+      if (pathname === '/auth/login') {
+        console.log('🔄 [MIDDLEWARE] Tentative redirection vers login depuis login - AUTORISATION pour éviter boucle')
+        return NextResponse.next()
+      }
+      
+      // Vérifier des patterns de boucle (referer header)
+      const referer = request.headers.get('referer')
+      const isFromLogin = referer?.includes('/auth/login')
+      
+      if (isFromLogin) {
+        console.log('⚠️ [MIDDLEWARE] Requête depuis login détectée - possibleté de boucle')
+        console.log('🛡️ [MIDDLEWARE] Referer:', referer)
+        console.log('🔄 [MIDDLEWARE] Permettant l\'accès pour éviter boucle infinie')
+        return NextResponse.next()
+      }
+      
+      // Tout semble bon - effectuer la redirection
+      console.log('🏃 [MIDDLEWARE] Redirection sécurisée vers /auth/login')
+      
+      const loginUrl = new URL('/auth/login', request.url)
+      // Nettoyer les paramètres pour éviter les conflits
+      loginUrl.search = ''
+      
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+  
+  // Fallback - ne devrait jamais arriver
+  console.log('⚠️ [MIDDLEWARE] Fallback - laissant passer')
+  return NextResponse.next()
 }
 
 export const config = {

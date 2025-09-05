@@ -355,19 +355,15 @@ class AuthService {
           } : String(profileError),
           errorKeys: profileError ? Object.keys(profileError) : []
         })
+        // CORRECTION : Être plus prudent avec le nettoyage des sessions
+        // Ne pas nettoyer immédiatement - peut être un problème temporaire
+        console.log('⚠️ [AUTH-PROTECTION] Profile not found for auth user - this might be temporary')
+        
         // Vérifier si on est sur la page signup-success - ne pas nettoyer les sessions ici
         if (this.isOnSignupSuccessPage()) {
-          console.log('📍 [AUTH-PROTECTION] On signup-success page - skipping session cleanup in getCurrentUser')
+          console.log('📍 [AUTH-PROTECTION] On signup-success page - skipping session cleanup')
         } else {
-          console.log('🧹 Cleaning up orphaned auth session in getCurrentUser...')
-          
-          // Session auth existe mais pas de profil → nettoyer la session
-          try {
-            await supabase.auth.signOut()
-            console.log('✅ Orphaned session cleaned up successfully')
-          } catch (signOutError) {
-            console.error('❌ Error signing out orphaned session:', signOutError)
-          }
+          console.log('🔄 [AUTH-PROTECTION] Profile fetch failed - keeping session for stability (will retry on auth state change)')
         }
         
         // Profil non trouvé
@@ -481,6 +477,7 @@ class AuthService {
             return
           }
           
+          // CORRECTION : Être plus prudent avec le nettoyage des sessions
           // Ne pas nettoyer la session si on est sur signup-success
           if (this.isOnSignupSuccessPage()) {
             console.log('📍 [AUTH-PROTECTION] On signup-success page - skipping session cleanup in onAuthStateChange')
@@ -488,16 +485,11 @@ class AuthService {
             return
           }
           
-          console.log('🧹 Cleaning up orphaned auth session...')
+          console.log('⚠️ [AUTH-PROTECTION] Profile not found in auth state change - keeping session for stability')
+          console.log('🔄 [AUTH-PROTECTION] This could be a temporary network/database issue')
           
-          // Session auth existe mais pas de profil → nettoyer la session
-          try {
-            await supabase.auth.signOut()
-            console.log('✅ Orphaned session cleaned up successfully')
-          } catch (signOutError) {
-            console.error('❌ Error signing out orphaned session:', signOutError)
-          }
-          
+          // Ne pas faire signOut automatiquement - cela cause des boucles de redirection
+          // L'utilisateur pourra se déconnecter manuellement si nécessaire
           callback(null)
         }
       } else {

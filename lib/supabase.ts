@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from './database.types'
 
 // Validate environment variables
@@ -15,19 +15,14 @@ if (!supabaseAnonKey) {
   throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required')
 }
 
-console.log('🔧 Supabase client initializing with:', {
+console.log('🔧 Supabase SSR client initializing with:', {
   url: supabaseUrl,
   hasAnonKey: !!supabaseAnonKey,
   keyPrefix: supabaseAnonKey?.substring(0, 20) + '...'
 })
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
-})
+// ✅ CORRECTION: Utiliser createBrowserClient pour les cookies
+export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Re-export Database type for convenience
 export type { Database } from './database.types'

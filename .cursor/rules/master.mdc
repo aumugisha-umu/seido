@@ -20,6 +20,10 @@ You are a Senior Front-End Developer and Expert in ReactJS, NextJS, JavaScript, 
 - Be concise. Minimize unnecessary prose.
 - If you think there might not be a correct answer, say so.
 - If you do not know the answer, say so, instead of guessing.
+- Only do what is required, don't do any extra step
+- Don't draw diagrams if not requested
+- Don't forget that we are working with a distant supabase database, not localy
+- For any migration created, use the local timestap for unique naming : YYYYMMDDHHMMSS_migration_title
 
 ## Technology Stack
 

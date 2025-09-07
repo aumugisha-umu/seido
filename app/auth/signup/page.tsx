@@ -32,14 +32,22 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  
+  const [justSignedUp, setJustSignedUp] = useState(false)
 
-  // Rediriger si déjà connecté
+  // Rediriger si déjà connecté ou après inscription
   useEffect(() => {
     if (!loading && user) {
-      router.push(`/${user.role}/dashboard`)
+      console.log('🔄 [SIGNUP] User state detected, redirecting to:', user.role)
+      // Utiliser window.location pour une redirection plus fiable après signup
+      if (justSignedUp) {
+        console.log('🚀 [SIGNUP] Using window.location for post-signup redirect')
+        window.location.href = `/${user.role}/dashboard`
+      } else {
+        console.log('🔄 [SIGNUP] Using router.push for existing user')
+        router.push(`/${user.role}/dashboard`)
+      }
     }
-  }, [user, loading, router])
+  }, [user, loading, router, justSignedUp])
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -145,6 +153,8 @@ export default function SignupPage() {
         email: generateDemoEmail(),
         password: demoPassword,
         name: mainUserName.fullName,
+        first_name: mainUserName.firstName,
+        last_name: mainUserName.lastName,
         phone: undefined,
       })
 
@@ -254,8 +264,9 @@ export default function SignupPage() {
       await saveLastEmailNumber(currentEmailNumber - 1)
       console.log(`📧 Last email number saved: ${currentEmailNumber - 1}`)
 
-      // Redirection vers le dashboard du gestionnaire principal
-      router.push(`/${mainAuthUser.role}/dashboard`)
+      // Marquer qu'on vient de s'inscrire et laisser le useEffect gérer la redirection
+      console.log("✅ [DEMO-SIGNUP] Environnement demo créé, redirection sera gérée par useEffect")
+      setJustSignedUp(true)
       
     } catch (error) {
       console.error("❌ Erreur d'inscription demo:", error)
@@ -308,6 +319,8 @@ export default function SignupPage() {
         email: formData.email.trim(),
         password: formData.password,
         name: fullName,
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
         phone: formData.phone.trim() || undefined,
       })
 
@@ -318,12 +331,12 @@ export default function SignupPage() {
           setError("Erreur lors de la création du compte: " + authError.message)
         }
       } else if (authUser) {
-        // ✅ PHASE 4: Redirection signup réactivée
-        console.log("✅ [SIGNUP-PHASE4] Compte créé avec succès, redirection vers dashboard")
-        console.log("🔄 [SIGNUP-PHASE4] Redirection vers:", `/${authUser.role}/dashboard`)
-        
-        console.log("🚀 [SIGNUP-PHASE4] Redirection après inscription réussie")
-        router.push(`/${authUser.role}/dashboard`)
+        console.log("✅ [SIGNUP] Compte créé avec succès, user state sera mis à jour par useAuth")
+        console.log("👤 [SIGNUP] User créé:", authUser.name, "role:", authUser.role)
+        // Marquer qu'on vient de s'inscrire pour utiliser window.location dans useEffect
+        setJustSignedUp(true)
+        // Ne pas faire de redirection ici - laisser le useEffect s'en charger
+        // quand l'état user sera mis à jour par le hook useAuth
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, use } from "react"
 import { ArrowLeft, Building2, User, MessageSquare, CalendarDays, Euro, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,10 +18,11 @@ interface InterventionDetailsProps {
   }
 }
 
-export default function InterventionDetailsPage({ params }: InterventionDetailsProps) {
+export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const resolvedParams = use(params)
   const [intervention] = useState({
-    id: params.id,
+    id: resolvedParams.id,
     title: "Fuite d'eau dans la salle de bain",
     description:
       "Une fuite importante s'est déclarée au niveau du robinet de la baignoire. L'eau s'infiltre dans le plafond de l'appartement du dessous.",

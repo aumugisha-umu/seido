@@ -1,4 +1,6 @@
 "use client"
+
+import { use } from "react"
 import {
   ArrowLeft,
   Calendar,
@@ -115,8 +117,9 @@ interface InterventionDetail {
   }>
 }
 
-export default function InterventionDetailPage({ params }: { params: { id: string } }) {
+export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const resolvedParams = use(params)
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
 
   const [expandedCategories, setExpandedCategories] = useState({
@@ -129,7 +132,7 @@ export default function InterventionDetailPage({ params }: { params: { id: strin
   useEffect(() => {
     // Simulation des données - à remplacer par un appel API réel
     const mockData: InterventionDetail = {
-      id: params.id,
+      id: resolvedParams.id,
       title: "Fuite d'eau dans la salle de bain",
       description:
         "Une fuite importante s'est déclarée au niveau du robinet de la baignoire. L'eau s'infiltre dans le plafond de l'appartement du dessous.",
@@ -258,7 +261,7 @@ export default function InterventionDetailPage({ params }: { params: { id: strin
       ],
     }
     setIntervention(mockData)
-  }, [params.id])
+  }, [resolvedParams.id])
 
   if (!intervention) {
     return <div className="flex items-center justify-center min-h-screen">Chargement...</div>

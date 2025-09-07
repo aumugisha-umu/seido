@@ -452,6 +452,23 @@ export const interventionService = {
     return data
   },
 
+  async getByLotId(lotId: string) {
+    const { data, error } = await supabase
+      .from('interventions')
+      .select(`
+        *,
+        lot:lot_id(reference, building:building_id(name, address)),
+        tenant:tenant_id(name, email, phone),
+        manager:manager_id(name, email),
+        assigned_contact:assigned_contact_id(name, email, phone)
+      `)
+      .eq('lot_id', lotId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data
+  },
+
   async getByProviderId(providerId: string) {
     const { data, error } = await supabase
       .from('interventions')
@@ -619,18 +636,104 @@ export const contactService = {
     return data
   },
 
-  async create(contact: any) {
-    const { data, error } = await (supabase as any)
-      .from('contacts')
-      .insert(contact)
-      .select(`
-        *,
-        team:team_id(id, name, description)
-      `)
-      .single()
+  async getLotContacts(lotId: string) {
+    console.log("🏠 getLotContacts called with lotId:", lotId)
     
-    if (error) throw error
-    return data
+    try {
+      // First get the building ID from the lot
+      console.log("📋 Step 1: Getting lot data...")
+      const { data: lot, error: lotError } = await supabase
+        .from('lots')
+        .select('building_id')
+        .eq('id', lotId)
+        .single()
+      
+      if (lotError) {
+        console.error("❌ Error getting lot:", lotError)
+        // Si le lot n'existe pas, retourner un tableau vide plutôt que de throw
+        if (lotError.code === 'PGRST116') { // No rows returned
+          console.log("📝 Lot not found, returning empty array")
+          return []
+        }
+        throw lotError
+      }
+
+      if (!lot?.building_id) {
+        console.log("⚠️ No building found for lot, returning empty array")
+        return []
+      }
+
+      console.log("🏢 Step 2: Getting contacts for building:", lot.building_id)
+
+      // Get contacts associated with the building
+      const { data, error } = await supabase
+        .from('building_contacts')
+        .select(`
+          contact:contact_id (
+            id,
+            name,
+            email,
+            phone,
+            company,
+            speciality,
+            contact_type,
+            address,
+            notes,
+            is_active,
+            team:team_id(id, name, description)
+          )
+        `)
+        .eq('building_id', lot.building_id)
+      
+      if (error) {
+        console.error("❌ Error getting building contacts:", error)
+        // Si la table building_contacts n'existe pas ou est vide, retourner un tableau vide
+        if (error.code === 'PGRST116' || error.message?.includes('building_contacts')) {
+          console.log("📝 No building_contacts found, returning empty array")
+          return []
+        }
+        throw error
+      }
+
+      // Extract contacts from the relationship
+      const contacts = data?.map(item => item.contact).filter(Boolean) || []
+      console.log("✅ Found lot contacts:", contacts.length)
+      return contacts
+
+    } catch (error) {
+      console.error("🚨 Unexpected error in getLotContacts:", error)
+      // En cas d'erreur inattendue, retourner un tableau vide plutôt que de faire planter l'app
+      return []
+    }
+  },
+
+
+  async create(contact: any) {
+    console.log('🗃️ [CONTACT-SERVICE] Creating contact:', contact.name, contact.email)
+    
+    try {
+      console.log('⚡ [CONTACT-SERVICE] Direct insert...')
+      console.time('contact-insert')
+      
+      const { data, error } = await (supabase as any)
+        .from('contacts')
+        .insert(contact)
+        .select()
+        .single()
+      
+      console.timeEnd('contact-insert')
+      
+      if (error) {
+        console.error('❌ [CONTACT-SERVICE] Insert error:', error)
+        throw error
+      }
+      
+      console.log('✅ [CONTACT-SERVICE] Contact created successfully')
+      return data
+    } catch (error) {
+      console.error('❌ [CONTACT-SERVICE] Exception:', error)
+      throw error
+    }
   },
 
   async findOrCreate(contact: any) {
@@ -1180,6 +1283,94 @@ export const statsService = {
       
     } catch (error) {
       console.error("❌ Error in getManagerStats:", error)
+      throw error
+    }
+  }
+}
+
+// Contact invitation service
+export const contactInvitationService = {
+  // Créer un contact et optionnellement inviter l'utilisateur
+  async createContactWithOptionalInvite(contactData: {
+    type: string
+    firstName: string
+    lastName: string
+    email: string
+    phone?: string
+    address?: string
+    speciality?: string
+    notes?: string
+    inviteToApp: boolean
+    teamId: string
+  }) {
+    try {
+      console.log('🚀 [CONTACT-INVITATION-SERVICE] Starting with data:', contactData)
+      
+       // 1. Créer le contact dans la base de données
+       const contactToCreate = {
+         name: `${contactData.firstName} ${contactData.lastName}`,
+         email: contactData.email,
+         phone: contactData.phone || null,
+         address: contactData.address || null,
+         notes: contactData.notes || null,
+        contact_type: contactData.type, // Type de contact (locataire, prestataire, etc.)
+        speciality: (contactData as any).speciality && (contactData as any).speciality.trim() ? (contactData as any).speciality : null, // Spécialité technique (plomberie, etc.)
+         team_id: contactData.teamId
+       }
+
+      console.log('📝 [CONTACT-INVITATION-SERVICE] Prepared object for DB:', contactToCreate)
+      
+      console.log('🔄 [CONTACT-INVITATION-SERVICE] Calling contactService.create...')
+      const newContact = await contactService.create(contactToCreate)
+      console.log('✅ [CONTACT-INVITATION-SERVICE] Contact creation completed:', newContact)
+      
+      let invitationResult = null
+      
+      // 2. Si invitation requise et que le type le permet
+      if (contactData.inviteToApp && contactData.email && ['gestionnaire', 'locataire', 'prestataire'].includes(contactData.type)) {
+        
+        // Importer dynamiquement pour éviter les dépendances circulaires
+        const { authService } = await import('./auth-service')
+        
+        // Déterminer le rôle utilisateur basé sur le type de contact
+        let userRole: Database['public']['Enums']['user_role'] = 'locataire'
+        if (contactData.type === 'gestionnaire') {
+          userRole = 'gestionnaire'
+        } else if (contactData.type === 'prestataire') {
+          userRole = 'prestataire'
+        }
+        
+        try {
+          invitationResult = await authService.inviteUser({
+            email: contactData.email,
+            firstName: contactData.firstName,
+            lastName: contactData.lastName,
+            phone: contactData.phone,
+            role: userRole,
+            teamId: contactData.teamId
+          })
+          
+          // Les logs sont gérés dans la page qui appelle ce service
+        } catch (inviteError) {
+          invitationResult = { 
+            success: false, 
+            error: 'Service d\'invitation temporairement indisponible'
+          }
+        }
+      }
+      
+      return {
+        contact: newContact,
+        invitation: invitationResult
+      }
+      
+    } catch (error) {
+      console.error('❌ [CONTACT-INVITATION-SERVICE] Error:', error)
+      console.error('❌ [CONTACT-INVITATION-SERVICE] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        contactData: contactData
+      })
       throw error
     }
   }

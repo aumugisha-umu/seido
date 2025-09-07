@@ -5,43 +5,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarChart3, UserPlus, Plus } from "lucide-react"
+import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarChart3, UserPlus, Plus, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useAuth } from "@/hooks/use-auth"
+import { useTeamStatus } from "@/hooks/use-team-status"
+import { useManagerStats } from "@/hooks/use-manager-stats"
 
 export default function GestionnaireDashboard() {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const [teamCheckComplete, setTeamCheckComplete] = useState(false)
   const router = useRouter()
+  const { teamStatus, hasTeam } = useTeamStatus()
+  const { data: managerData, loading: statsLoading, error: statsError, stats, refetch } = useManagerStats()
 
-  // Afficher le loading pendant l'auth
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Si pas d'utilisateur, rediriger
-  if (!user) {
-    router.push('/auth/login')
-    return null
-  }
-
-  // Afficher la vérification d'équipe si pas encore complétée
-  if (!teamCheckComplete) {
-    return <TeamCheckModal onTeamResolved={() => setTeamCheckComplete(true)} />
+  // Afficher la vérification d'équipe en cours ou échoué
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
   const handleContactSubmit = (contactData: any) => {
-    console.log("[v0] Contact created:", contactData)
+    console.log("[v0] Contact created:", {
+      ...contactData,
+      fullName: `${contactData.firstName} ${contactData.lastName}`,
+    })
+    
+    if (contactData.inviteToApp) {
+      console.log("📧 Une invitation sera envoyée à:", contactData.email)
+    }
+    
     setIsContactModalOpen(false)
   }
 
@@ -91,7 +84,9 @@ export default function GestionnaireDashboard() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold flex items-center gap-2">
+              {statsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.buildingsCount}
+            </div>
             <p className="text-xs text-muted-foreground">Propriétés gérées</p>
           </CardContent>
         </Card>
@@ -102,7 +97,9 @@ export default function GestionnaireDashboard() {
             <Home className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold flex items-center gap-2">
+              {statsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.lotsCount}
+            </div>
             <p className="text-xs text-muted-foreground">Logements totaux</p>
           </CardContent>
         </Card>
@@ -113,22 +110,32 @@ export default function GestionnaireDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0/0</div>
+            <div className="text-2xl font-bold flex items-center gap-2">
+              {statsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                `${stats.occupiedLotsCount}/${stats.lotsCount}`
+              )}
+            </div>
             <div className="flex items-center space-x-2">
-              <Progress value={0} className="flex-1" />
-              <span className="text-sm font-medium text-muted-foreground">0%</span>
+              <Progress value={statsLoading ? 0 : stats.occupancyRate} className="flex-1" />
+              <span className="text-sm font-medium text-muted-foreground">
+                {statsLoading ? '...' : `${Math.round(stats.occupancyRate)}%`}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenus</CardTitle>
-            <Euro className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Interventions</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0€</div>
-            <p className="text-sm text-muted-foreground">Aucun revenu à afficher</p>
+            <div className="text-2xl font-bold flex items-center gap-2">
+              {statsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.interventionsCount}
+            </div>
+            <p className="text-xs text-muted-foreground">Total interventions</p>
           </CardContent>
         </Card>
       </div>

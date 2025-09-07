@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { teamService } from '@/lib/database-service'
+import { useEffect } from 'react'
+import { useTeamStatus } from '@/hooks/use-team-status'
 import { useAuth } from '@/hooks/use-auth'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -13,41 +13,13 @@ interface TeamCheckModalProps {
 
 export function TeamCheckModal({ onTeamResolved }: TeamCheckModalProps) {
   const { user } = useAuth()
-  const [isChecking, setIsChecking] = useState(true)
-  const [showErrorModal, setShowErrorModal] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  const { teamStatus, hasTeam, error, recheckTeamStatus } = useTeamStatus()
 
   useEffect(() => {
-    if (user) {
-      checkUserTeam()
+    if (teamStatus === 'verified' && hasTeam) {
+      onTeamResolved?.()
     }
-  }, [user])
-
-  const checkUserTeam = async () => {
-    if (!user) return
-
-    try {
-      setIsChecking(true)
-      console.log('🔍 Checking team status for user:', user.name)
-      
-      const result = await teamService.ensureUserHasTeam(user.id)
-      
-      if (result.hasTeam) {
-        console.log('✅ User has team access')
-        onTeamResolved?.()
-      } else {
-        console.log('❌ User has no team access:', result.error)
-        setErrorMessage(result.error || 'Erreur inconnue')
-        setShowErrorModal(true)
-      }
-    } catch (error) {
-      console.error('❌ Error checking team:', error)
-      setErrorMessage('Erreur lors de la vérification de votre équipe. Veuillez réessayer.')
-      setShowErrorModal(true)
-    } finally {
-      setIsChecking(false)
-    }
-  }
+  }, [teamStatus, hasTeam, onTeamResolved])
 
   const handleContactSupport = () => {
     const subject = encodeURIComponent('Demande d\'ajout à une équipe')
@@ -69,7 +41,7 @@ ${user?.name}`)
   }
 
   // Loading pendant la vérification
-  if (isChecking) {
+  if (teamStatus === 'checking') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -80,9 +52,14 @@ ${user?.name}`)
     )
   }
 
+  // Ne rien afficher si l'équipe est vérifiée
+  if (teamStatus === 'verified') {
+    return null
+  }
+
   // Modale d'erreur
   return (
-    <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
+    <Dialog open={teamStatus === 'error'} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -90,7 +67,7 @@ ${user?.name}`)
             Accès restreint
           </DialogTitle>
           <DialogDescription className="text-left space-y-4 pt-4">
-            <p>{errorMessage}</p>
+            <p>{error}</p>
             
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">Que faire ?</h4>
@@ -113,7 +90,7 @@ ${user?.name}`)
           
           <Button 
             variant="outline" 
-            onClick={checkUserTeam}
+            onClick={recheckTeamStatus}
             className="w-full"
           >
             Réessayer la vérification

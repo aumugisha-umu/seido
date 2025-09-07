@@ -7,6 +7,9 @@ export interface AuthUser {
   id: string
   email: string
   name: string
+  first_name?: string
+  last_name?: string
+  display_name?: string
   role: Database['public']['Enums']['user_role']
   phone?: string
   created_at?: string
@@ -17,6 +20,8 @@ export interface SignUpData {
   email: string
   password: string
   name: string
+  first_name: string
+  last_name: string
   phone?: string
 }
 
@@ -46,7 +51,7 @@ class AuthService {
     return isSignupSuccess
   }
   // Inscription - Crée auth user + profil + équipe immédiatement
-  async signUp({ email, password, name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
+  async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
       console.log('🚀 Starting complete signup for:', email, 'as gestionnaire')
       
@@ -61,7 +66,11 @@ class AuthService {
         options: {
           emailRedirectTo: undefined, // Pas de redirection email
           data: {
-            signup_in_progress: true // Flag pour identifier le processus en cours
+            signup_in_progress: true, // Flag pour identifier le processus en cours
+            full_name: name,
+            first_name: first_name,
+            last_name: last_name,
+            display_name: name // Utiliser le nom complet comme display_name
           }
         }
       })
@@ -82,6 +91,8 @@ class AuthService {
         id: authData.user.id,
         email: authData.user.email!,
         name: name,
+        first_name: first_name,
+        last_name: last_name,
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
         phone: phone || null,
       }
@@ -89,14 +100,11 @@ class AuthService {
       const userProfile = await userService.create(userData)
       console.log('✅ User profile created successfully')
 
-      // Créer l'équipe personnelle pour le gestionnaire
-      const teamName = `Équipe de ${name}`
-      console.log('🏗️ Creating team with data:', {
-        name: teamName,
-        description: `Équipe personnelle de ${name}`,
-        created_by: authData.user.id
-      })
+      // ✅ CORRECTION: Créer explicitement l'équipe personnelle pour les VRAIS signups
+      // (les utilisateurs invités passent par l'API d'invitation)
+      console.log('🏗️ Creating personal team for direct signup user')
       
+      const teamName = `Équipe de ${name}`
       const team = await teamService.create({
         name: teamName,
         description: `Équipe personnelle de ${name}`,
@@ -104,12 +112,16 @@ class AuthService {
       })
       console.log('✅ Personal team created:', team.id)
       
-      // Vérifier immédiatement que l'utilisateur peut accéder à ses équipes
+      // Vérifier que l'utilisateur peut accéder à ses équipes
       console.log('🔍 Verifying user can access team after creation...')
       try {
         const userTeams = await teamService.getUserTeams(authData.user.id)
         console.log('✅ User teams verification successful:', userTeams.length, 'teams found')
         console.log('📋 Teams details:', userTeams.map((t: any) => ({ id: t.id, name: t.name })))
+        
+        if (userTeams.length === 0) {
+          console.error('❌ No team found after user creation - team creation may have failed')
+        }
       } catch (verifyError) {
         console.error('❌ Failed to verify user teams after creation:', verifyError)
       }
@@ -132,6 +144,9 @@ class AuthService {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
+        first_name: userProfile.first_name || undefined,
+        last_name: userProfile.last_name || undefined,
+        display_name: name, // Utiliser le nom complet comme display_name
         role: userProfile.role,
         phone: userProfile.phone || undefined,
         created_at: userProfile.created_at || undefined,
@@ -170,6 +185,8 @@ class AuthService {
         id: authUser.id,
         email: authUser.email!,
         name: fullName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
         phone: phone?.trim() || null,
       }
@@ -177,7 +194,10 @@ class AuthService {
       const userProfile = await userService.create(userData)
       console.log('✅ User profile created successfully')
 
-      // Créer l'équipe personnelle pour le gestionnaire
+      // ✅ CORRECTION: Créer explicitement l'équipe personnelle pour completeProfile
+      // (les utilisateurs qui complètent leur profil après confirmation email)
+      console.log('🏗️ Creating personal team for profile completion')
+      
       const teamName = `Équipe de ${fullName}`
       const team = await teamService.create({
         name: teamName,
@@ -186,10 +206,15 @@ class AuthService {
       })
       console.log('✅ Personal team created:', team.id)
 
-      // Marquer le profil comme complété
+      // Marquer le profil comme complété et mettre à jour le display_name
       try {
         await supabase.auth.updateUser({
-          data: { profile_completed: true }
+          data: { 
+            profile_completed: true,
+            display_name: fullName,
+            first_name: firstName.trim(),
+            last_name: lastName.trim()
+          }
         })
       } catch (updateError) {
         console.warn('⚠️ Could not update user metadata:', updateError)
@@ -199,6 +224,9 @@ class AuthService {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
+        first_name: userProfile.first_name || undefined,
+        last_name: userProfile.last_name || undefined,
+        display_name: fullName,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
         created_at: userProfile.created_at || undefined,
@@ -246,12 +274,14 @@ class AuthService {
         // Créer le profil à partir des métadonnées d'inscription
         const metadata = data.user.user_metadata
         
-        if (metadata && metadata.name && metadata.role) {
+        if (metadata && metadata.full_name) {
           const userData = {
             id: data.user.id,
             email: data.user.email!,
-            name: metadata.name,
-            role: metadata.role,
+            name: metadata.full_name,
+            first_name: metadata.first_name || null,
+            last_name: metadata.last_name || null,
+            role: 'gestionnaire' as Database['public']['Enums']['user_role'],
             phone: metadata.phone || null,
           }
 
@@ -271,10 +301,16 @@ class AuthService {
         }
       }
 
+      // Récupérer le display_name depuis les métadonnées auth pour signIn aussi
+      const displayName = data.user.user_metadata?.display_name || userProfile.name
+
       const authUser: AuthUser = {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
+        first_name: userProfile.first_name || undefined,
+        last_name: userProfile.last_name || undefined,
+        display_name: displayName,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
         created_at: userProfile.created_at || undefined,
@@ -333,10 +369,17 @@ class AuthService {
       try {
         const userProfile = await userService.getById(authUser.id)
         
+        // Récupérer le display_name depuis les métadonnées auth
+        const { data: { user: authUserData } } = await supabase.auth.getUser()
+        const displayName = authUserData?.user_metadata?.display_name || userProfile.name
+
         const user: AuthUser = {
           id: userProfile.id,
           email: userProfile.email,
           name: userProfile.name,
+          first_name: userProfile.first_name || undefined,
+          last_name: userProfile.last_name || undefined,
+          display_name: displayName,
           role: userProfile.role,
           phone: userProfile.phone || undefined,
           created_at: userProfile.created_at || undefined,
@@ -403,15 +446,35 @@ class AuthService {
       // Mettre à jour le profil dans notre table
       const updatedProfile = await userService.update(authUser.id, {
         name: updates.name,
+        first_name: updates.first_name,
+        last_name: updates.last_name,
         email: updates.email,
         phone: updates.phone,
         role: updates.role,
       })
 
+      // Mettre à jour le display_name dans Supabase Auth si le nom change
+      if (updates.display_name || updates.name) {
+        try {
+          await supabase.auth.updateUser({
+            data: { 
+              display_name: updates.display_name || updates.name,
+              first_name: updates.first_name,
+              last_name: updates.last_name
+            }
+          })
+        } catch (updateError) {
+          console.warn('⚠️ Could not update user metadata in updateProfile:', updateError)
+        }
+      }
+
       const user: AuthUser = {
         id: updatedProfile.id,
         email: updatedProfile.email,
         name: updatedProfile.name,
+        first_name: updatedProfile.first_name || undefined,
+        last_name: updatedProfile.last_name || undefined,
+        display_name: updates.display_name || updatedProfile.name,
         role: updatedProfile.role,
         phone: updatedProfile.phone || undefined,
         created_at: updatedProfile.created_at || undefined,
@@ -442,10 +505,16 @@ class AuthService {
           console.log('🔍 Fetching user profile for auth user:', session.user.id)
           const userProfile = await userService.getById(session.user.id)
           
+          // Récupérer le display_name depuis les métadonnées auth
+          const displayName = session.user.user_metadata?.display_name || userProfile.name
+
           const user: AuthUser = {
             id: userProfile.id,
             email: userProfile.email,
             name: userProfile.name,
+            first_name: userProfile.first_name || undefined,
+            last_name: userProfile.last_name || undefined,
+            display_name: displayName,
             role: userProfile.role,
             phone: userProfile.phone || undefined,
             created_at: userProfile.created_at || undefined,
@@ -496,6 +565,48 @@ class AuthService {
         callback(null)
       }
     })
+  }
+
+  // Inviter un utilisateur via magic link
+  async inviteUser(userData: {
+    email: string
+    firstName: string
+    lastName: string
+    phone?: string
+    role: Database['public']['Enums']['user_role']
+    teamId: string
+  }): Promise<{ success: boolean; error?: string; userId?: string }> {
+    try {
+      console.log('📧 Inviting user via API:', userData.email)
+      
+      const response = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error('❌ Invitation API error:', result.error)
+        return { success: false, error: result.error }
+      }
+
+      console.log('✅ User invited successfully:', result.userId)
+      return { 
+        success: true, 
+        userId: result.userId 
+      }
+
+    } catch (error) {
+      console.error('❌ Error calling invitation API:', error)
+      return { 
+        success: false, 
+        error: 'Erreur lors de l\'envoi de l\'invitation' 
+      }
+    }
   }
 }
 

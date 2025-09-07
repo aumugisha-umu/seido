@@ -18,7 +18,14 @@ export default function DashboardGestionnaire() {
   const { stats, loading, error, refetch } = useManagerStats()
 
   const handleContactSubmit = (contactData: any) => {
-    console.log("[v0] Contact created:", contactData)
+    console.log("[v0] Contact created:", {
+      ...contactData,
+      fullName: `${contactData.firstName} ${contactData.lastName}`,
+    })
+    
+    if (contactData.inviteToApp) {
+      console.log("📧 Une invitation sera envoyée à:", contactData.email)
+    }
   }
 
   return (

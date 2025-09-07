@@ -34,7 +34,9 @@ import {
 import { useRouter } from "next/navigation"
 import ContactFormModal from "@/components/contact-form-modal"
 import { useAuth } from "@/hooks/use-auth"
+import { useTeamStatus } from "@/hooks/use-team-status"
 import { compositeService, teamService, contactService, type Team } from "@/lib/database-service"
+import { TeamCheckModal } from "@/components/team-check-modal"
 
 interface BuildingInfo {
   name: string
@@ -76,6 +78,12 @@ const contactTypes = [
 export default function NewBuildingPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { teamStatus, hasTeam } = useTeamStatus()
+
+  // Afficher la vérification d'équipe si nécessaire
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => {}} />
+  }
   
   const [currentStep, setCurrentStep] = useState(1)
   const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>({
@@ -89,6 +97,7 @@ export default function NewBuildingPage() {
   })
   const [lots, setLots] = useState<Lot[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [assignedManagers, setAssignedManagers] = useState<{[key: string]: any[]}>({}) // gestionnaires assignés par lot
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [selectedContactType, setSelectedContactType] = useState<string>("")
   const [searchTerm, setSearchTerm] = useState("")
@@ -96,6 +105,10 @@ export default function NewBuildingPage() {
   const [prefilledContactType, setPrefilledContactType] = useState<string>("")
   const [existingContacts, setExistingContacts] = useState<any[]>([])
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
+  
+  // États pour la gestion des gestionnaires
+  const [isManagerModalOpen, setIsManagerModalOpen] = useState(false)
+  const [selectedLotForManager, setSelectedLotForManager] = useState<string>("")
   
   // Nouveaux états pour Supabase
   const [teams, setTeams] = useState<Team[]>([])
@@ -105,6 +118,9 @@ export default function NewBuildingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>("")
   const [isCreating, setIsCreating] = useState(false)
+  
+  // États pour la création de gestionnaire
+  const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
 
   const steps = [
     { number: 1, title: "Bâtiment", subtitle: "Informations générales", completed: currentStep > 1 },
@@ -117,8 +133,8 @@ export default function NewBuildingPage() {
     console.log("🔐 useAuth hook user state:", user)
     
     const loadUserTeamAndManagers = async () => {
-      if (!user?.id) {
-        console.log("⚠️ No user ID found, skipping team loading")
+      if (!user?.id || teamStatus !== 'verified') {
+        console.log("⚠️ User ID not found or team not verified, skipping team loading")
         return
       }
 
@@ -204,7 +220,26 @@ export default function NewBuildingPage() {
     }
 
     loadUserTeamAndManagers()
-  }, [user?.id])
+  }, [user?.id, teamStatus])
+
+  // Pré-remplir le responsable du bâtiment pour tous les lots quand on passe à l'étape 3
+  useEffect(() => {
+    if (currentStep === 3 && selectedManagerId && lots.length > 0) {
+      const buildingManager = teamManagers.find(member => member.user.id === selectedManagerId)
+      if (buildingManager) {
+        const initialAssignments: {[key: string]: any[]} = {}
+        lots.forEach(lot => {
+          // Vérifier si ce lot n'a pas déjà des gestionnaires assignés
+          if (!assignedManagers[lot.id] || assignedManagers[lot.id].length === 0) {
+            initialAssignments[lot.id] = [buildingManager]
+          } else {
+            initialAssignments[lot.id] = assignedManagers[lot.id]
+          }
+        })
+        setAssignedManagers(prev => ({ ...prev, ...initialAssignments }))
+      }
+    }
+  }, [currentStep, selectedManagerId, lots, teamManagers])
 
   const addLot = () => {
     const newLot: Lot = {
@@ -462,12 +497,72 @@ export default function NewBuildingPage() {
   const handleContactCreated = (contactData: any) => {
     const newContact: Contact = {
       id: Date.now().toString(),
-      name: contactData.name,
+      name: `${contactData.firstName} ${contactData.lastName}`,
       email: contactData.email,
       type: contactData.type as any,
     }
     setContacts([...contacts, newContact])
     setIsContactFormModalOpen(false)
+  }
+
+  const handleGestionnaireCreated = async (contactData: any) => {
+    console.log("🆕 Nouveau gestionnaire créé:", contactData)
+    
+    // Ajouter le nouveau gestionnaire à la liste des managers disponibles
+    const newManager = {
+      user: {
+        id: `temp_${Date.now()}`, // ID temporaire
+        name: `${contactData.firstName} ${contactData.lastName}`,
+        email: contactData.email,
+        role: 'gestionnaire'
+      },
+      role: 'member'
+    }
+    
+    setTeamManagers([...teamManagers, newManager])
+    setSelectedManagerId(newManager.user.id)
+    setIsGestionnaireModalOpen(false)
+    
+    // Log de l'invitation si cochée
+    if (contactData.inviteToApp) {
+      console.log("📧 Une invitation sera envoyée à:", contactData.email)
+    }
+  }
+
+  const openGestionnaireModal = () => {
+    setIsGestionnaireModalOpen(true)
+  }
+
+  // Fonctions pour la gestion des gestionnaires assignés aux lots
+  const openManagerModal = (lotId: string) => {
+    setSelectedLotForManager(lotId)
+    setIsManagerModalOpen(true)
+  }
+
+  const addManagerToLot = (lotId: string, manager: any) => {
+    setAssignedManagers(prev => {
+      const currentManagers = prev[lotId] || []
+      // Vérifier si le gestionnaire n'est pas déjà assigné
+      const alreadyAssigned = currentManagers.some(m => m.user.id === manager.user.id)
+      if (alreadyAssigned) return prev
+      
+      return {
+        ...prev,
+        [lotId]: [...currentManagers, manager]
+      }
+    })
+    setIsManagerModalOpen(false)
+  }
+
+  const removeManagerFromLot = (lotId: string, managerId: string) => {
+    setAssignedManagers(prev => ({
+      ...prev,
+      [lotId]: (prev[lotId] || []).filter(manager => manager.user.id !== managerId)
+    }))
+  }
+
+  const getAssignedManagers = (lotId: string) => {
+    return assignedManagers[lotId] || []
   }
 
   return (
@@ -564,7 +659,13 @@ export default function NewBuildingPage() {
                 
                 {!isLoading && teamManagers.length > 0 && userTeam ? (
                   <>
-                    <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
+                    <Select value={selectedManagerId} onValueChange={(value) => {
+                      if (value === "create-new") {
+                        openGestionnaireModal()
+                      } else {
+                        setSelectedManagerId(value)
+                      }
+                    }}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Sélectionnez un responsable" />
                       </SelectTrigger>
@@ -579,6 +680,12 @@ export default function NewBuildingPage() {
                             </div>
                           </SelectItem>
                         ))}
+                        <SelectItem value="create-new" className="border-t mt-1 pt-2">
+                          <div className="flex items-center gap-2 text-blue-600">
+                            <Users className="w-4 h-4" />
+                            <span>Créer un nouveau gestionnaire</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-gray-500 mt-1">
@@ -911,88 +1018,162 @@ export default function NewBuildingPage() {
         {currentStep === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>Assignation des contacts</CardTitle>
-              <CardDescription>Assignez des contacts à vos lots (optionnel)</CardDescription>
+              <CardTitle>Assignation des contacts et gestionnaires</CardTitle>
+              <CardDescription>Assignez des contacts et gestionnaires à vos lots (optionnel)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Summary */}
               <div className="grid grid-cols-4 gap-4 p-4 bg-blue-50 rounded-lg">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{contacts.length}</div>
-                  <div className="text-sm text-gray-600">assignations</div>
+                  <div className="text-sm text-gray-600">contacts</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {Object.values(assignedManagers).reduce((total, managers) => total + managers.length, 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">gestionnaires</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{lots.length}</div>
-                  <div className="text-sm text-gray-600">lots assignés</div>
+                  <div className="text-sm text-gray-600">lots</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">1</div>
-                  <div className="text-sm text-gray-600">moy./lot</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">100%</div>
-                  <div className="text-sm text-gray-600">couverture</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {lots.filter(lot => getAssignedManagers(lot.id).length > 0).length}
+                  </div>
+                  <div className="text-sm text-gray-600">avec gestionnaire</div>
                 </div>
               </div>
 
-              {/* Lots with contacts */}
+              {/* Lots with contacts and managers */}
               <div className="space-y-6">
-                {lots.map((lot) => (
-                  <Card key={lot.id} className="border-gray-200">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">{lot.reference}</h3>
-                        <Badge variant="secondary">{getContactsByType("tenant").length} contact(s) assigné(s)</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-6">
-                        {contactTypes.map((type) => {
-                          const Icon = type.icon
-                          const assignedContacts = getContactsByType(type.key)
-
-                          return (
-                            <div key={type.key} className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <Icon className={`w-4 h-4 ${type.color}`} />
-                                <span className="font-medium text-sm">{type.label}</span>
-                              </div>
-
-                              <div className="space-y-2">
-                                {assignedContacts.map((contact) => (
-                                  <div
-                                    key={contact.id}
-                                    className="flex items-center justify-between p-2 bg-green-50 rounded-lg"
-                                  >
-                                    <span className="text-sm">{contact.email}</span>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeContact(contact.id)}
-                                      className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openContactModal(type.key)}
-                                  className="w-full text-xs"
-                                >
-                                  <Plus className="w-3 h-3 mr-1" />
-                                  Ajouter {type.label.toLowerCase()}
-                                </Button>
-                              </div>
+                {lots.map((lot) => {
+                  const lotManagers = getAssignedManagers(lot.id)
+                  const lotContacts = getContactsByType("tenant") // Simplification pour maintenant
+                  
+                  return (
+                    <Card key={lot.id} className="border-gray-200">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium">{lot.reference}</h3>
+                          <div className="flex gap-2">
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                              {lotManagers.length} gestionnaire(s)
+                            </Badge>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              {lotContacts.length} contact(s)
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {/* Section Gestionnaires */}
+                          <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/30">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Users className="w-5 h-5 text-blue-600" />
+                              <span className="font-medium text-blue-900">Gestionnaires assignés</span>
                             </div>
-                          )
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                            
+                            <div className="space-y-2">
+                              {lotManagers.map((manager) => (
+                                <div
+                                  key={manager.user.id}
+                                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                      <User className="w-4 h-4 text-blue-600" />
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-sm">{manager.user.name}</div>
+                                      <div className="text-xs text-gray-500">{manager.user.email}</div>
+                                      {manager.user.id === selectedManagerId && (
+                                        <Badge variant="outline" className="text-xs mt-1">Responsable du bâtiment</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeManagerFromLot(lot.id, manager.user.id)}
+                                    className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openManagerModal(lot.id)}
+                                className="w-full text-sm border-blue-300 text-blue-700 hover:bg-blue-50"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Ajouter un gestionnaire
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Section Contacts */}
+                          <div className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <User className="w-5 h-5 text-gray-600" />
+                              <span className="font-medium text-gray-900">Contacts assignés</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              {contactTypes.map((type) => {
+                                const Icon = type.icon
+                                const assignedContacts = getContactsByType(type.key)
+
+                                return (
+                                  <div key={type.key} className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Icon className={`w-4 h-4 ${type.color}`} />
+                                      <span className="font-medium text-sm">{type.label}</span>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      {assignedContacts.map((contact) => (
+                                        <div
+                                          key={contact.id}
+                                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg"
+                                        >
+                                          <span className="text-sm">{contact.name || contact.email}</span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => removeContact(contact.id)}
+                                            className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      ))}
+
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => openContactModal(type.key)}
+                                        className="w-full text-xs"
+                                      >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Ajouter {type.label.toLowerCase()}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
 
               <div className="flex justify-between">
@@ -1156,6 +1337,112 @@ export default function NewBuildingPage() {
           onSubmit={handleContactCreated}
           defaultType={prefilledContactType}
         />
+
+        {/* Gestionnaire Creation Modal */}
+        <ContactFormModal
+          isOpen={isGestionnaireModalOpen}
+          onClose={() => setIsGestionnaireModalOpen(false)}
+          onSubmit={handleGestionnaireCreated}
+          defaultType="gestionnaire"
+        />
+
+        {/* Manager Assignment Modal */}
+        <Dialog open={isManagerModalOpen} onOpenChange={setIsManagerModalOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Assigner un gestionnaire au lot {selectedLotForManager && lots.find(l => l.id === selectedLotForManager)?.reference}
+              </DialogTitle>
+              <DialogDescription>
+                Sélectionnez un gestionnaire de votre équipe pour ce lot
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {!isLoading && teamManagers.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto">
+                  <div className="space-y-2">
+                    {teamManagers.map((manager) => {
+                      const isAlreadyAssigned = selectedLotForManager && 
+                        getAssignedManagers(selectedLotForManager).some(m => m.user.id === manager.user.id)
+                      
+                      return (
+                        <div
+                          key={manager.user.id}
+                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                            isAlreadyAssigned 
+                              ? 'bg-gray-100 border-gray-300 opacity-60' 
+                              : 'hover:bg-blue-50 border-blue-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{manager.user.name}</div>
+                              <div className="text-sm text-gray-500">{manager.user.email}</div>
+                              <div className="flex gap-1 mt-1">
+                                {manager.user.id === user?.id && (
+                                  <Badge variant="outline" className="text-xs">Vous</Badge>
+                                )}
+                                {manager.user.id === selectedManagerId && (
+                                  <Badge variant="secondary" className="text-xs">Responsable du bâtiment</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Button 
+                            onClick={() => selectedLotForManager && addManagerToLot(selectedLotForManager, manager)} 
+                            disabled={isAlreadyAssigned}
+                            className={`${
+                              isAlreadyAssigned 
+                                ? 'bg-gray-300 text-gray-500' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            size="sm"
+                          >
+                            {isAlreadyAssigned ? 'Déjà assigné' : 'Assigner'}
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-2">
+                    Aucun gestionnaire disponible
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    {isLoading 
+                      ? 'Chargement des gestionnaires...'
+                      : 'Aucun gestionnaire trouvé dans votre équipe'
+                    }
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-2"
+                  onClick={openGestionnaireModal}
+                >
+                  <Plus className="w-4 h-4" />
+                  Créer un nouveau gestionnaire
+                </Button>
+                <Button variant="ghost" onClick={() => setIsManagerModalOpen(false)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

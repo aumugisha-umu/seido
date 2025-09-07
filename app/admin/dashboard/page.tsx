@@ -9,8 +9,6 @@ import { useAuth } from "@/hooks/use-auth"
 export default function AdminDashboard() {
   const { user } = useAuth()
 
-  if (!user) return <div>Chargement...</div>
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}

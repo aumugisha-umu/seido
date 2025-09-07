@@ -12,11 +12,14 @@ import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { useAuth } from "@/hooks/use-auth"
-import { contactService, teamService } from "@/lib/database-service"
+import { useTeamStatus } from "@/hooks/use-team-status"
+import { contactService, teamService, contactInvitationService } from "@/lib/database-service"
+import { TeamCheckModal } from "@/components/team-check-modal"
 
 export default function ContactsPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { teamStatus, hasTeam } = useTeamStatus()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [contacts, setContacts] = useState<any[]>([])
   const [filteredContacts, setFilteredContacts] = useState<any[]>([])
@@ -25,12 +28,17 @@ export default function ContactsPage() {
   const [error, setError] = useState<string | null>(null)
   const [userTeam, setUserTeam] = useState<any>(null)
 
-  // Récupérer les contacts au montage du composant
+  // Afficher la vérification d'équipe si nécessaire
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => {}} />
+  }
+
+  // Récupérer les contacts quand l'utilisateur et l'équipe sont prêts
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && teamStatus === 'verified') {
       loadContacts()
     }
-  }, [user?.id])
+  }, [user?.id, teamStatus])
 
   // Filtrer les contacts selon le terme de recherche
   useEffect(() => {
@@ -50,6 +58,12 @@ export default function ContactsPage() {
   const loadContacts = async () => {
     if (!user?.id) {
       setError("Utilisateur non connecté")
+      setLoading(false)
+      return
+    }
+
+    // Ne pas charger si l'équipe n'est pas encore vérifiée
+    if (teamStatus !== 'verified') {
       setLoading(false)
       return
     }
@@ -90,23 +104,50 @@ export default function ContactsPage() {
 
   const handleContactSubmit = async (contactData: any) => {
     try {
-      console.log("📞 Creating contact:", contactData)
+      console.log("📞 [CONTACTS-PAGE] Creating contact:", contactData)
+      console.log("📞 [CONTACTS-PAGE] User team:", userTeam)
       
-      // Ajouter le team_id au contact
-      const contactWithTeam = {
-        ...contactData,
-        team_id: userTeam?.id
+      if (!userTeam?.id) {
+        console.error("❌ [CONTACTS-PAGE] No team found")
+        setError("Aucune équipe trouvée pour créer le contact")
+        return
       }
       
-      const newContact = await contactService.create(contactWithTeam)
-      console.log("✅ Contact created:", newContact)
+      const dataWithTeam = {
+        ...contactData,
+        teamId: userTeam.id
+      }
       
+      console.log("📞 [CONTACTS-PAGE] Calling service with:", dataWithTeam)
+      
+      // Utiliser le service d'invitation qui gère la création du contact + invitation optionnelle
+      const result = await contactInvitationService.createContactWithOptionalInvite(dataWithTeam)
+      
+      console.log("✅ [CONTACTS-PAGE] Service completed, result:", result)
+      
+      if (result.invitation) {
+        if (result.invitation.success) {
+          console.log("✅ [CONTACTS-PAGE] Invitation sent successfully to:", contactData.email)
+        } else {
+          console.warn("⚠️ [CONTACTS-PAGE] Contact created but invitation failed:", result.invitation.error)
+          setError(`Contact créé mais l'invitation a échoué: ${result.invitation.error}`)
+        }
+      }
+      
+      console.log("🔄 [CONTACTS-PAGE] Reloading contacts...")
       // Recharger la liste des contacts
       await loadContacts()
+      console.log("✅ [CONTACTS-PAGE] Contacts reloaded, closing modal")
       setIsContactModalOpen(false)
       
     } catch (error) {
-      console.error("❌ Error creating contact:", error)
+      console.error("❌ [CONTACTS-PAGE] Error creating contact:", error)
+      console.error("❌ [CONTACTS-PAGE] Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        contactData: contactData,
+        userTeam: userTeam
+      })
       setError("Erreur lors de la création du contact")
     }
   }
@@ -137,6 +178,32 @@ export default function ContactsPage() {
       'autre': 'Autre'
     }
     return specialities[speciality as keyof typeof specialities] || speciality
+  }
+
+  const getContactTypeLabel = (contactType: string) => {
+    const types = {
+      'locataire': 'Locataire',
+      'prestataire': 'Prestataire',
+      'gestionnaire': 'Gestionnaire',
+      'syndic': 'Syndic',
+      'notaire': 'Notaire',
+      'assurance': 'Assurance',
+      'autre': 'Autre'
+    }
+    return types[contactType as keyof typeof types] || 'Non défini'
+  }
+
+  const getContactTypeBadgeStyle = (contactType: string) => {
+    const styles = {
+      'locataire': 'bg-blue-100 text-blue-800',
+      'prestataire': 'bg-green-100 text-green-800',
+      'gestionnaire': 'bg-purple-100 text-purple-800',
+      'syndic': 'bg-orange-100 text-orange-800',
+      'notaire': 'bg-gray-100 text-gray-800',
+      'assurance': 'bg-red-100 text-red-800',
+      'autre': 'bg-gray-100 text-gray-600'
+    }
+    return styles[contactType as keyof typeof styles] || 'bg-gray-100 text-gray-600'
   }
 
   return (
@@ -261,6 +328,11 @@ export default function ContactsPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-1">
                           <h3 className="font-medium text-gray-900">{contact.name}</h3>
+                          {contact.contact_type && (
+                            <Badge variant="secondary" className={`${getContactTypeBadgeStyle(contact.contact_type)} text-xs font-medium`}>
+                              {getContactTypeLabel(contact.contact_type)}
+                            </Badge>
+                          )}
                           {contact.company && (
                             <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
                               {contact.company}

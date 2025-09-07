@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { AuthProvider } from "@/hooks/use-auth"
+import { TeamStatusProvider } from "@/hooks/use-team-status"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <AuthProvider>
-          <Suspense fallback={null}>{children}</Suspense>
+          <TeamStatusProvider>
+            <Suspense fallback={null}>{children}</Suspense>
+          </TeamStatusProvider>
         </AuthProvider>
         <Analytics />
       </body>

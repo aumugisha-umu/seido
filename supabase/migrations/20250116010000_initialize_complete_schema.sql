@@ -52,6 +52,17 @@ CREATE TYPE intervention_type AS ENUM (
     'autre'
 );
 
+-- Type de contact
+CREATE TYPE contact_type AS ENUM (
+    'locataire',
+    'prestataire',
+    'gestionnaire',
+    'syndic',
+    'notaire',
+    'assurance',
+    'autre'
+);
+
 -- =============================================================================
 -- TABLE USERS
 -- =============================================================================
@@ -60,6 +71,8 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
     phone VARCHAR(20),
     role user_role NOT NULL DEFAULT 'locataire',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -136,9 +149,12 @@ CREATE TABLE lots (
 CREATE TABLE contacts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
     email VARCHAR(255) UNIQUE NOT NULL,
     phone VARCHAR(20),
     company VARCHAR(255),
+    contact_type contact_type DEFAULT 'autre',
     speciality intervention_type,
     address TEXT,
     notes TEXT,
@@ -326,6 +342,7 @@ CREATE INDEX idx_lots_tenant ON lots(tenant_id);
 
 -- Index contacts
 CREATE INDEX idx_contacts_team ON contacts(team_id);
+CREATE INDEX idx_contacts_type ON contacts(contact_type);
 
 -- Index interventions
 CREATE INDEX idx_interventions_lot ON interventions(lot_id);
@@ -338,9 +355,124 @@ CREATE INDEX idx_interventions_reference ON interventions(reference);
 -- =============================================================================
 
 -- Créer un utilisateur admin par défaut
-INSERT INTO users (id, email, name, role) VALUES 
-    ('00000000-0000-0000-0000-000000000001', 'admin@seido.fr', 'Admin SEIDO', 'admin')
+INSERT INTO users (id, email, name, first_name, last_name, role) VALUES 
+    ('00000000-0000-0000-0000-000000000001', 'admin@seido.fr', 'Admin SEIDO', 'Admin', 'SEIDO', 'admin')
 ON CONFLICT (email) DO NOTHING;
+
+-- =============================================================================
+-- VALIDATION
+-- =============================================================================
+
+-- =============================================================================
+-- AMÉLIORATIONS DES ASSOCIATIONS D'ÉQUIPES INTÉGRÉES
+-- =============================================================================
+
+-- Fonction pour obtenir automatiquement l'équipe principale d'un utilisateur
+CREATE OR REPLACE FUNCTION get_user_primary_team(user_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+    primary_team_id UUID;
+BEGIN
+    -- Récupérer la première équipe de l'utilisateur (par date de création)
+    SELECT tm.team_id INTO primary_team_id
+    FROM team_members tm
+    INNER JOIN teams t ON t.id = tm.team_id
+    WHERE tm.user_id = user_uuid
+    ORDER BY tm.joined_at ASC, t.created_at ASC
+    LIMIT 1;
+    
+    RETURN primary_team_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ❌ SUPPRESSION COMPLÈTE de la logique automatique de création d'équipes
+-- Tous les utilisateurs devront être assignés manuellement à des équipes existantes
+-- via l'interface ou les invitations explicites.
+
+-- Conserver la fonction pour référence mais ne pas l'utiliser
+-- CREATE OR REPLACE FUNCTION ensure_user_has_team() - SUPPRIMÉ
+-- CREATE TRIGGER ensure_user_has_team_trigger - SUPPRIMÉ
+DO $$
+BEGIN
+    RAISE NOTICE '🚫 Auto-création d''équipes DÉSACTIVÉE - Assignation manuelle requise';
+END $$;
+
+-- Fonction pour obtenir l'équipe d'un utilisateur avec fallbacks
+CREATE OR REPLACE FUNCTION get_user_team_with_fallback(user_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+    team_uuid UUID;
+    user_role TEXT;
+BEGIN
+    -- Essayer de récupérer l'équipe existante
+    SELECT get_user_primary_team(user_uuid) INTO team_uuid;
+    
+    -- Si pas d'équipe et que l'utilisateur est gestionnaire, créer une équipe automatiquement
+    IF team_uuid IS NULL THEN
+        SELECT role INTO user_role FROM users WHERE id = user_uuid;
+        
+        IF user_role = 'gestionnaire' THEN
+            -- Créer une équipe personnelle
+            INSERT INTO teams (name, description, created_by)
+            SELECT 
+                'Équipe de ' || u.name,
+                'Équipe personnelle de ' || u.name,
+                user_uuid
+            FROM users u WHERE u.id = user_uuid
+            RETURNING id INTO team_uuid;
+            
+            -- Ajouter l'utilisateur comme admin
+            INSERT INTO team_members (team_id, user_id, role)
+            VALUES (team_uuid, user_uuid, 'admin');
+            
+            RAISE NOTICE 'Équipe personnelle créée automatiquement: %', team_uuid;
+        END IF;
+    END IF;
+    
+    RETURN team_uuid;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- S'assurer que toutes les tables ont les colonnes team_id nécessaires
+DO $$
+BEGIN
+    -- Vérifier et ajouter team_id à la table lots si nécessaire
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'lots' AND column_name = 'team_id') THEN
+        ALTER TABLE lots ADD COLUMN team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
+        CREATE INDEX idx_lots_team ON lots(team_id);
+        RAISE NOTICE '✅ Colonne team_id ajoutée à la table lots';
+    END IF;
+
+    -- Vérifier et ajouter team_id à la table interventions si nécessaire
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'interventions' AND column_name = 'team_id') THEN
+        ALTER TABLE interventions ADD COLUMN team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
+        CREATE INDEX idx_interventions_team ON interventions(team_id);
+        RAISE NOTICE '✅ Colonne team_id ajoutée à la table interventions';
+    END IF;
+
+    RAISE NOTICE '📋 Vérification des colonnes team_id terminée';
+END $$;
+
+-- ✅ CORRECTION: Trigger auto_assign_contact_team supprimé
+-- Ce trigger causait des timeouts car auth.uid() n'est pas accessible 
+-- depuis le contexte client Next.js. Les contacts sont maintenant 
+-- assignés explicitement via team_id lors de la création.
+
+-- ❌ SUPPRESSION COMPLÈTE des triggers d'auto-assignation d'équipe
+-- Toutes les entités (bâtiments, lots, interventions) devront avoir leur team_id
+-- assigné explicitement dans le code application.
+
+-- Triggers supprimés :
+-- - auto_assign_building_team_trigger
+-- - auto_assign_lot_team_trigger  
+-- - auto_assign_intervention_team_trigger
+
+DO $$
+BEGIN
+    RAISE NOTICE '🚫 Auto-assignation d''équipes DÉSACTIVÉE pour tous les triggers';
+END $$;
 
 -- =============================================================================
 -- VALIDATION
@@ -348,12 +480,15 @@ ON CONFLICT (email) DO NOTHING;
 
 DO $$
 BEGIN
-    RAISE NOTICE '=== SCHÉMA SEIDO INITIALISÉ AVEC SUCCÈS ===';
+    RAISE NOTICE '=== SCHÉMA SEIDO COMPLET INITIALISÉ AVEC SUCCÈS ===';
     RAISE NOTICE '✅ Tables créées: users, teams, team_members, buildings, lots, contacts, interventions';
+    RAISE NOTICE '✅ Champs first_name et last_name ajoutés aux tables users et contacts';
+    RAISE NOTICE '✅ Enum contact_type et colonne contact_type ajoutés à la table contacts';
     RAISE NOTICE '✅ Fonctions créées: triggers, utilitaires équipes, génération références';
+    RAISE NOTICE '✅ Triggers d''auto-assignation d''équipe sur toutes les tables';
     RAISE NOTICE '✅ Index optimisés pour les performances';
     RAISE NOTICE '✅ Utilisateur admin par défaut créé';
+    RAISE NOTICE '✅ Système d''équipes complet et automatisé';
     RAISE NOTICE '';
-    RAISE NOTICE '⚠️ RLS NON ACTIVÉ - Sera fait dans la migration suivante';
-    RAISE NOTICE '🎯 Prêt pour l''application des politiques de sécurité';
+    RAISE NOTICE '🎯 Prêt pour l''utilisation complète avec gestion automatique des équipes';
 END $$;

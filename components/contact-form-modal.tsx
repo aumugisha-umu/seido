@@ -2,14 +2,15 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { X, Building2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { X, Building2, Mail } from "lucide-react"
 
 interface ContactFormModalProps {
   isOpen: boolean
@@ -20,11 +21,14 @@ interface ContactFormModalProps {
 
 interface ContactFormData {
   type: string
-  name: string
+  firstName: string
+  lastName: string
   email: string
   phone: string
   address: string
+  speciality?: string
   notes: string
+  inviteToApp: boolean
 }
 
 const contactTypes = [
@@ -33,6 +37,18 @@ const contactTypes = [
   { value: "syndic", label: "Syndic" },
   { value: "notaire", label: "Notaire" },
   { value: "assurance", label: "Assurance" },
+  { value: "gestionnaire", label: "Gestionnaire" },
+  { value: "autre", label: "Autre" },
+]
+
+const specialityTypes = [
+  { value: "plomberie", label: "Plomberie" },
+  { value: "electricite", label: "Électricité" },
+  { value: "chauffage", label: "Chauffage" },
+  { value: "serrurerie", label: "Serrurerie" },
+  { value: "peinture", label: "Peinture" },
+  { value: "menage", label: "Ménage" },
+  { value: "jardinage", label: "Jardinage" },
   { value: "autre", label: "Autre" },
 ]
 
@@ -48,35 +64,56 @@ const getContactTitle = (type: string) => {
       return { title: "Créer un notaire", subtitle: "Professionnel du droit immobilier" }
     case "assurance":
       return { title: "Créer une assurance", subtitle: "Compagnie d'assurance du bien" }
+    case "gestionnaire":
+      return { title: "Créer un gestionnaire", subtitle: "Responsable de la gestion des biens" }
     default:
       return { title: "Créer un contact", subtitle: "Nouveau contact pour votre bien" }
   }
 }
 
 const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire" }: ContactFormModalProps) => {
+  // Types de contacts qui doivent avoir la checkbox cochée par défaut
+  const shouldInviteByDefault = (type: string) => {
+    return ['gestionnaire', 'locataire', 'prestataire'].includes(type)
+  }
+
   const [formData, setFormData] = useState<ContactFormData>({
     type: defaultType,
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     address: "",
+    speciality: "",
     notes: "",
+    inviteToApp: shouldInviteByDefault(defaultType),
   })
+
+  // Mettre à jour la checkbox quand le type change
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      inviteToApp: shouldInviteByDefault(prev.type)
+    }))
+  }, [formData.type])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name.trim()) return
+    if (!formData.firstName.trim() || !formData.lastName.trim()) return
 
     onSubmit(formData)
 
     // Reset form
     setFormData({
       type: defaultType,
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phone: "",
       address: "",
+      speciality: "",
       notes: "",
+      inviteToApp: shouldInviteByDefault(defaultType),
     })
 
     onClose()
@@ -86,11 +123,14 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
     // Reset form
     setFormData({
       type: defaultType,
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phone: "",
       address: "",
+      speciality: "",
       notes: "",
+      inviteToApp: shouldInviteByDefault(defaultType),
     })
     onClose()
   }
@@ -116,37 +156,79 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="type" className="text-sm font-medium text-gray-700">
-              Type de contact <span className="text-red-500">*</span>
-            </Label>
-            <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {contactTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className={formData.type === "prestataire" ? "grid grid-cols-2 gap-4" : "space-y-2"}>
+            <div className="space-y-2">
+              <Label htmlFor="type" className="text-sm font-medium text-gray-700">
+                Type de contact <span className="text-red-500">*</span>
+              </Label>
+              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {contactTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Champ Spécialité - À côté du type quand c'est un prestataire */}
+            {formData.type === "prestataire" && (
+              <div className="space-y-2">
+                <Label htmlFor="speciality" className="text-sm font-medium text-gray-700">
+                  Spécialité
+                </Label>
+                <Select 
+                  value={formData.speciality || ""} 
+                  onValueChange={(value) => setFormData({ ...formData, speciality: value })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionner une spécialité" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {specialityTypes.map((speciality) => (
+                      <SelectItem key={speciality.value} value={speciality.value}>
+                        {speciality.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-              Nom complet <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Nom et prénom ou raison sociale"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              className="w-full"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">
+                Prénom <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="firstName"
+                type="text"
+                placeholder="Jean"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">
+                Nom <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="lastName"
+                type="text"
+                placeholder="Dupont"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                required
+                className="w-full"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -177,8 +259,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
             />
           </div>
 
-          
-
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
               Notes
@@ -192,6 +272,23 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
             />
           </div>
 
+          <div className="flex items-center space-x-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <Checkbox 
+              id="inviteToApp" 
+              checked={formData.inviteToApp}
+              onCheckedChange={(checked) => setFormData({ ...formData, inviteToApp: !!checked })}
+            />
+            <div className="flex-1">
+              <Label htmlFor="inviteToApp" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                <Mail className="w-4 h-4 text-blue-600" />
+                Inviter ce contact à rejoindre l'application
+              </Label>
+              <p className="text-xs text-gray-500 mt-1">
+                Un email d'invitation sera envoyé pour qu'il puisse accéder à ses informations et interventions
+              </p>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={handleCancel} className="px-6 bg-transparent">
               Annuler
@@ -199,7 +296,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
             <Button
               type="submit"
               className="px-6 bg-gray-900 hover:bg-gray-800 text-white"
-              disabled={!formData.name.trim()}
+              disabled={!formData.firstName.trim() || !formData.lastName.trim()}
             >
               Créer
             </Button>

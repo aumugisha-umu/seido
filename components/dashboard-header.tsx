@@ -71,7 +71,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const { user } = useAuth()
   const pathname = usePathname()
   
-  const userName = user?.name || "Utilisateur"
+  const userName = user?.display_name || user?.name || "Utilisateur"
   const userInitial = userName.charAt(0).toUpperCase()
 
   const isActivePage = (href: string) => {

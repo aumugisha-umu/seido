@@ -272,7 +272,11 @@ export default function PropertySelector({
                             {isSelected ? "Sélectionné" : "Sélectionner le bâtiment"}
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => router.push(`/gestionnaire/biens/${building.id}`)}
+                          >
                             <Eye className="h-4 w-4 mr-1" />
                             Gérer
                           </Button>
@@ -352,7 +356,12 @@ export default function PropertySelector({
                                           {isLotSelected ? "Sélectionné" : "Sélectionner"}
                                         </Button>
                                       ) : (
-                                        <Button variant="ghost" size="sm" className="flex items-center space-x-1">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          className="flex items-center space-x-1"
+                                          onClick={() => router.push(`/gestionnaire/biens/${building.id}?lot=${lot.id}`)}
+                                        >
                                           <Eye className="h-4 w-4" />
                                           <span>Détails</span>
                                         </Button>
@@ -439,7 +448,11 @@ export default function PropertySelector({
                           {isSelected ? "Sélectionné" : "Sélectionner"}
                         </Button>
                       ) : (
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => router.push(`/gestionnaire/lots/${lot.id}`)}
+                        >
                           <Eye className="h-4 w-4 mr-1" />
                           Gérer
                         </Button>

@@ -58,43 +58,15 @@ export default function AuthCallback() {
             console.log('⚠️ [AUTH-CALLBACK] Session set error (non-blocking):', err.message)
           })
           
-          // Extraire le token d'invitation depuis l'URL ou depuis les métadonnées JWT
-          let invitationToken = null
-          try {
-            // D'abord essayer depuis l'URL
-            invitationToken = searchParams.get('invitation_token') || new URLSearchParams(window.location.hash.substring(1)).get('invitation_token')
-            console.log('🔑 [AUTH-CALLBACK] Extracted invitation_token from URL:', invitationToken)
-            
-            // Si pas trouvé dans l'URL, essayer depuis les métadonnées JWT user_metadata
-            if (!invitationToken) {
-              // Décoder le token complet pour accéder aux user_metadata
-              const tokenParts = accessToken.split('.')
-              if (tokenParts.length === 3) {
-                try {
-                  const payload = JSON.parse(atob(tokenParts[1]))
-                  if (payload.user_metadata?.invitation_token) {
-                    invitationToken = payload.user_metadata.invitation_token
-                    console.log('🔑 [AUTH-CALLBACK] Found invitation_token in JWT user_metadata:', invitationToken)
-                  }
-                } catch (jwtError) {
-                  console.warn('⚠️ [AUTH-CALLBACK] Could not decode full JWT for user_metadata:', jwtError)
-                }
-              }
-            }
-          } catch (extractError) {
-            console.warn('⚠️ [AUTH-CALLBACK] Could not extract invitation_token:', extractError)
-          }
-
-          // Marquer l'invitation spécifique comme acceptée via API (plus fiable)
-          console.log('📝 [AUTH-CALLBACK] Marking invitation as accepted via API (non-blocking)...')
+          // Marquer les invitations comme acceptées via API (basé sur l'email)
+          console.log('📝 [AUTH-CALLBACK] Marking invitations as accepted via API (non-blocking)...')
           fetch('/api/mark-invitation-accepted', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              email: tokenPayload.email,
-              invitationToken: invitationToken || undefined
+              email: tokenPayload.email
             })
           }).then(response => response.json()).then((result) => {
             if (result.success) {
@@ -114,16 +86,14 @@ export default function AuthCallback() {
           
           console.log('🚀 [AUTH-CALLBACK] Immediate redirect to:', redirectPath)
           setStatus('success')
-          setMessage(`Redirection vers votre espace ${role || 'utilisateur'}... (TEMPORAIREMENT DÉSACTIVÉE POUR DEBUG)`)
+          setMessage(`Redirection vers votre espace ${role || 'utilisateur'}...`)
           setUserRole(role || null)
           
-          // 🚫 REDIRECTION TEMPORAIREMENT COMMENTÉE POUR DEBUG
-          // setTimeout(() => {
-          //   console.log('🏃 [AUTH-CALLBACK] Executing redirect...')
-          //   window.location.href = redirectPath
-          // }, 100)
-          
-          console.log('⏸️ [AUTH-CALLBACK] Redirection disabled for debugging - check logs above')
+          // Redirection après un court délai pour permettre l'affichage du message
+          setTimeout(() => {
+            console.log('🏃 [AUTH-CALLBACK] Executing redirect...')
+            window.location.href = redirectPath
+          }, 1000)
           
         } catch (tokenError) {
           console.error('❌ [AUTH-CALLBACK] Error decoding token:', tokenError)

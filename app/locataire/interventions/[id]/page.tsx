@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, use } from "react"
+import { useState, useEffect, use } from "react"
 import { ArrowLeft, Building2, User, MessageSquare, CalendarDays, Euro, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { InterventionLogementCard } from "@/components/intervention/intervention-logement-card"
 import { PlanningCard } from "@/components/intervention/planning-card"
 import { AssignedContactsCard } from "@/components/intervention/assigned-contacts-card"
 import { FilesCard } from "@/components/intervention/files-card"
 import { ChatsCard } from "@/components/intervention/chats-card"
+import { interventionService } from "@/lib/database-service"
 
 interface InterventionDetailsProps {
   params: {
@@ -21,126 +23,178 @@ interface InterventionDetailsProps {
 export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
-  const [intervention] = useState({
-    id: resolvedParams.id,
-    title: "Fuite d'eau dans la salle de bain",
-    description:
-      "Une fuite importante s'est déclarée au niveau du robinet de la baignoire. L'eau s'infiltre dans le plafond de l'appartement du dessous.",
-    type: "Plomberie",
-    urgency: "Urgente - Immédiate",
-    status: "En cours",
-    createdAt: "2025-01-09T11:30:00Z",
-    location: "Salle de bain principale",
-    logement: {
-      name: "Lot003",
-      address: "123 Rue de la Paix, 75001 Paris",
-      building: "Résidence Champs-Élysées",
-      floor: "Étage 1",
-      tenant: "Vous",
-    },
-    files: [
-      { name: "fuite-robinet.jpg", size: "2.1 MB" },
-      { name: "degats-plafond.jpg", size: "1.4 MB" },
-    ],
-    availabilities: [
-      { date: "2025-01-10", startTime: "08:00", endTime: "18:00" },
-      { date: "2025-01-11", startTime: "09:00", endTime: "17:00" },
-    ],
-    assignedContacts: [
-      {
-        id: 1,
-        name: "Thomas Blanc",
-        role: "Prestataire",
-        speciality: "Plomberie",
-        email: "thomas.blanc@maintenance.com",
-        phone: "06 23 45 67 89",
-      },
-      {
-        id: 2,
-        name: "Marie Dubois",
-        role: "Gestionnaire",
-        email: "marie.dubois@seido.com",
-        phone: "06 87 65 43 21",
-      },
-    ],
-    quotes: [
-      {
-        id: 1,
-        amount: 280,
-        description: "Remplacement du robinet défaillant et réparation de la tuyauterie",
-        status: "En attente",
-        provider: "Thomas Blanc",
-        createdAt: "2025-01-09T15:30:00Z",
-        validUntil: "2025-01-16",
-      },
-    ],
-    planning: {
-      type: "fixed",
-      scheduledDate: "2025-01-10",
-      scheduledTime: "14:00-17:00",
-    },
-    prestataireAvailabilities: [
-      {
-        person: "Thomas Blanc (Prestataire)",
-        slots: [
-          { date: "2025-01-10", startTime: "14:00", endTime: "18:00" },
-          { date: "2025-01-11", startTime: "08:00", endTime: "12:00" },
-        ],
-      },
-    ],
-    chats: [
-      {
-        id: 1,
-        type: "group" as const,
-        participants: 3,
-        lastMessage: "J'arrive dans 10 minutes",
-        lastMessageTime: "Il y a 5 minutes",
-        lastMessageSender: "Thomas Blanc",
-      },
-      {
-        id: 2,
-        type: "individual" as const,
-        name: "Thomas Blanc",
-        role: "Prestataire",
-        lastMessage: "Intervention terminée, tout est réparé",
-        lastMessageTime: "Il y a 1 heure",
-      },
-      {
-        id: 3,
-        type: "individual" as const,
-        name: "Marie Dubois",
-        role: "Gestionnaire",
-        lastMessage: "Nous suivons votre demande",
-        lastMessageTime: "Il y a 2 heures",
-      },
-    ],
-  })
+  const [intervention, setIntervention] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchIntervention = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const data = await interventionService.getById(resolvedParams.id)
+        
+        // Transform the data to match expected format for components
+        const transformedData = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          type: data.intervention_type || "Non spécifié",
+          urgency: data.priority || "Normale",
+          status: data.status,
+          createdAt: data.created_at,
+          location: data.location || "Non spécifié",
+          logement: {
+            name: data.lot?.reference || data.lot?.apartment_number || `Lot ${data.lot?.reference}`,
+            address: data.lot?.building ? 
+              `${data.lot.building.address}, ${data.lot.building.postal_code} ${data.lot.building.city}` : 
+              "Adresse non disponible",
+            building: data.lot?.building?.name || "Bâtiment non spécifié",
+            floor: data.lot?.floor ? `Étage ${data.lot.floor}` : "Étage non spécifié",
+            tenant: "Vous",
+          },
+          // Mock data for components that don't have real data yet
+          files: [],
+          availabilities: [],
+          assignedContacts: data.assigned_contact ? [{
+            id: data.assigned_contact.id,
+            name: data.assigned_contact.name,
+            role: "Prestataire",
+            email: data.assigned_contact.email,
+            phone: data.assigned_contact.phone,
+          }] : [],
+          quotes: [],
+          planning: {
+            type: "pending",
+            scheduledDate: null,
+            scheduledTime: null,
+          },
+          prestataireAvailabilities: [],
+          chats: [],
+        }
+        
+        setIntervention(transformedData)
+      } catch (err) {
+        console.error("Error fetching intervention:", err)
+        setError("Erreur lors du chargement de l'intervention")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (resolvedParams.id) {
+      fetchIntervention()
+    }
+  }, [resolvedParams.id])
+
+  if (loading) {
+    return <LoadingSkeleton />
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-center text-destructive">
+                {error}
+              </p>
+              <div className="flex justify-center mt-4">
+                <Button variant="outline" onClick={() => router.back()}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  if (!intervention) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-center text-muted-foreground">
+                Intervention non trouvée
+              </p>
+              <div className="flex justify-center mt-4">
+                <Button variant="outline" onClick={() => router.back()}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "En attente":
+      case "nouvelle_demande":
+      case "en_attente_validation":
         return "bg-yellow-100 text-yellow-800"
-      case "En cours":
+      case "validee":
+      case "en_cours":
         return "bg-blue-100 text-blue-800"
-      case "Terminé":
+      case "terminee":
         return "bg-green-100 text-green-800"
-      case "Annulé":
+      case "annulee":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
   }
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "nouvelle_demande":
+        return "Nouvelle demande"
+      case "en_attente_validation":
+        return "En attente"
+      case "validee":
+        return "Validé"
+      case "en_cours":
+        return "En cours"
+      case "terminee":
+        return "Terminé"
+      case "annulee":
+        return "Annulé"
+      default:
+        return status
+    }
+  }
+
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case "Urgente - Immédiate":
+      case "critique":
         return "bg-red-100 text-red-800"
-      case "Importante - 24h":
+      case "urgent":
         return "bg-orange-100 text-orange-800"
-      case "Normale - Quelques jours":
+      case "normale":
         return "bg-yellow-100 text-yellow-800"
       default:
         return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getUrgencyLabel = (urgency: string) => {
+    switch (urgency) {
+      case "critique":
+        return "Critique"
+      case "urgent":
+        return "Urgent"
+      case "normale":
+        return "Normale"
+      default:
+        return urgency
     }
   }
 
@@ -155,8 +209,8 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
               Retour aux interventions
             </Button>
             <div className="flex items-center space-x-2">
-              <Badge className={getStatusColor(intervention.status)}>{intervention.status}</Badge>
-              <Badge className={getUrgencyColor(intervention.urgency)}>{intervention.urgency}</Badge>
+              <Badge className={getStatusColor(intervention.status)}>{getStatusLabel(intervention.status)}</Badge>
+              <Badge className={getUrgencyColor(intervention.urgency)}>{getUrgencyLabel(intervention.urgency)}</Badge>
               <Button variant="outline" size="sm">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Ouvrir le chat
@@ -264,6 +318,118 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
             <ChatsCard chats={intervention.chats} />
 
             <FilesCard files={intervention.files} />
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header skeleton */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton className="h-9 w-40" />
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-9 w-32" />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3 mb-2">
+            <Skeleton className="h-6 w-6" />
+            <Skeleton className="h-8 w-80" />
+          </div>
+
+          <Skeleton className="h-5 w-64 mb-4" />
+
+          <div className="flex items-center space-x-3">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-6 w-48" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content skeleton */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Intervention details card skeleton */}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Assigned contacts card skeleton */}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-32 mb-1" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar skeleton */}
+          <div className="space-y-6">
+            {/* Planning card skeleton */}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Files card skeleton */}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>

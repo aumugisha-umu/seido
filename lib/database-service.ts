@@ -2130,6 +2130,346 @@ export const mapContactTypeToDatabase = (frontendType: string): Database['public
   return mappedType
 }
 
+// Tenant Services
+export const tenantService = {
+  // Helper method to get contact_id from user_id
+  async getUserContactId(userId: string): Promise<string | null> {
+    console.log("🔗 getUserContactId called for userId:", userId)
+    
+    try {
+      const { data: userInvitation, error: invitationError } = await supabase
+        .from('user_invitations')
+        .select('contact_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .single()
+
+      if (invitationError) {
+        console.error("❌ Error getting user invitation:", invitationError)
+        throw invitationError
+      }
+
+      const contactId = userInvitation?.contact_id || null
+      console.log("✅ Found contact_id for user:", contactId)
+      return contactId
+    } catch (error) {
+      console.error("❌ Error in getUserContactId:", error)
+      throw error
+    }
+  },
+
+  async getTenantData(userId: string) {
+    console.log("👤 getTenantData called for userId:", userId)
+    
+    try {
+      // First, get the contact_id linked to this user
+      const { data: userInvitation, error: invitationError } = await supabase
+        .from('user_invitations')
+        .select('contact_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .single()
+
+      if (invitationError) {
+        console.error("❌ Error getting user invitation:", invitationError)
+        throw invitationError
+      }
+
+      if (!userInvitation?.contact_id) {
+        console.log("❌ No contact found for user:", userId)
+        return null
+      }
+
+      const contactId = userInvitation.contact_id
+      console.log("✅ Found contact_id for user:", contactId)
+
+      // Then get lots linked to this contact via lot_contacts where contact_type is 'locataire'
+      const { data: lotContacts, error: lotContactsError } = await supabase
+        .from('lot_contacts')
+        .select(`
+          lot:lot_id(
+            *,
+            building:building_id(
+              id,
+              name,
+              address,
+              city,
+              postal_code,
+              description
+            )
+          ),
+          contact_type,
+          is_primary,
+          start_date,
+          end_date
+        `)
+        .eq('contact_id', contactId)
+        .eq('contact_type', 'locataire')
+        .is('end_date', null) // Only active relations
+        .order('is_primary', { ascending: false }) // Primary contacts first
+
+      if (lotContactsError) {
+        console.error("❌ Error getting tenant lot contacts:", lotContactsError)
+        throw lotContactsError
+      }
+
+      if (!lotContacts || lotContacts.length === 0) {
+        console.log("❌ No lot found for contact:", contactId)
+        return null
+      }
+
+      // Take the first lot (primary if available, or first active one)
+      const primaryLotContact = lotContacts[0]
+      const lot = primaryLotContact.lot
+
+      console.log("✅ Found tenant lot via lot_contacts:", lot)
+      return lot
+    } catch (error) {
+      console.error("❌ Error in getTenantData:", error)
+      throw error
+    }
+  },
+
+  async getAllTenantLots(userId: string) {
+    console.log("🏠 getAllTenantLots called for userId:", userId)
+    
+    try {
+      // First, get the contact_id linked to this user
+      const { data: userInvitation, error: invitationError } = await supabase
+        .from('user_invitations')
+        .select('contact_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .single()
+
+      if (invitationError) {
+        console.error("❌ Error getting user invitation:", invitationError)
+        throw invitationError
+      }
+
+      if (!userInvitation?.contact_id) {
+        console.log("❌ No contact found for user:", userId)
+        return []
+      }
+
+      const contactId = userInvitation.contact_id
+      console.log("✅ Found contact_id for user:", contactId)
+
+      // Get all lots linked to this contact via lot_contacts where contact_type is 'locataire'
+      const { data: lotContacts, error: lotContactsError } = await supabase
+        .from('lot_contacts')
+        .select(`
+          lot:lot_id(
+            *,
+            building:building_id(
+              id,
+              name,
+              address,
+              city,
+              postal_code,
+              description
+            )
+          ),
+          contact_type,
+          is_primary,
+          start_date,
+          end_date
+        `)
+        .eq('contact_id', contactId)
+        .eq('contact_type', 'locataire')
+        .is('end_date', null) // Only active relations
+        .order('is_primary', { ascending: false }) // Primary contacts first
+
+      if (lotContactsError) {
+        console.error("❌ Error getting tenant lot contacts:", lotContactsError)
+        throw lotContactsError
+      }
+
+      const lots = lotContacts?.map(lc => lc.lot).filter(Boolean) || []
+      console.log("✅ Found tenant lots:", lots.length)
+      return lots
+    } catch (error) {
+      console.error("❌ Error in getAllTenantLots:", error)
+      throw error
+    }
+  },
+
+  async getTenantInterventions(userId: string) {
+    console.log("🔧 getTenantInterventions called for userId:", userId)
+    
+    try {
+      // First, get the contact_id linked to this user
+      const { data: userInvitation, error: invitationError } = await supabase
+        .from('user_invitations')
+        .select('contact_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .single()
+
+      if (invitationError) {
+        console.error("❌ Error getting user invitation:", invitationError)
+        throw invitationError
+      }
+
+      if (!userInvitation?.contact_id) {
+        console.log("❌ No contact found for user:", userId)
+        return []
+      }
+
+      const contactId = userInvitation.contact_id
+      console.log("✅ Found contact_id for user:", contactId)
+
+      // Then get all lot IDs where this contact is a tenant
+      const { data: lotContacts, error: lotContactsError } = await supabase
+        .from('lot_contacts')
+        .select('lot_id')
+        .eq('contact_id', contactId)
+        .eq('contact_type', 'locataire')
+        .is('end_date', null) // Only active relations
+
+      if (lotContactsError) {
+        console.error("❌ Error getting tenant lot contacts:", lotContactsError)
+        throw lotContactsError
+      }
+
+      const lotIds = lotContacts?.map(lc => lc.lot_id).filter(Boolean) || []
+      
+      if (lotIds.length === 0) {
+        console.log("❌ No lots found for contact:", contactId)
+        return []
+      }
+
+      // Finally get interventions for those lots
+      const { data, error } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot:lot_id(
+            reference,
+            building:building_id(name)
+          ),
+          assigned_contact:assigned_contact_id(name, phone, email)
+        `)
+        .in('lot_id', lotIds)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (error) {
+        console.error("❌ Error getting tenant interventions:", error)
+        throw error
+      }
+
+      console.log("✅ Found tenant interventions:", data?.length || 0)
+      return data || []
+    } catch (error) {
+      console.error("❌ Error in getTenantInterventions:", error)
+      throw error
+    }
+  },
+
+  async getTenantStats(userId: string) {
+    console.log("📊 getTenantStats called for userId:", userId)
+    
+    try {
+      // First, get the contact_id linked to this user
+      const { data: userInvitation, error: invitationError } = await supabase
+        .from('user_invitations')
+        .select('contact_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .single()
+
+      if (invitationError) {
+        console.error("❌ Error getting user invitation:", invitationError)
+        throw invitationError
+      }
+
+      if (!userInvitation?.contact_id) {
+        console.log("❌ No contact found for user:", userId)
+        return {
+          openRequests: 0,
+          inProgress: 0,
+          thisMonthInterventions: 0,
+          documentsCount: 0,
+          nextPaymentDate: 15
+        }
+      }
+
+      const contactId = userInvitation.contact_id
+      console.log("✅ Found contact_id for user:", contactId)
+
+      // Then get all lot IDs where this contact is a tenant
+      const { data: lotContacts, error: lotContactsError } = await supabase
+        .from('lot_contacts')
+        .select('lot_id')
+        .eq('contact_id', contactId)
+        .eq('contact_type', 'locataire')
+        .is('end_date', null) // Only active relations
+
+      if (lotContactsError) {
+        console.error("❌ Error getting tenant lot contacts:", lotContactsError)
+        throw lotContactsError
+      }
+
+      const lotIds = lotContacts?.map(lc => lc.lot_id).filter(Boolean) || []
+      
+      if (lotIds.length === 0) {
+        console.log("❌ No lots found for contact:", contactId)
+        return {
+          openRequests: 0,
+          inProgress: 0,
+          thisMonthInterventions: 0,
+          documentsCount: 0,
+          nextPaymentDate: 15
+        }
+      }
+
+      // Get intervention stats for all contact's lots
+      const { data: interventions, error: interventionError } = await supabase
+        .from('interventions')
+        .select('status, created_at')
+        .in('lot_id', lotIds)
+
+      if (interventionError) {
+        console.error("❌ Error getting intervention stats:", interventionError)
+        throw interventionError
+      }
+
+      // Calculate stats
+      const now = new Date()
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      
+      const openRequests = interventions?.filter(i => 
+        ['nouvelle_demande', 'en_attente_validation', 'validee', 'en_cours'].includes(i.status)
+      ).length || 0
+
+      const inProgress = interventions?.filter(i => i.status === 'en_cours').length || 0
+      
+      const thisMonthInterventions = interventions?.filter(i => 
+        i.created_at && new Date(i.created_at) >= thisMonth
+      ).length || 0
+
+      console.log("✅ Tenant stats calculated:", {
+        openRequests,
+        inProgress,
+        thisMonthInterventions
+      })
+
+      return {
+        openRequests,
+        inProgress,
+        thisMonthInterventions,
+        // Mock data for now - can be extended with real document/payment data
+        documentsCount: 0,
+        nextPaymentDate: 15 // Next month 15th as default
+      }
+    } catch (error) {
+      console.error("❌ Error in getTenantStats:", error)
+      throw error
+    }
+  }
+}
+
 // Composite Services for complex operations
 export const compositeService = {
   // Create a complete building with lots and assign to team

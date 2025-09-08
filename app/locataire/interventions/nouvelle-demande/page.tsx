@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type React from "react"
 
 import {
@@ -21,10 +21,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
+import { useTenantData } from "@/hooks/use-tenant-data"
+import { useAuth } from "@/hooks/use-auth"
 
 interface Disponibilite {
   id: string
@@ -42,6 +45,10 @@ interface UploadedFile {
 
 export default function NouvelleDemandePage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const { tenantData, loading, error } = useTenantData()
+  
+  // ALL useState hooks must be declared before any conditional returns
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -51,7 +58,6 @@ export default function NouvelleDemandePage() {
     type: "",
     urgence: "",
     description: "",
-    localisation: "",
   })
   const [disponibilites, setDisponibilites] = useState<Disponibilite[]>([])
   const [newDisponibilite, setNewDisponibilite] = useState({
@@ -60,6 +66,9 @@ export default function NouvelleDemandePage() {
     heureFin: "17:00",
   })
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [isCreating, setIsCreating] = useState(false)
+  const [createdInterventionId, setCreatedInterventionId] = useState<string | null>(null)
+  const [creationError, setCreationError] = useState<string | null>(null)
 
   const steps = [
     { id: 1, name: "Logement", description: "Choisir le logement", icon: Home },
@@ -67,22 +76,65 @@ export default function NouvelleDemandePage() {
     { id: 3, name: "Confirmation", description: "Demande envoyée", icon: CheckCircle },
   ]
 
-  const logements = [
+  // Auto-select the tenant's logement using useEffect to avoid hooks order issues
+  const logements = tenantData ? [
     {
-      id: "bt11",
-      name: "Bt 11",
-      address: "Marconi 9",
-      surface: "Surface non spécifiée",
-      interventions: "Aucune intervention active",
-    },
-    {
-      id: "lot001",
-      name: "Lot001",
-      address: "",
-      surface: "Surface non spécifiée",
-      interventions: "Aucune intervention active",
-    },
-  ]
+      id: tenantData.id,
+      name: tenantData.apartment_number || `Lot ${tenantData.reference}`,
+      address: `${tenantData.building.address}, ${tenantData.building.postal_code} ${tenantData.building.city}`,
+      surface: tenantData.surface_area ? `${tenantData.surface_area}m²` : "Surface non spécifiée",
+      building: tenantData.building.name,
+      interventions: "Aucune intervention active", // Could be calculated from tenantInterventions if needed
+    }
+  ] : []
+
+  // Use useEffect to auto-select logement to avoid hooks order issues
+  useEffect(() => {
+    if (!selectedLogement && logements.length > 0) {
+      setSelectedLogement(logements[0].id)
+    }
+  }, [selectedLogement, logements])
+
+  // Conditional returns AFTER all hooks
+  if (!user) return <div>Chargement...</div>
+  
+  if (loading) return <LoadingSkeleton />
+  
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-destructive">
+              Erreur lors du chargement des données: {error}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!tenantData) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              Aucun logement trouvé. Vous devez être associé à un logement pour créer une demande d'intervention.
+            </p>
+            <div className="flex justify-center mt-4">
+              <Link href="/locataire/dashboard">
+                <Button variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour au dashboard
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const handleLogementSelect = (logementId: string) => {
     setSelectedLogement(logementId)
@@ -116,21 +168,72 @@ export default function NouvelleDemandePage() {
     setCurrentStep(3)
   }
 
-  const interventionId = generateInterventionId()
+  const interventionId = createdInterventionId || generateInterventionId()
   const numeroDeclaration = `#${interventionId}`
 
-  const handleConfirmCreation = () => {
-    setShowSuccessModal(true)
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          router.push(`/locataire/interventions/${interventionId}`)
-          return 0
-        }
-        return prev - 1
+  const handleConfirmCreation = async () => {
+    if (isCreating) return // Prevent multiple submissions
+    
+    try {
+      setIsCreating(true)
+      setCreationError(null) // Clear any previous error
+      
+      // Prepare the intervention data
+      const interventionData = {
+        title: formData.titre,
+        description: formData.description,
+        type: formData.type || null,
+        urgency: formData.urgence || 'normale',
+        lot_id: tenantData?.id, // Use the tenant's lot ID
+        files: uploadedFiles, // For future file handling
+        availabilities: disponibilites // For future availability handling
+      }
+
+      console.log("🔧 Creating intervention with data:", interventionData)
+
+      // Call the API to create the intervention
+      const response = await fetch('/api/create-intervention', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(interventionData)
       })
-    }, 1000)
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `API returned ${response.status}`)
+      }
+
+      console.log("✅ Intervention created successfully:", result.intervention)
+      
+      // Store the real intervention ID
+      setCreatedInterventionId(result.intervention.id)
+      
+      // Show success modal
+      setShowSuccessModal(true)
+      
+      // Start countdown for redirect
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            router.push(`/locataire/interventions/${result.intervention.id}`)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+    } catch (error) {
+      console.error("❌ Error creating intervention:", error)
+      
+      // Store error message to display in UI
+      setCreationError(error instanceof Error ? error.message : 'Erreur inconnue lors de la création')
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const handleRetourDashboard = () => {
@@ -138,7 +241,8 @@ export default function NouvelleDemandePage() {
   }
 
   const handleVoirDetails = () => {
-    router.push(`/locataire/interventions/${interventionId}`)
+    const realInterventionId = createdInterventionId || interventionId
+    router.push(`/locataire/interventions/${realInterventionId}`)
   }
 
   const selectedLogementData = logements.find((l) => l.id === selectedLogement)
@@ -391,18 +495,6 @@ export default function NouvelleDemandePage() {
               />
             </div>
 
-            <div>
-              <Label htmlFor="localisation" className="text-sm font-medium text-gray-700">
-                Localisation précise (optionnel)
-              </Label>
-              <Input
-                id="localisation"
-                placeholder="Ex: Cuisine, sous l'évier"
-                value={formData.localisation}
-                onChange={(e) => handleInputChange("localisation", e.target.value)}
-                className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
 
             <div>
               <Label className="text-sm font-medium text-gray-700">Pièces jointes (optionnel)</Label>
@@ -626,11 +718,6 @@ export default function NouvelleDemandePage() {
                 <p>
                   <span className="font-medium">Urgence:</span> {formData.urgence || "Non spécifié"}
                 </p>
-                {formData.localisation && (
-                  <p>
-                    <span className="font-medium">Localisation:</span> {formData.localisation}
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -684,15 +771,49 @@ export default function NouvelleDemandePage() {
           )}
         </div>
 
+        {/* Error Message */}
+        {creationError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Erreur lors de la création
+                </h3>
+                <p className="mt-1 text-sm text-red-700">
+                  {creationError}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex justify-between">
-          <Button variant="outline" onClick={() => setCurrentStep(2)}>
+          <Button variant="outline" onClick={() => setCurrentStep(2)} disabled={isCreating}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Modifier
           </Button>
-          <Button onClick={handleConfirmCreation} className="bg-green-600 hover:bg-green-700">
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Confirmer la création
+          <Button 
+            onClick={handleConfirmCreation} 
+            disabled={isCreating}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+          >
+            {isCreating ? (
+              <>
+                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Création en cours...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirmer la création
+              </>
+            )}
           </Button>
         </div>
 
@@ -736,4 +857,78 @@ export default function NouvelleDemandePage() {
   }
 
   return null
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header skeleton */}
+      <div className="mb-8">
+        <Skeleton className="h-4 w-40 mb-4" />
+        <Skeleton className="h-8 w-64 mb-2" />
+        <Skeleton className="h-5 w-96" />
+      </div>
+
+      {/* Progress steps skeleton */}
+      <div className="flex items-center justify-center mb-8">
+        <div className="flex items-center">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <div className="ml-3">
+            <Skeleton className="h-4 w-20 mb-1" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="w-16 h-px mx-4" />
+        </div>
+        <div className="flex items-center">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <div className="ml-3">
+            <Skeleton className="h-4 w-16 mb-1" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <Skeleton className="w-16 h-px mx-4" />
+        </div>
+        <div className="flex items-center">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <div className="ml-3">
+            <Skeleton className="h-4 w-24 mb-1" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+      </div>
+
+      {/* Content skeleton */}
+      <div className="mb-8">
+        <div className="flex items-center space-x-2 mb-4">
+          <Skeleton className="h-5 w-5" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <Skeleton className="h-4 w-80 mb-6" />
+
+        <Skeleton className="h-6 w-48 mb-6" />
+        <Skeleton className="h-4 w-64 mb-8" />
+
+        {/* Logement cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Skeleton className="h-5 w-5" />
+                    <Skeleton className="h-5 w-20" />
+                  </div>
+                </div>
+                <div className="h-6 mb-2">
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <Skeleton className="h-4 w-40 mb-2" />
+                <Skeleton className="h-4 w-48 mb-4" />
+                <Skeleton className="h-9 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }

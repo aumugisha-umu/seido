@@ -5,67 +5,20 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-
-const mockInterventions = [
-  {
-    id: "INT001",
-    title: "Fuite d'eau dans la salle de bain",
-    description: "Une fuite importante s'est déclarée au niveau du robinet de la baignoire.",
-    type: "Plomberie",
-    priority: "urgent",
-    status: "in-progress",
-    createdAt: "2025-01-08",
-    estimatedDuration: "2-3 heures",
-    assignedTo: "Thomas Blanc",
-    location: "Salle de bain",
-  },
-  {
-    id: "INT002",
-    title: "Problème de chauffage",
-    description: "Le radiateur de la chambre ne chauffe plus depuis hier.",
-    type: "Chauffage",
-    priority: "normale",
-    status: "pending",
-    createdAt: "2025-01-07",
-    estimatedDuration: "1-2 heures",
-    assignedTo: "En attente d'assignation",
-    location: "Chambre",
-  },
-  {
-    id: "INT003",
-    title: "Ampoule grillée dans l'entrée",
-    description: "L'éclairage de l'entrée ne fonctionne plus.",
-    type: "Électricité",
-    priority: "normale",
-    status: "completed",
-    createdAt: "2025-01-05",
-    estimatedDuration: "30 minutes",
-    assignedTo: "Pierre Moreau",
-    location: "Entrée",
-  },
-  {
-    id: "INT004",
-    title: "Serrure de la porte d'entrée bloquée",
-    description: "La clé tourne dans le vide, impossible d'ouvrir la porte.",
-    type: "Serrurerie",
-    priority: "critique",
-    status: "pending",
-    createdAt: "2025-01-09",
-    estimatedDuration: "1 heure",
-    assignedTo: "En attente d'assignation",
-    location: "Porte d'entrée",
-  },
-]
+import { useTenantData } from "@/hooks/use-tenant-data"
 
 const getStatusIcon = (status: string) => {
   switch (status) {
-    case "pending":
+    case "nouvelle_demande":
+    case "en_attente_validation":
       return <Clock className="h-4 w-4" />
-    case "in-progress":
+    case "validee":
+    case "en_cours":
       return <AlertTriangle className="h-4 w-4" />
-    case "completed":
+    case "terminee":
       return <CheckCircle className="h-4 w-4" />
     default:
       return <Clock className="h-4 w-4" />
@@ -74,12 +27,16 @@ const getStatusIcon = (status: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "pending":
+    case "nouvelle_demande":
+    case "en_attente_validation":
       return "bg-yellow-100 text-yellow-800"
-    case "in-progress":
+    case "validee":
+    case "en_cours":
       return "bg-blue-100 text-blue-800"
-    case "completed":
+    case "terminee":
       return "bg-green-100 text-green-800"
+    case "annulee":
+      return "bg-red-100 text-red-800"
     default:
       return "bg-gray-100 text-gray-800"
   }
@@ -87,14 +44,20 @@ const getStatusColor = (status: string) => {
 
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case "pending":
+    case "nouvelle_demande":
+      return "Nouvelle demande"
+    case "en_attente_validation":
       return "En attente"
-    case "in-progress":
+    case "validee":
+      return "Validé"
+    case "en_cours":
       return "En cours"
-    case "completed":
-      return "Terminée"
+    case "terminee":
+      return "Terminé"
+    case "annulee":
+      return "Annulé"
     default:
-      return "Inconnu"
+      return status
   }
 }
 
@@ -113,9 +76,28 @@ const getPriorityColor = (priority: string) => {
 
 export default function LocataireInterventionsPage() {
   const router = useRouter()
+  const { tenantInterventions, loading, error } = useTenantData()
 
   const handleViewDetails = (interventionId: string) => {
     router.push(`/locataire/interventions/${interventionId}`)
+  }
+
+  if (loading) {
+    return <LoadingSkeleton />
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-destructive">
+              Erreur lors du chargement des données: {error}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -139,7 +121,7 @@ export default function LocataireInterventionsPage() {
         <div className="flex items-center space-x-2 mb-4">
           <Wrench className="h-5 w-5 text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">
-            Mes demandes d'intervention ({mockInterventions.length})
+            Mes demandes d'intervention ({tenantInterventions.length})
           </h2>
         </div>
 
@@ -157,61 +139,145 @@ export default function LocataireInterventionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
-                <SelectItem value="in-progress">En cours</SelectItem>
-                <SelectItem value="completed">Terminées</SelectItem>
+                <SelectItem value="nouvelle_demande">Nouvelle demande</SelectItem>
+                <SelectItem value="en_attente_validation">En attente</SelectItem>
+                <SelectItem value="validee">Validé</SelectItem>
+                <SelectItem value="en_cours">En cours</SelectItem>
+                <SelectItem value="terminee">Terminé</SelectItem>
+                <SelectItem value="annulee">Annulé</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         <div className="space-y-4">
-          {mockInterventions.map((intervention) => (
-            <Card key={intervention.id} className="hover:shadow-md transition-shadow">
+          {tenantInterventions.length > 0 ? (
+            tenantInterventions.map((intervention) => (
+              <Card key={intervention.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{intervention.title}</h3>
+                        <Badge className={getStatusColor(intervention.status)}>
+                          {getStatusIcon(intervention.status)}
+                          <span className="ml-1">{getStatusLabel(intervention.status)}</span>
+                        </Badge>
+                        {intervention.priority && (
+                          <Badge className={getPriorityColor(intervention.priority)}>
+                            {intervention.priority.charAt(0).toUpperCase() + intervention.priority.slice(1)}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <p className="text-gray-600 mb-3">{intervention.description}</p>
+
+                      <div className="flex items-center space-x-6 text-sm text-gray-500">
+                        <span>
+                          <strong>Type:</strong> {intervention.intervention_type || "Non spécifié"}
+                        </span>
+                        <span>
+                          <strong>Localisation:</strong> {intervention.location || "Non spécifié"}
+                        </span>
+                        <span>
+                          <strong>Créée le:</strong> {new Date(intervention.created_at).toLocaleDateString("fr-FR")}
+                        </span>
+                        {intervention.estimated_duration && (
+                          <span>
+                            <strong>Durée estimée:</strong> {intervention.estimated_duration}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 text-sm text-gray-500">
+                        <span>
+                          <strong>Assignée à:</strong> {intervention.assigned_to || "En attente d'assignation"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="ml-4">
+                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(intervention.id)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Détails
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="p-4 bg-gray-100 rounded-full">
+                  <Wrench className="h-8 w-8 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-900">Aucune demande d'intervention</h3>
+                  <p className="text-gray-500">Vous n'avez pas encore créé de demande d'intervention.</p>
+                </div>
+                <Link href="/locataire/interventions/nouvelle-demande">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer ma première demande
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header skeleton */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <Skeleton className="h-9 w-64 mb-2" />
+          <Skeleton className="h-5 w-80" />
+        </div>
+        <Skeleton className="h-10 w-40" />
+      </div>
+
+      <div className="space-y-6">
+        {/* Section header skeleton */}
+        <div className="flex items-center space-x-2 mb-4">
+          <Skeleton className="h-5 w-5" />
+          <Skeleton className="h-6 w-64" />
+        </div>
+
+        {/* Search and filters skeleton */}
+        <div className="flex items-center space-x-4 mb-6">
+          <Skeleton className="flex-1 h-10" />
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+
+        {/* Interventions list skeleton */}
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{intervention.title}</h3>
-                      <Badge className={getStatusColor(intervention.status)}>
-                        {getStatusIcon(intervention.status)}
-                        <span className="ml-1">{getStatusLabel(intervention.status)}</span>
-                      </Badge>
-                      <Badge className={getPriorityColor(intervention.priority)}>
-                        {intervention.priority.charAt(0).toUpperCase() + intervention.priority.slice(1)}
-                      </Badge>
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-6 w-20" />
+                      <Skeleton className="h-6 w-16" />
                     </div>
-
-                    <p className="text-gray-600 mb-3">{intervention.description}</p>
-
-                    <div className="flex items-center space-x-6 text-sm text-gray-500">
-                      <span>
-                        <strong>Type:</strong> {intervention.type}
-                      </span>
-                      <span>
-                        <strong>Localisation:</strong> {intervention.location}
-                      </span>
-                      <span>
-                        <strong>Créée le:</strong> {new Date(intervention.createdAt).toLocaleDateString("fr-FR")}
-                      </span>
-                      <span>
-                        <strong>Durée estimée:</strong> {intervention.estimatedDuration}
-                      </span>
+                    <Skeleton className="h-4 w-full mb-3" />
+                    <div className="flex items-center space-x-6 mb-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-4 w-32" />
                     </div>
-
-                    <div className="mt-2 text-sm text-gray-500">
-                      <span>
-                        <strong>Assignée à:</strong> {intervention.assignedTo}
-                      </span>
-                    </div>
+                    <Skeleton className="h-4 w-40" />
                   </div>
-
-                  <div className="ml-4">
-                    <Button variant="outline" size="sm" onClick={() => handleViewDetails(intervention.id)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Détails
-                    </Button>
-                  </div>
+                  <Skeleton className="h-8 w-20" />
                 </div>
               </CardContent>
             </Card>

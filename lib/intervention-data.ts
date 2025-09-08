@@ -1,27 +1,33 @@
 export const PROBLEM_TYPES = [
-  { value: "maintenance", label: "Maintenance générale" },
-  { value: "plumbing", label: "Plomberie" },
-  { value: "electrical", label: "Électricité" },
-  { value: "heating", label: "Chauffage" },
-  { value: "locksmith", label: "Serrurerie" },
-  { value: "painting", label: "Peinture" },
-  { value: "other", label: "Autre" },
+  { value: "plomberie", label: "Plomberie" },
+  { value: "electricite", label: "Électricité" },
+  { value: "chauffage", label: "Chauffage" },
+  { value: "serrurerie", label: "Serrurerie" },
+  { value: "peinture", label: "Peinture" },
+  { value: "menage", label: "Ménage" },
+  { value: "jardinage", label: "Jardinage" },
+  { value: "autre", label: "Autre" },
 ]
 
 export const URGENCY_LEVELS = [
   {
-    value: "low",
-    label: "Bas - Quelques semaines à plusieurs mois",
+    value: "basse",
+    label: "Basse - Quelques semaines à plusieurs mois",
     color: "bg-yellow-100 text-yellow-800",
   },
   {
-    value: "medium",
-    label: "Moyenne - Dans la semaine",
+    value: "normale",
+    label: "Normale - Dans la semaine",
+    color: "bg-blue-100 text-blue-800",
+  },
+  {
+    value: "haute",
+    label: "Haute - Dans les 24h",
     color: "bg-orange-100 text-orange-800",
   },
   {
-    value: "high",
-    label: "Urgente - Dans les 24h",
+    value: "urgente",
+    label: "Urgente - Immédiatement",
     color: "bg-red-100 text-red-800",
   },
 ]

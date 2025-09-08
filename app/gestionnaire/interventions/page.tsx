@@ -20,6 +20,7 @@ import {
   Play,
   MessageSquare,
   FileText,
+  Loader2,
 } from "lucide-react"
 import type React from "react"
 
@@ -40,14 +41,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
-
-const initialInterventions: any[] = []
+import { useManagerStats } from "@/hooks/use-manager-stats"
 
 
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "nouvelle-demande":
+    case "nouvelle_demande":
       return "bg-red-100 text-red-800 border-red-200"
     case "approuve":
       return "bg-green-100 text-green-800 border-green-200"
@@ -55,13 +55,13 @@ const getStatusColor = (status: string) => {
       return "bg-gray-100 text-gray-800 border-gray-200"
     case "devis":
       return "bg-blue-100 text-blue-800 border-blue-200"
-    case "a-programmer":
+    case "a_programmer":
       return "bg-yellow-100 text-yellow-800 border-yellow-200"
     case "programme":
       return "bg-purple-100 text-purple-800 border-purple-200"
-    case "en-cours":
+    case "en_cours":
       return "bg-blue-100 text-blue-800 border-blue-200"
-    case "finalisation-attente":
+    case "finalisation_attente":
       return "bg-orange-100 text-orange-800 border-orange-200"
     case "terminee":
       return "bg-green-100 text-green-800 border-green-200"
@@ -74,7 +74,7 @@ const getStatusColor = (status: string) => {
 
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case "nouvelle-demande":
+    case "nouvelle_demande":
       return "Nouvelle demande"
     case "approuve":
       return "Approuvé"
@@ -82,13 +82,13 @@ const getStatusLabel = (status: string) => {
       return "Rejeté"
     case "devis":
       return "Devis"
-    case "a-programmer":
+    case "a_programmer":
       return "À programmer"
     case "programme":
       return "Programmé"
-    case "en-cours":
+    case "en_cours":
       return "En cours"
-    case "finalisation-attente":
+    case "finalisation_attente":
       return "Finalisation en attente"
     case "terminee":
       return "Terminée"
@@ -99,21 +99,39 @@ const getStatusLabel = (status: string) => {
   }
 }
 
-const getPriorityColor = (priority: string) => {
-  switch (priority) {
-    case "critique":
+const getPriorityColor = (urgency: string) => {
+  switch (urgency) {
+    case "urgente":
       return "bg-red-100 text-red-800"
-    case "urgent":
+    case "haute":
       return "bg-orange-100 text-orange-800"
     case "normale":
+      return "bg-blue-100 text-blue-800"
+    case "basse":
       return "bg-gray-100 text-gray-800"
     default:
       return "bg-gray-100 text-gray-800"
   }
 }
 
+const getPriorityLabel = (urgency: string) => {
+  switch (urgency) {
+    case "urgente":
+      return "Urgente"
+    case "haute":
+      return "Haute"
+    case "normale":
+      return "Normale"
+    case "basse":
+      return "Basse"
+    default:
+      return urgency
+  }
+}
+
 export default function InterventionsPage() {
   const router = useRouter()
+  const { data: managerData, loading, error } = useManagerStats()
   const [activeTab, setActiveTab] = useState("toutes")
   const [approvalModal, setApprovalModal] = useState<{
     isOpen: boolean
@@ -258,7 +276,8 @@ export default function InterventionsPage() {
   const [finalizeConfirmModal, setFinalizeConfirmModal] = useState(false)
   const [finalizeSuccessModal, setFinalizeSuccessModal] = useState(false)
 
-  const [interventions, setInterventions] = useState(initialInterventions)
+  // Get interventions from manager data
+  const interventions = managerData?.interventions || []
 
   const tabs = [
     {
@@ -269,60 +288,31 @@ export default function InterventionsPage() {
       color: "default",
     },
     {
-      id: "nouvelle-demande",
-      label: "Nouvelles demandes",
-      shortLabel: "Nouvelles",
-      count: interventions.filter((i) => i.status === "nouvelle-demande").length,
+      id: "nouvelle_demande_group",
+      label: "Nouvelle demande",
+      shortLabel: "Nouvelle demande",
+      count: interventions.filter((i) => 
+        ["nouvelle_demande", "devis", "a_programmer"].includes(i.status)
+      ).length,
       color: "red",
     },
     {
-      id: "devis",
-      label: "Devis",
-      shortLabel: "Devis",
-      count: interventions.filter((i) => i.status === "devis").length,
-      color: "default",
+      id: "en_cours_group",
+      label: "En cours",
+      shortLabel: "En cours",
+      count: interventions.filter((i) => 
+        ["programme", "en_cours", "finalisation_attente"].includes(i.status)
+      ).length,
+      color: "blue",
     },
     {
-      id: "a-programmer",
-      label: "À programmer",
-      shortLabel: "À prog.",
-      count: interventions.filter((i) => i.status === "a-programmer").length,
-      color: "orange",
-    },
-    {
-      id: "programme",
-      label: "Programmé",
-      shortLabel: "Programmé",
-      count: interventions.filter((i) => i.status === "programme").length,
-      color: "default",
-    },
-    {
-      id: "finalisation-attente",
-      label: "Finalisation en attente",
-      shortLabel: "Finaliser.",
-      count: interventions.filter((i) => i.status === "finalisation-attente").length,
-      color: "orange",
-    },
-    {
-      id: "terminee",
+      id: "terminee_group",
       label: "Terminée",
       shortLabel: "Terminée",
-      count: interventions.filter((i) => i.status === "terminee").length,
-      color: "default",
-    },
-    {
-      id: "annulee",
-      label: "Annulée",
-      shortLabel: "Annulée",
-      count: interventions.filter((i) => i.status === "annulee").length,
-      color: "default",
-    },
-    {
-      id: "rejete",
-      label: "Rejetées",
-      shortLabel: "Rejetées",
-      count: interventions.filter((i) => i.status === "rejete").length,
-      color: "default",
+      count: interventions.filter((i) => 
+        ["terminee", "annulee", "rejete"].includes(i.status)
+      ).length,
+      color: "green",
     },
   ]
 
@@ -336,6 +326,10 @@ export default function InterventionsPage() {
         return "text-red-600"
       case "orange":
         return "text-orange-600"
+      case "blue":
+        return "text-blue-600"
+      case "green":
+        return "text-green-600"
       default:
         return "text-gray-500 hover:text-gray-700"
     }
@@ -347,13 +341,27 @@ export default function InterventionsPage() {
         return "text-red-500"
       case "orange":
         return "text-orange-500"
+      case "blue":
+        return "text-blue-500"
+      case "green":
+        return "text-green-500"
       default:
         return "text-red-500"
     }
   }
 
-  const filteredInterventions =
-    activeTab === "toutes" ? interventions : interventions.filter((i) => i.status === activeTab)
+  const filteredInterventions = (() => {
+    if (activeTab === "toutes") {
+      return interventions
+    } else if (activeTab === "nouvelle_demande_group") {
+      return interventions.filter((i) => ["nouvelle_demande", "devis", "a_programmer"].includes(i.status))
+    } else if (activeTab === "en_cours_group") {
+      return interventions.filter((i) => ["programme", "en_cours", "finalisation_attente"].includes(i.status))
+    } else if (activeTab === "terminee_group") {
+      return interventions.filter((i) => ["terminee", "annulee", "rejete"].includes(i.status))
+    }
+    return interventions.filter((i) => i.status === activeTab)
+  })()
 
   const handleApprovalAction = (intervention: any, action: "approve" | "reject") => {
     setApprovalModal({
@@ -568,7 +576,7 @@ export default function InterventionsPage() {
 
     const statusActions = []
 
-    if (intervention.status === "nouvelle-demande") {
+    if (intervention.status === "nouvelle_demande") {
       statusActions.push({
         label: "Approuver / Rejeter",
         icon: Check,
@@ -584,7 +592,7 @@ export default function InterventionsPage() {
       })
     }
 
-    if (intervention.status === "a-programmer") {
+    if (intervention.status === "a_programmer") {
       statusActions.push({
         label: "Programmer",
         icon: Calendar,
@@ -600,7 +608,7 @@ export default function InterventionsPage() {
       })
     }
 
-    if (intervention.status === "finalisation-attente") {
+    if (intervention.status === "finalisation_attente") {
       statusActions.push({
         label: "Finaliser et payer",
         icon: CheckCircle,
@@ -689,6 +697,34 @@ export default function InterventionsPage() {
     },
   ]
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <span className="ml-2 text-gray-600">Chargement des interventions...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12">
+          <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Erreur de chargement</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -767,8 +803,8 @@ export default function InterventionsPage() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">{intervention.title}</h3>
-                      <Badge className={getPriorityColor(intervention.priority)}>
-                        {intervention.priority.charAt(0).toUpperCase() + intervention.priority.slice(1)}
+                      <Badge className={getPriorityColor(intervention.urgency)}>
+                        {getPriorityLabel(intervention.urgency)}
                       </Badge>
                       <Badge className={getStatusColor(intervention.status)}>
                         {getStatusLabel(intervention.status)}
@@ -780,27 +816,27 @@ export default function InterventionsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-500">
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4" />
-                        <span>{intervention.location}</span>
+                        <span>{intervention.lot?.reference || "Non spécifié"}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4" />
-                        <span>{intervention.tenant}</span>
+                        <Wrench className="h-4 w-4" />
+                        <span>{intervention.type || "Non spécifié"}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4" />
-                        <span>{new Date(intervention.createdAt).toLocaleDateString("fr-FR")}</span>
+                        <span>{new Date(intervention.created_at).toLocaleDateString("fr-FR")}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4" />
-                        <span>{intervention.estimatedDuration}</span>
+                        <span>#{intervention.reference}</span>
                       </div>
                     </div>
 
                     <div className="mt-3 flex items-center space-x-4">
                       <div className="text-sm text-gray-500">
-                        <span className="font-medium">Assigné à:</span> {intervention.assignedTo.join(", ")}
+                        <span className="font-medium">Assigné à:</span> {intervention.assigned_contact?.name || "Non assigné"}
                       </div>
-                      {intervention.hasFiles && (
+                      {intervention.description && intervention.description.includes('📎') && (
                         <Badge variant="outline" className="text-xs">
                           📎 Fichiers joints
                         </Badge>
@@ -889,12 +925,12 @@ export default function InterventionsPage() {
                   <h3 className="font-semibold text-gray-900">Logement concerné</h3>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="font-medium">Localisation:</span> {approvalModal.intervention.location}
-                  </p>
-                  <p>
-                    <span className="font-medium">Locataire:</span> {approvalModal.intervention.tenant}
-                  </p>
+                    <p>
+                      <span className="font-medium">Lot:</span> {approvalModal.intervention.lot?.reference || "Non spécifié"}
+                    </p>
+                    <p>
+                      <span className="font-medium">Référence:</span> #{approvalModal.intervention.reference}
+                    </p>
                 </div>
               </div>
 
@@ -912,10 +948,9 @@ export default function InterventionsPage() {
                       <p className="text-gray-600">{approvalModal.intervention.type}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Priorité:</span>
-                      <Badge className={getPriorityColor(approvalModal.intervention.priority)}>
-                        {approvalModal.intervention.priority.charAt(0).toUpperCase() +
-                          approvalModal.intervention.priority.slice(1)}
+                      <span className="font-medium text-gray-700">Urgence:</span>
+                      <Badge className={getPriorityColor(approvalModal.intervention.urgency)}>
+                        {getPriorityLabel(approvalModal.intervention.urgency)}
                       </Badge>
                     </div>
                   </div>
@@ -982,7 +1017,7 @@ export default function InterventionsPage() {
                   <div>
                     <span className="font-medium text-gray-700">Date de création:</span>
                     <p className="text-gray-600">
-                      {new Date(approvalModal.intervention.createdAt).toLocaleDateString("fr-FR", {
+                      {new Date(approvalModal.intervention.created_at).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
@@ -992,8 +1027,8 @@ export default function InterventionsPage() {
                     </p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Durée estimée:</span>
-                    <p className="text-gray-600">{approvalModal.intervention.estimatedDuration}</p>
+                    <span className="font-medium text-gray-700">Référence:</span>
+                    <p className="text-gray-600">#{approvalModal.intervention.reference}</p>
                   </div>
                 </div>
               </div>

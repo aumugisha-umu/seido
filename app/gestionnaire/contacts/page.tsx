@@ -20,6 +20,8 @@ export default function ContactsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
+  
+  // ✅ Toujours appeler tous les hooks, indépendamment du return early
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [contacts, setContacts] = useState<any[]>([])
   const [filteredContacts, setFilteredContacts] = useState<any[]>([])
@@ -27,11 +29,11 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userTeam, setUserTeam] = useState<any>(null)
-
-  // Afficher la vérification d'équipe si nécessaire
-  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
-    return <TeamCheckModal onTeamResolved={() => {}} />
-  }
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([])
+  const [loadingInvitations, setLoadingInvitations] = useState(false)
+  const [resentInvitations, setResentInvitations] = useState<{[key: string]: {success: boolean, message?: string, magicLink?: string}}>({})
+  const [resendingInvitations, setResendingInvitations] = useState<{[key: string]: boolean}>({})
+  const [copiedLinks, setCopiedLinks] = useState<{[key: string]: boolean}>({})
 
   // Récupérer les contacts quand l'utilisateur et l'équipe sont prêts
   useEffect(() => {
@@ -54,6 +56,11 @@ export default function ContactsPage() {
       setFilteredContacts(filtered)
     }
   }, [contacts, searchTerm])
+
+  // ✅ Maintenant vérifier si on doit afficher la vérification d'équipe APRÈS tous les hooks
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => {}} />
+  }
 
   const loadContacts = async () => {
     if (!user?.id) {
@@ -94,12 +101,105 @@ export default function ContactsPage() {
       setContacts(teamContacts)
       setFilteredContacts(teamContacts)
       
+      // 3. Charger les invitations en attente maintenant que nous avons l'équipe
+      try {
+        const invitations = await contactInvitationService.getPendingInvitations(team.id)
+        console.log("✅ Pending invitations loaded:", invitations.length)
+        setPendingInvitations(invitations)
+      } catch (invitationError) {
+        console.error("❌ Error loading pending invitations:", invitationError)
+        // Ne pas faire échouer le chargement principal pour les invitations
+        setPendingInvitations([])
+      }
+      
     } catch (error) {
       console.error("❌ Error loading contacts:", error)
       setError("Erreur lors du chargement des contacts")
     } finally {
       setLoading(false)
     }
+  }
+
+
+  const handleResendInvitation = async (contactId: string) => {
+    try {
+      console.log("🔄 Resending invitation for contact:", contactId)
+      
+      // Marquer cette invitation comme en cours de renvoi
+      setResendingInvitations(prev => ({ ...prev, [contactId]: true }))
+      
+      const result = await contactInvitationService.resendInvitation(contactId)
+      
+      if (result.success) {
+        console.log("✅ Invitation resent successfully")
+        console.log("🔗 Magic link received:", result.magicLink)
+        
+        // Marquer cette invitation comme renvoyée avec succès
+        // Le vrai magic link généré par Supabase est maintenant disponible
+        setResentInvitations(prev => ({ 
+          ...prev, 
+          [contactId]: { 
+            success: true,
+            message: result.message || 'Email de confirmation renvoyé',
+            magicLink: result.magicLink // Le vrai lien de Supabase
+          } 
+        }))
+        
+      } else {
+        console.error("❌ Failed to resend invitation:", result.error)
+        setError(`Erreur lors du renvoi de l'invitation: ${result.error}`)
+        setResentInvitations(prev => ({ 
+          ...prev, 
+          [contactId]: { success: false } 
+        }))
+      }
+      
+    } catch (error) {
+      console.error("❌ Error resending invitation:", error)
+      setError("Erreur lors du renvoi de l'invitation")
+      setResentInvitations(prev => ({ 
+        ...prev, 
+        [contactId]: { success: false } 
+      }))
+    } finally {
+      // Enlever l'état de chargement
+      setResendingInvitations(prev => ({ ...prev, [contactId]: false }))
+    }
+  }
+
+  const handleCopyMagicLink = async (magicLink: string, contactId: string) => {
+    try {
+      await navigator.clipboard.writeText(magicLink)
+      console.log("✅ Magic link copied to clipboard")
+      
+      // Marquer comme copié temporairement
+      setCopiedLinks(prev => ({ ...prev, [contactId]: true }))
+      
+      // Enlever l'état de succès après 2 secondes
+      setTimeout(() => {
+        setCopiedLinks(prev => ({ ...prev, [contactId]: false }))
+      }, 2000)
+      
+    } catch (error) {
+      console.error("❌ Failed to copy magic link:", error)
+      setError("Erreur lors de la copie du lien")
+    }
+  }
+
+  const handleCloseSuccessState = (contactId: string) => {
+    // Enlever l'état de succès pour revenir au bouton "Renvoyer"
+    setResentInvitations(prev => {
+      const newState = { ...prev }
+      delete newState[contactId]
+      return newState
+    })
+    
+    // Enlever aussi l'état de copie
+    setCopiedLinks(prev => {
+      const newState = { ...prev }
+      delete newState[contactId]
+      return newState
+    })
   }
 
   const handleContactSubmit = async (contactData: any) => {
@@ -137,6 +237,7 @@ export default function ContactsPage() {
       console.log("🔄 [CONTACTS-PAGE] Reloading contacts...")
       // Recharger la liste des contacts
       await loadContacts()
+      // Note: les invitations en attente sont rechargées automatiquement dans loadContacts()
       console.log("✅ [CONTACTS-PAGE] Contacts reloaded, closing modal")
       setIsContactModalOpen(false)
       
@@ -266,6 +367,122 @@ export default function ContactsPage() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Pending Invitations Section */}
+        {pendingInvitations.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Send className="h-5 w-5 text-orange-500" />
+                <span>Invitations en attente ({pendingInvitations.length})</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingInvitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className={`p-3 rounded-lg border ${resentInvitations[invitation.id]?.success 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-orange-50 border-orange-200'
+                    }`}
+                  >
+                    {resentInvitations[invitation.id]?.success ? (
+                      // État de succès avec magic link
+                      <div>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                          <div>
+                            <div className="font-medium text-green-800">
+                              Invitation renvoyée à {invitation.email}
+                            </div>
+                            <div className="text-xs text-green-600">
+                              {getContactTypeLabel(invitation.contact_type)} • {invitation.name}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-green-700 mb-3">
+                          Vous pouvez également copier le lien ci-dessous pour l'envoyer manuellement :
+                        </p>
+                        {resentInvitations[invitation.id]?.magicLink && (
+                          <>
+                            <div className="bg-white border border-green-300 rounded p-2 mb-3">
+                              <code className="text-xs text-gray-600 break-all font-mono">
+                                {resentInvitations[invitation.id]?.magicLink}
+                              </code>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCopyMagicLink(resentInvitations[invitation.id]?.magicLink || '', invitation.id)}
+                                disabled={copiedLinks[invitation.id]}
+                                className={`${copiedLinks[invitation.id] 
+                                  ? 'text-green-700 bg-green-100 border-green-400' 
+                                  : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300'
+                                }`}
+                              >
+                                {copiedLinks[invitation.id] ? '✅ Copié !' : '📋 Copier le lien'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCloseSuccessState(invitation.id)}
+                                className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300"
+                              >
+                                Fermer
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      // Affichage normal de l'invitation
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                            <Send className="h-4 w-4 text-orange-600" />
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-gray-900">{invitation.email}</span>
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
+                                En attente
+                              </Badge>
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                              <span>
+                                {getContactTypeLabel(invitation.contact_type)} • {invitation.name}
+                              </span>
+                              {invitation.company && (
+                                <span>• {invitation.company}</span>
+                              )}
+                              <span>• Envoyée le {new Date(invitation.created_at).toLocaleDateString('fr-FR')}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResendInvitation(invitation.id)}
+                            disabled={resendingInvitations[invitation.id] || loadingInvitations}
+                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                          >
+                            <Send className="h-3 w-3 mr-1" />
+                            {resendingInvitations[invitation.id] ? 'Envoi...' : 'Renvoyer'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Contacts List */}

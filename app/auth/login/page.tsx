@@ -10,11 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Eye, EyeOff, Mail, CheckCircle, User } from "lucide-react"
+import { Building2, Eye, EyeOff, Mail, CheckCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { supabase } from "@/lib/supabase"
-
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -25,12 +22,6 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
   const [showConfirmationSuccess, setShowConfirmationSuccess] = useState(false)
-  
-  // États pour la section "Login as demo user"
-  const [demoUsers, setDemoUsers] = useState<any[]>([])
-  const [selectedDemoUser, setSelectedDemoUser] = useState("")
-  const [isLoadingDemo, setIsLoadingDemo] = useState(false)
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -130,123 +121,8 @@ export default function LoginPage() {
     }
   }
 
-  // Fonction pour récupérer les utilisateurs demo actifs
-  const fetchDemoUsers = async () => {
-    try {
-      setIsLoadingUsers(true)
-      console.log("🔍 Fetching active demo users...")
-      
-      // Récupérer les utilisateurs demo qui sont également dans auth.users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
-      
-      if (authError) {
-        console.error("❌ Error fetching auth users:", authError)
-        // Fallback: récupérer uniquement depuis la table users
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('*')
-          .ilike('email', 'arthur+%@seido.pm')
-          .order('email')
-        
-        if (usersError) {
-          console.error("❌ Error fetching users:", usersError)
-          return
-        }
-        
-        console.log("✅ Found demo users (fallback):", users?.length || 0)
-        setDemoUsers(users || [])
-        return
-      }
-      
-      // Filtrer les utilisateurs auth qui correspondent au pattern arthur+X@seido.pm
-      const demoAuthUsers = authUsers.users.filter(authUser => 
-        authUser.email?.match(/^arthur\+\d+@seido\.pm$/) &&
-        authUser.email_confirmed_at // S'assurer que l'email est confirmé
-      )
-      
-      if (demoAuthUsers.length === 0) {
-        console.log("⚠️ No active demo users found")
-        setDemoUsers([])
-        return
-      }
-      
-      // Récupérer les détails de profil depuis la table users pour ces utilisateurs actifs
-      const { data: profileUsers, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .in('id', demoAuthUsers.map(u => u.id))
-        .order('email')
-      
-      if (profileError) {
-        console.error("❌ Error fetching user profiles:", profileError)
-        return
-      }
-      
-      console.log("✅ Found active demo users:", profileUsers?.length || 0)
-      setDemoUsers(profileUsers || [])
-      
-    } catch (error) {
-      console.error("❌ Error in fetchDemoUsers:", error)
-      // Fallback silencieux vers une liste vide
-      setDemoUsers([])
-    } finally {
-      setIsLoadingUsers(false)
-    }
-  }
-
-  // Fonction pour se connecter avec un utilisateur demo
-  const handleDemoLogin = async () => {
-    if (!selectedDemoUser) {
-      setError("Veuillez sélectionner un utilisateur demo")
-      return
-    }
-
-    const user = demoUsers.find(u => u.id === selectedDemoUser)
-    if (!user) {
-      setError("Utilisateur demo introuvable")
-      return
-    }
-
-    setError("")
-    setIsLoadingDemo(true)
-
-    try {
-      console.log("🚪 Logging in as demo user:", user.email)
-      
-      // Se connecter avec l'email et le mot de passe demo (Wxcvbn123)
-      const { user: authUser, error: loginError } = await signIn(
-        user.email,
-        "Wxcvbn123"
-      )
-
-      if (loginError) {
-        console.error("❌ Demo login error:", loginError)
-        setError("Erreur de connexion: " + loginError.message)
-      } else if (authUser) {
-        console.log("✅ [LOGIN-PHASE4] Demo login successful:", authUser.name)
-        console.log("🔄 [LOGIN-PHASE4] Demo redirection vers:", `/${authUser.role}/dashboard`)
-        
-        // ✅ PHASE 4: Redirection demo réactivée
-        console.log("🚀 [LOGIN-PHASE4] Redirection demo vers dashboard")
-        window.location.href = `/${authUser.role}/dashboard`
-      } else {
-        setError("Erreur de connexion inattendue")
-      }
-    } catch (error) {
-      console.error("❌ Error in handleDemoLogin:", error)
-      setError("Une erreur est survenue lors de la connexion")
-    } finally {
-      setIsLoadingDemo(false)
-    }
-  }
 
 
-  // Charger les utilisateurs demo au montage du composant (development only)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      fetchDemoUsers()
-    }
-  }, [])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -377,69 +253,6 @@ export default function LoginPage() {
             </form>
 
 
-
-
-            {/* Demo User Section - Development only */}
-            {process.env.NODE_ENV === 'development' && demoUsers.length > 0 && (
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-muted/50" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">ou pour tester</span>
-                  </div>
-                </div>
-                
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="text-sm font-medium text-blue-900 mb-3 flex items-center">
-                    <User className="w-4 h-4 mr-2" />
-                    Connexion rapide (Demo)
-                  </h4>
-                  
-                  <div className="space-y-3">
-                    <Select value={selectedDemoUser} onValueChange={setSelectedDemoUser}>
-                      <SelectTrigger className="w-full bg-white border-blue-300">
-                        <SelectValue placeholder={
-                          isLoadingUsers ? "Chargement..." : "Choisir un utilisateur demo"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {demoUsers.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{user.name}</span>
-                              <span className="text-xs text-gray-600">{user.email}</span>
-                              <span className="text-xs text-blue-600 capitalize">{user.role}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    <Button
-                      type="button"
-                      variant="default"
-                      onClick={handleDemoLogin}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                      disabled={isLoadingDemo || !selectedDemoUser}
-                    >
-                      {isLoadingDemo ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Connexion en cours...
-                        </>
-                      ) : (
-                        <>
-                          <User className="w-4 h-4 mr-2" />
-                          Se connecter comme
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">

@@ -99,7 +99,24 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.firstName.trim() || !formData.lastName.trim()) return
+    
+    // Validation des champs requis
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      console.error('❌ Prénom et nom sont requis')
+      return
+    }
+    
+    if (!formData.email.trim()) {
+      console.error('❌ Email est requis')
+      return
+    }
+    
+    // Validation basique de l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email.trim())) {
+      console.error('❌ Format d\'email invalide')
+      return
+    }
 
     onSubmit(formData)
 
@@ -233,7 +250,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
 
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Email
+              Email <span className="text-red-500">*</span>
             </Label>
             <Input
               id="email"
@@ -241,6 +258,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
               placeholder="email@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
               className="w-full"
             />
           </div>
@@ -296,7 +314,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
             <Button
               type="submit"
               className="px-6 bg-gray-900 hover:bg-gray-800 text-white"
-              disabled={!formData.firstName.trim() || !formData.lastName.trim()}
+              disabled={
+                !formData.firstName.trim() || 
+                !formData.lastName.trim() || 
+                !formData.email.trim() ||
+                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())
+              }
             >
               Créer
             </Button>

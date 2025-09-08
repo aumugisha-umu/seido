@@ -15,13 +15,15 @@ import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 interface LotContactsListProps {
   lotId: string
   buildingId?: string
+  contacts?: any[]
+  onContactsUpdate?: (contacts: any[]) => void
 }
 
-export const LotContactsList = ({ lotId, buildingId }: LotContactsListProps) => {
-  const [contacts, setContacts] = useState<any[]>([])
+export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+  const [contacts, setContacts] = useState<any[]>(propContacts)
   const [filteredContacts, setFilteredContacts] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [selectedContact, setSelectedContact] = useState<any>(null)
@@ -33,26 +35,12 @@ export const LotContactsList = ({ lotId, buildingId }: LotContactsListProps) => 
     return uuidRegex.test(id)
   }
 
-  // Load contacts when component mounts
+  // Update local contacts when props change
   useEffect(() => {
-    console.log("🔄 LotContactsList useEffect triggered with lotId:", lotId)
-    
-    if (lotId) {
-      if (isValidUUID(lotId)) {
-        console.log("✅ Valid UUID detected, loading contacts...")
-        loadLotContacts()
-      } else {
-        console.log("⚠️ Invalid UUID detected:", lotId)
-        // Handle mock data case
-        setLoading(false)
-        setError("Mode démonstration : utilisez des données réelles pour voir les contacts du lot")
-      }
-    } else {
-      console.log("❌ No lotId provided")
-      setLoading(false)
-      setError("ID du lot manquant")
-    }
-  }, [lotId])
+    console.log("🔄 LotContactsList contacts updated:", propContacts.length)
+    setContacts(propContacts)
+    setFilteredContacts(propContacts)
+  }, [propContacts])
 
   // Separate useCallback to prevent infinite loops
   const loadLotContacts = useCallback(async () => {
@@ -130,7 +118,15 @@ export const LotContactsList = ({ lotId, buildingId }: LotContactsListProps) => 
       }
       
       // Reload contacts
-      await loadLotContacts()
+      if (onContactsUpdate) {
+        // If parent provides update callback, reload contacts at parent level
+        const updatedContacts = await contactService.getLotContacts(lotId)
+        onContactsUpdate(updatedContacts || [])
+      } else {
+        // Fallback to local loading
+        await loadLotContacts()
+      }
+      
       setIsContactModalOpen(false)
       setSelectedContact(null)
       
@@ -145,7 +141,17 @@ export const LotContactsList = ({ lotId, buildingId }: LotContactsListProps) => 
     
     try {
       await contactService.delete(deleteContact.id)
-      await loadLotContacts()
+      
+      // Reload contacts
+      if (onContactsUpdate) {
+        // If parent provides update callback, reload contacts at parent level
+        const updatedContacts = await contactService.getLotContacts(lotId)
+        onContactsUpdate(updatedContacts || [])
+      } else {
+        // Fallback to local loading
+        await loadLotContacts()
+      }
+      
       setDeleteContact(null)
       console.log("✅ Contact deleted")
     } catch (error) {
@@ -339,6 +345,14 @@ export const LotContactsList = ({ lotId, buildingId }: LotContactsListProps) => 
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
+                    <DeleteConfirmModal
+                      itemName={contact.name}
+                      itemType="contact"
+                      onConfirm={async () => {
+                        setDeleteContact(contact)
+                        await handleDeleteContact()
+                      }}
+                    />
                   </div>
                 </div>
               ))
@@ -369,26 +383,19 @@ export const LotContactsList = ({ lotId, buildingId }: LotContactsListProps) => 
         </CardContent>
       </Card>
 
-      {/* Contact Form Modal */}
-      <ContactFormModal
-        isOpen={isContactModalOpen}
-        onClose={() => {
-          setIsContactModalOpen(false)
-          setSelectedContact(null)
-        }}
-        onSubmit={handleContactSubmit}
-        contact={selectedContact}
-        title={selectedContact ? "Modifier le contact" : "Ajouter un contact"}
-      />
+      {/* Contact Form Modal - Using proper props based on ContactFormModalProps */}
+      {isContactModalOpen && (
+        <ContactFormModal
+          isOpen={isContactModalOpen}
+          onClose={() => {
+            setIsContactModalOpen(false)
+            setSelectedContact(null)
+          }}
+          onSubmit={handleContactSubmit}
+          defaultType={selectedContact?.contact_type}
+        />
+      )}
 
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={!!deleteContact}
-        onClose={() => setDeleteContact(null)}
-        onConfirm={handleDeleteContact}
-        title="Supprimer le contact"
-        description={`Êtes-vous sûr de vouloir supprimer le contact "${deleteContact?.name}" ? Cette action est irréversible.`}
-      />
     </>
   )
 }

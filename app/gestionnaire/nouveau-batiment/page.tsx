@@ -35,7 +35,7 @@ import { useRouter } from "next/navigation"
 import ContactFormModal from "@/components/contact-form-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { compositeService, teamService, contactService, type Team } from "@/lib/database-service"
+import { compositeService, teamService, contactService, contactInvitationService, type Team } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
 
 interface BuildingInfo {
@@ -80,11 +80,7 @@ export default function NewBuildingPage() {
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
 
-  // Afficher la vérification d'équipe si nécessaire
-  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
-    return <TeamCheckModal onTeamResolved={() => {}} />
-  }
-  
+  // TOUS LES HOOKS useState DOIVENT ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
   const [currentStep, setCurrentStep] = useState(1)
   const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>({
     name: "",
@@ -98,8 +94,10 @@ export default function NewBuildingPage() {
   const [lots, setLots] = useState<Lot[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [assignedManagers, setAssignedManagers] = useState<{[key: string]: any[]}>({}) // gestionnaires assignés par lot
+  const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignés par lot
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [selectedContactType, setSelectedContactType] = useState<string>("")
+  const [selectedLotForContact, setSelectedLotForContact] = useState<string>("") // lot sélectionné pour assignation de contact
   const [searchTerm, setSearchTerm] = useState("")
   const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
   const [prefilledContactType, setPrefilledContactType] = useState<string>("")
@@ -122,12 +120,7 @@ export default function NewBuildingPage() {
   // États pour la création de gestionnaire
   const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
 
-  const steps = [
-    { number: 1, title: "Bâtiment", subtitle: "Informations générales", completed: currentStep > 1 },
-    { number: 2, title: "Lots", subtitle: "Configuration des lots", completed: currentStep > 2 },
-    { number: 3, title: "Contacts", subtitle: "Assignation optionnelle", completed: false },
-  ]
-
+  // TOUS LES useEffect DOIVENT AUSSI ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
   // Charger l'équipe de l'utilisateur et ses gestionnaires
   useEffect(() => {
     console.log("🔐 useAuth hook user state:", user)
@@ -241,6 +234,17 @@ export default function NewBuildingPage() {
     }
   }, [currentStep, selectedManagerId, lots, teamManagers])
 
+  // Afficher la vérification d'équipe si nécessaire (APRÈS tous les hooks)
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => {}} />
+  }
+
+  const steps = [
+    { number: 1, title: "Bâtiment", subtitle: "Informations générales", completed: currentStep > 1 },
+    { number: 2, title: "Lots", subtitle: "Configuration des lots", completed: currentStep > 2 },
+    { number: 3, title: "Contacts", subtitle: "Assignation optionnelle", completed: false },
+  ]
+
   const addLot = () => {
     const newLot: Lot = {
       id: `lot${lots.length + 1}`,
@@ -275,8 +279,9 @@ export default function NewBuildingPage() {
     }
   }
 
-  const openContactModal = async (type: string) => {
+  const openGlobalContactModal = async (type: string) => {
     setSelectedContactType(type)
+    setSelectedLotForContact("") // Pas de lot spécifique
     setSearchTerm("")
     setIsContactModalOpen(true)
     
@@ -288,16 +293,28 @@ export default function NewBuildingPage() {
         const teamContacts = await contactService.getTeamContacts(userTeam.id)
         console.log("✅ Team contacts loaded:", teamContacts)
         
-        // Filtrer selon le type si c'est un prestataire (utilise la speciality)
+        // Filtrer selon le type de contact demandé (même logique que openContactModal)
         let filteredContacts = teamContacts
         if (type === 'provider') {
           // Pour les prestataires, on affiche tous ceux qui ont une spécialité
           filteredContacts = teamContacts.filter(contact => contact.speciality)
         } else if (type === 'tenant') {
-          // Pour les locataires, on affiche ceux sans spécialité ou avec spécialité "autre"
+          // Pour les locataires, on affiche ceux avec contact_type "locataire"
           filteredContacts = teamContacts.filter(contact => 
-            !contact.speciality || contact.speciality === 'autre'
+            contact.contact_type === 'locataire' || (!contact.speciality || contact.speciality === 'autre')
           )
+        } else if (type === 'syndic') {
+          // Pour les syndics, on affiche ceux avec contact_type "syndic"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'syndic')
+        } else if (type === 'notary') {
+          // Pour les notaires, on affiche ceux avec contact_type "notaire"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'notaire')
+        } else if (type === 'insurance') {
+          // Pour les assurances, on affiche ceux avec contact_type "assurance"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'assurance')
+        } else if (type === 'other') {
+          // Pour les autres, on affiche ceux avec contact_type "autre"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'autre')
         }
         
         console.log(`📋 Filtered ${type} contacts:`, filteredContacts)
@@ -312,19 +329,54 @@ export default function NewBuildingPage() {
   }
 
   const addContact = (contactData: any) => {
-    const newContact: Contact = {
-      id: Date.now().toString(),
-      name: contactData.name,
-      email: contactData.email,
-      type: selectedContactType as any,
-    }
-    setContacts([...contacts, newContact])
-    setIsContactModalOpen(false)
-    setSearchTerm("")
+    // Utiliser la nouvelle fonction pour gérer les assignations par lot
+    addExistingContactToLot(contactData)
   }
 
   const removeContact = (id: string) => {
     setContacts(contacts.filter((contact) => contact.id !== id))
+    
+    // Aussi retirer ce contact de toutes les assignations de lots
+    const newLotContactAssignments = { ...lotContactAssignments }
+    Object.keys(newLotContactAssignments).forEach(lotId => {
+      Object.keys(newLotContactAssignments[lotId]).forEach(contactType => {
+        newLotContactAssignments[lotId][contactType] = newLotContactAssignments[lotId][contactType].filter(c => c.id !== id)
+      })
+    })
+    setLotContactAssignments(newLotContactAssignments)
+  }
+
+  // Fonction pour assigner un contact à un lot spécifique
+  const assignContactToLot = (lotId: string, contactType: string, contact: Contact) => {
+    setLotContactAssignments(prev => ({
+      ...prev,
+      [lotId]: {
+        ...prev[lotId],
+        [contactType]: [...(prev[lotId]?.[contactType] || []), contact]
+      }
+    }))
+  }
+
+  // Fonction pour retirer un contact d'un lot spécifique
+  const removeContactFromLot = (lotId: string, contactType: string, contactId: string) => {
+    setLotContactAssignments(prev => ({
+      ...prev,
+      [lotId]: {
+        ...prev[lotId],
+        [contactType]: (prev[lotId]?.[contactType] || []).filter(c => c.id !== contactId)
+      }
+    }))
+  }
+
+  // Fonction pour obtenir les contacts assignés à un lot par type
+  const getLotContactsByType = (lotId: string, contactType: string): Contact[] => {
+    return lotContactAssignments[lotId]?.[contactType] || []
+  }
+
+  // Fonction pour obtenir tous les contacts assignés à un lot
+  const getAllLotContacts = (lotId: string): Contact[] => {
+    const lotAssignments = lotContactAssignments[lotId] || {}
+    return Object.values(lotAssignments).flat()
   }
 
   const getContactsByType = (type: string) => {
@@ -448,6 +500,24 @@ export default function NewBuildingPage() {
       console.log("👥 Contacts data prepared:", contactsData)
       console.log("🔗 All contacts will be linked to team:", userTeam!.id)
 
+      // Préparer les assignations de contacts aux lots
+      const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
+        // Trouver l'index du lot dans le tableau lotsData basé sur l'ID
+        const lotIndex = lots.findIndex(lot => lot.id === lotId)
+        return {
+          lotId: lotId,
+          lotIndex: lotIndex, // Index du lot dans le tableau lotsData
+          assignments: Object.entries(assignments).flatMap(([contactType, contacts]) =>
+            contacts.map(contact => ({
+              contactId: contact.id,
+              contactType: contactType,
+              isPrimary: false // Peut être étendu plus tard
+            }))
+          )
+        }
+      }).filter(item => item.lotIndex !== -1) // Filtrer les lots qui n'existent plus
+      console.log("🔗 Lot-contact assignments prepared:", lotContactAssignmentsData)
+
       console.log("📡 Calling compositeService.createCompleteProperty...")
 
       // Créer le bâtiment complet avec lots et contacts
@@ -455,6 +525,7 @@ export default function NewBuildingPage() {
         building: buildingData,
         lots: lotsData,
         contacts: contactsData,
+        lotContactAssignments: lotContactAssignmentsData,
       })
 
       console.log("✅ Building created successfully:", result)
@@ -489,43 +560,243 @@ export default function NewBuildingPage() {
   }
 
   const openContactFormModal = (type: string) => {
+    console.log("📝 Opening contact form modal:", {
+      type,
+      currentSelectedLot: selectedLotForContact,
+      currentSelectedType: selectedContactType
+    })
+    
     setPrefilledContactType(type)
     setIsContactFormModalOpen(true)
     setIsContactModalOpen(false) // Close the selection modal
+    
+    // ✅ CORRECTION: Préserver les informations du lot et type sélectionnés
+    // Ne pas réinitialiser selectedLotForContact et selectedContactType
+    // Ils restent définis depuis openContactModal()
+    
+    console.log("✅ Contact form modal opened with context preserved:", {
+      lotId: selectedLotForContact,
+      contactType: selectedContactType,
+      prefilledType: type
+    })
   }
 
-  const handleContactCreated = (contactData: any) => {
-    const newContact: Contact = {
-      id: Date.now().toString(),
-      name: `${contactData.firstName} ${contactData.lastName}`,
-      email: contactData.email,
-      type: contactData.type as any,
+  // Fonction pour nettoyer le contexte de sélection (appelée en cas d'annulation)
+  const cleanContactContext = () => {
+    console.log("🧹 Cleaning contact context (user cancelled)")
+    setSelectedLotForContact("")
+    setSelectedContactType("")
+    setPrefilledContactType("")
+  }
+
+  // Fonction pour ouvrir le modal de contact pour un lot spécifique
+  const openContactModal = async (lotId: string, contactType: string) => {
+    console.log("📞 Opening contact modal for specific lot:", { lotId, contactType })
+    
+    setSelectedLotForContact(lotId)
+    setSelectedContactType(contactType)
+    setSearchTerm("")
+    setIsContactModalOpen(true)
+    
+    // ✅ CORRECTION: Charger les contacts existants du type correspondant (comme dans openGlobalContactModal)
+    if (userTeam?.id) {
+      setIsLoadingContacts(true)
+      try {
+        console.log(`📞 Loading existing contacts for type: ${contactType}`)
+        const teamContacts = await contactService.getTeamContacts(userTeam.id)
+        console.log("✅ Team contacts loaded:", teamContacts)
+        
+        // Filtrer selon le type de contact demandé
+        let filteredContacts = teamContacts
+        if (contactType === 'provider') {
+          // Pour les prestataires, on affiche tous ceux qui ont une spécialité
+          filteredContacts = teamContacts.filter(contact => contact.speciality)
+        } else if (contactType === 'tenant') {
+          // Pour les locataires, on affiche ceux avec contact_type "locataire"
+          filteredContacts = teamContacts.filter(contact => 
+            contact.contact_type === 'locataire' || (!contact.speciality || contact.speciality === 'autre')
+          )
+        } else if (contactType === 'syndic') {
+          // Pour les syndics, on affiche ceux avec contact_type "syndic"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'syndic')
+        } else if (contactType === 'notary') {
+          // Pour les notaires, on affiche ceux avec contact_type "notaire"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'notaire')
+        } else if (contactType === 'insurance') {
+          // Pour les assurances, on affiche ceux avec contact_type "assurance"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'assurance')
+        } else if (contactType === 'other') {
+          // Pour les autres, on affiche ceux avec contact_type "autre"
+          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'autre')
+        }
+        
+        console.log(`📋 Filtered ${contactType} contacts:`, filteredContacts)
+        setExistingContacts(filteredContacts)
+      } catch (error) {
+        console.error("❌ Error loading team contacts:", error)
+        setExistingContacts([])
+      } finally {
+        setIsLoadingContacts(false)
+      }
     }
-    setContacts([...contacts, newContact])
-    setIsContactFormModalOpen(false)
+  }
+
+  // Fonction pour ajouter un contact existant à un lot
+  const addExistingContactToLot = (contact: any) => {
+    const newContact: Contact = {
+      id: contact.id,
+      name: contact.name,
+      email: contact.email,
+      type: selectedContactType as any,
+    }
+    
+    // Ajouter le contact à la liste globale s'il n'y est pas déjà
+    if (!contacts.some(c => c.id === contact.id)) {
+      setContacts([...contacts, newContact])
+    }
+
+    // Assigner le contact au lot spécifique si un lot est sélectionné
+    if (selectedLotForContact) {
+      assignContactToLot(selectedLotForContact, selectedContactType, newContact)
+    }
+    
+    setIsContactModalOpen(false)
+    setSearchTerm("")
+  }
+
+  const handleContactCreated = async (contactData: any) => {
+    try {
+      console.log("🆕 Création d'un nouveau contact:", contactData)
+      
+      if (!userTeam?.id) {
+        console.error("❌ No team found for user")
+        return
+      }
+
+      // Utiliser le service d'invitation pour créer le contact et optionnellement l'utilisateur
+      const result = await contactInvitationService.createContactWithOptionalInvite({
+        type: contactData.type,
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
+        email: contactData.email,
+        phone: contactData.phone,
+        address: contactData.address,
+        speciality: contactData.speciality,
+        notes: contactData.notes,
+        inviteToApp: contactData.inviteToApp,
+        teamId: userTeam.id
+      })
+
+      console.log("✅ Contact créé avec succès:", result.contact)
+      
+      // Ajouter le contact créé à la liste locale
+      const newContact: Contact = {
+        id: result.contact.id,
+        name: result.contact.name,
+        email: result.contact.email,
+        type: result.contact.contact_type as any,
+      }
+      
+      setContacts([...contacts, newContact])
+      
+      // AUSSI ajouter le contact à la liste des contacts existants pour qu'il apparaisse dans les modals
+      console.log("🔄 Adding contact to existing contacts list for immediate display")
+      setExistingContacts(prevExisting => [...prevExisting, result.contact])
+      
+      // Assigner le contact au lot spécifique si un lot est sélectionné
+      if (selectedLotForContact && result.contact.contact_type) {
+        console.log("🎯 Auto-assigning contact to lot:", {
+          lotId: selectedLotForContact,
+          contactType: result.contact.contact_type,
+          selectedContactType: selectedContactType,
+          contactName: newContact.name
+        })
+        
+        // CORRECTION: Utiliser selectedContactType (frontend format) pour la consistance avec les contacts existants
+        // au lieu de result.contact.contact_type (database format)
+        assignContactToLot(selectedLotForContact, selectedContactType, newContact)
+        console.log("✅ Contact auto-assigned to lot successfully")
+      } else {
+        console.log("ℹ️ No auto-assignment:", { 
+          hasLot: !!selectedLotForContact,
+          hasContactType: !!result.contact.contact_type,
+          selectedLotForContact,
+          contactType: result.contact.contact_type
+        })
+      }
+      
+      setIsContactFormModalOpen(false)
+      
+      // Nettoyer le contexte après assignation réussie
+      setSelectedLotForContact("")
+      setSelectedContactType("")
+      setPrefilledContactType("")
+      console.log("🧹 Context cleaned after successful contact creation and assignment")
+      
+      // Afficher un message si une invitation a été envoyée
+      if (result.invitation?.success) {
+        console.log("📧 Invitation envoyée avec succès à:", contactData.email)
+      } else if (result.invitation?.error) {
+        console.warn("⚠️ Contact créé mais invitation échouée:", result.invitation.error)
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de la création du contact:", error)
+      // Vous pourriez vouloir afficher une notification d'erreur à l'utilisateur ici
+    }
   }
 
   const handleGestionnaireCreated = async (contactData: any) => {
-    console.log("🆕 Nouveau gestionnaire créé:", contactData)
-    
-    // Ajouter le nouveau gestionnaire à la liste des managers disponibles
-    const newManager = {
-      user: {
-        id: `temp_${Date.now()}`, // ID temporaire
-        name: `${contactData.firstName} ${contactData.lastName}`,
+    try {
+      console.log("🆕 Création d'un nouveau gestionnaire:", contactData)
+      
+      if (!userTeam?.id) {
+        console.error("❌ No team found for user")
+        return
+      }
+
+      // Utiliser le service d'invitation pour créer le gestionnaire et optionnellement l'utilisateur
+      const result = await contactInvitationService.createContactWithOptionalInvite({
+        type: 'gestionnaire',
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
         email: contactData.email,
-        role: 'gestionnaire'
-      },
-      role: 'member'
-    }
-    
-    setTeamManagers([...teamManagers, newManager])
-    setSelectedManagerId(newManager.user.id)
-    setIsGestionnaireModalOpen(false)
-    
-    // Log de l'invitation si cochée
-    if (contactData.inviteToApp) {
-      console.log("📧 Une invitation sera envoyée à:", contactData.email)
+        phone: contactData.phone,
+        address: contactData.address,
+        speciality: contactData.speciality,
+        notes: contactData.notes,
+        inviteToApp: contactData.inviteToApp,
+        teamId: userTeam.id
+      })
+
+      console.log("✅ Gestionnaire créé avec succès:", result.contact)
+      
+      // Si l'invitation a réussi, l'utilisateur sera créé avec les bonnes permissions
+      // Créer l'objet manager pour l'état local
+      const newManager = {
+        user: {
+          id: result.contact.id, // Utiliser l'ID réel du contact
+          name: result.contact.name,
+          email: result.contact.email,
+          role: 'gestionnaire'
+        },
+        role: 'member'
+      }
+      
+      setTeamManagers([...teamManagers, newManager])
+      setSelectedManagerId(newManager.user.id)
+      setIsGestionnaireModalOpen(false)
+      
+      // Afficher un message si une invitation a été envoyée
+      if (result.invitation?.success) {
+        console.log("📧 Invitation gestionnaire envoyée avec succès à:", contactData.email)
+      } else if (result.invitation?.error) {
+        console.warn("⚠️ Gestionnaire créé mais invitation échouée:", result.invitation.error)
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de la création du gestionnaire:", error)
+      // Vous pourriez vouloir afficher une notification d'erreur à l'utilisateur ici
     }
   }
 
@@ -1050,7 +1321,7 @@ export default function NewBuildingPage() {
               <div className="space-y-6">
                 {lots.map((lot) => {
                   const lotManagers = getAssignedManagers(lot.id)
-                  const lotContacts = getContactsByType("tenant") // Simplification pour maintenant
+                  const lotContacts = getAllLotContacts(lot.id) // Utiliser les vraies assignations
                   
                   return (
                     <Card key={lot.id} className="border-gray-200">
@@ -1127,7 +1398,7 @@ export default function NewBuildingPage() {
                             <div className="grid grid-cols-2 gap-4">
                               {contactTypes.map((type) => {
                                 const Icon = type.icon
-                                const assignedContacts = getContactsByType(type.key)
+                                const assignedContacts = getLotContactsByType(lot.id, type.key)
 
                                 return (
                                   <div key={type.key} className="space-y-2">
@@ -1146,7 +1417,7 @@ export default function NewBuildingPage() {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => removeContact(contact.id)}
+                                            onClick={() => removeContactFromLot(lot.id, type.key, contact.id)}
                                             className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
                                           >
                                             <X className="w-3 h-3" />
@@ -1157,7 +1428,7 @@ export default function NewBuildingPage() {
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => openContactModal(type.key)}
+                                        onClick={() => openContactModal(lot.id, type.key)}
                                         className="w-full text-xs"
                                       >
                                         <Plus className="w-3 h-3 mr-1" />
@@ -1322,7 +1593,10 @@ export default function NewBuildingPage() {
                   <Plus className="w-4 h-4" />
                   Créer un nouveau {getSelectedContactTypeInfo().label.toLowerCase()}
                 </Button>
-                <Button variant="ghost" onClick={() => setIsContactModalOpen(false)}>
+                <Button variant="ghost" onClick={() => {
+                  setIsContactModalOpen(false)
+                  cleanContactContext() // Nettoyer le contexte en cas d'annulation
+                }}>
                   Annuler
                 </Button>
               </div>
@@ -1333,7 +1607,10 @@ export default function NewBuildingPage() {
         {/* Contact Form Modal */}
         <ContactFormModal
           isOpen={isContactFormModalOpen}
-          onClose={() => setIsContactFormModalOpen(false)}
+          onClose={() => {
+            setIsContactFormModalOpen(false)
+            cleanContactContext() // Nettoyer le contexte en cas d'annulation
+          }}
           onSubmit={handleContactCreated}
           defaultType={prefilledContactType}
         />
@@ -1364,8 +1641,8 @@ export default function NewBuildingPage() {
                 <div className="max-h-64 overflow-y-auto">
                   <div className="space-y-2">
                     {teamManagers.map((manager) => {
-                      const isAlreadyAssigned = selectedLotForManager && 
-                        getAssignedManagers(selectedLotForManager).some(m => m.user.id === manager.user.id)
+                      const isAlreadyAssigned = Boolean(selectedLotForManager && 
+                        getAssignedManagers(selectedLotForManager).some(m => m.user.id === manager.user.id))
                       
                       return (
                         <div

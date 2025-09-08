@@ -10,7 +10,7 @@ import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Fi
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { lotService, interventionService } from "@/lib/database-service"
+import { lotService, interventionService, contactService } from "@/lib/database-service"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -23,6 +23,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   // State pour les données
   const [lot, setLot] = useState<any>(null)
   const [interventions, setInterventions] = useState<any[]>([])
+  const [contacts, setContacts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,6 +49,11 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       const interventionsData = await interventionService.getByLotId(resolvedParams.id)
       console.log("🔧 Interventions loaded:", interventionsData?.length || 0)
       setInterventions(interventionsData || [])
+
+      // 3. Charger les contacts du lot
+      const contactsData = await contactService.getLotContacts(resolvedParams.id)
+      console.log("👥 Contacts loaded:", contactsData?.length || 0)
+      setContacts(contactsData || [])
 
     } catch (error) {
       console.error("❌ Error loading lot data:", error)
@@ -75,7 +81,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
 
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye },
-    { id: "contacts", label: "Contacts", icon: Users },
+    { id: "contacts", label: "Contacts", icon: Users, count: contacts.length },
     { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
     { id: "documents", label: "Documents", icon: FileText },
   ]
@@ -417,7 +423,9 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
           <div className="space-y-6">
             <LotContactsList 
               lotId={resolvedParams.id} 
-              buildingId={lot?.building?.id} 
+              buildingId={lot?.building?.id}
+              contacts={contacts}
+              onContactsUpdate={(updatedContacts: any[]) => setContacts(updatedContacts)}
             />
           </div>
         )}

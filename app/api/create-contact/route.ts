@@ -1,0 +1,117 @@
+import { createClient } from '@supabase/supabase-js'
+import { contactService } from '@/lib/database-service'
+import { NextResponse } from 'next/server'
+import type { Database } from '@/lib/database.types'
+
+// Créer un client Supabase avec les permissions service-role pour bypass les RLS
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+
+if (!supabaseServiceRoleKey || !supabaseUrl) {
+  console.warn('⚠️ Service role key or URL not configured')
+}
+
+const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
+  supabaseUrl!,
+  supabaseServiceRoleKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+) : null
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    
+    const {
+      name,
+      first_name,
+      last_name,
+      email,
+      phone,
+      address,
+      notes,
+      contact_type,
+      speciality,
+      team_id,
+      is_active = true
+    } = body
+
+    console.log('🚀 [CREATE-CONTACT-API] Received request:', { 
+      email, 
+      contact_type, 
+      team_id,
+      hasServiceRole: !!supabaseAdmin 
+    })
+
+    // Validation des données requises
+    if (!name || !email || !contact_type || !team_id) {
+      return NextResponse.json(
+        { error: 'Données requises manquantes: name, email, contact_type, team_id' },
+        { status: 400 }
+      )
+    }
+
+    // Préparer l'objet contact
+    const contactToCreate = {
+      name,
+      first_name: first_name || null,
+      last_name: last_name || null,
+      email,
+      phone: phone || null,
+      address: address || null,
+      notes: notes || null,
+      contact_type: contact_type as Database['public']['Enums']['contact_type'],
+      speciality: (speciality && speciality.trim()) ? 
+        speciality as Database['public']['Enums']['intervention_type'] : null,
+      team_id,
+      is_active
+    }
+
+    console.log('📝 [CREATE-CONTACT-API] Contact data:', JSON.stringify(contactToCreate, null, 2))
+
+    let result;
+
+    // Méthode 1: Utiliser le client admin si disponible (bypass RLS)
+    if (supabaseAdmin) {
+      console.log('🔐 [CREATE-CONTACT-API] Using admin client (service role)')
+      
+      const { data, error } = await supabaseAdmin
+        .from('contacts')
+        .insert(contactToCreate)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ [CREATE-CONTACT-API] Admin insert failed:', error)
+        throw error
+      }
+
+      result = data
+    } else {
+      // Méthode 2: Utiliser le service contact normal (fallback)
+      console.log('📝 [CREATE-CONTACT-API] Using normal contact service (fallback)')
+      result = await contactService.create(contactToCreate)
+    }
+
+    console.log('✅ [CREATE-CONTACT-API] Contact created successfully:', result.id)
+
+    return NextResponse.json({
+      success: true,
+      contact: result
+    })
+
+  } catch (error) {
+    console.error('❌ [CREATE-CONTACT-API] Error:', error)
+    return NextResponse.json(
+      { 
+        error: 'Erreur lors de la création du contact', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}

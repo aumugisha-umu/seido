@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
   // =============================================================================
   
   // Routes publiques (accessibles sans authentification)
-  const publicRoutes = ['/auth/login', '/auth/signup', '/auth/signup-success', '/auth/reset-password', '/']
+  const publicRoutes = ['/auth/login', '/auth/signup', '/auth/signup-success', '/auth/reset-password', '/auth/callback', '/']
   const isPublicRoute = publicRoutes.includes(pathname)
   
   // Routes protégées (nécessitent une authentification)

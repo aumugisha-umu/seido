@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, Mail, CheckCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { safeAuthRedirect } from "@/lib/supabase"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -45,9 +46,11 @@ export default function LoginPage() {
         name: user.name
       })
       
-      // Redirection immédiate maintenant que le middleware est stable
-      console.log('🚀 [LOGIN-PHASE4] Redirection automatique vers dashboard')
-      window.location.href = `/${user.role}/dashboard`
+      // Redirection automatique sécurisée vers dashboard
+      console.log('🚀 [LOGIN-PHASE4] Redirection automatique sécurisée vers dashboard')
+      setTimeout(async () => {
+        await safeAuthRedirect(`/${user.role}/dashboard`)
+      }, 500)
     } else {
       console.log('🔄 [LOGIN-PHASE4] État auth:', { loading, hasUser: !!user })
     }
@@ -82,9 +85,11 @@ export default function LoginPage() {
         console.log("🔄 [LOGIN-PHASE4] Redirection vers:", `/${authUser.role}/dashboard`)
         setError("") // Clear any previous errors
         
-        // ✅ PHASE 4: Redirection réactivée
-        console.log("🚀 [LOGIN-PHASE4] Redirection après connexion réussie")
-        window.location.href = `/${authUser.role}/dashboard`
+        // ✅ PHASE 4: Redirection sécurisée après connexion réussie
+        console.log("🚀 [LOGIN-PHASE4] Redirection sécurisée après connexion réussie")
+        setTimeout(async () => {
+          await safeAuthRedirect(`/${authUser.role}/dashboard`)
+        }, 500)
       }
     } catch (error) {
       console.error("❌ [LOGIN] Erreur de connexion:", error)

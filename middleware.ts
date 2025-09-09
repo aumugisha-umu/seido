@@ -46,22 +46,37 @@ export async function middleware(request: NextRequest) {
   
   const allCookies = request.cookies.getAll()
   
-  // Cookies Supabase d'authentification
+  // Cookies Supabase d'authentification - recherche plus large
   const supabaseCookies = allCookies.filter(cookie => 
     cookie.name.startsWith('sb-') && 
     (cookie.name.includes('session') || 
      cookie.name.includes('auth') ||
-     cookie.name.includes('token'))
+     cookie.name.includes('token') ||
+     cookie.name.includes('access') ||
+     cookie.name.includes('refresh'))
   )
   
-  console.log('🍪 [MIDDLEWARE] Analyse cookies:', {
+  // Rechercher aussi les cookies avec des patterns plus larges
+  const authRelatedCookies = allCookies.filter(cookie =>
+    cookie.name.includes('auth') ||
+    cookie.name.includes('session') ||
+    cookie.name.includes('token')
+  )
+  
+  console.log('🍪 [MIDDLEWARE] Analyse cookies détaillée:', {
     totalCookies: allCookies.length,
     supabaseCookies: supabaseCookies.length,
-    hasAuth: supabaseCookies.length > 0
+    authRelatedCookies: authRelatedCookies.length,
+    allCookieNames: allCookies.map(c => c.name),
+    hasAuth: supabaseCookies.length > 0 || authRelatedCookies.length > 0
   })
   
   if (supabaseCookies.length > 0) {
-    console.log('📋 [MIDDLEWARE] Cookies auth détectés:', supabaseCookies.map(c => c.name))
+    console.log('📋 [MIDDLEWARE] Cookies Supabase détectés:', supabaseCookies.map(c => ({ name: c.name, hasValue: !!c.value })))
+  }
+  
+  if (authRelatedCookies.length > 0) {
+    console.log('📋 [MIDDLEWARE] Cookies auth-related détectés:', authRelatedCookies.map(c => ({ name: c.name, hasValue: !!c.value })))
   }
   
   // =============================================================================
@@ -79,7 +94,10 @@ export async function middleware(request: NextRequest) {
   }
   
   if (isProtectedRoute) {
-    if (supabaseCookies.length > 0) {
+    // Utiliser la détection élargie des cookies d'authentification
+    const hasAuthCookies = supabaseCookies.length > 0 || authRelatedCookies.length > 0
+    
+    if (hasAuthCookies) {
       console.log('✅ [MIDDLEWARE] Route protégée + cookies auth → AUTORISATION')
       return NextResponse.next()
     } else {
@@ -98,11 +116,22 @@ export async function middleware(request: NextRequest) {
       // Vérifier des patterns de boucle (referer header)
       const referer = request.headers.get('referer')
       const isFromLogin = referer?.includes('/auth/login')
+      const isFromCallback = referer?.includes('/auth/callback')
       
-      if (isFromLogin) {
-        console.log('⚠️ [MIDDLEWARE] Requête depuis login détectée - possibleté de boucle')
+      if (isFromLogin || isFromCallback) {
+        console.log('⚠️ [MIDDLEWARE] Requête depuis auth page détectée - possibleté de boucle')
         console.log('🛡️ [MIDDLEWARE] Referer:', referer)
         console.log('🔄 [MIDDLEWARE] Permettant l\'accès pour éviter boucle infinie')
+        return NextResponse.next()
+      }
+      
+      // Délai de grâce pour les redirections récentes depuis des pages d'auth
+      const userAgent = request.headers.get('user-agent')
+      const isLikelyAuthRedirect = userAgent && pathname.includes('/dashboard')
+      
+      if (isLikelyAuthRedirect) {
+        console.log('⏰ [MIDDLEWARE] Possible redirection post-auth - accordant délai de grâce')
+        // Permettre l'accès pendant quelques secondes après auth pour la synchronisation des cookies
         return NextResponse.next()
       }
       

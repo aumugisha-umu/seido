@@ -72,5 +72,54 @@ export const withRetry = async <T>(
   throw lastError!
 }
 
+// Fonction pour forcer la synchronisation des cookies en production
+export const ensureAuthSync = async (): Promise<boolean> => {
+  try {
+    // Attendre que la session soit complètement synchronisée
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error) {
+      console.log('⚠️ [AUTH-SYNC] Error getting session:', error.message)
+      return false
+    }
+    
+    if (!session) {
+      console.log('⚠️ [AUTH-SYNC] No session found')
+      return false
+    }
+    
+    console.log('✅ [AUTH-SYNC] Session synchronized successfully')
+    return true
+  } catch (error) {
+    console.error('❌ [AUTH-SYNC] Error syncing auth:', error)
+    return false
+  }
+}
+
+// Fonction pour effectuer une redirection sécurisée après authentification
+export const safeAuthRedirect = async (redirectPath: string, maxRetries: number = 3): Promise<void> => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`🔄 [SAFE-REDIRECT] Attempt ${attempt}/${maxRetries} to sync auth before redirect`)
+    
+    const isSync = await ensureAuthSync()
+    
+    if (isSync) {
+      console.log('✅ [SAFE-REDIRECT] Auth synchronized, proceeding with redirect')
+      // Délai supplémentaire pour s'assurer que les cookies sont persistés
+      await new Promise(resolve => setTimeout(resolve, 500))
+      window.location.replace(redirectPath)
+      return
+    }
+    
+    if (attempt < maxRetries) {
+      console.log(`⏳ [SAFE-REDIRECT] Auth not ready, waiting before retry...`)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  }
+  
+  console.log('⚠️ [SAFE-REDIRECT] Max retries reached, forcing redirect anyway')
+  window.location.replace(redirectPath)
+}
+
 // Re-export Database type for convenience
 export type { Database } from './database.types'

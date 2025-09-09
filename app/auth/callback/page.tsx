@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, safeAuthRedirect } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -48,15 +48,20 @@ export default function AuthCallback() {
           const role = tokenPayload.user_metadata?.role
           console.log('📋 [AUTH-CALLBACK] Extracted role from token:', role)
           
-          // Établir la session sans attendre (fire & forget)
-          supabase.auth.setSession({
+          // Établir la session et attendre la synchronisation
+          const sessionResult = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
-          }).then((result) => {
-            console.log('✅ [AUTH-CALLBACK] Session set result:', result.error ? result.error.message : 'success')
-          }).catch((err) => {
-            console.log('⚠️ [AUTH-CALLBACK] Session set error (non-blocking):', err.message)
           })
+          
+          if (sessionResult.error) {
+            console.log('⚠️ [AUTH-CALLBACK] Session set error:', sessionResult.error.message)
+          } else {
+            console.log('✅ [AUTH-CALLBACK] Session set successfully')
+          }
+          
+          // Attendre un délai supplémentaire pour la synchronisation des cookies
+          await new Promise(resolve => setTimeout(resolve, 500))
           
           // Marquer les invitations comme acceptées via API (basé sur l'email)
           console.log('📝 [AUTH-CALLBACK] Marking invitations as accepted via API (non-blocking)...')
@@ -89,10 +94,10 @@ export default function AuthCallback() {
           setMessage(`Redirection vers votre espace ${role || 'utilisateur'}...`)
           setUserRole(role || null)
           
-          // Redirection après un court délai pour permettre l'affichage du message
-          setTimeout(() => {
-            console.log('🏃 [AUTH-CALLBACK] Executing redirect...')
-            window.location.href = redirectPath
+          // Utiliser la redirection sécurisée
+          console.log('🏃 [AUTH-CALLBACK] Using safe auth redirect...')
+          setTimeout(async () => {
+            await safeAuthRedirect(redirectPath)
           }, 1000)
           
         } catch (tokenError) {

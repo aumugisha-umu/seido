@@ -10,7 +10,7 @@
 
 -- Table de liaison pour supporter plusieurs contacts par lot
 CREATE TABLE IF NOT EXISTS lot_contacts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lot_id UUID NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     contact_type contact_type NOT NULL, -- Utilise l'enum existant (locataire, propriétaire, syndic, etc.)

@@ -692,6 +692,50 @@ export const contactService = {
     return data || []
   },
 
+  // Nouvelle méthode pour récupérer les contacts d'un bâtiment entier
+  async getBuildingContacts(buildingId: string, contactType?: string) {
+    console.log("🏢 getBuildingContacts called with buildingId:", buildingId, "contactType:", contactType)
+    
+    try {
+      const { data, error } = await supabase
+        .from('building_contacts')
+        .select(`
+          contact:contact_id (
+            id,
+            name,
+            email,
+            phone,
+            company,
+            contact_type,
+            speciality,
+            is_active
+          )
+        `)
+        .eq('building_id', buildingId)
+
+      if (error) {
+        console.error("❌ Error getting building contacts:", error)
+        return []
+      }
+
+      let contacts = (data || [])
+        .map((item: any) => item.contact)
+        .filter((contact: any) => contact && contact.is_active !== false)
+
+      // Filtrer par type de contact si spécifié
+      if (contactType) {
+        contacts = contacts.filter((contact: any) => contact?.contact_type === contactType)
+      }
+      
+      console.log("✅ Found building contacts:", contacts.length)
+      return contacts
+
+    } catch (error) {
+      console.error("🚨 Unexpected error in getBuildingContacts:", error)
+      return []
+    }
+  },
+
   // Nouvelle fonction pour récupérer les gestionnaires réels d'une équipe
   async getTeamManagers(teamId: string) {
     console.log("👥 getTeamManagers called with teamId:", teamId)
@@ -1680,32 +1724,30 @@ export const statsService = {
       const contacts = await contactService.getTeamContacts(team.id)
       console.log("👥 Found contacts:", contacts?.length || 0)
       
-      // 5. Get interventions for these lots
-      const lotIds = lots.map(l => l.id)
-      let interventions: any[] = []
+      // 5. Get ALL interventions for this team (much simpler!)
+      const { data: interventions, error: interventionsError } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot:lot_id(id, reference, building:building_id(name, address)),
+          building:building_id(id, name, address),
+          assigned_contact:assigned_contact_id(name, email)
+        `)
+        .eq('team_id', team.id)
+        .order('created_at', { ascending: false })
       
-      if (lotIds.length > 0) {
-        const { data: interventionsData, error: interventionsError } = await supabase
-          .from('interventions')
-          .select(`
-            *,
-            lot:lot_id(id, reference, building_id),
-            assigned_contact:assigned_contact_id(name, email)
-          `)
-          .in('lot_id', lotIds)
-        
-        if (interventionsError) {
-          console.error("❌ Error fetching interventions:", interventionsError)
-        } else {
-          interventions = interventionsData || []
-          console.log("🔧 Found interventions:", interventions.length)
-        }
+      if (interventionsError) {
+        console.error("❌ Error fetching team interventions:", interventionsError)
+        throw interventionsError
       }
+      
+      console.log("🔧 Found team interventions:", interventions?.length || 0)
       
       // 6. Format buildings with embedded lots for PropertySelector
       const formattedBuildings = buildings?.map(building => {
         const buildingLots = lots.filter(lot => lot.building_id === building.id)
-        const buildingInterventions = interventions.filter(intervention => 
+        const buildingInterventions = (interventions || []).filter(intervention => 
+          intervention.building_id === building.id || 
           buildingLots.some(lot => lot.id === intervention.lot_id)
         )
         
@@ -1715,7 +1757,7 @@ export const statsService = {
             ...lot,
             status: lot.tenant_id ? 'occupied' : 'vacant',
             tenant: lot.tenant?.name || null,
-            interventions: interventions.filter(i => i.lot_id === lot.id).length
+            interventions: (interventions || []).filter(i => i.lot_id === lot.id).length
           })),
           interventions: buildingInterventions.length
         }
@@ -1731,7 +1773,7 @@ export const statsService = {
         occupiedLotsCount,
         occupancyRate,
         contactsCount: contacts?.length || 0,
-        interventionsCount: interventions.length
+        interventionsCount: interventions?.length || 0
       }
       
       console.log("📊 Final stats:", stats)
@@ -1740,7 +1782,7 @@ export const statsService = {
         buildings: formattedBuildings,
         lots,
         contacts: contacts || [],
-        interventions,
+        interventions: interventions || [],
         stats,
         team
       }
@@ -1754,6 +1796,7 @@ export const statsService = {
       console.error("❌ Error in getManagerStats:", error)
       
       // En cas d'erreur, essayer de retourner des données en cache si disponibles
+      const cached = this._statsCache.get(cacheKey)
       if (cached) {
         console.log("⚠️ Error occurred, returning stale cached data")
         return cached.data

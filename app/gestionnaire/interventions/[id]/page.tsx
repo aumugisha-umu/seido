@@ -3,6 +3,7 @@
 import { use } from "react"
 import {
   ArrowLeft,
+  Building2,
   Calendar,
   Clock,
   FileText,
@@ -32,6 +33,29 @@ import { useState, useEffect } from "react"
 import { interventionService, contactService } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 
+// Fonctions utilitaires pour gérer les interventions lot vs bâtiment
+const getInterventionLocationText = (intervention: InterventionDetail): string => {
+  if (intervention.lot) {
+    return `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
+  } else if (intervention.building) {
+    return `Bâtiment entier - ${intervention.building.name}`
+  }
+  return "Localisation non spécifiée"
+}
+
+const getInterventionLocationShort = (intervention: InterventionDetail): string => {
+  if (intervention.lot) {
+    return `Lot ${intervention.lot.reference}`
+  } else if (intervention.building) {
+    return "Bâtiment entier"
+  }
+  return "Non spécifié"
+}
+
+const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
+  return !!(intervention.building && !intervention.lot)
+}
+
 // Types basés sur la structure de la base de données
 interface DatabaseContact {
   id: string
@@ -58,7 +82,8 @@ interface InterventionDetail {
   scheduledDate?: string
   estimatedCost?: number
   finalCost?: number
-  lot: {
+  // Support des interventions lot ET bâtiment
+  lot?: {
     id: string
     reference: string
     building: {
@@ -70,6 +95,13 @@ interface InterventionDetail {
     }
     floor?: number
     apartment_number?: string
+  }
+  building?: {
+    id: string
+    name: string
+    address: string
+    city: string
+    postal_code: string
   }
   tenant?: {
     id: string
@@ -163,32 +195,41 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
       console.log('✅ Intervention data loaded:', interventionData)
 
-      // 2. Récupérer tous les contacts associés au lot de cette intervention
-      const lotContacts = await contactService.getLotContacts(interventionData.lot_id)
+      // 2. Récupérer tous les contacts selon le type d'intervention (lot ou bâtiment)
+      let contacts = []
+      if (interventionData.lot_id) {
+        // Intervention sur lot spécifique
+        contacts = await contactService.getLotContacts(interventionData.lot_id)
+        console.log('✅ Lot contacts loaded:', contacts.length)
+      } else if (interventionData.building_id) {
+        // Intervention sur bâtiment entier - récupérer tous les contacts du bâtiment
+        contacts = await contactService.getBuildingContacts(interventionData.building_id)
+        console.log('✅ Building contacts loaded:', contacts.length)
+      }
       
-      console.log('✅ Lot contacts loaded:', lotContacts.length)
+      console.log('✅ Contacts loaded:', contacts.length)
 
       // 3. Organiser les contacts par type
       const organizedContacts = {
-        locataires: lotContacts.filter((contact: any) => 
+        locataires: contacts.filter((contact: any) => 
           contact.contact_type === 'locataire' || contact.lot_contact_type === 'locataire'
         ).map((contact: any) => ({
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
-        proprietaires: lotContacts.filter((contact: any) => 
+        proprietaires: contacts.filter((contact: any) => 
           contact.contact_type === 'proprietaire' || contact.lot_contact_type === 'proprietaire'
         ).map((contact: any) => ({
           ...contact,
           inChat: false
         })),
-        syndics: lotContacts.filter((contact: any) => 
+        syndics: contacts.filter((contact: any) => 
           contact.contact_type === 'syndic' || contact.lot_contact_type === 'syndic'
         ).map((contact: any) => ({
           ...contact,
           inChat: false
         })),
-        autres: lotContacts.filter((contact: any) => 
+        autres: contacts.filter((contact: any) => 
           !['locataire', 'proprietaire', 'syndic'].includes(contact.contact_type || contact.lot_contact_type)
         ).map((contact: any) => ({
           ...contact,
@@ -211,7 +252,8 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         scheduledDate: interventionData.scheduled_date,
         estimatedCost: interventionData.estimated_cost,
         finalCost: interventionData.final_cost,
-        lot: {
+        // Support des interventions lot ET bâtiment
+        lot: interventionData.lot ? {
           id: interventionData.lot.id,
           reference: interventionData.lot.reference,
           building: {
@@ -223,7 +265,14 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           },
           floor: interventionData.lot.floor,
           apartment_number: interventionData.lot.apartment_number
-        },
+        } : undefined,
+        building: interventionData.building ? {
+          id: interventionData.building.id,
+          name: interventionData.building.name,
+          address: interventionData.building.address,
+          city: interventionData.building.city,
+          postal_code: interventionData.building.postal_code
+        } : undefined,
         tenant: interventionData.tenant ? {
           id: interventionData.tenant_id,
           name: interventionData.tenant.name,
@@ -493,31 +542,66 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">
                 <MapPin className="h-5 w-5 text-green-600" />
-                <span>Logement concerné</span>
+                <span>Localisation</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-medium text-gray-900">{intervention.lot.reference}</h4>
-                  <p className="text-gray-600">
-                    {intervention.lot.building.address}, {intervention.lot.building.city} {intervention.lot.building.postal_code}
-                  </p>
-                  <p className="text-sm text-gray-500">{intervention.lot.building.name}</p>
-                  {intervention.lot.floor && (
-                    <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
-                  )}
-                  {intervention.lot.apartment_number && (
-                    <p className="text-sm text-gray-500">Appartement {intervention.lot.apartment_number}</p>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isBuildingWideIntervention(intervention) ? (
+                      <Building2 className="h-4 w-4 text-blue-600" />
+                    ) : (
+                      <MapPin className="h-4 w-4 text-blue-600" />
+                    )}
+                    <h4 className="font-medium text-gray-900">
+                      {getInterventionLocationShort(intervention)}
+                    </h4>
+                    {isBuildingWideIntervention(intervention) && (
+                      <Badge variant="secondary" className="text-xs">
+                        Bâtiment entier
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {intervention.lot ? (
+                    <>
+                      <p className="text-gray-600">
+                        {intervention.lot.building.address}, {intervention.lot.building.city} {intervention.lot.building.postal_code}
+                      </p>
+                      <p className="text-sm text-gray-500">{intervention.lot.building.name}</p>
+                      {intervention.lot.floor && (
+                        <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
+                      )}
+                      {intervention.lot.apartment_number && (
+                        <p className="text-sm text-gray-500">Appartement {intervention.lot.apartment_number}</p>
+                      )}
+                    </>
+                  ) : intervention.building ? (
+                    <>
+                      <p className="text-gray-600">
+                        {intervention.building.address}, {intervention.building.city} {intervention.building.postal_code}
+                      </p>
+                      <p className="text-sm text-gray-500">{intervention.building.name}</p>
+                      <p className="text-sm text-yellow-600 font-medium">
+                        Intervention sur l'ensemble du bâtiment
+                      </p>
+                    </>
+                  ) : null}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push(`/gestionnaire/lots/${intervention.lot.id}`)}
+                  onClick={() => {
+                    if (intervention.lot) {
+                      router.push(`/gestionnaire/lots/${intervention.lot.id}`)
+                    } else if (intervention.building) {
+                      router.push(`/gestionnaire/biens/${intervention.building.id}`)
+                    }
+                  }}
                 >
                   <Eye className="h-4 w-4 mr-2" />
-                  Voir le lot
+                  {isBuildingWideIntervention(intervention) ? "Voir le bâtiment" : "Voir le lot"}
                 </Button>
               </div>
 

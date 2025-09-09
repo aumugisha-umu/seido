@@ -13,7 +13,7 @@ CREATE TYPE invitation_status AS ENUM (
 
 -- Table des invitations utilisateurs
 CREATE TABLE user_invitations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Références
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

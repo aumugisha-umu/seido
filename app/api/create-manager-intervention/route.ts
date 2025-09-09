@@ -118,14 +118,22 @@ export async function POST(request: NextRequest) {
 
     // Determine if this is a building or lot intervention
     let lotId: string | null = null
+    let buildingId: string | null = null
     let tenantId: string | null = null
     let interventionTeamId = teamId
 
     if (selectedLotId) {
       // Lot-specific intervention
       lotId = selectedLotId.toString()
-      console.log("🏠 Getting lot data for ID:", lotId)
+      console.log("🏠 Creating lot-specific intervention for lot ID:", lotId)
       
+      if (!lotId) {
+        return NextResponse.json({
+          success: false,
+          error: 'ID du lot invalide'
+        }, { status: 400 })
+      }
+
       const lot = await lotService.getById(lotId)
       if (!lot) {
         return NextResponse.json({
@@ -153,7 +161,9 @@ export async function POST(request: NextRequest) {
           .from('lot_contacts')
           .select(`
             contacts!inner(
-              user_id,
+              id,
+              name,
+              email,
               contact_type
             )
           `)
@@ -162,9 +172,9 @@ export async function POST(request: NextRequest) {
           .is('end_date', null)
           .maybeSingle()
 
-        if (tenantContactData?.contacts?.user_id) {
-          tenantId = tenantContactData.contacts.user_id
-          console.log("✅ Found tenant from lot_contacts:", tenantId)
+        if (tenantContactData?.contacts) {
+          // For now we don't link to user_id, just store contact info
+          console.log("✅ Found tenant contact for lot:", tenantContactData.contacts.name)
         } else {
           console.log("⚠️ No tenant found for this lot - creating intervention without tenant")
         }
@@ -176,48 +186,30 @@ export async function POST(request: NextRequest) {
       }
     } else if (selectedBuildingId) {
       // Building-wide intervention
-      console.log("🏢 Creating building-wide intervention for building ID:", selectedBuildingId)
+      buildingId = selectedBuildingId.toString()
+      console.log("🏢 Creating building-wide intervention for building ID:", buildingId)
       
-      const building = await buildingService.getById(selectedBuildingId.toString())
-      if (!building) {
+      if (!buildingId) {
         return NextResponse.json({
-          success: false,
-          error: 'Bâtiment non trouvé'
-        }, { status: 404 })
-      }
-
-      // For building-wide interventions, we need to either:
-      // 1. Create a special "building" lot, or 
-      // 2. Use the first lot of the building, or
-      // 3. Allow lot_id to be null (but this requires schema changes)
-      
-      // Let's get the first lot of this building to use as reference
-      const { data: buildingLots, error: lotsError } = await supabase
-        .from('lots')
-        .select('id, reference')
-        .eq('building_id', selectedBuildingId)
-        .limit(1)
-        .maybeSingle()
-
-      if (buildingLots) {
-        lotId = buildingLots.id
-        console.log("✅ Using first lot of building as reference:", lotId)
-      } else {
-        // If no lots exist for this building, we cannot proceed
-        console.error("❌ No lots found for building:", selectedBuildingId)
-        return NextResponse.json({
-          success: false,
-          error: 'Aucun lot trouvé pour ce bâtiment. Veuillez créer au moins un lot pour ce bâtiment.'
+          error: "ID du bâtiment invalide"
         }, { status: 400 })
       }
 
-      // For building-wide interventions, there's typically no specific tenant
+      const building = await buildingService.getById(buildingId)
+      if (!building) {
+        return NextResponse.json({
+          error: "Building not found"
+        }, { status: 404 })
+      }
+
       tenantId = null
       
       // Use building's team if available, otherwise use provided teamId
       if (building.team_id) {
         interventionTeamId = building.team_id
       }
+
+      console.log("✅ Building-wide intervention will be linked directly to building")
     }
 
     // Map frontend values to database enums
@@ -281,13 +273,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare intervention data
-    const interventionData = {
+    const interventionData: any = {
       title,
       description,
       type: mapInterventionType(type || ''),
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
-      lot_id: lotId,
       tenant_id: tenantId, // Can be null for manager-created interventions
       manager_id: selectedManagerId || authUser.id, // Use selected manager or current user
       assigned_contact_id: primaryContactId,
@@ -298,6 +289,16 @@ export async function POST(request: NextRequest) {
       requires_quote: expectsQuote || false,
       scheduling_type: schedulingType,
       specific_location: location
+    }
+
+    // Add lot_id only if it exists (for lot-specific interventions)
+    if (lotId) {
+      interventionData.lot_id = lotId
+    }
+
+    // Add building_id only if it exists (for building-wide interventions)  
+    if (buildingId) {
+      interventionData.building_id = buildingId
     }
 
     console.log("📝 Creating intervention with data:", interventionData)
@@ -329,7 +330,7 @@ export async function POST(request: NextRequest) {
 
     // Add provider assignments
     if (selectedProviderIds && selectedProviderIds.length > 0) {
-      selectedProviderIds.forEach((providerId, index) => {
+      selectedProviderIds.forEach((providerId: string, index: number) => {
         contactAssignments.push({
           intervention_id: intervention.id,
           contact_id: providerId,
@@ -342,6 +343,7 @@ export async function POST(request: NextRequest) {
 
     // Insert contact assignments
     if (contactAssignments.length > 0) {
+      console.log("📝 Creating contact assignments:", contactAssignments.length)
       const { error: assignmentError } = await supabase
         .from('intervention_contacts')
         .insert(contactAssignments)
@@ -359,8 +361,8 @@ export async function POST(request: NextRequest) {
       console.log("📅 Creating time slots:", timeSlots.length)
       
       const timeSlotsToInsert = timeSlots
-        .filter(slot => slot.date && slot.startTime && slot.endTime) // Only valid slots
-        .map(slot => ({
+        .filter((slot: any) => slot.date && slot.startTime && slot.endTime) // Only valid slots
+        .map((slot: any) => ({
           intervention_id: intervention.id,
           slot_date: slot.date,
           start_time: slot.startTime,
@@ -389,7 +391,7 @@ export async function POST(request: NextRequest) {
 
     // Store additional metadata in manager_comment
     let managerCommentParts = []
-    if (selectedBuildingId && !selectedLotId) managerCommentParts.push('Intervention sur bâtiment entier')
+    if (buildingId && !lotId) managerCommentParts.push('Intervention sur bâtiment entier')
     if (location) managerCommentParts.push(`Localisation: ${location}`)
     if (expectsQuote) managerCommentParts.push('Devis requis')
     if (globalMessage) managerCommentParts.push(`Instructions: ${globalMessage}`)

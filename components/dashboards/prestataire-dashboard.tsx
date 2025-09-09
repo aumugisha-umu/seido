@@ -110,8 +110,8 @@ export default function PrestataireDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.terminesCeMois}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.terminesCeMois > 0 ? '+' : ''}
-              {stats.terminesCeMois > 0 ? Math.round((stats.terminesCeMois / Math.max(1, stats.interventionsEnCours)) * 100) : 0}% vs mois dernier
+              {stats.terminesCeMois > stats.terminesMoisPrecedent ? '+' : stats.terminesCeMois < stats.terminesMoisPrecedent ? '' : ''}
+              {stats.terminesMoisPrecedent > 0 ? Math.round(((stats.terminesCeMois - stats.terminesMoisPrecedent) / stats.terminesMoisPrecedent) * 100) : (stats.terminesCeMois > 0 ? '+100' : '0')}% vs mois dernier
             </p>
           </CardContent>
         </Card>
@@ -135,8 +135,8 @@ export default function PrestataireDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">€{stats.revenusMois.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.terminesCeMois > 0 ? '+' : ''}
-              {stats.terminesCeMois > 0 ? Math.round((stats.revenusMois / Math.max(1, stats.interventionsEnCours * 280)) * 100) : 0}% ce mois
+              {stats.revenusMois > stats.revenusMoisPrecedent ? '+' : stats.revenusMois < stats.revenusMoisPrecedent ? '' : ''}
+              {stats.revenusMoisPrecedent > 0 ? Math.round(((stats.revenusMois - stats.revenusMoisPrecedent) / stats.revenusMoisPrecedent) * 100) : (stats.revenusMois > 0 ? '+100' : '0')}% vs mois dernier
             </p>
           </CardContent>
         </Card>

@@ -8,7 +8,8 @@
 -- EXTENSIONS
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Utilisation des fonctions UUID natives de PostgreSQL (plus récent que uuid-ossp)
+-- CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- Non nécessaire avec gen_random_uuid()
 
 -- =============================================================================
 -- TYPES ÉNUMÉRÉS
@@ -68,7 +69,7 @@ CREATE TYPE contact_type AS ENUM (
 -- =============================================================================
 
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     first_name VARCHAR(255),
@@ -85,7 +86,7 @@ CREATE TABLE users (
 
 -- Table des équipes
 CREATE TABLE teams (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -95,7 +96,7 @@ CREATE TABLE teams (
 
 -- Table des membres d'équipe
 CREATE TABLE team_members (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(50) DEFAULT 'member', -- 'admin', 'member'
@@ -109,7 +110,7 @@ CREATE TABLE team_members (
 
 -- Table des bâtiments (avec support équipes)
 CREATE TABLE buildings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     address TEXT NOT NULL,
     city VARCHAR(100) NOT NULL,
@@ -125,7 +126,7 @@ CREATE TABLE buildings (
 
 -- Table des lots/appartements
 CREATE TABLE lots (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     building_id UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
     reference VARCHAR(50) NOT NULL,
     floor INTEGER,
@@ -147,7 +148,7 @@ CREATE TABLE lots (
 
 -- Table des contacts/prestataires (avec support équipes)
 CREATE TABLE contacts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     first_name VARCHAR(255),
     last_name VARCHAR(255),
@@ -166,7 +167,7 @@ CREATE TABLE contacts (
 
 -- Table de liaison bâtiments-contacts
 CREATE TABLE building_contacts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     building_id UUID REFERENCES buildings(id) ON DELETE CASCADE,
     contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -179,7 +180,7 @@ CREATE TABLE building_contacts (
 
 -- Table des interventions (avec correction assigned_contact_id)
 CREATE TABLE interventions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     reference VARCHAR(20) UNIQUE NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,

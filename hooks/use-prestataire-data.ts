@@ -8,8 +8,10 @@ export interface PrestataireDashboardStats {
   interventionsEnCours: number
   urgentesCount: number
   terminesCeMois: number
+  terminesMoisPrecedent: number
   prochainsRdv: number
   revenusMois: number
+  revenusMoisPrecedent: number
 }
 
 export interface PrestataireIntervention {
@@ -91,8 +93,10 @@ export const usePrestataireData = (userId: string) => {
       interventionsEnCours: 0,
       urgentesCount: 0,
       terminesCeMois: 0,
+      terminesMoisPrecedent: 0,
       prochainsRdv: 0,
-      revenusMois: 0
+      revenusMois: 0,
+      revenusMoisPrecedent: 0
     },
     interventions: [],
     urgentInterventions: [],
@@ -157,6 +161,8 @@ export const usePrestataireData = (userId: string) => {
       // 4. Calculate stats
       const now = new Date()
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       
       const interventionsEnCours = transformedInterventions.filter(i => 
         ['nouvelle-demande', 'devis-a-fournir', 'programmee', 'en_cours'].includes(i.status)
@@ -171,6 +177,12 @@ export const usePrestataireData = (userId: string) => {
         if (i.status !== 'terminee') return false
         const createdDate = new Date(i.createdAt)
         return createdDate >= thisMonth
+      }).length
+
+      const terminesMoisPrecedent = transformedInterventions.filter(i => {
+        if (i.status !== 'terminee') return false
+        const createdDate = new Date(i.createdAt)
+        return createdDate >= lastMonth && createdDate < thisMonth
       }).length
 
       // 5. Get urgent interventions for dashboard
@@ -190,8 +202,10 @@ export const usePrestataireData = (userId: string) => {
         interventionsEnCours,
         urgentesCount,
         terminesCeMois,
+        terminesMoisPrecedent,
         prochainsRdv: Math.min(8, interventionsEnCours), // Mock: assume some have scheduled dates
-        revenusMois: terminesCeMois * 280 // Mock: estimate 280€ per intervention
+        revenusMois: terminesCeMois * 280, // Mock: estimate 280€ per intervention
+        revenusMoisPrecedent: terminesMoisPrecedent * 280 // Mock: estimate 280€ per intervention
       }
 
       console.log("📊 Calculated stats:", stats)

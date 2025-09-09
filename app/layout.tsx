@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
+import { ConnectionStatus } from "@/components/connection-status"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
         <AuthProvider>
           <TeamStatusProvider>
             <Suspense fallback={null}>{children}</Suspense>
+            <ConnectionStatus />
           </TeamStatusProvider>
         </AuthProvider>
         <Analytics />

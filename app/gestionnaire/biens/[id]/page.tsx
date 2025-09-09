@@ -323,6 +323,10 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                   <span className="font-medium">{building.postal_code}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-600">Pays</span>
+                  <span className="font-medium">{building.country || "Non spécifié"}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">Année de construction</span>
                   <span className="font-medium">{building.construction_year || "Non défini"}</span>
                 </div>

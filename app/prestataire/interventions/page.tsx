@@ -42,130 +42,9 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from "@/hooks/use-auth"
+import { usePrestataireData } from "@/hooks/use-prestataire-data"
 
-const mockInterventions = [
-  {
-    id: "INT001",
-    title: "Fuite d'eau dans la salle de bain",
-    description: "Une fuite importante s'est déclarée au niveau du robinet de la baignoire.",
-    type: "Plomberie",
-    priority: "urgent",
-    status: "nouvelle-demande",
-    createdAt: "2025-01-08",
-    estimatedDuration: "2-3 heures",
-    location: "Lot003 - 123 Rue de la Paix, 75001 Paris",
-    tenant: "Jean Martin",
-    requestedBy: "Marie Dubois (Gestionnaire)",
-    needsQuote: true,
-  },
-  {
-    id: "INT005",
-    title: "Installation nouveau radiateur",
-    description: "Remplacement du radiateur défaillant dans le salon.",
-    type: "Chauffage",
-    priority: "normale",
-    status: "devis-a-fournir",
-    createdAt: "2025-01-07",
-    estimatedDuration: "3-4 heures",
-    location: "Apt 2B - 456 Avenue Victor Hugo, 75016 Paris",
-    tenant: "Sophie Durand",
-    requestedBy: "Marie Dubois (Gestionnaire)",
-    needsQuote: true,
-  },
-  {
-    id: "INT006",
-    title: "Réparation panne électrique générale",
-    description: "Coupure électrique dans tout l'appartement, disjoncteur qui saute.",
-    type: "Électricité",
-    priority: "critique",
-    status: "a-programmer",
-    createdAt: "2025-01-09",
-    estimatedDuration: "2-3 heures",
-    location: "Studio 1 - 789 Rue de Rivoli, 75001 Paris",
-    tenant: "Lucas Petit",
-    requestedBy: "Marie Dubois (Gestionnaire)",
-    needsQuote: false,
-  },
-  {
-    id: "INT007",
-    title: "Maintenance préventive plomberie",
-    description: "Vérification annuelle des canalisations et robinetterie.",
-    type: "Maintenance générale",
-    priority: "normale",
-    status: "programmee",
-    createdAt: "2025-01-03",
-    estimatedDuration: "1-2 heures",
-    location: "T3-A - 321 Boulevard Saint-Germain, 75007 Paris",
-    tenant: "Thomas Blanc",
-    requestedBy: "Marie Dubois (Gestionnaire)",
-    needsQuote: false,
-  },
-  {
-    id: "INT008",
-    title: "Changement serrure porte d'entrée",
-    description: "Remplacement de la serrure suite à la perte des clés.",
-    type: "Serrurerie",
-    priority: "urgent",
-    status: "a-finaliser",
-    createdAt: "2025-01-06",
-    estimatedDuration: "1 heure",
-    location: "T2-B - 654 Rue du Faubourg Saint-Antoine, 75011 Paris",
-    tenant: "Emma Rousseau",
-    requestedBy: "Emma Rousseau (Locataire)",
-    needsQuote: false,
-  },
-  {
-    id: "INT009",
-    title: "Réparation robinet cuisine",
-    description: "Robinet qui goutte en permanence.",
-    type: "Plomberie",
-    priority: "normale",
-    status: "terminee",
-    createdAt: "2025-01-01",
-    estimatedDuration: "1 heure",
-    location: "T2-C - 987 Rue de la République, 75003 Paris",
-    tenant: "Claire Martin",
-    requestedBy: "Marie Dubois (Gestionnaire)",
-    needsQuote: false,
-  },
-  {
-    id: "INT010",
-    title: "Installation étagères",
-    description: "Pose d'étagères murales dans le salon.",
-    type: "Maintenance générale",
-    priority: "normale",
-    status: "annulee",
-    createdAt: "2025-01-02",
-    estimatedDuration: "2 heures",
-    location: "T3-B - 456 Avenue des Champs, 75008 Paris",
-    tenant: "Paul Durand",
-    requestedBy: "Paul Durand (Locataire)",
-    needsQuote: false,
-  },
-]
-
-const statusTabs = [
-  { key: "nouvelle-demande", label: "Nouvelles demandes", count: 1, color: "text-red-600", alertColor: "text-red-500" },
-  {
-    key: "devis-a-fournir",
-    label: "Devis à fournir",
-    count: 1,
-    color: "text-orange-600",
-    alertColor: "text-orange-500",
-  },
-  { key: "a-programmer", label: "À programmer", count: 1, color: "text-blue-600", alertColor: "" },
-  { key: "programmee", label: "Programmée", count: 1, color: "text-purple-600", alertColor: "" },
-  {
-    key: "paiement-a-recevoir",
-    label: "Paiement à recevoir",
-    count: 1,
-    color: "text-orange-600",
-    alertColor: "text-orange-500",
-  },
-  { key: "terminee", label: "Terminée", count: 1, color: "text-green-600", alertColor: "" },
-  { key: "annulee", label: "Annulée", count: 1, color: "text-gray-600", alertColor: "" },
-  { key: "rejetee", label: "Rejetée", count: 0, color: "text-red-600", alertColor: "" },
-]
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -277,7 +156,43 @@ const getStatusActions = (status: string) => {
 
 export default function PrestatairInterventionsPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const { interventions, loading, error } = usePrestataireData(user?.id || '')
   const [activeTab, setActiveTab] = useState("nouvelle-demande")
+
+  // Calculate tab counts from real data
+  const getStatusTabsWithCounts = () => {
+    const statusCounts: Record<string, number> = {}
+    interventions.forEach((intervention) => {
+      const status = intervention.status
+      statusCounts[status] = (statusCounts[status] || 0) + 1
+    })
+
+    return [
+      { key: "nouvelle-demande", label: "Nouvelles demandes", count: statusCounts["nouvelle-demande"] || 0, color: "text-red-600", alertColor: "text-red-500" },
+      {
+        key: "devis-a-fournir",
+        label: "Devis à fournir",
+        count: statusCounts["devis-a-fournir"] || 0,
+        color: "text-orange-600",
+        alertColor: "text-orange-500",
+      },
+      { key: "a-programmer", label: "À programmer", count: statusCounts["a-programmer"] || 0, color: "text-blue-600", alertColor: "" },
+      { key: "programmee", label: "Programmée", count: statusCounts["programmee"] || 0, color: "text-purple-600", alertColor: "" },
+      {
+        key: "paiement-a-recevoir",
+        label: "Paiement à recevoir",
+        count: statusCounts["paiement-a-recevoir"] || 0,
+        color: "text-orange-600",
+        alertColor: "text-orange-500",
+      },
+      { key: "terminee", label: "Terminée", count: statusCounts["terminee"] || 0, color: "text-green-600", alertColor: "" },
+      { key: "annulee", label: "Annulée", count: statusCounts["annulee"] || 0, color: "text-gray-600", alertColor: "" },
+      { key: "rejetee", label: "Rejetée", count: statusCounts["rejetee"] || 0, color: "text-red-600", alertColor: "" },
+    ]
+  }
+
+  const statusTabs = getStatusTabsWithCounts()
   const [approvalModal, setApprovalModal] = useState<{
     isOpen: boolean
     intervention: any
@@ -390,7 +305,7 @@ export default function PrestatairInterventionsPage() {
     console.log(`Action ${action} for intervention ${interventionId}`)
 
     if (action === "create-quote") {
-      const intervention = mockInterventions.find((i) => i.id === interventionId)
+      const intervention = interventions.find((i) => i.id === interventionId)
       if (intervention) {
         setQuoteModal({
           isOpen: true,
@@ -398,7 +313,7 @@ export default function PrestatairInterventionsPage() {
         })
       }
     } else if (action === "schedule") {
-      const intervention = mockInterventions.find((i) => i.id === interventionId)
+      const intervention = interventions.find((i) => i.id === interventionId)
       if (intervention) {
         setAvailabilityModal({
           isOpen: true,
@@ -407,12 +322,12 @@ export default function PrestatairInterventionsPage() {
         setPrestataireAvailabilities([{ date: "", startTime: "", endTime: "" }])
       }
     } else if (action === "confirm-schedule") {
-      const intervention = mockInterventions.find((i) => i.id === interventionId)
+      const intervention = interventions.find((i) => i.id === interventionId)
       if (intervention) {
         handleConfirmSchedule(intervention)
       }
     } else if (action === "start" || action === "cancel") {
-      const intervention = mockInterventions.find((i) => i.id === interventionId)
+      const intervention = interventions.find((i) => i.id === interventionId)
       if (intervention) {
         setExecutionModal({
           isOpen: true,
@@ -423,7 +338,7 @@ export default function PrestatairInterventionsPage() {
         setExecutionFiles([])
       }
     } else if (action === "mark-paid") {
-      const intervention = mockInterventions.find((i) => i.id === interventionId)
+      const intervention = interventions.find((i) => i.id === interventionId)
       if (intervention) {
         setPaymentModal({
           isOpen: true,
@@ -474,11 +389,8 @@ export default function PrestatairInterventionsPage() {
     }
 
     if (confirmationModal.action === "approve") {
-      // Update the intervention status to "devis-a-fournir"
-      const interventionIndex = mockInterventions.findIndex((i) => i.id === confirmationModal.intervention?.id)
-      if (interventionIndex !== -1) {
-        mockInterventions[interventionIndex].status = "devis-a-fournir"
-      }
+      // TODO: Update the intervention status in database
+      console.log("Approving intervention:", confirmationModal.intervention?.id)
     }
 
     setSuccessModal({
@@ -598,11 +510,8 @@ export default function PrestatairInterventionsPage() {
   const handleFinalScheduleConfirmation = () => {
     console.log(`[v0] Confirming schedule for intervention ${scheduleConfirmModal.intervention?.id}`)
 
-    // Update the intervention status to "programmee"
-    const interventionIndex = mockInterventions.findIndex((i) => i.id === scheduleConfirmModal.intervention?.id)
-    if (interventionIndex !== -1) {
-      mockInterventions[interventionIndex].status = "programmee"
-    }
+    // TODO: Update the intervention status to "programmee" in database
+    console.log("Confirming schedule for intervention:", scheduleConfirmModal.intervention?.id)
 
     setScheduleConfirmModal({
       isOpen: false,
@@ -631,11 +540,8 @@ export default function PrestatairInterventionsPage() {
   const handleFinalExecutionConfirmation = () => {
     const { intervention, action } = executionConfirmModal
 
-    // Update intervention status
-    const interventionIndex = mockInterventions.findIndex((i) => i.id === intervention?.id)
-    if (interventionIndex !== -1) {
-      mockInterventions[interventionIndex].status = action === "start" ? "paiement-a-recevoir" : "annulee"
-    }
+    // TODO: Update intervention status in database
+    console.log(`${action === "start" ? "Starting" : "Cancelling"} intervention:`, intervention?.id)
 
     setExecutionConfirmModal({
       isOpen: false,
@@ -661,16 +567,13 @@ export default function PrestatairInterventionsPage() {
     setExecutionFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const filteredInterventions = mockInterventions.filter((intervention) => intervention.status === activeTab)
+  const filteredInterventions = interventions.filter((intervention) => intervention.status === activeTab)
 
   const handlePaymentSubmit = () => {
     setPaymentModal({ isOpen: false, intervention: null })
 
-    // Update intervention status to completed
-    const interventionIndex = mockInterventions.findIndex((i) => i.id === paymentModal.intervention?.id)
-    if (interventionIndex !== -1) {
-      mockInterventions[interventionIndex].status = "terminee"
-    }
+    // TODO: Update intervention status to completed in database
+    console.log("Marking intervention as completed:", paymentModal.intervention?.id)
 
     setExecutionSuccessModal({
       isOpen: true,
@@ -679,8 +582,52 @@ export default function PrestatairInterventionsPage() {
     })
   }
 
+  if (loading) {
+    return (
+      <div className="py-2">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="flex-1 h-12 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="py-2">
+        <div className="text-center py-12">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-medium text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="py-2">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Interventions</h1>
@@ -1627,7 +1574,6 @@ export default function PrestatairInterventionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      // Redesigned availability modal to match the reference design with single column layout and proper sections
       <Dialog
         open={availabilityModal.isOpen}
         onOpenChange={(open) => {

@@ -72,7 +72,7 @@ export function useManagerStats() {
     }
   }, [data])
 
-  // Effect avec debouncing et nettoyage
+  // Effect avec debouncing et nettoyage amélioré
   useEffect(() => {
     if (!user?.id) {
       setLoading(false)
@@ -81,10 +81,10 @@ export function useManagerStats() {
       return
     }
 
-    // Debounce pour éviter les appels trop fréquents
+    // Debounce plus long pour éviter les appels lors de la navigation rapide
     const timeoutId = setTimeout(() => {
       fetchStats(user.id)
-    }, 100)
+    }, 300) // Augmenté à 300ms pour éviter les appels multiples lors de la navigation
 
     return () => {
       clearTimeout(timeoutId)

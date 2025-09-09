@@ -88,7 +88,7 @@ export default function LocataireInterventionsPage() {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="py-2">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
@@ -101,7 +101,7 @@ export default function LocataireInterventionsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="py-2">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -233,7 +233,7 @@ export default function LocataireInterventionsPage() {
 
 function LoadingSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="py-2">
       {/* Header skeleton */}
       <div className="mb-8 flex items-center justify-between">
         <div>

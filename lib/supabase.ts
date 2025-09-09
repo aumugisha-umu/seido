@@ -21,8 +21,56 @@ console.log('🔧 Supabase SSR client initializing with:', {
   keyPrefix: supabaseAnonKey?.substring(0, 20) + '...'
 })
 
-// ✅ CORRECTION: Utiliser createBrowserClient pour les cookies
-export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+// ✅ Configuration optimisée pour éviter les timeouts lors de la navigation
+export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    headers: {
+      'x-client-info': 'supabase-ssr-js/1.0.0'
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+})
+
+// Utilité pour créer des requêtes avec retry automatique
+export const withRetry = async <T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> => {
+  let lastError: Error
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error as Error
+      console.log(`🔄 Retry attempt ${attempt}/${maxRetries} failed:`, error)
+
+      if (attempt === maxRetries) {
+        break
+      }
+
+      // Backoff exponentiel avec jitter
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000
+      console.log(`⏳ Waiting ${Math.round(delay)}ms before retry...`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  throw lastError!
+}
 
 // Re-export Database type for convenience
 export type { Database } from './database.types'

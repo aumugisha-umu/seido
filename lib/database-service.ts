@@ -1,4 +1,5 @@
-import { supabase } from './supabase'
+import { supabase, withRetry } from './supabase'
+import { connectionManager } from './connection-manager'
 import type { Database } from './database.types'
 
 // Log Supabase configuration on module load
@@ -1159,6 +1160,7 @@ export const teamService = {
   // Cache pour éviter les appels redondants
   _teamsCache: new Map<string, { data: any[], timestamp: number }>(),
   _CACHE_TTL: 5 * 60 * 1000, // 5 minutes
+  _STALE_WHILE_REVALIDATE_TTL: 30 * 60 * 1000, // 30 minutes pour données périmées
 
   async getUserTeams(userId: string) {
     console.log("👥 teamService.getUserTeams called with userId:", userId)
@@ -1168,90 +1170,133 @@ export const teamService = {
     const cached = this._teamsCache.get(cacheKey)
     const now = Date.now()
     
+    // Retourner le cache frais
     if (cached && (now - cached.timestamp) < this._CACHE_TTL) {
-      console.log("✅ Returning cached teams data")
+      console.log("✅ Returning fresh cached teams data")
       return cached.data
     }
     
-    try {
-      // Utiliser directement la requête simplifiée qui fonctionne
-      console.log("📡 Loading user teams with optimized query...")
+    // Si on a des données périmées mais pas trop anciennes, les retourner tout en déclenchant une mise à jour en arrière-plan
+    if (cached && (now - cached.timestamp) < this._STALE_WHILE_REVALIDATE_TTL) {
+      console.log("🔄 Returning stale data while revalidating in background")
       
-      // Timeout pour éviter les requêtes infinies
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Query timeout')), 10000) // 10 secondes
+      // Mise à jour en arrière-plan sans attendre
+      this._fetchTeamsWithRetry(userId, cacheKey).catch(error => {
+        console.error("❌ Background team fetch failed:", error)
       })
       
-      // 1. Récupérer les IDs des équipes de l'utilisateur avec timeout
-      const memberQuery = Promise.race([
-        supabase
+      return cached.data
+    }
+
+    // Pas de cache valide, faire la requête avec retry
+    return this._fetchTeamsWithRetry(userId, cacheKey)
+  },
+
+  async _fetchTeamsWithRetry(userId: string, cacheKey: string) {
+    const now = Date.now()
+
+    try {
+      console.log("📡 Loading user teams with retry mechanism...")
+      
+      const result = await withRetry(async () => {
+        // Vérifier l'état de la connexion avant la requête
+        if (!connectionManager.isConnected()) {
+          console.log("🔄 Connection lost, forcing reconnection...")
+          connectionManager.forceReconnection()
+          throw new Error("Connection not available")
+        }
+
+        // 1. Récupérer les IDs des équipes de l'utilisateur
+        const { data: memberData, error: memberError } = await supabase
           .from('team_members')
           .select('team_id, role')
-          .eq('user_id', userId),
-        timeoutPromise
-      ])
-      
-      const { data: memberData, error: memberError } = await memberQuery as any
-      
-      if (memberError) {
-        console.error("❌ Team members query error:", memberError)
-        throw memberError
-      }
-      
-      if (!memberData || memberData.length === 0) {
-        console.log("ℹ️ User is not member of any team")
-        const result: any[] = []
-        this._teamsCache.set(cacheKey, { data: result, timestamp: now })
-        return result
-      }
-      
-      // 2. Récupérer les détails des équipes avec timeout
-      const teamIds = memberData.map((m: any) => m.team_id)
-      console.log("📝 Found team IDs:", teamIds)
-      
-      const teamsQuery = Promise.race([
-        supabase
+          .eq('user_id', userId)
+
+        if (memberError) {
+          console.error("❌ Team members query error:", memberError)
+          
+          // Si c'est une erreur de connexion, marquer comme déconnecté
+          if (this._isConnectionError(memberError)) {
+            console.log("🔌 Connection error detected in team members query")
+            connectionManager.forceReconnection()
+          }
+          throw memberError
+        }
+        
+        if (!memberData || memberData.length === 0) {
+          console.log("ℹ️ User is not member of any team")
+          return []
+        }
+        
+        // 2. Récupérer les détails des équipes
+        const teamIds = memberData.map((m: any) => m.team_id)
+        console.log("📝 Found team IDs:", teamIds)
+        
+        const { data: teamsData, error: teamsError } = await supabase
           .from('teams')
           .select('*')
           .in('id', teamIds)
-          .order('name'),
-        timeoutPromise
-      ])
+          .order('name')
+
+        if (teamsError) {
+          console.error("❌ Teams details query error:", teamsError)
+          
+          // Si c'est une erreur de connexion, marquer comme déconnecté
+          if (this._isConnectionError(teamsError)) {
+            console.log("🔌 Connection error detected in teams query")
+            connectionManager.forceReconnection()
+          }
+          throw teamsError
+        }
+        
+        // Combiner les données
+        return teamsData?.map((team: any) => ({
+          ...team,
+          team_members: memberData.filter((m: any) => m.team_id === team.id)
+        })) || []
+      }, 3, 1500) // 3 tentatives avec backoff exponentiel plus long
       
-      const { data: teamsData, error: teamsError } = await teamsQuery as any
-      
-      if (teamsError) {
-        console.error("❌ Teams details query error:", teamsError)
-        throw teamsError
-      }
-      
-      // Combiner les données
-      const result = teamsData?.map((team: any) => ({
-        ...team,
-        team_members: memberData.filter((m: any) => m.team_id === team.id)
-      })) || []
-      
-      console.log("✅ User teams loaded successfully:", result.length)
+      console.log("✅ User teams loaded successfully with retry:", result.length)
       
       // Mettre en cache le résultat
       this._teamsCache.set(cacheKey, { data: result, timestamp: now })
       
       return result
     } catch (error) {
-      console.error("❌ teamService.getUserTeams error:", error)
+      console.error("❌ teamService.getUserTeams error after retries:", error)
       
-      // Si timeout, retourner le cache même périmé si disponible
-      if (error instanceof Error && error.message === 'Query timeout' && cached) {
-        console.log("⚠️ Query timeout, returning stale cached data")
+      // Si on a encore des données en cache (même périmées), les utiliser
+      const cached = this._teamsCache.get(cacheKey)
+      if (cached) {
+        console.log("⚠️ All retries failed, returning stale cached data")
         return cached.data
       }
       
-      // En dernier recours, retourner un tableau vide
-      console.log("⚠️ Team query failed, returning empty array")
+      // En dernier recours, retourner un tableau vide et le mettre en cache
+      console.log("⚠️ No cached data available, returning empty array")
       const result: any[] = []
       this._teamsCache.set(cacheKey, { data: result, timestamp: now })
       return result
     }
+  },
+
+  // Méthode utilitaire pour détecter les erreurs de connexion
+  _isConnectionError(error: any): boolean {
+    if (!error) return false
+    
+    const message = error.message?.toLowerCase() || ''
+    const code = error.code || ''
+    
+    return (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('connection') ||
+      message.includes('offline') ||
+      code === 'NETWORK_ERROR' ||
+      code === 'TIMEOUT_ERROR' ||
+      code === '08003' || // Connection does not exist (PostgreSQL)
+      code === '08006'    // Connection failure (PostgreSQL)
+    )
   },
   
   // Méthode pour vider le cache si nécessaire
@@ -1261,6 +1306,7 @@ export const teamService = {
     } else {
       this._teamsCache.clear()
     }
+    console.log("🗑️ Teams cache cleared", userId ? `for user ${userId}` : "completely")
   },
 
   async getById(id: string) {
@@ -2590,6 +2636,7 @@ export const compositeService = {
       name: string
       address: string
       city: string
+      country: string
       postal_code: string
       description?: string
       construction_year?: number
@@ -2667,6 +2714,7 @@ export const compositeService = {
       name: string
       address: string
       city: string
+      country: string
       postal_code: string
       description?: string
       construction_year?: number

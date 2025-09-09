@@ -237,7 +237,7 @@ export default function PropertySelector({
                           <h3 className="font-medium text-gray-900">{building.name}</h3>
                           <p className="text-sm text-gray-600 flex items-center">
                             <MapPin className="h-3 w-3 mr-1" />
-                            {building.address}
+                            {building.address}, {building.city}, {building.country || 'Belgique'}
                           </p>
                         </div>
                       </div>

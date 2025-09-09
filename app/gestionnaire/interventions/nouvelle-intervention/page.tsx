@@ -51,7 +51,6 @@ export default function NouvelleInterventionPage() {
     type: "",
     urgency: "",
     description: "",
-    location: "",
     availabilities: [] as Array<{ date: string; startTime: string; endTime: string }>,
   })
   const [files, setFiles] = useState<File[]>([])
@@ -151,7 +150,6 @@ export default function NouvelleInterventionPage() {
       const type = searchParams.get("type") || ""
       const priority = searchParams.get("priority") || ""
       const description = searchParams.get("description") || ""
-      const location = searchParams.get("location") || ""
       const tenantLocation = searchParams.get("location") || ""
 
       // Set form data
@@ -160,7 +158,6 @@ export default function NouvelleInterventionPage() {
         type,
         urgency: priority === "urgent" ? "urgent" : priority === "critique" ? "critique" : "normale",
         description,
-        location: "Salle de bain principale", // Default specific location
         availabilities: [],
       })
 
@@ -366,7 +363,6 @@ export default function NouvelleInterventionPage() {
         description: formData.description,
         type: formData.type,
         urgency: formData.urgency,
-        location: formData.location,
         
         // Housing selection
         selectedLogement,
@@ -637,18 +633,6 @@ export default function NouvelleInterventionPage() {
                       value={formData.description}
                       onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
                       className="min-h-[100px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Localisation précise (optionnel)
-                    </label>
-                    <Input
-                      placeholder="Ex: Cuisine, sous l'évier"
-                      value={formData.location}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                      className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
 
@@ -1109,7 +1093,6 @@ export default function NouvelleInterventionPage() {
             const problemType = formData.type
             const urgency = formData.urgency
             const description = formData.description
-            const location = formData.location
             const uploadedFiles = files
 
             return (
@@ -1209,12 +1192,6 @@ export default function NouvelleInterventionPage() {
                             <div>
                               <span className="text-sm font-medium text-gray-700">Description:</span>
                               <p className="text-gray-900 text-sm mt-1">{description}</p>
-                            </div>
-                          )}
-                          {location && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Localisation:</span>
-                              <p className="text-gray-900 text-sm">{location}</p>
                             </div>
                           )}
                           {uploadedFiles.length > 0 && (

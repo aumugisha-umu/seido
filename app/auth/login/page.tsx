@@ -73,7 +73,10 @@ export default function LoginPage() {
       } else if (authUser) {
         console.log("✅ [LOGIN-CLEAN] Connexion réussie pour:", authUser.email, "role:", authUser.role)
         setError("") // Clear any previous errors
-        console.log("🔄 [LOGIN-CLEAN] Connexion successful, middleware will handle redirect")
+        
+        console.log("🔄 [LOGIN-CLEAN] Triggering router refresh to activate middleware...")
+        router.refresh() // Force re-evaluation du middleware avec nouveaux cookies
+        console.log("✅ [LOGIN-CLEAN] Router refresh triggered, middleware should redirect now")
         
       } else {
         console.log("⚠️ [LOGIN-SUBMIT] No user and no error - unusual state")

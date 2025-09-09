@@ -102,7 +102,10 @@ export default function SignupPage() {
         }
       } else if (authUser) {
         console.log("✅ [SIGNUP-CLEAN] Compte créé avec succès pour:", authUser.name, "role:", authUser.role)
-        console.log("🔄 [SIGNUP-CLEAN] Signup successful, middleware will handle redirect")
+        
+        console.log("🔄 [SIGNUP-CLEAN] Triggering router refresh to activate middleware...")
+        router.refresh() // Force re-evaluation du middleware avec nouveaux cookies
+        console.log("✅ [SIGNUP-CLEAN] Router refresh triggered, middleware should redirect now")
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }

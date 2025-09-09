@@ -250,6 +250,14 @@ class AuthService {
         email,
         password,
       })
+      
+      console.log('📊 [AUTH-SERVICE] SignIn response:', {
+        hasData: !!data,
+        hasUser: !!data?.user,
+        hasError: !!error,
+        errorMessage: error?.message,
+        userId: data?.user?.id
+      })
 
       if (error) {
         console.error('❌ Auth error:', error.message)
@@ -257,10 +265,13 @@ class AuthService {
       }
 
       if (!data.user) {
+        console.error('❌ No user in auth response')
         return { user: null, error: { message: 'Utilisateur non trouvé', name: 'SignInError', status: 401 } as AuthError }
       }
 
       console.log('✅ Auth successful for user:', data.user.id)
+      console.log('📧 User email confirmed:', !!data.user.email_confirmed_at)
+      console.log('👤 User metadata:', JSON.stringify(data.user.user_metadata, null, 2))
 
       // Vérifier si le profil utilisateur existe
       let userProfile

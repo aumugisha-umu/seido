@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, Mail, CheckCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { safeAuthRedirect } from "@/lib/supabase"
+import { safeAuthRedirect, hardAuthRedirect, forceRedirect } from "@/lib/supabase"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -29,6 +29,8 @@ export default function LoginPage() {
   const { signIn, user, loading, resendConfirmation } = useAuth()
 
   useEffect(() => {
+    console.log('🔄 [LOGIN-EFFECT] useEffect triggered', { loading, hasUser: !!user })
+    
     // Vérifier si c'est une redirection après confirmation
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
@@ -43,16 +45,57 @@ export default function LoginPage() {
         id: user.id ? 'present' : 'missing',
         email: user.email ? 'present' : 'missing',
         role: user.role,
-        name: user.name
+        name: user.name,
+        fullUser: JSON.stringify(user)
       })
       
+      console.log('🚀 [LOGIN-PHASE4] Preparing automatic redirect to dashboard')
+      console.log('🌍 [LOGIN-PHASE4] Current URL:', window.location.href)
+      console.log('🎯 [LOGIN-PHASE4] Target URL:', `${window.location.origin}/${user.role}/dashboard`)
+      
       // Redirection automatique sécurisée vers dashboard
-      console.log('🚀 [LOGIN-PHASE4] Redirection automatique sécurisée vers dashboard')
-      setTimeout(async () => {
-        await safeAuthRedirect(`/${user.role}/dashboard`)
+      console.log('⏰ [LOGIN-PHASE4] Setting timeout for redirect...')
+      
+      const timeoutId = setTimeout(async () => {
+        console.log('⚡ [LOGIN-PHASE4] Timeout triggered, executing automatic redirect sequence...')
+        
+        try {
+          console.log('🔄 [LOGIN-PHASE4] Step 1: Trying safeAuthRedirect...')
+          await safeAuthRedirect(`/${user.role}/dashboard`)
+          console.log('✅ [LOGIN-PHASE4] safeAuthRedirect completed successfully')
+        } catch (error) {
+          console.error('❌ [LOGIN-PHASE4] safeAuthRedirect failed:', error)
+          
+          try {
+            console.log('🔄 [LOGIN-PHASE4] Step 2: Trying hardAuthRedirect...')
+            await hardAuthRedirect(`/${user.role}/dashboard`)
+            console.log('✅ [LOGIN-PHASE4] hardAuthRedirect completed')
+          } catch (hardError) {
+            console.error('❌ [LOGIN-PHASE4] hardAuthRedirect failed:', hardError)
+            console.log('🚨 [LOGIN-PHASE4] Step 3: Using forceRedirect as last resort...')
+            forceRedirect(`/${user.role}/dashboard`)
+          }
+        }
       }, 500)
+      
+      console.log('✅ [LOGIN-PHASE4] Timeout set with ID:', timeoutId)
+      
+      // Cleanup function
+      return () => {
+        console.log('🧹 [LOGIN-PHASE4] Cleaning up timeout:', timeoutId)
+        clearTimeout(timeoutId)
+      }
     } else {
-      console.log('🔄 [LOGIN-PHASE4] État auth:', { loading, hasUser: !!user })
+      console.log('🔄 [LOGIN-PHASE4] État auth:', { 
+        loading, 
+        hasUser: !!user,
+        userDetails: user ? {
+          hasId: !!user.id,
+          hasEmail: !!user.email,
+          hasRole: !!user.role,
+          role: user.role
+        } : null
+      })
     }
   }, [user, loading, searchParams, router])
 
@@ -68,9 +111,16 @@ export default function LoginPage() {
     }
 
     try {
+      console.log("🚀 [LOGIN-SUBMIT] Starting signIn process...")
       const { user: authUser, error: authError } = await signIn(email, password)
+      console.log("📊 [LOGIN-SUBMIT] SignIn result:", { 
+        hasUser: !!authUser, 
+        hasError: !!authError,
+        errorMessage: authError?.message 
+      })
 
       if (authError) {
+        console.log("❌ [LOGIN-SUBMIT] Authentication error:", authError.message)
         // Gérer spécifiquement l'erreur de confirmation d'email
         if (authError.message.includes('Email not confirmed')) {
           setError("Votre email n'a pas encore été confirmé. Vérifiez votre boîte de réception et cliquez sur le lien de confirmation.")
@@ -81,21 +131,55 @@ export default function LoginPage() {
           setError("Erreur de connexion : " + authError.message)
         }
       } else if (authUser) {
-        console.log("✅ [LOGIN-PHASE4] Connexion réussie", authUser)
-        console.log("🔄 [LOGIN-PHASE4] Redirection vers:", `/${authUser.role}/dashboard`)
+        console.log("✅ [LOGIN-SUBMIT] Connexion réussie pour:", authUser.email)
+        console.log("👤 [LOGIN-SUBMIT] User details:", {
+          id: authUser.id,
+          email: authUser.email,
+          role: authUser.role,
+          name: authUser.name
+        })
+        console.log("🔄 [LOGIN-SUBMIT] Preparing redirect to:", `/${authUser.role}/dashboard`)
+        console.log("🌍 [LOGIN-SUBMIT] Current URL:", window.location.href)
+        console.log("🎯 [LOGIN-SUBMIT] Target URL:", `${window.location.origin}/${authUser.role}/dashboard`)
+        
         setError("") // Clear any previous errors
         
         // ✅ PHASE 4: Redirection sécurisée après connexion réussie
-        console.log("🚀 [LOGIN-PHASE4] Redirection sécurisée après connexion réussie")
-        setTimeout(async () => {
-          await safeAuthRedirect(`/${authUser.role}/dashboard`)
+        console.log("⏰ [LOGIN-SUBMIT] Setting redirect timeout...")
+        
+        const redirectTimeoutId = setTimeout(async () => {
+          console.log("⚡ [LOGIN-SUBMIT] Executing redirect sequence...")
+          
+          try {
+            console.log("🔄 [LOGIN-SUBMIT] Step 1: Trying safeAuthRedirect...")
+            await safeAuthRedirect(`/${authUser.role}/dashboard`)
+            console.log("✅ [LOGIN-SUBMIT] safeAuthRedirect completed successfully")
+          } catch (redirectError) {
+            console.error("❌ [LOGIN-SUBMIT] safeAuthRedirect failed:", redirectError)
+            
+            try {
+              console.log("🔄 [LOGIN-SUBMIT] Step 2: Trying hardAuthRedirect...")
+              await hardAuthRedirect(`/${authUser.role}/dashboard`)
+              console.log("✅ [LOGIN-SUBMIT] hardAuthRedirect completed")
+            } catch (hardError) {
+              console.error("❌ [LOGIN-SUBMIT] hardAuthRedirect failed:", hardError)
+              console.log("🚨 [LOGIN-SUBMIT] Step 3: Using forceRedirect as last resort...")
+              forceRedirect(`/${authUser.role}/dashboard`)
+            }
+          }
         }, 500)
+        
+        console.log("✅ [LOGIN-SUBMIT] Redirect timeout set with ID:", redirectTimeoutId)
+        
+      } else {
+        console.log("⚠️ [LOGIN-SUBMIT] No user and no error - unusual state")
+        setError("Erreur de connexion inattendue")
       }
     } catch (error) {
-      console.error("❌ [LOGIN] Erreur de connexion:", error)
+      console.error("❌ [LOGIN-SUBMIT] Exception during login:", error)
       setError("Une erreur est survenue lors de la connexion")
     } finally {
-      console.log("🏁 [LOGIN] Login process finished, isLoading:", false)
+      console.log("🏁 [LOGIN-SUBMIT] Login process finished, setting isLoading to false")
       setIsLoading(false)
     }
   }

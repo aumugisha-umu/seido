@@ -514,7 +514,14 @@ class AuthService {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         try {
           console.log('🔍 Fetching user profile for auth user:', session.user.id)
-          const userProfile = await userService.getById(session.user.id)
+          
+          // Timeout pour éviter le blocage infini
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+          )
+          
+          const profilePromise = userService.getById(session.user.id)
+          const userProfile = await Promise.race([profilePromise, timeoutPromise])
           
           // Récupérer le display_name depuis les métadonnées auth
           const displayName = session.user.user_metadata?.display_name || userProfile.name
@@ -541,35 +548,14 @@ class AuthService {
             event: event,
             error: error instanceof Error ? {
               name: error.name,
-              message: error.message,
-              stack: error.stack
-            } : String(error),
-            errorKeys: error ? Object.keys(error) : []
+              message: error.message
+            } : String(error)
           })
-          console.log('⚠️ Profile not found for auth user:', session.user.id)
           
-          // Vérifier si un signup est en cours via les métadonnées
-          const isSignupInProgress = session.user.user_metadata?.signup_in_progress === true
+          console.log('🚨 [AUTH-SERVICE] Profile fetch failed or timeout - resolving auth state anyway')
           
-          if (isSignupInProgress) {
-            console.log('🔧 Signup in progress for user - waiting for profile creation')
-            callback(null)
-            return
-          }
-          
-          // CORRECTION : Être plus prudent avec le nettoyage des sessions
-          // Ne pas nettoyer la session si on est sur signup-success
-          if (this.isOnSignupSuccessPage()) {
-            console.log('📍 [AUTH-PROTECTION] On signup-success page - skipping session cleanup in onAuthStateChange')
-            callback(null)
-            return
-          }
-          
-          console.log('⚠️ [AUTH-PROTECTION] Profile not found in auth state change - keeping session for stability')
-          console.log('🔄 [AUTH-PROTECTION] This could be a temporary network/database issue')
-          
-          // Ne pas faire signOut automatiquement - cela cause des boucles de redirection
-          // L'utilisateur pourra se déconnecter manuellement si nécessaire
+          // CORRECTION CRITIQUE : Ne pas bloquer l'auth à cause d'un profil manquant
+          // Résoudre l'état d'auth même si le profil ne charge pas
           callback(null)
         }
       } else {

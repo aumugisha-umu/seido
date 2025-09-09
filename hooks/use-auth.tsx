@@ -41,12 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getCurrentUser = async () => {
     try {
-      const { user } = await authService.getCurrentUser()
+      console.log('🔍 [USE-AUTH] Getting current user...')
+      
+      // Timeout pour éviter le blocage infini
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('getCurrentUser timeout')), 8000)
+      )
+      
+      const userPromise = authService.getCurrentUser()
+      const { user } = await Promise.race([userPromise, timeoutPromise])
+      
+      console.log('✅ [USE-AUTH] Current user loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
     } catch (error) {
-      console.error('Error getting current user:', error)
+      console.error('❌ [USE-AUTH] Error getting current user:', error)
+      console.log('🔄 [USE-AUTH] Setting user to null and continuing...')
       setUser(null)
     } finally {
+      console.log('✅ [USE-AUTH] Setting loading to false')
       setLoading(false)
     }
   }

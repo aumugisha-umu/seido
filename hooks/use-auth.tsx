@@ -76,8 +76,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await authService.signOut()
-    setUser(null)
+    try {
+      console.log('🚪 [LOGOUT] Starting sign out process...')
+      const { error } = await authService.signOut()
+      
+      if (error) {
+        console.error('❌ [LOGOUT] Error during sign out:', error.message)
+        // Continuer quand même pour nettoyer l'état local
+      } else {
+        console.log('✅ [LOGOUT] Sign out successful')
+      }
+      
+      // Nettoyer l'état utilisateur local
+      setUser(null)
+      console.log('🧹 [LOGOUT] Local user state cleared')
+      
+    } catch (error) {
+      console.error('❌ [LOGOUT] Exception during sign out:', error)
+      // Nettoyer l'état local même en cas d'erreur
+      setUser(null)
+    }
   }
 
   const resetPassword = async (email: string) => {

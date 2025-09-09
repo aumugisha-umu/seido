@@ -118,20 +118,25 @@ export async function middleware(request: NextRequest) {
       const isFromLogin = referer?.includes('/auth/login')
       const isFromCallback = referer?.includes('/auth/callback')
       
-      if (isFromLogin || isFromCallback) {
-        console.log('⚠️ [MIDDLEWARE] Requête depuis auth page détectée - possibleté de boucle')
+      // Protection anti-boucle pour login
+      if (isFromLogin) {
+        console.log('⚠️ [MIDDLEWARE] Requête depuis login détectée - possibleté de boucle')
         console.log('🛡️ [MIDDLEWARE] Referer:', referer)
         console.log('🔄 [MIDDLEWARE] Permettant l\'accès pour éviter boucle infinie')
         return NextResponse.next()
       }
       
-      // Délai de grâce pour les redirections récentes depuis des pages d'auth
-      const userAgent = request.headers.get('user-agent')
-      const isLikelyAuthRedirect = userAgent && pathname.includes('/dashboard')
+      // Délai de grâce UNIQUEMENT pour les redirections explicites depuis callback vers dashboard
+      if (isFromCallback && pathname.includes('/dashboard')) {
+        console.log('⏰ [MIDDLEWARE] Redirection depuis callback vers dashboard - accordant délai de grâce pour sync cookies')
+        return NextResponse.next()
+      }
       
-      if (isLikelyAuthRedirect) {
-        console.log('⏰ [MIDDLEWARE] Possible redirection post-auth - accordant délai de grâce')
-        // Permettre l'accès pendant quelques secondes après auth pour la synchronisation des cookies
+      // Protection générale pour autres redirections depuis callback
+      if (isFromCallback) {
+        console.log('⚠️ [MIDDLEWARE] Requête depuis callback détectée - possibleté de boucle')
+        console.log('🛡️ [MIDDLEWARE] Referer:', referer)
+        console.log('🔄 [MIDDLEWARE] Permettant l\'accès pour éviter boucle infinie')
         return NextResponse.next()
       }
       

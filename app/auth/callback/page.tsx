@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase, safeAuthRedirect } from '@/lib/supabase'
+import { supabase, hardAuthRedirect } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -94,11 +94,11 @@ export default function AuthCallback() {
           setMessage(`Redirection vers votre espace ${role || 'utilisateur'}...`)
           setUserRole(role || null)
           
-          // Utiliser la redirection sécurisée
-          console.log('🏃 [AUTH-CALLBACK] Using safe auth redirect...')
+          // Utiliser la redirection hard pour garantir la synchronisation des cookies
+          console.log('🏃 [AUTH-CALLBACK] Using hard auth redirect to force cookie sync...')
           setTimeout(async () => {
-            await safeAuthRedirect(redirectPath)
-          }, 1000)
+            await hardAuthRedirect(redirectPath)
+          }, 1500)
           
         } catch (tokenError) {
           console.error('❌ [AUTH-CALLBACK] Error decoding token:', tokenError)
@@ -124,8 +124,8 @@ export default function AuthCallback() {
           setMessage('Session existante trouvée !')
           setUserRole(role)
           
-          setTimeout(() => {
-            router.push(redirectPath)
+          setTimeout(async () => {
+            await hardAuthRedirect(redirectPath)
           }, 1000)
           
         } else {

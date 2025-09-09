@@ -75,6 +75,16 @@ export const withRetry = async <T>(
 // Fonction pour forcer la synchronisation des cookies en production
 export const ensureAuthSync = async (): Promise<boolean> => {
   try {
+    // Vérifier que les cookies sont présents dans le navigateur
+    const cookies = document.cookie
+    const hasSupabaseCookies = cookies.includes('sb-') && 
+      (cookies.includes('session') || cookies.includes('auth') || cookies.includes('token'))
+    
+    if (!hasSupabaseCookies) {
+      console.log('⚠️ [AUTH-SYNC] No Supabase cookies found in browser')
+      return false
+    }
+    
     // Attendre que la session soit complètement synchronisée
     const { data: { session }, error } = await supabase.auth.getSession()
     
@@ -83,12 +93,12 @@ export const ensureAuthSync = async (): Promise<boolean> => {
       return false
     }
     
-    if (!session) {
-      console.log('⚠️ [AUTH-SYNC] No session found')
+    if (!session || !session.user) {
+      console.log('⚠️ [AUTH-SYNC] No valid session found')
       return false
     }
     
-    console.log('✅ [AUTH-SYNC] Session synchronized successfully')
+    console.log('✅ [AUTH-SYNC] Session and cookies synchronized successfully')
     return true
   } catch (error) {
     console.error('❌ [AUTH-SYNC] Error syncing auth:', error)
@@ -117,8 +127,18 @@ export const safeAuthRedirect = async (redirectPath: string, maxRetries: number 
     }
   }
   
-  console.log('⚠️ [SAFE-REDIRECT] Max retries reached, forcing redirect anyway')
-  window.location.replace(redirectPath)
+  console.log('⚠️ [SAFE-REDIRECT] Max retries reached, using hard refresh approach')
+  // Approche alternative : hard refresh vers la destination
+  window.location.href = redirectPath
+}
+
+// Alternative : redirection avec hard refresh immédiat (pour cas critiques)
+export const hardAuthRedirect = async (redirectPath: string): Promise<void> => {
+  console.log('💪 [HARD-REDIRECT] Using immediate hard redirect to force cookie sync')
+  
+  // Forcer un refresh immédiat vers la destination
+  // Cela garantit que les cookies sont présents lors de la requête
+  window.location.href = redirectPath
 }
 
 // Re-export Database type for convenience

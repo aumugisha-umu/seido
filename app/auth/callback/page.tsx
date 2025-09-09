@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase, hardAuthRedirect } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -86,19 +86,13 @@ export default function AuthCallback() {
             console.log('⚠️ [AUTH-CALLBACK] Error calling mark invitation API:', apiError)
           })
 
-          // Redirection immédiate basée sur le rôle extrait du token
-          const redirectPath = role ? `/${role}/dashboard` : '/dashboard'
-          
-          console.log('🚀 [AUTH-CALLBACK] Immediate redirect to:', redirectPath)
+          // Session configurée, middleware gèrera la redirection
+          console.log('🚀 [AUTH-CALLBACK-CLEAN] Session set for role:', role)
           setStatus('success')
-          setMessage(`Redirection vers votre espace ${role || 'utilisateur'}...`)
+          setMessage(`Connexion réussie ! Redirection automatique...`)
           setUserRole(role || null)
           
-          // Utiliser la redirection hard pour garantir la synchronisation des cookies
-          console.log('🏃 [AUTH-CALLBACK] Using hard auth redirect to force cookie sync...')
-          setTimeout(async () => {
-            await hardAuthRedirect(redirectPath)
-          }, 1500)
+          console.log('🔄 [AUTH-CALLBACK-CLEAN] Session ready, middleware will handle redirect')
           
         } catch (tokenError) {
           console.error('❌ [AUTH-CALLBACK] Error decoding token:', tokenError)
@@ -116,17 +110,14 @@ export default function AuthCallback() {
         }
         
         if (session?.user) {
-          console.log('✅ [AUTH-CALLBACK] Existing session found')
+          console.log('✅ [AUTH-CALLBACK-CLEAN] Existing session found')
           const role = session.user.user_metadata?.role
-          const redirectPath = role ? `/${role}/dashboard` : '/dashboard'
           
           setStatus('success')
-          setMessage('Session existante trouvée !')
+          setMessage('Session existante trouvée ! Redirection automatique...')
           setUserRole(role)
           
-          setTimeout(async () => {
-            await hardAuthRedirect(redirectPath)
-          }, 1000)
+          console.log('🔄 [AUTH-CALLBACK-CLEAN] Session ready, middleware will handle redirect')
           
         } else {
           throw new Error('No session found and no tokens provided')

@@ -2,123 +2,151 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * 🛡️ MIDDLEWARE DE SÉCURITÉ - SEIDO APP
+ * 🛡️ MIDDLEWARE SIMPLIFIÉ - SEIDO APP
  * 
- * Ce middleware s'exécute AVANT chaque requête côté serveur.
- * Il protège les routes privées et redirige les utilisateurs non authentifiés.
- * 
- * FONCTIONNALITÉS :
- * - Classification automatique des routes (publiques, protégées, système)
- * - Détection des cookies d'authentification Supabase
- * - Redirections sécurisées vers la page de connexion
- * - Protection renforcée contre les boucles infinies
- * - Logging détaillé pour le debug et monitoring
+ * Version ultra-simple qui se contente de :
+ * - Vérifier si la route est protégée
+ * - Détecter les cookies Supabase basiques  
+ * - Rediriger vers login si nécessaire
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  console.log('🚀 [MIDDLEWARE] Requête interceptée pour:', pathname)
-  
-  // =============================================================================
-  // CLASSIFICATION DES ROUTES
-  // =============================================================================
+  console.log('🔐 [MIDDLEWARE-SIMPLE]', pathname)
   
   // Routes publiques (accessibles sans authentification)
-  const publicRoutes = ['/auth/login', '/auth/signup', '/auth/signup-success', '/auth/reset-password', '/auth/callback', '/']
-  const isPublicRoute = publicRoutes.includes(pathname)
+  const publicRoutes = [
+    '/auth/login', 
+    '/auth/signup', 
+    '/auth/signup-success', 
+    '/auth/reset-password', 
+    '/auth/callback', 
+    '/'
+  ]
   
-  // Routes protégées (nécessitent une authentification)
+  // Si route publique → vérifier si déjà connecté pour rediriger
+  if (publicRoutes.includes(pathname)) {
+    // Routes auth : rediriger si déjà connecté
+    if (pathname.startsWith('/auth/')) {
+      const cookies = request.cookies.getAll()
+      const hasAuthCookie = cookies.some(cookie => 
+        cookie.name.startsWith('sb-') && cookie.value && cookie.value.length > 0
+      )
+      
+      if (hasAuthCookie) {
+        // Essayer de récupérer le rôle depuis le JWT token dans les cookies
+        let userRole = 'gestionnaire' // fallback par défaut
+        
+        try {
+          // Chercher le cookie access token de Supabase
+          const authTokenCookie = cookies.find(cookie => 
+            cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')
+          )
+          
+          console.log('🔍 [MIDDLEWARE-SIMPLE] Available cookies:', cookies.map(c => ({ name: c.name, hasValue: !!c.value })))
+          console.log('🔍 [MIDDLEWARE-SIMPLE] Auth token cookie found:', {
+            found: !!authTokenCookie,
+            cookieName: authTokenCookie?.name,
+            hasValue: !!authTokenCookie?.value
+          })
+          
+          if (authTokenCookie && authTokenCookie.value) {
+            console.log('🔍 [MIDDLEWARE-SIMPLE] Raw cookie value preview:', {
+              cookieValue: authTokenCookie.value.substring(0, 100) + '...'
+            })
+            
+            let authData
+            try {
+              // Le cookie contient un JSON avec access_token
+              authData = JSON.parse(authTokenCookie.value)
+            } catch (parseError) {
+              console.log('⚠️ [MIDDLEWARE-SIMPLE] Cookie JSON parse failed, trying base64 decode:', {
+                error: parseError.message,
+                cookieStart: authTokenCookie.value.substring(0, 20)
+              })
+              
+              // Si le cookie est base64 encodé, le décoder d'abord
+              try {
+                const decodedValue = atob(authTokenCookie.value)
+                authData = JSON.parse(decodedValue)
+                console.log('✅ [MIDDLEWARE-SIMPLE] Successfully decoded base64 cookie')
+              } catch (base64Error) {
+                console.log('❌ [MIDDLEWARE-SIMPLE] Base64 decode also failed:', base64Error.message)
+                throw parseError // Garder l'erreur originale
+              }
+            }
+            
+            console.log('🔍 [MIDDLEWARE-SIMPLE] Auth data parsed:', {
+              hasAccessToken: !!authData.access_token,
+              hasRefreshToken: !!authData.refresh_token,
+              accessTokenPreview: authData.access_token ? authData.access_token.substring(0, 50) + '...' : 'none'
+            })
+            
+            if (authData.access_token) {
+              // Décoder le JWT pour récupérer user_metadata
+              const tokenPayload = JSON.parse(atob(authData.access_token.split('.')[1]))
+              const extractedRole = tokenPayload.user_metadata?.role
+              userRole = extractedRole || 'gestionnaire'
+              
+              console.log('🔍 [MIDDLEWARE-SIMPLE] Token payload decoded:', {
+                sub: tokenPayload.sub,
+                email: tokenPayload.email,
+                userMetadata: tokenPayload.user_metadata,
+                rawRole: extractedRole,
+                finalRole: userRole,
+                roleWasFound: !!extractedRole
+              })
+              
+              if (!extractedRole) {
+                console.log('⚠️ [MIDDLEWARE-SIMPLE] No role in user_metadata! Using fallback:', userRole)
+              }
+            } else {
+              console.log('⚠️ [MIDDLEWARE-SIMPLE] No access_token in auth data!')
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ [MIDDLEWARE-SIMPLE] Could not extract role from token:', {
+            error: error.message,
+            fallbackRole: userRole,
+            cookiesAvailable: cookies.length
+          })
+        }
+        
+        const dashboardPath = `/${userRole}/dashboard`
+        console.log('🔄 [MIDDLEWARE-SIMPLE] Auth page + existing session → REDIRECT to:', {
+          detectedRole: userRole,
+          targetPath: dashboardPath,
+          originalPath: pathname
+        })
+        return NextResponse.redirect(new URL(dashboardPath, request.url))
+      }
+    }
+    
+    console.log('✅ [MIDDLEWARE-SIMPLE] Public route')
+        return NextResponse.next()
+      }
+      
+  // Routes protégées
   const protectedPrefixes = ['/admin', '/gestionnaire', '/locataire', '/prestataire']
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
   
-  // Routes système (API, Next.js, assets)
-  const isSystemRoute = !isPublicRoute && !isProtectedRoute
-  
-  console.log('📊 [MIDDLEWARE] Classification route:', {
-    pathname,
-    isPublicRoute,
-    isProtectedRoute,
-    isSystemRoute
-  })
-  
-  // =============================================================================
-  // DÉTECTION COOKIES SUPABASE
-  // =============================================================================
-  
-  const allCookies = request.cookies.getAll()
-  
-  // Cookies Supabase d'authentification
-  const supabaseCookies = allCookies.filter(cookie => 
-    cookie.name.startsWith('sb-') && 
-    (cookie.name.includes('session') || 
-     cookie.name.includes('auth') ||
-     cookie.name.includes('token'))
-  )
-  
-  console.log('🍪 [MIDDLEWARE] Analyse cookies:', {
-    totalCookies: allCookies.length,
-    supabaseCookies: supabaseCookies.length,
-    hasAuth: supabaseCookies.length > 0
-  })
-  
-  if (supabaseCookies.length > 0) {
-    console.log('📋 [MIDDLEWARE] Cookies auth détectés:', supabaseCookies.map(c => c.name))
-  }
-  
-  // =============================================================================
-  // DÉCISION D'AUTORISATION AVEC PROTECTION ANTI-BOUCLE
-  // =============================================================================
-  
-  if (isPublicRoute) {
-    console.log('✅ [MIDDLEWARE] Route publique - accès autorisé')
-    return NextResponse.next()
-  } 
-  
-  if (isSystemRoute) {
-    console.log('✅ [MIDDLEWARE] Route système - accès libre')
-    return NextResponse.next()
-  }
-  
   if (isProtectedRoute) {
-    if (supabaseCookies.length > 0) {
-      console.log('✅ [MIDDLEWARE] Route protégée + cookies auth → AUTORISATION')
+    // Détection cookies Supabase simple
+    const cookies = request.cookies.getAll()
+    const hasAuthCookie = cookies.some(cookie => 
+      cookie.name.startsWith('sb-') && cookie.value && cookie.value.length > 0
+    )
+    
+    if (hasAuthCookie) {
+      console.log('✅ [MIDDLEWARE-SIMPLE] Protected route + auth cookie → ALLOW')
       return NextResponse.next()
     } else {
-      console.log('🚫 [MIDDLEWARE] Route protégée + PAS de cookies → REDIRECTION vers login')
-      
-      // =============================================================================
-      // PROTECTION ANTI-BOUCLE RENFORCÉE
-      // =============================================================================
-      
-      // Vérifier si on essaie déjà d'aller vers login
-      if (pathname === '/auth/login') {
-        console.log('🔄 [MIDDLEWARE] Tentative redirection vers login depuis login - AUTORISATION pour éviter boucle')
-        return NextResponse.next()
-      }
-      
-      // Vérifier des patterns de boucle (referer header)
-      const referer = request.headers.get('referer')
-      const isFromLogin = referer?.includes('/auth/login')
-      
-      if (isFromLogin) {
-        console.log('⚠️ [MIDDLEWARE] Requête depuis login détectée - possibleté de boucle')
-        console.log('🛡️ [MIDDLEWARE] Referer:', referer)
-        console.log('🔄 [MIDDLEWARE] Permettant l\'accès pour éviter boucle infinie')
-        return NextResponse.next()
-      }
-      
-      // Tout semble bon - effectuer la redirection
-      console.log('🏃 [MIDDLEWARE] Redirection sécurisée vers /auth/login')
-      
-      const loginUrl = new URL('/auth/login', request.url)
-      // Nettoyer les paramètres pour éviter les conflits
-      loginUrl.search = ''
-      
-      return NextResponse.redirect(loginUrl)
+      console.log('🚫 [MIDDLEWARE-SIMPLE] Protected route + no auth → REDIRECT to login')
+      return NextResponse.redirect(new URL('/auth/login', request.url))
     }
   }
   
-  // Fallback - ne devrait jamais arriver
-  console.log('⚠️ [MIDDLEWARE] Fallback - laissant passer')
+  // Routes système/API → laisser passer
+  console.log('✅ [MIDDLEWARE-SIMPLE] System route')
   return NextResponse.next()
 }
 

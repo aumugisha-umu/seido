@@ -43,6 +43,7 @@ interface BuildingInfo {
   address: string
   postalCode: string
   city: string
+  country: string
   constructionYear: string
   floors: string
   description: string
@@ -75,6 +76,14 @@ const contactTypes = [
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 
+const countries = [
+  "Belgique",
+  "France",
+  "Luxembourg",
+  "Pays-Bas",
+  "Allemagne",
+]
+
 export default function NewBuildingPage() {
   const router = useRouter()
   const { user } = useAuth()
@@ -87,6 +96,7 @@ export default function NewBuildingPage() {
     address: "",
     postalCode: "",
     city: "",
+    country: "Belgique",
     constructionYear: "",
     floors: "",
     description: "",
@@ -469,6 +479,7 @@ export default function NewBuildingPage() {
         name: buildingInfo.name.trim() || `Bâtiment ${buildingInfo.address}`,
         address: buildingInfo.address.trim(),
         city: buildingInfo.city.trim() || "Non spécifié",
+        country: buildingInfo.country.trim() || "Belgique",
         postal_code: buildingInfo.postalCode.trim() || "",
         description: buildingInfo.description.trim(),
         construction_year: buildingInfo.constructionYear ? parseInt(buildingInfo.constructionYear) : undefined,
@@ -989,7 +1000,7 @@ export default function NewBuildingPage() {
               <div>
                 <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <MapPin className="w-4 h-4" />
-                  Adresse complète*
+                  Rue et numéro*
                 </Label>
                 <Input
                   id="address"
@@ -1000,15 +1011,15 @@ export default function NewBuildingPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="postalCode" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Hash className="w-4 h-4" />
-                    Code postal
+                    Code postal*
                   </Label>
                   <Input
                     id="postalCode"
-                    placeholder="75001"
+                    placeholder="1000"
                     value={buildingInfo.postalCode}
                     onChange={(e) => setBuildingInfo({ ...buildingInfo, postalCode: e.target.value })}
                     className="mt-1"
@@ -1017,15 +1028,36 @@ export default function NewBuildingPage() {
                 <div>
                   <Label htmlFor="city" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <MapPin className="w-4 h-4" />
-                    Ville
+                    Ville*
                   </Label>
                   <Input
                     id="city"
-                    placeholder="Paris"
+                    placeholder="Bruxelles"
                     value={buildingInfo.city}
                     onChange={(e) => setBuildingInfo({ ...buildingInfo, city: e.target.value })}
                     className="mt-1"
                   />
+                </div>
+                <div>
+                  <Label htmlFor="country" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <MapPin className="w-4 h-4" />
+                    Pays*
+                  </Label>
+                  <Select 
+                    value={buildingInfo.country} 
+                    onValueChange={(value) => setBuildingInfo({ ...buildingInfo, country: value })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionnez un pays" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

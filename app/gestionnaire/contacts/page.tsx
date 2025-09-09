@@ -123,16 +123,25 @@ export default function ContactsPage() {
 
   const handleResendInvitation = async (contactId: string) => {
     try {
-      console.log("🔄 Resending invitation for contact:", contactId)
+      console.log("🔄 [CONTACTS-UI] Resending invitation for contact:", contactId)
       
       // Marquer cette invitation comme en cours de renvoi
       setResendingInvitations(prev => ({ ...prev, [contactId]: true }))
       
+      console.log("📞 [CONTACTS-UI] Calling contactInvitationService.resendInvitation...")
       const result = await contactInvitationService.resendInvitation(contactId)
       
+      console.log("📊 [CONTACTS-UI] Resend result:", {
+        success: result.success,
+        hasMessage: !!result.message,
+        hasMagicLink: !!result.magicLink,
+        error: result.error
+      })
+      
       if (result.success) {
-        console.log("✅ Invitation resent successfully")
-        console.log("🔗 Magic link received:", result.magicLink)
+        console.log("✅ [CONTACTS-UI] Invitation resent successfully!")
+        console.log("📫 [CONTACTS-UI] Email should have been sent")
+        console.log("🔗 [CONTACTS-UI] Magic link generated:", result.magicLink?.substring(0, 80) + '...')
         
         // Marquer cette invitation comme renvoyée avec succès
         // Le vrai magic link généré par Supabase est maintenant disponible
@@ -146,7 +155,10 @@ export default function ContactsPage() {
         }))
         
       } else {
-        console.error("❌ Failed to resend invitation:", result.error)
+        console.error("❌ [CONTACTS-UI] Failed to resend invitation:", {
+          contactId,
+          error: result.error
+        })
         setError(`Erreur lors du renvoi de l'invitation: ${result.error}`)
         setResentInvitations(prev => ({ 
           ...prev, 
@@ -155,13 +167,17 @@ export default function ContactsPage() {
       }
       
     } catch (error) {
-      console.error("❌ Error resending invitation:", error)
+      console.error("❌ [CONTACTS-UI] Exception in resend:", {
+        contactId,
+        error: error instanceof Error ? error.message : String(error)
+      })
       setError("Erreur lors du renvoi de l'invitation")
       setResentInvitations(prev => ({ 
         ...prev, 
         [contactId]: { success: false } 
       }))
     } finally {
+      console.log("🏁 [CONTACTS-UI] Resend process finished for contact:", contactId)
       // Enlever l'état de chargement
       setResendingInvitations(prev => ({ ...prev, [contactId]: false }))
     }

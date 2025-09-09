@@ -16,7 +16,7 @@ export default function AdminLayout({
         <DashboardHeader role="admin" />
         
         {/* Contenu principal */}
-        <main className="p-6">{children}</main>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
       </div>
     </AuthGuard>
   )

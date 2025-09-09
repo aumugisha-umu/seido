@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, Mail, CheckCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+// Redirections supprimées - gérées par le middleware
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -34,24 +35,9 @@ export default function LoginPage() {
       console.log('🎉 User confirmed email - showing success message')
       setShowConfirmationSuccess(true)
     }
-
-    // ✅ PHASE 4: Redirection automatique réactivée (middleware stable)
-    if (!loading && user && user.id && user.email && user.role) {
-      console.log('🔄 [LOGIN-PHASE4] User détecté - redirection automatique vers:', user.role)
-      console.log('👤 [LOGIN-PHASE4] User data:', {
-        id: user.id ? 'present' : 'missing',
-        email: user.email ? 'present' : 'missing',
-        role: user.role,
-        name: user.name
-      })
-      
-      // Redirection immédiate maintenant que le middleware est stable
-      console.log('🚀 [LOGIN-PHASE4] Redirection automatique vers dashboard')
-      window.location.href = `/${user.role}/dashboard`
-    } else {
-      console.log('🔄 [LOGIN-PHASE4] État auth:', { loading, hasUser: !!user })
-    }
-  }, [user, loading, searchParams, router])
+    
+    console.log('🔄 [LOGIN-CLEAN] Login page loaded, middleware will handle redirections')
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,9 +51,16 @@ export default function LoginPage() {
     }
 
     try {
+      console.log("🚀 [LOGIN-SUBMIT] Starting signIn process...")
       const { user: authUser, error: authError } = await signIn(email, password)
+      console.log("📊 [LOGIN-SUBMIT] SignIn result:", { 
+        hasUser: !!authUser, 
+        hasError: !!authError,
+        errorMessage: authError?.message 
+      })
 
       if (authError) {
+        console.log("❌ [LOGIN-SUBMIT] Authentication error:", authError.message)
         // Gérer spécifiquement l'erreur de confirmation d'email
         if (authError.message.includes('Email not confirmed')) {
           setError("Votre email n'a pas encore été confirmé. Vérifiez votre boîte de réception et cliquez sur le lien de confirmation.")
@@ -78,19 +71,22 @@ export default function LoginPage() {
           setError("Erreur de connexion : " + authError.message)
         }
       } else if (authUser) {
-        console.log("✅ [LOGIN-PHASE4] Connexion réussie", authUser)
-        console.log("🔄 [LOGIN-PHASE4] Redirection vers:", `/${authUser.role}/dashboard`)
+        console.log("✅ [LOGIN-CLEAN] Connexion réussie pour:", authUser.email, "role:", authUser.role)
         setError("") // Clear any previous errors
         
-        // ✅ PHASE 4: Redirection réactivée
-        console.log("🚀 [LOGIN-PHASE4] Redirection après connexion réussie")
-        window.location.href = `/${authUser.role}/dashboard`
+        console.log("🔄 [LOGIN-CLEAN] Triggering router refresh to activate middleware...")
+        router.refresh() // Force re-evaluation du middleware avec nouveaux cookies
+        console.log("✅ [LOGIN-CLEAN] Router refresh triggered, middleware should redirect now")
+        
+      } else {
+        console.log("⚠️ [LOGIN-SUBMIT] No user and no error - unusual state")
+        setError("Erreur de connexion inattendue")
       }
     } catch (error) {
-      console.error("❌ [LOGIN] Erreur de connexion:", error)
+      console.error("❌ [LOGIN-SUBMIT] Exception during login:", error)
       setError("Une erreur est survenue lors de la connexion")
     } finally {
-      console.log("🏁 [LOGIN] Login process finished, isLoading:", false)
+      console.log("🏁 [LOGIN-SUBMIT] Login process finished, setting isLoading to false")
       setIsLoading(false)
     }
   }

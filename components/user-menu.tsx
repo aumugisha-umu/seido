@@ -24,8 +24,23 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
   const { signOut } = useAuth()
 
   const handleLogout = async () => {
-    await signOut()
-    router.push("/auth/login")
+    try {
+      console.log('👤 [USER-MENU] Logout button clicked')
+      
+      // Effectuer la déconnexion
+      await signOut()
+      console.log('👤 [USER-MENU] Sign out completed, redirecting to login')
+      
+      // Redirection forcée pour s'assurer que ça marche
+      window.location.href = "/auth/login"
+      
+    } catch (error) {
+      console.error('❌ [USER-MENU] Error during logout:', error)
+      
+      // Même en cas d'erreur, rediriger vers login
+      console.log('🔄 [USER-MENU] Forcing redirect to login after error')
+      window.location.href = "/auth/login"
+    }
   }
 
   const handleProfile = () => {

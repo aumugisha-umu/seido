@@ -87,7 +87,7 @@ export default function LocataireDashboard() {
                 {tenantData.apartment_number || `Lot ${tenantData.reference}`}
               </p>
               <p className="text-sm text-muted-foreground">
-                {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}
+                {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}, {tenantData.building.country || 'Belgique'}
               </p>
               {(tenantData.surface_area || tenantData.rooms) && (
                 <p className="text-sm text-muted-foreground">

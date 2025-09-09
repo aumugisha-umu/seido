@@ -1,4 +1,5 @@
-import { supabase } from './supabase'
+import { supabase, withRetry } from './supabase'
+import { connectionManager } from './connection-manager'
 import type { Database } from './database.types'
 
 // Log Supabase configuration on module load
@@ -57,29 +58,40 @@ export const userService = {
   },
 
   async getById(id: string) {
-    console.log('🔍 Getting user by ID:', id)
+    // S'assurer que l'ID est une string (pas un objet)
+    const userId = typeof id === 'string' ? id : String(id)
+    
+    console.log('🔍 [DATABASE-SERVICE] Getting user by ID:', {
+      requestedId: userId,
+      originalType: typeof id,
+      timestamp: new Date().toISOString()
+    })
     
     // Validate input
-    if (!id) {
+    if (!userId) {
       const error = new Error('User ID is required')
-      console.error('❌ Database error in getById: Missing user ID')
+      console.error('❌ [DATABASE-SERVICE] Missing user ID')
       throw error
     }
     
+    // Auth context check not needed (RLS désactivé)
+    
     try {
+      // Note: RLS désactivé pour l'instant donc pas de vérification nécessaire
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', id)
+        .eq('id', userId)
         .single()
       
       if (error) {
-        console.error('❌ Database error in getById:', {
+        console.error('❌ [DATABASE-SERVICE] Supabase error in getById:', {
           message: error.message || 'Unknown error',
           code: error.code || 'NO_CODE',
           details: error.details || 'No details',
           hint: error.hint || 'No hint',
-          userId: id,
+          userId: userId,
           errorName: error.name || 'Unknown error name',
           fullError: JSON.stringify(error, null, 2)
         })
@@ -88,11 +100,19 @@ export const userService = {
       
       if (!data) {
         const notFoundError = new Error(`User not found with ID: ${id}`)
-        console.error('❌ User not found:', { userId: id })
+        console.error('❌ User not found:', { userId: userId })
         throw notFoundError
       }
       
-      console.log('✅ User found:', data?.name || 'Unknown name')
+      console.log('✅ [DATABASE-SERVICE] User found:', {
+        name: data?.name || 'Unknown name',
+        id: data?.id,
+        email: data?.email,
+        role: data?.role,
+        team_id: data?.team_id,
+        allKeys: Object.keys(data || {}),
+        fullData: data
+      })
       return data
     } catch (error) {
       // Enhanced error logging for debugging
@@ -672,6 +692,106 @@ export const contactService = {
     return data || []
   },
 
+  // Nouvelle méthode pour récupérer les contacts d'un bâtiment entier
+  async getBuildingContacts(buildingId: string, contactType?: string) {
+    console.log("🏢 getBuildingContacts called with buildingId:", buildingId, "contactType:", contactType)
+    
+    try {
+      const { data, error } = await supabase
+        .from('building_contacts')
+        .select(`
+          contact:contact_id (
+            id,
+            name,
+            email,
+            phone,
+            company,
+            contact_type,
+            speciality,
+            is_active
+          )
+        `)
+        .eq('building_id', buildingId)
+
+      if (error) {
+        console.error("❌ Error getting building contacts:", error)
+        return []
+      }
+
+      let contacts = (data || [])
+        .map((item: any) => item.contact)
+        .filter((contact: any) => contact && contact.is_active !== false)
+
+      // Filtrer par type de contact si spécifié
+      if (contactType) {
+        contacts = contacts.filter((contact: any) => contact?.contact_type === contactType)
+      }
+      
+      console.log("✅ Found building contacts:", contacts.length)
+      return contacts
+
+    } catch (error) {
+      console.error("🚨 Unexpected error in getBuildingContacts:", error)
+      return []
+    }
+  },
+
+  // Nouvelle fonction pour récupérer les gestionnaires réels d'une équipe
+  async getTeamManagers(teamId: string) {
+    console.log("👥 getTeamManagers called with teamId:", teamId)
+    
+    try {
+      // Approche simplifiée : récupérer tous les membres d'équipe avec leurs users
+      const { data, error } = await supabase
+        .from('team_members')
+        .select(`
+          id,
+          role,
+          joined_at,
+          user:user_id(
+            id,
+            email,
+            name,
+            first_name,
+            last_name,
+            role,
+            phone
+          )
+        `)
+        .eq('team_id', teamId)
+      
+      if (error) {
+        console.error("❌ Error in getTeamManagers:", error)
+        throw error
+      }
+      
+      console.log("📊 Raw team members data:", { count: data?.length, data })
+      
+      // Filtrer côté client pour les gestionnaires uniquement
+      const managers = data
+        ?.filter((member: any) => member.user?.role === 'gestionnaire')
+        ?.map((member: any) => ({
+          id: member.user.id,
+          name: member.user.name || `${member.user.first_name || ''} ${member.user.last_name || ''}`.trim() || member.user.email,
+          role: "Gestionnaire",
+          email: member.user.email,
+          phone: member.user.phone,
+          isCurrentUser: false, // sera défini dans loadRealData()
+          type: "gestionnaire",
+          member_role: member.role,
+          joined_at: member.joined_at
+        }))
+        ?.sort((a: any, b: any) => a.name.localeCompare(b.name)) || []
+      
+      console.log("✅ Found team managers:", managers.length, managers)
+      return managers
+      
+    } catch (error) {
+      console.error("❌ Error getting team managers:", error)
+      return []
+    }
+  },
+
   async getUserContacts(userId: string) {
     const { data, error } = await supabase
       .from('contacts')
@@ -1100,43 +1220,69 @@ export const teamService = {
     return data
   },
 
+  // Cache pour éviter les appels redondants
+  _teamsCache: new Map<string, { data: any[], timestamp: number }>(),
+  _CACHE_TTL: 5 * 60 * 1000, // 5 minutes
+  _STALE_WHILE_REVALIDATE_TTL: 30 * 60 * 1000, // 30 minutes pour données périmées
+
   async getUserTeams(userId: string) {
     console.log("👥 teamService.getUserTeams called with userId:", userId)
     
+    // Vérifier le cache d'abord
+    const cacheKey = `teams_${userId}`
+    const cached = this._teamsCache.get(cacheKey)
+    const now = Date.now()
+    
+    // Retourner le cache frais
+    if (cached && (now - cached.timestamp) < this._CACHE_TTL) {
+      console.log("✅ Returning fresh cached teams data")
+      return cached.data
+    }
+    
+    // Si on a des données périmées mais pas trop anciennes, les retourner tout en déclenchant une mise à jour en arrière-plan
+    if (cached && (now - cached.timestamp) < this._STALE_WHILE_REVALIDATE_TTL) {
+      console.log("🔄 Returning stale data while revalidating in background")
+      
+      // Mise à jour en arrière-plan sans attendre
+      this._fetchTeamsWithRetry(userId, cacheKey).catch(error => {
+        console.error("❌ Background team fetch failed:", error)
+      })
+      
+      return cached.data
+    }
+
+    // Pas de cache valide, faire la requête avec retry
+    return this._fetchTeamsWithRetry(userId, cacheKey)
+  },
+
+  async _fetchTeamsWithRetry(userId: string, cacheKey: string) {
+    const now = Date.now()
+
     try {
-      // Première tentative : requête complexe avec jointures
-      console.log("📡 Attempting complex teams query...")
+      console.log("📡 Loading user teams with retry mechanism...")
       
-      let { data, error } = await (supabase as any)
-        .from('teams')
-        .select(`
-          *,
-          created_by_user:created_by(name, email),
-          team_members!inner(
-            id,
-            role,
-            joined_at
-          )
-        `)
-        .eq('team_members.user_id', userId)
-        .order('name')
-      
-      console.log("📊 Complex query result:", { data, error })
-      
-      // Si erreur, essayer une requête simplifiée
-      if (error) {
-        console.log("⚠️ Complex query failed, trying simple query...")
-        
-        // 1. D'abord récupérer les IDs des équipes de l'utilisateur
-        const { data: memberData, error: memberError } = await (supabase as any)
+      const result = await withRetry(async () => {
+        // Vérifier l'état de la connexion avant la requête
+        if (!connectionManager.isConnected()) {
+          console.log("🔄 Connection lost, forcing reconnection...")
+          connectionManager.forceReconnection()
+          throw new Error("Connection not available")
+        }
+
+        // 1. Récupérer les IDs des équipes de l'utilisateur
+        const { data: memberData, error: memberError } = await supabase
           .from('team_members')
           .select('team_id, role')
           .eq('user_id', userId)
-        
-        console.log("📊 Team members query:", { memberData, memberError })
-        
+
         if (memberError) {
           console.error("❌ Team members query error:", memberError)
+          
+          // Si c'est une erreur de connexion, marquer comme déconnecté
+          if (this._isConnectionError(memberError)) {
+            console.log("🔌 Connection error detected in team members query")
+            connectionManager.forceReconnection()
+          }
           throw memberError
         }
         
@@ -1145,48 +1291,85 @@ export const teamService = {
           return []
         }
         
-        // 2. Ensuite récupérer les détails des équipes
+        // 2. Récupérer les détails des équipes
         const teamIds = memberData.map((m: any) => m.team_id)
         console.log("📝 Found team IDs:", teamIds)
         
-        const { data: teamsData, error: teamsError } = await (supabase as any)
+        const { data: teamsData, error: teamsError } = await supabase
           .from('teams')
           .select('*')
           .in('id', teamIds)
           .order('name')
-        
-        console.log("📊 Teams details query:", { teamsData, teamsError })
-        
+
         if (teamsError) {
           console.error("❌ Teams details query error:", teamsError)
+          
+          // Si c'est une erreur de connexion, marquer comme déconnecté
+          if (this._isConnectionError(teamsError)) {
+            console.log("🔌 Connection error detected in teams query")
+            connectionManager.forceReconnection()
+          }
           throw teamsError
         }
         
         // Combiner les données
-        data = teamsData?.map((team: any) => ({
+        return teamsData?.map((team: any) => ({
           ...team,
           team_members: memberData.filter((m: any) => m.team_id === team.id)
         })) || []
-        
-        console.log("✅ Simplified query successful, combined data:", data)
+      }, 3, 1500) // 3 tentatives avec backoff exponentiel plus long
+      
+      console.log("✅ User teams loaded successfully with retry:", result.length)
+      
+      // Mettre en cache le résultat
+      this._teamsCache.set(cacheKey, { data: result, timestamp: now })
+      
+      return result
+    } catch (error) {
+      console.error("❌ teamService.getUserTeams error after retries:", error)
+      
+      // Si on a encore des données en cache (même périmées), les utiliser
+      const cached = this._teamsCache.get(cacheKey)
+      if (cached) {
+        console.log("⚠️ All retries failed, returning stale cached data")
+        return cached.data
       }
       
-      console.log("✅ User teams found:", data?.length || 0)
-      return data || []
-    } catch (error) {
-      console.error("❌ teamService.getUserTeams error:", error)
-      console.error("📋 Error details:", {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        code: (error as any)?.code,
-        details: (error as any)?.details,
-        hint: (error as any)?.hint,
-        userId
-      })
-      
-      // En dernier recours, retourner un tableau vide
-      console.log("⚠️ All team queries failed, returning empty array")
-      return []
+      // En dernier recours, retourner un tableau vide et le mettre en cache
+      console.log("⚠️ No cached data available, returning empty array")
+      const result: any[] = []
+      this._teamsCache.set(cacheKey, { data: result, timestamp: now })
+      return result
     }
+  },
+
+  // Méthode utilitaire pour détecter les erreurs de connexion
+  _isConnectionError(error: any): boolean {
+    if (!error) return false
+    
+    const message = error.message?.toLowerCase() || ''
+    const code = error.code || ''
+    
+    return (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('connection') ||
+      message.includes('offline') ||
+      code === 'NETWORK_ERROR' ||
+      code === 'TIMEOUT_ERROR' ||
+      code === '08003' || // Connection does not exist (PostgreSQL)
+      code === '08006'    // Connection failure (PostgreSQL)
+    )
+  },
+  
+  // Méthode pour vider le cache si nécessaire
+  clearTeamsCache(userId?: string) {
+    if (userId) {
+      this._teamsCache.delete(`teams_${userId}`)
+    } else {
+      this._teamsCache.clear()
+    }
+    console.log("🗑️ Teams cache cleared", userId ? `for user ${userId}` : "completely")
   },
 
   async getById(id: string) {
@@ -1454,15 +1637,29 @@ export const teamService = {
 
 // Stats Services for dashboards
 export const statsService = {
+  // Cache pour les stats pour éviter les recalculs
+  _statsCache: new Map<string, { data: any, timestamp: number }>(),
+  _STATS_CACHE_TTL: 2 * 60 * 1000, // 2 minutes pour les stats (plus court)
+
   async getManagerStats(userId: string) {
     try {
       console.log("📊 Getting manager stats for user:", userId)
       
-      // 1. Get user's team
+      // Vérifier le cache des stats
+      const cacheKey = `stats_${userId}`
+      const cached = this._statsCache.get(cacheKey)
+      const now = Date.now()
+      
+      if (cached && (now - cached.timestamp) < this._STATS_CACHE_TTL) {
+        console.log("✅ Returning cached manager stats")
+        return cached.data
+      }
+      
+      // 1. Get user's team (utilise maintenant le cache des teams)
       const userTeams = await teamService.getUserTeams(userId)
       if (!userTeams || userTeams.length === 0) {
         console.log("⚠️ No team found for user")
-        return {
+        const emptyResult = {
           buildings: [],
           lots: [],
           contacts: [],
@@ -1476,6 +1673,9 @@ export const statsService = {
             interventionsCount: 0
           }
         }
+        // Mettre en cache même le résultat vide
+        this._statsCache.set(cacheKey, { data: emptyResult, timestamp: now })
+        return emptyResult
       }
       
       const team = userTeams[0]
@@ -1524,32 +1724,30 @@ export const statsService = {
       const contacts = await contactService.getTeamContacts(team.id)
       console.log("👥 Found contacts:", contacts?.length || 0)
       
-      // 5. Get interventions for these lots
-      const lotIds = lots.map(l => l.id)
-      let interventions: any[] = []
+      // 5. Get ALL interventions for this team (much simpler!)
+      const { data: interventions, error: interventionsError } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot:lot_id(id, reference, building:building_id(name, address)),
+          building:building_id(id, name, address),
+          assigned_contact:assigned_contact_id(name, email)
+        `)
+        .eq('team_id', team.id)
+        .order('created_at', { ascending: false })
       
-      if (lotIds.length > 0) {
-        const { data: interventionsData, error: interventionsError } = await supabase
-          .from('interventions')
-          .select(`
-            *,
-            lot:lot_id(id, reference, building_id),
-            assigned_contact:assigned_contact_id(name, email)
-          `)
-          .in('lot_id', lotIds)
-        
-        if (interventionsError) {
-          console.error("❌ Error fetching interventions:", interventionsError)
-        } else {
-          interventions = interventionsData || []
-          console.log("🔧 Found interventions:", interventions.length)
-        }
+      if (interventionsError) {
+        console.error("❌ Error fetching team interventions:", interventionsError)
+        throw interventionsError
       }
+      
+      console.log("🔧 Found team interventions:", interventions?.length || 0)
       
       // 6. Format buildings with embedded lots for PropertySelector
       const formattedBuildings = buildings?.map(building => {
         const buildingLots = lots.filter(lot => lot.building_id === building.id)
-        const buildingInterventions = interventions.filter(intervention => 
+        const buildingInterventions = (interventions || []).filter(intervention => 
+          intervention.building_id === building.id || 
           buildingLots.some(lot => lot.id === intervention.lot_id)
         )
         
@@ -1559,7 +1757,7 @@ export const statsService = {
             ...lot,
             status: lot.tenant_id ? 'occupied' : 'vacant',
             tenant: lot.tenant?.name || null,
-            interventions: interventions.filter(i => i.lot_id === lot.id).length
+            interventions: (interventions || []).filter(i => i.lot_id === lot.id).length
           })),
           interventions: buildingInterventions.length
         }
@@ -1575,23 +1773,45 @@ export const statsService = {
         occupiedLotsCount,
         occupancyRate,
         contactsCount: contacts?.length || 0,
-        interventionsCount: interventions.length
+        interventionsCount: interventions?.length || 0
       }
       
       console.log("📊 Final stats:", stats)
       
-      return {
+      const result = {
         buildings: formattedBuildings,
         lots,
         contacts: contacts || [],
-        interventions,
+        interventions: interventions || [],
         stats,
         team
       }
       
+      // Mettre en cache le résultat final
+      this._statsCache.set(cacheKey, { data: result, timestamp: now })
+      
+      return result
+      
     } catch (error) {
       console.error("❌ Error in getManagerStats:", error)
+      
+      // En cas d'erreur, essayer de retourner des données en cache si disponibles
+      const cached = this._statsCache.get(cacheKey)
+      if (cached) {
+        console.log("⚠️ Error occurred, returning stale cached data")
+        return cached.data
+      }
+      
       throw error
+    }
+  },
+  
+  // Méthode pour vider le cache des stats
+  clearStatsCache(userId?: string) {
+    if (userId) {
+      this._statsCache.delete(`stats_${userId}`)
+    } else {
+      this._statsCache.clear()
     }
   }
 }
@@ -2478,6 +2698,7 @@ export const compositeService = {
       name: string
       address: string
       city: string
+      country: string
       postal_code: string
       description?: string
       construction_year?: number
@@ -2555,6 +2776,7 @@ export const compositeService = {
       name: string
       address: string
       city: string
+      country: string
       postal_code: string
       description?: string
       construction_year?: number

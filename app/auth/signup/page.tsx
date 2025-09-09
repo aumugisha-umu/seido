@@ -30,22 +30,12 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [justSignedUp, setJustSignedUp] = useState(false)
+  // justSignedUp removed - pas besoin avec middleware
 
-  // Rediriger si déjà connecté ou après inscription
+  // Middleware gère les redirections automatiques
   useEffect(() => {
-    if (!loading && user) {
-      console.log('🔄 [SIGNUP] User state detected, redirecting to:', user.role)
-      // Utiliser window.location pour une redirection plus fiable après signup
-      if (justSignedUp) {
-        console.log('🚀 [SIGNUP] Using window.location for post-signup redirect')
-        window.location.href = `/${user.role}/dashboard`
-      } else {
-        console.log('🔄 [SIGNUP] Using router.push for existing user')
-        router.push(`/${user.role}/dashboard`)
-      }
-    }
-  }, [user, loading, router, justSignedUp])
+    console.log('🔄 [SIGNUP-CLEAN] Signup page loaded, middleware will handle redirections')
+  }, [])
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -111,12 +101,11 @@ export default function SignupPage() {
           setError("Erreur lors de la création du compte: " + authError.message)
         }
       } else if (authUser) {
-        console.log("✅ [SIGNUP] Compte créé avec succès, user state sera mis à jour par useAuth")
-        console.log("👤 [SIGNUP] User créé:", authUser.name, "role:", authUser.role)
-        // Marquer qu'on vient de s'inscrire pour utiliser window.location dans useEffect
-        setJustSignedUp(true)
-        // Ne pas faire de redirection ici - laisser le useEffect s'en charger
-        // quand l'état user sera mis à jour par le hook useAuth
+        console.log("✅ [SIGNUP-CLEAN] Compte créé avec succès pour:", authUser.name, "role:", authUser.role)
+        
+        console.log("🔄 [SIGNUP-CLEAN] Triggering router refresh to activate middleware...")
+        router.refresh() // Force re-evaluation du middleware avec nouveaux cookies
+        console.log("✅ [SIGNUP-CLEAN] Router refresh triggered, middleware should redirect now")
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }

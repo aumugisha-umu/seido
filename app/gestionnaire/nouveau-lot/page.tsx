@@ -7,9 +7,31 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building2, Home, Users, ArrowLeft, ArrowRight, Check, Plus, X, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import ContactFormModal from "@/components/contact-form-modal"
+
+const countries = [
+  "Belgique",
+  "France",
+  "Luxembourg",
+  "Pays-Bas",
+  "Allemagne",
+  "Espagne",
+  "Italie",
+  "Portugal",
+  "Royaume-Uni",
+  "Suisse",
+  "Autriche",
+  "République tchèque",
+  "Pologne",
+  "Danemark",
+  "Suède",
+  "Norvège",
+  "Finlande",
+  "Autre"
+]
 
 interface LotData {
   // Step 1: Building Association
@@ -20,6 +42,7 @@ interface LotData {
     address: string
     postalCode: string
     city: string
+    country: string
     description: string
   }
   independentAddress?: string
@@ -223,12 +246,12 @@ export default function NewLotPage() {
                 }
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="buildingPostalCode">Code postal</Label>
                 <Input
                   id="buildingPostalCode"
-                  placeholder="75016"
+                  placeholder="1000"
                   value={lotData.newBuilding?.postalCode || ""}
                   onChange={(e) =>
                     setLotData((prev) => ({
@@ -242,7 +265,7 @@ export default function NewLotPage() {
                 <Label htmlFor="buildingCity">Ville</Label>
                 <Input
                   id="buildingCity"
-                  placeholder="Paris"
+                  placeholder="Bruxelles"
                   value={lotData.newBuilding?.city || ""}
                   onChange={(e) =>
                     setLotData((prev) => ({
@@ -251,6 +274,29 @@ export default function NewLotPage() {
                     }))
                   }
                 />
+              </div>
+              <div>
+                <Label htmlFor="buildingCountry">Pays</Label>
+                <Select 
+                  value={lotData.newBuilding?.country || "Belgique"} 
+                  onValueChange={(value) =>
+                    setLotData((prev) => ({
+                      ...prev,
+                      newBuilding: { ...prev.newBuilding!, country: value },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez un pays" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div>

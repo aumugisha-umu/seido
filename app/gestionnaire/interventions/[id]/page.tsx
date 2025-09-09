@@ -29,6 +29,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+import { interventionService, contactService } from "@/lib/database-service"
+import { useAuth } from "@/hooks/use-auth"
+
+// Types basés sur la structure de la base de données
+interface DatabaseContact {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  contact_type: string
+  company?: string | null
+  speciality?: string | null
+  inChat?: boolean // Ajouté pour la fonctionnalité chat
+}
 
 interface InterventionDetail {
   id: string
@@ -39,52 +53,50 @@ interface InterventionDetail {
   status: string
   createdAt: string
   createdBy: string
-  property: {
-    type: "building" | "lot"
-    name: string
-    address: string
-    floor?: string
-    contacts: {
-      locataires: Array<{
-        id: string
-        name: string
-        email: string
-        phone: string
-        inChat: boolean
-      }>
-      proprietaires: Array<{
-        id: string
-        name: string
-        email: string
-        phone: string
-        inChat: boolean
-      }>
-      syndics: Array<{
-        id: string
-        name: string
-        email: string
-        phone: string
-        company?: string
-        inChat: boolean
-      }>
-      autres: Array<{
-        id: string
-        name: string
-        email: string
-        phone: string
-        role: string
-        inChat: boolean
-      }>
+  reference: string
+  requestedDate?: string
+  scheduledDate?: string
+  estimatedCost?: number
+  finalCost?: number
+  lot: {
+    id: string
+    reference: string
+    building: {
+      id: string
+      name: string
+      address: string
+      city: string
+      postal_code: string
     }
+    floor?: number
+    apartment_number?: string
   }
-  assignedContacts: Array<{
+  tenant?: {
     id: string
     name: string
     email: string
-    phone: string
-    role: "gestionnaire" | "prestataire"
-    specialty?: string
-  }>
+    phone?: string
+  }
+  manager?: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+  }
+  assignedContact?: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+    speciality?: string
+  }
+  contacts: {
+    locataires: DatabaseContact[]
+    proprietaires: DatabaseContact[]
+    syndics: DatabaseContact[]
+    autres: DatabaseContact[]
+  }
+  // Données statiques pour maintenir la compatibilité avec l'UI existante
   scheduling: {
     type: "fixed" | "slots" | "tbd"
     fixedDate?: string
@@ -120,7 +132,10 @@ interface InterventionDetail {
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
+  const { user } = useAuth()
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [expandedCategories, setExpandedCategories] = useState({
     locataires: true, // Locataires visible par défaut
@@ -129,142 +144,180 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     autres: false,
   })
 
-  useEffect(() => {
-    // Simulation des données - à remplacer par un appel API réel
-    const mockData: InterventionDetail = {
-      id: resolvedParams.id,
-      title: "Fuite d'eau dans la salle de bain",
-      description:
-        "Une fuite importante s'est déclarée au niveau du robinet de la baignoire. L'eau s'infiltre dans le plafond de l'appartement du dessous.",
-      type: "Plomberie",
-      urgency: "Urgent",
-      status: "En attente",
-      createdAt: "2025-01-09T10:30:00Z",
-      createdBy: "Marie Dubois",
-      property: {
-        type: "lot",
-        name: "Lot003",
-        address: "123 Rue de la Paix, 75001 Paris",
-        floor: "Étage 1",
-        contacts: {
-          locataires: [
-            {
-              id: "loc1",
-              name: "Jean Martin",
-              email: "jean.martin@email.com",
-              phone: "06 12 34 56 78",
-              inChat: true,
-            },
-          ],
-          proprietaires: [
-            {
-              id: "prop1",
-              name: "Sophie Durand",
-              email: "sophie.durand@email.com",
-              phone: "06 98 76 54 32",
-              inChat: false,
-            },
-          ],
-          syndics: [
-            {
-              id: "synd1",
-              name: "Pierre Moreau",
-              email: "p.moreau@syndic-paris.com",
-              phone: "01 42 33 44 55",
-              company: "Syndic de Paris",
-              inChat: false,
-            },
-          ],
-          autres: [
-            {
-              id: "autre1",
-              name: "Claire Dubois",
-              email: "claire.dubois@assurance.com",
-              phone: "01 55 66 77 88",
-              role: "Assureur",
-              inChat: false,
-            },
-          ],
+  // Fonction pour récupérer les données réelles depuis la DB
+  const fetchInterventionData = async () => {
+    if (!resolvedParams.id) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      console.log('🔍 Fetching intervention details for ID:', resolvedParams.id)
+      
+      // 1. Récupérer l'intervention avec les données relationnelles
+      const interventionData = await interventionService.getById(resolvedParams.id)
+      
+      if (!interventionData) {
+        throw new Error('Intervention non trouvée')
+      }
+
+      console.log('✅ Intervention data loaded:', interventionData)
+
+      // 2. Récupérer tous les contacts associés au lot de cette intervention
+      const lotContacts = await contactService.getLotContacts(interventionData.lot_id)
+      
+      console.log('✅ Lot contacts loaded:', lotContacts.length)
+
+      // 3. Organiser les contacts par type
+      const organizedContacts = {
+        locataires: lotContacts.filter((contact: any) => 
+          contact.contact_type === 'locataire' || contact.lot_contact_type === 'locataire'
+        ).map((contact: any) => ({
+          ...contact,
+          inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
+        })),
+        proprietaires: lotContacts.filter((contact: any) => 
+          contact.contact_type === 'proprietaire' || contact.lot_contact_type === 'proprietaire'
+        ).map((contact: any) => ({
+          ...contact,
+          inChat: false
+        })),
+        syndics: lotContacts.filter((contact: any) => 
+          contact.contact_type === 'syndic' || contact.lot_contact_type === 'syndic'
+        ).map((contact: any) => ({
+          ...contact,
+          inChat: false
+        })),
+        autres: lotContacts.filter((contact: any) => 
+          !['locataire', 'proprietaire', 'syndic'].includes(contact.contact_type || contact.lot_contact_type)
+        ).map((contact: any) => ({
+          ...contact,
+          inChat: false
+        }))
+      }
+
+      // 4. Transformer les données au format attendu par l'interface
+      const transformedIntervention: InterventionDetail = {
+        id: interventionData.id,
+        title: interventionData.title,
+        description: interventionData.description,
+        type: interventionData.type,
+        urgency: interventionData.urgency,
+        status: interventionData.status,
+        createdAt: interventionData.created_at,
+        createdBy: interventionData.manager?.name || 'Gestionnaire',
+        reference: interventionData.reference,
+        requestedDate: interventionData.requested_date,
+        scheduledDate: interventionData.scheduled_date,
+        estimatedCost: interventionData.estimated_cost,
+        finalCost: interventionData.final_cost,
+        lot: {
+          id: interventionData.lot.id,
+          reference: interventionData.lot.reference,
+          building: {
+            id: interventionData.lot.building.id,
+            name: interventionData.lot.building.name,
+            address: interventionData.lot.building.address,
+            city: interventionData.lot.building.city,
+            postal_code: interventionData.lot.building.postal_code
+          },
+          floor: interventionData.lot.floor,
+          apartment_number: interventionData.lot.apartment_number
         },
-      },
-      assignedContacts: [
-        {
-          id: "1",
-          name: "Marie Dubois",
-          email: "marie.dubois@seido.com",
-          phone: "06 87 65 43 21",
-          role: "gestionnaire",
+        tenant: interventionData.tenant ? {
+          id: interventionData.tenant_id,
+          name: interventionData.tenant.name,
+          email: interventionData.tenant.email,
+          phone: interventionData.tenant.phone
+        } : undefined,
+        manager: interventionData.manager ? {
+          id: interventionData.manager_id,
+          name: interventionData.manager.name,
+          email: interventionData.manager.email,
+          phone: interventionData.manager.phone
+        } : undefined,
+        assignedContact: interventionData.assigned_contact ? {
+          id: interventionData.assigned_contact_id,
+          name: interventionData.assigned_contact.name,
+          email: interventionData.assigned_contact.email,
+          phone: interventionData.assigned_contact.phone,
+          speciality: interventionData.assigned_contact.speciality
+        } : undefined,
+        contacts: organizedContacts,
+        // Données statiques pour maintenir la compatibilité (à enrichir plus tard)
+        scheduling: {
+          type: interventionData.scheduled_date ? "fixed" : "tbd",
+          fixedDate: interventionData.scheduled_date ? new Date(interventionData.scheduled_date).toISOString().split('T')[0] : undefined,
+          fixedTime: interventionData.scheduled_date ? new Date(interventionData.scheduled_date).toTimeString().slice(0, 5) : undefined
         },
-        {
-          id: "2",
-          name: "Thomas Blanc",
-          email: "thomas.blanc@maintenance.com",
-          phone: "06 23 45 67 89",
-          role: "prestataire",
-          specialty: "Plomberie",
+        instructions: {
+          type: "individual",
+          individualMessages: [] // À implémenter selon les besoins
         },
-      ],
-      scheduling: {
-        type: "slots",
-        slots: [
-          { date: "2025-01-10", startTime: "09:00", endTime: "12:00" },
-          { date: "2025-01-11", startTime: "14:00", endTime: "17:00" },
-        ],
-      },
-      instructions: {
-        type: "individual",
-        individualMessages: [
-          { contactId: "1", message: "Coordonner avec le prestataire et informer le locataire" },
-          { contactId: "2", message: "Intervention urgente - prévoir matériel de plomberie" },
-        ],
-      },
-      attachments: [
-        { name: "photo-fuite.jpg", size: "2.3 MB", type: "image" },
-        { name: "devis-reparation.pdf", size: "156 KB", type: "pdf" },
-      ],
-      availabilities: [
-        {
-          person: "Jean Martin",
-          role: "Locataire",
-          date: "2025-01-10",
-          startTime: "08:00",
-          endTime: "18:00",
-        },
-        {
-          person: "Jean Martin",
-          role: "Locataire",
-          date: "2025-01-11",
-          startTime: "09:00",
-          endTime: "17:00",
-        },
-        {
-          person: "Marie Dubois",
-          role: "Gestionnaire",
-          date: "2025-01-10",
-          startTime: "10:00",
-          endTime: "16:00",
-        },
-        {
-          person: "Thomas Blanc",
-          role: "Prestataire",
-          date: "2025-01-10",
-          startTime: "09:00",
-          endTime: "15:00",
-        },
-        {
-          person: "Thomas Blanc",
-          role: "Prestataire",
-          date: "2025-01-11",
-          startTime: "14:00",
-          endTime: "18:00",
-        },
-      ],
+        attachments: [], // À implémenter selon les besoins
+        availabilities: [] // À implémenter selon les besoins
+      }
+
+      console.log('✅ Transformed intervention data:', transformedIntervention)
+      setIntervention(transformedIntervention)
+
+    } catch (error) {
+      console.error('❌ Error fetching intervention data:', error)
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l\'intervention')
+    } finally {
+      setLoading(false)
     }
-    setIntervention(mockData)
+  }
+
+  // Charger les données réelles au montage du composant
+  useEffect(() => {
+    fetchInterventionData()
   }, [resolvedParams.id])
 
+  // États de chargement et d'erreur
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des détails de l'intervention...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <FileText className="h-12 w-12 mx-auto mb-2" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => fetchInterventionData()} variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!intervention) {
-    return <div className="flex items-center justify-center min-h-screen">Chargement...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Intervention non trouvée</h2>
+          <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
+          <Button onClick={() => router.back()} variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const getUrgencyColor = (urgency: string) => {
@@ -332,23 +385,20 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
   const commonSlots = findCommonSlots()
 
-  const toggleContactInChat = (category: keyof typeof intervention.property.contacts, contactId: string) => {
+  const toggleContactInChat = (category: keyof typeof intervention.contacts, contactId: string) => {
     if (!intervention) return
 
     setIntervention((prev) => {
       if (!prev) return prev
 
-      const updatedContacts = { ...prev.property.contacts }
+      const updatedContacts = { ...prev.contacts }
       updatedContacts[category] = updatedContacts[category].map((contact) =>
         contact.id === contactId ? { ...contact, inChat: !contact.inChat } : contact,
       )
 
       return {
         ...prev,
-        property: {
-          ...prev.property,
-          contacts: updatedContacts,
-        },
+        contacts: updatedContacts,
       }
     })
   }
@@ -449,23 +499,29 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-medium text-gray-900">{intervention.property.name}</h4>
-                  <p className="text-gray-600">{intervention.property.address}</p>
-                  {intervention.property.floor && (
-                    <p className="text-sm text-gray-500">{intervention.property.floor}</p>
+                  <h4 className="font-medium text-gray-900">{intervention.lot.reference}</h4>
+                  <p className="text-gray-600">
+                    {intervention.lot.building.address}, {intervention.lot.building.city} {intervention.lot.building.postal_code}
+                  </p>
+                  <p className="text-sm text-gray-500">{intervention.lot.building.name}</p>
+                  {intervention.lot.floor && (
+                    <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
+                  )}
+                  {intervention.lot.apartment_number && (
+                    <p className="text-sm text-gray-500">Appartement {intervention.lot.apartment_number}</p>
                   )}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push(`/gestionnaire/biens/${intervention.property.id}`)}
+                  onClick={() => router.push(`/gestionnaire/lots/${intervention.lot.id}`)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Voir le lot
                 </Button>
               </div>
 
-              {intervention.property.contacts.locataires.length > 0 && (
+              {intervention.contacts.locataires.length > 0 && (
                 <div className="pt-4 border-t">
                   <button
                     onClick={() => toggleCategory("locataires")}
@@ -473,7 +529,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   >
                     <h5 className="font-medium text-gray-900 flex items-center space-x-2">
                       <User className="h-4 w-4 text-blue-600" />
-                      <span>Locataires ({intervention.property.contacts.locataires.length})</span>
+                      <span>Locataires ({intervention.contacts.locataires.length})</span>
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                         Participants par défaut
                       </Badge>
@@ -486,7 +542,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   </button>
                   {expandedCategories.locataires && (
                     <div className="space-y-2">
-                      {intervention.property.contacts.locataires.map((contact) => (
+                      {intervention.contacts.locataires.map((contact) => (
                         <div
                           key={contact.id}
                           className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
@@ -546,7 +602,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              {intervention.property.contacts.proprietaires.length > 0 && (
+              {intervention.contacts.proprietaires.length > 0 && (
                 <div className="pt-4 border-t">
                   <button
                     onClick={() => toggleCategory("proprietaires")}
@@ -554,7 +610,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   >
                     <h5 className="font-medium text-gray-900 flex items-center space-x-2">
                       <User className="h-4 w-4 text-purple-600" />
-                      <span>Propriétaires ({intervention.property.contacts.proprietaires.length})</span>
+                      <span>Propriétaires ({intervention.contacts.proprietaires.length})</span>
                     </h5>
                     {expandedCategories.proprietaires ? (
                       <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -564,7 +620,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   </button>
                   {expandedCategories.proprietaires && (
                     <div className="space-y-2">
-                      {intervention.property.contacts.proprietaires.map((contact) => (
+                      {intervention.contacts.proprietaires.map((contact) => (
                         <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           {/* ... existing contact content ... */}
                           <div className="flex items-center space-x-3">
@@ -621,7 +677,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              {intervention.property.contacts.syndics.length > 0 && (
+              {intervention.contacts.syndics.length > 0 && (
                 <div className="pt-4 border-t">
                   <button
                     onClick={() => toggleCategory("syndics")}
@@ -629,7 +685,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   >
                     <h5 className="font-medium text-gray-900 flex items-center space-x-2">
                       <Users className="h-4 w-4 text-orange-600" />
-                      <span>Syndics ({intervention.property.contacts.syndics.length})</span>
+                      <span>Syndics ({intervention.contacts.syndics.length})</span>
                     </h5>
                     {expandedCategories.syndics ? (
                       <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -639,7 +695,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   </button>
                   {expandedCategories.syndics && (
                     <div className="space-y-2">
-                      {intervention.property.contacts.syndics.map((contact) => (
+                      {intervention.contacts.syndics.map((contact) => (
                         <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           {/* ... existing contact content ... */}
                           <div className="flex items-center space-x-3">
@@ -706,7 +762,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              {intervention.property.contacts.autres.length > 0 && (
+              {intervention.contacts.autres.length > 0 && (
                 <div className="pt-4 border-t">
                   <button
                     onClick={() => toggleCategory("autres")}
@@ -714,7 +770,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   >
                     <h5 className="font-medium text-gray-900 flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-600" />
-                      <span>Autres contacts ({intervention.property.contacts.autres.length})</span>
+                      <span>Autres contacts ({intervention.contacts.autres.length})</span>
                     </h5>
                     {expandedCategories.autres ? (
                       <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -724,7 +780,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   </button>
                   {expandedCategories.autres && (
                     <div className="space-y-2">
-                      {intervention.property.contacts.autres.map((contact) => (
+                      {intervention.contacts.autres.map((contact) => (
                         <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           {/* ... existing contact content ... */}
                           <div className="flex items-center space-x-3">
@@ -735,7 +791,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                               <div className="flex items-center space-x-2">
                                 <h6 className="font-medium text-gray-900">{contact.name}</h6>
                                 <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  {contact.role}
+                                  {contact.contact_type}
                                 </Badge>
                               </div>
                               <div className="flex items-center space-x-3 text-xs text-gray-600">
@@ -793,50 +849,84 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-5 w-5 text-purple-600" />
-                <span>Personnes assignées ({intervention.assignedContacts.length})</span>
+                <span>Personnes assignées</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {intervention.assignedContacts.map((contact) => (
-                  <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                {/* Gestionnaire assigné */}
+                {intervention.manager && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Users className="h-5 w-5 text-blue-600" />
+                        <User className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-gray-900">{contact.name}</h4>
-                          <Badge
-                            variant="outline"
-                            className={
-                              contact.role === "gestionnaire"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : "bg-green-50 text-green-700 border-green-200"
-                            }
-                          >
-                            {contact.role === "gestionnaire" ? "Gestionnaire" : "Prestataire"}
+                          <h4 className="font-medium text-gray-900">{intervention.manager.name}</h4>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            Gestionnaire
                           </Badge>
-                          {contact.specialty && (
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                          <span className="flex items-center space-x-1">
+                            <Mail className="h-3 w-3" />
+                            <span>{intervention.manager.email}</span>
+                          </span>
+                          {intervention.manager.phone && (
+                            <span className="flex items-center space-x-1">
+                              <Phone className="h-3 w-3" />
+                              <span>{intervention.manager.phone}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Prestataire assigné */}
+                {intervention.assignedContact && (
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <Users className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-medium text-gray-900">{intervention.assignedContact.name}</h4>
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            Prestataire
+                          </Badge>
+                          {intervention.assignedContact.speciality && (
                             <Badge variant="outline" className="bg-gray-50 text-gray-600">
-                              {contact.specialty}
+                              {intervention.assignedContact.speciality}
                             </Badge>
                           )}
                         </div>
                         <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
                           <span className="flex items-center space-x-1">
                             <Mail className="h-3 w-3" />
-                            <span>{contact.email}</span>
+                            <span>{intervention.assignedContact.email}</span>
                           </span>
-                          <span className="flex items-center space-x-1">
-                            <Phone className="h-3 w-3" />
-                            <span>{contact.phone}</span>
-                          </span>
+                          {intervention.assignedContact.phone && (
+                            <span className="flex items-center space-x-1">
+                              <Phone className="h-3 w-3" />
+                              <span>{intervention.assignedContact.phone}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
+
+                {!intervention.manager && !intervention.assignedContact && (
+                  <div className="text-center py-4 text-gray-500">
+                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p>Aucune personne assignée pour le moment</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -860,10 +950,17 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Messages individuels</h4>
                   {intervention.instructions.individualMessages?.map((msg, index) => {
-                    const contact = intervention.assignedContacts.find((c) => c.id === msg.contactId)
+                    // Rechercher le contact dans les assignés (manager ou prestataire)
+                    let contact = null
+                    if (intervention.manager && intervention.manager.id === msg.contactId) {
+                      contact = intervention.manager
+                    } else if (intervention.assignedContact && intervention.assignedContact.id === msg.contactId) {
+                      contact = intervention.assignedContact
+                    }
+                    
                     return (
                       <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                        <h5 className="font-medium text-gray-900 mb-1">Pour {contact?.name}</h5>
+                        <h5 className="font-medium text-gray-900 mb-1">Pour {contact?.name || 'Contact non trouvé'}</h5>
                         <p className="text-gray-700">{msg.message}</p>
                       </div>
                     )
@@ -1300,3 +1397,4 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     </div>
   )
 }
+

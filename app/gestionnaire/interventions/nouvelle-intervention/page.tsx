@@ -37,7 +37,9 @@ import { useSearchParams } from "next/navigation"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
-import { generateInterventionId } from "@/lib/id-utils"
+import { userService, contactService, teamService } from "@/lib/database-service"
+import { useAuth } from "@/hooks/use-auth"
+import ContactSelector from "@/components/ui/contact-selector"
 
 export default function NouvelleInterventionPage() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -54,7 +56,6 @@ export default function NouvelleInterventionPage() {
   })
   const [files, setFiles] = useState<File[]>([])
 
-  const [selectedContacts, setSelectedContacts] = useState<number[]>([])
   const [schedulingType, setSchedulingType] = useState<"fixed" | "slots" | "flexible">("flexible")
   const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "" })
   const [timeSlots, setTimeSlots] = useState<Array<{ date: string; startTime: string; endTime: string }>>([])
@@ -62,19 +63,83 @@ export default function NouvelleInterventionPage() {
   const [globalMessage, setGlobalMessage] = useState("")
   const [individualMessages, setIndividualMessages] = useState<Record<number, string>>({})
 
-  const [showManagerModal, setShowManagerModal] = useState(false)
-  const [showProviderModal, setShowProviderModal] = useState(false)
-  const [managerSearch, setManagerSearch] = useState("")
-  const [providerSearch, setProviderSearch] = useState("")
+  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([])
 
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [countdown, setCountdown] = useState(10)
   const [isPreFilled, setIsPreFilled] = useState(false)
+  const [createdInterventionId, setCreatedInterventionId] = useState<string>("")
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string>("")
 
   const [expectsQuote, setExpectsQuote] = useState(false)
 
+  // États pour les données réelles
+  const [managers, setManagers] = useState<any[]>([])
+  const [providers, setProviders] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
+
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useAuth()
+
+  // Fonction pour charger les données réelles depuis la DB
+  const loadRealData = async () => {
+    if (!user?.id) return
+
+    setLoading(true)
+    try {
+      // 1. Récupérer l'équipe de l'utilisateur
+      const teams = await teamService.getUserTeams(user.id)
+      const team = teams[0]
+      if (team) {
+        setCurrentUserTeam(team)
+        
+        // 2. Récupérer les gestionnaires réels depuis team_members -> users
+        const managersData = await contactService.getTeamManagers(team.id)
+        
+        // Marquer l'utilisateur connecté
+        managersData.forEach((manager: any) => {
+          manager.isCurrentUser = manager.email === user.email
+        })
+        
+        // 3. Récupérer les prestataires depuis contacts
+        const contacts = await contactService.getTeamContacts(team.id)
+        const providersData = contacts
+          .filter((contact: any) => contact.contact_type === 'prestataire')
+          .map((contact: any) => ({
+            id: contact.id,
+            name: contact.name,
+            role: "Prestataire",
+            email: contact.email,
+            phone: contact.phone,
+            speciality: contact.speciality,
+            isCurrentUser: false,
+            type: "prestataire",
+          }))
+
+        setManagers(managersData)
+        setProviders(providersData)
+
+        // Pré-sélectionner l'utilisateur connecté comme gestionnaire
+        const currentManager = managersData.find(manager => manager.isCurrentUser)
+        if (currentManager && !selectedManagerId) {
+          setSelectedManagerId(currentManager.id)
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des données:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    loadRealData()
+  }, [user?.id])
 
   useEffect(() => {
     if (isPreFilled) return // Prevent re-execution if already pre-filled
@@ -105,18 +170,18 @@ export default function NouvelleInterventionPage() {
         const lotMatch = tenantLocation.match(/Lot(\d+)/)
         if (lotMatch) {
           const lotNumber = lotMatch[1]
-          // Mock data - in real app, this would come from the actual property data
+          // TODO: Récupérer les vraies données du lot depuis la DB
+          // Pour l'instant on garde un comportement minimal
           setSelectedLogement({
             id: Number.parseInt(lotNumber),
             name: `Lot${lotNumber.padStart(3, "0")}`,
             type: "lot",
-            building: "Résidence Champs-Élysées",
-            address: "123 Rue de la Paix, 75001 Paris",
+            building: "Logement pré-sélectionné",
+            address: "Adresse à récupérer depuis la DB",
             floor: 1,
-            tenant: searchParams.get("tenantId") || "Jean Martin",
+            tenant: searchParams.get("tenantId") || "Locataire",
           })
           setSelectedLotId(Number.parseInt(lotNumber))
-          setSelectedBuildingId(1) // Mock building ID
 
           // Skip to step 2 since step 1 is pre-filled
           setCurrentStep(2)
@@ -128,113 +193,73 @@ export default function NouvelleInterventionPage() {
     }
   }, [])
 
-  const getAllManagers = () => {
-    return [
-      {
-        id: 1,
-        name: "John Doe",
-        role: "Gestionnaire",
-        email: "john.doe@seido.com",
-        phone: "06 12 34 56 78",
-        isCurrentUser: true,
-        type: "gestionnaire",
-      },
-      {
-        id: 2,
-        name: "Marie Dubois",
-        role: "Gestionnaire",
-        email: "marie.dubois@seido.com",
-        phone: "06 87 65 43 21",
-        isCurrentUser: false,
-        type: "gestionnaire",
-      },
-      {
-        id: 6,
-        name: "Claire Martin",
-        role: "Gestionnaire",
-        email: "claire.martin@seido.com",
-        phone: "06 11 22 33 44",
-        isCurrentUser: false,
-        type: "gestionnaire",
-      },
-    ]
-  }
-
-  const getAllProviders = () => {
-    return [
-      {
-        id: 3,
-        name: "Pierre Durand",
-        role: "Prestataire",
-        email: "pierre.durand@services.com",
-        phone: "06 98 76 54 32",
-        speciality: "Plomberie",
-        isCurrentUser: false,
-        type: "prestataire",
-      },
-      {
-        id: 4,
-        name: "Sophie Martin",
-        role: "Prestataire",
-        email: "sophie.martin@elec.com",
-        phone: "06 45 67 89 12",
-        speciality: "Électricité",
-        isCurrentUser: false,
-        type: "prestataire",
-      },
-      {
-        id: 5,
-        name: "Thomas Blanc",
-        role: "Prestataire",
-        email: "thomas.blanc@maintenance.com",
-        phone: "06 23 45 67 89",
-        speciality: "Maintenance générale",
-        isCurrentUser: false,
-        type: "prestataire",
-      },
-      {
-        id: 7,
-        name: "Lucas Petit",
-        role: "Prestataire",
-        email: "lucas.petit@chauffage.com",
-        phone: "06 55 66 77 88",
-        speciality: "Chauffage",
-        isCurrentUser: false,
-        type: "prestataire",
-      },
-    ]
-  }
-
   const getRelatedContacts = () => {
-    return [...getAllManagers(), ...getAllProviders()]
+    return [...managers, ...providers]
   }
 
   const getSelectedContacts = () => {
-    return getRelatedContacts().filter((contact) => selectedContacts.some((selected) => selected === contact.id))
+    const contacts = []
+    
+    // Ajouter le gestionnaire sélectionné
+    if (selectedManagerId) {
+      const manager = managers.find(m => m.id === selectedManagerId)
+      if (manager) contacts.push(manager)
+    }
+    
+    // Ajouter les prestataires sélectionnés
+    selectedProviderIds.forEach(providerId => {
+      const provider = providers.find(p => p.id === providerId)
+      if (provider) contacts.push(provider)
+    })
+    
+    return contacts
   }
 
-  const filteredManagers = getAllManagers().filter(
-    (manager) =>
-      manager.name.toLowerCase().includes(managerSearch.toLowerCase()) ||
-      manager.email.toLowerCase().includes(managerSearch.toLowerCase()),
-  )
+  // Fonctions de gestion des contacts
+  const handleManagerSelect = (managerId: string) => {
+    setSelectedManagerId(managerId)
+  }
 
-  const filteredProviders = getAllProviders().filter(
-    (provider) =>
-      provider.name.toLowerCase().includes(providerSearch.toLowerCase()) ||
-      provider.email.toLowerCase().includes(providerSearch.toLowerCase()) ||
-      provider.speciality?.toLowerCase().includes(providerSearch.toLowerCase()),
-  )
+  const handleProviderSelect = (providerId: string) => {
+    setSelectedProviderIds(prevIds => {
+      if (prevIds.includes(providerId)) {
+        // Si déjà sélectionné, le retirer
+        return prevIds.filter(id => id !== providerId)
+      } else {
+        // Sinon l'ajouter
+        return [...prevIds, providerId]
+      }
+    })
+  }
 
-  const addContact = (contactId: number) => {
-    if (!selectedContacts.includes(contactId)) {
-      setSelectedContacts((prev) => [...prev, contactId])
+  const handleContactCreated = (newContact: any) => {
+    // Ajouter le nouveau contact à la liste appropriée
+    if (newContact.contact_type === 'gestionnaire') {
+      const managerData = {
+        id: newContact.id,
+        name: newContact.name,
+        role: "Gestionnaire",
+        email: newContact.email,
+        phone: newContact.phone,
+        isCurrentUser: newContact.email === user?.email,
+        type: "gestionnaire",
+      }
+      setManagers((prev) => [...prev, managerData])
+    } else if (newContact.contact_type === 'prestataire') {
+      const providerData = {
+        id: newContact.id,
+        name: newContact.name,
+        role: "Prestataire",
+        email: newContact.email,
+        phone: newContact.phone,
+        speciality: newContact.speciality,
+        isCurrentUser: false,
+        type: "prestataire",
+      }
+      setProviders((prev) => [...prev, providerData])
     }
   }
 
-  const removeContact = (contactId: number) => {
-    setSelectedContacts((prev) => prev.filter((id) => id !== contactId))
-  }
 
   const handleBuildingSelect = (buildingId: number) => {
     setSelectedBuildingId(buildingId)
@@ -298,7 +323,7 @@ export default function NouvelleInterventionPage() {
       selectedLogement,
       formData,
       files,
-      selectedContacts,
+      selectedContacts: getSelectedContacts(),
       schedulingType,
       fixedDateTime,
       timeSlots,
@@ -326,22 +351,100 @@ export default function NouvelleInterventionPage() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const interventionId = generateInterventionId()
 
-  const handleCreateIntervention = () => {
-    setShowSuccessModal(true)
-    setCountdown(10)
+  const handleCreateIntervention = async () => {
+    setIsCreating(true)
+    setError("")
 
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          router.push(`/gestionnaire/interventions/${interventionId}`)
-          return 0
-        }
-        return prev - 1
+    try {
+      console.log("🚀 Starting intervention creation...")
+      
+      // Prepare data for API call
+      const interventionData = {
+        // Basic intervention data
+        title: formData.title,
+        description: formData.description,
+        type: formData.type,
+        urgency: formData.urgency,
+        location: formData.location,
+        
+        // Housing selection
+        selectedLogement,
+        selectedBuildingId,
+        selectedLotId,
+        
+        // Contact assignments
+        selectedManagerId,
+        selectedProviderIds,
+        
+        // Scheduling
+        schedulingType,
+        fixedDateTime,
+        timeSlots,
+        
+        // Messages
+        messageType,
+        globalMessage,
+        individualMessages,
+        
+        // Options
+        expectsQuote,
+        
+        // Files (for now, we'll pass file names/metadata, actual upload to be implemented)
+        files: files.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type
+        })),
+        
+        // Team context
+        teamId: currentUserTeam?.id
+      }
+
+      console.log("📝 Sending intervention data:", interventionData)
+
+      // Call the API
+      const response = await fetch('/api/create-manager-intervention', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(interventionData),
       })
-    }, 1000)
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erreur lors de la création de l\'intervention')
+      }
+
+      console.log("✅ Intervention created successfully:", result)
+
+      // Store the created intervention ID
+      setCreatedInterventionId(result.intervention.id)
+
+      // Show success modal
+      setShowSuccessModal(true)
+      setCountdown(10)
+
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            router.push(`/gestionnaire/interventions/${result.intervention.id}`)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+    } catch (error) {
+      console.error("❌ Error creating intervention:", error)
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+      setError(errorMessage)
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const handleNavigation = (path: string) => {
@@ -664,139 +767,55 @@ export default function NouvelleInterventionPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h4 className="font-medium mb-4">Assigner l'intervention à</h4>
+                <h4 className="font-medium mb-3">Assigner l'intervention à</h4>
                 <p className="text-sm text-gray-600 mb-4">
-                  Sélectionnez les gestionnaires et/ou prestataires qui seront responsables de cette intervention.
+                  Le gestionnaire est automatiquement assigné. Vous pouvez optionnellement ajouter un prestataire.
                 </p>
 
-                {/* Add Contact Buttons */}
-                <div className="flex space-x-4 mb-6">
-                  <Dialog open={showManagerModal} onOpenChange={setShowManagerModal}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
-                        <User className="h-4 w-4" />
-                        <span>Ajouter gestionnaire</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center space-x-2">
-                          <User className="h-5 w-5" />
-                          <span>Sélectionner un gestionnaire</span>
-                        </DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <Input
-                            placeholder="Rechercher un gestionnaire par nom, email..."
-                            value={managerSearch}
-                            onChange={(e) => setManagerSearch(e.target.value)}
-                            className="pl-10"
-                          />
-                        </div>
-                        <div className="max-h-60 overflow-y-auto space-y-2">
-                          {filteredManagers.map((manager) => (
-                            <div
-                              key={manager.id}
-                              className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                                selectedContacts.includes(manager.id) ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                              }`}
-                              onClick={() => {
-                                addContact(manager.id)
-                                setShowManagerModal(false)
-                                setManagerSearch("")
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium">
-                                    {manager.name}
-                                    {manager.isCurrentUser && <span className="text-blue-600 ml-1">(Vous)</span>}
-                                  </p>
-                                  <p className="text-sm text-gray-600">{manager.email}</p>
-                                </div>
-                                <Badge variant="default">Gestionnaire</Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <Button variant="outline" onClick={() => setShowManagerModal(false)} className="w-full">
-                          Annuler
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                {/* Contact Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  {/* Gestionnaire */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <User className="h-4 w-4" />
+                      <span>Gestionnaire *</span>
+                    </label>
+                    <ContactSelector
+                      contacts={managers}
+                      selectedContactId={selectedManagerId}
+                      onContactSelect={handleManagerSelect}
+                      onContactCreated={handleContactCreated}
+                      contactType="gestionnaire"
+                      placeholder="Sélectionner un gestionnaire"
+                      isLoading={loading}
+                      teamId={currentUserTeam?.id || ""}
+                    />
+                  </div>
 
-                  <Dialog open={showProviderModal} onOpenChange={setShowProviderModal}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
-                        <Wrench className="h-4 w-4" />
-                        <span>Ajouter prestataire</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center space-x-2">
-                          <Wrench className="h-5 w-5" />
-                          <span>Sélectionner un prestataire</span>
-                        </DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <Input
-                            placeholder="Rechercher un prestataire par nom, spécialité..."
-                            value={providerSearch}
-                            onChange={(e) => setProviderSearch(e.target.value)}
-                            className="pl-10"
-                          />
-                        </div>
-                        <div className="max-h-60 overflow-y-auto space-y-2">
-                          {filteredProviders.map((provider) => (
-                            <div
-                              key={provider.id}
-                              className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                                selectedContacts.includes(provider.id)
-                                  ? "border-blue-500 bg-blue-50"
-                                  : "border-gray-200"
-                              }`}
-                              onClick={() => {
-                                addContact(provider.id)
-                                setShowProviderModal(false)
-                                setProviderSearch("")
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium">{provider.name}</p>
-                                  <p className="text-sm text-gray-600">{provider.email}</p>
-                                </div>
-                                <div className="flex flex-col items-end space-y-1">
-                                  <Badge variant="secondary">Prestataire</Badge>
-                                  {provider.speciality && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {provider.speciality}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <Button variant="outline" onClick={() => setShowProviderModal(false)} className="w-full">
-                          Annuler
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  {/* Prestataire */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <Wrench className="h-4 w-4" />
+                      <span>Prestataire</span>
+                    </label>
+                    <ContactSelector
+                      contacts={providers}
+                      selectedContactIds={selectedProviderIds}
+                      onContactSelect={handleProviderSelect}
+                      onContactCreated={handleContactCreated}
+                      contactType="prestataire"
+                      placeholder="Sélectionner un prestataire"
+                      isLoading={loading}
+                      teamId={currentUserTeam?.id || ""}
+                    />
+                  </div>
                 </div>
 
                 {/* Selected Contacts Display */}
-                {selectedContacts.length > 0 && (
+                {(selectedManagerId || selectedProviderIds.length > 0) && (
                   <div className="space-y-3">
                     <h5 className="font-medium text-sm text-gray-700">
-                      Personnes assignées ({selectedContacts.length})
+                      Personnes assignées ({getSelectedContacts().length})
                     </h5>
                     {getSelectedContacts().map((contact) => (
                       <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -824,7 +843,13 @@ export default function NouvelleInterventionPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeContact(contact.id)}
+                          onClick={() => {
+                            if (contact.type === "gestionnaire") {
+                              setSelectedManagerId("")
+                            } else if (contact.type === "prestataire") {
+                              setSelectedProviderIds(prev => prev.filter(id => id !== contact.id))
+                            }
+                          }}
                           className="text-red-500 hover:text-red-700"
                         >
                           <X className="h-4 w-4" />
@@ -943,7 +968,7 @@ export default function NouvelleInterventionPage() {
               </div>
 
               {/* Message Options */}
-              {selectedContacts.length > 0 && (
+              {(selectedManagerId || selectedProviderIds.length > 0) && (
                 <div>
                   <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center space-x-3">
@@ -963,7 +988,7 @@ export default function NouvelleInterventionPage() {
                     </p>
                   </div>
 
-                  {selectedContacts.length > 1 ? (
+                  {getSelectedContacts().length > 1 ? (
                     <>
                       <h4 className="font-medium mb-2">Demande au groupe ou individuelle ?</h4>
                       <div className="space-y-4">
@@ -972,7 +997,7 @@ export default function NouvelleInterventionPage() {
                             type="radio"
                             id="group"
                             name="messageType"
-                            value="group"
+                            value="global"
                             checked={messageType === "global"}
                             onChange={(e) => setMessageType(e.target.value as "global" | "individual")}
                             className="mt-1"
@@ -1014,8 +1039,7 @@ export default function NouvelleInterventionPage() {
                             </p>
                             {messageType === "individual" && (
                               <div className="space-y-3 mt-3">
-                                {selectedContacts.map((contactId) => {
-                                  const contact = getRelatedContacts().find((c) => c.id === contactId)
+                                {getSelectedContacts().map((contact) => {
                                   return contact ? (
                                     <div key={contact.id} className="border rounded-lg p-3">
                                       <div className="flex items-center space-x-2 mb-2">
@@ -1066,7 +1090,11 @@ export default function NouvelleInterventionPage() {
                 <Button variant="outline" onClick={handleBack}>
                   Retour
                 </Button>
-                <Button onClick={handleNext} disabled={selectedContacts.length === 0} className="px-8">
+                <Button 
+                  onClick={handleNext} 
+                  disabled={!selectedManagerId} 
+                  className="px-8"
+                >
                   Créer l'intervention
                 </Button>
               </div>
@@ -1218,7 +1246,7 @@ export default function NouvelleInterventionPage() {
                           </div>
                           <div>
                             <h3 className="font-semibold text-gray-900">
-                              Personnes assignées ({selectedContacts.length})
+                              Personnes assignées ({getSelectedContacts().length})
                             </h3>
                             <p className="text-sm text-gray-600">Responsables de l'intervention</p>
                           </div>
@@ -1372,10 +1400,10 @@ export default function NouvelleInterventionPage() {
                                   <span className="font-medium">Messages individuels:</span>
                                 </div>
                                 <div className="space-y-2">
-                                  {Object.entries(individualMessages).map(([contactId, message]) => {
-                                    const contact = getSelectedContacts().find(
-                                      (c) => c.id === Number.parseInt(contactId),
-                                    )
+                              {Object.entries(individualMessages).map(([contactId, message]) => {
+                                const contact = getSelectedContacts().find(
+                                  (c) => c.id.toString() === contactId.toString(),
+                                )
                                     return message ? (
                                       <div
                                         key={contactId}
@@ -1403,7 +1431,7 @@ export default function NouvelleInterventionPage() {
                                 </div>
                               </div>
                             )}
-                            {selectedContacts.length === 1 && globalMessage && (
+                            {getSelectedContacts().length === 1 && globalMessage && (
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
                                   <MessageSquare className="h-4 w-4 text-indigo-600" />
@@ -1451,14 +1479,37 @@ export default function NouvelleInterventionPage() {
                     )}
                   </div>
 
+                  {error && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="h-5 w-5 text-red-600" />
+                        <p className="text-red-800 font-medium">Erreur</p>
+                      </div>
+                      <p className="text-red-700 mt-1">{error}</p>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(3)}>
+                    <Button variant="outline" onClick={() => setCurrentStep(3)} disabled={isCreating}>
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Retour
                     </Button>
-                    <Button onClick={handleCreateIntervention} className="bg-green-600 hover:bg-green-700">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Créer l'intervention
+                    <Button 
+                      onClick={handleCreateIntervention} 
+                      className="bg-green-600 hover:bg-green-700"
+                      disabled={isCreating}
+                    >
+                      {isCreating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Création...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Créer l'intervention
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -1490,7 +1541,7 @@ export default function NouvelleInterventionPage() {
                   Retour au dashboard
                 </Button>
                 <Button
-                  onClick={() => handleNavigation(`/gestionnaire/interventions/${interventionId}`)}
+                  onClick={() => handleNavigation(`/gestionnaire/interventions/${createdInterventionId}`)}
                   className="w-full"
                 >
                   <Eye className="h-4 w-4 mr-2" />

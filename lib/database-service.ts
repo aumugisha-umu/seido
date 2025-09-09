@@ -672,6 +672,62 @@ export const contactService = {
     return data || []
   },
 
+  // Nouvelle fonction pour récupérer les gestionnaires réels d'une équipe
+  async getTeamManagers(teamId: string) {
+    console.log("👥 getTeamManagers called with teamId:", teamId)
+    
+    try {
+      // Approche simplifiée : récupérer tous les membres d'équipe avec leurs users
+      const { data, error } = await supabase
+        .from('team_members')
+        .select(`
+          id,
+          role,
+          joined_at,
+          user:user_id(
+            id,
+            email,
+            name,
+            first_name,
+            last_name,
+            role,
+            phone
+          )
+        `)
+        .eq('team_id', teamId)
+      
+      if (error) {
+        console.error("❌ Error in getTeamManagers:", error)
+        throw error
+      }
+      
+      console.log("📊 Raw team members data:", { count: data?.length, data })
+      
+      // Filtrer côté client pour les gestionnaires uniquement
+      const managers = data
+        ?.filter((member: any) => member.user?.role === 'gestionnaire')
+        ?.map((member: any) => ({
+          id: member.user.id,
+          name: member.user.name || `${member.user.first_name || ''} ${member.user.last_name || ''}`.trim() || member.user.email,
+          role: "Gestionnaire",
+          email: member.user.email,
+          phone: member.user.phone,
+          isCurrentUser: false, // sera défini dans loadRealData()
+          type: "gestionnaire",
+          member_role: member.role,
+          joined_at: member.joined_at
+        }))
+        ?.sort((a: any, b: any) => a.name.localeCompare(b.name)) || []
+      
+      console.log("✅ Found team managers:", managers.length, managers)
+      return managers
+      
+    } catch (error) {
+      console.error("❌ Error getting team managers:", error)
+      return []
+    }
+  },
+
   async getUserContacts(userId: string) {
     const { data, error } = await supabase
       .from('contacts')
@@ -1100,92 +1156,110 @@ export const teamService = {
     return data
   },
 
+  // Cache pour éviter les appels redondants
+  _teamsCache: new Map<string, { data: any[], timestamp: number }>(),
+  _CACHE_TTL: 5 * 60 * 1000, // 5 minutes
+
   async getUserTeams(userId: string) {
     console.log("👥 teamService.getUserTeams called with userId:", userId)
     
+    // Vérifier le cache d'abord
+    const cacheKey = `teams_${userId}`
+    const cached = this._teamsCache.get(cacheKey)
+    const now = Date.now()
+    
+    if (cached && (now - cached.timestamp) < this._CACHE_TTL) {
+      console.log("✅ Returning cached teams data")
+      return cached.data
+    }
+    
     try {
-      // Première tentative : requête complexe avec jointures
-      console.log("📡 Attempting complex teams query...")
+      // Utiliser directement la requête simplifiée qui fonctionne
+      console.log("📡 Loading user teams with optimized query...")
       
-      let { data, error } = await (supabase as any)
-        .from('teams')
-        .select(`
-          *,
-          created_by_user:created_by(name, email),
-          team_members!inner(
-            id,
-            role,
-            joined_at
-          )
-        `)
-        .eq('team_members.user_id', userId)
-        .order('name')
+      // Timeout pour éviter les requêtes infinies
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Query timeout')), 10000) // 10 secondes
+      })
       
-      console.log("📊 Complex query result:", { data, error })
-      
-      // Si erreur, essayer une requête simplifiée
-      if (error) {
-        console.log("⚠️ Complex query failed, trying simple query...")
-        
-        // 1. D'abord récupérer les IDs des équipes de l'utilisateur
-        const { data: memberData, error: memberError } = await (supabase as any)
+      // 1. Récupérer les IDs des équipes de l'utilisateur avec timeout
+      const memberQuery = Promise.race([
+        supabase
           .from('team_members')
           .select('team_id, role')
-          .eq('user_id', userId)
-        
-        console.log("📊 Team members query:", { memberData, memberError })
-        
-        if (memberError) {
-          console.error("❌ Team members query error:", memberError)
-          throw memberError
-        }
-        
-        if (!memberData || memberData.length === 0) {
-          console.log("ℹ️ User is not member of any team")
-          return []
-        }
-        
-        // 2. Ensuite récupérer les détails des équipes
-        const teamIds = memberData.map((m: any) => m.team_id)
-        console.log("📝 Found team IDs:", teamIds)
-        
-        const { data: teamsData, error: teamsError } = await (supabase as any)
+          .eq('user_id', userId),
+        timeoutPromise
+      ])
+      
+      const { data: memberData, error: memberError } = await memberQuery as any
+      
+      if (memberError) {
+        console.error("❌ Team members query error:", memberError)
+        throw memberError
+      }
+      
+      if (!memberData || memberData.length === 0) {
+        console.log("ℹ️ User is not member of any team")
+        const result: any[] = []
+        this._teamsCache.set(cacheKey, { data: result, timestamp: now })
+        return result
+      }
+      
+      // 2. Récupérer les détails des équipes avec timeout
+      const teamIds = memberData.map((m: any) => m.team_id)
+      console.log("📝 Found team IDs:", teamIds)
+      
+      const teamsQuery = Promise.race([
+        supabase
           .from('teams')
           .select('*')
           .in('id', teamIds)
-          .order('name')
-        
-        console.log("📊 Teams details query:", { teamsData, teamsError })
-        
-        if (teamsError) {
-          console.error("❌ Teams details query error:", teamsError)
-          throw teamsError
-        }
-        
-        // Combiner les données
-        data = teamsData?.map((team: any) => ({
-          ...team,
-          team_members: memberData.filter((m: any) => m.team_id === team.id)
-        })) || []
-        
-        console.log("✅ Simplified query successful, combined data:", data)
+          .order('name'),
+        timeoutPromise
+      ])
+      
+      const { data: teamsData, error: teamsError } = await teamsQuery as any
+      
+      if (teamsError) {
+        console.error("❌ Teams details query error:", teamsError)
+        throw teamsError
       }
       
-      console.log("✅ User teams found:", data?.length || 0)
-      return data || []
+      // Combiner les données
+      const result = teamsData?.map((team: any) => ({
+        ...team,
+        team_members: memberData.filter((m: any) => m.team_id === team.id)
+      })) || []
+      
+      console.log("✅ User teams loaded successfully:", result.length)
+      
+      // Mettre en cache le résultat
+      this._teamsCache.set(cacheKey, { data: result, timestamp: now })
+      
+      return result
     } catch (error) {
       console.error("❌ teamService.getUserTeams error:", error)
-      console.error("📋 Error details:", {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        code: (error as any)?.code,
-        details: (error as any)?.details,
-        hint: (error as any)?.hint,
-        userId
-      })
+      
+      // Si timeout, retourner le cache même périmé si disponible
+      if (error instanceof Error && error.message === 'Query timeout' && cached) {
+        console.log("⚠️ Query timeout, returning stale cached data")
+        return cached.data
+      }
       
       // En dernier recours, retourner un tableau vide
-      console.log("⚠️ All team queries failed, returning empty array")
-      return []
+      console.log("⚠️ Team query failed, returning empty array")
+      const result: any[] = []
+      this._teamsCache.set(cacheKey, { data: result, timestamp: now })
+      return result
+    }
+  },
+  
+  // Méthode pour vider le cache si nécessaire
+  clearTeamsCache(userId?: string) {
+    if (userId) {
+      this._teamsCache.delete(`teams_${userId}`)
+    } else {
+      this._teamsCache.clear()
     }
   },
 
@@ -1454,15 +1528,29 @@ export const teamService = {
 
 // Stats Services for dashboards
 export const statsService = {
+  // Cache pour les stats pour éviter les recalculs
+  _statsCache: new Map<string, { data: any, timestamp: number }>(),
+  _STATS_CACHE_TTL: 2 * 60 * 1000, // 2 minutes pour les stats (plus court)
+
   async getManagerStats(userId: string) {
     try {
       console.log("📊 Getting manager stats for user:", userId)
       
-      // 1. Get user's team
+      // Vérifier le cache des stats
+      const cacheKey = `stats_${userId}`
+      const cached = this._statsCache.get(cacheKey)
+      const now = Date.now()
+      
+      if (cached && (now - cached.timestamp) < this._STATS_CACHE_TTL) {
+        console.log("✅ Returning cached manager stats")
+        return cached.data
+      }
+      
+      // 1. Get user's team (utilise maintenant le cache des teams)
       const userTeams = await teamService.getUserTeams(userId)
       if (!userTeams || userTeams.length === 0) {
         console.log("⚠️ No team found for user")
-        return {
+        const emptyResult = {
           buildings: [],
           lots: [],
           contacts: [],
@@ -1476,6 +1564,9 @@ export const statsService = {
             interventionsCount: 0
           }
         }
+        // Mettre en cache même le résultat vide
+        this._statsCache.set(cacheKey, { data: emptyResult, timestamp: now })
+        return emptyResult
       }
       
       const team = userTeams[0]
@@ -1580,7 +1671,7 @@ export const statsService = {
       
       console.log("📊 Final stats:", stats)
       
-      return {
+      const result = {
         buildings: formattedBuildings,
         lots,
         contacts: contacts || [],
@@ -1589,9 +1680,30 @@ export const statsService = {
         team
       }
       
+      // Mettre en cache le résultat final
+      this._statsCache.set(cacheKey, { data: result, timestamp: now })
+      
+      return result
+      
     } catch (error) {
       console.error("❌ Error in getManagerStats:", error)
+      
+      // En cas d'erreur, essayer de retourner des données en cache si disponibles
+      if (cached) {
+        console.log("⚠️ Error occurred, returning stale cached data")
+        return cached.data
+      }
+      
       throw error
+    }
+  },
+  
+  // Méthode pour vider le cache des stats
+  clearStatsCache(userId?: string) {
+    if (userId) {
+      this._statsCache.delete(`stats_${userId}`)
+    } else {
+      this._statsCache.clear()
     }
   }
 }

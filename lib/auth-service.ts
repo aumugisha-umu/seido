@@ -50,113 +50,61 @@ class AuthService {
     
     return isSignupSuccess
   }
-  // Inscription - Crée auth user + profil + équipe immédiatement
+  // Inscription - Crée auth user + profil + équipe personnelle
   async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      console.log('🚀 Starting complete signup for:', email, 'as gestionnaire')
-      
-      // Temporairement désactiver les listeners d'auth state pour éviter les conflits
-      console.log('🔧 Temporarily disabling auth state listeners during signup')
-      const isSignupInProgress = true
-
-      // Créer l'utilisateur dans Supabase Auth sans confirmation email  
+      // Créer l'utilisateur auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // Pas de redirection email
           data: {
-            signup_in_progress: true, // Flag pour identifier le processus en cours
             full_name: name,
-            first_name: first_name,
-            last_name: last_name,
-            display_name: name // Utiliser le nom complet comme display_name
+            first_name,
+            last_name,
+            display_name: name
           }
         }
       })
 
-      if (authError) {
-        console.error('❌ Auth signup error:', authError)
-        return { user: null, error: authError }
+      if (authError || !authData.user) {
+        return { user: null, error: authError || { message: 'Erreur création compte', name: 'SignUpError', status: 400 } as AuthError }
       }
 
-      if (!authData.user) {
-        return { user: null, error: { message: 'Erreur lors de la création du compte auth', name: 'SignUpError', status: 400 } as AuthError }
-      }
-
-      console.log('✅ Auth user created:', authData.user.id)
-
-      // Créer immédiatement le profil utilisateur AVANT que les listeners se déclenchent
-      const userData = {
+      // Créer le profil utilisateur
+      const userProfile = await userService.create({
         id: authData.user.id,
         email: authData.user.email!,
-        name: name,
-        first_name: first_name,
-        last_name: last_name,
+        name,
+        first_name,
+        last_name,
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
         phone: phone || null,
-      }
+      })
 
-      const userProfile = await userService.create(userData)
-      console.log('✅ User profile created successfully')
-
-      // ✅ CORRECTION: Créer explicitement l'équipe personnelle pour les VRAIS signups
-      // (les utilisateurs invités passent par l'API d'invitation)
-      console.log('🏗️ Creating personal team for direct signup user')
-      
-      const teamName = `Équipe de ${name}`
-      const team = await teamService.create({
-        name: teamName,
+      // Créer l'équipe personnelle
+      await teamService.create({
+        name: `Équipe de ${name}`,
         description: `Équipe personnelle de ${name}`,
         created_by: authData.user.id
       })
-      console.log('✅ Personal team created:', team.id)
-      
-      // Vérifier que l'utilisateur peut accéder à ses équipes
-      console.log('🔍 Verifying user can access team after creation...')
-      try {
-        const userTeams = await teamService.getUserTeams(authData.user.id)
-        console.log('✅ User teams verification successful:', userTeams.length, 'teams found')
-        console.log('📋 Teams details:', userTeams.map((t: any) => ({ id: t.id, name: t.name })))
-        
-        if (userTeams.length === 0) {
-          console.error('❌ No team found after user creation - team creation may have failed')
-        }
-      } catch (verifyError) {
-        console.error('❌ Failed to verify user teams after creation:', verifyError)
-      }
 
-      // Mettre à jour les métadonnées pour indiquer que tout est prêt
-      try {
-        await supabase.auth.updateUser({
-          data: { 
-            signup_in_progress: false,
-            profile_completed: true
-          }
-        })
-        console.log('✅ Auth metadata updated - signup process complete')
-      } catch (updateError) {
-        console.warn('⚠️ Could not update auth metadata:', updateError)
-      }
-
-      // Créer l'AuthUser à retourner
+      // Retourner l'utilisateur auth
       const authUser: AuthUser = {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
         first_name: userProfile.first_name || undefined,
         last_name: userProfile.last_name || undefined,
-        display_name: name, // Utiliser le nom complet comme display_name
+        display_name: name,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
 
-      console.log('🎉 Complete signup successful for:', authUser.name)
       return { user: authUser, error: null }
     } catch (error) {
-      console.error('❌ Signup exception:', error)
       return { user: null, error: error as AuthError }
     }
   }
@@ -164,24 +112,15 @@ class AuthService {
   // Compléter le profil après confirmation email
   async completeProfile({ firstName, lastName, phone }: CompleteProfileData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      console.log('🚀 Completing profile for authenticated user')
-      
-      // Récupérer l'utilisateur auth actuel
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
       
-      if (authError || !authUser) {
-        return { user: null, error: { message: 'Utilisateur non connecté', name: 'AuthError', status: 401 } as AuthError }
+      if (authError || !authUser || !authUser.email_confirmed_at) {
+        return { user: null, error: { message: 'Utilisateur non connecté ou email non confirmé', name: 'AuthError', status: 401 } as AuthError }
       }
-
-      if (!authUser.email_confirmed_at) {
-        return { user: null, error: { message: 'Email non confirmé', name: 'AuthError', status: 401 } as AuthError }
-      }
-
-      console.log('✅ Authenticated user found:', authUser.id)
       
-      // Créer le profil utilisateur dans notre base
+      // Créer profil utilisateur
       const fullName = `${firstName.trim()} ${lastName.trim()}`
-      const userData = {
+      const userProfile = await userService.create({
         id: authUser.id,
         email: authUser.email!,
         name: fullName,
@@ -189,36 +128,25 @@ class AuthService {
         last_name: lastName.trim(),
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
         phone: phone?.trim() || null,
-      }
+      })
 
-      const userProfile = await userService.create(userData)
-      console.log('✅ User profile created successfully')
-
-      // ✅ CORRECTION: Créer explicitement l'équipe personnelle pour completeProfile
-      // (les utilisateurs qui complètent leur profil après confirmation email)
-      console.log('🏗️ Creating personal team for profile completion')
-      
+      // Créer équipe personnelle
       const teamName = `Équipe de ${fullName}`
-      const team = await teamService.create({
+      await teamService.create({
         name: teamName,
         description: `Équipe personnelle de ${fullName}`,
         created_by: authUser.id
       })
-      console.log('✅ Personal team created:', team.id)
 
-      // Marquer le profil comme complété et mettre à jour le display_name
-      try {
-        await supabase.auth.updateUser({
-          data: { 
-            profile_completed: true,
-            display_name: fullName,
-            first_name: firstName.trim(),
-            last_name: lastName.trim()
-          }
-        })
-      } catch (updateError) {
-        console.warn('⚠️ Could not update user metadata:', updateError)
-      }
+      // Mettre à jour metadata auth
+      await supabase.auth.updateUser({
+        data: { 
+          profile_completed: true,
+          display_name: fullName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim()
+        }
+      })
 
       const user: AuthUser = {
         id: userProfile.id,
@@ -233,60 +161,33 @@ class AuthService {
         updated_at: userProfile.updated_at || undefined,
       }
 
-      console.log('🎉 Profile completed successfully for:', user.name)
       return { user, error: null }
     } catch (error) {
-      console.error('❌ CompleteProfile error:', error)
       return { user: null, error: error as AuthError }
     }
   }
 
-  // Connexion - Crée le profil utilisateur mais pas l'équipe
+  // Connexion - Vérifie ou crée le profil utilisateur
   async signIn({ email, password }: SignInData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      console.log('🔐 Starting signIn for:', email)
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      
-      console.log('📊 [AUTH-SERVICE] SignIn response:', {
-        hasData: !!data,
-        hasUser: !!data?.user,
-        hasError: !!error,
-        errorMessage: error?.message,
-        userId: data?.user?.id
-      })
 
-      if (error) {
-        console.error('❌ Auth error:', error.message)
-        return { user: null, error }
+      if (error || !data.user) {
+        return { user: null, error: error || { message: 'Utilisateur non trouvé', name: 'SignInError', status: 401 } as AuthError }
       }
 
-      if (!data.user) {
-        console.error('❌ No user in auth response')
-        return { user: null, error: { message: 'Utilisateur non trouvé', name: 'SignInError', status: 401 } as AuthError }
-      }
-
-      console.log('✅ Auth successful for user:', data.user.id)
-      console.log('📧 User email confirmed:', !!data.user.email_confirmed_at)
-      console.log('👤 User metadata:', JSON.stringify(data.user.user_metadata, null, 2))
-
-      // Vérifier si le profil utilisateur existe
+      // Vérifier si profil existe, sinon créer
       let userProfile
-      
       try {
         userProfile = await userService.getById(data.user.id)
-        console.log('✅ User profile found')
       } catch (profileError) {
-        console.log('📝 Creating user profile from metadata...')
-        
-        // Créer le profil à partir des métadonnées d'inscription
+        // Créer profil depuis metadata
         const metadata = data.user.user_metadata
-        
         if (metadata && metadata.full_name) {
-          const userData = {
+          userProfile = await userService.create({
             id: data.user.id,
             email: data.user.email!,
             name: metadata.full_name,
@@ -294,26 +195,15 @@ class AuthService {
             last_name: metadata.last_name || null,
             role: 'gestionnaire' as Database['public']['Enums']['user_role'],
             phone: metadata.phone || null,
-          }
-
-          userProfile = await userService.create(userData)
-          console.log('✅ Profile created successfully')
-
-          // Marquer le profil comme créé
-          try {
-            await supabase.auth.updateUser({
-              data: { ...metadata, profile_created: true }
-            })
-          } catch (updateError) {
-            console.warn('⚠️ Could not update user metadata:', updateError)
-          }
+          })
+          
+          await supabase.auth.updateUser({
+            data: { ...metadata, profile_created: true }
+          })
         } else {
           throw new Error('Cannot create profile - missing signup metadata')
         }
       }
-
-      // Récupérer le display_name depuis les métadonnées auth pour signIn aussi
-      const displayName = data.user.user_metadata?.display_name || userProfile.name
 
       const authUser: AuthUser = {
         id: userProfile.id,
@@ -321,17 +211,15 @@ class AuthService {
         name: userProfile.name,
         first_name: userProfile.first_name || undefined,
         last_name: userProfile.last_name || undefined,
-        display_name: displayName,
+        display_name: data.user.user_metadata?.display_name || userProfile.name,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
 
-      console.log('🎉 Login successful for:', authUser.name, '(' + authUser.role + ')')
       return { user: authUser, error: null }
     } catch (error) {
-      console.error('❌ SignIn error:', error)
       return { user: null, error: error as AuthError }
     }
   }
@@ -344,22 +232,13 @@ class AuthService {
 
   // Récupérer seulement la session auth (sans profil utilisateur)
   async getCurrentAuthSession(): Promise<{ authUser: any | null; error: AuthError | null }> {
-    try {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser()
-
-      if (error || !authUser) {
-        return { authUser: null, error: null }
-      }
-
-      // Si pas confirmé, pas d'accès
-      if (!authUser.email_confirmed_at) {
-        return { authUser: null, error: null }
-      }
-
-      return { authUser, error: null }
-    } catch (error) {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser()
+    
+    if (error || !authUser || !authUser.email_confirmed_at) {
       return { authUser: null, error: null }
     }
+    
+    return { authUser, error: null }
   }
 
   // Récupérer l'utilisateur actuel
@@ -376,53 +255,34 @@ class AuthService {
         return { user: null, error: null }
       }
 
-      // Récupérer le profil utilisateur
-      try {
-        const userProfile = await userService.getById(authUser.id)
-        
-        // Récupérer le display_name depuis les métadonnées auth
-        const { data: { user: authUserData } } = await supabase.auth.getUser()
-        const displayName = authUserData?.user_metadata?.display_name || userProfile.name
-
+      // ✅ SIMPLIFIÉ: Utiliser JWT metadata directement (comme onAuthStateChange)
+      if (authUser.email) {
         const user: AuthUser = {
-          id: userProfile.id,
-          email: userProfile.email,
-          name: userProfile.name,
-          first_name: userProfile.first_name || undefined,
-          last_name: userProfile.last_name || undefined,
-          display_name: displayName,
-          role: userProfile.role,
-          phone: userProfile.phone || undefined,
-          created_at: userProfile.created_at || undefined,
-          updated_at: userProfile.updated_at || undefined,
+          id: authUser.id,
+          email: authUser.email!,
+          name: authUser.user_metadata?.full_name || authUser.user_metadata?.display_name || 'Utilisateur',
+          first_name: authUser.user_metadata?.first_name || undefined,
+          last_name: authUser.user_metadata?.last_name || undefined,
+          display_name: authUser.user_metadata?.display_name || undefined,
+          role: (authUser.user_metadata?.role as Database['public']['Enums']['user_role']) || 'gestionnaire',
+          phone: authUser.user_metadata?.phone || undefined,
+          created_at: undefined,
+          updated_at: undefined,
         }
+
+        console.log('✅ [AUTH-SERVICE] getCurrentUser from JWT (no DB call):', {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          source: 'JWT_METADATA_ONLY'
+        })
 
         return { user, error: null }
-      } catch (profileError) {
-        console.error('❌ Error fetching user profile in getCurrentUser:', {
-          authUserId: authUser.id,
-          authEmail: authUser.email,
-          error: profileError instanceof Error ? {
-            name: profileError.name,
-            message: profileError.message,
-            stack: profileError.stack
-          } : String(profileError),
-          errorKeys: profileError ? Object.keys(profileError) : []
-        })
-        // CORRECTION : Être plus prudent avec le nettoyage des sessions
-        // Ne pas nettoyer immédiatement - peut être un problème temporaire
-        console.log('⚠️ [AUTH-PROTECTION] Profile not found for auth user - this might be temporary')
-        
-        // Vérifier si on est sur la page signup-success - ne pas nettoyer les sessions ici
-        if (this.isOnSignupSuccessPage()) {
-          console.log('📍 [AUTH-PROTECTION] On signup-success page - skipping session cleanup')
-        } else {
-          console.log('🔄 [AUTH-PROTECTION] Profile fetch failed - keeping session for stability (will retry on auth state change)')
-        }
-        
-        // Profil non trouvé
-        return { user: null, error: null }
       }
+      
+      // Fallback si pas d'email
+      return { user: null, error: null }
     } catch (error) {
       return { user: null, error: null }
     }
@@ -502,60 +362,51 @@ class AuthService {
   // Écouter les changements d'état d'authentification
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
     return supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state change:', event)
-      
-      // Si pas de session ou utilisateur pas confirmé → callback null
       if (!session?.user || !session.user.email_confirmed_at) {
         callback(null)
         return
       }
 
-      // Pour tous les événements avec session valide, essayer de récupérer le profil
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         try {
-          console.log('🔍 Fetching user profile for auth user:', session.user.id)
-          
-          // Timeout pour éviter le blocage infini
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-          )
-          
-          const profilePromise = userService.getById(session.user.id)
-          const userProfile = await Promise.race([profilePromise, timeoutPromise])
-          
-          // Récupérer le display_name depuis les métadonnées auth
-          const displayName = session.user.user_metadata?.display_name || userProfile.name
-
-          const user: AuthUser = {
-            id: userProfile.id,
-            email: userProfile.email,
-            name: userProfile.name,
-            first_name: userProfile.first_name || undefined,
-            last_name: userProfile.last_name || undefined,
-            display_name: displayName,
-            role: userProfile.role,
-            phone: userProfile.phone || undefined,
-            created_at: userProfile.created_at || undefined,
-            updated_at: userProfile.updated_at || undefined,
+          // ✅ TOUJOURS utiliser JWT metadata - évite les race conditions signup
+          if (session.user.email) {
+            const user: AuthUser = {
+              id: session.user.id,
+              email: session.user.email!,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.display_name || 'Utilisateur',
+              first_name: session.user.user_metadata?.first_name || undefined,
+              last_name: session.user.user_metadata?.last_name || undefined,
+              display_name: session.user.user_metadata?.display_name || undefined,
+              role: (session.user.user_metadata?.role as Database['public']['Enums']['user_role']) || 'gestionnaire',
+              phone: undefined,
+              created_at: undefined,
+              updated_at: undefined,
+            }
+            console.log('✅ [AUTH-SERVICE] User created from JWT (race condition avoided):', {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              source: 'JWT_ONLY_NO_DB_CALL'
+            })
+            callback(user)
+            return
           }
           
-          console.log('✅ Auth state updated for:', user.name)
-          callback(user)
+          // ❌ FALLBACK SUPPRIMÉ - Causait race condition signup
+          console.log('⚠️ [AUTH-SERVICE] No email in session, using minimal fallback')
+          const fallbackUser: AuthUser = {
+            id: session.user.id,
+            email: 'unknown@email.com',
+            name: 'Utilisateur',
+            role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+            phone: undefined,
+            created_at: undefined,
+            updated_at: undefined,
+          }
+          callback(fallbackUser)
         } catch (error) {
-          console.error('❌ Error fetching user profile in auth state change:', {
-            authUserId: session.user.id,
-            authEmail: session.user.email,
-            event: event,
-            error: error instanceof Error ? {
-              name: error.name,
-              message: error.message
-            } : String(error)
-          })
-          
-          console.log('🚨 [AUTH-SERVICE] Profile fetch failed or timeout - resolving auth state anyway')
-          
-          // CORRECTION CRITIQUE : Ne pas bloquer l'auth à cause d'un profil manquant
-          // Résoudre l'état d'auth même si le profil ne charge pas
           callback(null)
         }
       } else {

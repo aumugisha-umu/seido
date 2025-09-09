@@ -58,29 +58,40 @@ export const userService = {
   },
 
   async getById(id: string) {
-    console.log('🔍 Getting user by ID:', id)
+    // S'assurer que l'ID est une string (pas un objet)
+    const userId = typeof id === 'string' ? id : String(id)
+    
+    console.log('🔍 [DATABASE-SERVICE] Getting user by ID:', {
+      requestedId: userId,
+      originalType: typeof id,
+      timestamp: new Date().toISOString()
+    })
     
     // Validate input
-    if (!id) {
+    if (!userId) {
       const error = new Error('User ID is required')
-      console.error('❌ Database error in getById: Missing user ID')
+      console.error('❌ [DATABASE-SERVICE] Missing user ID')
       throw error
     }
     
+    // Auth context check not needed (RLS désactivé)
+    
     try {
+      // Note: RLS désactivé pour l'instant donc pas de vérification nécessaire
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', id)
+        .eq('id', userId)
         .single()
       
       if (error) {
-        console.error('❌ Database error in getById:', {
+        console.error('❌ [DATABASE-SERVICE] Supabase error in getById:', {
           message: error.message || 'Unknown error',
           code: error.code || 'NO_CODE',
           details: error.details || 'No details',
           hint: error.hint || 'No hint',
-          userId: id,
+          userId: userId,
           errorName: error.name || 'Unknown error name',
           fullError: JSON.stringify(error, null, 2)
         })
@@ -89,11 +100,19 @@ export const userService = {
       
       if (!data) {
         const notFoundError = new Error(`User not found with ID: ${id}`)
-        console.error('❌ User not found:', { userId: id })
+        console.error('❌ User not found:', { userId: userId })
         throw notFoundError
       }
       
-      console.log('✅ User found:', data?.name || 'Unknown name')
+      console.log('✅ [DATABASE-SERVICE] User found:', {
+        name: data?.name || 'Unknown name',
+        id: data?.id,
+        email: data?.email,
+        role: data?.role,
+        team_id: data?.team_id,
+        allKeys: Object.keys(data || {}),
+        fullData: data
+      })
       return data
     } catch (error) {
       // Enhanced error logging for debugging

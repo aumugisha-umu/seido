@@ -228,7 +228,6 @@ export default function InterventionsPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Interventions</h1>
-          <p className="text-gray-600">Gérez toutes vos demandes d'intervention depuis cette page centrale</p>
         </div>
         <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
           <Plus className="h-4 w-4 mr-2" />

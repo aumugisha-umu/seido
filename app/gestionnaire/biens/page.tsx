@@ -9,7 +9,6 @@ export default function BiensPage() {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Mon Patrimoine</h1>
-          <p className="text-gray-600">Gestion et vue d'ensemble de votre patrimoine immobilier</p>
         </div>
 
         <PropertySelector mode="view" title="Portfolio Immobilier" showActions={true} />

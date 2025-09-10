@@ -2,7 +2,8 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Building2, Users, Bell, Wrench, MessageSquare, FileText } from "lucide-react"
+import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X } from "lucide-react"
+import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -67,6 +68,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
 }
 
 export default function DashboardHeader({ role }: DashboardHeaderProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user } = useAuth()
   const pathname = usePathname()
@@ -88,78 +90,162 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
     return false
   }
 
-  return (
-    <header className="border-b bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex items-center justify-between h-16">
-          {/* Logo à gauche */}
-          <div className="flex items-center">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">S</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">{config.title}</span>
-              {config.subtitle && (
-                <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded font-medium">{config.subtitle}</span>
-              )}
-            </div>
-          </div>
+  // Fermer le menu mobile lors du changement de route
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
-          {/* Navigation au centre */}
-          <div className="flex items-center space-x-2">
-            {config.navigation.map((item) => {
-              const Icon = item.icon
-              const isActive = isActivePage(item.href)
-              
-              return (
+  // Empêcher le scroll quand le menu mobile est ouvert
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobileMenuOpen])
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex items-center justify-between h-16">
+            {/* Logo à gauche */}
+            <div className="flex items-center">
+              <div className="flex items-center">
+                {/* Logo SEIDO - Cliquable vers dashboard */}
+                <div className="flex-shrink-0">
+                  <Link href={`/${role}/dashboard`} className="block">
+                    <Image 
+                      src="/images/Seido_Main_Side_last.png"
+                      alt="SEIDO"
+                      width={140}
+                      height={38}
+                      className="h-10 w-auto hover:opacity-80 transition-opacity duration-200"
+                    />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation desktop - cachée sur mobile et tablet */}
+            <div className="hidden lg:flex items-center space-x-1">
+              {config.navigation.map((item) => {
+                const Icon = item.icon
+                const isActive = isActivePage(item.href)
+                
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`
+                      flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
+                      ${isActive 
+                        ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
+                        : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 hover:scale-[1.02] hover:shadow-sm'
+                      }
+                    `}
+                  >
+                    <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-slate-900'}`} />
+                    <span className="transition-all duration-200">{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Éléments droite */}
+            <div className="flex items-center space-x-2">
+              {/* Notifications - toujours visible */}
+              {config.showUserElements && (
                 <Link
-                  key={item.href}
-                  href={item.href}
+                  href={`/${role}/notifications`}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
-                    ${isActive 
+                    relative p-2 rounded-lg transition-all duration-200 border min-w-[44px] min-h-[44px] flex items-center justify-center
+                    ${pathname.includes('/notifications') 
                       ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
-                      : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100 hover:border-gray-300 hover:scale-[1.02] hover:shadow-sm'
+                      : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300'
                     }
                   `}
+                  aria-label="Notifications"
                 >
-                  <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-gray-900'}`} />
-                  <span className="transition-all duration-200">{item.label}</span>
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-1 right-1 w-3 h-3 bg-primary text-white text-xs rounded-full flex items-center justify-center">
+                    3
+                  </span>
                 </Link>
-              )
-            })}
-          </div>
+              )}
 
-          {/* Éléments utilisateur à droite */}
-          {config.showUserElements && (
-            <div className="flex items-center space-x-4">
-              {/* Icône notifications uniquement */}
-              <Link
-                href={`/${role}/notifications`}
-                className={`
-                  relative p-2 rounded-lg transition-all duration-200 border
-                  ${pathname.includes('/notifications') 
-                    ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
-                    : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100 hover:border-gray-300 hover:scale-[1.02] hover:shadow-sm'
-                  }
-                `}
+              {/* Menu utilisateur - toujours visible */}
+              {config.showUserElements && (
+                <UserMenu 
+                  userName={userName} 
+                  userInitial={userInitial} 
+                  role={role} 
+                />
+              )}
+
+              {/* Bouton hamburger - mobile et tablet uniquement */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-300 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Menu de navigation"
+                aria-expanded={isMobileMenuOpen}
               >
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-3 h-3 bg-primary text-white text-xs rounded-full flex items-center justify-center">
-                  3
-                </span>
-              </Link>
-
-              {/* Menu utilisateur avec dropdown */}
-              <UserMenu 
-                userName={userName} 
-                userInitial={userInitial} 
-                role={role} 
-              />
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
             </div>
-          )}
-        </nav>
-      </div>
-    </header>
+          </nav>
+        </div>
+      </header>
+
+      {/* Menu mobile/tablet overlay */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40">
+          {/* Overlay backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* Menu panel */}
+          <div className="fixed top-16 inset-x-0 bg-white border-b border-slate-200 shadow-lg">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+              <nav className="space-y-2">
+                {config.navigation.map((item) => {
+                  const Icon = item.icon
+                  const isActive = isActivePage(item.href)
+                  
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`
+                        flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px]
+                        ${isActive 
+                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
+                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300'
+                        }
+                      `}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Icon className={`h-6 w-6 ${isActive ? 'text-primary' : ''}`} />
+                      <span className="text-base">{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </nav>
+
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

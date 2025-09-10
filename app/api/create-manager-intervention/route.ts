@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   console.log("🔧 create-manager-intervention API route called")
   
   try {
-    // Get the authenticated user
+    // Get the authenticated user 
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

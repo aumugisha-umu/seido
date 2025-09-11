@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Home, Users, Search, Filter, MapPin, Eye, ChevronDown, ChevronRight, User } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Building2, Home, Users, Search, Filter, MapPin, Eye, ChevronDown, ChevronRight, ChevronUp, User, Settings, Plus, AlertCircle, Calendar, Zap } from "lucide-react"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 
 interface PropertySelectorProps {
@@ -19,8 +20,6 @@ interface PropertySelectorProps {
   selectedBuildingId?: number
   selectedLotId?: number
   showActions?: boolean
-  title?: string
-  subtitle?: string
 }
 
 export default function PropertySelector({
@@ -30,11 +29,10 @@ export default function PropertySelector({
   selectedBuildingId,
   selectedLotId,
   showActions = true,
-  title = "Portfolio Immobilier",
-  subtitle,
 }: PropertySelectorProps) {
   const router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<number[]>([])
+  const [showFilters, setShowFilters] = useState(false)
   const { data, loading, error } = useManagerStats()
 
   const buildings = data?.buildings || []
@@ -62,150 +60,242 @@ export default function PropertySelector({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
+      <CardHeader className="space-y-2 pb-2 sm:space-y-3 sm:pb-3">
+        {/* Mobile-First Compact Stats & Actions */}
+        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          {/* Stats - Ultra Compact Mobile */}
+          <div className="flex items-center justify-between sm:justify-start space-x-3 sm:space-x-6">
+            <div className="flex items-center space-x-1.5">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-sky-100 rounded-md flex items-center justify-center">
+                <Building2 className="h-3 w-3 sm:h-4 sm:w-4 text-sky-600" />
+              </div>
+              <div>
+                {loading ? (
+                  <Skeleton className="h-4 w-6 sm:w-12" />
+                ) : (
+                  <>
+                    <div className="text-sm sm:text-lg font-semibold text-slate-900 leading-none">{buildings.length}</div>
+                    <div className="hidden sm:block text-xs text-slate-600">Bâtiments</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-1.5">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-amber-100 rounded-md flex items-center justify-center">
+                <Home className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
+              </div>
+              <div>
+                {loading ? (
+                  <Skeleton className="h-4 w-6 sm:w-12" />
+                ) : (
+                  <>
+                    <div className="text-sm sm:text-lg font-semibold text-slate-900 leading-none">{getTotalLots()}</div>
+                    <div className="hidden sm:block text-xs text-slate-600">Lots</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-1.5">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 rounded-md flex items-center justify-center">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" />
+              </div>
+              <div>
+                {loading ? (
+                  <Skeleton className="h-4 w-8 sm:w-16" />
+                ) : (
+                  <>
+                    <div className="text-sm sm:text-lg font-semibold text-slate-900 leading-none">{getOverallOccupancyRate()}%</div>
+                    <div className="hidden sm:block text-xs text-slate-600">Occupés</div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <Building2 className="h-4 w-4 text-blue-500" />
-              {loading ? (
-                <Skeleton className="h-4 w-20" />
-              ) : (
-                <span className="text-sm font-medium">{buildings.length} Bâtiments</span>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <Home className="h-4 w-4 text-orange-500" />
-              {loading ? (
-                <Skeleton className="h-4 w-16" />
-              ) : (
-                <span className="text-sm font-medium">{getTotalLots()} Lots</span>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-green-500" />
-              {loading ? (
-                <Skeleton className="h-4 w-20" />
-              ) : (
-                <span className="text-sm font-medium">{getOverallOccupancyRate()}% Occupés</span>
-              )}
-            </div>
-          </div>
+
+          {/* Actions - Mobile Responsive */}
           {showActions && mode === "view" && (
-            <div className="flex items-center space-x-2">
+            <div className="flex gap-2 sm:gap-3">
               <Button 
                 size="sm" 
-                className="flex items-center space-x-2"
+                className="flex-1 sm:flex-none h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500"
                 onClick={() => router.push('/gestionnaire/nouveau-batiment')}
               >
-                <Building2 className="h-4 w-4" />
-                <span>Nouveau bâtiment</span>
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                <span>Bâtiment</span>
               </Button>
               <Button 
                 size="sm" 
-                variant="outline" 
-                className="flex items-center space-x-2 bg-transparent"
+                className="flex-1 sm:flex-none h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500"
                 onClick={() => router.push('/gestionnaire/nouveau-lot')}
               >
-                <Home className="h-4 w-4" />
-                <span>Nouveau lot</span>
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                <span>Lot</span>
               </Button>
             </div>
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search Bar */}
+      <CardContent className="space-y-2 pt-0 sm:space-y-3">
+        {/* Search Bar - Mobile Compact */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input placeholder="Rechercher une adresse ou un lot..." className="pl-10" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-3 w-3 sm:h-4 sm:w-4" />
+          <Input 
+            placeholder="Rechercher..." 
+            className="pl-9 sm:pl-10 text-sm h-8 sm:h-10 sm:text-base"
+          />
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filtres</span>
+        <Tabs defaultValue="buildings" className="space-y-2">
+          {/* Tabs & Filters Same Line */}
+          <div className="flex items-center justify-between gap-2">
+            <TabsList className="h-8 sm:h-9 flex-1">
+              <TabsTrigger value="buildings" className="text-xs sm:text-sm flex-1 py-1">
+                Bâtiments ({buildings.length})
+              </TabsTrigger>
+              <TabsTrigger value="individual-lots" className="text-xs sm:text-sm flex-1 py-1">
+                Lots ({individualLots.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Filters Toggle - Compact Mobile */}
+            <div className="relative">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 text-slate-600 hover:text-slate-900 flex items-center justify-center sm:justify-start"
+                >
+                  <Filter className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Filtres</span>
+                  <ChevronDown className={`hidden sm:inline h-4 w-4 ml-1 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                </Button>
+                
+                {showFilters && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="hidden sm:flex h-8 px-3 text-xs text-slate-500 hover:text-slate-700 relative z-20"
+                  >
+                    Effacer
+                  </Button>
+                )}
+              </div>
+
+              {/* Filters Floating Panel */}
+              {showFilters && (
+                <>
+                  {/* Invisible click area to close */}
+                  <div 
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowFilters(false)}
+                  />
+                  
+                  {/* Filters Panel - Mobile Optimized */}
+                  <div className="fixed top-20 left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-1 sm:w-80 bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-3 sm:p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <div className="space-y-2 sm:space-y-3">
+                      <Select defaultValue="all-types">
+                        <SelectTrigger className="w-full h-8 sm:h-9 text-xs sm:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all-types">Tous les types</SelectItem>
+                          <SelectItem value="building">Bâtiments</SelectItem>
+                          <SelectItem value="lot">Lots</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select defaultValue="all-occupations">
+                        <SelectTrigger className="w-full h-8 sm:h-9 text-xs sm:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all-occupations">Toutes occupations</SelectItem>
+                          <SelectItem value="occupied">Occupés</SelectItem>
+                          <SelectItem value="vacant">Vacants</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select defaultValue="all-interventions">
+                        <SelectTrigger className="w-full h-8 sm:h-9 text-xs sm:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all-interventions">Toutes interventions</SelectItem>
+                          <SelectItem value="pending">En attente</SelectItem>
+                          <SelectItem value="in-progress">En cours</SelectItem>
+                          <SelectItem value="completed">Terminées</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Close button - Mobile Friendly */}
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100 sm:justify-end sm:mt-3 sm:pt-3">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setShowFilters(false)}
+                        className="sm:hidden h-7 px-3 text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        Effacer
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setShowFilters(false)}
+                        className="h-7 px-3 text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        Fermer
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-
-          <Select defaultValue="all-types">
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all-types">Tous les types</SelectItem>
-              <SelectItem value="building">Bâtiments</SelectItem>
-              <SelectItem value="lot">Lots</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select defaultValue="all-occupations">
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all-occupations">Toutes occupations</SelectItem>
-              <SelectItem value="occupied">Occupés</SelectItem>
-              <SelectItem value="vacant">Vacants</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select defaultValue="all-interventions">
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all-interventions">Toutes interventions</SelectItem>
-              <SelectItem value="pending">En attente</SelectItem>
-              <SelectItem value="in-progress">En cours</SelectItem>
-              <SelectItem value="completed">Terminées</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button variant="ghost" size="sm">
-            ✕
-          </Button>
-        </div>
-
-        <Tabs defaultValue="buildings" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="buildings">Bâtiments ({buildings.length})</TabsTrigger>
-            <TabsTrigger value="individual-lots">Lots individuels ({individualLots.length})</TabsTrigger>
-          </TabsList>
 
           <TabsContent value="buildings">
             <div className="space-y-4">
               {loading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="border rounded-lg">
-                      <div className="flex items-center justify-between p-4 bg-gray-50">
-                        <div className="flex items-center space-x-4">
-                          <Skeleton className="h-8 w-8 rounded" />
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg" />
-                          <div>
-                            <Skeleton className="h-4 w-32 mb-2" />
-                            <Skeleton className="h-3 w-48" />
+                    <Card key={i} className="overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-center space-x-3">
+                            <Skeleton className="h-10 w-10 rounded-lg" />
+                            <div className="flex-1 space-y-2">
+                              <Skeleton className="h-5 w-32" />
+                              <Skeleton className="h-4 w-48" />
+                            </div>
+                            <Skeleton className="h-8 w-20" />
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <Skeleton className="h-6 w-16" />
+                            <Skeleton className="h-6 w-20" />
+                            <Skeleton className="h-6 w-12" />
                           </div>
                         </div>
-                        <div className="flex items-center space-x-6">
-                          <Skeleton className="h-4 w-16" />
-                          <Skeleton className="h-4 w-20" />
-                          <Skeleton className="h-8 w-16" />
-                        </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : buildings.length === 0 ? (
-                <div className="text-center py-12">
-                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun bâtiment</h3>
-                  <p className="text-gray-600 mb-4">Commencez par ajouter votre premier bâtiment</p>
-                  <Button onClick={() => router.push('/gestionnaire/nouveau-batiment')}>
+                <div className="text-center py-12 px-4">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Building2 className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun bâtiment</h3>
+                  <p className="text-slate-600 mb-6 max-w-sm mx-auto">
+                    Commencez par ajouter votre premier bâtiment pour gérer votre portfolio immobilier
+                  </p>
+                  <Button 
+                    size="lg"
+                    onClick={() => router.push('/gestionnaire/nouveau-batiment')}
+                    className="w-full sm:w-auto"
+                  >
                     <Building2 className="h-4 w-4 mr-2" />
                     Ajouter un bâtiment
                   </Button>
@@ -213,138 +303,147 @@ export default function PropertySelector({
               ) : (
                 buildings.map((building) => {
                 const isExpanded = expandedBuildings.includes(building.id)
-                const occupiedLots = building.lots.filter((lot) => lot.status === "occupied").length
-                const totalInterventions = building.lots.reduce((sum, lot) => sum + lot.interventions, 0)
+                const occupiedLots = building.lots.filter((lot: any) => lot.status === "occupied").length
+                const totalInterventions = building.lots.reduce((sum: number, lot: any) => sum + lot.interventions, 0)
                 const isSelected = selectedBuildingId === building.id
 
                 return (
-                  <div key={building.id} className={`border rounded-lg ${isSelected ? "ring-2 ring-blue-500" : ""}`}>
-                    {/* Building Header */}
-                    <div className="flex items-center justify-between p-4 bg-gray-50">
-                      <div className="flex items-center space-x-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleBuildingExpansion(building.id)}
-                          className="p-1"
-                        >
-                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        </Button>
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Building2 className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-gray-900">{building.name}</h3>
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {building.address}, {building.city}, {building.country || 'Belgique'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-6">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{building.lots.length} lots</p>
-                          <div className="flex items-center space-x-2">
-                            <Users className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-600">
-                              {occupiedLots}/{building.lots.length} occupés
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="text-xs text-gray-600">{totalInterventions} interventions</span>
-                        </div>
-
-                        {mode === "select" ? (
-                          <Button
-                            variant={isSelected ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              if (isSelected) {
-                                onBuildingSelect?.(0)
-                              } else {
-                                onBuildingSelect?.(building.id)
-                              }
-                            }}
-                          >
-                            {isSelected ? "Sélectionné" : "Sélectionner le bâtiment"}
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => router.push(`/gestionnaire/biens/${building.id}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Gérer
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Lots List (Expandable) */}
-                    {isExpanded && (
-                      <div className="border-t bg-white">
-                        <div className="p-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-3">Lots ({building.lots.length})</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-                            {building.lots.map((lot) => {
-                              const isLotSelected = selectedLotId === lot.id
-                              return (
-                                <Card
-                                  key={lot.id}
-                                  className={`transition-all duration-200 hover:shadow-md ${
-                                    isLotSelected ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
-                                  }`}
+                  <Card key={building.id} className={`group hover:shadow-sm transition-all duration-200 ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
+                    <CardContent className="p-0">
+                      {/* Mobile-First Compact Design */}
+                      <div className="p-3 sm:p-4">
+                        {/* Header Row - Mobile Vertical Stack */}
+                        <div className="space-y-3">
+                          {/* Top Row: Icon + Title + Action */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-sky-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-semibold text-base sm:text-lg text-slate-900 truncate">{building.name}</h3>
+                                <div className="flex items-center text-xs sm:text-sm text-slate-600 mt-0.5">
+                                  <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                  <span className="truncate">{building.address}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Action Button - Mobile Responsive */}
+                            <div className="flex-shrink-0 ml-2">
+                              {mode === "select" ? (
+                                <Button
+                                  variant={isSelected ? "default" : "outline"}
+                                  size="sm"
+                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      onBuildingSelect?.(0)
+                                    } else {
+                                      onBuildingSelect?.(building.id)
+                                    }
+                                  }}
                                 >
-                                  <CardContent className="p-5 h-full flex flex-col justify-between relative">
-                                    {/* Status badge in top right */}
-                                    <div className="absolute top-4 right-4">
-                                      <Badge
-                                        variant={lot.status === "occupied" ? "default" : "secondary"}
-                                        className="text-xs"
-                                      >
-                                        {lot.status === "occupied" ? "Occupé" : "Vacant"}
-                                      </Badge>
-                                    </div>
+                                  <span className="hidden sm:inline">{isSelected ? "✓ Sélectionné" : "Sélectionner"}</span>
+                                  <span className="sm:hidden">{isSelected ? "✓" : "Sélectionner"}</span>
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
+                                  onClick={() => router.push(`/gestionnaire/biens/${building.id}`)}
+                                >
+                                  <Eye className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                                  <span className="hidden sm:inline ml-1">Gérer</span>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
 
-                                    {/* Top section: Lot name and floor */}
-                                    <div className="flex-shrink-0">
-                                      <div className="font-medium text-gray-900 text-lg pr-20">{lot.reference}</div>
-                                      <div className="text-sm text-gray-500 mt-1">Étage {lot.floor}</div>
-                                    </div>
+                          {/* Stats Row - Mobile Optimized */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-1.5">
+                                <div className="w-5 h-5 bg-amber-100 rounded-md flex items-center justify-center">
+                                  <Home className="h-3 w-3 text-amber-600" />
+                                </div>
+                                <span className="text-sm font-medium text-slate-900">{building.lots.length}</span>
+                                <span className="text-xs text-slate-600">lots</span>
+                              </div>
+                              
+                              <div className="flex items-center space-x-1.5">
+                                <div className="w-5 h-5 bg-emerald-100 rounded-md flex items-center justify-center">
+                                  <Users className="h-3 w-3 text-emerald-600" />
+                                </div>
+                                <span className="text-sm font-medium text-slate-900">{occupiedLots}</span>
+                                <span className="text-xs text-slate-600 hidden sm:inline">occupés</span>
+                              </div>
 
-                                    {/* Middle section: Tenant info and interventions */}
-                                    <div className="flex-grow flex flex-col space-y-3 py-4 justify-start">
-                                      {lot.tenant ? (
-                                        <div className="flex items-center space-x-2">
-                                          <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                          <span className="text-sm text-gray-700 truncate">{lot.tenant}</span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center space-x-2">
-                                          <User className="h-4 w-4 text-gray-300 flex-shrink-0" />
-                                          <span className="text-sm text-gray-400">Aucun locataire</span>
-                                        </div>
-                                      )}
+                              {totalInterventions > 0 && (
+                                <div className="flex items-center space-x-1.5">
+                                  <div className="w-5 h-5 bg-red-100 rounded-md flex items-center justify-center">
+                                    <AlertCircle className="h-3 w-3 text-red-600" />
+                                  </div>
+                                  <span className="text-sm font-medium text-red-700">{totalInterventions}</span>
+                                </div>
+                              )}
+                            </div>
 
-                                      {lot.interventions > 0 && (
-                                        <div>
-                                          <span className="text-sm text-orange-600 font-medium">
-                                            {lot.interventions} intervention{lot.interventions > 1 ? "s" : ""}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
+                            {/* Expand Toggle - Mobile Friendly */}
+                            {building.lots.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleBuildingExpansion(building.id)}
+                                className="h-7 px-2 text-xs text-slate-500 hover:text-slate-900"
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )}
+                                <span className="ml-1 hidden sm:inline">
+                                  {isExpanded ? "Réduire" : "Lots"}
+                                </span>
+                              </Button>
+                            )}
+                          </div>
 
-                                    {/* Bottom section: Action button */}
-                                    <div className="flex-shrink-0 flex justify-end pt-2">
-                                      {mode === "select" ? (
+                          {/* Lots Preview - Mobile Compact */}
+                          {building.lots.length > 0 && !isExpanded && (
+                            <div className="grid grid-cols-1 gap-2">
+                              {building.lots.slice(0, 2).map((lot: any) => {
+                                const isLotSelected = selectedLotId === lot.id
+                                return (
+                                  <div
+                                    key={lot.id}
+                                    className={`p-2.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                      isLotSelected ? "ring-1 ring-sky-500 bg-sky-50" : ""
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                        <div className="font-medium text-sm text-slate-900">{lot.reference}</div>
+                                        <Badge
+                                          variant={lot.status === "occupied" ? "default" : "secondary"}
+                                          className="text-xs h-4 px-1.5"
+                                        >
+                                          {lot.status === "occupied" ? "Occupé" : "Vacant"}
+                                        </Badge>
+                                        {lot.tenant && (
+                                          <div className="flex items-center text-xs text-slate-600 truncate">
+                                            <User className="h-3 w-3 mr-1" />
+                                            <span className="truncate max-w-20">{lot.tenant}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {mode === "select" && (
                                         <Button
                                           variant={isLotSelected ? "default" : "outline"}
                                           size="sm"
+                                          className="h-6 px-2 text-xs ml-2"
                                           onClick={() => {
                                             if (isLotSelected) {
                                               onLotSelect?.(0)
@@ -353,29 +452,98 @@ export default function PropertySelector({
                                             }
                                           }}
                                         >
-                                          {isLotSelected ? "Sélectionné" : "Sélectionner"}
-                                        </Button>
-                                      ) : (
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm" 
-                                          className="flex items-center space-x-1"
-                                          onClick={() => router.push(`/gestionnaire/biens/${building.id}?lot=${lot.id}`)}
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                          <span>Détails</span>
+                                          {isLotSelected ? "✓" : "Select"}
                                         </Button>
                                       )}
                                     </div>
-                                  </CardContent>
-                                </Card>
-                              )
-                            })}
-                          </div>
+                                  </div>
+                                )
+                              })}
+                              
+                              {building.lots.length > 2 && (
+                                <div className="text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleBuildingExpansion(building.id)}
+                                    className="h-7 px-3 text-xs text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 w-full"
+                                  >
+                                    +{building.lots.length - 2} autres lots
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Expanded Lots View */}
+                          {isExpanded && building.lots.length > 0 && (
+                            <div className="pt-2 border-t border-slate-100">
+                              <div className="grid grid-cols-1 gap-2">
+                                {building.lots.map((lot: any) => {
+                                  const isLotSelected = selectedLotId === lot.id
+                                  return (
+                                    <div
+                                      key={lot.id}
+                                      className={`p-3 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                        isLotSelected ? "ring-2 ring-sky-500 bg-sky-50" : ""
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <div className="space-y-1 min-w-0 flex-1">
+                                          <div className="flex items-center space-x-2">
+                                            <div className="font-medium text-sm text-slate-900">{lot.reference}</div>
+                                            <Badge
+                                              variant={lot.status === "occupied" ? "default" : "secondary"}
+                                              className="text-xs h-4"
+                                            >
+                                              {lot.status === "occupied" ? "Occupé" : "Vacant"}
+                                            </Badge>
+                                          </div>
+                                          
+                                          <div className="text-xs text-slate-600 space-y-1">
+                                            <div>Étage {lot.floor}</div>
+                                            {lot.tenant && (
+                                              <div className="flex items-center">
+                                                <User className="h-3 w-3 mr-1" />
+                                                <span className="truncate">{lot.tenant}</span>
+                                              </div>
+                                            )}
+                                            {lot.interventions > 0 && (
+                                              <div className="flex items-center text-amber-700">
+                                                <Zap className="h-3 w-3 mr-1" />
+                                                <span>{lot.interventions} intervention{lot.interventions > 1 ? "s" : ""}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {mode === "select" && (
+                                          <Button
+                                            variant={isLotSelected ? "default" : "outline"}
+                                            size="sm"
+                                            className="h-7 px-3 text-xs ml-2"
+                                            onClick={() => {
+                                              if (isLotSelected) {
+                                                onLotSelect?.(0)
+                                              } else {
+                                                onLotSelect?.(lot.id, building.id)
+                                              }
+                                            }}
+                                          >
+                                            {isLotSelected ? "✓" : "Sélectionner"}
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
                 )
               }))}
             </div>
@@ -384,11 +552,19 @@ export default function PropertySelector({
           <TabsContent value="individual-lots">
             <div className="space-y-4">
               {individualLots.length === 0 ? (
-                <div className="text-center py-12">
-                  <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot individuel</h3>
-                  <p className="text-gray-600 mb-4">Commencez par ajouter votre premier lot</p>
-                  <Button onClick={() => router.push('/gestionnaire/nouveau-lot')}>
+                <div className="text-center py-12 px-4">
+                  <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Home className="h-8 w-8 text-amber-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun lot individuel</h3>
+                  <p className="text-slate-600 mb-6 max-w-sm mx-auto">
+                    Ajoutez votre premier lot pour gérer vos propriétés individuelles
+                  </p>
+                  <Button 
+                    size="lg"
+                    onClick={() => router.push('/gestionnaire/nouveau-lot')}
+                    className="w-full sm:w-auto"
+                  >
                     <Home className="h-4 w-4 mr-2" />
                     Ajouter un lot
                   </Button>
@@ -397,68 +573,100 @@ export default function PropertySelector({
                 individualLots.map((lot) => {
                 const isSelected = selectedLotId === lot.id
                 return (
-                  <div
-                    key={lot.id}
-                    className={`flex items-center justify-between p-4 bg-gray-50 rounded-lg border ${
-                      isSelected ? "ring-2 ring-blue-500" : ""
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Home className="h-5 w-5 text-orange-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">{lot.reference}</h3>
-                        <p className="text-sm text-gray-600 flex items-center">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {lot.address}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-6">
-                      <div className="text-right">
-                        <Badge variant={lot.status === "occupied" ? "default" : "secondary"}>
-                          {lot.status === "occupied" ? "Occupé" : "Vacant"}
-                        </Badge>
-                        {lot.tenant && (
-                          <div className="flex items-center space-x-2 mt-1">
-                            <User className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-600">{lot.tenant}</span>
+                  <Card key={lot.id} className={`group hover:shadow-sm transition-all duration-200 ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
+                    <CardContent className="p-0">
+                      {/* Individual Lot - Mobile Compact */}
+                      <div className="p-3 sm:p-4">
+                        <div className="space-y-3">
+                          {/* Top Row: Icon + Title + Action */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Home className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-semibold text-base sm:text-lg text-slate-900 truncate">{lot.reference}</h3>
+                                <div className="flex items-center text-xs sm:text-sm text-slate-600 mt-0.5">
+                                  <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                  <span className="truncate">{lot.address}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Action Button - Mobile Responsive */}
+                            <div className="flex-shrink-0 ml-2">
+                              {mode === "select" ? (
+                                <Button
+                                  variant={isSelected ? "default" : "outline"}
+                                  size="sm"
+                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      onLotSelect?.(0)
+                                    } else {
+                                      onLotSelect?.(lot.id)
+                                    }
+                                  }}
+                                >
+                                  <span className="hidden sm:inline">{isSelected ? "✓ Sélectionné" : "Sélectionner"}</span>
+                                  <span className="sm:hidden">{isSelected ? "✓" : "Sélectionner"}</span>
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
+                                  onClick={() => router.push(`/gestionnaire/lots/${lot.id}`)}
+                                >
+                                  <Eye className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                                  <span className="hidden sm:inline ml-1">Gérer</span>
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
 
-                      <div className="text-right">
-                        <span className="text-xs text-gray-600">{lot.interventions} interventions</span>
-                      </div>
+                          {/* Status and Info Row - Mobile Optimized */}
+                          <div className="pt-2 border-t border-slate-100">
+                            <div className="flex items-center space-x-4">
+                              <Badge 
+                                variant={lot.status === "occupied" ? "default" : "secondary"} 
+                                className="px-2 py-1 text-xs"
+                              >
+                                {lot.status === "occupied" ? "Occupé" : "Vacant"}
+                              </Badge>
+                              
+                              {lot.tenant && (
+                                <div className="flex items-center space-x-1.5">
+                                  <div className="w-5 h-5 bg-emerald-100 rounded-md flex items-center justify-center">
+                                    <User className="h-3 w-3 text-emerald-600" />
+                                  </div>
+                                  <span className="text-sm font-medium text-slate-900 truncate max-w-28">{lot.tenant}</span>
+                                </div>
+                              )}
 
-                      {mode === "select" ? (
-                        <Button
-                          variant={isSelected ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            if (isSelected) {
-                              onLotSelect?.(0)
-                            } else {
-                              onLotSelect?.(lot.id)
-                            }
-                          }}
-                        >
-                          {isSelected ? "Sélectionné" : "Sélectionner"}
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => router.push(`/gestionnaire/lots/${lot.id}`)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Gérer
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                              {lot.interventions > 0 && (
+                                <div className="flex items-center space-x-1.5">
+                                  <div className="w-5 h-5 bg-red-100 rounded-md flex items-center justify-center">
+                                    <AlertCircle className="h-3 w-3 text-red-600" />
+                                  </div>
+                                  <span className="text-sm font-medium text-red-700">{lot.interventions}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Additional Info Row */}
+                            {(lot.floor || lot.surface || lot.type) && (
+                              <div className="flex items-center space-x-4 text-xs text-slate-600 mt-2">
+                                {lot.floor && <span>Étage {lot.floor}</span>}
+                                {lot.surface && <span>{lot.surface}m²</span>}
+                                {lot.type && <span className="capitalize">{lot.type}</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )
               }))}
             </div>
@@ -468,3 +676,4 @@ export default function PropertySelector({
     </Card>
   )
 }
+

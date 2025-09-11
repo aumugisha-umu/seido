@@ -40,6 +40,8 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { userService, contactService, teamService } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { interventionSteps } from "@/lib/step-configurations"
 
 export default function NouvelleInterventionPage() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -452,83 +454,13 @@ export default function NouvelleInterventionPage() {
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour aux interventions
-            </Button>
-          </div>
-
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Créer une intervention</h1>
-          <p className="text-gray-600">Créez une nouvelle demande d'intervention pour votre patrimoine immobilier.</p>
-        </div>
-
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center space-x-6">
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 1 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <Home className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Logement</p>
-                <p className="text-xs text-gray-500">Choisir le logement</p>
-              </div>
-            </div>
-
-            <div className={`h-1 w-12 ${currentStep >= 2 ? "bg-blue-500" : "bg-gray-200"}`} />
-
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 2 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Demande</p>
-                <p className="text-xs text-gray-500">Décrire le problème</p>
-              </div>
-            </div>
-
-            <div className={`h-1 w-12 ${currentStep >= 3 ? "bg-blue-500" : "bg-gray-200"}`} />
-
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 3 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <Users className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Contacts</p>
-                <p className="text-xs text-gray-500">Planification</p>
-              </div>
-            </div>
-
-            <div className={`h-1 w-12 ${currentStep >= 4 ? "bg-blue-500" : "bg-gray-200"}`} />
-
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 4 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <CheckCircle className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Confirmation</p>
-                <p className="text-xs text-gray-500">Demande envoyée</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StepProgressHeader
+          title="Créer une intervention"
+          backButtonText="Retour aux interventions"
+          onBack={() => router.back()}
+          steps={interventionSteps}
+          currentStep={currentStep}
+        />
 
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (

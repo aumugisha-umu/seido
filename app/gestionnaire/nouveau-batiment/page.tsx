@@ -30,13 +30,17 @@ import {
   AlertTriangle,
   Loader2,
   Users,
+  ArrowLeft,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import ContactFormModal from "@/components/contact-form-modal"
+import { BuildingInfoForm } from "@/components/building-info-form"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { compositeService, teamService, contactService, contactInvitationService, type Team } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { buildingSteps } from "@/lib/step-configurations"
 
 interface BuildingInfo {
   name: string
@@ -249,11 +253,6 @@ export default function NewBuildingPage() {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
-  const steps = [
-    { number: 1, title: "Bâtiment", subtitle: "Informations générales", completed: currentStep > 1 },
-    { number: 2, title: "Lots", subtitle: "Configuration des lots", completed: currentStep > 2 },
-    { number: 3, title: "Contacts", subtitle: "Assignation optionnelle", completed: false },
-  ]
 
   const addLot = () => {
     const newLot: Lot = {
@@ -423,6 +422,9 @@ export default function NewBuildingPage() {
     }
     if (currentStep === 2) {
       return lots.length > 0
+    }
+    if (currentStep === 3) {
+      return true // L'assignation des contacts est optionnelle
     }
     return true
   }
@@ -851,53 +853,29 @@ export default function NewBuildingPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Créer un bâtiment avec plusieurs lots</h1>
-          
-          {/* Error Alert */}
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        <StepProgressHeader
+          title="Ajouter un nouveau bâtiment"
+          backButtonText="Retour aux biens"
+          onBack={() => router.push("/gestionnaire/biens")}
+          steps={buildingSteps}
+          currentStep={currentStep}
+        />
 
-          {/* Loading State */}
-          {isLoading && (
-            <Alert className="mb-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription>Chargement des équipes...</AlertDescription>
-            </Alert>
-          )}
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-          {/* Steps */}
-          <div className="flex items-center space-x-8 mt-6">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-                      step.completed
-                        ? "bg-green-500 text-white"
-                        : currentStep === step.number
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-600"
-                    }`}
-                  >
-                    {step.completed ? <Check className="w-5 h-5" /> : step.number}
-                  </div>
-                  <div className="mt-2 text-center">
-                    <div className="text-sm font-medium text-gray-900">{step.title}</div>
-                    <div className="text-xs text-gray-500">{step.subtitle}</div>
-                  </div>
-                </div>
-                {index < steps.length - 1 && (
-                  <div className={`w-16 h-0.5 mx-4 ${step.completed ? "bg-green-500" : "bg-gray-200"}`} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Loading State */}
+        {isLoading && (
+          <Alert className="mb-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <AlertDescription>Chargement des équipes...</AlertDescription>
+          </Alert>
+        )}
 
         {/* Step 1: Building Information */}
         {currentStep === 1 && (
@@ -915,200 +893,18 @@ export default function NewBuildingPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <Building className="w-4 h-4" />
-                  Nom du bâtiment <span className="text-gray-400">(optionnel)</span>
-                </Label>
-                <Input
-                  id="name"
-                  placeholder="Ex: Résidence des Champs-Élysées"
-                  value={buildingInfo.name}
-                  onChange={(e) => setBuildingInfo({ ...buildingInfo, name: e.target.value })}
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Donnez un nom distinctif à votre bâtiment pour l'identifier facilement
-                </p>
-              </div>
-
-              {/* Manager Selection */}
-              <div>
-                <Label htmlFor="manager" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <User className="w-4 h-4" />
-                  Responsable du bâtiment
-                </Label>
-                
-                {!isLoading && teamManagers.length > 0 && userTeam ? (
-                  <>
-                    <Select value={selectedManagerId} onValueChange={(value) => {
-                      if (value === "create-new") {
-                        openGestionnaireModal()
-                      } else {
-                        setSelectedManagerId(value)
-                      }
-                    }}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Sélectionnez un responsable" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teamManagers.map((member: any) => (
-                          <SelectItem key={member.user.id} value={member.user.id}>
-                            <div className="flex items-center gap-2">
-                              <span>{member.user.name}</span>
-                              {member.user.id === user?.id && (
-                                <Badge variant="secondary" className="text-xs">Vous</Badge>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="create-new" className="border-t mt-1 pt-2">
-                          <div className="flex items-center gap-2 text-blue-600">
-                            <Users className="w-4 h-4" />
-                            <span>Créer un nouveau gestionnaire</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Ce gestionnaire sera responsable du bâtiment • Équipe : <strong>{userTeam.name}</strong>
-                    </p>
-                  </>
-                ) : (
-                  <div className="mt-1 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-700 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4" />
-                      {isLoading 
-                        ? 'Chargement des gestionnaires de votre équipe...'
-                        : teamManagers.length === 0 
-                          ? 'Aucun gestionnaire trouvé dans votre équipe'
-                          : 'Impossible de charger les gestionnaires'
-                      }
-                    </p>
-                    <p className="text-xs text-amber-600 mt-1">
-                      {isLoading
-                        ? 'Veuillez patienter...'
-                        : teamManagers.length === 0 
-                          ? 'Contactez l\'administrateur pour ajouter des gestionnaires à votre équipe.'
-                          : 'Contactez l\'administrateur pour résoudre ce problème.'
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <MapPin className="w-4 h-4" />
-                  Rue et numéro*
-                </Label>
-                <Input
-                  id="address"
-                  placeholder="123 Rue de la Paix"
-                  value={buildingInfo.address}
-                  onChange={(e) => setBuildingInfo({ ...buildingInfo, address: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="postalCode" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Hash className="w-4 h-4" />
-                    Code postal*
-                  </Label>
-                  <Input
-                    id="postalCode"
-                    placeholder="1000"
-                    value={buildingInfo.postalCode}
-                    onChange={(e) => setBuildingInfo({ ...buildingInfo, postalCode: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="city" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4" />
-                    Ville*
-                  </Label>
-                  <Input
-                    id="city"
-                    placeholder="Bruxelles"
-                    value={buildingInfo.city}
-                    onChange={(e) => setBuildingInfo({ ...buildingInfo, city: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="country" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4" />
-                    Pays*
-                  </Label>
-                  <Select 
-                    value={buildingInfo.country} 
-                    onValueChange={(value) => setBuildingInfo({ ...buildingInfo, country: value })}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez un pays" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label
-                    htmlFor="constructionYear"
-                    className="flex items-center gap-2 text-sm font-medium text-gray-700"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Année de construction
-                  </Label>
-                  <Input
-                    id="constructionYear"
-                    placeholder="2010"
-                    value={buildingInfo.constructionYear}
-                    onChange={(e) => setBuildingInfo({ ...buildingInfo, constructionYear: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="floors" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Building className="w-4 h-4" />
-                    Nombre d'étages
-                  </Label>
-                  <Input
-                    id="floors"
-                    placeholder="4"
-                    value={buildingInfo.floors}
-                    onChange={(e) => setBuildingInfo({ ...buildingInfo, floors: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FileText className="w-4 h-4" />
-                  Description <span className="text-gray-400">(optionnel)</span>
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Ajoutez des informations supplémentaires sur votre bâtiment..."
-                  value={buildingInfo.description}
-                  onChange={(e) => setBuildingInfo({ ...buildingInfo, description: e.target.value })}
-                  className="mt-1 min-h-[100px]"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Décrivez votre bâtiment : commodités, particularités, état général...
-                </p>
-              </div>
+              <BuildingInfoForm
+                buildingInfo={buildingInfo}
+                setBuildingInfo={setBuildingInfo}
+                selectedManagerId={selectedManagerId}
+                setSelectedManagerId={setSelectedManagerId}
+                teamManagers={teamManagers}
+                userTeam={userTeam}
+                isLoading={isLoading}
+                onCreateManager={openGestionnaireModal}
+                showManagerSection={true}
+                showAddressSection={true}
+              />
 
               <div className="flex justify-end">
                 <Button
@@ -1304,9 +1100,9 @@ export default function NewBuildingPage() {
                   <Button
                     onClick={() => setCurrentStep(3)}
                     disabled={!canProceedToNextStep()}
-                    className="bg-gray-600 hover:bg-gray-700"
+                    className="bg-sky-600 hover:bg-sky-700"
                   >
-                    Créer le bâtiment et continuer
+                    Continuer vers les contacts
                   </Button>
                 </div>
                 {lots.length === 0 && (
@@ -1496,23 +1292,260 @@ export default function NewBuildingPage() {
                     Passer cette étape
                   </Button>
                   <Button 
-                    onClick={() => {
-                      console.log("🖱️ Create button clicked!")
-                      handleFinish()
-                    }} 
-                    className="bg-green-600 hover:bg-green-700"
-                    disabled={isCreating}
+                    onClick={() => setCurrentStep(4)}
+                    className="bg-sky-600 hover:bg-sky-700"
                   >
-                    {isCreating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Création en cours...
-                      </>
-                    ) : (
-                      "Créer le bâtiment"
-                    )}
+                    Créer le bâtiment
                   </Button>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 4: Confirmation */}
+        {currentStep === 4 && (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Check className="h-8 w-8 text-green-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Confirmer la création du bâtiment</h2>
+                <p className="text-slate-600">Vérifiez toutes les informations avant de créer le bâtiment</p>
+              </div>
+
+              <div className="space-y-6 mb-8">
+                {/* Building Information */}
+                <Card className="border-l-4 border-l-sky-500">
+                  <CardContent className="p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                        <Building className="h-5 w-5 text-sky-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">Informations du bâtiment</h3>
+                        <p className="text-sm text-slate-600">Détails généraux du bâtiment</p>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Nom :</span>
+                          <p className="text-slate-900">{buildingInfo.name || "Non spécifié"}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Année de construction :</span>
+                          <p className="text-slate-900">{buildingInfo.constructionYear || "Non spécifiée"}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-slate-700">Adresse :</span>
+                        <p className="text-slate-900">{buildingInfo.address}</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Code postal :</span>
+                          <p className="text-slate-900">{buildingInfo.postalCode || "Non spécifié"}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Ville :</span>
+                          <p className="text-slate-900">{buildingInfo.city || "Non spécifiée"}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Pays :</span>
+                          <p className="text-slate-900">{buildingInfo.country}</p>
+                        </div>
+                      </div>
+                      {buildingInfo.description && (
+                        <div>
+                          <span className="text-sm font-medium text-slate-700">Description :</span>
+                          <p className="text-slate-900 text-sm mt-1">{buildingInfo.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Lots Summary */}
+                <Card className="border-l-4 border-l-green-500">
+                  <CardContent className="p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <MapPin className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">Lots configurés ({lots.length})</h3>
+                        <p className="text-sm text-slate-600">Configuration des lots du bâtiment</p>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-4">
+                      {/* Stats globales */}
+                      <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-white rounded-lg border">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">{lots.length}</div>
+                          <div className="text-sm text-slate-600">Lots</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-sky-600">{getTotalStats().totalRent}€</div>
+                          <div className="text-sm text-slate-600">Loyers/mois</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-purple-600">{getTotalStats().totalSurface}m²</div>
+                          <div className="text-sm text-slate-600">Surface totale</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-amber-600">{Math.round(getTotalStats().avgRent)}€</div>
+                          <div className="text-sm text-slate-600">Loyer moyen</div>
+                        </div>
+                      </div>
+                      
+                      {/* Liste des lots */}
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {lots.map((lot, index) => (
+                          <div key={lot.id} className="flex items-center justify-between p-3 bg-white rounded border">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center text-sm font-medium text-green-600">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <span className="font-medium text-slate-900">{lot.reference}</span>
+                                {lot.doorNumber && <span className="text-slate-500 ml-2">({lot.doorNumber})</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-slate-600">
+                              <span>Étage {lot.floor}</span>
+                              {lot.surface && <span>{lot.surface}m²</span>}
+                              {lot.monthlyRent && <span>{lot.monthlyRent}€/mois</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Gestionnaire responsable */}
+                {selectedManagerId && (
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <User className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Gestionnaire responsable</h3>
+                          <p className="text-sm text-slate-600">Responsable principal du bâtiment</p>
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        {(() => {
+                          const manager = teamManagers.find(m => m.user.id === selectedManagerId)
+                          return manager ? (
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-900">{manager.user.name}</div>
+                                <div className="text-sm text-slate-600">{manager.user.email}</div>
+                                {manager.user.id === user?.id && (
+                                  <span className="inline-flex px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">
+                                    Vous
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-slate-500">Gestionnaire non trouvé</p>
+                          )
+                        })()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Contacts assignés */}
+                {(contacts.length > 0 || Object.values(assignedManagers).some(managers => managers.length > 0)) && (
+                  <Card className="border-l-4 border-l-purple-500">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Users className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Contacts et assignations</h3>
+                          <p className="text-sm text-slate-600">Contacts assignés aux lots</p>
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-white rounded border">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-purple-600">{contacts.length}</div>
+                            <div className="text-xs text-slate-600">Contacts créés</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-blue-600">
+                              {Object.values(assignedManagers).reduce((total, managers) => total + managers.length, 0)}
+                            </div>
+                            <div className="text-xs text-slate-600">Gestionnaires assignés</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-green-600">
+                              {lots.filter(lot => getAssignedManagers(lot.id).length > 0 || getAllLotContacts(lot.id).length > 0).length}
+                            </div>
+                            <div className="text-xs text-slate-600">Lots avec contacts</div>
+                          </div>
+                        </div>
+                        
+                        {contacts.length === 0 && Object.values(assignedManagers).every(managers => managers.length === 0) && (
+                          <p className="text-center text-slate-500 text-sm">Aucun contact supplémentaire assigné</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-6">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                    <p className="text-red-800 font-medium">Erreur</p>
+                  </div>
+                  <p className="text-red-700 mt-1">{error}</p>
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentStep(3)}
+                  disabled={isCreating}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour
+                </Button>
+                <Button 
+                  onClick={() => {
+                    console.log("🖱️ Confirm creation button clicked!")
+                    handleFinish()
+                  }} 
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Création en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Confirmer la création
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>

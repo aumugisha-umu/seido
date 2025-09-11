@@ -76,8 +76,6 @@ interface LotData {
   floor: string
   doorNumber: string
   surface: string
-  monthlyRent: string
-  securityDeposit: string
   description: string
 
   // Step 3: Contacts
@@ -116,8 +114,6 @@ export default function NewLotPage() {
     floor: "",
     doorNumber: "",
     surface: "",
-    monthlyRent: "",
-    securityDeposit: "",
     description: "",
     assignedContacts: {
       locataire: [],
@@ -801,34 +797,13 @@ export default function NewLotPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="surface">Surface (m²)</Label>
-                  <Input
-                    id="surface"
-                    placeholder="45"
-                    value={lotData.surface}
-                    onChange={(e) => setLotData((prev) => ({ ...prev, surface: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="monthlyRent">Loyer mensuel (€)</Label>
-                  <Input
-                    id="monthlyRent"
-                    placeholder="1200"
-                    value={lotData.monthlyRent}
-                    onChange={(e) => setLotData((prev) => ({ ...prev, monthlyRent: e.target.value }))}
-                  />
-                </div>
-              </div>
-
               <div>
-                <Label htmlFor="securityDeposit">Dépôt de garantie (€)</Label>
+                <Label htmlFor="surface">Surface (m²)</Label>
                 <Input
-                  id="securityDeposit"
-                  placeholder="1200"
-                  value={lotData.securityDeposit}
-                  onChange={(e) => setLotData((prev) => ({ ...prev, securityDeposit: e.target.value }))}
+                  id="surface"
+                  placeholder="45"
+                  value={lotData.surface}
+                  onChange={(e) => setLotData((prev) => ({ ...prev, surface: e.target.value }))}
                 />
               </div>
 

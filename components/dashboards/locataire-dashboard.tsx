@@ -113,34 +113,24 @@ export default function LocataireDashboard() {
               )}
             </div>
             <div className="flex flex-col justify-center">
-              {tenantData.rent_amount ? (
+              {tenantData.surface ? (
                 <>
                   <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-2xl font-bold text-primary">{tenantData.rent_amount}€</span>
-                    <span className="text-sm text-muted-foreground">hors charges</span>
+                    <span className="text-2xl font-bold text-primary">{tenantData.surface}m²</span>
+                    <span className="text-sm text-muted-foreground">surface</span>
                   </div>
-                  {tenantData.charges_amount && (
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-semibold">+ {tenantData.charges_amount}€</span>
-                      <Badge variant="outline" className="text-xs h-5">
-                        Provision mensuelle
-                      </Badge>
-                    </div>
-                  )}
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">Loyer non défini</p>
+                <p className="text-sm text-muted-foreground">Surface non définie</p>
               )}
             </div>
             <div className="flex flex-col justify-center">
               <div className="text-right lg:text-left">
                 <p className="text-sm text-muted-foreground">Total mensuel</p>
                 <p className="text-2xl font-bold">
-                  {tenantData.rent_amount && tenantData.charges_amount 
-                    ? `${tenantData.rent_amount + tenantData.charges_amount}€`
-                    : tenantData.rent_amount 
-                      ? `${tenantData.rent_amount}€`
-                      : "Non défini"
+                  {tenantData.surface 
+                    ? `${tenantData.surface}m²`
+                    : "Non défini"
                   }
                 </p>
               </div>

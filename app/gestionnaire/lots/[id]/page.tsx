@@ -351,39 +351,6 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               </CardContent>
             </Card>
 
-            {/* Informations Financières */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Informations Financières</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Loyer</span>
-                  <span className="font-medium">
-                    {lot.rent_amount ? `${lot.rent_amount}€` : "Non défini"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Charges</span>
-                  <span className="font-medium">
-                    {lot.charges_amount ? `${lot.charges_amount}€` : "Non défini"}
-                  </span>
-                </div>
-                {lot.rent_amount && lot.charges_amount && (
-                  <div className="flex justify-between pt-2 border-t">
-                    <span className="text-gray-600 font-medium">Total mensuel</span>
-                    <span className="font-bold text-lg">
-                      {lot.rent_amount + lot.charges_amount}€
-                    </span>
-                  </div>
-                )}
-                {lot.rent_amount && (
-                  <div className="text-xs text-gray-500">
-                    Revenus annuels : {lot.rent_amount * 12}€
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Interventions */}
             <Card>

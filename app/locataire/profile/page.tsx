@@ -203,7 +203,7 @@ export default function LocataireProfilePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-3 border rounded-lg">
                     <div className="font-semibold">850 €</div>
-                    <div className="text-sm text-muted-foreground">Loyer mensuel</div>
+                    <div className="text-sm text-muted-foreground">Surface</div>
                   </div>
                   <div className="text-center p-3 border rounded-lg">
                     <div className="font-semibold">Mars 2022</div>

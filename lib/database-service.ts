@@ -2711,7 +2711,6 @@ export const compositeService = {
       apartment_number?: string
       surface_area?: number
       rooms?: number
-      rent_amount?: number
       charges_amount?: number
     }>
   }) {
@@ -2789,7 +2788,6 @@ export const compositeService = {
       apartment_number?: string
       surface_area?: number
       rooms?: number
-      rent_amount?: number
       charges_amount?: number
     }>
     contacts: Array<{

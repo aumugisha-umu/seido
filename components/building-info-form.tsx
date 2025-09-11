@@ -91,11 +91,11 @@ export const BuildingInfoForm = ({
   const { user } = useAuth()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8">
       {showTitle && (
-        <div className="border-b border-gray-200 pb-4 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            {entityType === "lot" ? <Home className="h-5 w-5" /> : <Building className="h-5 w-5" />}
+        <div className="border-b border-gray-200 pb-4 sm:pb-6 mb-6 sm:mb-8">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+            {entityType === "lot" ? <Home className="h-5 w-5 sm:h-6 sm:w-6" /> : <Building className="h-5 w-5 sm:h-6 sm:w-6" />}
             Détails du {entityType}
           </h3>
         </div>
@@ -117,7 +117,7 @@ export const BuildingInfoForm = ({
                   setSelectedManagerId(value)
                 }
               }}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-1 h-10 sm:h-11">
                   <SelectValue placeholder="Sélectionnez un responsable" />
                 </SelectTrigger>
                 <SelectContent>
@@ -142,21 +142,23 @@ export const BuildingInfoForm = ({
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 mt-1">
-                Ce gestionnaire sera responsable du {entityType} • Équipe : <strong>{userTeam.name}</strong>
+                Ce gestionnaire recevra des notifications personnelles pour tout élément conernant ce {entityType}.
               </p>
             </>
           ) : (
-            <div className="mt-1 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                {isLoading 
-                  ? 'Chargement des gestionnaires de votre équipe...'
-                  : teamManagers.length === 0 
-                    ? 'Aucun gestionnaire trouvé dans votre équipe'
-                    : 'Impossible de charger les gestionnaires'
-                }
+            <div className="mt-1 p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  {isLoading 
+                    ? 'Chargement des gestionnaires de votre équipe...'
+                    : teamManagers.length === 0 
+                      ? 'Aucun gestionnaire trouvé dans votre équipe'
+                      : 'Impossible de charger les gestionnaires'
+                  }
+                </span>
               </p>
-              <p className="text-xs text-amber-600 mt-1">
+              <p className="text-xs text-amber-600 mt-2 pl-6">
                 {isLoading
                   ? 'Veuillez patienter...'
                   : teamManagers.length === 0 
@@ -183,7 +185,7 @@ export const BuildingInfoForm = ({
           placeholder={entityType === "lot" ? "Lot001, LOT-A-01, etc." : "Ex: Résidence des Champs-Élysées"}
           value={buildingInfo.name || (entityType === "lot" && defaultReference && !buildingInfo.name ? defaultReference : "")}
           onChange={(e) => setBuildingInfo({ ...buildingInfo, name: e.target.value })}
-          className="mt-1"
+          className="mt-1 h-10 sm:h-11"
           required={entityType === "lot"}
         />
         <p className="text-xs text-gray-500 mt-1">
@@ -208,11 +210,11 @@ export const BuildingInfoForm = ({
               placeholder="123 Rue de la Paix"
               value={buildingInfo.address}
               onChange={(e) => setBuildingInfo({ ...buildingInfo, address: e.target.value })}
-              className="mt-1"
+              className="mt-1 h-10 sm:h-11"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <div>
               <Label htmlFor="postalCode" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Hash className="w-4 h-4" />
@@ -223,7 +225,7 @@ export const BuildingInfoForm = ({
                 placeholder="1000"
                 value={buildingInfo.postalCode}
                 onChange={(e) => setBuildingInfo({ ...buildingInfo, postalCode: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-10 sm:h-11"
               />
             </div>
             <div>
@@ -236,10 +238,10 @@ export const BuildingInfoForm = ({
                 placeholder="Bruxelles"
                 value={buildingInfo.city}
                 onChange={(e) => setBuildingInfo({ ...buildingInfo, city: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-10 sm:h-11"
               />
             </div>
-            <div>
+            <div className="sm:col-span-2 lg:col-span-1">
               <Label htmlFor="country" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <MapPin className="w-4 h-4" />
                 Pays*
@@ -248,7 +250,7 @@ export const BuildingInfoForm = ({
                 value={buildingInfo.country} 
                 onValueChange={(value) => setBuildingInfo({ ...buildingInfo, country: value })}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-10 sm:h-11">
                   <SelectValue placeholder="Sélectionnez un pays" />
                 </SelectTrigger>
                 <SelectContent>
@@ -266,7 +268,7 @@ export const BuildingInfoForm = ({
 
       {entityType === "bâtiment" ? (
         // Champs spécifiques aux bâtiments
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <Label
               htmlFor="constructionYear"
@@ -280,7 +282,7 @@ export const BuildingInfoForm = ({
               placeholder="2010"
               value={buildingInfo.constructionYear}
               onChange={(e) => setBuildingInfo({ ...buildingInfo, constructionYear: e.target.value })}
-              className="mt-1"
+              className="mt-1 h-10 sm:h-11"
             />
           </div>
           <div>
@@ -293,14 +295,14 @@ export const BuildingInfoForm = ({
               placeholder="4"
               value={buildingInfo.floors}
               onChange={(e) => setBuildingInfo({ ...buildingInfo, floors: e.target.value })}
-              className="mt-1"
+              className="mt-1 h-10 sm:h-11"
             />
           </div>
         </div>
       ) : (
         // Champs spécifiques aux lots
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
               <Label htmlFor="floor" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Building className="w-4 h-4" />
@@ -311,7 +313,7 @@ export const BuildingInfoForm = ({
                 placeholder="0"
                 value={buildingInfo.floor || ""}
                 onChange={(e) => setBuildingInfo({ ...buildingInfo, floor: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-10 sm:h-11"
               />
             </div>
             <div>
@@ -324,7 +326,7 @@ export const BuildingInfoForm = ({
                 placeholder="A, 101, etc."
                 value={buildingInfo.doorNumber || ""}
                 onChange={(e) => setBuildingInfo({ ...buildingInfo, doorNumber: e.target.value })}
-                className="mt-1"
+                className="mt-1 h-10 sm:h-11"
               />
             </div>
           </div>
@@ -338,7 +340,7 @@ export const BuildingInfoForm = ({
               placeholder="45"
               value={buildingInfo.surface || ""}
               onChange={(e) => setBuildingInfo({ ...buildingInfo, surface: e.target.value })}
-              className="mt-1"
+              className="mt-1 h-10 sm:h-11"
             />
           </div>
         </div>
@@ -354,7 +356,7 @@ export const BuildingInfoForm = ({
           placeholder={`Ajoutez des informations supplémentaires sur votre ${entityType}...`}
           value={buildingInfo.description}
           onChange={(e) => setBuildingInfo({ ...buildingInfo, description: e.target.value })}
-          className="mt-1 min-h-[100px]"
+          className="mt-1 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base"
         />
         <p className="text-xs text-gray-500 mt-1">
           Décrivez votre {entityType} : commodités, particularités, état général...

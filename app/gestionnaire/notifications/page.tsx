@@ -47,7 +47,7 @@ const mockNotifications: Notification[] = [
     id: "2",
     type: "payment",
     title: "Paiement reçu",
-    message: "Le loyer de janvier a été reçu pour le Lot001",
+    message: "Paiement de janvier reçu pour le Lot001",
     date: "2025-01-08T14:15:00",
     read: false,
     createdBy: "Système automatique",

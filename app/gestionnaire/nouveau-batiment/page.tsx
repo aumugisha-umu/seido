@@ -31,6 +31,8 @@ import {
   Loader2,
   Users,
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import ContactFormModal from "@/components/contact-form-modal"
@@ -59,8 +61,6 @@ interface Lot {
   floor: string
   doorNumber: string
   surface: string
-  monthlyRent: string
-  deposit: string
   description: string
 }
 
@@ -133,6 +133,9 @@ export default function NewBuildingPage() {
   
   // États pour la création de gestionnaire
   const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
+  
+  // État pour gérer l'affichage des détails de chaque lot
+  const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
 
   // TOUS LES useEffect DOIVENT AUSSI ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
   // Charger l'équipe de l'utilisateur et ses gestionnaires
@@ -248,6 +251,17 @@ export default function NewBuildingPage() {
     }
   }, [currentStep, selectedManagerId, lots, teamManagers])
 
+  // Ouvrir tous les lots par défaut quand on arrive à l'étape 3
+  useEffect(() => {
+    if (currentStep === 3 && lots.length > 0) {
+      const allExpanded: {[key: string]: boolean} = {}
+      lots.forEach(lot => {
+        allExpanded[lot.id] = true
+      })
+      setExpandedLots(allExpanded)
+    }
+  }, [currentStep, lots])
+
   // Afficher la vérification d'équipe si nécessaire (APRÈS tous les hooks)
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
     return <TeamCheckModal onTeamResolved={() => {}} />
@@ -261,11 +275,12 @@ export default function NewBuildingPage() {
       floor: "0",
       doorNumber: "",
       surface: "",
-      monthlyRent: "",
-      deposit: "",
       description: "",
     }
-    setLots([...lots, newLot])
+    // Ajouter le nouveau lot en haut de la liste
+    setLots([newLot, ...lots])
+    // Fermer toutes les cartes et ouvrir seulement le nouveau lot
+    setExpandedLots({[newLot.id]: true})
   }
 
   const updateLot = (id: string, field: keyof Lot, value: string) => {
@@ -274,6 +289,17 @@ export default function NewBuildingPage() {
 
   const removeLot = (id: string) => {
     setLots(lots.filter((lot) => lot.id !== id))
+    // Nettoyer l'état d'expansion pour ce lot
+    const newExpandedLots = {...expandedLots}
+    delete newExpandedLots[id]
+    setExpandedLots(newExpandedLots)
+  }
+
+  const toggleLotExpansion = (lotId: string) => {
+    setExpandedLots({
+      ...expandedLots,
+      [lotId]: !expandedLots[lotId]
+    })
   }
 
   const duplicateLot = (id: string) => {
@@ -284,7 +310,10 @@ export default function NewBuildingPage() {
         id: `lot${Date.now()}`,
         reference: `Lot${String(lots.length + 1).padStart(3, "0")}`,
       }
-      setLots([...lots, newLot])
+      // Ajouter le lot dupliqué en haut de la liste
+      setLots([newLot, ...lots])
+      // Fermer toutes les cartes et ouvrir seulement le lot dupliqué
+      setExpandedLots({[newLot.id]: true})
     }
   }
 
@@ -394,10 +423,9 @@ export default function NewBuildingPage() {
 
   const getTotalStats = () => {
     const totalSurface = lots.reduce((sum, lot) => sum + (Number.parseFloat(lot.surface) || 0), 0)
-    const totalRent = lots.reduce((sum, lot) => sum + (Number.parseFloat(lot.monthlyRent) || 0), 0)
-    const avgRent = lots.length > 0 ? totalRent / lots.length : 0
+    const avgSurface = lots.length > 0 ? totalSurface / lots.length : 0
 
-    return { totalSurface, totalRent, avgRent }
+    return { totalSurface, avgSurface }
   }
 
   // Filtrer les contacts selon le terme de recherche
@@ -498,8 +526,7 @@ export default function NewBuildingPage() {
         apartment_number: lot.doorNumber.trim() || undefined,
         surface_area: lot.surface ? parseFloat(lot.surface) : undefined,
         rooms: undefined, // Peut être ajouté plus tard
-        rent_amount: lot.monthlyRent ? parseFloat(lot.monthlyRent) : undefined,
-        charges_amount: lot.deposit ? parseFloat(lot.deposit) : undefined,
+        charges_amount: undefined, // Charges amount removed
       }))
       console.log("🏠 Lots data prepared:", lotsData)
 
@@ -850,8 +877,8 @@ export default function NewBuildingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <StepProgressHeader
           title="Ajouter un nouveau bâtiment"
@@ -880,18 +907,6 @@ export default function NewBuildingPage() {
         {/* Step 1: Building Information */}
         {currentStep === 1 && (
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building className="w-5 h-5" />
-                    Informations du bâtiment
-                  </CardTitle>
-                  <CardDescription>Commençons par les informations de base de votre bâtiment</CardDescription>
-                </div>
-                <Badge variant="secondary">Progression: {getProgressPercentage()}%</Badge>
-              </div>
-            </CardHeader>
             <CardContent className="space-y-6">
               <BuildingInfoForm
                 buildingInfo={buildingInfo}
@@ -906,11 +921,11 @@ export default function NewBuildingPage() {
                 showAddressSection={true}
               />
 
-              <div className="flex justify-end">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-0">
                 <Button
                   onClick={() => setCurrentStep(2)}
                   disabled={!canProceedToNextStep()}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                 >
                   Continuer vers les lots
                 </Button>
@@ -923,11 +938,7 @@ export default function NewBuildingPage() {
         {currentStep === 2 && (
           <div className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Configuration des lots</CardTitle>
-                <CardDescription>Ajoutez et configurez les lots de votre bâtiment</CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6">
                 {lots.length === 0 ? (
                   <div className="text-center py-12">
                     <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -942,25 +953,6 @@ export default function NewBuildingPage() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Stats */}
-                    <div className="grid grid-cols-4 gap-4 p-4 bg-blue-50 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{lots.length}</div>
-                        <div className="text-sm text-gray-600">Lot</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{getTotalStats().totalRent}€</div>
-                        <div className="text-sm text-gray-600">Loyers/mois</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">{getTotalStats().totalSurface}m²</div>
-                        <div className="text-sm text-gray-600">Surface totale</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">{Math.round(getTotalStats().avgRent)}€</div>
-                        <div className="text-sm text-gray-600">Loyer moyen</div>
-                      </div>
-                    </div>
 
                     <div className="flex justify-center">
                       <Button
@@ -979,12 +971,19 @@ export default function NewBuildingPage() {
                         <Card key={lot.id} className="border-blue-200">
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleLotExpansion(lot.id)}>
                                 <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                  {index + 1}
+                                  {lots.length - index}
                                 </div>
                                 <div>
                                   <h3 className="font-medium">{lot.reference}</h3>
+                                </div>
+                                <div className="ml-2">
+                                  {expandedLots[lot.id] ? (
+                                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                                  ) : (
+                                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1007,8 +1006,9 @@ export default function NewBuildingPage() {
                               </div>
                             </div>
                           </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div className="grid grid-cols-3 gap-4">
+                          {expandedLots[lot.id] && (
+                            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                               <div>
                                 <Label className="text-sm font-medium text-gray-700">
                                   <Hash className="w-4 h-4 inline mr-1" />
@@ -1044,33 +1044,12 @@ export default function NewBuildingPage() {
                                   className="mt-1"
                                 />
                               </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-4">
                               <div>
                                 <Label className="text-sm font-medium text-gray-700">Surface (m²)</Label>
                                 <Input
                                   placeholder="45"
                                   value={lot.surface}
                                   onChange={(e) => updateLot(lot.id, "surface", e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">Loyer mensuel (€)</Label>
-                                <Input
-                                  placeholder="1200"
-                                  value={lot.monthlyRent}
-                                  onChange={(e) => updateLot(lot.id, "monthlyRent", e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">Dépôt de garantie (€)</Label>
-                                <Input
-                                  placeholder="1200"
-                                  value={lot.deposit}
-                                  onChange={(e) => updateLot(lot.id, "deposit", e.target.value)}
                                   className="mt-1"
                                 />
                               </div>
@@ -1086,21 +1065,22 @@ export default function NewBuildingPage() {
                               />
                               <p className="text-xs text-gray-500 mt-1">Particularités, état, équipements...</p>
                             </div>
-                          </CardContent>
+                            </CardContent>
+                          )}
                         </Card>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="flex justify-between pt-6">
-                  <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6">
+                  <Button variant="outline" onClick={() => setCurrentStep(1)} className="w-full sm:w-auto order-2 sm:order-1">
                     Retour au bâtiment
                   </Button>
                   <Button
                     onClick={() => setCurrentStep(3)}
                     disabled={!canProceedToNextStep()}
-                    className="bg-sky-600 hover:bg-sky-700"
+                    className="bg-sky-600 hover:bg-sky-700 w-full sm:w-auto order-1 sm:order-2"
                   >
                     Continuer vers les contacts
                   </Button>
@@ -1116,38 +1096,120 @@ export default function NewBuildingPage() {
         {/* Step 3: Contacts Assignment */}
         {currentStep === 3 && (
           <Card>
-            <CardHeader>
-              <CardTitle>Assignation des contacts et gestionnaires</CardTitle>
-              <CardDescription>Assignez des contacts et gestionnaires à vos lots (optionnel)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Summary */}
-              <div className="grid grid-cols-4 gap-4 p-4 bg-blue-50 rounded-lg">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{contacts.length}</div>
-                  <div className="text-sm text-gray-600">contacts</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {Object.values(assignedManagers).reduce((total, managers) => total + managers.length, 0)}
+            <CardContent className="space-y-3 p-4">
+              
+              {/* Building Information with Manager */}
+              <Card className="border-blue-200 bg-blue-50/30 mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Building Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        <h2 className="text-lg font-semibold text-gray-900 truncate">
+                          {buildingInfo.name || `Bâtiment - ${buildingInfo.address}`}
+                        </h2>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-1">
+                        {buildingInfo.address}, {buildingInfo.city} {buildingInfo.postalCode && `- ${buildingInfo.postalCode}`}
+                      </p>
+                      {buildingInfo.description && (
+                        <p className="text-xs text-gray-500 line-clamp-2">{buildingInfo.description}</p>
+                      )}
+                    </div>
+                    
+                    {/* Building Manager - Compact */}
+                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-blue-200 flex-shrink-0">
+                      <User className="w-4 h-4 text-blue-600" />
+                      <div className="text-right">
+                        {selectedManagerId && teamManagers.length > 0 ? (
+                          (() => {
+                            const manager = teamManagers.find(m => m.user.id === selectedManagerId)
+                            return manager ? (
+                              <>
+                                <div className="font-medium text-sm text-blue-900">{manager.user.name}</div>
+                                <div className="text-xs text-gray-500">Responsable</div>
+                                {manager.user.id === user?.id && (
+                                  <Badge variant="outline" className="text-xs mt-0.5">Vous</Badge>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-xs text-gray-500">Non trouvé</div>
+                            )
+                          })()
+                        ) : (
+                          <div className="text-xs text-gray-500">Non sélectionné</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">gestionnaires</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{lots.length}</div>
-                  <div className="text-sm text-gray-600">lots</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {lots.filter(lot => getAssignedManagers(lot.id).length > 0).length}
+                </CardContent>
+              </Card>
+
+              {/* Building-Level Contacts */}
+              <Card className="border-orange-200 bg-orange-50/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Building className="w-4 h-4 text-orange-600" />
+                      <span className="font-medium text-orange-900">Contacts du bâtiment</span>
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-xs">
+                        {contacts.filter(c => c.type !== 'tenant').length}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-600">Disponibles pour tous les lots</p>
                   </div>
-                  <div className="text-sm text-gray-600">avec gestionnaire</div>
-                </div>
-              </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                    {contactTypes.filter(type => type.key !== 'tenant').map((type) => {
+                      const Icon = type.icon
+                      const buildingContacts = getContactsByType(type.key)
+
+                      return (
+                        <div key={type.key} className="space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Icon className={`w-3.5 h-3.5 ${type.color}`} />
+                            <span className="font-medium text-xs">{type.label}</span>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {buildingContacts.map((contact) => (
+                              <div
+                                key={contact.id}
+                                className="flex items-center justify-between p-2 bg-white rounded border text-xs"
+                              >
+                                <span className="truncate flex-1 mr-2">{contact.name || contact.email}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeContact(contact.id)}
+                                  className="text-red-500 hover:text-red-700 h-5 w-5 p-0 flex-shrink-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openGlobalContactModal(type.key)}
+                              className="w-full text-xs py-1.5 h-7"
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Ajouter
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Lots with contacts and managers */}
-              <div className="space-y-6">
-                {lots.map((lot) => {
+              <div className="space-y-3">
+                {[...lots].reverse().map((lot) => {
                   const lotManagers = getAssignedManagers(lot.id)
                   const lotContacts = getAllLotContacts(lot.id) // Utiliser les vraies assignations
                   
@@ -1155,42 +1217,72 @@ export default function NewBuildingPage() {
                     <Card key={lot.id} className="border-gray-200">
                       <CardHeader className="pb-4">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium">{lot.reference}</h3>
-                          <div className="flex gap-2">
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                              {lotManagers.length} gestionnaire(s)
-                            </Badge>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">
-                              {lotContacts.length} contact(s)
-                            </Badge>
+                          <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleLotExpansion(lot.id)}>
+                            <h3 className="font-medium">{lot.reference}</h3>
+                            <div className="flex gap-2">
+                              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                                {lotManagers.filter(m => m.user.id !== selectedManagerId).length} responsable(s) spécifique(s)
+                              </Badge>
+                              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                {lotContacts.length} contact(s)
+                              </Badge>
+                            </div>
+                            <div className="ml-2">
+                              {expandedLots[lot.id] ? (
+                                <ChevronUp className="w-5 h-5 text-gray-500" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-6">
-                          {/* Section Gestionnaires */}
-                          <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/30">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Users className="w-5 h-5 text-blue-600" />
-                              <span className="font-medium text-blue-900">Gestionnaires assignés</span>
+                      {expandedLots[lot.id] && (
+                        <CardContent className="p-4">
+                        <div className="space-y-3">
+                          {/* Section Responsable spécifique du lot */}
+                          <div className="border border-purple-200 rounded-lg p-3 bg-purple-50/30">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Users className="w-4 h-4 text-purple-600" />
+                              <span className="font-medium text-purple-900 text-sm">Responsable spécifique du lot</span>
+                            </div>
+                            
+                            <div className="mb-2 p-2 bg-purple-100/50 rounded text-xs text-purple-700">
+                              <div className="flex items-center gap-1 mb-1">
+                                <Building className="w-3 h-3" />
+                                <span className="font-medium">Responsable du bâtiment :</span>
+                              </div>
+                              {selectedManagerId && teamManagers.length > 0 ? (
+                                (() => {
+                                  const buildingManager = teamManagers.find(m => m.user.id === selectedManagerId)
+                                  return buildingManager ? (
+                                    <span>{buildingManager.user.name}</span>
+                                  ) : (
+                                    <span className="text-gray-500">Non trouvé</span>
+                                  )
+                                })()
+                              ) : (
+                                <span className="text-gray-500">Aucun</span>
+                              )}
+                              <div className="mt-1 text-xs">+ Responsable(s) spécifique(s) ci-dessous</div>
                             </div>
                             
                             <div className="space-y-2">
-                              {lotManagers.map((manager) => (
+                              {lotManagers.filter(manager => manager.user.id !== selectedManagerId).map((manager) => (
                                 <div
                                   key={manager.user.id}
-                                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200"
+                                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-200"
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                      <User className="w-4 h-4 text-blue-600" />
+                                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                      <User className="w-4 h-4 text-purple-600" />
                                     </div>
                                     <div>
                                       <div className="font-medium text-sm">{manager.user.name}</div>
                                       <div className="text-xs text-gray-500">{manager.user.email}</div>
-                                      {manager.user.id === selectedManagerId && (
-                                        <Badge variant="outline" className="text-xs mt-1">Responsable du bâtiment</Badge>
-                                      )}
+                                      <Badge variant="secondary" className="text-xs mt-1 bg-purple-100 text-purple-700">
+                                        Responsable du lot
+                                      </Badge>
                                     </div>
                                   </div>
                                   <Button
@@ -1208,45 +1300,49 @@ export default function NewBuildingPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => openManagerModal(lot.id)}
-                                className="w-full text-sm border-blue-300 text-blue-700 hover:bg-blue-50"
+                                className="w-full text-sm border-purple-300 text-purple-700 hover:bg-purple-50"
                               >
                                 <Plus className="w-4 h-4 mr-2" />
-                                Ajouter un gestionnaire
+                                Ajouter responsable du lot
                               </Button>
+                              
+                              <p className="text-xs text-gray-600 mt-2">
+                                Recevra les notifications spécifiques à ce lot en plus du responsable du bâtiment
+                              </p>
                             </div>
                           </div>
 
                           {/* Section Contacts */}
-                          <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <User className="w-5 h-5 text-gray-600" />
-                              <span className="font-medium text-gray-900">Contacts assignés</span>
+                          <div className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="w-4 h-4 text-gray-600" />
+                              <span className="font-medium text-gray-900 text-sm">Contacts assignés</span>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               {contactTypes.map((type) => {
                                 const Icon = type.icon
                                 const assignedContacts = getLotContactsByType(lot.id, type.key)
 
                                 return (
-                                  <div key={type.key} className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <Icon className={`w-4 h-4 ${type.color}`} />
-                                      <span className="font-medium text-sm">{type.label}</span>
+                                  <div key={type.key} className="space-y-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <Icon className={`w-3.5 h-3.5 ${type.color}`} />
+                                      <span className="font-medium text-xs">{type.label}</span>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5">
                                       {assignedContacts.map((contact) => (
                                         <div
                                           key={contact.id}
-                                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg"
+                                          className="flex items-center justify-between p-2 bg-green-50 rounded text-xs"
                                         >
-                                          <span className="text-sm">{contact.name || contact.email}</span>
+                                          <span className="truncate flex-1 mr-2">{contact.name || contact.email}</span>
                                           <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => removeContactFromLot(lot.id, type.key, contact.id)}
-                                            className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
+                                            className="text-red-500 hover:text-red-700 h-5 w-5 p-0 flex-shrink-0"
                                           >
                                             <X className="w-3 h-3" />
                                           </Button>
@@ -1257,10 +1353,10 @@ export default function NewBuildingPage() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => openContactModal(lot.id, type.key)}
-                                        className="w-full text-xs"
+                                        className="w-full text-xs py-1.5 h-7"
                                       >
                                         <Plus className="w-3 h-3 mr-1" />
-                                        Ajouter {type.label.toLowerCase()}
+                                        Ajouter
                                       </Button>
                                     </div>
                                   </div>
@@ -1269,31 +1365,34 @@ export default function NewBuildingPage() {
                             </div>
                           </div>
                         </div>
-                      </CardContent>
+                        </CardContent>
+                      )}
                     </Card>
                   )
                 })}
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4">
                 <Button 
                   variant="outline" 
                   onClick={() => setCurrentStep(2)}
                   disabled={isCreating}
+                  className="w-full sm:w-auto order-3 sm:order-1"
                 >
                   Étape précédente
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 order-1 sm:order-2">
                   <Button 
                     variant="outline" 
                     onClick={() => router.push("/gestionnaire/dashboard")}
                     disabled={isCreating}
+                    className="w-full sm:w-auto"
                   >
                     Passer cette étape
                   </Button>
                   <Button 
                     onClick={() => setCurrentStep(4)}
-                    className="bg-sky-600 hover:bg-sky-700"
+                    className="bg-sky-600 hover:bg-sky-700 w-full sm:w-auto"
                   >
                     Créer le bâtiment
                   </Button>
@@ -1306,61 +1405,61 @@ export default function NewBuildingPage() {
         {/* Step 4: Confirmation */}
         {currentStep === 4 && (
           <Card>
-            <CardContent className="py-8">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Check className="h-8 w-8 text-green-600" />
+            <CardContent className="p-4">
+              <div className="text-center mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Check className="h-6 w-6 text-green-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Confirmer la création du bâtiment</h2>
-                <p className="text-slate-600">Vérifiez toutes les informations avant de créer le bâtiment</p>
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Confirmer la création du bâtiment</h2>
+                <p className="text-sm text-slate-600">Vérifiez toutes les informations avant de créer le bâtiment</p>
               </div>
 
-              <div className="space-y-6 mb-8">
+              <div className="space-y-3 mb-4">
                 {/* Building Information */}
                 <Card className="border-l-4 border-l-sky-500">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
-                        <Building className="h-5 w-5 text-sky-600" />
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+                        <Building className="h-4 w-4 text-sky-600" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-900">Informations du bâtiment</h3>
-                        <p className="text-sm text-slate-600">Détails généraux du bâtiment</p>
+                        <h3 className="font-medium text-slate-900">Informations du bâtiment</h3>
+                        <p className="text-xs text-slate-600">Détails généraux du bâtiment</p>
                       </div>
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                         <div>
-                          <span className="text-sm font-medium text-slate-700">Nom :</span>
-                          <p className="text-slate-900">{buildingInfo.name || "Non spécifié"}</p>
+                          <span className="text-xs font-medium text-slate-700">Nom :</span>
+                          <p className="text-sm text-slate-900">{buildingInfo.name || "Non spécifié"}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-slate-700">Année de construction :</span>
-                          <p className="text-slate-900">{buildingInfo.constructionYear || "Non spécifiée"}</p>
+                          <span className="text-xs font-medium text-slate-700">Année :</span>
+                          <p className="text-sm text-slate-900">{buildingInfo.constructionYear || "Non spécifiée"}</p>
+                        </div>
+                        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-2">
+                          <span className="text-xs font-medium text-slate-700">Adresse :</span>
+                          <p className="text-sm text-slate-900">{buildingInfo.address}</p>
                         </div>
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-slate-700">Adresse :</span>
-                        <p className="text-slate-900">{buildingInfo.address}</p>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         <div>
-                          <span className="text-sm font-medium text-slate-700">Code postal :</span>
-                          <p className="text-slate-900">{buildingInfo.postalCode || "Non spécifié"}</p>
+                          <span className="text-xs font-medium text-slate-700">Code postal :</span>
+                          <p className="text-sm text-slate-900">{buildingInfo.postalCode || "Non spécifié"}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-slate-700">Ville :</span>
-                          <p className="text-slate-900">{buildingInfo.city || "Non spécifiée"}</p>
+                          <span className="text-xs font-medium text-slate-700">Ville :</span>
+                          <p className="text-sm text-slate-900">{buildingInfo.city || "Non spécifiée"}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-slate-700">Pays :</span>
-                          <p className="text-slate-900">{buildingInfo.country}</p>
+                          <span className="text-xs font-medium text-slate-700">Pays :</span>
+                          <p className="text-sm text-slate-900">{buildingInfo.country}</p>
                         </div>
                       </div>
                       {buildingInfo.description && (
                         <div>
-                          <span className="text-sm font-medium text-slate-700">Description :</span>
-                          <p className="text-slate-900 text-sm mt-1">{buildingInfo.description}</p>
+                          <span className="text-xs font-medium text-slate-700">Description :</span>
+                          <p className="text-slate-900 text-xs mt-1">{buildingInfo.description}</p>
                         </div>
                       )}
                     </div>
@@ -1369,54 +1468,34 @@ export default function NewBuildingPage() {
 
                 {/* Lots Summary */}
                 <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <MapPin className="h-5 w-5 text-green-600" />
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                        <MapPin className="h-4 w-4 text-green-600" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-900">Lots configurés ({lots.length})</h3>
-                        <p className="text-sm text-slate-600">Configuration des lots du bâtiment</p>
+                        <h3 className="font-medium text-slate-900">Lots configurés ({lots.length})</h3>
+                        <p className="text-xs text-slate-600">Configuration des lots du bâtiment</p>
                       </div>
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-4">
-                      {/* Stats globales */}
-                      <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-white rounded-lg border">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">{lots.length}</div>
-                          <div className="text-sm text-slate-600">Lots</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-sky-600">{getTotalStats().totalRent}€</div>
-                          <div className="text-sm text-slate-600">Loyers/mois</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-purple-600">{getTotalStats().totalSurface}m²</div>
-                          <div className="text-sm text-slate-600">Surface totale</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-amber-600">{Math.round(getTotalStats().avgRent)}€</div>
-                          <div className="text-sm text-slate-600">Loyer moyen</div>
-                        </div>
-                      </div>
+                    <div className="bg-slate-50 rounded-lg p-3">
                       
                       {/* Liste des lots */}
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
                         {lots.map((lot, index) => (
-                          <div key={lot.id} className="flex items-center justify-between p-3 bg-white rounded border">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center text-sm font-medium text-green-600">
+                          <div key={lot.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-xs font-medium text-green-600">
                                 {index + 1}
                               </div>
                               <div>
-                                <span className="font-medium text-slate-900">{lot.reference}</span>
-                                {lot.doorNumber && <span className="text-slate-500 ml-2">({lot.doorNumber})</span>}
+                                <span className="font-medium text-sm text-slate-900">{lot.reference}</span>
+                                {lot.doorNumber && <span className="text-slate-500 ml-1 text-xs">({lot.doorNumber})</span>}
                               </div>
                             </div>
-                            <div className="flex items-center space-x-4 text-sm text-slate-600">
+                            <div className="flex items-center space-x-3 text-xs text-slate-600">
                               <span>Étage {lot.floor}</span>
                               {lot.surface && <span>{lot.surface}m²</span>}
-                              {lot.monthlyRent && <span>{lot.monthlyRent}€/mois</span>}
                             </div>
                           </div>
                         ))}
@@ -1425,39 +1504,39 @@ export default function NewBuildingPage() {
                   </CardContent>
                 </Card>
 
-                {/* Gestionnaire responsable */}
+                {/* Responsable du bâtiment */}
                 {selectedManagerId && (
                   <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <User className="h-5 w-5 text-blue-600" />
+                    <CardContent className="p-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Building className="h-4 w-4 text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-slate-900">Gestionnaire responsable</h3>
-                          <p className="text-sm text-slate-600">Responsable principal du bâtiment</p>
+                          <h3 className="font-medium text-slate-900">Responsable du bâtiment</h3>
+                          <p className="text-xs text-slate-600">Responsable principal pour toutes les notifications</p>
                         </div>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-4">
+                      <div className="bg-slate-50 rounded-lg p-3">
                         {(() => {
                           const manager = teamManagers.find(m => m.user.id === selectedManagerId)
                           return manager ? (
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <User className="w-5 h-5 text-blue-600" />
+                            <div className="flex items-center space-x-2">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4 text-blue-600" />
                               </div>
                               <div>
-                                <div className="font-medium text-slate-900">{manager.user.name}</div>
-                                <div className="text-sm text-slate-600">{manager.user.email}</div>
+                                <div className="font-medium text-sm text-slate-900">{manager.user.name}</div>
+                                <div className="text-xs text-slate-600">{manager.user.email}</div>
                                 {manager.user.id === user?.id && (
-                                  <span className="inline-flex px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">
+                                  <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full mt-0.5">
                                     Vous
                                   </span>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <p className="text-slate-500">Gestionnaire non trouvé</p>
+                            <p className="text-slate-500">Responsable non trouvé</p>
                           )
                         })()}
                       </div>
@@ -1468,33 +1547,38 @@ export default function NewBuildingPage() {
                 {/* Contacts assignés */}
                 {(contacts.length > 0 || Object.values(assignedManagers).some(managers => managers.length > 0)) && (
                   <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <Users className="h-5 w-5 text-purple-600" />
+                    <CardContent className="p-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Users className="h-4 w-4 text-purple-600" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-slate-900">Contacts et assignations</h3>
-                          <p className="text-sm text-slate-600">Contacts assignés aux lots</p>
+                          <h3 className="font-medium text-slate-900">Contacts et assignations</h3>
+                          <p className="text-xs text-slate-600">Contacts assignés aux lots</p>
                         </div>
                       </div>
-                      <div className="bg-slate-50 rounded-lg p-4">
-                        <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-white rounded border">
+                      <div className="bg-slate-50 rounded-lg p-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 p-2 bg-white rounded border">
                           <div className="text-center">
                             <div className="text-lg font-bold text-purple-600">{contacts.length}</div>
-                            <div className="text-xs text-slate-600">Contacts créés</div>
+                            <div className="text-xs text-slate-600">Contact{contacts.length > 1 ? 's' : ''}</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-lg font-bold text-blue-600">
-                              {Object.values(assignedManagers).reduce((total, managers) => total + managers.length, 0)}
+                            <div className="text-lg font-bold text-blue-600">1</div>
+                            <div className="text-xs text-slate-600">Responsable bât.</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-purple-600">
+                              {Object.values(assignedManagers).reduce((total, managers) => 
+                                total + managers.filter(m => m.user.id !== selectedManagerId).length, 0)}
                             </div>
-                            <div className="text-xs text-slate-600">Gestionnaires assignés</div>
+                            <div className="text-xs text-slate-600">Resp. de lots</div>
                           </div>
                           <div className="text-center">
                             <div className="text-lg font-bold text-green-600">
                               {lots.filter(lot => getAssignedManagers(lot.id).length > 0 || getAllLotContacts(lot.id).length > 0).length}
                             </div>
-                            <div className="text-xs text-slate-600">Lots avec contacts</div>
+                            <div className="text-xs text-slate-600">Lots assignés</div>
                           </div>
                         </div>
                         
@@ -1517,13 +1601,15 @@ export default function NewBuildingPage() {
                 </div>
               )}
 
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row justify-between gap-2 pt-2">
                 <Button 
                   variant="outline" 
                   onClick={() => setCurrentStep(3)}
                   disabled={isCreating}
+                  size="sm"
+                  className="w-full sm:w-auto order-2 sm:order-1"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  <ArrowLeft className="h-3 w-3 mr-1" />
                   Retour
                 </Button>
                 <Button 
@@ -1531,17 +1617,18 @@ export default function NewBuildingPage() {
                     console.log("🖱️ Confirm creation button clicked!")
                     handleFinish()
                   }} 
-                  className="bg-green-600 hover:bg-green-700"
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 w-full sm:w-auto order-1 sm:order-2"
                   disabled={isCreating}
                 >
                   {isCreating ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                       Création en cours...
                     </>
                   ) : (
                     <>
-                      <Check className="h-4 w-4 mr-2" />
+                      <Check className="h-3 w-3 mr-1" />
                       Confirmer la création
                     </>
                   )}
@@ -1553,7 +1640,7 @@ export default function NewBuildingPage() {
 
         {/* Contact Selection Modal */}
         <Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
@@ -1649,16 +1736,16 @@ export default function NewBuildingPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between pt-4 border-t gap-3">
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   onClick={() => openContactFormModal(selectedContactType)}
                 >
                   <Plus className="w-4 h-4" />
                   Créer un nouveau {getSelectedContactTypeInfo().label.toLowerCase()}
                 </Button>
-                <Button variant="ghost" onClick={() => {
+                <Button variant="ghost" className="w-full sm:w-auto" onClick={() => {
                   setIsContactModalOpen(false)
                   cleanContactContext() // Nettoyer le contexte en cas d'annulation
                 }}>
@@ -1690,14 +1777,14 @@ export default function NewBuildingPage() {
 
         {/* Manager Assignment Modal */}
         <Dialog open={isManagerModalOpen} onOpenChange={setIsManagerModalOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                Assigner un gestionnaire au lot {selectedLotForManager && lots.find(l => l.id === selectedLotForManager)?.reference}
+                <Users className="w-5 h-5 text-purple-600" />
+                Assigner un responsable spécifique au lot {selectedLotForManager && lots.find(l => l.id === selectedLotForManager)?.reference}
               </DialogTitle>
               <DialogDescription>
-                Sélectionnez un gestionnaire de votre équipe pour ce lot
+                Ce responsable recevra les notifications spécifiques à ce lot, en complément du responsable du bâtiment
               </DialogDescription>
             </DialogHeader>
             
@@ -1708,19 +1795,22 @@ export default function NewBuildingPage() {
                     {teamManagers.map((manager) => {
                       const isAlreadyAssigned = Boolean(selectedLotForManager && 
                         getAssignedManagers(selectedLotForManager).some(m => m.user.id === manager.user.id))
+                      const isBuildingManager = manager.user.id === selectedManagerId
                       
                       return (
                         <div
                           key={manager.user.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                            isAlreadyAssigned 
+                            isAlreadyAssigned || isBuildingManager
                               ? 'bg-gray-100 border-gray-300 opacity-60' 
-                              : 'hover:bg-blue-50 border-blue-200'
+                              : 'hover:bg-purple-50 border-purple-200'
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-blue-600" />
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              isBuildingManager ? 'bg-blue-100' : 'bg-purple-100'
+                            }`}>
+                              <User className={`w-5 h-5 ${isBuildingManager ? 'text-blue-600' : 'text-purple-600'}`} />
                             </div>
                             <div>
                               <div className="font-medium">{manager.user.name}</div>
@@ -1729,23 +1819,28 @@ export default function NewBuildingPage() {
                                 {manager.user.id === user?.id && (
                                   <Badge variant="outline" className="text-xs">Vous</Badge>
                                 )}
-                                {manager.user.id === selectedManagerId && (
-                                  <Badge variant="secondary" className="text-xs">Responsable du bâtiment</Badge>
+                                {isBuildingManager && (
+                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">Responsable du bâtiment</Badge>
                                 )}
                               </div>
                             </div>
                           </div>
                           <Button 
                             onClick={() => selectedLotForManager && addManagerToLot(selectedLotForManager, manager)} 
-                            disabled={isAlreadyAssigned}
+                            disabled={isAlreadyAssigned || isBuildingManager}
                             className={`${
-                              isAlreadyAssigned 
+                              isAlreadyAssigned || isBuildingManager
                                 ? 'bg-gray-300 text-gray-500' 
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-purple-600 text-white hover:bg-purple-700'
                             }`}
                             size="sm"
                           >
-                            {isAlreadyAssigned ? 'Déjà assigné' : 'Assigner'}
+                            {isAlreadyAssigned 
+                              ? 'Déjà assigné' 
+                              : isBuildingManager 
+                                ? 'Responsable du bâtiment'
+                                : 'Assigner'
+                            }
                           </Button>
                         </div>
                       )
@@ -1769,16 +1864,16 @@ export default function NewBuildingPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between pt-4 border-t gap-3">
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   onClick={openGestionnaireModal}
                 >
                   <Plus className="w-4 h-4" />
-                  Créer un nouveau gestionnaire
+                  Créer un nouveau responsable
                 </Button>
-                <Button variant="ghost" onClick={() => setIsManagerModalOpen(false)}>
+                <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsManagerModalOpen(false)}>
                   Fermer
                 </Button>
               </div>
@@ -1789,3 +1884,4 @@ export default function NewBuildingPage() {
     </div>
   )
 }
+

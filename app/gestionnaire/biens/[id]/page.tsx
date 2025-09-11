@@ -602,15 +602,6 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                           </div>
                         </div>
 
-                        {lot.rent_amount && (
-                          <div className="mt-3 pt-3 border-t text-sm">
-                            <span className="text-gray-600">Loyer: </span>
-                            <span className="font-medium">{lot.rent_amount}€</span>
-                            {lot.charges_amount && (
-                              <span className="text-gray-600 ml-4">Charges: {lot.charges_amount}€</span>
-                            )}
-                          </div>
-                        )}
                       </CardContent>
                     </Card>
                   )

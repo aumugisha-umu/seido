@@ -1,8 +1,8 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut } from "lucide-react"
 import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
@@ -70,8 +70,9 @@ const roleConfigs: Record<string, HeaderConfig> = {
 export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const config = roleConfigs[role] || roleConfigs.gestionnaire
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   
   const userName = user?.display_name || user?.name || "Utilisateur"
   const userInitial = userName.charAt(0).toUpperCase()
@@ -88,6 +89,32 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
     
     // Pour les dashboards, seule la correspondance exacte compte
     return false
+  }
+
+  const getRoleDisplayName = (role: string) => {
+    const roleNames = {
+      admin: "Administrateur",
+      gestionnaire: "Gestionnaire", 
+      prestataire: "Prestataire",
+      locataire: "Locataire"
+    }
+    return roleNames[role as keyof typeof roleNames] || role.charAt(0).toUpperCase() + role.slice(1)
+  }
+
+  const handleLogout = async () => {
+    try {
+      console.log('👤 [DASHBOARD-HEADER] Logout button clicked')
+      await signOut()
+      console.log('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
+      window.location.href = "/auth/login"
+    } catch (error) {
+      console.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
+      window.location.href = "/auth/login"
+    }
+  }
+
+  const handleProfile = () => {
+    router.push(`/${role}/profile`)
   }
 
   // Fermer le menu mobile lors du changement de route
@@ -178,13 +205,15 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
                 </Link>
               )}
 
-              {/* Menu utilisateur - toujours visible */}
+              {/* Menu utilisateur - caché sur mobile, visible sur desktop */}
               {config.showUserElements && (
-                <UserMenu 
-                  userName={userName} 
-                  userInitial={userInitial} 
-                  role={role} 
-                />
+                <div className="hidden lg:block">
+                  <UserMenu 
+                    userName={userName} 
+                    userInitial={userInitial} 
+                    role={role} 
+                  />
+                </div>
               )}
 
               {/* Bouton hamburger - mobile et tablet uniquement */}
@@ -215,9 +244,11 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
           />
 
           {/* Menu panel */}
-          <div className="fixed top-16 inset-x-0 bg-white border-b border-slate-200 shadow-lg">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-              <nav className="space-y-2">
+          <div className="fixed top-16 inset-x-0 bottom-0 bg-white border-b border-slate-200 shadow-lg">
+            <div className="flex flex-col h-full max-w-7xl mx-auto px-4 sm:px-6 py-4">
+              
+              {/* Navigation principale */}
+              <nav className="space-y-2 mb-4">
                 {config.navigation.map((item) => {
                   const Icon = item.icon
                   const isActive = isActivePage(item.href)
@@ -241,6 +272,65 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
                   )
                 })}
               </nav>
+
+              {/* Séparation */}
+              <div className="border-t border-slate-200 mb-4"></div>
+
+              {/* Section actions utilisateur */}
+              {config.showUserElements && (
+                <div className="space-y-2 mb-4">
+                  <button
+                    onClick={() => {
+                      handleProfile()
+                      setIsMobileMenuOpen(false)
+                    }}
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300"
+                  >
+                    <User className="h-6 w-6" />
+                    <span className="text-base">Mon profil</span>
+                  </button>
+                  
+                  <button
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300"
+                  >
+                    <Settings className="h-6 w-6" />
+                    <span className="text-base">Paramètres</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Spacer pour pousser le profil utilisateur vers le bas */}
+              <div className="flex-1"></div>
+
+              {/* Profil utilisateur en bas avec logout sur la même ligne */}
+              {config.showUserElements && (
+                <div className="border-t border-slate-200 pt-4">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    {/* Informations utilisateur */}
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-foreground font-medium text-base">{userInitial}</span>
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-slate-900 font-semibold text-base leading-tight truncate">{userName}</span>
+                        <span className="text-slate-600 text-sm leading-tight truncate">{getRoleDisplayName(role)}</span>
+                      </div>
+                    </div>
+
+                    {/* Bouton logout */}
+                    <button
+                      onClick={() => {
+                        handleLogout()
+                        setIsMobileMenuOpen(false)
+                      }}
+                      className="p-3 rounded-lg transition-all duration-200 text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 flex-shrink-0"
+                      aria-label="Se déconnecter"
+                    >
+                      <LogOut className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </div>
           </div>

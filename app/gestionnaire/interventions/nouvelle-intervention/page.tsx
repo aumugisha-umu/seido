@@ -32,6 +32,8 @@ import {
   MessageSquare,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import PropertySelector from "@/components/property-selector"
@@ -83,6 +85,8 @@ export default function NouvelleInterventionPage() {
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
   const router = useRouter()
+  const { toast } = useToast()
+  const { handleSuccess } = useCreationSuccess()
   const searchParams = useSearchParams()
   const { user } = useAuth()
 
@@ -498,23 +502,20 @@ export default function NouvelleInterventionPage() {
 
       console.log("✅ Intervention created successfully:", result)
 
-      // Store the created intervention ID
-      setCreatedInterventionId(result.intervention.id)
-
-      // Show success modal
-      setShowSuccessModal(true)
-      setCountdown(10)
-
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            router.push(`/gestionnaire/interventions/${result.intervention.id}`)
-            return 0
+      // Gérer le succès avec vidage du cache (la navigation forcera le rechargement)
+      await handleSuccess({
+        successTitle: "Intervention créée avec succès",
+        successDescription: `L'intervention "${result.intervention.title}" a été créée et assignée.`,
+        redirectPath: "/gestionnaire/interventions",
+        refreshData: async () => {
+          // Vider le cache pour forcer le rechargement des interventions lors de la navigation
+          const { statsService } = await import("@/lib/database-service")
+          if (user?.id) {
+            statsService.clearStatsCache(user.id)
           }
-          return prev - 1
-        })
-      }, 1000)
+        },
+        hardRefreshFallback: false, // La navigation vers une nouvelle page force naturellement le rechargement
+      })
 
     } catch (error) {
       console.error("❌ Error creating intervention:", error)

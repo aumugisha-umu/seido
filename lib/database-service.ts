@@ -1,6 +1,8 @@
 import { supabase, withRetry } from './supabase'
 import { connectionManager } from './connection-manager'
 import type { Database } from './database.types'
+import { activityLogger } from './activity-logger'
+import { notificationService } from './notification-service'
 
 // Log Supabase configuration on module load
 console.log("🔧 Database service loaded with Supabase:", {
@@ -296,10 +298,56 @@ export const buildingService = {
       
       if (error) {
         console.error("❌ Building creation error:", error)
+        
+        // Log de l'erreur
+        if (building.team_id && building.manager_id) {
+          await activityLogger.logError(
+            'create',
+            'building',
+            building.name || 'Nouvel immeuble',
+            error.message || 'Erreur lors de la création',
+            { building: building, error: error }
+          ).catch(logError => 
+            console.error("Failed to log building creation error:", logError)
+          )
+        }
+        
         throw error
       }
       
       console.log("✅ Building created in database:", data)
+      
+      // Log de succès et notification
+      if (data && building.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: building.team_id,
+            userId: user.id,
+            actionType: 'create',
+            entityType: 'building',
+            entityId: data.id,
+            entityName: data.name,
+            description: `Nouvel immeuble ajouté : ${data.name}`,
+            status: 'success',
+            metadata: {
+              address: data.address,
+              city: data.city,
+              total_lots: data.total_lots,
+              manager_name: data.manager?.name
+            }
+          }).catch(logError => 
+            console.error("Failed to log building creation:", logError)
+          )
+
+          // Notification de création
+          await notificationService.notifyBuildingCreated(data, user.id).catch(notificationError =>
+            console.error("Failed to send building creation notification:", notificationError)
+          )
+        }
+      }
+      
       return data
     } catch (error) {
       console.error("❌ buildingService.create error:", error)
@@ -308,25 +356,144 @@ export const buildingService = {
   },
 
   async update(id: string, updates: Database['public']['Tables']['buildings']['Update']) {
-    const { data, error } = await supabase
-      .from('buildings')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour le log
+      const { data: currentData } = await supabase
+        .from('buildings')
+        .select('id, name, team_id')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('buildings')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("❌ Building update error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'update',
+            'building',
+            currentData.name || 'Immeuble',
+            error.message || 'Erreur lors de la modification',
+            { updates, building_id: id, error: error }
+          ).catch(logError => 
+            console.error("Failed to log building update error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (data && currentData?.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: user.id,
+            actionType: 'update',
+            entityType: 'building',
+            entityId: data.id,
+            entityName: data.name || currentData.name,
+            description: `Immeuble modifié : ${data.name || currentData.name}`,
+            status: 'success',
+            metadata: {
+              changes: updates,
+              previous_name: currentData.name
+            }
+          }).catch(logError => 
+            console.error("Failed to log building update:", logError)
+          )
+
+          // Notification de modification
+          await notificationService.notifyBuildingUpdated(data, user.id, updates).catch(notificationError =>
+            console.error("Failed to send building update notification:", notificationError)
+          )
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error("❌ buildingService.update error:", error)
+      throw error
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('buildings')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
-    return true
+    try {
+      // Récupérer les données actuelles pour le log avant suppression
+      const { data: currentData } = await supabase
+        .from('buildings')
+        .select('id, name, team_id, address, city')
+        .eq('id', id)
+        .single()
+
+      const { error } = await supabase
+        .from('buildings')
+        .delete()
+        .eq('id', id)
+      
+      if (error) {
+        console.error("❌ Building deletion error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'delete',
+            'building',
+            currentData.name || 'Immeuble',
+            error.message || 'Erreur lors de la suppression',
+            { building_id: id, building_data: currentData, error: error }
+          ).catch(logError => 
+            console.error("Failed to log building deletion error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (currentData?.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: user.id,
+            actionType: 'delete',
+            entityType: 'building',
+            entityId: id,
+            entityName: currentData.name || 'Immeuble supprimé',
+            description: `Immeuble supprimé : ${currentData.name || 'Immeuble supprimé'}`,
+            status: 'success',
+            metadata: {
+              address: currentData.address,
+              city: currentData.city,
+              deleted_at: new Date().toISOString()
+            }
+          }).catch(logError => 
+            console.error("Failed to log building deletion:", logError)
+          )
+
+          // Notification de suppression
+          await notificationService.notifyBuildingDeleted(currentData, user.id).catch(notificationError =>
+            console.error("Failed to send building deletion notification:", notificationError)
+          )
+        }
+      }
+      
+      return true
+    } catch (error) {
+      console.error("❌ buildingService.delete error:", error)
+      throw error
+    }
   }
 }
 
@@ -428,10 +595,63 @@ export const lotService = {
       
       if (error) {
         console.error("❌ Lot creation error:", error)
+        
+        // Log de l'erreur
+        if (lot.team_id) {
+          await activityLogger.logError(
+            'create',
+            'lot',
+            lot.reference || 'Nouveau lot',
+            error.message || 'Erreur lors de la création',
+            { lot: lot, error: error }
+          ).catch(logError => 
+            console.error("Failed to log lot creation error:", logError)
+          )
+        }
+        
         throw error
       }
       
       console.log("✅ Lot created in database:", data)
+      
+      // Log de succès
+      if (data && lot.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: lot.team_id,
+            userId: user.id,
+            actionType: 'create',
+            entityType: 'lot',
+            entityId: data.id,
+            entityName: data.reference,
+            description: `Nouveau lot créé : ${data.reference}`,
+            status: 'success',
+            metadata: {
+              building_id: data.building_id,
+              category: data.category,
+              surface_area: data.surface_area,
+              rooms: data.rooms,
+              floor: data.floor
+            }
+          }).catch(logError => 
+            console.error("Failed to log lot creation:", logError)
+          )
+
+          // Notification de création - récupérer les informations du building
+          const { data: building } = await supabase
+            .from('buildings')
+            .select('id, name')
+            .eq('id', data.building_id)
+            .single()
+
+          await notificationService.notifyLotCreated(data, building, user.id).catch(notificationError =>
+            console.error("Failed to send lot creation notification:", notificationError)
+          )
+        }
+      }
+      
       return data
     } catch (error) {
       console.error("❌ lotService.create error:", error)
@@ -440,25 +660,188 @@ export const lotService = {
   },
 
   async update(id: string, updates: Database['public']['Tables']['lots']['Update']) {
-    const { data, error } = await supabase
-      .from('lots')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour le log
+      const { data: currentData } = await supabase
+        .from('lots')
+        .select('id, reference, team_id, building_id')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('lots')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("❌ Lot update error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'update',
+            'lot',
+            currentData.reference || 'Lot',
+            error.message || 'Erreur lors de la modification',
+            { updates, lot_id: id, error: error }
+          ).catch(logError => 
+            console.error("Failed to log lot update error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (data && currentData?.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: user.id,
+            actionType: 'update',
+            entityType: 'lot',
+            entityId: data.id,
+            entityName: data.reference || currentData.reference,
+            description: `Lot modifié : ${data.reference || currentData.reference}`,
+            status: 'success',
+            metadata: {
+              changes: updates,
+              previous_reference: currentData.reference,
+              building_id: data.building_id
+            }
+          }).catch(logError => 
+            console.error("Failed to log lot update:", logError)
+          )
+
+          // Notification de modification - récupérer les informations du building
+          const { data: building } = await supabase
+            .from('buildings')
+            .select('id, name')
+            .eq('id', data.building_id)
+            .single()
+
+          await notificationService.notifyLotUpdated(data, building, user.id, updates).catch(notificationError =>
+            console.error("Failed to send lot update notification:", notificationError)
+          )
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error("❌ lotService.update error:", error)
+      throw error
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('lots')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
-    return true
+    try {
+      // Récupérer les données actuelles pour le log avant suppression
+      const { data: currentData } = await supabase
+        .from('lots')
+        .select('id, reference, team_id, building_id, category, surface_area, rooms')
+        .eq('id', id)
+        .single()
+
+      const { error } = await supabase
+        .from('lots')
+        .delete()
+        .eq('id', id)
+      
+      if (error) {
+        console.error("❌ Lot deletion error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'delete',
+            'lot',
+            currentData.reference || 'Lot',
+            error.message || 'Erreur lors de la suppression',
+            { lot_id: id, lot_data: currentData, error: error }
+          ).catch(logError => 
+            console.error("Failed to log lot deletion error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (currentData?.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: user.id,
+            actionType: 'delete',
+            entityType: 'lot',
+            entityId: id,
+            entityName: currentData.reference || 'Lot supprimé',
+            description: `Lot supprimé : ${currentData.reference || 'Lot supprimé'}`,
+            status: 'success',
+            metadata: {
+              building_id: currentData.building_id,
+              category: currentData.category,
+              surface_area: currentData.surface_area,
+              rooms: currentData.rooms,
+              deleted_at: new Date().toISOString()
+            }
+          }).catch(logError => 
+            console.error("Failed to log lot deletion:", logError)
+          )
+
+          // Notification de suppression - récupérer les informations du building
+          const { data: building } = await supabase
+            .from('buildings')
+            .select('id, name')
+            .eq('id', currentData.building_id)
+            .single()
+
+          await notificationService.notifyLotDeleted(currentData, building, user.id).catch(notificationError =>
+            console.error("Failed to send lot deletion notification:", notificationError)
+          )
+        }
+      }
+      
+      return true
+    } catch (error) {
+      console.error("❌ lotService.delete error:", error)
+      throw error
+    }
+  },
+
+  // Compter les lots par catégorie pour une équipe
+  async getCountByCategory(teamId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('lots')
+        .select(`
+          category,
+          building:building_id!inner(
+            team_id
+          )
+        `)
+        .eq('building.team_id', teamId)
+      
+      if (error) throw error
+      
+      // Compter les occurrences de chaque catégorie
+      const counts: Record<string, number> = {}
+      data.forEach(lot => {
+        const category = lot.category || 'appartement' // valeur par défaut
+        counts[category] = (counts[category] || 0) + 1
+      })
+      
+      return counts
+    } catch (error) {
+      console.error("❌ Error getting lot counts by category:", error)
+      throw error
+    }
   }
 }
 
@@ -567,26 +950,146 @@ export const interventionService = {
   },
 
   async create(intervention: Database['public']['Tables']['interventions']['Insert']) {
-    const { data, error } = await supabase
-      .from('interventions')
-      .insert(intervention)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('interventions')
+        .insert(intervention)
+        .select(`
+          *,
+          lot:lot_id(reference, building:building_id(name, team_id))
+        `)
+        .single()
+      
+      if (error) throw error
+
+      // Créer des notifications automatiquement
+      if (data && data.lot?.building?.team_id && intervention.manager_id) {
+        try {
+          await notificationService.notifyInterventionCreated({
+            interventionId: data.id,
+            interventionTitle: data.title || `Intervention ${data.type || ''}`,
+            teamId: data.lot.building.team_id,
+            createdBy: intervention.manager_id,
+            assignedTo: intervention.assigned_contact_id || undefined,
+            managerId: intervention.manager_id,
+            lotId: data.lot_id,
+            lotReference: data.lot?.reference,
+            urgency: intervention.urgency === 'urgente' ? 'urgent' : 
+                     intervention.urgency === 'haute' ? 'high' : 'normal'
+          })
+          console.log('✅ Notifications created for new intervention:', data.id)
+        } catch (notificationError) {
+          console.error('❌ Error creating intervention notifications:', notificationError)
+          // Ne pas faire échouer la création de l'intervention pour les notifications
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error('❌ interventionService.create error:', error)
+      throw error
+    }
   },
 
   async update(id: string, updates: Database['public']['Tables']['interventions']['Update']) {
-    const { data, error } = await supabase
-      .from('interventions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour détecter les changements
+      const { data: currentData } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot:lot_id(reference, building:building_id(name, team_id))
+        `)
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('interventions')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          lot:lot_id(reference, building:building_id(name, team_id))
+        `)
+        .single()
+      
+      if (error) throw error
+
+      // Créer des notifications pour les changements importants
+      if (data && currentData && data.lot?.building?.team_id) {
+        try {
+          // Changement de statut
+          if (updates.status && updates.status !== currentData.status) {
+            await notificationService.notifyInterventionStatusChange({
+              interventionId: data.id,
+              interventionTitle: data.title || `Intervention ${data.type || ''}`,
+              oldStatus: currentData.status,
+              newStatus: updates.status,
+              teamId: data.lot.building.team_id,
+              changedBy: data.manager_id || currentData.manager_id,
+              assignedTo: data.assigned_contact_id || currentData.assigned_contact_id || undefined,
+              managerId: data.manager_id || currentData.manager_id,
+              lotId: data.lot_id || currentData.lot_id,
+              lotReference: data.lot?.reference
+            })
+            console.log('✅ Status change notifications created for intervention:', data.id)
+          }
+
+          // Changement d'assignation
+          if (updates.assigned_contact_id && updates.assigned_contact_id !== currentData.assigned_contact_id) {
+            // Notifier le nouvel assigné
+            if (updates.assigned_contact_id) {
+              await notificationService.createNotification({
+                userId: updates.assigned_contact_id,
+                teamId: data.lot.building.team_id,
+                createdBy: data.manager_id || currentData.manager_id,
+                type: 'assignment',
+                priority: data.urgency === 'urgente' ? 'urgent' : 
+                         data.urgency === 'haute' ? 'high' : 'normal',
+                title: 'Intervention assignée',
+                message: `L'intervention "${data.title || `${data.type || ''}`}"${data.lot?.reference ? ` pour ${data.lot.reference}` : ''} vous a été assignée`,
+                metadata: { 
+                  intervention_id: data.id,
+                  lot_reference: data.lot?.reference,
+                  previous_assignee: currentData.assigned_contact_id 
+                },
+                relatedEntityType: 'intervention',
+                relatedEntityId: data.id
+              })
+            }
+
+            // Notifier l'ancien assigné du changement
+            if (currentData.assigned_contact_id && currentData.assigned_contact_id !== updates.assigned_contact_id) {
+              await notificationService.createNotification({
+                userId: currentData.assigned_contact_id,
+                teamId: data.lot.building.team_id,
+                createdBy: data.manager_id || currentData.manager_id,
+                type: 'assignment',
+                priority: 'normal',
+                title: 'Intervention réassignée',
+                message: `L'intervention "${data.title || `${data.type || ''}`}"${data.lot?.reference ? ` pour ${data.lot.reference}` : ''} a été réassignée à quelqu'un d'autre`,
+                metadata: { 
+                  intervention_id: data.id,
+                  lot_reference: data.lot?.reference,
+                  new_assignee: updates.assigned_contact_id 
+                },
+                relatedEntityType: 'intervention',
+                relatedEntityId: data.id
+              })
+            }
+            console.log('✅ Assignment notifications created for intervention:', data.id)
+          }
+        } catch (notificationError) {
+          console.error('❌ Error creating intervention update notifications:', notificationError)
+          // Ne pas faire échouer la mise à jour pour les notifications
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error('❌ interventionService.update error:', error)
+      throw error
+    }
   },
 
   async delete(id: string) {
@@ -597,6 +1100,81 @@ export const interventionService = {
     
     if (error) throw error
     return true
+  },
+
+  // Get documents for an intervention
+  async getDocuments(interventionId: string) {
+    const { data, error } = await supabase
+      .from('intervention_documents')
+      .select(`
+        *,
+        uploaded_by_user:uploaded_by(name, email),
+        validated_by_user:validated_by(name, email)
+      `)
+      .eq('intervention_id', interventionId)
+      .order('uploaded_at', { ascending: false })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get interventions with their documents for a building
+  async getInterventionsWithDocumentsByBuildingId(buildingId: string) {
+    // First get all lots for this building
+    const lots = await lotService.getByBuildingId(buildingId)
+    const lotIds = lots?.map(lot => lot.id) || []
+    
+    if (lotIds.length === 0) return []
+    
+    // Get interventions for these lots
+    const { data: interventions, error } = await supabase
+      .from('interventions')
+      .select(`
+        *,
+        lot:lot_id(reference, building:building_id(name, address)),
+        assigned_contact:assigned_contact_id(name, email, phone),
+        documents:intervention_documents(
+          id,
+          filename,
+          original_filename,
+          file_size,
+          mime_type,
+          document_type,
+          uploaded_at,
+          uploaded_by
+        )
+      `)
+      .in('lot_id', lotIds)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return interventions || []
+  },
+
+  // Get interventions with their documents for a lot
+  async getInterventionsWithDocumentsByLotId(lotId: string) {
+    const { data, error } = await supabase
+      .from('interventions')
+      .select(`
+        *,
+        lot:lot_id(reference, building:building_id(name, address)),
+        assigned_contact:assigned_contact_id(name, email, phone),
+        documents:intervention_documents(
+          id,
+          filename,
+          original_filename,
+          file_size,
+          mime_type,
+          document_type,
+          uploaded_at,
+          uploaded_by
+        )
+      `)
+      .eq('lot_id', lotId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
   }
 }
 
@@ -1122,6 +1700,20 @@ export const contactService = {
           hint: error.hint,
           code: error.code
         })
+        
+        // Log de l'erreur
+        if (contact.team_id) {
+          await activityLogger.logError(
+            'create',
+            'contact',
+            contact.name || 'Nouveau contact',
+            error.message || 'Erreur lors de la création',
+            { contact: contact, error: error }
+          ).catch(logError => 
+            console.error("Failed to log contact creation error:", logError)
+          )
+        }
+        
         throw error
       }
       
@@ -1131,6 +1723,38 @@ export const contactService = {
       }
       
       console.log('✅ [CONTACT-SERVICE] Contact created successfully:', data.id)
+      
+      // Log de succès et notification
+      if (data && contact.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: contact.team_id,
+            userId: user.id,
+            actionType: 'create',
+            entityType: 'contact',
+            entityId: data.id,
+            entityName: data.name,
+            description: `Nouveau contact créé : ${data.name}`,
+            status: 'success',
+            metadata: {
+              email: data.email,
+              contact_type: data.contact_type,
+              company: data.company,
+              speciality: data.speciality
+            }
+          }).catch(logError => 
+            console.error("Failed to log contact creation:", logError)
+          )
+
+          // Notification de création
+          await notificationService.notifyContactCreated(data, user.id).catch(notificationError =>
+            console.error("Failed to send contact creation notification:", notificationError)
+          )
+        }
+      }
+      
       return data
     } catch (error) {
       console.error('❌ [CONTACT-SERVICE] Exception caught:', {
@@ -1177,25 +1801,146 @@ export const contactService = {
   },
 
   async update(id: string, updates: Database['public']['Tables']['contacts']['Update']) {
-    const { data, error } = await supabase
-      .from('contacts')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour le log
+      const { data: currentData } = await supabase
+        .from('contacts')
+        .select('id, name, email, team_id, contact_type')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('contacts')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("❌ Contact update error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'update',
+            'contact',
+            currentData.name || 'Contact',
+            error.message || 'Erreur lors de la modification',
+            { updates, contact_id: id, error: error }
+          ).catch(logError => 
+            console.error("Failed to log contact update error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (data && currentData?.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: user.id,
+            actionType: 'update',
+            entityType: 'contact',
+            entityId: data.id,
+            entityName: data.name || currentData.name,
+            description: `Contact modifié : ${data.name || currentData.name}`,
+            status: 'success',
+            metadata: {
+              changes: updates,
+              previous_name: currentData.name,
+              contact_type: data.contact_type || currentData.contact_type
+            }
+          }).catch(logError => 
+            console.error("Failed to log contact update:", logError)
+          )
+
+          // Notification de modification
+          await notificationService.notifyContactUpdated(data, user.id, updates).catch(notificationError =>
+            console.error("Failed to send contact update notification:", notificationError)
+          )
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error("❌ contactService.update error:", error)
+      throw error
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('contacts')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
-    return true
+    try {
+      // Récupérer les données actuelles pour le log avant suppression
+      const { data: currentData } = await supabase
+        .from('contacts')
+        .select('id, name, email, team_id, contact_type, company')
+        .eq('id', id)
+        .single()
+
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', id)
+      
+      if (error) {
+        console.error("❌ Contact deletion error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'delete',
+            'contact',
+            currentData.name || 'Contact',
+            error.message || 'Erreur lors de la suppression',
+            { contact_id: id, contact_data: currentData, error: error }
+          ).catch(logError => 
+            console.error("Failed to log contact deletion error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (currentData?.team_id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: user.id,
+            actionType: 'delete',
+            entityType: 'contact',
+            entityId: id,
+            entityName: currentData.name || 'Contact supprimé',
+            description: `Contact supprimé : ${currentData.name || 'Contact supprimé'}`,
+            status: 'success',
+            metadata: {
+              email: currentData.email,
+              contact_type: currentData.contact_type,
+              company: currentData.company,
+              deleted_at: new Date().toISOString()
+            }
+          }).catch(logError => 
+            console.error("Failed to log contact deletion:", logError)
+          )
+
+          // Notification de suppression
+          await notificationService.notifyContactDeleted(currentData, user.id).catch(notificationError =>
+            console.error("Failed to send contact deletion notification:", notificationError)
+          )
+        }
+      }
+      
+      return true
+    } catch (error) {
+      console.error("❌ contactService.delete error:", error)
+      throw error
+    }
   }
 }
 
@@ -2920,8 +3665,45 @@ export const compositeService = {
 
         // Étape 4: Créer les assignations lot-contact si fournies
         if (data.lotContactAssignments && data.lotContactAssignments.length > 0) {
-          console.log("📝 Step 4: Creating lot-contact assignments...")
+          console.log("📝 Step 4: Creating lot-contact assignments and setting lot managers...")
           
+          // Première passe : assigner les gestionnaires principaux aux lots (manager_id)
+          const lotManagerUpdates = data.lotContactAssignments.flatMap(lotAssignment => {
+            const principalManagerAssignments = lotAssignment.assignments.filter(
+              assignment => assignment.contactType === 'gestionnaire' && (assignment as any).isLotPrincipal === true
+            )
+            
+            if (principalManagerAssignments.length > 0) {
+              const targetLot = lots[lotAssignment.lotIndex]
+              if (targetLot) {
+                const principalManager = principalManagerAssignments[0]
+                console.log(`📝 Setting principal manager ${principalManager.contactId} for lot ${targetLot.reference}`)
+                
+                return [async () => {
+                  try {
+                    await lotService.update(targetLot.id, {
+                      manager_id: principalManager.contactId
+                    })
+                    console.log(`✅ Principal manager set for lot ${targetLot.reference}`)
+                    return { lotId: targetLot.id, managerId: principalManager.contactId }
+                  } catch (error) {
+                    console.error(`❌ Error setting principal manager for lot ${targetLot.reference}:`, error)
+                    return null
+                  }
+                }]
+              }
+            }
+            return []
+          })
+
+          const managerUpdateResults = await Promise.all(lotManagerUpdates.map(fn => fn()))
+          const successfulManagerUpdates = managerUpdateResults.filter(result => result !== null)
+          
+          console.log("✅ Principal lot managers set:", {
+            count: successfulManagerUpdates.length
+          })
+          
+          // Deuxième passe : créer toutes les assignations lot-contact (y compris gestionnaires)
           const assignmentPromises = data.lotContactAssignments.flatMap(lotAssignment => 
             lotAssignment.assignments.map(async (assignment, index) => {
               const targetLot = lots[lotAssignment.lotIndex]
@@ -2934,7 +3716,8 @@ export const compositeService = {
                 lotId: targetLot.id,
                 contactId: assignment.contactId,
                 contactType: assignment.contactType,
-                isPrimary: assignment.isPrimary
+                isPrimary: assignment.isPrimary,
+                isLotPrincipal: (assignment as any).isLotPrincipal
               })
 
               // ✅ CORRECTION: Mapper le type frontend vers le type database
@@ -2945,7 +3728,7 @@ export const compositeService = {
                 assignment.contactId,
                 databaseContactType,
                 assignment.isPrimary,
-                `Assigné lors de la création du bâtiment`
+                `Assigné lors de la création du bâtiment${(assignment as any).isLotPrincipal ? ' (gestionnaire principal)' : ''}`
               )
             })
           )
@@ -2954,7 +3737,8 @@ export const compositeService = {
           const successfulAssignments = assignmentResults.filter(result => result !== null)
 
           console.log("✅ Step 4 completed - Lot-contact assignments created:", {
-            assignmentCount: successfulAssignments.length
+            assignmentCount: successfulAssignments.length,
+            principalManagers: successfulManagerUpdates.length
           })
         }
 

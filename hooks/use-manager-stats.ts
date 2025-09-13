@@ -101,9 +101,25 @@ export function useManagerStats() {
 
   const refetch = useCallback(() => {
     if (user?.id) {
-      // Forcer le refetch en réinitialisant la référence
+      // Forcer le refetch en réinitialisant TOUT le cache
       lastUserIdRef.current = null
+      setData(null) // Clear current data to force fresh fetch
+      loadingRef.current = false // Reset loading flag
       fetchStats(user.id)
+    }
+  }, [user?.id, fetchStats])
+
+  const forceRefetch = useCallback(async () => {
+    if (user?.id) {
+      console.log("🔄 Force refreshing manager data...")
+      // Vider le cache du service ET les flags locaux
+      statsService.clearStatsCache(user.id)
+      lastUserIdRef.current = null
+      setData(null)
+      loadingRef.current = false
+      
+      // Force fetch
+      await fetchStats(user.id)
     }
   }, [user?.id, fetchStats])
 
@@ -112,6 +128,7 @@ export function useManagerStats() {
     loading,
     error,
     refetch,
+    forceRefetch,
     stats: data?.stats || {
       buildingsCount: 0,
       lotsCount: 0,

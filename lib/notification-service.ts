@@ -1,0 +1,1484 @@
+import { supabase } from '@/lib/supabase'
+import type { Database } from '@/lib/database.types'
+
+type NotificationType = Database['public']['Enums']['notification_type']
+type NotificationPriority = Database['public']['Enums']['notification_priority']
+
+interface CreateNotificationParams {
+  userId: string
+  teamId: string
+  createdBy?: string
+  type: NotificationType
+  priority?: NotificationPriority
+  title: string
+  message: string
+  metadata?: Record<string, any>
+  relatedEntityType?: string
+  relatedEntityId?: string
+}
+
+class NotificationService {
+  /**
+   * Créer une notification pour un utilisateur
+   */
+  async createNotification({
+    userId,
+    teamId,
+    createdBy,
+    type,
+    priority = 'normal',
+    title,
+    message,
+    metadata = {},
+    relatedEntityType,
+    relatedEntityId
+  }: CreateNotificationParams) {
+    try {
+      console.log('📬 Creating notification:', { userId, type, title })
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          team_id: teamId,
+          created_by: createdBy,
+          type,
+          priority,
+          title,
+          message,
+          metadata,
+          related_entity_type: relatedEntityType,
+          related_entity_id: relatedEntityId
+        })
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('❌ Error creating notification:', error)
+        return null
+      }
+
+      console.log('✅ Notification created:', data.id)
+      return data
+    } catch (error) {
+      console.error('❌ Exception creating notification:', error)
+      return null
+    }
+  }
+
+  /**
+   * Créer des notifications pour tous les membres d'une équipe
+   */
+  async createTeamNotification({
+    teamId,
+    createdBy,
+    type,
+    priority = 'normal',
+    title,
+    message,
+    metadata = {},
+    relatedEntityType,
+    relatedEntityId,
+    excludeUsers = []
+  }: Omit<CreateNotificationParams, 'userId'> & {
+    excludeUsers?: string[]
+  }) {
+    try {
+      console.log('📬 Creating team notification for team:', teamId)
+
+      // Récupérer tous les membres de l'équipe
+      const { data: teamMembers, error: membersError } = await supabase
+        .from('team_members')
+        .select('user_id')
+        .eq('team_id', teamId)
+
+      if (membersError) {
+        console.error('❌ Error fetching team members:', membersError)
+        return []
+      }
+
+      if (!teamMembers || teamMembers.length === 0) {
+        console.log('⚠️ No team members found for team:', teamId)
+        return []
+      }
+
+      // Filtrer les utilisateurs exclus
+      const userIds = teamMembers
+        .map(member => member.user_id)
+        .filter(userId => !excludeUsers.includes(userId))
+
+      // Créer une notification pour chaque membre
+      const notifications = userIds.map(userId => ({
+        user_id: userId,
+        team_id: teamId,
+        created_by: createdBy,
+        type,
+        priority,
+        title,
+        message,
+        metadata,
+        related_entity_type: relatedEntityType,
+        related_entity_id: relatedEntityId
+      }))
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert(notifications)
+        .select('*')
+
+      if (error) {
+        console.error('❌ Error creating team notifications:', error)
+        return []
+      }
+
+      console.log('✅ Created team notifications:', data.length)
+      return data
+    } catch (error) {
+      console.error('❌ Exception creating team notifications:', error)
+      return []
+    }
+  }
+
+  /**
+   * Notifications spécialisées pour les interventions
+   */
+  async notifyInterventionCreated({
+    interventionId,
+    interventionTitle,
+    teamId,
+    createdBy,
+    assignedTo,
+    managerId,
+    lotId,
+    lotReference,
+    urgency = 'normal'
+  }: {
+    interventionId: string
+    interventionTitle: string
+    teamId: string
+    createdBy: string
+    assignedTo?: string
+    managerId?: string
+    lotId?: string
+    lotReference?: string
+    urgency?: NotificationPriority
+  }) {
+    try {
+      // Récupérer les informations du lot et de l'immeuble pour identifier les responsables
+      let buildingManagerId = null
+      let lotManagerIds: string[] = []
+      
+      if (lotId) {
+        // Récupérer le lot avec son immeuble parent
+        const { data: lotData } = await supabase
+          .from('lots')
+          .select(`
+            id,
+            reference,
+            building:buildings(id, name, manager_id)
+          `)
+          .eq('id', lotId)
+          .single()
+        
+        buildingManagerId = lotData?.building?.manager_id
+
+        // Récupérer les gestionnaires spécifiquement assignés au lot
+        lotManagerIds = await this.getLotManagers(lotId)
+      }
+
+      // Récupérer tous les gestionnaires de l'équipe
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', teamId)
+
+      if (!teamMembers) return []
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== createdBy
+      )
+
+      // Identifier les gestionnaires directement responsables
+      const directResponsibles = new Set()
+      if (managerId && managerId !== createdBy) directResponsibles.add(managerId)
+      if (buildingManagerId && buildingManagerId !== createdBy) directResponsibles.add(buildingManagerId)
+      if (assignedTo && assignedTo !== createdBy) directResponsibles.add(assignedTo)
+      
+      // Ajouter les gestionnaires spécifiquement assignés au lot
+      lotManagerIds.forEach(lotManagerId => {
+        if (lotManagerId !== createdBy) {
+          directResponsibles.add(lotManagerId)
+        }
+      })
+
+      const notifications = []
+
+      // Créer les notifications selon la logique de responsabilité
+      for (const manager of allManagers) {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          const notification = await this.createNotification({
+            userId: manager.user_id,
+            teamId,
+            createdBy,
+            type: 'intervention',
+            priority: urgency === 'normal' ? 'high' : urgency,
+            title: 'Nouvelle intervention sous votre responsabilité',
+            message: `Une nouvelle intervention "${interventionTitle}"${lotReference ? ` pour ${lotReference}` : ''} vous concerne directement`,
+            metadata: { 
+              intervention_id: interventionId, 
+              lot_reference: lotReference,
+              isPersonal: true
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: interventionId
+          })
+          if (notification) notifications.push(notification)
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          const notification = await this.createNotification({
+            userId: manager.user_id,
+            teamId,
+            createdBy,
+            type: 'intervention',
+            priority: 'normal',
+            title: 'Nouvelle intervention créée',
+            message: `Une nouvelle intervention "${interventionTitle}"${lotReference ? ` pour ${lotReference}` : ''} a été créée`,
+            metadata: { 
+              intervention_id: interventionId, 
+              lot_reference: lotReference,
+              isPersonal: false
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: interventionId
+          })
+          if (notification) notifications.push(notification)
+        }
+      }
+
+      const logDetails = [
+        buildingManagerId && buildingManagerId !== createdBy ? 'building manager' : null,
+        lotManagerIds.length > 0 ? `${lotManagerIds.length} lot manager(s)` : null,
+        managerId && managerId !== createdBy ? 'intervention manager' : null,
+        assignedTo && assignedTo !== createdBy ? 'assignee' : null
+      ].filter(Boolean).join(', ')
+
+      console.log(`📬 Intervention creation notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      return notifications
+    } catch (error) {
+      console.error('❌ Failed to notify intervention created:', error)
+      return []
+    }
+  }
+
+  /**
+   * Notifications pour changement de statut d'intervention
+   */
+  async notifyInterventionStatusChange({
+    interventionId,
+    interventionTitle,
+    oldStatus,
+    newStatus,
+    teamId,
+    changedBy,
+    assignedTo,
+    managerId,
+    lotId,
+    lotReference
+  }: {
+    interventionId: string
+    interventionTitle: string
+    oldStatus: string
+    newStatus: string
+    teamId: string
+    changedBy: string
+    assignedTo?: string
+    managerId?: string
+    lotId?: string
+    lotReference?: string
+  }) {
+    try {
+      const statusLabels = {
+        nouvelle_demande: 'Nouvelle demande',
+        en_attente_validation: 'En attente de validation',
+        validee: 'Validée',
+        en_cours: 'En cours',
+        terminee: 'Terminée',
+        annulee: 'Annulée'
+      }
+
+      // Récupérer les informations du lot et de l'immeuble pour identifier les responsables
+      let buildingManagerId = null
+      let lotManagerIds: string[] = []
+      
+      if (lotId) {
+        // Récupérer le lot avec son immeuble parent
+        const { data: lotData } = await supabase
+          .from('lots')
+          .select(`
+            id,
+            reference,
+            building:buildings(id, name, manager_id)
+          `)
+          .eq('id', lotId)
+          .single()
+        
+        buildingManagerId = lotData?.building?.manager_id
+
+        // Récupérer les gestionnaires spécifiquement assignés au lot
+        lotManagerIds = await this.getLotManagers(lotId)
+      }
+
+      // Récupérer tous les gestionnaires de l'équipe
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', teamId)
+
+      if (!teamMembers) return []
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== changedBy
+      )
+
+      // Identifier les gestionnaires directement responsables
+      const directResponsibles = new Set()
+      if (managerId && managerId !== changedBy) directResponsibles.add(managerId)
+      if (buildingManagerId && buildingManagerId !== changedBy) directResponsibles.add(buildingManagerId)
+      if (assignedTo && assignedTo !== changedBy) directResponsibles.add(assignedTo)
+      
+      // Ajouter les gestionnaires spécifiquement assignés au lot
+      lotManagerIds.forEach(lotManagerId => {
+        if (lotManagerId !== changedBy) {
+          directResponsibles.add(lotManagerId)
+        }
+      })
+
+      const notifications = []
+
+      // Créer les notifications selon la logique de responsabilité
+      for (const manager of allManagers) {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+
+        const oldLabel = statusLabels[oldStatus as keyof typeof statusLabels] || oldStatus
+        const newLabel = statusLabels[newStatus as keyof typeof statusLabels] || newStatus
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          const notification = await this.createNotification({
+            userId: manager.user_id,
+            teamId,
+            createdBy: changedBy,
+            type: 'status_change',
+            priority: newStatus === 'validee' ? 'high' : 'normal',
+            title: 'Statut d\'intervention sous votre responsabilité modifié',
+            message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} qui vous concerne est passée de "${oldLabel}" à "${newLabel}"`,
+            metadata: { 
+              intervention_id: interventionId, 
+              old_status: oldStatus, 
+              new_status: newStatus,
+              lot_reference: lotReference,
+              isPersonal: true
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: interventionId
+          })
+          if (notification) notifications.push(notification)
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          const notification = await this.createNotification({
+            userId: manager.user_id,
+            teamId,
+            createdBy: changedBy,
+            type: 'status_change',
+            priority: 'normal',
+            title: 'Statut d\'intervention modifié',
+            message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} est passée de "${oldLabel}" à "${newLabel}"`,
+            metadata: { 
+              intervention_id: interventionId, 
+              old_status: oldStatus, 
+              new_status: newStatus,
+              lot_reference: lotReference,
+              isPersonal: false
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: interventionId
+          })
+          if (notification) notifications.push(notification)
+        }
+      }
+
+      const logDetails = [
+        buildingManagerId && buildingManagerId !== changedBy ? 'building manager' : null,
+        lotManagerIds.length > 0 ? `${lotManagerIds.length} lot manager(s)` : null,
+        managerId && managerId !== changedBy ? 'intervention manager' : null,
+        assignedTo && assignedTo !== changedBy ? 'assignee' : null
+      ].filter(Boolean).join(', ')
+
+      console.log(`📬 Intervention status change notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      return notifications
+    } catch (error) {
+      console.error('❌ Failed to notify intervention status change:', error)
+      return []
+    }
+  }
+
+  /**
+   * Notifications pour les documents
+   */
+  async notifyDocumentUploaded({
+    documentId,
+    documentName,
+    teamId,
+    uploadedBy,
+    relatedEntityType,
+    relatedEntityId,
+    assignedTo
+  }: {
+    documentId: string
+    documentName: string
+    teamId: string
+    uploadedBy: string
+    relatedEntityType: string
+    relatedEntityId: string
+    assignedTo?: string
+  }) {
+    const notifications = []
+
+    // Notifier l'assigné si spécifié
+    if (assignedTo && assignedTo !== uploadedBy) {
+      const assigneeNotification = await this.createNotification({
+        userId: assignedTo,
+        teamId,
+        createdBy: uploadedBy,
+        type: 'document',
+        priority: 'normal',
+        title: 'Nouveau document disponible',
+        message: `Le document "${documentName}" a été ajouté`,
+        metadata: { 
+          document_id: documentId,
+          document_name: documentName,
+          related_entity_type: relatedEntityType,
+          related_entity_id: relatedEntityId
+        },
+        relatedEntityType: 'document',
+        relatedEntityId: documentId
+      })
+      if (assigneeNotification) notifications.push(assigneeNotification)
+    }
+
+    return notifications
+  }
+
+  /**
+   * Notifications pour les invitations d'équipe
+   */
+  async notifyTeamInvitation({
+    userId,
+    teamId,
+    teamName,
+    invitedBy,
+    role
+  }: {
+    userId: string
+    teamId: string
+    teamName: string
+    invitedBy: string
+    role: string
+  }) {
+    return this.createNotification({
+      userId,
+      teamId,
+      createdBy: invitedBy,
+      type: 'team_invite',
+      priority: 'high',
+      title: 'Invitation à rejoindre une équipe',
+      message: `Vous avez été invité(e) à rejoindre l'équipe "${teamName}" en tant que ${role}`,
+      metadata: { team_name: teamName, role },
+      relatedEntityType: 'team',
+      relatedEntityId: teamId
+    })
+  }
+
+  /**
+   * Notifications système
+   */
+  async notifySystemMaintenance({
+    teamId,
+    title,
+    message,
+    scheduledFor
+  }: {
+    teamId: string
+    title: string
+    message: string
+    scheduledFor: string
+  }) {
+    return this.createTeamNotification({
+      teamId,
+      type: 'system',
+      priority: 'normal',
+      title,
+      message,
+      metadata: { scheduled_for: scheduledFor }
+    })
+  }
+
+  /**
+   * Notifications de rappel
+   */
+  async notifyReminder({
+    userId,
+    teamId,
+    createdBy,
+    title,
+    message,
+    reminderDate,
+    relatedEntityType,
+    relatedEntityId
+  }: {
+    userId: string
+    teamId: string
+    createdBy?: string
+    title: string
+    message: string
+    reminderDate: string
+    relatedEntityType?: string
+    relatedEntityId?: string
+  }) {
+    return this.createNotification({
+      userId,
+      teamId,
+      createdBy,
+      type: 'reminder',
+      priority: 'normal',
+      title,
+      message,
+      metadata: { reminder_date: reminderDate },
+      relatedEntityType,
+      relatedEntityId
+    })
+  }
+
+  /**
+   * Notifier la création d'un immeuble
+   */
+  async notifyBuildingCreated(building: any, createdBy: string) {
+    try {
+      if (!building.team_id || !createdBy) return
+
+      console.log('📬 Notifying building created:', { buildingId: building.id, teamId: building.team_id })
+
+      // Récupérer tous les gestionnaires de l'équipe
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', building.team_id)
+
+      if (!teamMembers) return
+
+      // Filtrer les gestionnaires (exclure celui qui a fait l'action)
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== createdBy
+      )
+
+      // Identifier le gestionnaire directement responsable (s'il est différent du créateur)
+      const directManager = building.manager_id && building.manager_id !== createdBy ? building.manager_id : null
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = manager.user_id === directManager
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour le gestionnaire directement responsable
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: building.team_id,
+            createdBy,
+            type: 'system',
+            priority: 'high',
+            title: 'Vous avez été assigné(e) comme responsable d\'un immeuble',
+            message: `Vous avez été désigné(e) comme gestionnaire responsable de l'immeuble "${building.name}"`,
+            metadata: {
+              buildingId: building.id,
+              buildingName: building.name,
+              address: building.address,
+              isPersonal: true
+            },
+            relatedEntityType: 'building',
+            relatedEntityId: building.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: building.team_id,
+            createdBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Nouvel immeuble créé',
+            message: `Un nouvel immeuble "${building.name}" a été ajouté`,
+            metadata: {
+              buildingId: building.id,
+              buildingName: building.name,
+              address: building.address,
+              isPersonal: false
+            },
+            relatedEntityType: 'building',
+            relatedEntityId: building.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManager ? '1 personal, ' + (allManagers.length - 1) + ' team' : allManagers.length + ' team'})`)
+    } catch (error) {
+      console.error('❌ Failed to notify building created:', error)
+    }
+  }
+
+  /**
+   * Notifier la modification d'un immeuble
+   */
+  async notifyBuildingUpdated(building: any, updatedBy: string, changes: any) {
+    try {
+      if (!building.team_id || !updatedBy) return
+
+      // Récupérer tous les gestionnaires de l'équipe
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', building.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
+      )
+
+      // Identifier le gestionnaire directement responsable (s'il est différent du créateur)
+      const directManager = building.manager_id && building.manager_id !== updatedBy ? building.manager_id : null
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = manager.user_id === directManager
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour le gestionnaire directement responsable
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: building.team_id,
+            createdBy: updatedBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Immeuble dont vous êtes responsable modifié',
+            message: `L'immeuble "${building.name}" dont vous êtes le gestionnaire responsable a été modifié`,
+            metadata: {
+              buildingId: building.id,
+              buildingName: building.name,
+              changes,
+              isPersonal: true
+            },
+            relatedEntityType: 'building',
+            relatedEntityId: building.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: building.team_id,
+            createdBy: updatedBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Immeuble modifié',
+            message: `L'immeuble "${building.name}" a été modifié`,
+            metadata: {
+              buildingId: building.id,
+              buildingName: building.name,
+              changes,
+              isPersonal: false
+            },
+            relatedEntityType: 'building',
+            relatedEntityId: building.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManager ? '1 personal, ' + (allManagers.length - 1) + ' team' : allManagers.length + ' team'})`)
+    } catch (error) {
+      console.error('❌ Failed to notify building updated:', error)
+    }
+  }
+
+  /**
+   * Notifier la suppression d'un immeuble
+   */
+  async notifyBuildingDeleted(building: any, deletedBy: string) {
+    try {
+      if (!building.team_id || !deletedBy) return
+
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', building.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
+      )
+
+      // Identifier le gestionnaire directement responsable (s'il est différent du supprimeur)
+      const directManager = building.manager_id && building.manager_id !== deletedBy ? building.manager_id : null
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = manager.user_id === directManager
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour le gestionnaire directement responsable
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: building.team_id,
+            createdBy: deletedBy,
+            type: 'system',
+            priority: 'high',
+            title: 'Immeuble dont vous étiez responsable supprimé',
+            message: `L'immeuble "${building.name}" dont vous étiez le gestionnaire responsable a été supprimé`,
+            metadata: {
+              buildingName: building.name,
+              address: building.address,
+              isPersonal: true
+            },
+            relatedEntityType: 'building',
+            relatedEntityId: building.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: building.team_id,
+            createdBy: deletedBy,
+            type: 'system',
+            priority: 'high',
+            title: 'Immeuble supprimé',
+            message: `L'immeuble "${building.name}" a été supprimé`,
+            metadata: {
+              buildingName: building.name,
+              address: building.address,
+              isPersonal: false
+            },
+            relatedEntityType: 'building',
+            relatedEntityId: building.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManager ? '1 personal, ' + (allManagers.length - 1) + ' team' : allManagers.length + ' team'})`)
+    } catch (error) {
+      console.error('❌ Failed to notify building deleted:', error)
+    }
+  }
+
+  /**
+   * Notifier la création d'un lot
+   */
+  async notifyLotCreated(lot: any, building: any, createdBy: string) {
+    try {
+      if (!lot.team_id || !createdBy) return
+
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', lot.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== createdBy
+      )
+
+      // Identifier TOUS les gestionnaires directement responsables
+      const directResponsibles = new Set<string>()
+      
+      // 1. Gestionnaire principal du lot (lot.manager_id)
+      if (lot.manager_id && lot.manager_id !== createdBy) {
+        directResponsibles.add(lot.manager_id)
+      }
+      
+      // 2. Gestionnaires additionnels du lot (lot_contacts)
+      const lotManagerIds = await this.getLotManagers(lot.id)
+      lotManagerIds.forEach(managerId => {
+        if (managerId !== createdBy) {
+          directResponsibles.add(managerId)
+        }
+      })
+      
+      // 3. Gestionnaire de l'immeuble parent
+      if (building?.manager_id && building.manager_id !== createdBy) {
+        directResponsibles.add(building.manager_id)
+      }
+      
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+        const isLotPrincipal = manager.user_id === lot.manager_id
+        const isLotAdditional = lotManagerIds.includes(manager.user_id) && manager.user_id !== lot.manager_id
+        const isBuildingManager = manager.user_id === building?.manager_id
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          let title, message
+          if (isLotPrincipal) {
+            title = 'Vous avez été assigné(e) comme responsable principal d\'un lot'
+            message = `Vous avez été désigné(e) comme gestionnaire principal du lot "${lot.reference}" dans l'immeuble "${building?.name || 'N/A'}"`
+          } else if (isLotAdditional) {
+            title = 'Vous avez été assigné(e) comme gestionnaire d\'un lot'
+            message = `Vous avez été assigné(e) comme gestionnaire du lot "${lot.reference}" dans l'immeuble "${building?.name || 'N/A'}"`
+          } else if (isBuildingManager) {
+            title = 'Nouveau lot dans votre immeuble'
+            message = `Un nouveau lot "${lot.reference}" a été créé dans l'immeuble "${building?.name || 'N/A'}" dont vous êtes responsable`
+          }
+          
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: lot.team_id,
+            createdBy,
+            type: 'system',
+            priority: 'normal',
+            title,
+            message,
+            metadata: {
+              lotId: lot.id,
+              lotReference: lot.reference,
+              buildingId: lot.building_id,
+              buildingName: building?.name,
+              managerType: isLotPrincipal ? 'lot_principal' : isLotAdditional ? 'lot_additional' : 'building',
+              isPersonal: true
+            },
+            relatedEntityType: 'lot',
+            relatedEntityId: lot.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: lot.team_id,
+            createdBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Nouveau lot créé',
+            message: `Un nouveau lot "${lot.reference}" a été ajouté à l'immeuble "${building?.name || 'N/A'}"`,
+            metadata: {
+              lotId: lot.id,
+              lotReference: lot.reference,
+              buildingId: lot.building_id,
+              buildingName: building?.name,
+              isPersonal: false
+            },
+            relatedEntityType: 'lot',
+            relatedEntityId: lot.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Lot creation notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications`)
+      console.log(`📬     • ${lot.manager_id ? '1' : '0'} lot principal`)
+      console.log(`📬     • ${lotManagerIds.filter(id => id !== lot.manager_id).length} lot additionnels`)
+      console.log(`📬     • ${building?.manager_id && !lotManagerIds.includes(building.manager_id) && building.manager_id !== lot.manager_id ? '1' : '0'} building manager`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+    } catch (error) {
+      console.error('❌ Failed to notify lot created:', error)
+    }
+  }
+
+  /**
+   * Notifier la modification d'un lot
+   */
+  async notifyLotUpdated(lot: any, building: any, updatedBy: string, changes: any) {
+    try {
+      if (!lot.team_id || !updatedBy) return
+
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', lot.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
+      )
+
+      // Identifier TOUS les gestionnaires directement responsables
+      const directResponsibles = new Set<string>()
+      
+      // 1. Gestionnaire principal du lot (lot.manager_id)
+      if (lot.manager_id && lot.manager_id !== updatedBy) {
+        directResponsibles.add(lot.manager_id)
+      }
+      
+      // 2. Gestionnaires additionnels du lot (lot_contacts)
+      const lotManagerIds = await this.getLotManagers(lot.id)
+      lotManagerIds.forEach(managerId => {
+        if (managerId !== updatedBy) {
+          directResponsibles.add(managerId)
+        }
+      })
+      
+      // 3. Gestionnaire de l'immeuble parent
+      if (building?.manager_id && building.manager_id !== updatedBy) {
+        directResponsibles.add(building.manager_id)
+      }
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+        const isLotPrincipal = manager.user_id === lot.manager_id
+        const isLotAdditional = lotManagerIds.includes(manager.user_id) && manager.user_id !== lot.manager_id
+        const isBuildingManager = manager.user_id === building?.manager_id
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          let title, message
+          if (isLotPrincipal) {
+            title = 'Lot dont vous êtes responsable principal modifié'
+            message = `Le lot "${lot.reference}" dont vous êtes le gestionnaire principal a été modifié`
+          } else if (isLotAdditional) {
+            title = 'Lot dont vous êtes gestionnaire modifié'
+            message = `Le lot "${lot.reference}" dont vous êtes gestionnaire a été modifié`
+          } else if (isBuildingManager) {
+            title = 'Lot de votre immeuble modifié'
+            message = `Le lot "${lot.reference}" de l'immeuble "${building?.name || 'N/A'}" dont vous êtes responsable a été modifié`
+          }
+
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: lot.team_id,
+            createdBy: updatedBy,
+            type: 'system',
+            priority: 'normal',
+            title,
+            message,
+            metadata: {
+              lotId: lot.id,
+              lotReference: lot.reference,
+              buildingName: building?.name,
+              changes,
+              managerType: isLotPrincipal ? 'lot_principal' : isLotAdditional ? 'lot_additional' : 'building',
+              isPersonal: true
+            },
+            relatedEntityType: 'lot',
+            relatedEntityId: lot.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: lot.team_id,
+            createdBy: updatedBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Lot modifié',
+            message: `Le lot "${lot.reference}" a été modifié`,
+            metadata: {
+              lotId: lot.id,
+              lotReference: lot.reference,
+              buildingName: building?.name,
+              changes,
+              isPersonal: false
+            },
+            relatedEntityType: 'lot',
+            relatedEntityId: lot.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Lot update notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications`)
+      console.log(`📬     • ${lot.manager_id ? '1' : '0'} lot principal`)
+      console.log(`📬     • ${lotManagerIds.filter(id => id !== lot.manager_id).length} lot additionnels`)
+      console.log(`📬     • ${building?.manager_id && !lotManagerIds.includes(building.manager_id) && building.manager_id !== lot.manager_id ? '1' : '0'} building manager`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+    } catch (error) {
+      console.error('❌ Failed to notify lot updated:', error)
+    }
+  }
+
+  /**
+   * Notifier la suppression d'un lot
+   */
+  async notifyLotDeleted(lot: any, building: any, deletedBy: string) {
+    try {
+      if (!lot.team_id || !deletedBy) return
+
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', lot.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
+      )
+
+      // Identifier TOUS les gestionnaires directement responsables
+      const directResponsibles = new Set<string>()
+      
+      // 1. Gestionnaire principal du lot (lot.manager_id)
+      if (lot.manager_id && lot.manager_id !== deletedBy) {
+        directResponsibles.add(lot.manager_id)
+      }
+      
+      // 2. Gestionnaires additionnels du lot (lot_contacts)
+      const lotManagerIds = await this.getLotManagers(lot.id)
+      lotManagerIds.forEach(managerId => {
+        if (managerId !== deletedBy) {
+          directResponsibles.add(managerId)
+        }
+      })
+      
+      // 3. Gestionnaire de l'immeuble parent
+      if (building?.manager_id && building.manager_id !== deletedBy) {
+        directResponsibles.add(building.manager_id)
+      }
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+        const isLotPrincipal = manager.user_id === lot.manager_id
+        const isLotAdditional = lotManagerIds.includes(manager.user_id) && manager.user_id !== lot.manager_id
+        const isBuildingManager = manager.user_id === building?.manager_id
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          let title, message
+          if (isLotPrincipal) {
+            title = 'Lot dont vous étiez responsable principal supprimé'
+            message = `Le lot "${lot.reference}" dont vous étiez le gestionnaire principal a été supprimé`
+          } else if (isLotAdditional) {
+            title = 'Lot dont vous étiez gestionnaire supprimé'
+            message = `Le lot "${lot.reference}" dont vous étiez gestionnaire a été supprimé`
+          } else if (isBuildingManager) {
+            title = 'Lot de votre immeuble supprimé'
+            message = `Le lot "${lot.reference}" de l'immeuble "${building?.name || 'N/A'}" dont vous êtes responsable a été supprimé`
+          }
+
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: lot.team_id,
+            createdBy: deletedBy,
+            type: 'system',
+            priority: 'high',
+            title,
+            message,
+            metadata: {
+              lotReference: lot.reference,
+              buildingName: building?.name,
+              managerType: isLotPrincipal ? 'lot_principal' : isLotAdditional ? 'lot_additional' : 'building',
+              isPersonal: true
+            },
+            relatedEntityType: 'lot',
+            relatedEntityId: lot.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: lot.team_id,
+            createdBy: deletedBy,
+            type: 'system',
+            priority: 'high',
+            title: 'Lot supprimé',
+            message: `Le lot "${lot.reference}" a été supprimé de l'immeuble "${building?.name || 'N/A'}"`,
+            metadata: {
+              lotReference: lot.reference,
+              buildingName: building?.name,
+              isPersonal: false
+            },
+            relatedEntityType: 'lot',
+            relatedEntityId: lot.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Lot deletion notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications`)
+      console.log(`📬     • ${lot.manager_id ? '1' : '0'} lot principal`)
+      console.log(`📬     • ${lotManagerIds.filter(id => id !== lot.manager_id).length} lot additionnels`)
+      console.log(`📬     • ${building?.manager_id && !lotManagerIds.includes(building.manager_id) && building.manager_id !== lot.manager_id ? '1' : '0'} building manager`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+    } catch (error) {
+      console.error('❌ Failed to notify lot deleted:', error)
+    }
+  }
+
+  /**
+   * Notifier la création d'un contact
+   */
+  async notifyContactCreated(contact: any, createdBy: string) {
+    try {
+      if (!contact.team_id || !createdBy) return
+
+      // Récupérer tous les gestionnaires de l'équipe
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', contact.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== createdBy
+      )
+
+      // Identifier les gestionnaires directement responsables
+      const directResponsibles = await this.getContactDirectResponsibles(contact.id, createdBy)
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: contact.team_id,
+            createdBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Nouveau contact lié à vos biens',
+            message: `Un nouveau contact "${contact.first_name} ${contact.last_name}" a été ajouté et est lié à des biens dont vous êtes responsable`,
+            metadata: {
+              contactId: contact.id,
+              contactName: `${contact.first_name} ${contact.last_name}`,
+              contactType: contact.type,
+              isPersonal: true
+            },
+            relatedEntityType: 'contact',
+            relatedEntityId: contact.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: contact.team_id,
+            createdBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Nouveau contact ajouté',
+            message: `Un nouveau contact "${contact.first_name} ${contact.last_name}" a été ajouté`,
+            metadata: {
+              contactId: contact.id,
+              contactName: `${contact.first_name} ${contact.last_name}`,
+              contactType: contact.type,
+              isPersonal: false
+            },
+            relatedEntityType: 'contact',
+            relatedEntityId: contact.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Contact creation notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+    } catch (error) {
+      console.error('❌ Failed to notify contact created:', error)
+    }
+  }
+
+  /**
+   * Récupérer les gestionnaires spécifiquement assignés à un lot
+   */
+  private async getLotManagers(lotId: string): Promise<string[]> {
+    try {
+      const { data: lotManagers } = await supabase
+        .from('lot_contacts')
+        .select('contact_id')
+        .eq('lot_id', lotId)
+        .eq('contact_type', 'gestionnaire')
+
+      return lotManagers?.map(lm => lm.contact_id) || []
+    } catch (error) {
+      console.error('Error getting lot managers:', error)
+      return []
+    }
+  }
+
+  /**
+   * Identifier les gestionnaires directement responsables d'un contact
+   */
+  private async getContactDirectResponsibles(contactId: string, excludeUserId: string): Promise<Set<string>> {
+    const directResponsibles = new Set<string>()
+
+    try {
+      // Vérifier les liens avec les immeubles via building_contacts
+      const { data: buildingLinks } = await supabase
+        .from('building_contacts')
+        .select(`
+          building:buildings(id, name, manager_id)
+        `)
+        .eq('contact_id', contactId)
+
+      if (buildingLinks) {
+        buildingLinks.forEach(link => {
+          if (link.building?.manager_id && link.building.manager_id !== excludeUserId) {
+            directResponsibles.add(link.building.manager_id)
+          }
+        })
+      }
+
+      // Vérifier les liens avec les lots via lot_contacts (s'il existe)
+      const { data: lotLinks } = await supabase
+        .from('lot_contacts')
+        .select(`
+          lot:lots(
+            id, 
+            reference, 
+            building:buildings(id, name, manager_id)
+          )
+        `)
+        .eq('contact_id', contactId)
+        .limit(10)
+
+      if (lotLinks) {
+        lotLinks.forEach(link => {
+          if (link.lot?.building?.manager_id && link.lot.building.manager_id !== excludeUserId) {
+            directResponsibles.add(link.lot.building.manager_id)
+          }
+        })
+      }
+
+      // Vérifier les liens avec les interventions
+      const { data: interventionLinks } = await supabase
+        .from('interventions')
+        .select(`
+          id,
+          manager_id,
+          lot:lots(
+            id,
+            building:buildings(id, name, manager_id)
+          )
+        `)
+        .eq('assigned_contact_id', contactId)
+        .limit(10)
+
+      if (interventionLinks) {
+        interventionLinks.forEach(intervention => {
+          if (intervention.manager_id && intervention.manager_id !== excludeUserId) {
+            directResponsibles.add(intervention.manager_id)
+          }
+          if (intervention.lot?.building?.manager_id && intervention.lot.building.manager_id !== excludeUserId) {
+            directResponsibles.add(intervention.lot.building.manager_id)
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error getting contact direct responsibles:', error)
+    }
+
+    return directResponsibles
+  }
+
+  /**
+   * Notifier la modification d'un contact
+   */
+  async notifyContactUpdated(contact: any, updatedBy: string, changes: any) {
+    try {
+      if (!contact.team_id || !updatedBy) return
+
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', contact.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
+      )
+
+      // Identifier les gestionnaires directement responsables
+      const directResponsibles = await this.getContactDirectResponsibles(contact.id, updatedBy)
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: contact.team_id,
+            createdBy: updatedBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Contact lié à vos biens modifié',
+            message: `Le contact "${contact.first_name} ${contact.last_name}" lié à vos biens a été modifié`,
+            metadata: {
+              contactId: contact.id,
+              contactName: `${contact.first_name} ${contact.last_name}`,
+              changes,
+              isPersonal: true
+            },
+            relatedEntityType: 'contact',
+            relatedEntityId: contact.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: contact.team_id,
+            createdBy: updatedBy,
+            type: 'system',
+            priority: 'normal',
+            title: 'Contact modifié',
+            message: `Le contact "${contact.first_name} ${contact.last_name}" a été modifié`,
+            metadata: {
+              contactId: contact.id,
+              contactName: `${contact.first_name} ${contact.last_name}`,
+              changes,
+              isPersonal: false
+            },
+            relatedEntityType: 'contact',
+            relatedEntityId: contact.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Contact update notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+    } catch (error) {
+      console.error('❌ Failed to notify contact updated:', error)
+    }
+  }
+
+  /**
+   * Notifier la suppression d'un contact
+   */
+  async notifyContactDeleted(contact: any, deletedBy: string) {
+    try {
+      if (!contact.team_id || !deletedBy) return
+
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', contact.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
+      )
+
+      // Identifier les gestionnaires directement responsables
+      const directResponsibles = await this.getContactDirectResponsibles(contact.id, deletedBy)
+
+      // Créer les notifications selon la logique de responsabilité
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: contact.team_id,
+            createdBy: deletedBy,
+            type: 'system',
+            priority: 'high',
+            title: 'Contact lié à vos biens supprimé',
+            message: `Le contact "${contact.first_name} ${contact.last_name}" lié à vos biens a été supprimé`,
+            metadata: {
+              contactName: `${contact.first_name} ${contact.last_name}`,
+              contactType: contact.type,
+              isPersonal: true
+            },
+            relatedEntityType: 'contact',
+            relatedEntityId: contact.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: contact.team_id,
+            createdBy: deletedBy,
+            type: 'system',
+            priority: 'high',
+            title: 'Contact supprimé',
+            message: `Le contact "${contact.first_name} ${contact.last_name}" a été supprimé`,
+            metadata: {
+              contactName: `${contact.first_name} ${contact.last_name}`,
+              contactType: contact.type,
+              isPersonal: false
+            },
+            relatedEntityType: 'contact',
+            relatedEntityId: contact.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      console.log(`📬 Contact deletion notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+    } catch (error) {
+      console.error('❌ Failed to notify contact deleted:', error)
+    }
+  }
+}
+
+// Instance singleton
+export const notificationService = new NotificationService()

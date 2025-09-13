@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
@@ -15,6 +16,9 @@ import { buildingService, lotService, interventionService } from "@/lib/database
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import LotCard from "@/components/lot-card"
+import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
+import { DocumentsSection } from "@/components/intervention/documents-section"
 
 export default function BuildingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
@@ -29,6 +33,10 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   const [interventions, setInterventions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Effet pour basculer automatiquement sur l'onglet lots si paramètre présent
   useEffect(() => {
@@ -127,6 +135,90 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       activeInterventions,
       interventionStats
     }
+  }
+
+  const handleDelete = async () => {
+    if (!building?.id) return
+
+    try {
+      setIsDeleting(true)
+      console.log("🗑️ Deleting building:", building.id)
+      
+      await buildingService.delete(building.id)
+      
+      // Redirect to buildings list after successful deletion
+      router.push('/gestionnaire/biens')
+      
+    } catch (error) {
+      console.error("❌ Error deleting building:", error)
+      setError("Erreur lors de la suppression de l'immeuble")
+      setIsDeleting(false)
+      setShowDeleteModal(false)
+    }
+  }
+
+  // Load interventions with documents
+  const [interventionsWithDocs, setInterventionsWithDocs] = useState<any[]>([])
+  const [loadingDocs, setLoadingDocs] = useState(false)
+
+  const loadInterventionsWithDocuments = async () => {
+    if (!resolvedParams.id) return
+    
+    setLoadingDocs(true)
+    try {
+      const interventionsData = await interventionService.getInterventionsWithDocumentsByBuildingId(resolvedParams.id)
+      setInterventionsWithDocs(interventionsData)
+    } catch (error) {
+      console.error("❌ Error loading interventions with documents:", error)
+    } finally {
+      setLoadingDocs(false)
+    }
+  }
+
+  // Load interventions with documents when component mounts
+  useEffect(() => {
+    if (resolvedParams.id && !loading) {
+      loadInterventionsWithDocuments()
+    }
+  }, [resolvedParams.id, loading])
+
+  // Transform interventions data for documents component
+  const transformInterventionsForDocuments = (interventionsData: any[]) => {
+    return interventionsData.map(intervention => ({
+      id: intervention.id,
+      reference: intervention.reference || `INT-${intervention.id.slice(-6)}`,
+      title: intervention.title,
+      type: intervention.type,
+      status: intervention.status,
+      completedAt: intervention.completed_at,
+      assignedContact: intervention.assigned_contact ? {
+        name: intervention.assigned_contact.name,
+        role: 'prestataire'
+      } : undefined,
+      documents: intervention.documents?.map((doc: any) => ({
+        id: doc.id,
+        name: doc.original_filename || doc.filename,
+        size: doc.file_size,
+        type: doc.mime_type,
+        uploadedAt: doc.uploaded_at,
+        uploadedBy: {
+          name: 'Utilisateur', // Simplifié car on n'a plus les foreign keys
+          role: 'user'
+        }
+      })) || []
+    })).filter(intervention => intervention.documents.length > 0)
+  }
+
+  const handleDocumentView = (document: any) => {
+    // TODO: Implement document viewer
+    console.log('Viewing document:', document)
+    // For now, we can open in a new tab or show a modal
+  }
+
+  const handleDocumentDownload = (document: any) => {
+    // TODO: Implement document download
+    console.log('Downloading document:', document)
+    // For now, we can trigger a download or redirect to download URL
   }
 
   const stats = getStats()
@@ -254,11 +346,20 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
             </Button>
 
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${resolvedParams.id}`)}
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Modifier
               </Button>
-              <Button variant="destructive" size="sm">
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowDeleteModal(true)}
+                disabled={isDeleting}
+              >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Supprimer
               </Button>
@@ -273,37 +374,33 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         <p className="text-gray-600 mt-1">{building.address}, {building.city}</p>
       </div>
 
-      {/* Tabs Navigation */}
+      {/* Tabs Navigation with shadcn/ui */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-100">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
-                <button
+                <TabsTrigger
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
+                  value={tab.id}
+                  className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                   {tab.count !== null && (
-                    <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">{tab.count}</span>
+                    <Badge variant="secondary" className="ml-1 text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
+                      {tab.count}
+                    </Badge>
                   )}
-                </button>
+                </TabsTrigger>
               )
             })}
-          </nav>
-        </div>
-      </div>
+          </TabsList>
 
-      {/* Tab Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "overview" && (
+          <div className="py-8">
+            <TabsContent value="overview" className="mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Informations Générales */}
             <Card>
@@ -406,9 +503,9 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               </CardContent>
             </Card>
           </div>
-        )}
+            </TabsContent>
 
-        {activeTab === "interventions" && (
+            <TabsContent value="interventions" className="mt-0">
           <div className="space-y-6">
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -530,9 +627,9 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               </div>
             )}
           </div>
-        )}
+            </TabsContent>
 
-        {activeTab === "lots" && (
+            <TabsContent value="lots" className="mt-0">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">Liste des Lots ({lots.length})</h2>
@@ -543,84 +640,16 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
             </div>
 
             {lots.length > 0 ? (
-              <div className="space-y-4">
-                {lots.map((lot) => {
-                  const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
-                  const isOccupied = lot.is_occupied || lot.tenant_id
-                  
-                  return (
-                    <Card key={lot.id} className={`border-l-4 ${isOccupied ? 'border-l-green-500' : 'border-l-gray-300'}`}>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4 flex-wrap gap-2">
-                            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                              {lot.reference}
-                            </div>
-                            
-                            {/* Catégorie du lot */}
-                            {lot.category && (() => {
-                              const categoryConfig = getLotCategoryConfig(lot.category)
-                              return (
-                                <Badge 
-                                  variant="outline" 
-                                  className={`${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color} text-xs`}
-                                >
-                                  {categoryConfig.label}
-                                </Badge>
-                              )
-                            })()}
-                            
-                            <Badge variant={isOccupied ? "default" : "secondary"} 
-                                   className={isOccupied ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                              {isOccupied ? "Occupé" : "Vacant"}
-                            </Badge>
-                            {lot.apartment_number && (
-                              <span className="text-sm text-gray-600">N° {lot.apartment_number}</span>
-                            )}
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Détails
-                          </Button>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="flex items-center text-gray-600">
-                            <span className="mr-2">📍</span>
-                            Étage {lot.floor ?? 'Non défini'}
-                          </div>
-                          
-                          <div className="flex items-center text-gray-600">
-                            <Users className="h-4 w-4 mr-2" />
-                            {lot.tenant ? `Locataire: ${lot.tenant.name}` : 'Aucun locataire'}
-                          </div>
-                          
-                          <div className="flex items-center text-gray-600">
-                            <Wrench className="h-4 w-4 mr-2" />
-                            {lotInterventions.length > 0 ? 
-                              `${lotInterventions.length} intervention(s)` : 
-                              'Aucune intervention'
-                            }
-                          </div>
-                          
-                          <div className="text-gray-500">
-                            {lot.surface_area && (
-                              <span>📐 {lot.surface_area} m²</span>
-                            )}
-                            {lot.rooms && (
-                              <span className="ml-2">🏠 {lot.rooms} pièces</span>
-                            )}
-                          </div>
-                        </div>
-
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {lots.map((lot) => (
+                  <LotCard
+                    key={lot.id}
+                    lot={lot}
+                    interventions={interventions}
+                    mode="view"
+                    showBuilding={false}
+                  />
+                ))}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -634,16 +663,45 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               </div>
             )}
           </div>
-        )}
+            </TabsContent>
 
-        {activeTab === "documents" && (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Documents de l'immeuble</h3>
-            <p className="text-gray-600">La liste des documents pour cet immeuble sera bientôt disponible ici.</p>
+            <TabsContent value="documents" className="mt-0">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-medium text-gray-900">Documents de l'immeuble</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Documents liés aux interventions réalisées dans cet immeuble
+                    </p>
+                  </div>
+                </div>
+
+                <DocumentsSection
+                  interventions={transformInterventionsForDocuments(interventionsWithDocs)}
+                  loading={loadingDocs}
+                  emptyMessage="Aucun document trouvé"
+                  emptyDescription="Aucune intervention avec documents n'a été réalisée dans cet immeuble."
+                  onDocumentView={handleDocumentView}
+                  onDocumentDownload={handleDocumentDownload}
+                />
+              </div>
+            </TabsContent>
           </div>
-        )}
-      </main>
+        </Tabs>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Confirmer la suppression"
+        message="Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action supprimera également tous les lots associés et leurs données."
+        itemName={building?.name}
+        itemType="immeuble"
+        isLoading={isDeleting}
+        danger={true}
+      />
     </div>
   )
 }

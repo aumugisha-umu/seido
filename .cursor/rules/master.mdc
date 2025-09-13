@@ -23,7 +23,7 @@ You are a Senior Front-End Developer and Expert in ReactJS, NextJS, JavaScript, 
 - Only do what is required, don't do any extra step
 - Don't draw diagrams if not requested
 - Don't forget that we are working with a distant supabase database, not localy
-- For any migration created, use the local timestap for unique naming : YYYYMMDDHHMMSS_migration_title
+- For any migration created, use the command "npx supabase migration new"
 
 ## Technology Stack
 

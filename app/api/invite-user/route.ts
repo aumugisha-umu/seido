@@ -1,7 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
-import { userService, teamService } from '@/lib/database-service'
+import { userService, teamService, contactService } from '@/lib/database-service'
+import { activityLogger } from '@/lib/activity-logger'
+import { getServerSession } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+// Client Supabase normal pour les opérations non-admin
+const supabase = createSupabaseClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 // Créer un client Supabase avec les permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -22,6 +31,15 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
+    // Vérifier l'authentification de l'utilisateur qui invite
+    const session = await getServerSession()
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      )
+    }
+
     // Vérifier si le service d'invitation est disponible
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -121,6 +139,25 @@ export async function POST(request: Request) {
       }
 
       console.log('✅ [RESEND-INVITATION] Resend process completed successfully')
+      
+      // Logger l'activité de renvoi d'invitation
+      try {
+        await activityLogger.logUserAction(
+          session.user.id,
+          teamId,
+          'resend',
+          'user_invitation',
+          null,
+          `Renvoi d'invitation à ${email}`,
+          'success',
+          { email, invitation_type: 'resend' }
+        )
+        console.log('📝 Activity logged for invitation resend')
+      } catch (logError) {
+        console.warn('⚠️ Failed to log resend invitation activity:', logError)
+        // Continue anyway, logging is not critical
+      }
+      
       return NextResponse.json({
         success: true,
         message: 'Invitation renvoyée avec succès - un nouvel email a été envoyé',
@@ -186,6 +223,48 @@ export async function POST(request: Request) {
       try {
         const userProfile = await userService.create(userData)
         console.log('✅ User profile created:', userProfile.id)
+
+        // Si c'est un gestionnaire, créer automatiquement un contact
+        if (role === 'gestionnaire') {
+          try {
+            console.log('📝 Creating contact for invited gestionnaire...')
+            const contact = await contactService.create({
+              name: `${firstName} ${lastName}`,
+              email: inviteData.user.email!,
+              contact_type: 'gestionnaire' as Database['public']['Enums']['contact_type'],
+              team_id: teamId,
+              is_active: true,
+              notes: 'Contact créé automatiquement lors de l\'invitation'
+            })
+            
+            // Créer l'enregistrement user_invitations pour lier user_id et contact_id
+            try {
+              const { error: invitationRecordError } = await supabase
+                .from('user_invitations')
+                .insert({
+                  user_id: inviteData.user.id,
+                  contact_id: contact.id,
+                  team_id: teamId,
+                  email: inviteData.user.email!,
+                  role: role,
+                  status: 'pending' // Statut pending car l'invitation n'est pas encore acceptée
+                })
+              
+              if (invitationRecordError) {
+                console.warn('⚠️ Could not create user_invitation record:', invitationRecordError)
+              } else {
+                console.log('✅ Created user_invitation link for invited gestionnaire')
+              }
+            } catch (linkError) {
+              console.warn('⚠️ Error creating user_invitation link:', linkError)
+            }
+
+            console.log('✅ Contact gestionnaire créé lors de l\'invitation:', contact.id)
+          } catch (contactError) {
+            console.error('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
+            // Ne pas faire échouer l'invitation pour cette erreur
+          }
+        }
       } catch (userError) {
         console.error('❌ CRITICAL ERROR: Failed to create user profile:', userError)
         return NextResponse.json(
@@ -206,6 +285,30 @@ export async function POST(request: Request) {
 
       // Note: user_invitations record creation skipped - requires contact_id which we don't have for direct user invitations
       console.log('📝 Skipping user_invitations record creation (requires contact_id for database constraint)')
+
+      // Logger l'activité d'invitation
+      try {
+        await activityLogger.logUserAction(
+          session.user.id,
+          teamId,
+          'create',
+          'user_invitation',
+          inviteData.user.id,
+          `Invitation envoyée à ${firstName} ${lastName} (${email})`,
+          'success',
+          {
+            email,
+            firstName,
+            lastName,
+            role,
+            invitation_type: 'new_user'
+          }
+        )
+        console.log('📝 Activity logged for new user invitation')
+      } catch (logError) {
+        console.warn('⚠️ Failed to log invitation activity:', logError)
+        // Continue anyway, logging is not critical
+      }
 
       return NextResponse.json({
         success: true,

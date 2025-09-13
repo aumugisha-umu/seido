@@ -6,6 +6,7 @@ import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Set
 import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
+import { useGlobalNotifications } from "@/hooks/use-global-notifications"
 
 interface NavigationItem {
   href: string
@@ -73,6 +74,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
+  const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications()
   
   const userName = user?.display_name || user?.name || "Utilisateur"
   const userInitial = userName.charAt(0).toUpperCase()
@@ -199,9 +201,11 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
                   aria-label="Notifications"
                 >
                   <Bell className="h-5 w-5" />
-                  <span className="absolute top-1 right-1 w-3 h-3 bg-primary text-white text-xs rounded-full flex items-center justify-center">
-                    3
-                  </span>
+                  {globalUnreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium shadow-sm">
+                      {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
+                    </span>
+                  )}
                 </Link>
               )}
 

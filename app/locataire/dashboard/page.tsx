@@ -22,7 +22,7 @@ export default function LocataireDashboard() {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
@@ -30,13 +30,13 @@ export default function LocataireDashboard() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </main>
     )
   }
 
   if (!tenantData) {
     return (
-      <div className="container mx-auto p-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -44,7 +44,7 @@ export default function LocataireDashboard() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </main>
     )
   }
 
@@ -57,19 +57,25 @@ export default function LocataireDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-balance">Bonjour {user.name} 👋</h1>
-          <p className="text-muted-foreground">Gestion de votre logement et services</p>
+    <div className="min-h-screen bg-slate-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Page Header - Responsive */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl lg:text-4xl mb-2">Bonjour {user.name} 👋</h1>
+              <p className="text-slate-600">Gestion de votre logement et services</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="outline" className="bg-transparent" onClick={handleNewIntervention}>
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Signaler un problème
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button size="sm" variant="outline" className="bg-transparent" onClick={handleNewIntervention}>
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            Signaler un problème
-          </Button>
-        </div>
-      </div>
+
+        <div className="space-y-8">
 
       {/* Informations logement */}
       <Card>
@@ -224,13 +230,17 @@ export default function LocataireDashboard() {
           )}
         </CardContent>
       </Card>
+        </div>
+      </main>
     </div>
   )
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-slate-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <Skeleton className="h-9 w-64 mb-2" />
@@ -299,6 +309,8 @@ function LoadingSkeleton() {
           </div>
         </CardContent>
       </Card>
+        </div>
+      </main>
     </div>
   )
 }

@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { Building2, Home, Users, Search, Filter, MapPin, Eye, ChevronDown, ChevronRight, ChevronUp, User, Settings, Plus, AlertCircle, Calendar, Zap } from "lucide-react"
+import { Building2, Home, Users, Search, Filter, MapPin, Eye, ChevronDown, ChevronRight, ChevronUp, User, Settings, Plus, AlertCircle, Calendar, Zap, Edit } from "lucide-react"
 import { useManagerStats } from "@/hooks/use-manager-stats"
+import LotCard from "@/components/lot-card"
 
 interface PropertySelectorProps {
   mode: "view" | "select"
@@ -330,8 +331,8 @@ export default function PropertySelector({
                               </div>
                             </div>
                             
-                            {/* Action Button - Mobile Responsive */}
-                            <div className="flex-shrink-0 ml-2">
+                            {/* Action Buttons - Mobile Responsive */}
+                            <div className="flex-shrink-0 ml-2 flex items-center space-x-1">
                               {mode === "select" ? (
                                 <Button
                                   variant={isSelected ? "default" : "outline"}
@@ -348,15 +349,26 @@ export default function PropertySelector({
                                   {isSelected ? "✓ Sélectionné" : "Sélectionner"}
                                 </Button>
                               ) : (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 px-3 text-xs"
-                                  onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  Détails
-                                </Button>
+                                <>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                    onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)}
+                                    title="Modifier l'immeuble"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="h-8 px-3 text-xs"
+                                    onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Détails
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -429,12 +441,6 @@ export default function PropertySelector({
                                         >
                                           {lot.status === "occupied" ? "Occupé" : "Vacant"}
                                         </Badge>
-                                        {lot.tenant && (
-                                          <div className="flex items-center text-xs text-slate-600 truncate">
-                                            <User className="h-3 w-3 mr-1" />
-                                            <span className="truncate max-w-20">{lot.tenant}</span>
-                                          </div>
-                                        )}
                                         
                                         {/* Contact Summary Badge - Compact */}
                                         {(() => {
@@ -444,20 +450,15 @@ export default function PropertySelector({
                                           if (lotTenantCount === 0) return null
                                           
                                           return (
-                                            <div className="relative">
-                                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs cursor-help hover:bg-blue-100 transition-colors peer">
+                                            <div className="relative group">
+                                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs cursor-help hover:bg-blue-100 transition-colors">
                                                 <Users className="w-2.5 h-2.5 text-blue-600" />
                                                 <span className="text-blue-700 font-medium text-xs">{lotTenantCount}</span>
                                               </div>
                                               
-                                              {/* Mini Tooltip - Maximum Z-Index */}
-                                              <div className="fixed w-48 bg-white border border-slate-200 rounded-md shadow-lg p-2 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible transition-all duration-200 pointer-events-none peer-hover:pointer-events-auto hover:pointer-events-auto"
-                                                style={{
-                                                  zIndex: 2147483647, // Maximum z-index value
-                                                  left: '50%',
-                                                  top: '30%',
-                                                  transform: 'translateX(-50%)'
-                                                }}>
+                                              {/* Mini Tooltip - Positionné relativement */}
+                                              <div className="absolute bottom-full left-0 mb-1 w-48 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-md shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none group-hover:pointer-events-auto z-[100]
+                                                            before:content-[''] before:absolute before:top-full before:left-3 before:w-0 before:h-0 before:border-l-[3px] before:border-r-[3px] before:border-t-[3px] before:border-l-transparent before:border-r-transparent before:border-t-white">
                                                 <div className="text-xs text-slate-700 mb-1 font-medium">
                                                   {lotTenantCount === 1 ? 'Contact assigné:' : 'Contacts assignés:'}
                                                 </div>
@@ -481,9 +482,6 @@ export default function PropertySelector({
                                                     <span className="text-slate-500">(locataire)</span>
                                                   </div>
                                                 )}
-                                                
-                                                {/* Mini Arrow */}
-                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-b-2 border-l-transparent border-r-transparent border-b-white"></div>
                                               </div>
                                             </div>
                                           )
@@ -491,15 +489,30 @@ export default function PropertySelector({
                                       </div>
                                       
                                         <div className="flex items-center gap-1">
-                                          {/* Details Button for Lots */}
-                                          <Button 
-                                            variant="ghost" 
-                                            size="sm"
-                                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
-                                            onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                          >
-                                            <Eye className="h-3 w-3" />
-                                          </Button>
+                                          {mode === "view" && (
+                                            <>
+                                              {/* Edit Button for Lots */}
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                                onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
+                                                title="Modifier le lot"
+                                              >
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                              {/* Details Button for Lots */}
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                                onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
+                                                title="Voir les détails du lot"
+                                              >
+                                                <Eye className="h-3 w-3" />
+                                              </Button>
+                                            </>
+                                          )}
                                           
                                           {mode === "select" && (
                                             <Button
@@ -566,12 +579,6 @@ export default function PropertySelector({
                                           
                                           <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0">
                                             <span>Étage {lot.floor}</span>
-                                            {lot.tenant && (
-                                              <div className="flex items-center min-w-0">
-                                                <User className="h-3 w-3 mr-1 flex-shrink-0" />
-                                                <span className="truncate">{lot.tenant}</span>
-                                              </div>
-                                            )}
                                             {lot.interventions > 0 && (
                                               <div className="flex items-center text-amber-700">
                                                 <Zap className="h-3 w-3 mr-1" />
@@ -635,15 +642,30 @@ export default function PropertySelector({
                                         </div>
 
                                         <div className="flex items-center gap-1">
-                                          {/* Details Button for Expanded Lots */}
-                                          <Button 
-                                            variant="ghost" 
-                                            size="sm"
-                                            className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
-                                            onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                          >
-                                            <Eye className="h-3 w-3" />
-                                          </Button>
+                                          {mode === "view" && (
+                                            <>
+                                              {/* Edit Button for Expanded Lots */}
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                                onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
+                                                title="Modifier le lot"
+                                              >
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                              {/* Details Button for Expanded Lots */}
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                                onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
+                                                title="Voir les détails du lot"
+                                              >
+                                                <Eye className="h-3 w-3" />
+                                              </Button>
+                                            </>
+                                          )}
 
                                           {mode === "select" && (
                                             <Button
@@ -701,166 +723,19 @@ export default function PropertySelector({
                 </div>
               ) : (
                 individualLots.map((lot) => {
-                const isSelected = selectedLotId === lot.id?.toString()
-                const lotStatus = (lot.has_active_tenants || lot.tenant_id) ? 'occupied' : 'vacant'
-                const tenantName = lot.tenant?.name || (lot.lot_tenants?.[0]?.contact?.name) || null
-                const tenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
-                const buildingAddress = lot.building ? `${lot.building.address}, ${lot.building.city}` : 'Adresse non disponible'
-                
-                return (
-                  <Card key={lot.id} className={`group hover:shadow-sm transition-all duration-200 flex flex-col h-full ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
-                    <CardContent className="p-0 flex flex-col flex-1">
-                      {/* Individual Lot - Grid Optimized */}
-                      <div className="p-4 sm:p-5 flex-1">
-                        <div className="space-y-3">
-                          {/* Top Row: Icon + Title + Action */}
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-3 min-w-0 flex-1">
-                              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Home className="h-5 w-5 text-amber-600" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-base text-slate-900 truncate">{lot.reference}</h3>
-                                <div className="flex items-center text-xs text-slate-600 mt-1">
-                                  <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                                  <span className="truncate">{buildingAddress}</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Action Button - Mobile Responsive */}
-                            <div className="flex-shrink-0 ml-2">
-                              {mode === "select" ? (
-                                <Button
-                                  variant={isSelected ? "default" : "outline"}
-                                  size="sm"
-                                  className="h-8 px-3 text-xs"
-                                  onClick={() => {
-                                    if (isSelected) {
-                                      onLotSelect?.(null)
-                                    } else {
-                                      onLotSelect?.(lot.id?.toString(), lot.building_id?.toString())
-                                    }
-                                  }}
-                                >
-                                  {isSelected ? "✓ Sélectionné" : "Sélectionner"}
-                                </Button>
-                              ) : (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 px-3 text-xs"
-                                  onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  Détails
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Status and Info Row - Mobile Optimized */}
-                          <div className="pt-2 border-t border-slate-100">
-                            <div className="flex items-center space-x-4">
-                              <Badge 
-                                variant={lotStatus === "occupied" ? "default" : "secondary"} 
-                                className="px-2 py-1 text-xs"
-                              >
-                                {lotStatus === "occupied" ? "Occupé" : "Vacant"}
-                              </Badge>
-                              
-                              {tenantName && (
-                                <div className="flex items-center space-x-1.5">
-                                  <div className="w-5 h-5 bg-emerald-100 rounded-md flex items-center justify-center">
-                                    <User className="h-3 w-3 text-emerald-600" />
-                                  </div>
-                                  <span className="text-sm font-medium text-slate-900 truncate max-w-28">{tenantName}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Additional Info Row */}
-                            {(lot.floor || lot.surface_area || lot.rooms) && (
-                              <div className="flex items-center space-x-4 text-xs text-slate-600 mt-2">
-                                {lot.floor && <span>Étage {lot.floor}</span>}
-                                {lot.surface_area && <span>{lot.surface_area}m²</span>}
-                                {lot.rooms && <span>{lot.rooms} pièces</span>}
-                              </div>
-                            )}
-                            
-                            {/* Building Info */}
-                            {lot.building?.name && (
-                              <div className="flex items-center text-xs text-slate-500 mt-1">
-                                <Building2 className="h-3 w-3 mr-1" />
-                                <span className="truncate">{lot.building.name}</span>
-                              </div>
-                            )}
-
-                            {/* Contact Summary */}
-                            {(() => {
-                              const hasContacts = tenantCount > 0
-                              
-                              if (!hasContacts) return null
-                              
-                              return (
-                                <div className="relative mt-2">
-                                  {/* Summary Badge */}
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help w-fit hover:bg-blue-100 transition-colors peer">
-                                    <Users className="w-3 h-3 text-blue-600" />
-                                    <span className="text-blue-700 font-medium">
-                                      {tenantCount}
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Tooltip on Hover - Maximum Z-Index */}
-                                  <div className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-xl p-3 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible transition-all duration-200 pointer-events-none peer-hover:pointer-events-auto hover:pointer-events-auto"
-                                    style={{
-                                      zIndex: 2147483647, // Maximum z-index value
-                                      left: '50%',
-                                      top: '25%',
-                                      transform: 'translateX(-50%)'
-                                    }}>
-                                    <div className="space-y-2">
-                                      <div className="font-medium text-xs text-slate-700 mb-2">Contacts assignés</div>
-                                      
-                                      {/* Show all tenants */}
-                                      {lot.lot_tenants?.length > 0 ? (
-                                        <div className="space-y-1">
-                                          {lot.lot_tenants.map((tenantInfo: any, idx: number) => (
-                                            <div key={idx} className="flex items-center gap-2 text-xs">
-                                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                              <span className="text-slate-700">{tenantInfo.contact?.name}</span>
-                                              <span className="text-slate-500">(locataire)</span>
-                                              {tenantInfo.is_primary && (
-                                                <span className="text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Principal</span>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      ) : tenantName && (
-                                        <div className="space-y-1">
-                                          <div className="flex items-center gap-2 text-xs">
-                                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                            <span className="text-slate-700">{tenantName}</span>
-                                            <span className="text-slate-500">(locataire)</span>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    {/* Tooltip Arrow */}
-                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-white"></div>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              }))}
+                  const isSelected = selectedLotId === lot.id?.toString()
+                  
+                  return (
+                    <LotCard
+                      key={lot.id}
+                      lot={lot}
+                      mode={mode}
+                      isSelected={isSelected}
+                      onSelect={onLotSelect}
+                      showBuilding={true}
+                    />
+                  )
+                }))}
             </div>
           </TabsContent>
         </Tabs>

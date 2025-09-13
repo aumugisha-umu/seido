@@ -104,34 +104,17 @@ export default function LocataireDashboard() {
               <p className="text-sm text-muted-foreground">
                 {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}, {tenantData.building.country || 'Belgique'}
               </p>
-              {(tenantData.surface_area || tenantData.rooms) && (
+              {tenantData.rooms && (
                 <p className="text-sm text-muted-foreground">
-                  {tenantData.surface_area && `${tenantData.surface_area}m²`}
-                  {tenantData.surface_area && tenantData.rooms && " - "}
-                  {tenantData.rooms && `${tenantData.rooms} pièces`}
+                  {tenantData.rooms} pièces
                 </p>
-              )}
-            </div>
-            <div className="flex flex-col justify-center">
-              {tenantData.surface ? (
-                <>
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-2xl font-bold text-primary">{tenantData.surface}m²</span>
-                    <span className="text-sm text-muted-foreground">surface</span>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">Surface non définie</p>
               )}
             </div>
             <div className="flex flex-col justify-center">
               <div className="text-right lg:text-left">
                 <p className="text-sm text-muted-foreground">Total mensuel</p>
                 <p className="text-2xl font-bold">
-                  {tenantData.surface 
-                    ? `${tenantData.surface}m²`
-                    : "Non défini"
-                  }
+                  Non défini
                 </p>
               </div>
             </div>

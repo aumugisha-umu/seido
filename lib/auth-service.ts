@@ -83,11 +83,28 @@ class AuthService {
       })
 
       // Créer l'équipe personnelle
-      await teamService.create({
+      const team = await teamService.create({
         name: `Équipe de ${name}`,
         description: `Équipe personnelle de ${name}`,
         created_by: authData.user.id
       })
+
+      // Créer automatiquement un contact pour ce gestionnaire
+      try {
+        const { contactService } = await import('./database-service')
+        await contactService.create({
+          name,
+          email: authData.user.email!,
+          contact_type: 'gestionnaire' as Database['public']['Enums']['contact_type'],
+          team_id: team.id,
+          is_active: true,
+          notes: 'Contact créé automatiquement lors de l\'inscription'
+        })
+        console.log('✅ Contact gestionnaire créé lors de l\'inscription')
+      } catch (contactError) {
+        console.error('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
+        // Ne pas faire échouer l'inscription pour cette erreur
+      }
 
       // Retourner l'utilisateur auth
       const authUser: AuthUser = {
@@ -132,11 +149,28 @@ class AuthService {
 
       // Créer équipe personnelle
       const teamName = `Équipe de ${fullName}`
-      await teamService.create({
+      const team = await teamService.create({
         name: teamName,
         description: `Équipe personnelle de ${fullName}`,
         created_by: authUser.id
       })
+
+      // Créer automatiquement un contact pour ce gestionnaire
+      try {
+        const { contactService } = await import('./database-service')
+        await contactService.create({
+          name: fullName,
+          email: authUser.email!,
+          contact_type: 'gestionnaire' as Database['public']['Enums']['contact_type'],
+          team_id: team.id,
+          is_active: true,
+          notes: 'Contact créé automatiquement lors de la finalisation du profil'
+        })
+        console.log('✅ Contact gestionnaire créé lors de la finalisation du profil')
+      } catch (contactError) {
+        console.error('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
+        // Ne pas faire échouer la finalisation pour cette erreur
+      }
 
       // Mettre à jour metadata auth
       await supabase.auth.updateUser({

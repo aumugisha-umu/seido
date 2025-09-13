@@ -7,6 +7,7 @@ import { Suspense } from "react"
 import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
 import { ConnectionStatus } from "@/components/connection-status"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
           <TeamStatusProvider>
             <Suspense fallback={null}>{children}</Suspense>
             <ConnectionStatus />
+            <Toaster />
           </TeamStatusProvider>
         </AuthProvider>
         <Analytics />

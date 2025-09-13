@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,7 +136,7 @@ export default function InterventionsPage() {
         label: "Supprimer",
         icon: Trash2,
         onClick: () => console.log(`[v0] Delete intervention ${intervention.id}`),
-        destructive: true,
+        className: "text-red-600 hover:text-red-800",
       },
     ]
 
@@ -192,7 +193,7 @@ export default function InterventionsPage() {
       case "orange": return "text-orange-600"  
       case "blue": return "text-blue-600"
       case "green": return "text-green-600"
-      default: return "text-gray-500 hover:text-gray-700"
+      default: return "text-slate-500 hover:text-slate-700"
     }
   }
 
@@ -202,7 +203,7 @@ export default function InterventionsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          <span className="ml-2 text-gray-600">Chargement des interventions...</span>
+          <span className="ml-2 text-slate-600">Chargement des interventions...</span>
         </div>
       </div>
     )
@@ -214,8 +215,8 @@ export default function InterventionsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
           <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Erreur de chargement</h3>
-          <p className="text-gray-500 mb-4">{error}</p>
+          <h3 className="text-lg font-medium text-slate-900 mb-2">Erreur de chargement</h3>
+          <p className="text-slate-500 mb-4">{error}</p>
           <Button onClick={() => window.location.reload()}>Réessayer</Button>
         </div>
       </div>
@@ -227,7 +228,7 @@ export default function InterventionsPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Interventions</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Interventions</h1>
         </div>
         <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
           <Plus className="h-4 w-4 mr-2" />
@@ -236,32 +237,29 @@ export default function InterventionsPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Tabs navigation */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex">
+        {/* Tabs navigation with shadcn/ui */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-100">
             {tabs.map((tab) => (
-              <button
+              <TabsTrigger
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex-1 py-3 px-4 border-b-2 font-medium text-sm flex items-center justify-center space-x-2
-                  ${activeTab === tab.id ? "border-blue-500" : "border-transparent hover:border-gray-300"}
-                  ${getTabTextColor(tab, activeTab === tab.id)}
-                `}
+                value={tab.id}
+                className="flex items-center justify-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
               >
-                <span className="truncate">{tab.shortLabel}</span>
-                <Badge variant="secondary" className="text-xs px-2 py-1">
+                <span className="truncate text-xs sm:text-sm">{tab.shortLabel}</span>
+                <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
                   {tab.count}
                 </Badge>
-              </button>
+              </TabsTrigger>
             ))}
-          </nav>
-        </div>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="mt-6">
 
         {/* Section Header */}
         <div className="flex items-center space-x-2 mb-4">
-          <Wrench className="h-5 w-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900">
+          <Wrench className="h-5 w-5 text-slate-600" />
+          <h2 className="text-lg font-semibold text-slate-900">
             {tabs.find((t) => t.id === activeTab)?.label} ({filteredInterventions.length})
           </h2>
         </div>
@@ -269,11 +267,11 @@ export default function InterventionsPage() {
         {/* Search and Filter */}
         <div className="flex items-center space-x-4 mb-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input placeholder="Rechercher par titre, description, ou lot..." className="pl-10" />
           </div>
           <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-gray-500" />
+            <Filter className="h-4 w-4 text-slate-500" />
             <Select defaultValue="all">
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Tous les types" />
@@ -299,7 +297,7 @@ export default function InterventionsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{intervention.title}</h3>
+                      <h3 className="text-lg font-semibold text-slate-900">{intervention.title}</h3>
                       <Badge className={getPriorityColor(intervention.urgency)}>
                         {getPriorityLabel(intervention.urgency)}
                       </Badge>
@@ -308,9 +306,9 @@ export default function InterventionsPage() {
                       </Badge>
                     </div>
 
-                    <p className="text-gray-600 mb-4 line-clamp-2">{intervention.description}</p>
+                    <p className="text-slate-600 mb-4 line-clamp-2">{intervention.description}</p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-slate-500">
                       <div className="flex items-center space-x-2">
                         {getInterventionLocationIcon(intervention) === "building" ? (
                           <Building2 className="h-4 w-4" />
@@ -339,7 +337,7 @@ export default function InterventionsPage() {
                     </div>
 
                     <div className="mt-3 flex items-center space-x-4">
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-slate-500">
                         <span className="font-medium">Assigné à:</span> {intervention.assigned_contact?.name || "Non assigné"}
                       </div>
                       {intervention.description && intervention.description.includes('📎') && (
@@ -369,7 +367,7 @@ export default function InterventionsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         {getStatusActions(intervention).map((action, index) => {
-                          const isDestructive = action.destructive
+                          const isDestructive = 'className' in action && action.className?.includes('text-red')
                           const isStatusAction = index < getStatusActions(intervention).length - 2
 
                           return (
@@ -399,11 +397,13 @@ export default function InterventionsPage() {
         {/* Empty state */}
         {filteredInterventions.length === 0 && (
           <div className="text-center py-12">
-            <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-            <p className="text-gray-500">Aucune intervention ne correspond au statut sélectionné.</p>
+            <Wrench className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 mb-2">Aucune intervention</h3>
+            <p className="text-slate-500">Aucune intervention ne correspond au statut sélectionné.</p>
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Modals */}
@@ -450,7 +450,7 @@ export default function InterventionsPage() {
         onUpdateProposedSlot={planningHook.updateProgrammingSlot}
         onRemoveProposedSlot={planningHook.removeProgrammingSlot}
         onConfirm={planningHook.handleProgrammingConfirm}
-        isFormValid={planningHook.isProgrammingFormValid()}
+        isFormValid={Boolean(planningHook.isProgrammingFormValid())}
       />
     </div>
   )

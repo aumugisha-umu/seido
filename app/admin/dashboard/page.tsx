@@ -10,20 +10,25 @@ export default function AdminDashboard() {
   const { user } = useAuth()
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-balance">Dashboard Administrateur</h1>
-          <p className="text-muted-foreground">Gestion globale de la plateforme SEIDO</p>
+    <div className="min-h-screen bg-slate-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Page Header - Responsive */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl lg:text-4xl mb-2">Dashboard Administrateur</h1>
+              <p className="text-slate-600">Gestion globale de la plateforme SEIDO</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="bg-red-100 text-red-800">
+                <Shield className="w-3 h-3 mr-1" />
+                {user.name}
+              </Badge>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="bg-red-100 text-red-800">
-            <Shield className="w-3 h-3 mr-1" />
-            {user.name}
-          </Badge>
-        </div>
-      </div>
+
+        <div className="space-y-8">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -95,6 +100,8 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+        </div>
+      </main>
     </div>
   )
 }

@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter, User, MapPin, Building2, Calendar, Euro, AlertCircle } from "lucide-react"
+import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter, User, MapPin, Building2, Calendar, Euro, AlertCircle, UserCheck } from "lucide-react"
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { lotService, interventionService, contactService } from "@/lib/database-service"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
+import { DocumentsSection } from "@/components/intervention/documents-section"
 
 export default function LotDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
@@ -26,6 +28,10 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   const [contacts, setContacts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Charger les données du lot
   useEffect(() => {
@@ -75,6 +81,94 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       inProgress: interventions.filter(i => i.status === 'in_progress' || i.status === 'assigned').length,
       completed: interventions.filter(i => i.status === 'completed').length
     }
+  }
+
+  const handleDelete = async () => {
+    if (!lot?.id) return
+
+    try {
+      setIsDeleting(true)
+      console.log("🗑️ Deleting lot:", lot.id)
+      
+      await lotService.delete(lot.id)
+      
+      // Redirect to buildings list after successful deletion
+      if (lot.building?.id) {
+        router.push(`/gestionnaire/biens/immeubles/${lot.building.id}?lot=deleted`)
+      } else {
+        router.push('/gestionnaire/biens')
+      }
+      
+    } catch (error) {
+      console.error("❌ Error deleting lot:", error)
+      setError("Erreur lors de la suppression du lot")
+      setIsDeleting(false)
+      setShowDeleteModal(false)
+    }
+  }
+
+  // Load interventions with documents
+  const [interventionsWithDocs, setInterventionsWithDocs] = useState<any[]>([])
+  const [loadingDocs, setLoadingDocs] = useState(false)
+
+  const loadInterventionsWithDocuments = async () => {
+    if (!resolvedParams.id) return
+    
+    setLoadingDocs(true)
+    try {
+      const interventionsData = await interventionService.getInterventionsWithDocumentsByLotId(resolvedParams.id)
+      setInterventionsWithDocs(interventionsData)
+    } catch (error) {
+      console.error("❌ Error loading interventions with documents:", error)
+    } finally {
+      setLoadingDocs(false)
+    }
+  }
+
+  // Load interventions with documents when component mounts
+  useEffect(() => {
+    if (resolvedParams.id && !loading) {
+      loadInterventionsWithDocuments()
+    }
+  }, [resolvedParams.id, loading])
+
+  // Transform interventions data for documents component
+  const transformInterventionsForDocuments = (interventionsData: any[]) => {
+    return interventionsData.map(intervention => ({
+      id: intervention.id,
+      reference: intervention.reference || `INT-${intervention.id.slice(-6)}`,
+      title: intervention.title,
+      type: intervention.type,
+      status: intervention.status,
+      completedAt: intervention.completed_at,
+      assignedContact: intervention.assigned_contact ? {
+        name: intervention.assigned_contact.name,
+        role: 'prestataire'
+      } : undefined,
+      documents: intervention.documents?.map((doc: any) => ({
+        id: doc.id,
+        name: doc.original_filename || doc.filename,
+        size: doc.file_size,
+        type: doc.mime_type,
+        uploadedAt: doc.uploaded_at,
+        uploadedBy: {
+          name: 'Utilisateur', // Simplifié car on n'a plus les foreign keys
+          role: 'user'
+        }
+      })) || []
+    })).filter(intervention => intervention.documents.length > 0)
+  }
+
+  const handleDocumentView = (document: any) => {
+    // TODO: Implement document viewer
+    console.log('Viewing document:', document)
+    // For now, we can open in a new tab or show a modal
+  }
+
+  const handleDocumentDownload = (document: any) => {
+    // TODO: Implement document download
+    console.log('Downloading document:', document)
+    // For now, we can trigger a download or redirect to download URL
   }
 
   const interventionStats = getInterventionStats()
@@ -203,11 +297,20 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
             </Button>
 
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${resolvedParams.id}`)}
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Modifier
               </Button>
-              <Button variant="destructive" size="sm">
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowDeleteModal(true)}
+                disabled={isDeleting}
+              >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Supprimer
               </Button>
@@ -351,6 +454,44 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               </CardContent>
             </Card>
 
+            {/* Gestionnaires assignés */}
+            {contacts.filter(contact => contact.lot_contact_type === 'gestionnaire').length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-purple-600" />
+                    Gestionnaires assignés
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {contacts
+                    .filter(contact => contact.lot_contact_type === 'gestionnaire')
+                    .map((manager, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border-l-4 border-l-purple-500">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-slate-900 text-sm">
+                            {manager.name}
+                          </div>
+                          <div className="text-xs text-slate-600">
+                            {manager.email}
+                          </div>
+                          {manager.phone && (
+                            <div className="text-xs text-slate-600 mt-1">
+                              📞 {manager.phone}
+                            </div>
+                          )}
+                          {manager.is_primary_for_lot && (
+                            <Badge variant="outline" className="text-xs mt-2">
+                              Responsable principal
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  }
+                </CardContent>
+              </Card>
+            )}
 
             {/* Interventions */}
             <Card>
@@ -537,17 +678,40 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
         )}
 
         {activeTab === "documents" && (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Documents du lot</h3>
-            <p className="text-gray-600 mb-4">La liste des documents pour ce lot sera bientôt disponible ici.</p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un document
-            </Button>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">Documents du lot</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Documents liés aux interventions réalisées dans ce lot
+                </p>
+              </div>
+            </div>
+
+            <DocumentsSection
+              interventions={transformInterventionsForDocuments(interventionsWithDocs)}
+              loading={loadingDocs}
+              emptyMessage="Aucun document trouvé"
+              emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
+              onDocumentView={handleDocumentView}
+              onDocumentDownload={handleDocumentDownload}
+            />
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Confirmer la suppression"
+        message="Êtes-vous sûr de vouloir supprimer ce lot ? Cette action supprimera également toutes les données associées (interventions, contacts, etc.)."
+        itemName={lot?.reference}
+        itemType="lot"
+        isLoading={isDeleting}
+        danger={true}
+      />
     </div>
   )
 }

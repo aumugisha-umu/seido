@@ -617,10 +617,7 @@ export default function ContactsPage() {
                         size="sm"
                         variant="outline"
                         className="text-gray-600 hover:text-gray-700"
-                        onClick={() => {
-                          // TODO: Implémenter la modification
-                          console.log('Modifier contact:', contact.id)
-                        }}
+                        onClick={() => router.push(`/gestionnaire/contacts/${contact.id}/modifier`)}
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Modifier

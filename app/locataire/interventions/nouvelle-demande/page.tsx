@@ -24,6 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useTenantData } from "@/hooks/use-tenant-data"
@@ -45,8 +47,10 @@ interface UploadedFile {
 
 export default function NouvelleDemandePage() {
   const router = useRouter()
+  const { toast } = useToast()
+  const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
-  const { tenantData, loading, error } = useTenantData()
+  const { tenantData, loading, error, refreshData } = useTenantData()
   
   // ALL useState hooks must be declared before any conditional returns
   const [currentStep, setCurrentStep] = useState(1)
@@ -211,20 +215,13 @@ export default function NouvelleDemandePage() {
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
       
-      // Show success modal
-      setShowSuccessModal(true)
-      
-      // Start countdown for redirect
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            router.push(`/locataire/interventions/${result.intervention.id}`)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+      // Gérer le succès avec la nouvelle stratégie
+      await handleSuccess({
+        successTitle: "Demande d'intervention créée avec succès",
+        successDescription: `Votre demande "${result.intervention.title}" a été transmise à votre gestionnaire.`,
+        redirectPath: "/locataire/interventions",
+        refreshData: refreshData,
+      })
 
     } catch (error) {
       console.error("❌ Error creating intervention:", error)

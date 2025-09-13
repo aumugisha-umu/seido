@@ -12,13 +12,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building2, Home, Users, ArrowLeft, ArrowRight, Check, Plus, X, Search, User, Building, MapPin, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { useCreationSuccess } from "@/hooks/use-creation-success"
 import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector from "@/components/contact-selector"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { teamService, type Team } from "@/lib/database-service"
+import { teamService, lotService, contactService, contactInvitationService, type Team } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { lotSteps } from "@/lib/step-configurations"
@@ -45,7 +47,7 @@ const countries = [
   "Autre"
 ]
 
-import { LotCategory } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 
 interface LotData {
   // Step 1: Building Association
@@ -74,7 +76,6 @@ interface LotData {
     // Champs spécifiques aux lots
     floor?: string
     doorNumber?: string
-    surface?: string
     category?: LotCategory
   }
 
@@ -82,7 +83,6 @@ interface LotData {
   reference: string
   floor: string
   doorNumber: string
-  surface: string
   description: string
   category: LotCategory
 
@@ -102,9 +102,11 @@ interface LotData {
 
 export default function NewLotPage() {
   const router = useRouter()
+  const { toast } = useToast()
+  const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { data: managerData, loading: buildingsLoading } = useManagerStats()
+  const { data: managerData, loading: buildingsLoading, forceRefetch: refetchManagerData } = useManagerStats()
   const [currentStep, setCurrentStep] = useState(1)
   const [showBuildingSelector, setShowBuildingSelector] = useState(false)
   const [buildingSearchQuery, setBuildingSearchQuery] = useState("")
@@ -120,13 +122,13 @@ export default function NewLotPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
   const [error, setError] = useState<string>("")
+  const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
 
   const [lotData, setLotData] = useState<LotData>({
     buildingAssociation: "existing",
     reference: "",
     floor: "",
     doorNumber: "",
-    surface: "",
     description: "",
     category: "appartement",
     assignedContacts: {
@@ -158,7 +160,6 @@ export default function NewLotPage() {
       // Champs spécifiques aux lots
       floor: "",
       doorNumber: "",
-      surface: "",
       category: "appartement",
     },
   })
@@ -257,25 +258,28 @@ export default function NewLotPage() {
     loadUserTeamAndManagers()
   }, [user?.id, teamStatus])
 
-  // Initialiser la référence par défaut quand les données sont chargées (seulement pour les lots indépendants)
+  // Récupérer les comptages par catégorie quand l'équipe est chargée
   useEffect(() => {
-    if (managerData?.buildings && lotData.generalBuildingInfo?.name === "" && lotData.buildingAssociation === "independent") {
-      const totalLots = managerData.buildings.reduce((total: number, building: any) => {
-        return total + (building.lots?.length || 0)
-      }, 0)
-      
-      const nextLotNumber = totalLots + 1
-      const defaultRef = `Lot ${nextLotNumber}`
-      
-      setLotData(prev => ({
-        ...prev,
-        generalBuildingInfo: {
-          ...prev.generalBuildingInfo!,
-          name: defaultRef
-        }
-      }))
+    const loadCategoryCountsByTeam = async () => {
+      if (!userTeam?.id) {
+        console.log("⚠️ No team available, skipping category counts loading")
+        return
+      }
+
+      try {
+        console.log("📊 Loading lot counts by category for team:", userTeam.id)
+        const counts = await lotService.getCountByCategory(userTeam.id)
+        console.log("✅ Category counts loaded:", counts)
+        setCategoryCountsByTeam(counts)
+      } catch (error) {
+        console.error("❌ Error loading category counts:", error)
+        setCategoryCountsByTeam({}) // Valeur par défaut en cas d'erreur
+      }
     }
-  }, [managerData?.buildings, lotData.generalBuildingInfo?.name, lotData.buildingAssociation])
+
+    loadCategoryCountsByTeam()
+  }, [userTeam?.id])
+
 
   // Réinitialiser le nom quand on change le type d'association
   useEffect(() => {
@@ -315,22 +319,37 @@ export default function NewLotPage() {
     }
   }, [managerData?.buildings, lotData.generalBuildingInfo?.name, lotData.buildingAssociation])
 
-  // Initialiser la référence par défaut pour les détails du lot
+  // Initialiser et mettre à jour automatiquement la référence du lot
   useEffect(() => {
-    if (managerData?.buildings && lotData.reference === "") {
-      const totalLots = managerData.buildings.reduce((total: number, building: any) => {
-        return total + (building.lots?.length || 0)
-      }, 0)
-      
-      const nextLotNumber = totalLots + 1
-      const defaultRef = `Lot ${nextLotNumber}`
-      
+    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
+      return // Attendre que les données de catégorie soient chargées
+    }
+
+    // Générer la nouvelle référence par défaut basée sur la catégorie actuelle
+    const category = lotData.category || "appartement"
+    const categoryConfig = getLotCategoryConfig(category)
+    const currentCategoryCount = categoryCountsByTeam[category] || 0
+    const nextNumber = currentCategoryCount + 1
+    const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
+    
+    // Vérifier si la référence actuelle est vide ou correspond à une référence générée par défaut
+    const currentReference = lotData.reference
+    
+    // Créer dynamiquement le pattern basé sur tous les labels de catégorie possibles
+    const allCategories = getAllLotCategories()
+    const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
+    const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
+
+    // Ne mettre à jour que si la référence est vide ou générée par défaut
+    if (isEmptyOrDefault && currentReference !== newDefaultReference) {
       setLotData(prev => ({
         ...prev,
-        reference: defaultRef
+        reference: newDefaultReference
       }))
     }
-  }, [managerData?.buildings, lotData.reference])
+  }, [lotData.category, categoryCountsByTeam])
+
 
   // Afficher la vérification d'équipe si nécessaire
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -344,22 +363,20 @@ export default function NewLotPage() {
     building.address.toLowerCase().includes(buildingSearchQuery.toLowerCase())
   )
 
-  // Générer référence par défaut basée sur le nombre de lots existants
+  // Générer référence par défaut basée sur la catégorie du lot
   const generateDefaultReference = () => {
-    const totalLots = buildings.reduce((total, building) => {
-      return total + (building.lots?.length || 0)
-    }, 0)
-    
-    const nextLotNumber = totalLots + 1
-    
-    if (lotData.buildingAssociation === "independent") {
-      return `Lot ${nextLotNumber}`
-    } else if (lotData.buildingAssociation === "new") {
-      return `Lot ${nextLotNumber}`
-    } else {
-      return `Lot ${nextLotNumber}`
+    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
+      // Fallback si les données de catégorie ne sont pas encore chargées
+      return "Appartement 1"
     }
+    
+    const category = lotData.category || "appartement"
+    const categoryConfig = getLotCategoryConfig(category)
+    const currentCategoryCount = categoryCountsByTeam[category] || 0
+    const nextNumber = currentCategoryCount + 1
+    return `${categoryConfig.label} ${nextNumber}`
   }
+
 
 
   const handleNext = () => {
@@ -374,9 +391,90 @@ export default function NewLotPage() {
     }
   }
 
-  const handleFinish = () => {
-    console.log("[v0] Lot created:", lotData)
-    router.push("/gestionnaire/dashboard")
+  const handleFinish = async () => {
+    if (!user?.id) {
+      console.error("User not found")
+      return
+    }
+
+    if (!userTeam?.id) {
+      console.error("User team not found")
+      return
+    }
+
+    try {
+      console.log("🚀 Creating lot with data:", lotData)
+      
+      const lotDataToCreate = {
+        reference: lotData.generalBuildingInfo?.name || `Lot ${Date.now()}`,
+        building_id: lotData.buildingAssociation === "existing" && lotData.selectedBuilding ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as any)?.id) : null,
+        floor: lotData.generalBuildingInfo?.floor ? parseInt(String(lotData.generalBuildingInfo.floor)) : 0,
+        apartment_number: lotData.generalBuildingInfo?.doorNumber || null,
+        surface_area: null, // Propriété temporairement désactivée
+        rooms: null, // Propriété temporairement désactivée  
+        category: lotData.category,
+        team_id: userTeam.id,
+        // Si on a des gestionnaires assignés, prendre le premier comme gestionnaire principal
+        manager_id: lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0 
+          ? lotData.assignedLotManagers[0].id 
+          : null
+      }
+
+      // Créer le lot
+      const result = await lotService.create(lotDataToCreate)
+      
+      console.log("✅ Lot created successfully:", result)
+
+      // Assigner les gestionnaires au lot via lot_contacts si des gestionnaires ont été sélectionnés
+      if (lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) {
+        console.log("👥 Assigning managers to lot via lot_contacts:", lotData.assignedLotManagers)
+        console.log("✅ Principal manager already set via manager_id:", lotData.assignedLotManagers[0].id)
+        
+        // Assigner tous les gestionnaires via lot_contacts
+        const managerAssignmentPromises = lotData.assignedLotManagers.map(async (manager, index) => {
+          try {
+            const isPrincipal = index === 0
+            console.log(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${result.id} as ${isPrincipal ? 'principal' : 'additional'}`)
+            return await contactService.addContactToLot(
+              result.id,
+              manager.id,
+              'gestionnaire',
+              isPrincipal, // Le premier est principal, les autres sont additionnels
+              `Assigné lors de la création du lot${isPrincipal ? ' (gestionnaire principal)' : ''}`
+            )
+          } catch (error) {
+            console.error(`❌ Error assigning manager ${manager.name} to lot:`, error)
+            return null
+          }
+        })
+
+        const assignmentResults = await Promise.all(managerAssignmentPromises)
+        const successfulAssignments = assignmentResults.filter((result: any) => result !== null)
+        
+        console.log("✅ Manager assignments completed:", {
+          total: lotData.assignedLotManagers.length,
+          successful: successfulAssignments.length,
+          principalManagerId: lotData.assignedLotManagers[0].id,
+          additionalManagers: successfulAssignments.length - 1
+        })
+      }
+
+      // Gérer le succès avec la nouvelle stratégie
+      await handleSuccess({
+        successTitle: "Lot créé avec succès",
+        successDescription: `Le lot "${result.reference}" a été créé et assigné à votre équipe.`,
+        redirectPath: "/gestionnaire/biens",
+        refreshData: refetchManagerData,
+      })
+      
+    } catch (error) {
+      console.error("❌ Error creating lot:", error)
+      toast({
+        title: "Erreur lors de la création",
+        description: "Une erreur est survenue lors de la création du lot. Veuillez réessayer.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Fonction pour ouvrir le modal de création de gestionnaire
@@ -394,12 +492,27 @@ export default function NewLotPage() {
         return
       }
 
-      // Créer l'objet manager pour l'état local
+      // Utiliser le service d'invitation pour créer le gestionnaire et optionnellement l'utilisateur
+      const result = await contactInvitationService.createContactWithOptionalInvite({
+        type: 'gestionnaire',
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
+        email: contactData.email,
+        phone: contactData.phone,
+        address: contactData.address,
+        speciality: contactData.speciality,
+        notes: contactData.notes,
+        inviteToApp: contactData.inviteToApp,
+        teamId: userTeam.id
+      })
+
+      // Si l'invitation a réussi, l'utilisateur sera créé avec les bonnes permissions
+      // Créer l'objet manager pour l'état local avec l'ID réel du contact
       const newManager = {
         user: {
-          id: `temp_${Date.now()}`, // ID temporaire
-          name: `${contactData.firstName} ${contactData.lastName}`,
-          email: contactData.email,
+          id: result.contact.id, // Utiliser l'ID réel du contact
+          name: result.contact.name,
+          email: result.contact.email,
           role: 'gestionnaire'
         },
         role: 'member'
@@ -408,7 +521,7 @@ export default function NewLotPage() {
       setTeamManagers([...teamManagers, newManager])
       setIsGestionnaireModalOpen(false)
       
-      console.log("✅ Gestionnaire ajouté temporairement à la liste")
+      console.log("✅ Gestionnaire créé avec succès, ID:", result.contact.id)
       
     } catch (error) {
       console.error("❌ Erreur lors de la création du gestionnaire:", error)
@@ -433,9 +546,7 @@ export default function NewLotPage() {
         
         // Pour les lots indépendants, vérifier aussi les champs spécifiques aux lots
         const lotSpecificFieldsValid = Boolean(
-          lotData.generalBuildingInfo?.floor !== undefined &&
-          lotData.generalBuildingInfo?.surface &&
-          lotData.generalBuildingInfo.surface.trim() !== ""
+          lotData.generalBuildingInfo?.floor !== undefined
         )
         return addressValid && referenceValid && lotSpecificFieldsValid
       } else {
@@ -722,7 +833,7 @@ export default function NewLotPage() {
               entityType="immeuble"
               showTitle={false}
               buildingsCount={buildings.length}
-              lotsCount={buildings.reduce((total, building) => total + (building.lots?.length || 0), 0)}
+              categoryCountsByTeam={categoryCountsByTeam}
             />
           </CardContent>
         </Card>
@@ -764,9 +875,8 @@ export default function NewLotPage() {
             showAddressSection={true}
             entityType="lot"
             showTitle={true}
-            defaultReference={generateDefaultReference()}
             buildingsCount={buildings.length}
-            lotsCount={buildings.reduce((total, building) => total + (building.lots?.length || 0), 0)}
+            categoryCountsByTeam={categoryCountsByTeam}
           />
         </div>
       )
@@ -792,7 +902,7 @@ export default function NewLotPage() {
                 <Input
                   id="reference"
                   placeholder={generateDefaultReference()}
-                  value={lotData.reference || generateDefaultReference()}
+                  value={lotData.reference || ""}
                   onChange={(e) => setLotData((prev) => ({ ...prev, reference: e.target.value }))}
                 />
               </div>
@@ -826,15 +936,6 @@ export default function NewLotPage() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="surface">Surface (m²)</Label>
-                <Input
-                  id="surface"
-                  placeholder="45"
-                  value={lotData.surface}
-                  onChange={(e) => setLotData((prev) => ({ ...prev, surface: e.target.value }))}
-                />
-              </div>
 
               <div>
                 <Label htmlFor="description">Description / Notes</Label>
@@ -1177,15 +1278,6 @@ export default function NewLotPage() {
                     }
                   </p>
                 </div>
-                <div>
-                  <span className="text-xs font-medium text-slate-700">Surface :</span>
-                  <p className="text-sm text-slate-900">
-                    {lotData.buildingAssociation === "independent" 
-                      ? (lotData.generalBuildingInfo?.surface ? `${lotData.generalBuildingInfo.surface}m²` : "Non spécifiée")
-                      : (lotData.surface ? `${lotData.surface}m²` : "Non spécifiée")
-                    }
-                  </p>
-                </div>
               </div>
               
               {(lotData.doorNumber || lotData.generalBuildingInfo?.doorNumber) && (
@@ -1299,7 +1391,7 @@ export default function NewLotPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <StepProgressHeader
           title="Ajouter un nouveau lot"
@@ -1311,7 +1403,7 @@ export default function NewLotPage() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardContent className="p-8">
             {currentStep === 1 && renderStep1()}

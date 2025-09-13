@@ -451,7 +451,7 @@ export default function ContactsPage() {
                                   : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300'
                                 }`}
                               >
-                                {copiedLinks[invitation.id] ? '✅ Copié !' : '📋 Copier le lien de connexion'}
+                                {copiedLinks[invitation.id] ? '✅ Copié !' : '📋 Copier le lien d'invitation'}
                               </Button>
                               <Button
                                 size="sm"
@@ -520,7 +520,7 @@ export default function ContactsPage() {
                             className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
                           >
                             <Send className="h-3 w-3 mr-1" />
-                            {resendingInvitations[invitation.id] ? 'Génération...' : 'Renvoyer connexion'}
+                            {resendingInvitations[invitation.id] ? 'Génération...' : 'Renvoyer invitation'}
                           </Button>
                         </div>
                       </div>

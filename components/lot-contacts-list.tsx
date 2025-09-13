@@ -57,7 +57,8 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       setError(null)
       console.log("📞 Loading contacts for lot:", lotId)
       
-      const lotContacts = await contactService.getLotContacts(lotId)
+      // Adapter pour nouvelle architecture - récupérer tous types de contacts pour ce lot
+      const lotContacts = await contactService.getLotContactsByType(lotId, 'locataire')
       console.log("✅ Lot contacts loaded:", lotContacts?.length || 0)
       
       clearTimeout(timeoutId)

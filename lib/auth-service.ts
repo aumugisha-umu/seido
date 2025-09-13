@@ -71,9 +71,9 @@ class AuthService {
         return { user: null, error: authError || { message: 'Erreur création compte', name: 'SignUpError', status: 400 } as AuthError }
       }
 
-      // Créer le profil utilisateur
+      // Créer le profil utilisateur (NOUVELLE ARCHITECTURE)
       const userProfile = await userService.create({
-        id: authData.user.id,
+        auth_user_id: authData.user.id, // ✅ LIEN vers auth.users.id
         email: authData.user.email!,
         name,
         first_name,
@@ -82,29 +82,16 @@ class AuthService {
         phone: phone || null,
       })
 
-      // Créer l'équipe personnelle
+      // Créer l'équipe personnelle (NOUVELLE ARCHITECTURE)
       const team = await teamService.create({
         name: `Équipe de ${name}`,
         description: `Équipe personnelle de ${name}`,
-        created_by: authData.user.id
+        created_by: userProfile.id // ✅ UTILISE l'ID généré de users, pas auth.users.id
       })
 
-      // Créer automatiquement un contact pour ce gestionnaire
-      try {
-        const { contactService } = await import('./database-service')
-        await contactService.create({
-          name,
-          email: authData.user.email!,
-          contact_type: 'gestionnaire' as Database['public']['Enums']['contact_type'],
-          team_id: team.id,
-          is_active: true,
-          notes: 'Contact créé automatiquement lors de l\'inscription'
-        })
-        console.log('✅ Contact gestionnaire créé lors de l\'inscription')
-      } catch (contactError) {
-        console.error('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
-        // Ne pas faire échouer l'inscription pour cette erreur
-      }
+      // NOUVELLE ARCHITECTURE: L'utilisateur est déjà créé dans users avec auth_user_id
+      // Plus besoin de créer un contact séparé - architecture unifiée
+      console.log('✅ [AUTH-SERVICE] Architecture unifiée: utilisateur créé avec auth_user_id:', authData.user.id)
 
       // Retourner l'utilisateur auth
       const authUser: AuthUser = {
@@ -213,16 +200,27 @@ class AuthService {
         return { user: null, error: error || { message: 'Utilisateur non trouvé', name: 'SignInError', status: 401 } as AuthError }
       }
 
-      // Vérifier si profil existe, sinon créer
+      // Vérifier si profil existe, sinon créer (NOUVELLE ARCHITECTURE)
       let userProfile
       try {
-        userProfile = await userService.getById(data.user.id)
+        // NOUVELLE ARCHITECTURE: Chercher par auth_user_id au lieu de id
+        const { data: usersData, error: findError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_user_id', data.user.id)
+          .single()
+          
+        if (findError && findError.code !== 'PGRST116') {
+          throw findError
+        }
+          
+        userProfile = usersData
       } catch (profileError) {
-        // Créer profil depuis metadata
+        // Créer profil depuis metadata (NOUVELLE ARCHITECTURE)
         const metadata = data.user.user_metadata
         if (metadata && metadata.full_name) {
           userProfile = await userService.create({
-            id: data.user.id,
+            auth_user_id: data.user.id, // ✅ NOUVELLE ARCHITECTURE
             email: data.user.email!,
             name: metadata.full_name,
             first_name: metadata.first_name || null,
@@ -289,29 +287,68 @@ class AuthService {
         return { user: null, error: null }
       }
 
-      // ✅ SIMPLIFIÉ: Utiliser JWT metadata directement (comme onAuthStateChange)
+      // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id
+      console.log('🔍 [getCurrentUser-NEW] Looking up user profile for auth_user_id:', authUser.id)
+      console.log('🔍 [getCurrentUser-NEW] Auth user email:', authUser.email)
+      console.log('🔍 [getCurrentUser-NEW] Auth user confirmed:', authUser.email_confirmed_at)
+      
+      try {
+        // Chercher l'utilisateur par auth_user_id
+        const { data: userProfile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_user_id', authUser.id)
+          .single()
+          
+        console.log('🔍 [getCurrentUser-NEW] Profile query result:', {
+          userProfile: userProfile ? 'found' : 'not found',
+          error: profileError ? profileError.message : 'none',
+          authUserId: authUser.id
+        })
+          
+        if (userProfile) {
+          const user: AuthUser = {
+            id: userProfile.id, // ✅ ID de la table users, pas auth.users
+            email: userProfile.email,
+            name: userProfile.name,
+            first_name: userProfile.first_name || undefined,
+            last_name: userProfile.last_name || undefined,
+            display_name: authUser.user_metadata?.display_name || userProfile.name,
+            role: userProfile.role,
+            phone: userProfile.phone || undefined,
+            created_at: userProfile.created_at || undefined,
+            updated_at: userProfile.updated_at || undefined,
+          }
+          console.log('✅ [getCurrentUser-NEW] User profile found:', {
+            id: user.id,
+            auth_user_id: authUser.id,
+            email: user.email,
+            name: user.name,
+            linkStatus: 'LINKED'
+          })
+          return { user, error: null }
+        } else {
+          console.log('❌ [getCurrentUser-NEW] No profile found for auth_user_id:', authUser.id)
+        }
+      } catch (profileError) {
+        console.error('❌ [getCurrentUser-NEW] Error looking up profile:', profileError)
+      }
+      
+      // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
       if (authUser.email) {
+        console.log('⚠️ [getCurrentUser-NEW] No profile found, using JWT fallback')
         const user: AuthUser = {
-          id: authUser.id,
+          id: authUser.id, // Fallback vers auth.users.id
           email: authUser.email!,
-          name: authUser.user_metadata?.full_name || authUser.user_metadata?.display_name || 'Utilisateur',
+          name: authUser.user_metadata?.full_name || 'Utilisateur',
           first_name: authUser.user_metadata?.first_name || undefined,
           last_name: authUser.user_metadata?.last_name || undefined,
           display_name: authUser.user_metadata?.display_name || undefined,
-          role: (authUser.user_metadata?.role as Database['public']['Enums']['user_role']) || 'gestionnaire',
-          phone: authUser.user_metadata?.phone || undefined,
+          role: 'gestionnaire',
+          phone: undefined,
           created_at: undefined,
           updated_at: undefined,
         }
-
-        console.log('✅ [AUTH-SERVICE] getCurrentUser from JWT (no DB call):', {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          source: 'JWT_METADATA_ONLY'
-        })
-
         return { user, error: null }
       }
       
@@ -403,27 +440,80 @@ class AuthService {
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         try {
-          // ✅ TOUJOURS utiliser JWT metadata - évite les race conditions signup
+          // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id
+          console.log('🔍 [AUTH-SERVICE-NEW] Looking up user profile for auth_user_id:', session.user.id)
+          
+          try {
+            // Chercher l'utilisateur par auth_user_id
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('*')
+              .eq('auth_user_id', session.user.id)
+              .single()
+              
+            if (userProfile) {
+              const user: AuthUser = {
+                id: userProfile.id, // ✅ ID de la table users, pas auth.users
+                email: userProfile.email,
+                name: userProfile.name,
+                first_name: userProfile.first_name || undefined,
+                last_name: userProfile.last_name || undefined,
+                display_name: session.user.user_metadata?.display_name || userProfile.name,
+                role: userProfile.role,
+                phone: userProfile.phone || undefined,
+                created_at: userProfile.created_at || undefined,
+                updated_at: userProfile.updated_at || undefined,
+              }
+              console.log('✅ [AUTH-SERVICE-NEW] User profile found:', {
+                id: user.id,
+                auth_user_id: session.user.id,
+                email: user.email,
+                name: user.name
+              })
+              
+              // ✅ MARQUER L'INVITATION COMME ACCEPTÉE SI C'EST UNE PREMIÈRE CONNEXION
+              if (event === 'SIGNED_IN' && session.user.user_metadata?.invited) {
+                console.log('📧 [AUTH-SERVICE-NEW] User was invited, marking invitation as accepted...')
+                try {
+                  await fetch('/api/mark-invitation-accepted', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      email: userProfile.email,
+                      invitationCode: session.user.id // Utiliser l'auth_user_id comme code
+                    })
+                  })
+                  console.log('✅ [AUTH-SERVICE-NEW] Invitation marked as accepted')
+                } catch (inviteError) {
+                  console.warn('⚠️ [AUTH-SERVICE-NEW] Failed to mark invitation as accepted:', inviteError)
+                  // Ne pas faire échouer la connexion pour cette erreur
+                }
+              }
+              
+              callback(user)
+              return
+            }
+          } catch (profileError) {
+            console.warn('⚠️ [AUTH-SERVICE-NEW] Error looking up profile:', profileError)
+          }
+          
+          // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
           if (session.user.email) {
+            console.log('⚠️ [AUTH-SERVICE-NEW] No profile found, using JWT fallback')
             const user: AuthUser = {
-              id: session.user.id,
+              id: session.user.id, // Fallback vers auth.users.id
               email: session.user.email!,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.display_name || 'Utilisateur',
+              name: session.user.user_metadata?.full_name || 'Utilisateur',
               first_name: session.user.user_metadata?.first_name || undefined,
               last_name: session.user.user_metadata?.last_name || undefined,
               display_name: session.user.user_metadata?.display_name || undefined,
-              role: (session.user.user_metadata?.role as Database['public']['Enums']['user_role']) || 'gestionnaire',
+              role: 'gestionnaire',
               phone: undefined,
               created_at: undefined,
               updated_at: undefined,
             }
-            console.log('✅ [AUTH-SERVICE] User created from JWT (race condition avoided):', {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: user.role,
-              source: 'JWT_ONLY_NO_DB_CALL'
-            })
             callback(user)
             return
           }

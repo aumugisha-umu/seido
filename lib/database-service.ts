@@ -143,6 +143,8 @@ export const userService = {
 
   async create(user: Database['public']['Tables']['users']['Insert']) {
     console.log('🔄 Creating user in database:', user)
+    
+    // NOUVELLE ARCHITECTURE: ID généré automatiquement, pas de contrainte auth.users
     const { data, error } = await supabase
       .from('users')
       .insert(user)
@@ -156,23 +158,9 @@ export const userService = {
       console.error('Error details:', error.details)
       console.error('Error hint:', error.hint)
       console.error('User data:', user)
-      console.error('Full error object:', error)
-      console.error('Error keys:', Object.keys(error))
-      console.error('Error as string:', String(error))
-      
-      // Essayer de créer un nouvel objet avec les propriétés de l'erreur
-      const errorInfo = {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        stack: error.stack
-      }
-      console.error('Error info object:', errorInfo)
-      
       throw error
     }
+    
     console.log('✅ User successfully created in database:', data)
     return data
   },
@@ -197,6 +185,40 @@ export const userService = {
     
     if (error) throw error
     return true
+  },
+
+  async findByEmail(email: string) {
+    console.log('🔍 [USER-SERVICE] Finding user by email:', email)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = pas trouvé
+      console.error('❌ [USER-SERVICE] Error finding user by email:', error)
+      throw error
+    }
+    
+    console.log('✅ [USER-SERVICE] User found:', data ? 'yes' : 'no')
+    return data
+  },
+
+  async findByAuthUserId(authUserId: string) {
+    console.log('🔍 [USER-SERVICE] Finding user by auth_user_id:', authUserId)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_user_id', authUserId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = pas trouvé
+      console.error('❌ [USER-SERVICE] Error finding user by auth_user_id:', error)
+      throw error
+    }
+    
+    console.log('✅ [USER-SERVICE] User found by auth_user_id:', data ? 'yes' : 'no')
+    return data
   }
 }
 
@@ -207,14 +229,35 @@ export const buildingService = {
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
         team:team_id(id, name, description),
-        lots(id, reference, is_occupied, tenant:tenant_id(name, email))
+        lots(
+          id, 
+          reference, 
+          is_occupied, 
+          category,
+          lot_contacts!inner(
+            contact_type,
+            is_primary,
+            user:user_id(id, name, email, phone)
+          )
+        ),
+        building_contacts(
+          contact_type,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        )
       `)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les gestionnaires principaux
+    return data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find(bc => 
+        bc.contact_type === 'gestionnaire' && bc.is_primary
+      )?.user || null
+    }))
   },
 
   async getTeamBuildings(teamId: string) {
@@ -222,36 +265,74 @@ export const buildingService = {
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
         team:team_id(id, name, description),
-        lots(id, reference, is_occupied, tenant:tenant_id(name, email))
+        lots(
+          id, 
+          reference, 
+          is_occupied, 
+          category,
+          lot_contacts!inner(
+            contact_type,
+            is_primary,
+            user:user_id(id, name, email, phone)
+          )
+        ),
+        building_contacts(
+          contact_type,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        )
       `)
       .eq('team_id', teamId)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les gestionnaires principaux
+    return data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find(bc => 
+        bc.contact_type === 'gestionnaire' && bc.is_primary
+      )?.user || null
+    }))
   },
 
   async getUserBuildings(userId: string) {
+    // Nouvelle logique : récupérer via building_contacts ET team_members
     const { data, error } = await supabase
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
-        team:team_id(
+        team:team_id(id, name, description),
+        lots(
           id, 
-          name, 
-          description,
-          team_members!inner(user_id)
+          reference, 
+          is_occupied, 
+          category,
+          lot_contacts!inner(
+            contact_type,
+            is_primary,
+            user:user_id(id, name, email, phone)
+          )
         ),
-        lots(id, reference, is_occupied, tenant:tenant_id(name, email))
+        building_contacts(
+          contact_type,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        )
       `)
-      .or(`manager_id.eq.${userId},team.team_members.user_id.eq.${userId}`)
+      .or(`building_contacts.user_id.eq.${userId},team_id.in.(select team_id from team_members where user_id = '${userId}')`)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les gestionnaires principaux
+    return data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find(bc => 
+        bc.contact_type === 'gestionnaire' && bc.is_primary
+      )?.user || null
+    }))
   },
 
   async getById(id: string) {
@@ -259,7 +340,6 @@ export const buildingService = {
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
         team:team_id(
           id, 
           name, 
@@ -267,18 +347,39 @@ export const buildingService = {
           team_members(
             id,
             role,
-            user:user_id(id, name, email, role)
+            user:user_id(id, name, email)
           )
         ),
         lots(
           *,
-          tenant:tenant_id(name, email, phone)
+          lot_contacts(
+            contact_type,
+            is_primary,
+            user:user_id(id, name, email, phone)
+          )
+        ),
+        building_contacts(
+          contact_type,
+          is_primary,
+          user:user_id(id, name, email, phone)
         )
       `)
       .eq('id', id)
       .single()
     
     if (error) throw error
+    
+    // Post-traitement pour extraire les gestionnaires principaux et locataires
+    if (data) {
+      data.manager = data.building_contacts?.[0]?.user || null
+      
+      // Pour chaque lot, extraire le locataire principal
+      data.lots = data.lots?.map(lot => ({
+        ...lot,
+        tenant: lot.lot_contacts?.[0]?.user || null
+      }))
+    }
+    
     return data
   },
 
@@ -1132,7 +1233,11 @@ export const interventionService = {
       .select(`
         *,
         lot:lot_id(reference, building:building_id(name, address)),
-        assigned_contact:assigned_contact_id(name, email, phone),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        ),
         documents:intervention_documents(
           id,
           filename,
@@ -1148,7 +1253,14 @@ export const interventionService = {
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return interventions || []
+    
+    // Post-traitement pour extraire le prestataire principal
+    return interventions?.map(intervention => ({
+      ...intervention,
+      assigned_contact: intervention.intervention_contacts?.find(ic => 
+        ic.role === 'prestataire' && ic.is_primary
+      )?.user || null
+    })) || []
   },
 
   // Get interventions with their documents for a lot
@@ -1158,7 +1270,11 @@ export const interventionService = {
       .select(`
         *,
         lot:lot_id(reference, building:building_id(name, address)),
-        assigned_contact:assigned_contact_id(name, email, phone),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        ),
         documents:intervention_documents(
           id,
           filename,
@@ -1174,19 +1290,27 @@ export const interventionService = {
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return data || []
+    
+    // Post-traitement pour extraire le prestataire principal
+    return data?.map(intervention => ({
+      ...intervention,
+      assigned_contact: intervention.intervention_contacts?.find(ic => 
+        ic.role === 'prestataire' && ic.is_primary
+      )?.user || null
+    })) || []
   }
 }
 
-// Contact Services
+// Contact Services (NEW: using users table)
 export const contactService = {
   async getAll() {
     const { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
       `)
+      .eq('is_active', true)
       .order('name')
     
     if (error) throw error
@@ -1195,7 +1319,7 @@ export const contactService = {
 
   async getById(id: string) {
     const { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
@@ -1209,12 +1333,13 @@ export const contactService = {
 
   async getBySpeciality(speciality: any) {
     const { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
       `)
       .eq('speciality', speciality)
+      .eq('is_active', true)
       .order('name')
     
     if (error) throw error
@@ -1226,7 +1351,7 @@ export const contactService = {
     
     // Essayer d'abord avec le filtre team_id
     let { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
@@ -1241,7 +1366,7 @@ export const contactService = {
       console.log("⚠️ No team contacts found, trying fallback query (all contacts)")
       
       const fallbackResult = await supabase
-        .from('contacts')
+        .from('users')
         .select(`
           *,
           team:team_id(id, name, description)
@@ -1397,14 +1522,15 @@ export const contactService = {
       let query = supabase
         .from('lot_contacts')
         .select(`
-          contact:contact_id (
+          user:user_id (
             id,
             name,
+            first_name,
+            last_name,
             email,
             phone,
             company,
             speciality,
-            contact_type,
             address,
             notes,
             is_active,
@@ -1417,7 +1543,8 @@ export const contactService = {
           notes
         `)
         .eq('lot_id', lotId)
-        .is('end_date', null) // Only active contacts
+        .or('end_date.is.null,end_date.gt.now()') // Active contacts
+        .eq('user.is_active', true)
 
       // Filter by contact type if specified
       if (contactType) {
@@ -1517,12 +1644,10 @@ export const contactService = {
         throw error
       }
 
-      // Extract contacts and filter by type if specified
-      let contacts = data?.map(item => item.contact).filter(Boolean) || []
+      // Extract users (contacts) and filter by type if specified
+      let contacts = data?.map(item => item.user).filter(Boolean) || []
       
-      if (contactType) {
-        contacts = contacts.filter(contact => contact?.contact_type === contactType)
-      }
+      // Note: Filtering by contact_type is now done in the query above if needed
       
       console.log("✅ Found lot contacts via building_contacts:", contacts.length)
       return contacts
@@ -1533,9 +1658,33 @@ export const contactService = {
     }
   },
 
-  // Get contacts by specific type for a lot
+  // Get contacts by specific type for a lot  
   async getLotContactsByType(lotId: string, contactType: Database['public']['Enums']['contact_type']) {
-    return this.getLotContacts(lotId, contactType)
+    const { data, error } = await supabase
+      .from('lot_contacts')
+      .select(`
+        contact_type,
+        is_primary,
+        user:user_id(
+          id,
+          name, 
+          email,
+          phone,
+          company,
+          speciality,
+          address,
+          notes,
+          is_active,
+          team:team_id(id, name, description)
+        )
+      `)
+      .eq('lot_id', lotId)
+      .eq('contact_type', contactType)
+      .eq('user.is_active', true)
+      .order('is_primary', { ascending: false })
+    
+    if (error) throw error
+    return data?.map(item => item.user).filter(Boolean) || []
   },
 
   // Get active tenants for a lot
@@ -1595,8 +1744,13 @@ export const contactService = {
 
 
   async create(contact: any) {
-    console.log('🗃️ [CONTACT-SERVICE] Creating contact:', contact.name, contact.email)
-    console.log('📋 [CONTACT-SERVICE] Contact data to insert:', JSON.stringify(contact, null, 2))
+    console.log('🗃️ [CONTACT-SERVICE] Creating user (new architecture):', contact.name, contact.email)
+    console.log('📋 [CONTACT-SERVICE] Original contact data:', JSON.stringify(contact, null, 2))
+    
+    // NOUVELLE ARCHITECTURE: Séparer contact_type du reste des données user
+    const { contact_type, ...userDataOnly } = contact
+    console.log('📋 [CONTACT-SERVICE] User data (without contact_type):', JSON.stringify(userDataOnly, null, 2))
+    console.log('🏷️ [CONTACT-SERVICE] Contact type for future liaison:', contact_type)
     
     try {
       // Validation des données requises avant insertion
@@ -1620,7 +1774,7 @@ export const contactService = {
         
         // Créer un timeout spécifique pour le test RLS
         const permissionPromise = supabase
-          .from('contacts')
+          .from('users')
           .select('id')
           .limit(1)
         
@@ -1678,8 +1832,8 @@ export const contactService = {
       
       // Créer un timeout pour détecter les blocages
       const insertPromise = supabase
-        .from('contacts')
-        .insert(contact)
+        .from('users')
+        .insert(userDataOnly) // NOUVELLE ARCHITECTURE: insérer sans contact_type
         .select()
         .single()
       
@@ -1772,7 +1926,7 @@ export const contactService = {
       console.log(`🔍 Looking for existing contact with email: ${contact.email}`)
       
       const { data: existingContact, error: findError } = await supabase
-        .from('contacts')
+        .from('users')
         .select(`
           *,
           team:team_id(id, name, description)
@@ -1804,13 +1958,13 @@ export const contactService = {
     try {
       // Récupérer les données actuelles pour le log
       const { data: currentData } = await supabase
-        .from('contacts')
+        .from('users')
         .select('id, name, email, team_id, contact_type')
         .eq('id', id)
         .single()
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('users')
         .update(updates)
         .eq('id', id)
         .select()
@@ -1876,13 +2030,13 @@ export const contactService = {
     try {
       // Récupérer les données actuelles pour le log avant suppression
       const { data: currentData } = await supabase
-        .from('contacts')
+        .from('users')
         .select('id, name, email, team_id, contact_type, company')
         .eq('id', id)
         .single()
 
       const { error } = await supabase
-        .from('contacts')
+        .from('users')
         .delete()
         .eq('id', id)
       
@@ -2182,6 +2336,21 @@ export const teamService = {
       }
       
       console.log('✅ Team member added successfully')
+      
+      // 5. Mettre à jour le team_id dans la table users
+      console.log('🔄 Updating user team_id...')
+      const { error: updateError } = await (supabase as any)
+        .from('users')
+        .update({ team_id: teamData.id })
+        .eq('id', team.created_by)
+      
+      if (updateError) {
+        console.error('❌ Failed to update user team_id:', updateError)
+        // Continue quand même, l'utilisateur est dans team_members
+      } else {
+        console.log('✅ User team_id updated successfully')
+      }
+      
       console.log('🎉 Team creation complete:', teamData.id)
       
       return teamData
@@ -2275,18 +2444,26 @@ export const teamService = {
 
   // Vérifier et créer une équipe personnelle si nécessaire (pour dashboard)
   async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; team?: any; error?: string }> {
-    console.log("🔍 Checking team status for user:", userId)
+    console.log("🔍 [TEAM-STATUS-NEW] Checking team status for user:", userId)
     
     try {
-      // 1. Récupérer les informations de l'utilisateur
-      const user = await userService.getById(userId)
-      console.log("👤 User found:", user.name, user.role)
+      // 1. Récupérer les informations de l'utilisateur (NOUVELLE ARCHITECTURE)
+      let user
+      try {
+        user = await userService.getById(userId)
+        console.log("👤 [TEAM-STATUS-NEW] User found by ID:", user.name, user.role)
+      } catch (userError) {
+        console.log("⚠️ [TEAM-STATUS-NEW] User not found by ID, this might be normal for new signup")
+        // Si l'utilisateur n'est pas trouvé, retourner hasTeam: true pour éviter les erreurs
+        // Le signup flow handle déjà la création d'équipe
+        return { hasTeam: true, team: null }
+      }
       
       // 2. Vérifier si l'utilisateur a déjà une équipe
       const existingTeams = await this.getUserTeams(userId)
       
       if (existingTeams.length > 0) {
-        console.log("✅ User already has team(s):", existingTeams.length)
+        console.log("✅ [TEAM-STATUS-NEW] User already has team(s):", existingTeams.length)
         return { hasTeam: true, team: existingTeams[0] }
       }
       
@@ -2426,12 +2603,16 @@ export const statsService = {
       const team = userTeams[0]
       console.log("🏢 Found team:", team.id, team.name)
       
-      // 2. Get buildings for this team
+      // 2. Get buildings for this team (NOUVELLE ARCHITECTURE)
       const { data: buildings, error: buildingsError } = await supabase
         .from('buildings')
         .select(`
           *,
-          manager:manager_id(id, name, email)
+          building_contacts(
+            contact_type,
+            is_primary,
+            user:user_id(id, name, email)
+          )
         `)
         .eq('team_id', team.id)
       
@@ -2452,7 +2633,11 @@ export const statsService = {
           .select(`
             *,
             building:building_id(id, name, address),
-            tenant:tenant_id(name, email, phone)
+            lot_contacts(
+              contact_type,
+              is_primary,
+              user:user_id(id, name, email, phone)
+            )
           `)
           .in('building_id', buildingIds)
         
@@ -2461,47 +2646,12 @@ export const statsService = {
           throw lotsError
         }
         
-        // Enrichir les lots avec les informations de contacts depuis lot_contacts
-        const enrichedLots = await Promise.all((lotsData || []).map(async (lot) => {
-          try {
-            // Récupérer les contacts locataires actifs pour ce lot
-            const { data: lotContacts, error: contactsError } = await supabase
-              .from('lot_contacts')
-              .select(`
-                contact:contact_id (
-                  id,
-                  name,
-                  email,
-                  phone
-                ),
-                contact_type,
-                is_primary
-              `)
-              .eq('lot_id', lot.id)
-              .eq('contact_type', 'locataire')
-              .is('end_date', null) // Seulement les contacts actifs
-              .order('is_primary', { ascending: false })
-            
-            if (contactsError) {
-              console.warn("⚠️ Error fetching contacts for lot", lot.id, contactsError)
-              return lot
-            }
-            
-            // Enrichir le lot avec les informations de contact
-            const primaryTenant = lotContacts?.[0]?.contact || null
-            return {
-              ...lot,
-              // Maintenir la compatibilité avec l'ancien système
-              tenant_id: primaryTenant?.id || lot.tenant_id,
-              tenant: primaryTenant || lot.tenant,
-              // Ajouter les nouvelles informations
-              lot_tenants: lotContacts || [],
-              has_active_tenants: (lotContacts || []).length > 0
-            }
-          } catch (error) {
-            console.warn("⚠️ Error enriching lot", lot.id, error)
-            return lot
-          }
+        // Post-traitement pour extraire les locataires principaux
+        const enrichedLots = (lotsData || []).map(lot => ({
+          ...lot,
+          tenant: lot.lot_contacts?.find(lc => 
+            lc.contact_type === 'locataire' && lc.is_primary
+          )?.user || null
         }))
         
         lots = enrichedLots
@@ -2512,14 +2662,18 @@ export const statsService = {
       const contacts = await contactService.getTeamContacts(team.id)
       console.log("👥 Found contacts:", contacts?.length || 0)
       
-      // 5. Get ALL interventions for this team (much simpler!)
+      // 5. Get ALL interventions for this team (NOUVELLE ARCHITECTURE)
       const { data: interventions, error: interventionsError } = await supabase
         .from('interventions')
         .select(`
           *,
           lot:lot_id(id, reference, building:building_id(name, address)),
           building:building_id(id, name, address),
-          assigned_contact:assigned_contact_id(name, email)
+          intervention_contacts(
+            role,
+            is_primary,
+            user:user_id(id, name, email)
+          )
         `)
         .eq('team_id', team.id)
         .order('created_at', { ascending: false })
@@ -2531,10 +2685,18 @@ export const statsService = {
       
       console.log("🔧 Found team interventions:", interventions?.length || 0)
       
+      // Post-traitement pour extraire les prestataires assignés
+      const processedInterventions = interventions?.map(intervention => ({
+        ...intervention,
+        assigned_contact: intervention.intervention_contacts?.find(ic => 
+          ic.role === 'prestataire' && ic.is_primary
+        )?.user || null
+      })) || []
+      
       // 6. Format buildings with embedded lots for PropertySelector
       const formattedBuildings = buildings?.map(building => {
         const buildingLots = lots.filter(lot => lot.building_id === building.id)
-        const buildingInterventions = (interventions || []).filter(intervention => 
+        const buildingInterventions = (processedInterventions || []).filter(intervention => 
           intervention.building_id === building.id || 
           buildingLots.some(lot => lot.id === intervention.lot_id)
         )
@@ -2569,8 +2731,8 @@ export const statsService = {
       const result = {
         buildings: formattedBuildings,
         lots,
-        contacts: contacts || [],
-        interventions: interventions || [],
+          contacts: contacts || [],
+          interventions: processedInterventions || [],
         stats,
         team
       }
@@ -2584,7 +2746,8 @@ export const statsService = {
       console.error("❌ Error in getManagerStats:", error)
       
       // En cas d'erreur, essayer de retourner des données en cache si disponibles
-      const cached = this._statsCache.get(cacheKey)
+      const errorCacheKey = `stats_${userId}`
+      const cached = this._statsCache.get(errorCacheKey)
       if (cached) {
         console.log("⚠️ Error occurred, returning stale cached data")
         return cached.data
@@ -2620,147 +2783,36 @@ export const contactInvitationService = {
     teamId: string
   }) {
     try {
-      console.log('🚀 [CONTACT-INVITATION-SERVICE] Starting with data:', contactData)
+      console.log('🚀 [CONTACT-INVITATION-SERVICE-SIMPLE] Starting with data:', contactData)
       
-       // 1. Créer le contact dans la base de données
-       const contactToCreate = {
-         name: `${contactData.firstName} ${contactData.lastName}`,
-         first_name: contactData.firstName,
-         last_name: contactData.lastName,
-         email: contactData.email,
-         phone: contactData.phone || null,
-         address: contactData.address || null,
-         notes: contactData.notes || null,
-         contact_type: contactData.type as Database['public']['Enums']['contact_type'], // Type de contact (locataire, prestataire, etc.)
-         speciality: (contactData.speciality && contactData.speciality.trim()) ? 
-           contactData.speciality as Database['public']['Enums']['intervention_type'] : null, // Spécialité technique (plomberie, etc.)
-         team_id: contactData.teamId,
-         is_active: true // Explicitement définir comme actif
-       }
-
-      console.log('📝 [CONTACT-INVITATION-SERVICE] Prepared object for DB:', contactToCreate)
+      // ✅ NOUVEAU FLUX SIMPLE: Utiliser la nouvelle API invite-user
+      const response = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: contactData.email,
+          firstName: contactData.firstName,
+          lastName: contactData.lastName,
+          role: mapContactTypeToDatabase(contactData.type),
+          teamId: contactData.teamId,
+          phone: contactData.phone,
+          shouldInviteToApp: contactData.inviteToApp // ✅ NOUVEAU PARAMÈTRE
+        })
+      })
       
-      console.log('🔄 [CONTACT-INVITATION-SERVICE] Calling contactService.create...')
-      let newContact;
+      const result = await response.json()
       
-      try {
-        newContact = await contactService.create(contactToCreate)
-        console.log('✅ [CONTACT-INVITATION-SERVICE] Contact creation completed via direct service:', newContact)
-      } catch (directError) {
-        console.warn('⚠️ [CONTACT-INVITATION-SERVICE] Direct service failed, trying API route fallback:', directError instanceof Error ? directError.message : 'Unknown error')
-        
-        // FALLBACK: Utiliser l'API route qui bypass les problèmes côté client
-        try {
-          console.log('🔄 [CONTACT-INVITATION-SERVICE] Trying API route fallback...')
-          
-          const response = await fetch('/api/create-contact', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(contactToCreate)
-          })
-          
-          const result = await response.json()
-          
-          if (!response.ok || !result.success) {
-            throw new Error(result.error || `API returned ${response.status}`)
-          }
-          
-          newContact = result.contact
-          console.log('✅ [CONTACT-INVITATION-SERVICE] Contact creation completed via API fallback:', newContact)
-          
-        } catch (apiError) {
-          console.error('❌ [CONTACT-INVITATION-SERVICE] Both direct service and API fallback failed:', apiError)
-          throw directError // Throw the original error
-        }
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `API returned ${response.status}`)
       }
       
-      let invitationResult = null
-      
-      // 2. Si invitation requise et que le type le permet
-      if (contactData.inviteToApp && contactData.email && ['gestionnaire', 'locataire', 'prestataire'].includes(contactData.type)) {
-        
-        // Importer dynamiquement pour éviter les dépendances circulaires
-        const { authService } = await import('./auth-service')
-        
-        // Déterminer le rôle utilisateur basé sur le type de contact
-        let userRole: Database['public']['Enums']['user_role'] = 'locataire'
-        if (contactData.type === 'gestionnaire') {
-          userRole = 'gestionnaire'
-        } else if (contactData.type === 'prestataire') {
-          userRole = 'prestataire'
-        }
-        
-        try {
-          invitationResult = await authService.inviteUser({
-            email: contactData.email,
-            firstName: contactData.firstName,
-            lastName: contactData.lastName,
-            phone: contactData.phone,
-            role: userRole,
-            teamId: contactData.teamId
-          })
-          
-          // Si l'invitation a réussi, créer l'enregistrement d'invitation avec le contact associé
-          if (invitationResult.success && invitationResult.userId && newContact.id) {
-            try {
-              // Générer un token unique pour cette invitation
-              const generateUniqueToken = () => {
-                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-                let result = ''
-                for (let i = 0; i < 20; i++) {
-                  result += chars.charAt(Math.floor(Math.random() * chars.length))
-                }
-                return result
-              }
-
-              const invitationToken = generateUniqueToken()
-              console.log('🔑 [CONTACT-INVITATION-SERVICE] Generated token for contact invitation:', invitationToken)
-
-              const { error: invitationRecordError } = await supabase
-                .from('user_invitations')
-                .upsert({
-                  user_id: invitationResult.userId,
-                  contact_id: newContact.id,
-                  team_id: contactData.teamId,
-                  email: contactData.email,
-                  role: userRole,
-                  status: 'pending',
-                  magic_link_token: invitationToken
-                })
-              
-              if (invitationRecordError) {
-                console.error('⚠️ [CONTACT-INVITATION-SERVICE] Failed to create invitation record:', invitationRecordError)
-              } else {
-                console.log('✅ [CONTACT-INVITATION-SERVICE] Invitation record created for contact with token:', newContact.id)
-              }
-            } catch (recordError) {
-              console.error('⚠️ [CONTACT-INVITATION-SERVICE] Error creating invitation record:', recordError)
-            }
-          }
-          
-          // Les logs sont gérés dans la page qui appelle ce service
-        } catch (inviteError) {
-          invitationResult = { 
-            success: false, 
-            error: 'Service d\'invitation temporairement indisponible'
-          }
-        }
-      }
-      
-      return {
-        contact: newContact,
-        invitation: invitationResult
-      }
+      console.log('✅ [CONTACT-INVITATION-SERVICE-SIMPLE] Process completed:', result)
+      return result
       
     } catch (error) {
-      console.error('❌ [CONTACT-INVITATION-SERVICE] Error:', error)
-      console.error('❌ [CONTACT-INVITATION-SERVICE] Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack',
-        contactData: contactData
-      })
+      console.error('❌ [CONTACT-INVITATION-SERVICE-SIMPLE] Error:', error)
       throw error
     }
   },
@@ -2770,42 +2822,32 @@ export const contactInvitationService = {
     try {
       console.log('📧 [INVITATION-SERVICE] Getting pending invitations for team:', teamId)
       
-      // 1. Récupérer toutes les invitations en statut 'pending' pour cette équipe
+      // 1. Récupérer toutes les invitations en attente pour cette équipe
       const { data: pendingInvitations, error: invitationsError } = await supabase
         .from('user_invitations')
         .select(`
           id,
-          user_id,
-          contact_id,
           email,
           role,
-          status,
-          invited_at,
+          first_name,
+          last_name,
+          invitation_code,
           expires_at,
-          users!user_invitations_user_id_fkey (
+          accepted_at,
+          created_at,
+          invited_by,
+          inviter:invited_by(
             id,
             name,
             first_name,
             last_name,
-            email,
-            created_at
-          ),
-          contacts!user_invitations_contact_id_fkey (
-            id,
-            name,
-            first_name,
-            last_name,
-            email,
-            contact_type,
-            company,
-            speciality,
-            created_at
+            email
           )
         `)
         .eq('team_id', teamId)
-        .eq('status', 'pending')
+        .is('accepted_at', null) // Invitations pas encore acceptées
         .gt('expires_at', new Date().toISOString()) // Pas encore expirées
-        .order('invited_at', { ascending: false })
+        .order('created_at', { ascending: false })
       
       if (invitationsError) {
         console.error('❌ [INVITATION-SERVICE] Error fetching pending invitations:', invitationsError)
@@ -2821,17 +2863,20 @@ export const contactInvitationService = {
 
       // 2. Transformer les données pour correspondre au format attendu
       const formattedInvitations = pendingInvitations.map(invitation => {
-        // Si il y a un contact associé, utiliser ses données, sinon utiliser les données de l'invitation
-        const contactData = invitation.contacts || {
-          id: invitation.user_id, // Utiliser l'user_id comme fallback
-          name: invitation.users?.name || 'Utilisateur invité',
-          first_name: invitation.users?.first_name || '',
-          last_name: invitation.users?.last_name || '',
+        // Créer un objet contact à partir des données d'invitation
+        const fullName = `${invitation.first_name || ''} ${invitation.last_name || ''}`.trim()
+        const displayName = fullName || invitation.email.split('@')[0]
+        
+        const contactData = {
+          id: invitation.id,
+          name: displayName,
+          first_name: invitation.first_name || '',
+          last_name: invitation.last_name || '',
           email: invitation.email,
-          contact_type: invitation.role, // Mapper le rôle vers le type de contact
+          contact_type: invitation.role, // Le rôle correspond au type de contact
           company: null,
           speciality: null,
-          created_at: invitation.invited_at
+          created_at: invitation.created_at
         }
 
         console.log(`📋 [INVITATION-SERVICE] Processing invitation for ${invitation.email}`)
@@ -2839,10 +2884,11 @@ export const contactInvitationService = {
         return {
           ...contactData,
           invitation_id: invitation.id,
-          invitation_status: invitation.status,
-          invited_at: invitation.invited_at,
+          invitation_status: 'pending', // Statut dérivé du fait que accepted_at est null
+          invited_at: invitation.created_at,
           expires_at: invitation.expires_at,
-          user_info: invitation.users
+          invitation_code: invitation.invitation_code,
+          inviter_info: invitation.inviter
         }
       })
 
@@ -3047,56 +3093,38 @@ export const contactInvitationService = {
   },
 
   // Renvoyer une invitation
-  async resendInvitation(contactId: string) {
+  async resendInvitation(invitationId: string) {
     try {
-      console.log('🔄 [INVITATION-SERVICE] Resending invitation for contact:', contactId)
+      console.log('🔄 [INVITATION-SERVICE] Resending invitation for ID:', invitationId)
       
-      // 1. Récupérer les informations du contact
-      const contact = await contactService.getById(contactId)
-      if (!contact) {
-        throw new Error('Contact non trouvé')
-      }
-
-      if (!contact.email) {
-        throw new Error('Contact invalide - email manquant')
-      }
-
-      // 2. Vérifier qu'il y a bien un utilisateur associé
-      const user = await userService.getByEmail(contact.email)
-      if (!user) {
-        throw new Error('Aucun utilisateur trouvé pour renvoyer l\'invitation')
-      }
-
-      console.log('👤 [INVITATION-SERVICE] Found existing user:', user.id, 'for email:', contact.email)
-
-      // 3. Appeler l'API invite-user en mode renvoi pour générer un nouveau magic link
-      console.log('📧 [INVITATION-SERVICE] Calling API to generate new magic link')
-      const response = await fetch('/api/invite-user', {
+      // Utiliser la nouvelle API dédiée au renvoi d'invitation
+      console.log('📧 [INVITATION-SERVICE] Calling dedicated resend API')
+      const response = await fetch('/api/resend-invitation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: contact.email,
-          role: user.role,
-          isResend: true // Paramètre pour indiquer que c'est un renvoi
+          invitationId: invitationId
         })
       })
 
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        console.error('❌ [INVITATION-SERVICE] API error:', result.error)
+        console.error('❌ [INVITATION-SERVICE] Resend API error:', result.error)
         throw new Error(result.error || `API returned ${response.status}`)
       }
 
-      console.log('✅ [INVITATION-SERVICE] Magic link generated successfully')
+      console.log('✅ [INVITATION-SERVICE] Invitation resent successfully')
+      console.log('🔗 [INVITATION-SERVICE] Magic link available:', !!result.magicLink)
       
       return { 
         success: true, 
-        userId: user.id,
-        message: result.message,
-        magicLink: result.magicLink // Le vrai magic link généré par Supabase (avec invitation_id dans l'URL)
+        message: result.message || 'Invitation renvoyée avec succès',
+        userId: result.userId,
+        magicLink: result.magicLink,
+        emailSent: result.emailSent
       }
 
     } catch (error) {

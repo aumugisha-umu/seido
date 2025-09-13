@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
 import type { AuthError } from '@supabase/supabase-js'
 
@@ -21,6 +22,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -39,9 +42,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const getCurrentUser = async () => {
+  // Redirection automatique après authentification
+  useEffect(() => {
+    // Ne rediriger que si : user chargé, pas en cours de chargement, et on est sur une page d'auth
+    if (user && !loading && pathname?.startsWith('/auth')) {
+      
+      // Cas spéciaux : pas de redirection sur callback ou reset-password
+      if (pathname.includes('/callback') || pathname.includes('/reset-password')) {
+        return
+      }
+      
+      console.log('🎯 [AUTH-PROVIDER] Auto-redirect detected:', {
+        user: user.name,
+        role: user.role,
+        currentPath: pathname
+      })
+      
+      // Déterminer le dashboard selon le rôle
+      let targetDashboard = '/gestionnaire/dashboard' // default
+      
+      switch (user.role) {
+        case 'gestionnaire':
+          targetDashboard = '/gestionnaire/dashboard'
+          break
+        case 'locataire':
+          targetDashboard = '/locataire/dashboard'
+          break
+        case 'prestataire':
+          targetDashboard = '/prestataire/dashboard'
+          break
+        case 'admin':
+          targetDashboard = '/admin/dashboard'
+          break
+        default:
+          targetDashboard = '/gestionnaire/dashboard'
+      }
+      
+      console.log('🚀 [AUTH-PROVIDER] Redirecting to:', targetDashboard)
+      router.push(targetDashboard)
+    }
+  }, [user, loading, pathname, router])
+
+  const getCurrentUser = async (retryCount = 0) => {
     try {
-      console.log('🔍 [USE-AUTH] Getting current user...')
+      console.log(`🔍 [USE-AUTH] Getting current user (attempt ${retryCount + 1})...`)
       
       // Timeout pour éviter le blocage infini
       const timeoutPromise = new Promise((_, reject) => 
@@ -53,8 +97,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('✅ [USE-AUTH] Current user loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
+      
+      // Si pas d'user et on est sur dashboard après signup, essayer encore
+      if (!user && retryCount < 2 && window.location.pathname.includes('/dashboard')) {
+        console.log('🔄 [USE-AUTH] No user on dashboard - retrying in 1s...')
+        setTimeout(() => getCurrentUser(retryCount + 1), 1000)
+        return
+      }
+      
     } catch (error) {
       console.error('❌ [USE-AUTH] Error getting current user:', error)
+      
+      // Retry une fois si erreur et on est sur dashboard
+      if (retryCount < 1 && window.location.pathname.includes('/dashboard')) {
+        console.log('🔄 [USE-AUTH] Error on dashboard - retrying in 2s...')
+        setTimeout(() => getCurrentUser(retryCount + 1), 2000)
+        return
+      }
+      
       console.log('🔄 [USE-AUTH] Setting user to null and continuing...')
       setUser(null)
     } finally {

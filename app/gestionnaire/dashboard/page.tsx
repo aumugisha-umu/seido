@@ -16,21 +16,70 @@ import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarCha
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { useManagerStats } from "@/hooks/use-manager-stats"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function DashboardGestionnaire() {
   const [notifications] = useState(3)
   const router = useRouter()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const { stats, loading, error, refetch } = useManagerStats()
+  const { user } = useAuth() // ✅ AJOUTÉ: Pour obtenir l'équipe utilisateur
 
-  const handleContactSubmit = (contactData: any) => {
-    console.log("[v0] Contact created:", {
-      ...contactData,
-      fullName: `${contactData.firstName} ${contactData.lastName}`,
-    })
-    
-    if (contactData.inviteToApp) {
-      console.log("📧 Une invitation sera envoyée à:", contactData.email)
+  const handleContactSubmit = async (contactData: any) => {
+    try {
+      console.log("[v0] Contact created:", {
+        ...contactData,
+        fullName: `${contactData.firstName} ${contactData.lastName}`,
+      })
+      
+      // ✅ NOUVELLE ARCHITECTURE: Utiliser contactInvitationService
+      const { contactInvitationService, teamService } = await import('@/lib/database-service')
+      
+      if (!user?.id) {
+        console.error("❌ [DASHBOARD] Utilisateur non authentifié")
+        return
+      }
+      
+      // 🔍 Récupérer l'équipe de l'utilisateur (comme les autres hooks)
+      console.log("🔄 [DASHBOARD] Fetching user team...")
+      const teams = await teamService.getUserTeams(user.id)
+      
+      if (!teams || teams.length === 0) {
+        console.error("❌ [DASHBOARD] Aucune équipe trouvée pour l'utilisateur")
+        return
+      }
+      
+      const userTeamId = teams[0].id
+      console.log("✅ [DASHBOARD] Team found:", userTeamId)
+      
+      console.log("🔄 [DASHBOARD] Calling contactInvitationService...")
+      const result = await contactInvitationService.createContactWithOptionalInvite({
+        type: contactData.type,
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
+        email: contactData.email,
+        phone: contactData.phone,
+        address: contactData.address,
+        speciality: contactData.speciality,
+        notes: contactData.notes,
+        inviteToApp: contactData.inviteToApp,
+        teamId: userTeamId
+      })
+      
+      console.log("✅ [DASHBOARD] Contact creation completed:", result)
+      
+      if (contactData.inviteToApp && result.invitationResult) {
+        console.log("📧 [DASHBOARD] Invitation envoyée avec succès à:", contactData.email)
+      }
+      
+      // Fermer le modal
+      setIsContactModalOpen(false)
+      
+      // Recharger les statistiques pour refléter le nouveau contact
+      refetch()
+      
+    } catch (error) {
+      console.error("❌ [DASHBOARD] Erreur lors de la création du contact:", error)
     }
   }
 

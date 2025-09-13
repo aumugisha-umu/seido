@@ -391,7 +391,7 @@ export default function ContactsPage() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Send className="h-5 w-5 text-orange-500" />
-                <span>Invitations en attente ({pendingInvitations.length})</span>
+                <span>Utilisateurs en attente de connexion ({pendingInvitations.length})</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -420,10 +420,20 @@ export default function ContactsPage() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-sm text-green-700 mb-3">
-                          Vous pouvez également copier le lien ci-dessous pour l'envoyer manuellement :
-                        </p>
-                        {resentInvitations[invitation.id]?.magicLink && (
+                        <div className="text-sm text-green-700 mb-3">
+                          <p className="font-medium mb-1">
+                            ✅ Lien de connexion généré avec succès !
+                          </p>
+                          <p className="text-xs text-green-600 mb-2">
+                            Un email de connexion a été envoyé à l'utilisateur.
+                          </p>
+                          {resentInvitations[invitation.id]?.magicLink && (
+                            <p>
+                              Vous pouvez également copier le lien de connexion ci-dessous pour l'envoyer manuellement :
+                            </p>
+                          )}
+                        </div>
+                        {resentInvitations[invitation.id]?.magicLink ? (
                           <>
                             <div className="bg-white border border-green-300 rounded p-2 mb-3">
                               <code className="text-xs text-gray-600 break-all font-mono">
@@ -441,8 +451,29 @@ export default function ContactsPage() {
                                   : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300'
                                 }`}
                               >
-                                {copiedLinks[invitation.id] ? '✅ Copié !' : '📋 Copier le lien'}
+                                {copiedLinks[invitation.id] ? '✅ Copié !' : '📋 Copier le lien de connexion'}
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCloseSuccessState(invitation.id)}
+                                className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300"
+                              >
+                                Fermer
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="bg-white border border-green-300 rounded p-2 mb-3">
+                              <p className="text-xs text-gray-600">
+                                📧 L'email de connexion a été envoyé à <strong>{invitation.email}</strong>
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Le destinataire recevra un lien de connexion magique directement dans sa boîte mail.
+                              </p>
+                            </div>
+                            <div className="flex space-x-2">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -489,7 +520,7 @@ export default function ContactsPage() {
                             className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
                           >
                             <Send className="h-3 w-3 mr-1" />
-                            {resendingInvitations[invitation.id] ? 'Envoi...' : 'Renvoyer'}
+                            {resendingInvitations[invitation.id] ? 'Génération...' : 'Renvoyer connexion'}
                           </Button>
                         </div>
                       </div>

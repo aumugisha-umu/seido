@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log('✅ [MARK-INVITATION-API] Starting with:', { email, hasCode: !!invitationCode })
+    console.log('📧 [MARK-INVITATION-API] Processing invitation acceptance:', { email, hasCode: !!invitationCode })
 
     let result
 

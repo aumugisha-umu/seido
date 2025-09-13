@@ -32,6 +32,14 @@ export async function middleware(request: NextRequest) {
         cookie.name.startsWith('sb-') && cookie.value && cookie.value.length > 0
       )
       
+      console.log('🔍 [MIDDLEWARE-SIMPLE] Auth route detected:', pathname, 'hasAuthCookie:', hasAuthCookie)
+      console.log('🔍 [MIDDLEWARE-SIMPLE] All cookies:', cookies.map(c => ({ 
+        name: c.name, 
+        hasValue: !!c.value,
+        valueLength: c.value?.length || 0,
+        isSupabase: c.name.startsWith('sb-')
+      })))
+      
       if (hasAuthCookie) {
         // Essayer de récupérer le rôle depuis le JWT token dans les cookies
         let userRole = 'gestionnaire' // fallback par défaut
@@ -42,11 +50,11 @@ export async function middleware(request: NextRequest) {
             cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')
           )
           
-          console.log('🔍 [MIDDLEWARE-SIMPLE] Available cookies:', cookies.map(c => ({ name: c.name, hasValue: !!c.value })))
-          console.log('🔍 [MIDDLEWARE-SIMPLE] Auth token cookie found:', {
+          console.log('🔍 [MIDDLEWARE-SIMPLE] Auth token cookie search result:', {
             found: !!authTokenCookie,
             cookieName: authTokenCookie?.name,
-            hasValue: !!authTokenCookie?.value
+            hasValue: !!authTokenCookie?.value,
+            totalSupabaseCookies: cookies.filter(c => c.name.startsWith('sb-')).length
           })
           
           if (authTokenCookie && authTokenCookie.value) {
@@ -115,9 +123,14 @@ export async function middleware(request: NextRequest) {
         console.log('🔄 [MIDDLEWARE-SIMPLE] Auth page + existing session → REDIRECT to:', {
           detectedRole: userRole,
           targetPath: dashboardPath,
-          originalPath: pathname
+          originalPath: pathname,
+          timestamp: new Date().toISOString(),
+          redirectUrl: new URL(dashboardPath, request.url).toString()
         })
-        return NextResponse.redirect(new URL(dashboardPath, request.url))
+        
+        const redirectResponse = NextResponse.redirect(new URL(dashboardPath, request.url))
+        console.log('✅ [MIDDLEWARE-SIMPLE] Redirect response created successfully')
+        return redirectResponse
       }
     }
     

@@ -399,10 +399,11 @@ export default function ContactsPage() {
                 {pendingInvitations.map((invitation) => (
                   <div
                     key={invitation.id}
-                    className={`p-3 rounded-lg border ${resentInvitations[invitation.id]?.success 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-orange-50 border-orange-200'
-                    }`}
+                    className={
+                      resentInvitations[invitation.id]?.success 
+                        ? 'p-3 rounded-lg border bg-green-50 border-green-200' 
+                        : 'p-3 rounded-lg border bg-orange-50 border-orange-200'
+                    }
                   >
                     {resentInvitations[invitation.id]?.success ? (
                       // État de succès avec magic link
@@ -444,14 +445,18 @@ export default function ContactsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleCopyMagicLink(resentInvitations[invitation.id]?.magicLink || '', invitation.id)}
+                                onClick={() => {
+                                  const magicLink = resentInvitations[invitation.id]?.magicLink || '';
+                                  handleCopyMagicLink(magicLink, invitation.id);
+                                }}
                                 disabled={copiedLinks[invitation.id]}
-                                className={`${copiedLinks[invitation.id] 
-                                  ? 'text-green-700 bg-green-100 border-green-400' 
-                                  : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300'
-                                }`}
+                                className={
+                                  copiedLinks[invitation.id] 
+                                    ? 'text-green-700 bg-green-100 border-green-400' 
+                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300'
+                                }
                               >
-                                {copiedLinks[invitation.id] ? '✅ Copié !' : '📋 Copier le lien d'invitation'}
+                                {copiedLinks[invitation.id] ? "✅ Copié !" : "📋 Copier le lien d'invitation"}
                               </Button>
                               <Button
                                 size="sm"
@@ -520,7 +525,7 @@ export default function ContactsPage() {
                             className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
                           >
                             <Send className="h-3 w-3 mr-1" />
-                            {resendingInvitations[invitation.id] ? 'Génération...' : 'Renvoyer invitation'}
+                            {resendingInvitations[invitation.id] ? "Génération..." : "Renvoyer invitation"}
                           </Button>
                         </div>
                       </div>
@@ -593,7 +598,10 @@ export default function ContactsPage() {
                         <div className="flex items-center space-x-3 mb-1">
                           <h3 className="font-medium text-gray-900">{contact.name}</h3>
                           {contact.contact_type && (
-                            <Badge variant="secondary" className={`${getContactTypeBadgeStyle(contact.contact_type)} text-xs font-medium`}>
+                            <Badge 
+                              variant="secondary" 
+                              className={`${getContactTypeBadgeStyle(contact.contact_type)} text-xs font-medium`}
+                            >
                               {getContactTypeLabel(contact.contact_type)}
                             </Badge>
                           )}
@@ -654,9 +662,13 @@ export default function ContactsPage() {
                         Modifier
                       </Button>
                       <DeleteConfirmModal
+                        isOpen={false}
+                        onClose={() => {}}
                         onConfirm={() => handleDeleteContact(contact.id)}
                         itemName={contact.name}
                         itemType="le contact"
+                        title="Supprimer le contact"
+                        message={`Êtes-vous sûr de vouloir supprimer ${contact.name} ? Cette action est irréversible.`}
                       />
                     </div>
                   </div>

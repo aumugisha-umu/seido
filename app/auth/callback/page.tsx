@@ -20,81 +20,138 @@ export default function AuthCallback() {
 
   const handleAuthCallback = async () => {
     try {
-      console.log('🔄 [AUTH-CALLBACK] Processing callback...')
-      
-      // Récupérer les paramètres d'URL (access_token, refresh_token, etc.)
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
-      
-      // Vérifier s'il y a des tokens dans l'URL
       const accessToken = hashParams.get('access_token') || searchParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token')
       
       if (accessToken && refreshToken) {
-        console.log('🔑 [AUTH-CALLBACK] Setting session with tokens...')
-        
-        // Décoder le JWT pour extraire le rôle et l'email
         try {
           const tokenPayload = JSON.parse(atob(accessToken.split('.')[1]))
           const role = tokenPayload.user_metadata?.role
           const email = tokenPayload.email
           
-          // Établir la session
-          const sessionResult = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          })
+          let sessionData, sessionError
           
-          if (sessionResult.error) {
-            console.log('⚠️ [AUTH-CALLBACK] Session error:', sessionResult.error.message)
+          try {
+            const result = await Promise.race([
+              supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('setSession timeout after 2s')), 2000)
+              )
+            ])
+            sessionData = result.data
+            sessionError = result.error
+          } catch (timeoutError) {
+            try {
+              const currentSession = await Promise.race([
+                supabase.auth.getSession(),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('getSession timeout')), 1000)
+                )
+              ])
+              
+              if (currentSession?.data?.session?.user) {
+                sessionData = currentSession.data
+                sessionError = null
+              } else {
+                const userRole = role || 'gestionnaire'
+                const dashboardPath = `/${userRole}/dashboard`
+                
+                setTimeout(() => {
+                  window.location.href = dashboardPath
+                }, 500)
+                return
+              }
+            } catch (getSessionTimeout) {
+              const userRole = role || 'gestionnaire'
+              const dashboardPath = `/${userRole}/dashboard`
+              
+              setTimeout(() => {
+                window.location.href = dashboardPath
+              }, 500)
+              return
+            }
           }
           
-          // Attendre la synchronisation des cookies
-          await new Promise(resolve => setTimeout(resolve, 200))
+          if (sessionError) {
+            throw sessionError
+          }
           
-          // Marquer les invitations comme acceptées via API (basé sur l'email)
-          console.log('📝 [AUTH-CALLBACK] Marking invitations as accepted via API (non-blocking)...')
-          fetch('/api/mark-invitation-accepted', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              email: email
+          if (sessionData?.session?.user) {
+            const user = sessionData.session.user
+            
+            await new Promise(resolve => setTimeout(resolve, 500))
+            
+            // Marquer les invitations comme acceptées - APPROCHE DOUBLE
+            // 1. Par invitation_code (user ID)
+            // 2. Par email (fallback)
+            Promise.all([
+              // Approche 1: Par user ID  
+              fetch('/api/mark-invitation-accepted', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: email,
+                  invitationCode: user.id
+                })
+              }),
+              
+              // Approche 2: Par email seulement (fallback)
+              fetch('/api/mark-invitation-accepted', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: email
+                })
+              })
+            ]).then(responses => {
+              responses.forEach((response, index) => {
+                if (response.ok) {
+                  response.json().then(result => {
+                    if (result && result.success && result.count > 0) {
+                      console.log(`✅ Approach ${index + 1}: ${result.count} invitation(s) marked as accepted`)
+                    }
+                  })
+                }
+              })
+            }).catch(error => {
+              console.warn('⚠️ Some invitation marking failed, but continuing:', error)
             })
-          }).then(response => response.json()).then((result) => {
-            if (result.success) {
-              console.log(`✅ [AUTH-CALLBACK] ${result.count} invitation(s) marked as accepted via API`)
-              if (result.invitations?.length > 0) {
-                console.log(`📊 [AUTH-CALLBACK] Updated invitations:`, result.invitations)
+            
+            const userRole = role || 'gestionnaire'
+            setStatus('success')
+            setMessage('Connexion réussie ! Redirection automatique...')
+            setUserRole(userRole)
+            
+            setTimeout(async () => {
+              const { data: { session } } = await supabase.auth.getSession()
+              if (session?.user) {
+                const dashboardPath = `/${userRole}/dashboard`
+                router.refresh()
+                
+                setTimeout(() => {
+                  router.push(dashboardPath)
+                }, 200)
+              } else {
+                setTimeout(() => {
+                  const dashboardPath = `/${userRole}/dashboard`
+                  window.location.href = dashboardPath
+                }, 500)
               }
-            } else {
-              console.log('⚠️ [AUTH-CALLBACK] API could not mark invitation as accepted:', result.error)
-            }
-          }).catch((apiError) => {
-            console.log('⚠️ [AUTH-CALLBACK] Error calling mark invitation API:', apiError)
-          })
-
-          // Session configurée, forcer re-évaluation middleware
-          setStatus('success')
-          setMessage(`Connexion réussie ! Redirection automatique...`)
-          setUserRole(role || null)
+            }, 3000) // 3 secondes pour voir les logs
+            
+          } else {
+            throw new Error('Session non établie après setSession')
+          }
           
-          // Petite attente pour s'assurer que setSession est complètement synchronisé
-          setTimeout(() => {
-            console.log('🔄 [AUTH-CALLBACK] Triggering router refresh to activate middleware...')
-            router.refresh() // Force re-évaluation du middleware avec nouveaux cookies
-            console.log('✅ [AUTH-CALLBACK] Router refresh triggered, middleware should redirect now')
-          }, 100) // 100ms pour éviter race condition
-          
-        } catch (tokenError) {
-          console.error('❌ [AUTH-CALLBACK] Token decode error:', tokenError)
-          throw new Error('Token d\'authentification invalide')
+        } catch (setSessionError) {
+          throw setSessionError
         }
-
-      } else {
-        // Pas de tokens - vérifier session existante
-        console.log('🔍 [AUTH-CALLBACK] Checking existing session...')
         
+      } else {
         const { data: { session }, error: getSessionError } = await supabase.auth.getSession()
         
         if (getSessionError) {
@@ -102,27 +159,28 @@ export default function AuthCallback() {
         }
         
         if (session?.user) {
-          const role = session.user.user_metadata?.role
+          const role = session.user.user_metadata?.role || 'gestionnaire'
           setStatus('success')
           setMessage('Session existante trouvée ! Redirection automatique...')
           setUserRole(role)
           
-          setTimeout(() => {
-            console.log('🔄 [AUTH-CALLBACK] Triggering router refresh for existing session...')
-            router.refresh() // Force re-évaluation du middleware
-            console.log('✅ [AUTH-CALLBACK] Router refresh triggered, middleware should redirect now')
-          }, 100) // 100ms pour éviter race condition
+          setTimeout(async () => {
+            const dashboardPath = `/${role}/dashboard`
+            router.refresh()
+            
+            setTimeout(() => {
+              router.push(dashboardPath)
+            }, 200)
+          }, 500)
         } else {
           throw new Error('Aucune session trouvée')
         }
       }
 
     } catch (error) {
-      console.error('❌ [AUTH-CALLBACK] Error:', error)
       setStatus('error')
       setMessage(error instanceof Error ? error.message : 'Erreur inconnue')
       
-      // Redirection vers login en cas d'erreur
       setTimeout(() => {
         router.push('/auth/login?error=callback_failed')
       }, 3000)

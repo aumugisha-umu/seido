@@ -99,7 +99,7 @@ const ContactSelector = ({
 
   const handleContactCreated = async (contactData: any) => {
     try {
-      console.log('🆕 Création d\'un nouveau contact:', contactData)
+      console.log('🆕 Création d\'un contact:', contactData)
       
       if (!teamId) {
         console.error("❌ No team found")
@@ -221,7 +221,7 @@ const ContactSelector = ({
           <SelectItem value="create-new" className="text-blue-600">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              <span>Créer un nouveau {getContactLabel()}</span>
+              <span>Ajouter un {getContactLabel()}</span>
             </div>
           </SelectItem>
         </SelectContent>

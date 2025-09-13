@@ -1697,7 +1697,7 @@ export const statsService = {
       
       console.log("🏗️ Found buildings:", buildings?.length || 0)
       
-      // 3. Get lots for these buildings
+      // 3. Get lots for these buildings with contact information
       const buildingIds = buildings?.map(b => b.id) || []
       let lots: any[] = []
       
@@ -1716,8 +1716,51 @@ export const statsService = {
           throw lotsError
         }
         
-        lots = lotsData || []
-        console.log("🏠 Found lots:", lots.length)
+        // Enrichir les lots avec les informations de contacts depuis lot_contacts
+        const enrichedLots = await Promise.all((lotsData || []).map(async (lot) => {
+          try {
+            // Récupérer les contacts locataires actifs pour ce lot
+            const { data: lotContacts, error: contactsError } = await supabase
+              .from('lot_contacts')
+              .select(`
+                contact:contact_id (
+                  id,
+                  name,
+                  email,
+                  phone
+                ),
+                contact_type,
+                is_primary
+              `)
+              .eq('lot_id', lot.id)
+              .eq('contact_type', 'locataire')
+              .is('end_date', null) // Seulement les contacts actifs
+              .order('is_primary', { ascending: false })
+            
+            if (contactsError) {
+              console.warn("⚠️ Error fetching contacts for lot", lot.id, contactsError)
+              return lot
+            }
+            
+            // Enrichir le lot avec les informations de contact
+            const primaryTenant = lotContacts?.[0]?.contact || null
+            return {
+              ...lot,
+              // Maintenir la compatibilité avec l'ancien système
+              tenant_id: primaryTenant?.id || lot.tenant_id,
+              tenant: primaryTenant || lot.tenant,
+              // Ajouter les nouvelles informations
+              lot_tenants: lotContacts || [],
+              has_active_tenants: (lotContacts || []).length > 0
+            }
+          } catch (error) {
+            console.warn("⚠️ Error enriching lot", lot.id, error)
+            return lot
+          }
+        }))
+        
+        lots = enrichedLots
+        console.log("🏠 Found lots with contacts:", lots.length)
       }
       
       // 4. Get contacts for this team
@@ -1755,7 +1798,7 @@ export const statsService = {
           ...building,
           lots: buildingLots.map(lot => ({
             ...lot,
-            status: lot.tenant_id ? 'occupied' : 'vacant',
+            status: (lot.has_active_tenants || lot.tenant_id) ? 'occupied' : 'vacant',
             tenant: lot.tenant?.name || null,
             interventions: (interventions || []).filter(i => i.lot_id === lot.id).length
           })),
@@ -1764,7 +1807,7 @@ export const statsService = {
       }) || []
       
       // 7. Calculate stats
-      const occupiedLotsCount = lots.filter(lot => lot.tenant_id).length
+      const occupiedLotsCount = lots.filter(lot => lot.has_active_tenants || lot.tenant_id).length
       const occupancyRate = lots.length > 0 ? Math.round((occupiedLotsCount / lots.length) * 100) : 0
       
       const stats = {

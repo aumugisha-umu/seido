@@ -354,7 +354,7 @@ export default function ContactsPage() {
             </div>
             <Button onClick={() => setIsContactModalOpen(true)} className="flex items-center space-x-2">
               <UserPlus className="h-4 w-4" />
-              <span>Nouveau contact</span>
+              <span>Ajouter un contact</span>
             </Button>
           </div>
         </div>

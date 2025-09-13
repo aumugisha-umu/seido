@@ -20,6 +20,8 @@ import {
   Home,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { LotCategory } from "@/lib/lot-types"
+import LotCategorySelector from "@/components/ui/lot-category-selector"
 
 const countries = [
   "Belgique",
@@ -55,6 +57,7 @@ interface BuildingInfo {
   floor?: string
   doorNumber?: string
   surface?: string
+  category?: LotCategory
 }
 
 interface BuildingInfoFormProps {
@@ -68,9 +71,11 @@ interface BuildingInfoFormProps {
   onCreateManager?: () => void
   showManagerSection?: boolean
   showAddressSection?: boolean
-  entityType?: "bâtiment" | "lot"
+  entityType?: "immeuble" | "lot"
   showTitle?: boolean
   defaultReference?: string
+  buildingsCount?: number // Nombre d'immeubles de l'équipe
+  lotsCount?: number // Nombre total de lots
 }
 
 export const BuildingInfoForm = ({
@@ -84,11 +89,47 @@ export const BuildingInfoForm = ({
   onCreateManager,
   showManagerSection = true,
   showAddressSection = true,
-  entityType = "bâtiment",
+  entityType = "immeuble",
   showTitle = false,
   defaultReference = "",
+  buildingsCount = 0,
+  lotsCount = 0,
 }: BuildingInfoFormProps) => {
   const { user } = useAuth()
+
+  // Générer les valeurs par défaut selon le contexte
+  const generateDefaultName = () => {
+    if (entityType === "lot") {
+      const nextLotNumber = lotsCount + 1
+      return `Lot ${nextLotNumber}`
+    } else {
+      const nextBuildingNumber = buildingsCount + 1
+      return `Immeuble ${nextBuildingNumber}`
+    }
+  }
+
+  const getDefaultValue = () => {
+    // Vérifier si la valeur existante correspond au contexte
+    const existingValue = buildingInfo.name?.trim()
+    if (existingValue) {
+      const isLotValue = existingValue.toLowerCase().startsWith('lot')
+      const isBuildingValue = existingValue.toLowerCase().startsWith('immeuble')
+      
+      // Si c'est une valeur de lot dans un contexte immeuble, ou vice versa, ignorer
+      if ((entityType === "lot" && isBuildingValue) || (entityType === "immeuble" && isLotValue)) {
+        return generateDefaultName()
+      }
+      
+      // Sinon, utiliser la valeur existante si elle correspond au contexte
+      return existingValue
+    }
+    
+    // N'utiliser defaultReference que pour les lots
+    if (entityType === "lot" && defaultReference && defaultReference.trim() !== "") {
+      return defaultReference
+    }
+    return generateDefaultName()
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -105,7 +146,7 @@ export const BuildingInfoForm = ({
         <div>
           <Label htmlFor="manager" className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <User className="w-4 h-4" />
-            Responsable du {entityType}
+            Responsable {entityType === "immeuble" ? "de l'" : "du "}{entityType}
           </Label>
           
           {!isLoading && teamManagers.length > 0 && userTeam ? (
@@ -135,7 +176,7 @@ export const BuildingInfoForm = ({
                     <SelectItem value="create-new" className="border-t mt-1 pt-2">
                       <div className="flex items-center gap-2 text-blue-600">
                         <Users className="w-4 h-4" />
-                        <span>Créer un nouveau gestionnaire</span>
+                        <span>Ajouter un responsable</span>
                       </div>
                     </SelectItem>
                   )}
@@ -172,26 +213,22 @@ export const BuildingInfoForm = ({
       )}
       <div>
         <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <Building className="w-4 h-4" />
-          {entityType === "lot" ? "Référence du lot" : "Nom du bâtiment"} 
-          {entityType === "lot" ? (
-            <span className="text-red-500">*</span>
-          ) : (
-            <span className="text-gray-400">(optionnel)</span>
-          )}
+          {entityType === "lot" ? <Home className="w-4 h-4" /> : <Building className="w-4 h-4" />}
+          {entityType === "lot" ? "Référence du lot" : "Référence de l'immeuble"} 
+          <span className="text-red-500">*</span>
         </Label>
         <Input
           id="name"
-          placeholder={entityType === "lot" ? "Lot001, LOT-A-01, etc." : "Ex: Résidence des Champs-Élysées"}
-          value={buildingInfo.name || (entityType === "lot" && defaultReference && !buildingInfo.name ? defaultReference : "")}
+          placeholder={entityType === "lot" ? "Lot 1, LOT-A-01, etc." : "Ex: Résidence des Champs-Élysées, Immeuble 1"}
+          value={getDefaultValue()}
           onChange={(e) => setBuildingInfo({ ...buildingInfo, name: e.target.value })}
           className="mt-1 h-10 sm:h-11"
-          required={entityType === "lot"}
+          required
         />
         <p className="text-xs text-gray-500 mt-1">
           {entityType === "lot" 
             ? "Référence unique pour identifier ce lot (requis)"
-            : "Donnez un nom distinctif à votre bâtiment pour l'identifier facilement"
+            : "Référence unique pour identifier facilement votre immeuble (requis)"
           }
         </p>
       </div>
@@ -266,8 +303,8 @@ export const BuildingInfoForm = ({
         </>
       )}
 
-      {entityType === "bâtiment" ? (
-        // Champs spécifiques aux bâtiments
+      {entityType === "immeuble" ? (
+        // Champs spécifiques aux immeubles
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <Label
@@ -302,6 +339,14 @@ export const BuildingInfoForm = ({
       ) : (
         // Champs spécifiques aux lots
         <div className="space-y-4 sm:space-y-6">
+          {/* Sélection de catégorie */}
+          <LotCategorySelector
+            value={buildingInfo.category || "appartement"}
+            onChange={(category) => setBuildingInfo({ ...buildingInfo, category })}
+            displayMode="grid"
+            required
+          />
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
               <Label htmlFor="floor" className="flex items-center gap-2 text-sm font-medium text-gray-700">

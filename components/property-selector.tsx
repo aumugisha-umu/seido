@@ -15,10 +15,10 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 
 interface PropertySelectorProps {
   mode: "view" | "select"
-  onBuildingSelect?: (buildingId: number) => void
-  onLotSelect?: (lotId: number, buildingId?: number) => void
-  selectedBuildingId?: number
-  selectedLotId?: number
+  onBuildingSelect?: (buildingId: string | null) => void
+  onLotSelect?: (lotId: string | null, buildingId?: string) => void
+  selectedBuildingId?: string
+  selectedLotId?: string
   showActions?: boolean
 }
 
@@ -31,14 +31,14 @@ export default function PropertySelector({
   showActions = true,
 }: PropertySelectorProps) {
   const router = useRouter()
-  const [expandedBuildings, setExpandedBuildings] = useState<number[]>([])
+  const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const { data, loading, error } = useManagerStats()
 
   const buildings = data?.buildings || []
-  const individualLots: any[] = [] // Pour l'instant, on garde les lots individuels vides
+  const individualLots = data?.lots || [] // Récupérer tous les lots depuis les données
 
-  const toggleBuildingExpansion = (buildingId: number) => {
+  const toggleBuildingExpansion = (buildingId: string) => {
     setExpandedBuildings((prev) =>
       prev.includes(buildingId) ? prev.filter((id) => id !== buildingId) : [...prev, buildingId],
     )
@@ -75,7 +75,7 @@ export default function PropertySelector({
                 ) : (
                   <>
                     <div className="text-sm sm:text-lg font-semibold text-slate-900 leading-none">{buildings.length}</div>
-                    <div className="hidden sm:block text-xs text-slate-600">Bâtiments</div>
+                    <div className="hidden sm:block text-xs text-slate-600">Immeubles</div>
                   </>
                 )}
               </div>
@@ -120,15 +120,15 @@ export default function PropertySelector({
               <Button 
                 size="sm" 
                 className="flex-1 sm:flex-none h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500"
-                onClick={() => router.push('/gestionnaire/nouveau-batiment')}
+                onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
               >
                 <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                <span>Bâtiment</span>
+                <span>Immeuble</span>
               </Button>
               <Button 
                 size="sm" 
                 className="flex-1 sm:flex-none h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500"
-                onClick={() => router.push('/gestionnaire/nouveau-lot')}
+                onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
               >
                 <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                 <span>Lot</span>
@@ -152,7 +152,7 @@ export default function PropertySelector({
           <div className="flex items-center justify-between gap-2">
             <TabsList className="h-8 sm:h-9 flex-1">
               <TabsTrigger value="buildings" className="text-xs sm:text-sm flex-1 py-1">
-                Bâtiments ({buildings.length})
+                Immeubles ({buildings.length})
               </TabsTrigger>
               <TabsTrigger value="individual-lots" className="text-xs sm:text-sm flex-1 py-1">
                 Lots ({individualLots.length})
@@ -202,7 +202,7 @@ export default function PropertySelector({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all-types">Tous les types</SelectItem>
-                          <SelectItem value="building">Bâtiments</SelectItem>
+                          <SelectItem value="building">Immeubles</SelectItem>
                           <SelectItem value="lot">Lots</SelectItem>
                         </SelectContent>
                       </Select>
@@ -257,9 +257,9 @@ export default function PropertySelector({
           </div>
 
           <TabsContent value="buildings">
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {loading ? (
-                <div className="space-y-4">
+                <>
                   {[1, 2, 3].map((i) => (
                     <Card key={i} className="overflow-hidden">
                       <CardContent className="p-0">
@@ -281,9 +281,10 @@ export default function PropertySelector({
                       </CardContent>
                     </Card>
                   ))}
-                </div>
+                </>
+              
               ) : buildings.length === 0 ? (
-                <div className="text-center py-12 px-4">
+                <div className="col-span-full text-center py-12 px-4">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Building2 className="h-8 w-8 text-slate-400" />
                   </div>
@@ -293,7 +294,7 @@ export default function PropertySelector({
                   </p>
                   <Button 
                     size="lg"
-                    onClick={() => router.push('/gestionnaire/nouveau-batiment')}
+                    onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
                     className="w-full sm:w-auto"
                   >
                     <Building2 className="h-4 w-4 mr-2" />
@@ -302,27 +303,27 @@ export default function PropertySelector({
                 </div>
               ) : (
                 buildings.map((building) => {
-                const isExpanded = expandedBuildings.includes(building.id)
+                const isExpanded = expandedBuildings.includes(building.id.toString())
                 const occupiedLots = building.lots.filter((lot: any) => lot.status === "occupied").length
                 const totalInterventions = building.lots.reduce((sum: number, lot: any) => sum + lot.interventions, 0)
-                const isSelected = selectedBuildingId === building.id
+                const isSelected = selectedBuildingId === building.id.toString()
 
                 return (
-                  <Card key={building.id} className={`group hover:shadow-sm transition-all duration-200 ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
-                    <CardContent className="p-0">
-                      {/* Mobile-First Compact Design */}
-                      <div className="p-3 sm:p-4">
-                        {/* Header Row - Mobile Vertical Stack */}
-                        <div className="space-y-3">
+                  <Card key={building.id} className={`group hover:shadow-sm transition-all duration-200 flex flex-col h-full ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
+                    <CardContent className="p-0 flex flex-col flex-1">
+                      {/* Grid-Optimized Compact Design */}
+                      <div className="p-4 sm:p-5 flex flex-col flex-1">
+                        {/* Header Row - Compact */}
+                        <div className="space-y-3 flex-1">
                           {/* Top Row: Icon + Title + Action */}
                           <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-3 min-w-0 flex-1">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-sky-600" />
+                            <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
+                              <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Building2 className="h-5 w-5 text-sky-600" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-base sm:text-lg text-slate-900 truncate">{building.name}</h3>
-                                <div className="flex items-center text-xs sm:text-sm text-slate-600 mt-0.5">
+                                <h3 className="font-semibold text-base text-slate-900 truncate">{building.name}</h3>
+                                <div className="flex items-center text-xs text-slate-600 mt-1 min-w-0">
                                   <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                                   <span className="truncate">{building.address}</span>
                                 </div>
@@ -335,27 +336,26 @@ export default function PropertySelector({
                                 <Button
                                   variant={isSelected ? "default" : "outline"}
                                   size="sm"
-                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
+                                  className="h-8 px-3 text-xs"
                                   onClick={() => {
                                     if (isSelected) {
-                                      onBuildingSelect?.(0)
+                                      onBuildingSelect?.(null)
                                     } else {
-                                      onBuildingSelect?.(building.id)
+                                      onBuildingSelect?.(building.id.toString())
                                     }
                                   }}
                                 >
-                                  <span className="hidden sm:inline">{isSelected ? "✓ Sélectionné" : "Sélectionner"}</span>
-                                  <span className="sm:hidden">{isSelected ? "✓" : "Sélectionner"}</span>
+                                  {isSelected ? "✓ Sélectionné" : "Sélectionner"}
                                 </Button>
                               ) : (
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
-                                  onClick={() => router.push(`/gestionnaire/biens/${building.id}`)}
+                                  className="h-8 px-3 text-xs"
+                                  onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
                                 >
-                                  <Eye className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                                  <span className="hidden sm:inline ml-1">Gérer</span>
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Détails
                                 </Button>
                               )}
                             </div>
@@ -390,19 +390,17 @@ export default function PropertySelector({
                               )}
                             </div>
 
-                            {/* Expand Toggle - Mobile Friendly */}
+                            {/* Expand Toggle with Animation */}
                             {building.lots.length > 0 && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => toggleBuildingExpansion(building.id)}
-                                className="h-7 px-2 text-xs text-slate-500 hover:text-slate-900"
+                                onClick={() => toggleBuildingExpansion(building.id.toString())}
+                                className="h-7 px-2 text-xs text-slate-500 hover:text-slate-900 transition-all duration-200"
                               >
-                                {isExpanded ? (
-                                  <ChevronUp className="h-3 w-3" />
-                                ) : (
+                                <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
                                   <ChevronDown className="h-3 w-3" />
-                                )}
+                                </div>
                                 <span className="ml-1 hidden sm:inline">
                                   {isExpanded ? "Réduire" : "Lots"}
                                 </span>
@@ -414,7 +412,7 @@ export default function PropertySelector({
                           {building.lots.length > 0 && !isExpanded && (
                             <div className="grid grid-cols-1 gap-2">
                               {building.lots.slice(0, 2).map((lot: any) => {
-                                const isLotSelected = selectedLotId === lot.id
+                                const isLotSelected = selectedLotId === lot.id.toString()
                                 return (
                                   <div
                                     key={lot.id}
@@ -437,24 +435,89 @@ export default function PropertySelector({
                                             <span className="truncate max-w-20">{lot.tenant}</span>
                                           </div>
                                         )}
+                                        
+                                        {/* Contact Summary Badge - Compact */}
+                                        {(() => {
+                                          const lotTenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
+                                          const lotTenantName = lot.tenant || (lot.lot_tenants?.[0]?.contact?.name)
+                                          
+                                          if (lotTenantCount === 0) return null
+                                          
+                                          return (
+                                            <div className="relative">
+                                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs cursor-help hover:bg-blue-100 transition-colors peer">
+                                                <Users className="w-2.5 h-2.5 text-blue-600" />
+                                                <span className="text-blue-700 font-medium text-xs">{lotTenantCount}</span>
+                                              </div>
+                                              
+                                              {/* Mini Tooltip - Maximum Z-Index */}
+                                              <div className="fixed w-48 bg-white border border-slate-200 rounded-md shadow-lg p-2 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible transition-all duration-200 pointer-events-none peer-hover:pointer-events-auto hover:pointer-events-auto"
+                                                style={{
+                                                  zIndex: 2147483647, // Maximum z-index value
+                                                  left: '50%',
+                                                  top: '30%',
+                                                  transform: 'translateX(-50%)'
+                                                }}>
+                                                <div className="text-xs text-slate-700 mb-1 font-medium">
+                                                  {lotTenantCount === 1 ? 'Contact assigné:' : 'Contacts assignés:'}
+                                                </div>
+                                                {lot.lot_tenants?.length > 0 ? (
+                                                  <div className="space-y-1">
+                                                    {lot.lot_tenants.slice(0, 3).map((tenantInfo: any, idx: number) => (
+                                                      <div key={idx} className="flex items-center gap-1.5 text-xs">
+                                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                                        <span className="text-slate-700">{tenantInfo.contact?.name}</span>
+                                                        <span className="text-slate-500">(locataire)</span>
+                                                      </div>
+                                                    ))}
+                                                    {lot.lot_tenants.length > 3 && (
+                                                      <div className="text-xs text-slate-500">+{lot.lot_tenants.length - 3} autres</div>
+                                                    )}
+                                                  </div>
+                                                ) : lotTenantName && (
+                                                  <div className="flex items-center gap-1.5 text-xs">
+                                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                                    <span className="text-slate-700">{lotTenantName}</span>
+                                                    <span className="text-slate-500">(locataire)</span>
+                                                  </div>
+                                                )}
+                                                
+                                                {/* Mini Arrow */}
+                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-b-2 border-l-transparent border-r-transparent border-b-white"></div>
+                                              </div>
+                                            </div>
+                                          )
+                                        })()}
                                       </div>
                                       
-                                      {mode === "select" && (
-                                        <Button
-                                          variant={isLotSelected ? "default" : "outline"}
-                                          size="sm"
-                                          className="h-6 px-2 text-xs ml-2"
-                                          onClick={() => {
-                                            if (isLotSelected) {
-                                              onLotSelect?.(0)
-                                            } else {
-                                              onLotSelect?.(lot.id, building.id)
-                                            }
-                                          }}
-                                        >
-                                          {isLotSelected ? "✓" : "Select"}
-                                        </Button>
-                                      )}
+                                        <div className="flex items-center gap-1">
+                                          {/* Details Button for Lots */}
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                            onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
+                                          >
+                                            <Eye className="h-3 w-3" />
+                                          </Button>
+                                          
+                                          {mode === "select" && (
+                                            <Button
+                                              variant={isLotSelected ? "default" : "outline"}
+                                              size="sm"
+                                              className="h-6 px-2 text-xs"
+                                              onClick={() => {
+                                                if (isLotSelected) {
+                                                  onLotSelect?.(null)
+                                                } else {
+                                                  onLotSelect?.(lot.id, building.id)
+                                                }
+                                              }}
+                                            >
+                                              {isLotSelected ? "✓" : "Select"}
+                                            </Button>
+                                          )}
+                                        </div>
                                     </div>
                                   </div>
                                 )
@@ -465,7 +528,7 @@ export default function PropertySelector({
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => toggleBuildingExpansion(building.id)}
+                                    onClick={() => toggleBuildingExpansion(building.id.toString())}
                                     className="h-7 px-3 text-xs text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 w-full"
                                   >
                                     +{building.lots.length - 2} autres lots
@@ -475,68 +538,135 @@ export default function PropertySelector({
                             </div>
                           )}
 
-                          {/* Expanded Lots View */}
+                          {/* Expanded Lots View - Controlled Height with Animation */}
                           {isExpanded && building.lots.length > 0 && (
-                            <div className="pt-2 border-t border-slate-100">
-                              <div className="grid grid-cols-1 gap-2">
+                            <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                              <div className="max-h-64 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 rounded-md">
+                                <div className="space-y-2 pr-2">
                                 {building.lots.map((lot: any) => {
-                                  const isLotSelected = selectedLotId === lot.id
+                                  const isLotSelected = selectedLotId === lot.id.toString()
                                   return (
                                     <div
                                       key={lot.id}
-                                      className={`p-3 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                      className={`p-2.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
                                         isLotSelected ? "ring-2 ring-sky-500 bg-sky-50" : ""
                                       }`}
                                     >
-                                      <div className="flex items-start justify-between">
-                                        <div className="space-y-1 min-w-0 flex-1">
+                                      <div className="flex items-start justify-between min-w-0">
+                                        <div className="space-y-1 min-w-0 flex-1 mr-2">
                                           <div className="flex items-center space-x-2">
-                                            <div className="font-medium text-sm text-slate-900">{lot.reference}</div>
+                                            <div className="font-medium text-xs text-slate-900">{lot.reference}</div>
                                             <Badge
                                               variant={lot.status === "occupied" ? "default" : "secondary"}
-                                              className="text-xs h-4"
+                                              className="text-xs h-3 px-1.5"
                                             >
                                               {lot.status === "occupied" ? "Occupé" : "Vacant"}
                                             </Badge>
                                           </div>
                                           
-                                          <div className="text-xs text-slate-600 space-y-1">
-                                            <div>Étage {lot.floor}</div>
+                                          <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0">
+                                            <span>Étage {lot.floor}</span>
                                             {lot.tenant && (
-                                              <div className="flex items-center">
-                                                <User className="h-3 w-3 mr-1" />
+                                              <div className="flex items-center min-w-0">
+                                                <User className="h-3 w-3 mr-1 flex-shrink-0" />
                                                 <span className="truncate">{lot.tenant}</span>
                                               </div>
                                             )}
                                             {lot.interventions > 0 && (
                                               <div className="flex items-center text-amber-700">
                                                 <Zap className="h-3 w-3 mr-1" />
-                                                <span>{lot.interventions} intervention{lot.interventions > 1 ? "s" : ""}</span>
+                                                <span>{lot.interventions}</span>
                                               </div>
                                             )}
+                                            
+                                            {/* Contact Summary for Expanded View */}
+                                            {(() => {
+                                              const expandedTenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
+                                              if (expandedTenantCount === 0) return null
+                                              
+                                              return (
+                                                <div className="relative">
+                                                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help w-fit hover:bg-blue-100 transition-colors peer">
+                                                    <Users className="w-3 h-3 text-blue-600" />
+                                                    <span className="text-blue-700 font-medium">
+                                                      {expandedTenantCount} locataire{expandedTenantCount > 1 ? 's' : ''}
+                                                    </span>
+                                                  </div>
+                                                  
+                                                  {/* Expanded Tooltip - Maximum Z-Index */}
+                                                  <div className="fixed w-56 bg-white border border-slate-200 rounded-lg shadow-xl p-3 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible transition-all duration-200 pointer-events-none peer-hover:pointer-events-auto hover:pointer-events-auto"
+                                                    style={{
+                                                      zIndex: 2147483647, // Maximum z-index value
+                                                      left: '50%',
+                                                      top: '20%',
+                                                      transform: 'translateX(-50%)'
+                                                    }}>
+                                                    <div className="font-medium text-xs text-slate-700 mb-2">
+                                                      {expandedTenantCount === 1 ? 'Contact assigné à' : 'Contacts assignés à'} {lot.reference}:
+                                                    </div>
+                                                    {lot.lot_tenants?.length > 0 ? (
+                                                      <div className="space-y-1">
+                                                        {lot.lot_tenants.map((tenantInfo: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-2 text-xs">
+                                                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                                            <span className="text-slate-700">{tenantInfo.contact?.name}</span>
+                                                            <span className="text-slate-500">(locataire)</span>
+                                                            {tenantInfo.is_primary && (
+                                                              <span className="text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Principal</span>
+                                                            )}
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    ) : (
+                                                      <div className="flex items-center gap-2 text-xs">
+                                                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                                        <span className="text-slate-700">{lot.tenant}</span>
+                                                        <span className="text-slate-500">(locataire)</span>
+                                                      </div>
+                                                    )}
+                                                    
+                                                    {/* Arrow */}
+                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-white"></div>
+                                                  </div>
+                                                </div>
+                                              )
+                                            })()}
                                           </div>
                                         </div>
 
-                                        {mode === "select" && (
-                                          <Button
-                                            variant={isLotSelected ? "default" : "outline"}
+                                        <div className="flex items-center gap-1">
+                                          {/* Details Button for Expanded Lots */}
+                                          <Button 
+                                            variant="ghost" 
                                             size="sm"
-                                            className="h-7 px-3 text-xs ml-2"
-                                            onClick={() => {
-                                              if (isLotSelected) {
-                                                onLotSelect?.(0)
-                                              } else {
-                                                onLotSelect?.(lot.id, building.id)
-                                              }
-                                            }}
+                                            className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                            onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
                                           >
-                                            {isLotSelected ? "✓" : "Sélectionner"}
+                                            <Eye className="h-3 w-3" />
                                           </Button>
-                                        )}
+
+                                          {mode === "select" && (
+                                            <Button
+                                              variant={isLotSelected ? "default" : "outline"}
+                                              size="sm"
+                                              className="h-7 px-3 text-xs"
+                                              onClick={() => {
+                                                if (isLotSelected) {
+                                                  onLotSelect?.(null)
+                                                } else {
+                                                  onLotSelect?.(lot.id.toString(), building.id.toString())
+                                                }
+                                              }}
+                                            >
+                                              {isLotSelected ? "✓" : "Sélectionner"}
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   )
                                 })}
+                                </div>
                               </div>
                             </div>
                           )}
@@ -550,9 +680,9 @@ export default function PropertySelector({
           </TabsContent>
 
           <TabsContent value="individual-lots">
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {individualLots.length === 0 ? (
-                <div className="text-center py-12 px-4">
+                <div className="col-span-full text-center py-12 px-4">
                   <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Home className="h-8 w-8 text-amber-600" />
                   </div>
@@ -562,7 +692,7 @@ export default function PropertySelector({
                   </p>
                   <Button 
                     size="lg"
-                    onClick={() => router.push('/gestionnaire/nouveau-lot')}
+                    onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
                     className="w-full sm:w-auto"
                   >
                     <Home className="h-4 w-4 mr-2" />
@@ -571,24 +701,29 @@ export default function PropertySelector({
                 </div>
               ) : (
                 individualLots.map((lot) => {
-                const isSelected = selectedLotId === lot.id
+                const isSelected = selectedLotId === lot.id?.toString()
+                const lotStatus = (lot.has_active_tenants || lot.tenant_id) ? 'occupied' : 'vacant'
+                const tenantName = lot.tenant?.name || (lot.lot_tenants?.[0]?.contact?.name) || null
+                const tenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
+                const buildingAddress = lot.building ? `${lot.building.address}, ${lot.building.city}` : 'Adresse non disponible'
+                
                 return (
-                  <Card key={lot.id} className={`group hover:shadow-sm transition-all duration-200 ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
-                    <CardContent className="p-0">
-                      {/* Individual Lot - Mobile Compact */}
-                      <div className="p-3 sm:p-4">
+                  <Card key={lot.id} className={`group hover:shadow-sm transition-all duration-200 flex flex-col h-full ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
+                    <CardContent className="p-0 flex flex-col flex-1">
+                      {/* Individual Lot - Grid Optimized */}
+                      <div className="p-4 sm:p-5 flex-1">
                         <div className="space-y-3">
                           {/* Top Row: Icon + Title + Action */}
                           <div className="flex items-start justify-between">
                             <div className="flex items-center space-x-3 min-w-0 flex-1">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Home className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
+                              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Home className="h-5 w-5 text-amber-600" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-base sm:text-lg text-slate-900 truncate">{lot.reference}</h3>
-                                <div className="flex items-center text-xs sm:text-sm text-slate-600 mt-0.5">
+                                <h3 className="font-semibold text-base text-slate-900 truncate">{lot.reference}</h3>
+                                <div className="flex items-center text-xs text-slate-600 mt-1">
                                   <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                                  <span className="truncate">{lot.address}</span>
+                                  <span className="truncate">{buildingAddress}</span>
                                 </div>
                               </div>
                             </div>
@@ -599,27 +734,26 @@ export default function PropertySelector({
                                 <Button
                                   variant={isSelected ? "default" : "outline"}
                                   size="sm"
-                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
+                                  className="h-8 px-3 text-xs"
                                   onClick={() => {
                                     if (isSelected) {
-                                      onLotSelect?.(0)
+                                      onLotSelect?.(null)
                                     } else {
-                                      onLotSelect?.(lot.id)
+                                      onLotSelect?.(lot.id?.toString(), lot.building_id?.toString())
                                     }
                                   }}
                                 >
-                                  <span className="hidden sm:inline">{isSelected ? "✓ Sélectionné" : "Sélectionner"}</span>
-                                  <span className="sm:hidden">{isSelected ? "✓" : "Sélectionner"}</span>
+                                  {isSelected ? "✓ Sélectionné" : "Sélectionner"}
                                 </Button>
                               ) : (
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  className="h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm"
-                                  onClick={() => router.push(`/gestionnaire/lots/${lot.id}`)}
+                                  className="h-8 px-3 text-xs"
+                                  onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
                                 >
-                                  <Eye className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                                  <span className="hidden sm:inline ml-1">Gérer</span>
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Détails
                                 </Button>
                               )}
                             </div>
@@ -629,39 +763,97 @@ export default function PropertySelector({
                           <div className="pt-2 border-t border-slate-100">
                             <div className="flex items-center space-x-4">
                               <Badge 
-                                variant={lot.status === "occupied" ? "default" : "secondary"} 
+                                variant={lotStatus === "occupied" ? "default" : "secondary"} 
                                 className="px-2 py-1 text-xs"
                               >
-                                {lot.status === "occupied" ? "Occupé" : "Vacant"}
+                                {lotStatus === "occupied" ? "Occupé" : "Vacant"}
                               </Badge>
                               
-                              {lot.tenant && (
+                              {tenantName && (
                                 <div className="flex items-center space-x-1.5">
                                   <div className="w-5 h-5 bg-emerald-100 rounded-md flex items-center justify-center">
                                     <User className="h-3 w-3 text-emerald-600" />
                                   </div>
-                                  <span className="text-sm font-medium text-slate-900 truncate max-w-28">{lot.tenant}</span>
-                                </div>
-                              )}
-
-                              {lot.interventions > 0 && (
-                                <div className="flex items-center space-x-1.5">
-                                  <div className="w-5 h-5 bg-red-100 rounded-md flex items-center justify-center">
-                                    <AlertCircle className="h-3 w-3 text-red-600" />
-                                  </div>
-                                  <span className="text-sm font-medium text-red-700">{lot.interventions}</span>
+                                  <span className="text-sm font-medium text-slate-900 truncate max-w-28">{tenantName}</span>
                                 </div>
                               )}
                             </div>
 
                             {/* Additional Info Row */}
-                            {(lot.floor || lot.surface || lot.type) && (
+                            {(lot.floor || lot.surface_area || lot.rooms) && (
                               <div className="flex items-center space-x-4 text-xs text-slate-600 mt-2">
                                 {lot.floor && <span>Étage {lot.floor}</span>}
-                                {lot.surface && <span>{lot.surface}m²</span>}
-                                {lot.type && <span className="capitalize">{lot.type}</span>}
+                                {lot.surface_area && <span>{lot.surface_area}m²</span>}
+                                {lot.rooms && <span>{lot.rooms} pièces</span>}
                               </div>
                             )}
+                            
+                            {/* Building Info */}
+                            {lot.building?.name && (
+                              <div className="flex items-center text-xs text-slate-500 mt-1">
+                                <Building2 className="h-3 w-3 mr-1" />
+                                <span className="truncate">{lot.building.name}</span>
+                              </div>
+                            )}
+
+                            {/* Contact Summary */}
+                            {(() => {
+                              const hasContacts = tenantCount > 0
+                              
+                              if (!hasContacts) return null
+                              
+                              return (
+                                <div className="relative mt-2">
+                                  {/* Summary Badge */}
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help w-fit hover:bg-blue-100 transition-colors peer">
+                                    <Users className="w-3 h-3 text-blue-600" />
+                                    <span className="text-blue-700 font-medium">
+                                      {tenantCount}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Tooltip on Hover - Maximum Z-Index */}
+                                  <div className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-xl p-3 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible transition-all duration-200 pointer-events-none peer-hover:pointer-events-auto hover:pointer-events-auto"
+                                    style={{
+                                      zIndex: 2147483647, // Maximum z-index value
+                                      left: '50%',
+                                      top: '25%',
+                                      transform: 'translateX(-50%)'
+                                    }}>
+                                    <div className="space-y-2">
+                                      <div className="font-medium text-xs text-slate-700 mb-2">Contacts assignés</div>
+                                      
+                                      {/* Show all tenants */}
+                                      {lot.lot_tenants?.length > 0 ? (
+                                        <div className="space-y-1">
+                                          {lot.lot_tenants.map((tenantInfo: any, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-2 text-xs">
+                                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                              <span className="text-slate-700">{tenantInfo.contact?.name}</span>
+                                              <span className="text-slate-500">(locataire)</span>
+                                              {tenantInfo.is_primary && (
+                                                <span className="text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Principal</span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : tenantName && (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2 text-xs">
+                                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                            <span className="text-slate-700">{tenantName}</span>
+                                            <span className="text-slate-500">(locataire)</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Tooltip Arrow */}
+                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-white"></div>
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </div>
                         </div>
                       </div>

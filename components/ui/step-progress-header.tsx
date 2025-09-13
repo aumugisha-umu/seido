@@ -7,7 +7,6 @@ import { LucideIcon } from "lucide-react"
 export interface StepConfig {
   icon: LucideIcon
   label: string
-  description: string
 }
 
 interface StepProgressHeaderProps {
@@ -100,9 +99,6 @@ export const StepProgressHeader = ({
                     <div className="mt-2 text-center max-w-[80px] lg:max-w-none">
                       <p className="text-xs lg:text-sm font-medium text-gray-900 truncate">
                         {step.label}
-                      </p>
-                      <p className="text-xs text-gray-500 hidden lg:block">
-                        {step.description}
                       </p>
                     </div>
                   </div>

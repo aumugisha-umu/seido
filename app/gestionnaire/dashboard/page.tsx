@@ -68,21 +68,21 @@ export default function DashboardGestionnaire() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px]">
-                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/nouveau-batiment")} className="flex items-center">
+                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")} className="flex items-center">
                       <Building2 className="h-4 w-4 mr-3" />
-                      Nouveau bâtiment
+                      Ajouter un immeuble
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/nouveau-lot")} className="flex items-center">
+                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/biens/lots/nouveau")} className="flex items-center">
                       <Home className="h-4 w-4 mr-3" />
-                      Nouveau lot
+                      Ajouter un lot
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setIsContactModalOpen(true)} className="flex items-center">
                       <UserPlus className="h-4 w-4 mr-3" />
-                      Inviter contact
+                      Ajouter un contact
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")} className="flex items-center">
                       <Wrench className="h-4 w-4 mr-3" />
-                      Créer intervention
+                      Ajouter une intervention
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -94,20 +94,20 @@ export default function DashboardGestionnaire() {
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2 bg-transparent"
-                  onClick={() => router.push("/gestionnaire/nouveau-batiment")}
+                  onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
                 >
                   <Building2 className="h-4 w-4" />
-                  <span>Nouveau bâtiment</span>
+                  <span>Ajouter un immeuble</span>
                 </Button>
 
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2 bg-transparent"
-                  onClick={() => router.push("/gestionnaire/nouveau-lot")}
+                  onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
                 >
                   <Home className="h-4 w-4" />
-                  <span>Nouveau lot</span>
+                  <span>Ajouter un lot</span>
                 </Button>
 
                 <Button
@@ -117,7 +117,7 @@ export default function DashboardGestionnaire() {
                   onClick={() => setIsContactModalOpen(true)}
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>Inviter contact</span>
+                  <span>Ajouter un contact</span>
                 </Button>
 
                 <Button 
@@ -127,7 +127,7 @@ export default function DashboardGestionnaire() {
                   onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
                 >
                   <Wrench className="h-4 w-4" />
-                  <span>Créer intervention</span>
+                  <span>Ajouter une intervention</span>
                 </Button>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function DashboardGestionnaire() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Bâtiments</CardTitle>
+                <CardTitle className="text-sm font-medium">Immeubles</CardTitle>
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -251,7 +251,7 @@ export default function DashboardGestionnaire() {
                 <p className="text-gray-600 mb-4">Les interventions apparaîtront ici une fois créées</p>
                 <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Créer une intervention
+                  Ajouter une intervention
                 </Button>
               </div>
             </CardContent>

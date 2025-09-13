@@ -594,9 +594,9 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   size="sm"
                   onClick={() => {
                     if (intervention.lot) {
-                      router.push(`/gestionnaire/lots/${intervention.lot.id}`)
+                      router.push(`/gestionnaire/biens/lots/${intervention.lot.id}`)
                     } else if (intervention.building) {
-                      router.push(`/gestionnaire/biens/${intervention.building.id}`)
+                      router.push(`/gestionnaire/biens/immeubles/${intervention.building.id}`)
                     }
                   }}
                 >

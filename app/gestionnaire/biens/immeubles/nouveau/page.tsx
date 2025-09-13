@@ -37,12 +37,16 @@ import {
 import { useRouter } from "next/navigation"
 import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
+import ContactSelector from "@/components/contact-selector"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { useManagerStats } from "@/hooks/use-manager-stats"
 import { compositeService, teamService, contactService, contactInvitationService, type Team } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
+import LotCategorySelector from "@/components/ui/lot-category-selector"
 
 interface BuildingInfo {
   name: string
@@ -62,13 +66,16 @@ interface Lot {
   doorNumber: string
   surface: string
   description: string
+  category: LotCategory
 }
 
 interface Contact {
   id: string
   name: string
   email: string
-  type: "tenant" | "provider" | "syndic" | "notary" | "insurance" | "other"
+  type: string
+  phone?: string
+  speciality?: string
 }
 
 const contactTypes = [
@@ -88,10 +95,11 @@ const countries = [
   "Allemagne",
 ]
 
-export default function NewBuildingPage() {
+export default function NewImmeubleePage() {
   const router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
+  const { data: managerData } = useManagerStats()
 
   // TOUS LES HOOKS useState DOIVENT ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
   const [currentStep, setCurrentStep] = useState(1)
@@ -107,6 +115,15 @@ export default function NewBuildingPage() {
   })
   const [lots, setLots] = useState<Lot[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
+  // Contacts assignés au niveau de l'immeuble (format pour ContactSelector)
+  const [buildingContacts, setBuildingContacts] = useState<{[contactType: string]: Contact[]}>({
+    tenant: [],
+    provider: [],
+    syndic: [],
+    notary: [],
+    insurance: [],
+    other: [],
+  })
   const [assignedManagers, setAssignedManagers] = useState<{[key: string]: any[]}>({}) // gestionnaires assignés par lot
   const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignés par lot
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
@@ -159,7 +176,7 @@ export default function NewBuildingPage() {
         setTeams(userTeams)
         
         if (userTeams.length === 0) {
-          setError('Vous devez faire partie d\'une équipe pour créer des bâtiments')
+          setError('Vous devez faire partie d\'une équipe pour créer des immeubles')
           return
         }
         
@@ -232,7 +249,7 @@ export default function NewBuildingPage() {
     loadUserTeamAndManagers()
   }, [user?.id, teamStatus])
 
-  // Pré-remplir le responsable du bâtiment pour tous les lots quand on passe à l'étape 3
+  // Pré-remplir le responsable de l'immeuble pour tous les lots quand on passe à l'étape 3
   useEffect(() => {
     if (currentStep === 3 && selectedManagerId && lots.length > 0) {
       const buildingManager = teamManagers.find(member => member.user.id === selectedManagerId)
@@ -271,11 +288,12 @@ export default function NewBuildingPage() {
   const addLot = () => {
     const newLot: Lot = {
       id: `lot${lots.length + 1}`,
-      reference: `Lot${String(lots.length + 1).padStart(3, "0")}`,
+      reference: `Lot ${lots.length + 1}`,
       floor: "0",
       doorNumber: "",
       surface: "",
       description: "",
+      category: "appartement",
     }
     // Ajouter le nouveau lot en haut de la liste
     setLots([newLot, ...lots])
@@ -308,12 +326,43 @@ export default function NewBuildingPage() {
       const newLot: Lot = {
         ...lotToDuplicate,
         id: `lot${Date.now()}`,
-        reference: `Lot${String(lots.length + 1).padStart(3, "0")}`,
+        reference: `Lot ${lots.length + 1}`,
       }
       // Ajouter le lot dupliqué en haut de la liste
       setLots([newLot, ...lots])
       // Fermer toutes les cartes et ouvrir seulement le lot dupliqué
       setExpandedLots({[newLot.id]: true})
+    }
+  }
+
+  // Callbacks pour la gestion des contacts au niveau de l'immeuble
+  const handleBuildingContactAdd = (contactType: string, contact: Contact) => {
+    setBuildingContacts((prev) => ({
+      ...prev,
+      [contactType]: [...prev[contactType], contact],
+    }))
+    
+    // Ajouter aussi à la liste globale des contacts si pas déjà présent
+    if (!contacts.some(c => c.id === contact.id)) {
+      setContacts([...contacts, contact])
+    }
+  }
+
+  const handleBuildingContactRemove = (contactType: string, contactId: string) => {
+    setBuildingContacts((prev) => ({
+      ...prev,
+      [contactType]: prev[contactType].filter(contact => contact.id !== contactId),
+    }))
+    
+    // Retirer aussi de la liste globale des contacts si plus utilisé
+    const isContactUsedElsewhere = Object.entries(buildingContacts).some(([type, contactsArray]) => 
+      type !== contactType && contactsArray.some(c => c.id === contactId)
+    ) || Object.values(lotContactAssignments).some(assignments => 
+      Object.values(assignments).some(contactsArray => contactsArray.some(c => c.id === contactId))
+    )
+    
+    if (!isContactUsedElsewhere) {
+      setContacts(contacts.filter(c => c.id !== contactId))
     }
   }
 
@@ -469,13 +518,13 @@ export default function NewBuildingPage() {
 
     if (!user?.id) {
       console.error("❌ No user ID found")
-      setError("Vous devez être connecté pour créer un bâtiment")
+      setError("Vous devez être connecté pour créer un immeuble")
       return
     }
 
     if (!buildingInfo.address.trim()) {
       console.error("❌ No address provided")
-      setError("L'adresse du bâtiment est requise")
+      setError("L'adresse de l'immeuble est requise")
       return
     }
 
@@ -504,9 +553,9 @@ export default function NewBuildingPage() {
       setError("")
       console.log("🔄 Set isCreating to true")
 
-      // Préparer les données du bâtiment
-      const buildingData = {
-        name: buildingInfo.name.trim() || `Bâtiment ${buildingInfo.address}`,
+      // Préparer les données de l'immeuble
+      const immeubleData = {
+        name: buildingInfo.name.trim() || `Immeuble ${buildingInfo.address}`,
         address: buildingInfo.address.trim(),
         city: buildingInfo.city.trim() || "Non spécifié",
         country: buildingInfo.country.trim() || "Belgique",
@@ -516,7 +565,7 @@ export default function NewBuildingPage() {
         manager_id: selectedManagerId,
         team_id: userTeam!.id,
       }
-      console.log("🏢 Building data prepared:", buildingData)
+      console.log("🏢 Building data prepared:", immeubleData)
       console.log("🎯 Team assignment verified:", { userId: user?.id, teamId: userTeam!.id, teamName: userTeam!.name })
 
       // Préparer les données des lots
@@ -527,6 +576,7 @@ export default function NewBuildingPage() {
         surface_area: lot.surface ? parseFloat(lot.surface) : undefined,
         rooms: undefined, // Peut être ajouté plus tard
         charges_amount: undefined, // Charges amount removed
+        category: lot.category,
       }))
       console.log("🏠 Lots data prepared:", lotsData)
 
@@ -560,9 +610,9 @@ export default function NewBuildingPage() {
 
       console.log("📡 Calling compositeService.createCompleteProperty...")
 
-      // Créer le bâtiment complet avec lots et contacts
+      // Créer l'immeuble complet avec lots et contacts
       const result = await compositeService.createCompleteProperty({
-        building: buildingData,
+        building: immeubleData,
         lots: lotsData,
         contacts: contactsData,
         lotContactAssignments: lotContactAssignmentsData,
@@ -583,7 +633,7 @@ export default function NewBuildingPage() {
       setError(
         err instanceof Error 
           ? `Erreur lors de la création : ${err.message}`
-          : "Une erreur est survenue lors de la création du bâtiment"
+          : "Une erreur est survenue lors de la création de l'immeuble"
       )
     } finally {
       console.log("🔄 Setting isCreating to false")
@@ -881,7 +931,7 @@ export default function NewBuildingPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <StepProgressHeader
-          title="Ajouter un nouveau bâtiment"
+          title="Ajouter un immeuble"
           backButtonText="Retour aux biens"
           onBack={() => router.push("/gestionnaire/biens")}
           steps={buildingSteps}
@@ -919,6 +969,8 @@ export default function NewBuildingPage() {
                 onCreateManager={openGestionnaireModal}
                 showManagerSection={true}
                 showAddressSection={true}
+                buildingsCount={managerData?.buildings?.length || 0}
+                lotsCount={managerData?.buildings?.reduce((total: number, building: any) => total + (building.lots?.length || 0), 0) || 0}
               />
 
               <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-0">
@@ -1055,6 +1107,14 @@ export default function NewBuildingPage() {
                               </div>
                             </div>
 
+                            {/* Sélection de catégorie */}
+                            <LotCategorySelector
+                              value={lot.category}
+                              onChange={(category) => updateLot(lot.id, "category", category)}
+                              displayMode="grid"
+                              required
+                            />
+
                             <div>
                               <Label className="text-sm font-medium text-gray-700">Description</Label>
                               <Textarea
@@ -1075,7 +1135,7 @@ export default function NewBuildingPage() {
 
                 <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6">
                   <Button variant="outline" onClick={() => setCurrentStep(1)} className="w-full sm:w-auto order-2 sm:order-1">
-                    Retour au bâtiment
+                    Retour à l'immeuble
                   </Button>
                   <Button
                     onClick={() => setCurrentStep(3)}
@@ -1107,7 +1167,7 @@ export default function NewBuildingPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <Building className="w-4 h-4 text-blue-600 flex-shrink-0" />
                         <h2 className="text-lg font-semibold text-gray-900 truncate">
-                          {buildingInfo.name || `Bâtiment - ${buildingInfo.address}`}
+                          {buildingInfo.name || `Immeuble - ${buildingInfo.address}`}
                         </h2>
                       </div>
                       <p className="text-gray-600 text-sm mb-1">
@@ -1149,61 +1209,17 @@ export default function NewBuildingPage() {
               {/* Building-Level Contacts */}
               <Card className="border-orange-200 bg-orange-50/30">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Building className="w-4 h-4 text-orange-600" />
-                      <span className="font-medium text-orange-900">Contacts du bâtiment</span>
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-xs">
-                        {contacts.filter(c => c.type !== 'tenant').length}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-gray-600">Disponibles pour tous les lots</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                    {contactTypes.filter(type => type.key !== 'tenant').map((type) => {
-                      const Icon = type.icon
-                      const buildingContacts = getContactsByType(type.key)
-
-                      return (
-                        <div key={type.key} className="space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Icon className={`w-3.5 h-3.5 ${type.color}`} />
-                            <span className="font-medium text-xs">{type.label}</span>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            {buildingContacts.map((contact) => (
-                              <div
-                                key={contact.id}
-                                className="flex items-center justify-between p-2 bg-white rounded border text-xs"
-                              >
-                                <span className="truncate flex-1 mr-2">{contact.name || contact.email}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeContact(contact.id)}
-                                  className="text-red-500 hover:text-red-700 h-5 w-5 p-0 flex-shrink-0"
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ))}
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openGlobalContactModal(type.key)}
-                              className="w-full text-xs py-1.5 h-7"
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Ajouter
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <ContactSelector
+                    displayMode="compact"
+                    title="Contacts de l'immeuble"
+                    description="Disponibles pour tous les lots"
+                    userTeam={userTeam}
+                    assignedContacts={buildingContacts}
+                    onContactAdd={handleBuildingContactAdd}
+                    onContactRemove={handleBuildingContactRemove}
+                    allowedContactTypes={["provider", "syndic", "notary", "insurance", "other"]}
+                    hideTitle={false}
+                  />
                 </CardContent>
               </Card>
 
@@ -1250,7 +1266,7 @@ export default function NewBuildingPage() {
                             <div className="mb-2 p-2 bg-purple-100/50 rounded text-xs text-purple-700">
                               <div className="flex items-center gap-1 mb-1">
                                 <Building className="w-3 h-3" />
-                                <span className="font-medium">Responsable du bâtiment :</span>
+                                <span className="font-medium">Responsable de l'immeuble :</span>
                               </div>
                               {selectedManagerId && teamManagers.length > 0 ? (
                                 (() => {
@@ -1307,7 +1323,7 @@ export default function NewBuildingPage() {
                               </Button>
                               
                               <p className="text-xs text-gray-600 mt-2">
-                                Recevra les notifications spécifiques à ce lot en plus du responsable du bâtiment
+                                Recevra les notifications spécifiques à ce lot en plus du responsable de l'immeuble
                               </p>
                             </div>
                           </div>
@@ -1383,18 +1399,10 @@ export default function NewBuildingPage() {
                 </Button>
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 order-1 sm:order-2">
                   <Button 
-                    variant="outline" 
-                    onClick={() => router.push("/gestionnaire/dashboard")}
-                    disabled={isCreating}
-                    className="w-full sm:w-auto"
-                  >
-                    Passer cette étape
-                  </Button>
-                  <Button 
                     onClick={() => setCurrentStep(4)}
                     className="bg-sky-600 hover:bg-sky-700 w-full sm:w-auto"
                   >
-                    Créer le bâtiment
+                    Créer l'immeuble
                   </Button>
                 </div>
               </div>
@@ -1406,60 +1414,120 @@ export default function NewBuildingPage() {
         {currentStep === 4 && (
           <Card>
             <CardContent className="p-4">
-              <div className="text-center mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Check className="h-6 w-6 text-green-600" />
-                </div>
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Confirmer la création du bâtiment</h2>
-                <p className="text-sm text-slate-600">Vérifiez toutes les informations avant de créer le bâtiment</p>
-              </div>
 
               <div className="space-y-3 mb-4">
                 {/* Building Information */}
                 <Card className="border-l-4 border-l-sky-500">
                   <CardContent className="p-3">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
-                        <Building className="h-4 w-4 text-sky-600" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+                          <Building className="h-4 w-4 text-sky-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-slate-900">Informations de l'immeuble</h3>
+                          <p className="text-xs text-slate-600">Détails généraux de l'immeuble</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-medium text-slate-900">Informations du bâtiment</h3>
-                        <p className="text-xs text-slate-600">Détails généraux du bâtiment</p>
-                      </div>
+                      
+                      {/* Responsable Badge - Compact Material Design */}
+                      {selectedManagerId && (
+                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md flex-shrink-0">
+                          <User className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {(() => {
+                              const manager = teamManagers.find(m => m.user.id === selectedManagerId)
+                              return manager ? (
+                                <>
+                                  <span className="font-medium text-xs text-blue-900 truncate">{manager.user.name}</span>
+                                  <span className="text-xs text-blue-600">•</span>
+                                  <span className="text-xs text-blue-600 whitespace-nowrap">Responsable</span>
+                                  {manager.user.id === user?.id && (
+                                    <span className="inline-flex items-center px-1 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-sm border border-blue-300 ml-1">Vous</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-xs text-slate-500">Non trouvé</span>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-3 space-y-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                        <div>
-                          <span className="text-xs font-medium text-slate-700">Nom :</span>
-                          <p className="text-sm text-slate-900">{buildingInfo.name || "Non spécifié"}</p>
+                    <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                      {/* Informations principales */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Building className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="text-xs font-medium text-slate-700">Nom de l'immeuble</span>
+                          </div>
+                          <p className="text-sm font-medium text-slate-900 pl-5">
+                            {buildingInfo.name || "Non spécifié"}
+                          </p>
                         </div>
-                        <div>
-                          <span className="text-xs font-medium text-slate-700">Année :</span>
-                          <p className="text-sm text-slate-900">{buildingInfo.constructionYear || "Non spécifiée"}</p>
-                        </div>
-                        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-2">
-                          <span className="text-xs font-medium text-slate-700">Adresse :</span>
-                          <p className="text-sm text-slate-900">{buildingInfo.address}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        <div>
-                          <span className="text-xs font-medium text-slate-700">Code postal :</span>
-                          <p className="text-sm text-slate-900">{buildingInfo.postalCode || "Non spécifié"}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs font-medium text-slate-700">Ville :</span>
-                          <p className="text-sm text-slate-900">{buildingInfo.city || "Non spécifiée"}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs font-medium text-slate-700">Pays :</span>
-                          <p className="text-sm text-slate-900">{buildingInfo.country}</p>
+                        
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="text-xs font-medium text-slate-700">Année de construction</span>
+                          </div>
+                          <p className="text-sm font-medium text-slate-900 pl-5">
+                            {buildingInfo.constructionYear || "Non spécifiée"}
+                          </p>
                         </div>
                       </div>
+
+                      {/* Adresse complète */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                          <span className="text-xs font-medium text-slate-700">Adresse complète</span>
+                        </div>
+                        <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
+                          <p className="text-sm font-medium text-slate-900 leading-relaxed">
+                            {[
+                              buildingInfo.address,
+                              [buildingInfo.postalCode, buildingInfo.city].filter(Boolean).join(' '),
+                              buildingInfo.country
+                            ].filter(Boolean).join(', ') || "Adresse non spécifiée"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Description */}
                       {buildingInfo.description && (
-                        <div>
-                          <span className="text-xs font-medium text-slate-700">Description :</span>
-                          <p className="text-slate-900 text-xs mt-1">{buildingInfo.description}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="text-xs font-medium text-slate-700">Description</span>
+                          </div>
+                          <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
+                            <p className="text-sm text-slate-700 leading-relaxed">{buildingInfo.description}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Contacts de l'immeuble */}
+                      {Object.values(buildingContacts).some(contactArray => contactArray.length > 0) && (
+                        <div className="pt-2 mt-2 border-t border-slate-200">
+                          <span className="text-xs font-medium text-slate-700 mb-2 block">Contacts de l'immeuble :</span>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(buildingContacts).map(([type, contacts]) => 
+                              contacts.length > 0 && (
+                                <div key={type} className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-slate-300">
+                                  {type === 'provider' && <span className="w-2 h-2 bg-green-500 rounded-full"></span>}
+                                  {type === 'syndic' && <span className="w-2 h-2 bg-purple-500 rounded-full"></span>}
+                                  {type === 'notary' && <span className="w-2 h-2 bg-orange-500 rounded-full"></span>}
+                                  {type === 'insurance' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
+                                  {type === 'other' && <span className="w-2 h-2 bg-slate-500 rounded-full"></span>}
+                                  <span className="text-xs font-medium text-slate-700">
+                                    {contacts.length} {type === 'provider' ? 'prestataire' : type === 'syndic' ? 'syndic' : type === 'notary' ? 'notaire' : type === 'insurance' ? 'assurance' : 'autre'}{contacts.length > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              )
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1475,120 +1543,141 @@ export default function NewBuildingPage() {
                       </div>
                       <div>
                         <h3 className="font-medium text-slate-900">Lots configurés ({lots.length})</h3>
-                        <p className="text-xs text-slate-600">Configuration des lots du bâtiment</p>
+                        <p className="text-xs text-slate-600">Configuration des lots de l'immeuble</p>
                       </div>
                     </div>
                     <div className="bg-slate-50 rounded-lg p-3">
                       
                       {/* Liste des lots */}
                       <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                        {lots.map((lot, index) => (
-                          <div key={lot.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-xs font-medium text-green-600">
-                                {index + 1}
+                        {lots.map((lot, index) => {
+                          const categoryConfig = getLotCategoryConfig(lot.category)
+                          return (
+                            <div key={lot.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-xs font-medium text-green-600">
+                                  {index + 1}
+                                </div>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm text-slate-900">{lot.reference}</span>
+                                    {lot.doorNumber && <span className="text-slate-500 text-xs">({lot.doorNumber})</span>}
+                                  </div>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color} text-xs h-4 px-1.5`}
+                                    >
+                                      {categoryConfig.label}
+                                    </Badge>
+                                  </div>
+                                </div>
                               </div>
-                              <div>
-                                <span className="font-medium text-sm text-slate-900">{lot.reference}</span>
-                                {lot.doorNumber && <span className="text-slate-500 ml-1 text-xs">({lot.doorNumber})</span>}
+                              <div className="flex items-center space-x-3 text-xs text-slate-600">
+                                <span>Étage {lot.floor}</span>
+                                {lot.surface && <span>{lot.surface}m²</span>}
+                                
+                                {/* Contact Summary with Tooltip */}
+                                {(() => {
+                                  const lotContacts = getAllLotContacts(lot.id)
+                                  const lotManagers = getAssignedManagers(lot.id).filter(m => m.user.id !== selectedManagerId)
+                                  const hasAssignments = lotContacts.length > 0 || lotManagers.length > 0
+                                  
+                                  if (!hasAssignments) return null
+                                  
+                                  // Group contacts by type
+                                  const contactsByType = lotContacts.reduce((acc, contact) => {
+                                    acc[contact.type] = (acc[contact.type] || 0) + 1
+                                    return acc
+                                  }, {} as Record<string, number>)
+                                  
+                                  const summaryItems = []
+                                  if (contactsByType.tenant) summaryItems.push(`${contactsByType.tenant} locataire${contactsByType.tenant > 1 ? 's' : ''}`)
+                                  if (contactsByType.provider) summaryItems.push(`${contactsByType.provider} prestataire${contactsByType.provider > 1 ? 's' : ''}`)
+                                  if (contactsByType.syndic) summaryItems.push(`${contactsByType.syndic} syndic${contactsByType.syndic > 1 ? 's' : ''}`)
+                                  if (contactsByType.notary) summaryItems.push(`${contactsByType.notary} notaire${contactsByType.notary > 1 ? 's' : ''}`)
+                                  if (contactsByType.insurance) summaryItems.push(`${contactsByType.insurance} assurance${contactsByType.insurance > 1 ? 's' : ''}`)
+                                  if (contactsByType.other) summaryItems.push(`${contactsByType.other} autre${contactsByType.other > 1 ? 's' : ''}`)
+                                  if (lotManagers.length > 0) summaryItems.push(`${lotManagers.length} resp.${lotManagers.length > 1 ? 's' : ''}`)
+                                  
+                                  return (
+                                    <div className="relative group">
+                                      {/* Summary Badge */}
+                                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help">
+                                        <Users className="w-3 h-3 text-blue-600" />
+                                        <span className="text-blue-700 font-medium">
+                                          {summaryItems.slice(0, 2).join(', ')}{summaryItems.length > 2 && '...'}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Tooltip on Hover - Adaptive positioning */}
+                                      <div className={`absolute right-0 w-64 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ${
+                                        index < 2 ? 'top-full mt-2' : 'bottom-full mb-2'
+                                      }`}>
+                                        <div className="space-y-2">
+                                          <div className="font-medium text-xs text-slate-700 mb-2">Contacts assignés à {lot.reference}</div>
+                                          
+                                          {/* Contacts */}
+                                          {lotContacts.length > 0 && (
+                                            <div className="space-y-1">
+                                              {lotContacts.map((contact, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                                  <span className={`w-2 h-2 rounded-full ${
+                                                    contact.type === 'tenant' ? 'bg-blue-500' :
+                                                    contact.type === 'provider' ? 'bg-green-500' :
+                                                    contact.type === 'syndic' ? 'bg-purple-500' :
+                                                    contact.type === 'notary' ? 'bg-orange-500' :
+                                                    contact.type === 'insurance' ? 'bg-red-500' : 'bg-slate-500'
+                                                  }`}></span>
+                                                  <span className="text-slate-700">{contact.name}</span>
+                                                  <span className="text-slate-500 capitalize">
+                                                    ({contact.type === 'tenant' ? 'locataire' : 
+                                                      contact.type === 'provider' ? 'prestataire' : 
+                                                      contact.type === 'syndic' ? 'syndic' :
+                                                      contact.type === 'notary' ? 'notaire' :
+                                                      contact.type === 'insurance' ? 'assurance' : 'autre'})
+                                                  </span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          
+                                          {/* Lot Managers */}
+                                          {lotManagers.length > 0 && (
+                                            <div className="space-y-1 pt-1 border-t border-slate-200">
+                                              {lotManagers.map((manager, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                                  <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                                                  <span className="text-slate-700">{manager.user.name}</span>
+                                                  <span className="text-slate-500">(resp. lot)</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Tooltip Arrow - Adaptive */}
+                                        {index < 2 ? (
+                                          /* Arrow pointing up (tooltip below) */
+                                          <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-slate-200"></div>
+                                        ) : (
+                                          /* Arrow pointing down (tooltip above) */
+                                          <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-200"></div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             </div>
-                            <div className="flex items-center space-x-3 text-xs text-slate-600">
-                              <span>Étage {lot.floor}</span>
-                              {lot.surface && <span>{lot.surface}m²</span>}
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Responsable du bâtiment */}
-                {selectedManagerId && (
-                  <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-3">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Building className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Responsable du bâtiment</h3>
-                          <p className="text-xs text-slate-600">Responsable principal pour toutes les notifications</p>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        {(() => {
-                          const manager = teamManagers.find(m => m.user.id === selectedManagerId)
-                          return manager ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-blue-600" />
-                              </div>
-                              <div>
-                                <div className="font-medium text-sm text-slate-900">{manager.user.name}</div>
-                                <div className="text-xs text-slate-600">{manager.user.email}</div>
-                                {manager.user.id === user?.id && (
-                                  <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full mt-0.5">
-                                    Vous
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-slate-500">Responsable non trouvé</p>
-                          )
-                        })()}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
 
-                {/* Contacts assignés */}
-                {(contacts.length > 0 || Object.values(assignedManagers).some(managers => managers.length > 0)) && (
-                  <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="p-3">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <Users className="h-4 w-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Contacts et assignations</h3>
-                          <p className="text-xs text-slate-600">Contacts assignés aux lots</p>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 p-2 bg-white rounded border">
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-purple-600">{contacts.length}</div>
-                            <div className="text-xs text-slate-600">Contact{contacts.length > 1 ? 's' : ''}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-blue-600">1</div>
-                            <div className="text-xs text-slate-600">Responsable bât.</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-purple-600">
-                              {Object.values(assignedManagers).reduce((total, managers) => 
-                                total + managers.filter(m => m.user.id !== selectedManagerId).length, 0)}
-                            </div>
-                            <div className="text-xs text-slate-600">Resp. de lots</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-green-600">
-                              {lots.filter(lot => getAssignedManagers(lot.id).length > 0 || getAllLotContacts(lot.id).length > 0).length}
-                            </div>
-                            <div className="text-xs text-slate-600">Lots assignés</div>
-                          </div>
-                        </div>
-                        
-                        {contacts.length === 0 && Object.values(assignedManagers).every(managers => managers.length === 0) && (
-                          <p className="text-center text-slate-500 text-sm">Aucun contact supplémentaire assigné</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </div>
 
               {error && (
@@ -1784,7 +1873,7 @@ export default function NewBuildingPage() {
                 Assigner un responsable spécifique au lot {selectedLotForManager && lots.find(l => l.id === selectedLotForManager)?.reference}
               </DialogTitle>
               <DialogDescription>
-                Ce responsable recevra les notifications spécifiques à ce lot, en complément du responsable du bâtiment
+                Ce responsable recevra les notifications spécifiques à ce lot, en complément du responsable de l'immeuble
               </DialogDescription>
             </DialogHeader>
             
@@ -1820,7 +1909,7 @@ export default function NewBuildingPage() {
                                   <Badge variant="outline" className="text-xs">Vous</Badge>
                                 )}
                                 {isBuildingManager && (
-                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">Responsable du bâtiment</Badge>
+                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">Responsable de l'immeuble</Badge>
                                 )}
                               </div>
                             </div>
@@ -1838,7 +1927,7 @@ export default function NewBuildingPage() {
                             {isAlreadyAssigned 
                               ? 'Déjà assigné' 
                               : isBuildingManager 
-                                ? 'Responsable du bâtiment'
+                                ? 'Responsable de l\'immeuble'
                                 : 'Assigner'
                             }
                           </Button>

@@ -4,68 +4,56 @@ import { StepConfig } from "@/components/ui/step-progress-header"
 export const buildingSteps: StepConfig[] = [
   {
     icon: Building,
-    label: "Informations générales",
-    description: "Détails du bâtiment"
+    label: "Informations générales"
   },
   {
     icon: MapPin,
-    label: "Lots",
-    description: "Configuration des lots"
+    label: "Lots"
   },
   {
     icon: Users,
-    label: "Contacts",
-    description: "Assignation des contacts"
+    label: "Contacts"
   },
   {
     icon: Check,
-    label: "Confirmation",
-    description: "Récapitulatif"
+    label: "Confirmation"
   }
 ]
 
 export const lotSteps: StepConfig[] = [
   {
     icon: Building2,
-    label: "Bâtiment",
-    description: "Association à un bâtiment"
+    label: "Immeuble "
   },
   {
     icon: Home,
-    label: "Lot",
-    description: "Détails du lot"
+    label: "Lot"
   },
   {
     icon: Users,
-    label: "Contacts",
-    description: "Locataires et contacts"
+    label: "Contacts"
   },
   {
     icon: Check,
-    label: "Confirmation",
-    description: "Récapitulatif"
+    label: "Confirmation"
   }
 ]
 
 export const interventionSteps: StepConfig[] = [
   {
     icon: Home,
-    label: "Bien",
-    description: "Choix du bien concerné"
+    label: "Bien"
   },
   {
     icon: FileText,
     label: "Demande",
-    description: "Déscription du problème"
   },
   {
     icon: Users,
-    label: "Contacts",
-    description: "Assignation et Planification"
+    label: "Contacts"
   },
   {
     icon: Check,
-    label: "Confirmation",
-    description: "Récapitulatif"
+    label: "Confirmation"
   }
 ]

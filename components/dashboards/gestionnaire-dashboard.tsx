@@ -51,27 +51,27 @@ export default function GestionnaireDashboard() {
             size="sm"
             variant="outline"
             className="bg-background"
-            onClick={() => router.push("/gestionnaire/nouveau-batiment")}
+            onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
           >
             <Building2 className="h-4 w-4 mr-2" />
-            Nouveau bâtiment
+            Ajouter un immeuble
           </Button>
           <Button
             size="sm"
             variant="outline"
             className="bg-background"
-            onClick={() => router.push("/gestionnaire/nouveau-lot")}
+            onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
           >
             <Home className="h-4 w-4 mr-2" />
-            Nouveau lot
+            Ajouter un lot
           </Button>
           <Button size="sm" variant="outline" className="bg-background" onClick={() => setIsContactModalOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            Inviter contact
+            Ajouter un contact
           </Button>
           <Button size="sm" variant="outline" className="bg-background">
             <Wrench className="h-4 w-4 mr-2" />
-            Créer intervention
+            Ajouter une intervention
           </Button>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function GestionnaireDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bâtiments</CardTitle>
+            <CardTitle className="text-sm font-medium">Immeubles</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -185,7 +185,7 @@ export default function GestionnaireDashboard() {
               <p className="text-muted-foreground mb-4">Les interventions apparaîtront ici une fois créées</p>
               <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
                 <Plus className="h-4 w-4 mr-2" />
-                Créer une intervention
+                Ajouter une intervention
               </Button>
             </div>
           </CardContent>

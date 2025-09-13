@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { getLotCategoryConfig } from "@/lib/lot-types"
 import { buildingService, lotService, interventionService } from "@/lib/database-service"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -37,7 +38,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     }
   }, [searchParams])
 
-  // Charger les données du bâtiment
+  // Charger les données de l'immeuble
   useEffect(() => {
     if (resolvedParams.id && user?.id) {
       loadBuildingData()
@@ -50,12 +51,12 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       setError(null)
       console.log("🏢 Loading building data for ID:", resolvedParams.id)
 
-      // 1. Charger les données du bâtiment
+      // 1. Charger les données de l'immeuble
       const buildingData = await buildingService.getById(resolvedParams.id)
       console.log("🏢 Building loaded:", buildingData)
       setBuilding(buildingData)
 
-      // 2. Charger les lots du bâtiment
+      // 2. Charger les lots de l'immeuble
       const lotsData = await lotService.getByBuildingId(resolvedParams.id)
       console.log("🏠 Lots loaded:", lotsData?.length || 0)
       setLots(lotsData || [])
@@ -80,7 +81,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
     } catch (error) {
       console.error("❌ Error loading building data:", error)
-      setError("Erreur lors du chargement des données du bâtiment")
+      setError("Erreur lors du chargement des données de l'immeuble")
     } finally {
       setLoading(false)
     }
@@ -210,7 +211,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  // Vérifier que le bâtiment existe
+  // Vérifier que l'immeuble existe
   if (!building) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -230,7 +231,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Bâtiment non trouvé</AlertDescription>
+            <AlertDescription>Immeuble non trouvé</AlertDescription>
           </Alert>
         </main>
       </div>
@@ -521,7 +522,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="text-center py-12">
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour ce bâtiment.</p>
+                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour cet immeuble.</p>
                 <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
@@ -535,7 +536,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">Liste des Lots ({lots.length})</h2>
-              <Button onClick={() => router.push('/gestionnaire/nouveau-lot')}>
+              <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter un lot
               </Button>
@@ -551,10 +552,24 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                     <Card key={lot.id} className={`border-l-4 ${isOccupied ? 'border-l-green-500' : 'border-l-gray-300'}`}>
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4 flex-wrap gap-2">
                             <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                               {lot.reference}
                             </div>
+                            
+                            {/* Catégorie du lot */}
+                            {lot.category && (() => {
+                              const categoryConfig = getLotCategoryConfig(lot.category)
+                              return (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color} text-xs`}
+                                >
+                                  {categoryConfig.label}
+                                </Badge>
+                              )
+                            })()}
+                            
                             <Badge variant={isOccupied ? "default" : "secondary"} 
                                    className={isOccupied ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
                               {isOccupied ? "Occupé" : "Vacant"}
@@ -566,7 +581,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => router.push(`/gestionnaire/lots/${lot.id}`)}
+                            onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             Détails
@@ -611,8 +626,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="text-center py-12">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot</h3>
-                <p className="text-gray-600 mb-4">Ce bâtiment n'a pas encore de lots définis.</p>
-                <Button onClick={() => router.push('/gestionnaire/nouveau-lot')}>
+                <p className="text-gray-600 mb-4">Cet immeuble n'a pas encore de lots définis.</p>
+                <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer le premier lot
                 </Button>
@@ -624,8 +639,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         {activeTab === "documents" && (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Documents du bâtiment</h3>
-            <p className="text-gray-600">La liste des documents pour ce bâtiment sera bientôt disponible ici.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Documents de l'immeuble</h3>
+            <p className="text-gray-600">La liste des documents pour cet immeuble sera bientôt disponible ici.</p>
           </div>
         )}
       </main>

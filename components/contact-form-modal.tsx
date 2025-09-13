@@ -67,7 +67,7 @@ const getContactTitle = (type: string) => {
     case "gestionnaire":
       return { title: "Créer un gestionnaire", subtitle: "Responsable de la gestion des biens" }
     default:
-      return { title: "Créer un contact", subtitle: "Nouveau contact pour votre bien" }
+      return { title: "Créer un contact", subtitle: "Ajouter un contact pour votre bien" }
   }
 }
 

@@ -188,9 +188,9 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Button
@@ -219,16 +219,16 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       {/* Lot Info */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center space-x-4 mb-2">
-          <h1 className="text-2xl font-bold text-gray-900">{lot.reference}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{lot.reference}</h1>
           <Badge variant={lot.is_occupied || lot.tenant_id ? "default" : "secondary"} 
                  className={lot.is_occupied || lot.tenant_id ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
             {lot.is_occupied || lot.tenant_id ? "Occupé" : "Vacant"}
           </Badge>
           {lot.apartment_number && (
-            <span className="text-sm text-gray-600">Appartement {lot.apartment_number}</span>
+            <span className="text-sm text-slate-600">Appartement {lot.apartment_number}</span>
           )}
         </div>
-        <div className="flex items-center space-x-4 text-gray-600">
+        <div className="flex items-center space-x-4 text-slate-600">
           {lot.building && (
             <>
               <div className="flex items-center space-x-1">
@@ -259,7 +259,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
 
       {/* Tabs Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-slate-200">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => {
               const Icon = tab.icon
@@ -269,14 +269,14 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      ? "border-sky-500 text-sky-600"
+                      : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
                   {tab.count !== undefined && (
-                    <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
+                    <span className="bg-slate-100 text-slate-600 py-0.5 px-2 rounded-full text-xs">
                       {tab.count}
                     </span>
                   )}

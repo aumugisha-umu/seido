@@ -37,7 +37,7 @@ import { useSearchParams } from "next/navigation"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
-import { userService, contactService, teamService } from "@/lib/database-service"
+import { userService, contactService, teamService, tenantService, lotService } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -46,8 +46,8 @@ import { interventionSteps } from "@/lib/step-configurations"
 export default function NouvelleInterventionPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
-  const [selectedBuildingId, setSelectedBuildingId] = useState<number | undefined>()
-  const [selectedLotId, setSelectedLotId] = useState<number | undefined>()
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
+  const [selectedLotId, setSelectedLotId] = useState<string | undefined>()
   const [formData, setFormData] = useState({
     title: "",
     type: "",
@@ -137,6 +137,61 @@ export default function NouvelleInterventionPage() {
     }
   }
 
+  // Load tenant's assigned lots
+  const loadTenantLots = async (tenantId: string) => {
+    try {
+      const lots = await tenantService.getAllTenantLots(tenantId)
+      console.log("📍 Tenant lots loaded:", lots)
+      
+      if (lots.length > 0) {
+        // If tenant has only one lot, auto-select it
+        if (lots.length === 1) {
+          const lot = lots[0]
+          setSelectedLogement({
+            id: lot.id,
+            name: lot.reference,
+            type: "lot",
+            building: lot.building?.name || "Immeuble",
+            address: lot.building?.address || "",
+            buildingId: lot.building_id
+          })
+          setSelectedLotId(lot.id)
+          setSelectedBuildingId(lot.building_id)
+          setCurrentStep(2) // Skip to step 2 since lot is pre-selected
+        }
+        // If multiple lots, let user choose in step 1
+      }
+    } catch (error) {
+      console.error("❌ Error loading tenant lots:", error)
+    }
+  }
+
+  // Load specific lot by ID or reference
+  const loadSpecificLot = async (lotIdentifier: string) => {
+    try {
+      // Try to get lot by ID first, then by reference if needed
+      const lot = await lotService.getById(lotIdentifier)
+      console.log("📍 Specific lot loaded:", lot)
+      
+      if (lot) {
+        setSelectedLogement({
+          id: lot.id,
+          name: lot.reference,
+          type: "lot",
+          building: lot.building?.name || "Immeuble",
+          address: lot.building?.address || "",
+          buildingId: lot.building_id
+        })
+        setSelectedLotId(lot.id)
+        setSelectedBuildingId(lot.building_id)
+        setCurrentStep(2) // Skip to step 2 since lot is pre-selected
+      }
+    } catch (error) {
+      console.error("❌ Error loading specific lot:", error)
+      // If lot not found, don't pre-select anything, let user choose in step 1
+    }
+  }
+
   // Charger les données au montage du composant
   useEffect(() => {
     loadRealData()
@@ -163,27 +218,17 @@ export default function NouvelleInterventionPage() {
         availabilities: [],
       })
 
-      // Pre-select logement based on location info
-      // Parse location to extract lot info (e.g., "Lot003 • 123 Rue de la Paix, 75001 Paris")
-      if (tenantLocation.includes("Lot")) {
+      // Pre-select lot based on tenant or location info
+      const tenantId = searchParams.get("tenantId")
+      if (tenantId) {
+        // For tenant-initiated interventions, get their assigned lots
+        loadTenantLots(tenantId)
+      } else if (tenantLocation.includes("Lot")) {
+        // Parse location to extract lot info and load real lot data
         const lotMatch = tenantLocation.match(/Lot(\d+)/)
         if (lotMatch) {
           const lotNumber = lotMatch[1]
-          // TODO: Récupérer les vraies données du lot depuis la DB
-          // Pour l'instant on garde un comportement minimal
-          setSelectedLogement({
-            id: Number.parseInt(lotNumber),
-            name: `Lot${lotNumber.padStart(3, "0")}`,
-            type: "lot",
-            building: "Logement pré-sélectionné",
-            address: "Adresse à récupérer depuis la DB",
-            floor: 1,
-            tenant: searchParams.get("tenantId") || "Locataire",
-          })
-          setSelectedLotId(Number.parseInt(lotNumber))
-
-          // Skip to step 2 since step 1 is pre-filled
-          setCurrentStep(2)
+          loadSpecificLot(lotNumber)
         }
       }
 
@@ -260,16 +305,51 @@ export default function NouvelleInterventionPage() {
   }
 
 
-  const handleBuildingSelect = (buildingId: number) => {
-    setSelectedBuildingId(buildingId)
+  const handleBuildingSelect = (buildingId: string | null) => {
+    setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    setSelectedLogement({ type: "building", id: buildingId })
+    if (buildingId) {
+      setSelectedLogement({ type: "building", id: buildingId })
+    } else {
+      setSelectedLogement(null)
+    }
   }
 
-  const handleLotSelect = (lotId: number, buildingId?: number) => {
-    setSelectedLotId(lotId)
-    setSelectedBuildingId(buildingId)
-    setSelectedLogement({ type: "lot", id: lotId, buildingId })
+  const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
+    if (!lotId) {
+      setSelectedLotId(undefined)
+      setSelectedBuildingId(buildingId || undefined)
+      setSelectedLogement(null)
+      return
+    }
+    try {
+      // Load real lot data when selecting a lot
+      const lot = await lotService.getById(lotId)
+      
+      if (lot) {
+        setSelectedLogement({
+          id: lot.id,
+          name: lot.reference,
+          type: "lot",
+          building: lot.building?.name || "Immeuble",
+          address: lot.building?.address || "",
+          buildingId: lot.building_id
+        })
+        setSelectedLotId(lot.id)
+        setSelectedBuildingId(lot.building_id)
+      } else {
+        // Fallback to minimal data if lot not found
+        setSelectedLotId(lotId)
+        setSelectedBuildingId(buildingId)
+        setSelectedLogement({ type: "lot", id: lotId, buildingId })
+      }
+    } catch (error) {
+      console.error("❌ Error loading lot data:", error)
+      // Fallback to minimal data
+      setSelectedLotId(lotId)
+      setSelectedBuildingId(buildingId)
+      setSelectedLogement({ type: "lot", id: lotId, buildingId })
+    }
   }
 
   const addAvailability = () => {
@@ -465,16 +545,20 @@ export default function NouvelleInterventionPage() {
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            <PropertySelector
-              mode="select"
-              title="Créer une intervention"
-              subtitle="Sélectionnez le logement pour lequel vous souhaitez créer une intervention."
-              onBuildingSelect={handleBuildingSelect}
-              onLotSelect={handleLotSelect}
-              selectedBuildingId={selectedBuildingId}
-              selectedLotId={selectedLotId}
-              showActions={false}
-            />
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-gray-900">Créer une intervention</h2>
+                <p className="text-gray-600">Sélectionnez le lot pour lequel vous souhaitez créer une intervention.</p>
+              </div>
+              <PropertySelector
+                mode="select"
+                onBuildingSelect={handleBuildingSelect}
+                onLotSelect={handleLotSelect}
+                selectedBuildingId={selectedBuildingId}
+                selectedLotId={selectedLotId}
+                showActions={false}
+              />
+            </div>
 
             <div className="flex justify-end">
               <Button onClick={handleNext} disabled={!selectedLogement} className="px-8">

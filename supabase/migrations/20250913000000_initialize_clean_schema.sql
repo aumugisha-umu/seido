@@ -24,6 +24,16 @@ CREATE TYPE user_role AS ENUM (
     'prestataire'
 );
 
+-- Catégories de prestataires pour une classification plus fine
+CREATE TYPE provider_category AS ENUM (
+    'prestataire',  -- Prestataire générique avec spécialité (plombier, électricien, etc.)
+    'assurance',    -- Compagnie d'assurance
+    'notaire',      -- Notaire
+    'syndic',       -- Syndic de copropriété
+    'proprietaire', -- Propriétaire du bien
+    'autre'         -- Autres types de prestataires
+);
+
 -- Status des interventions
 CREATE TYPE intervention_status AS ENUM (
     'nouvelle_demande',
@@ -75,6 +85,14 @@ CREATE TYPE lot_category AS ENUM (
     'local_commercial',
     'parking',
     'autre'
+);
+
+-- Type pour les statuts d'invitation
+CREATE TYPE invitation_status AS ENUM (
+    'pending',    -- En attente
+    'accepted',   -- Acceptée
+    'expired',    -- Expirée
+    'cancelled'   -- Annulée
 );
 
 -- Types pour les notifications
@@ -160,6 +178,9 @@ CREATE TABLE users (
     
     -- Rôle utilisateur (stocké dans users, pas dans auth.users.metadata)
     role user_role NOT NULL DEFAULT 'gestionnaire',
+    
+    -- Catégorie spécifique pour les prestataires (NULL pour gestionnaire/locataire)
+    provider_category provider_category,
     
     -- Notes et métadonnées
     notes TEXT,
@@ -258,15 +279,12 @@ CREATE TABLE lots (
     -- Informations du lot
     floor INTEGER,
     apartment_number VARCHAR(10),
-    surface_area DECIMAL(8,2),
-    rooms INTEGER,
     category lot_category DEFAULT 'appartement',
     
     -- État d'occupation (calculé automatiquement via lot_contacts)
     is_occupied BOOLEAN DEFAULT FALSE,
     
     -- Informations financières
-    rent_amount DECIMAL(10,2),
     charges_amount DECIMAL(10,2),
     
     -- Équipe gestionnaire (héritée du bâtiment ou spécifique)
@@ -480,14 +498,20 @@ CREATE TABLE user_invitations (
     invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     role user_role NOT NULL,
+    provider_category provider_category,
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     invitation_code VARCHAR(50) UNIQUE NOT NULL,
+    
+    -- Statut et dates
+    status invitation_status NOT NULL DEFAULT 'pending',
+    invited_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     accepted_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    -- Index
+    -- Contraintes
     UNIQUE(email, team_id) -- Un email ne peut être invité qu'une fois par équipe active
 );
 
@@ -748,7 +772,11 @@ CREATE TRIGGER update_intervention_documents_updated_at
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_activity_logs_updated_at 
-    BEFORE UPDATE ON activity_logs
+    BEFORE UPDATE ON activity_logs 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_invitations_updated_at 
+    BEFORE UPDATE ON user_invitations 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Triggers spécifiques
@@ -829,8 +857,11 @@ CREATE INDEX idx_notifications_team_unread ON notifications(team_id, read, creat
 -- Index invitations
 CREATE INDEX idx_invitations_email ON user_invitations(email);
 CREATE INDEX idx_invitations_team ON user_invitations(team_id);
-CREATE INDEX idx_invitations_pending ON user_invitations(expires_at) 
-    WHERE accepted_at IS NULL;
+CREATE INDEX idx_invitations_status ON user_invitations(status);
+CREATE INDEX idx_invitations_team_status ON user_invitations(team_id, status);
+CREATE INDEX idx_invitations_email_status ON user_invitations(email, status);
+CREATE INDEX idx_invitations_expires ON user_invitations(expires_at) WHERE status = 'pending';
+CREATE INDEX idx_invitations_invited_by ON user_invitations(invited_by);
 
 -- Index activity_logs (structure complète)
 CREATE INDEX idx_activity_logs_team ON activity_logs(team_id);
@@ -860,6 +891,22 @@ CREATE INDEX idx_intervention_documents_uploaded_at ON intervention_documents(up
 -- =============================================================================
 -- FONCTIONS UTILITAIRES POUR NOTIFICATIONS ET ACTIVITY_LOGS
 -- =============================================================================
+
+-- Fonction pour marquer les invitations comme expirées
+CREATE OR REPLACE FUNCTION expire_old_invitations()
+RETURNS INTEGER AS $$
+DECLARE
+    expired_count INTEGER;
+BEGIN
+    UPDATE user_invitations 
+    SET status = 'expired', updated_at = NOW()
+    WHERE status = 'pending' 
+    AND expires_at < NOW();
+    
+    GET DIAGNOSTICS expired_count = ROW_COUNT;
+    RETURN expired_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Fonction pour marquer les notifications comme lues
 CREATE OR REPLACE FUNCTION mark_notification_as_read(notification_id UUID)

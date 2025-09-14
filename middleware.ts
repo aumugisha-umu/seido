@@ -25,8 +25,8 @@ export async function middleware(request: NextRequest) {
   
   // Si route publique → vérifier si déjà connecté pour rediriger
   if (publicRoutes.includes(pathname)) {
-    // Routes auth : rediriger si déjà connecté
-    if (pathname.startsWith('/auth/')) {
+    // Routes auth : rediriger si déjà connecté (SAUF /auth/callback qui doit s'exécuter)
+    if (pathname.startsWith('/auth/') && pathname !== '/auth/callback') {
       const cookies = request.cookies.getAll()
       const hasAuthCookie = cookies.some(cookie => 
         cookie.name.startsWith('sb-') && cookie.value && cookie.value.length > 0

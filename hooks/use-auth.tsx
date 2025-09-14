@@ -47,15 +47,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Ne rediriger que si : user chargé, pas en cours de chargement, et on est sur une page d'auth
     if (user && !loading && pathname?.startsWith('/auth')) {
       
-      // Cas spéciaux : pas de redirection sur callback ou reset-password
+      // ✅ PROTECTION RENFORCÉE : pas de redirection sur callback ou reset-password
       if (pathname.includes('/callback') || pathname.includes('/reset-password')) {
+        console.log('🚫 [AUTH-PROVIDER] Redirection blocked - on callback/reset page:', pathname)
+        return
+      }
+      
+      // ✅ PROTECTION SUPPLÉMENTAIRE : vérifier l'URL actuelle aussi
+      if (window.location.pathname.includes('/callback') || window.location.pathname.includes('/reset-password')) {
+        console.log('🚫 [AUTH-PROVIDER] Redirection blocked - window location on callback/reset page:', window.location.pathname)
         return
       }
       
       console.log('🎯 [AUTH-PROVIDER] Auto-redirect detected:', {
         user: user.name,
         role: user.role,
-        currentPath: pathname
+        currentPath: pathname,
+        windowLocation: window.location.pathname,
+        redirectAllowed: true
       })
       
       // Déterminer le dashboard selon le rôle

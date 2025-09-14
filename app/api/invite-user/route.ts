@@ -69,6 +69,29 @@ export async function POST(request: Request) {
       teamId 
     })
 
+    // ✅ NOUVELLE LOGIQUE: Convertir contact_type vers role + provider_category
+    const mapContactTypeToRoleAndCategory = (contactType: string) => {
+      const mapping: Record<string, { 
+        role: Database['public']['Enums']['user_role'], 
+        provider_category: Database['public']['Enums']['provider_category'] | null 
+      }> = {
+        'gestionnaire': { role: 'gestionnaire', provider_category: null },
+        'locataire': { role: 'locataire', provider_category: null },
+        'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
+        // Prestataires spécialisés → tous deviennent 'prestataire' avec category spécifique
+        'syndic': { role: 'prestataire', provider_category: 'syndic' },
+        'notaire': { role: 'prestataire', provider_category: 'notaire' },
+        'assurance': { role: 'prestataire', provider_category: 'assurance' },
+        'proprietaire': { role: 'prestataire', provider_category: 'proprietaire' }, // ✅ Sans accent (comme dans l'enum BDD)
+        'autre': { role: 'prestataire', provider_category: 'autre' }
+      }
+      
+      return mapping[contactType] || { role: 'gestionnaire', provider_category: null }
+    }
+
+    const { role: validUserRole, provider_category: providerCategory } = mapContactTypeToRoleAndCategory(role)
+    console.log(`🔄 [ROLE-MAPPING] Contact type "${role}" → User role "${validUserRole}" + Category "${providerCategory}"`)
+
     // ÉTAPE 1: CRÉER USER + LIEN ÉQUIPE (TOUJOURS)
     console.log('👤 [STEP-1] Creating user profile...')
     
@@ -88,7 +111,8 @@ export async function POST(request: Request) {
           name: `${firstName} ${lastName}`,
           first_name: firstName,
           last_name: lastName,
-          role: role as Database['public']['Enums']['user_role'],
+          role: validUserRole, // ✅ Utiliser le rôle mappé
+          provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
           phone: phone || null,
           team_id: teamId,
           is_active: true
@@ -139,7 +163,9 @@ export async function POST(request: Request) {
           first_name: firstName,
           last_name: lastName,
           display_name: `${firstName} ${lastName}`,
-          role: role,
+          role: validUserRole, // ✅ Utiliser le rôle mappé
+          provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
+          contact_type: role, // ✅ Garder le type original pour référence
           team_id: teamId,
           invited: true
         },
@@ -165,7 +191,9 @@ export async function POST(request: Request) {
             first_name: firstName,
             last_name: lastName,
             display_name: `${firstName} ${lastName}`,
-            role: role,
+            role: validUserRole, // ✅ Utiliser le rôle mappé
+            provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
+            contact_type: role, // ✅ Garder le type original pour référence
             team_id: teamId,
             invited: true
           },
@@ -200,10 +228,12 @@ export async function POST(request: Request) {
                 email: email,
                 first_name: firstName,
                 last_name: lastName,
-                role: role,
+                role: validUserRole, // ✅ Utiliser le rôle mappé
+                provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
                 team_id: teamId,
                 invited_by: currentUserProfile.id, // L'utilisateur qui fait l'invitation
                 invitation_code: inviteData.user.id, // Utiliser l'auth user ID comme code unique
+                status: 'pending', // ✅ NOUVEAU: Statut explicite
                 expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 jours
               })
               .select()

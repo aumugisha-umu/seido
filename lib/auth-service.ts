@@ -79,6 +79,7 @@ class AuthService {
         first_name,
         last_name,
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+        provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
         phone: phone || null,
       })
 
@@ -131,6 +132,7 @@ class AuthService {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+        provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
         phone: phone?.trim() || null,
       })
 
@@ -226,6 +228,7 @@ class AuthService {
             first_name: metadata.first_name || null,
             last_name: metadata.last_name || null,
             role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+            provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
             phone: metadata.phone || null,
           })
           
@@ -474,6 +477,12 @@ class AuthService {
               // ✅ MARQUER L'INVITATION COMME ACCEPTÉE SI C'EST UNE PREMIÈRE CONNEXION
               if (event === 'SIGNED_IN' && session.user.user_metadata?.invited) {
                 console.log('📧 [AUTH-SERVICE-NEW] User was invited, marking invitation as accepted...')
+                console.log('🔍 [AUTH-SERVICE-DEBUG] Invitation marking details:', {
+                  email: userProfile.email,
+                  authUserId: session.user.id,
+                  profileUserId: userProfile.id,
+                  invitationCode: session.user.id
+                })
                 try {
                   await fetch('/api/mark-invitation-accepted', {
                     method: 'POST',
@@ -482,7 +491,7 @@ class AuthService {
                     },
                     body: JSON.stringify({
                       email: userProfile.email,
-                      invitationCode: session.user.id // Utiliser l'auth_user_id comme code
+                      invitationCode: session.user.id // ✅ Correct: auth.users.id
                     })
                   })
                   console.log('✅ [AUTH-SERVICE-NEW] Invitation marked as accepted')

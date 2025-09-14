@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle } from "lucide-react"
+import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -34,6 +34,112 @@ export default function ContactsPage() {
   const [resentInvitations, setResentInvitations] = useState<{[key: string]: {success: boolean, message?: string, magicLink?: string}}>({})
   const [resendingInvitations, setResendingInvitations] = useState<{[key: string]: boolean}>({})
   const [copiedLinks, setCopiedLinks] = useState<{[key: string]: boolean}>({})
+  const [cancellingInvitations, setCancellingInvitations] = useState<{[key: string]: boolean}>({})
+  const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true)
+  const [contactsInvitationStatus, setContactsInvitationStatus] = useState<{[key: string]: string}>({}) // Pour stocker le statut d'invitation de chaque contact
+
+  // Fonction pour obtenir le badge de statut d'invitation
+  const getStatusBadge = (status: string) => {
+    const configs = {
+      pending: { label: 'En attente', class: 'bg-orange-100 text-orange-800' },
+      accepted: { label: 'Acceptée', class: 'bg-green-100 text-green-800' },
+      expired: { label: 'Expirée', class: 'bg-gray-100 text-gray-800' },
+      cancelled: { label: 'Annulée', class: 'bg-red-100 text-red-800' }
+    }
+    const config = configs[status as keyof typeof configs] || configs.pending
+    return (
+      <Badge variant="secondary" className={`${config.class} text-xs`}>
+        {config.label}
+      </Badge>
+    )
+  }
+
+  // ✅ Fonction pour obtenir le badge de statut d'invitation pour les contacts
+  const getContactInvitationBadge = (email: string) => {
+    const status = contactsInvitationStatus[email?.toLowerCase()]
+    
+    if (!status) {
+      return null // Pas d'invitation envoyée
+    }
+
+    const configs = {
+      pending: { label: 'En attente', class: 'bg-orange-100 text-orange-800' },
+      accepted: { label: 'Actif', class: 'bg-green-100 text-green-800' }, // ✅ "Actif" au lieu de "Acceptée" pour les contacts
+      expired: { label: 'Invitation expirée', class: 'bg-gray-100 text-gray-800' },
+      cancelled: { label: 'Invitation annulée', class: 'bg-red-100 text-red-800' }
+    }
+    
+    const config = configs[status as keyof typeof configs] || configs.pending
+    
+    return (
+      <Badge variant="secondary" className={`${config.class} text-xs font-medium`}>
+        {config.label}
+      </Badge>
+    )
+  }
+
+  // ✅ NOUVEAU: Fonction pour obtenir le badge "Vous" si c'est l'utilisateur connecté
+  const getCurrentUserBadge = (email: string) => {
+    if (!user?.email || !email) {
+      return null
+    }
+
+    const isCurrentUser = user.email.toLowerCase() === email.toLowerCase()
+    
+    if (!isCurrentUser) {
+      return null
+    }
+
+    return (
+      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs font-medium">
+        Vous
+      </Badge>
+    )
+  }
+
+  // ✅ Fonction pour charger le statut d'invitation de tous les contacts basé uniquement sur les invitations réelles
+  const loadContactsInvitationStatus = useCallback(async (teamId: string, contacts: any[]) => {
+    try {
+      console.log("🔍 Loading invitation status for", contacts.length, "contacts...")
+      console.log("🔍 Team ID:", teamId)
+      
+      // Utiliser une API pour récupérer toutes les invitations de l'équipe
+      const response = await fetch(`/api/team-invitations?teamId=${teamId}`)
+      
+      if (!response.ok) {
+        console.warn("⚠️ Could not fetch team invitations, using empty status map")
+        setContactsInvitationStatus({})
+        return
+      }
+      
+      const { invitations } = await response.json()
+      console.log("📧 Found invitations:", invitations?.length || 0)
+      
+      const statusMap: {[key: string]: string} = {}
+      
+      // Marquer uniquement les contacts qui ont une invitation réelle
+      invitations?.forEach((invitation: any) => {
+        if (invitation.email) {
+          statusMap[invitation.email.toLowerCase()] = invitation.status || 'pending'
+        }
+      })
+      
+      console.log("📊 Final invitation status mapping:", statusMap)
+      console.log("👤 Contacts with invitations:", Object.keys(statusMap).length, "/ Total contacts:", contacts.length)
+      
+      setContactsInvitationStatus(statusMap)
+      
+    } catch (error) {
+      console.error("❌ Error loading contacts invitation status:", error)
+      console.error("❌ Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        teamId,
+        contactsLength: contacts.length
+      })
+      // Ne pas faire échouer l'interface si les badges ne se chargent pas
+      setContactsInvitationStatus({})
+    }
+  }, [])
 
   // Récupérer les contacts quand l'utilisateur et l'équipe sont prêts
   useEffect(() => {
@@ -56,6 +162,15 @@ export default function ContactsPage() {
       setFilteredContacts(filtered)
     }
   }, [contacts, searchTerm])
+
+  // ✅ NOUVEAU: Charger le statut d'invitation quand les contacts et l'équipe sont prêts
+  useEffect(() => {
+    if (userTeam?.id && contacts.length > 0) {
+      loadContactsInvitationStatus(userTeam.id, contacts).catch(error => {
+        console.error("❌ Failed to load contacts invitation status:", error)
+      })
+    }
+  }, [userTeam?.id, contacts.length, loadContactsInvitationStatus])
 
   // ✅ Maintenant vérifier si on doit afficher la vérification d'équipe APRÈS tous les hooks
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -112,11 +227,31 @@ export default function ContactsPage() {
         setPendingInvitations([])
       }
       
+      // 4. Charger le statut d'invitation pour tous les contacts (défini plus bas)
+      // Cette fonction sera appelée après le chargement des contacts
+      
     } catch (error) {
       console.error("❌ Error loading contacts:", error)
       setError("Erreur lors du chargement des contacts")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ✅ NOUVEAU: Fonction pour charger les invitations séparément
+  const loadPendingInvitations = async (teamId: string) => {
+    try {
+      setLoadingInvitations(true)
+      console.log("📧 Loading invitations for team:", teamId)
+      
+      const invitations = await contactInvitationService.getPendingInvitations(teamId)
+      console.log("✅ Invitations loaded:", invitations.length)
+      setPendingInvitations(invitations)
+    } catch (invitationError) {
+      console.error("❌ Error loading invitations:", invitationError)
+      setPendingInvitations([])
+    } finally {
+      setLoadingInvitations(false)
     }
   }
 
@@ -180,6 +315,60 @@ export default function ContactsPage() {
       console.log("🏁 [CONTACTS-UI] Resend process finished for contact:", contactId)
       // Enlever l'état de chargement
       setResendingInvitations(prev => ({ ...prev, [contactId]: false }))
+    }
+  }
+
+  // ✅ NOUVEAU: Fonction pour annuler une invitation
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      console.log("🚫 [CONTACTS-UI] Cancelling invitation:", invitationId)
+      
+      // Trouver l'invitation dans la liste pour debug
+      const invitationToCancel = pendingInvitations.find(inv => inv.id === invitationId)
+      console.log("🔍 [CONTACTS-UI] Invitation details:", invitationToCancel)
+      
+      // Marquer cette invitation comme en cours d'annulation
+      setCancellingInvitations(prev => ({ ...prev, [invitationId]: true }))
+      
+      const response = await fetch('/api/cancel-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ invitationId })
+      })
+
+      const result = await response.json()
+      console.log("📥 [CONTACTS-UI] API Response:", { 
+        status: response.status, 
+        ok: response.ok, 
+        result 
+      })
+      
+      if (response.ok && result.success) {
+        console.log("✅ [CONTACTS-UI] Invitation cancelled successfully!")
+        
+        // Rafraîchir la liste des invitations
+        if (userTeam?.id) {
+          loadPendingInvitations(userTeam.id)
+        }
+        
+        // Afficher un message de succès
+        setError(null)
+        
+      } else {
+        const errorMessage = result.error || `Erreur HTTP ${response.status}`
+        console.error("❌ [CONTACTS-UI] Failed to cancel invitation:", errorMessage)
+        setError(`Erreur lors de l'annulation: ${errorMessage}`)
+      }
+      
+    } catch (error: any) {
+      console.error("❌ [CONTACTS-UI] Exception in cancel:", error)
+      const errorMessage = error?.message || "Erreur inconnue"
+      setError(`Erreur lors de l'annulation de l'invitation: ${errorMessage}`)
+    } finally {
+      // Enlever l'état de chargement
+      setCancellingInvitations(prev => ({ ...prev, [invitationId]: false }))
     }
   }
 
@@ -300,6 +489,7 @@ export default function ContactsPage() {
   const getContactTypeLabel = (contactType: string) => {
     const types = {
       'locataire': 'Locataire',
+      'propriétaire': 'Propriétaire',
       'prestataire': 'Prestataire',
       'gestionnaire': 'Gestionnaire',
       'syndic': 'Syndic',
@@ -313,6 +503,7 @@ export default function ContactsPage() {
   const getContactTypeBadgeStyle = (contactType: string) => {
     const styles = {
       'locataire': 'bg-blue-100 text-blue-800',
+      'propriétaire': 'bg-emerald-100 text-emerald-800',
       'prestataire': 'bg-green-100 text-green-800',
       'gestionnaire': 'bg-purple-100 text-purple-800',
       'syndic': 'bg-orange-100 text-orange-800',
@@ -388,13 +579,26 @@ export default function ContactsPage() {
         {/* Pending Invitations Section */}
         {pendingInvitations.length > 0 && (
           <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Send className="h-5 w-5 text-orange-500" />
-                <span>Utilisateurs en attente de connexion ({pendingInvitations.length})</span>
+            <CardHeader className="pb-3">
+              <CardTitle 
+                className="flex items-center justify-between cursor-pointer hover:text-orange-600 transition-colors"
+                onClick={() => setIsInvitationsExpanded(!isInvitationsExpanded)}
+              >
+                <div className="flex items-center space-x-2">
+                  <Send className="h-5 w-5 text-orange-500" />
+                  <span>Invitations en attente ({pendingInvitations.length})</span>
+                </div>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                  {isInvitationsExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            {isInvitationsExpanded && (
+              <CardContent className="pt-0">
               <div className="space-y-3">
                 {pendingInvitations.map((invitation) => (
                   <div
@@ -501,9 +705,7 @@ export default function ContactsPage() {
                           <div>
                             <div className="flex items-center space-x-2 mb-1">
                               <span className="font-medium text-gray-900">{invitation.email}</span>
-                              <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
-                                En attente
-                              </Badge>
+                              {getStatusBadge(invitation.status || 'pending')}
                             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
                               <span>
@@ -517,23 +719,50 @@ export default function ContactsPage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleResendInvitation(invitation.id)}
-                            disabled={resendingInvitations[invitation.id] || loadingInvitations}
-                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
-                          >
-                            <Send className="h-3 w-3 mr-1" />
-                            {resendingInvitations[invitation.id] ? "Génération..." : "Renvoyer invitation"}
-                          </Button>
+                          {/* Bouton Renvoyer - seulement pour les invitations pending */}
+                          {(invitation.status || 'pending') === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleResendInvitation(invitation.id)}
+                              disabled={resendingInvitations[invitation.id] || loadingInvitations}
+                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                            >
+                              <Send className="h-3 w-3 mr-1" />
+                              {resendingInvitations[invitation.id] ? "Génération..." : "Renvoyer invitation"}
+                            </Button>
+                          )}
+                          
+                          {/* ✅ NOUVEAU: Bouton Annuler - seulement pour les invitations pending */}
+                          {(invitation.status || 'pending') === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCancelInvitation(invitation.id)}
+                              disabled={cancellingInvitations[invitation.id] || loadingInvitations}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              {cancellingInvitations[invitation.id] ? "Annulation..." : "Annuler invitation"}
+                            </Button>
+                          )}
+                          
+                          {/* Message pour les invitations non-pending */}
+                          {(invitation.status && invitation.status !== 'pending') && (
+                            <span className="text-sm text-gray-500 italic">
+                              {invitation.status === 'accepted' && "✅ Invitation acceptée"}
+                              {invitation.status === 'expired' && "⏱️ Invitation expirée"}
+                              {invitation.status === 'cancelled' && "🚫 Invitation annulée"}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
         )}
 
@@ -605,6 +834,10 @@ export default function ContactsPage() {
                               {getContactTypeLabel(contact.contact_type)}
                             </Badge>
                           )}
+                          {/* ✅ NOUVEAU: Badge "Vous" si c'est l'utilisateur connecté */}
+                          {getCurrentUserBadge(contact.email)}
+                          {/* ✅ Badge de statut d'invitation */}
+                          {getContactInvitationBadge(contact.email)}
                           {contact.company && (
                             <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
                               {contact.company}

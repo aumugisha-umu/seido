@@ -955,8 +955,6 @@ export const interventionService = {
         *,
         lot:lot_id(reference, building:building_id(name, address)),
         tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
       `)
       .order('created_at', { ascending: false })
     
@@ -971,8 +969,6 @@ export const interventionService = {
         *,
         lot:lot_id(reference, building:building_id(name, address)),
         tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
       `)
       .eq('status', status)
       .order('created_at', { ascending: false })
@@ -987,8 +983,6 @@ export const interventionService = {
       .select(`
         *,
         lot:lot_id(reference, building:building_id(name, address)),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
       `)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
@@ -1004,8 +998,6 @@ export const interventionService = {
         *,
         lot:lot_id(reference, building:building_id(name, address)),
         tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
       `)
       .eq('lot_id', lotId)
       .order('created_at', { ascending: false })
@@ -1021,9 +1013,8 @@ export const interventionService = {
         *,
         lot:lot_id(reference, building:building_id(name, address)),
         tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email)
       `)
-      .eq('assigned_contact_id', providerId)
+      .eq('tenant_id', providerId)
       .order('created_at', { ascending: false })
     
     if (error) throw error
@@ -1041,7 +1032,6 @@ export const interventionService = {
         ),
         tenant:tenant_id(name, email, phone),
         manager:manager_id(name, email, phone),
-        assigned_contact:assigned_contact_id(name, email, phone)
       `)
       .eq('id', id)
       .single()
@@ -1070,9 +1060,8 @@ export const interventionService = {
             interventionId: data.id,
             interventionTitle: data.title || `Intervention ${data.type || ''}`,
             teamId: data.lot.building.team_id,
-            createdBy: intervention.manager_id,
-            assignedTo: intervention.assigned_contact_id || undefined,
-            managerId: intervention.manager_id,
+            createdBy: intervention.tenant_id,
+            managerId: intervention.tenant_id,
             lotId: data.lot_id,
             lotReference: data.lot?.reference,
             urgency: intervention.urgency === 'urgente' ? 'urgent' : 
@@ -1127,59 +1116,15 @@ export const interventionService = {
               oldStatus: currentData.status,
               newStatus: updates.status,
               teamId: data.lot.building.team_id,
-              changedBy: data.manager_id || currentData.manager_id,
-              assignedTo: data.assigned_contact_id || currentData.assigned_contact_id || undefined,
-              managerId: data.manager_id || currentData.manager_id,
+              changedBy: data.tenant_id || currentData.tenant_id,
+              managerId: data.tenant_id || currentData.tenant_id,
               lotId: data.lot_id || currentData.lot_id,
               lotReference: data.lot?.reference
             })
             console.log('✅ Status change notifications created for intervention:', data.id)
           }
 
-          // Changement d'assignation
-          if (updates.assigned_contact_id && updates.assigned_contact_id !== currentData.assigned_contact_id) {
-            // Notifier le nouvel assigné
-            if (updates.assigned_contact_id) {
-              await notificationService.createNotification({
-                userId: updates.assigned_contact_id,
-                teamId: data.lot.building.team_id,
-                createdBy: data.manager_id || currentData.manager_id,
-                type: 'assignment',
-                priority: data.urgency === 'urgente' ? 'urgent' : 
-                         data.urgency === 'haute' ? 'high' : 'normal',
-                title: 'Intervention assignée',
-                message: `L'intervention "${data.title || `${data.type || ''}`}"${data.lot?.reference ? ` pour ${data.lot.reference}` : ''} vous a été assignée`,
-                metadata: { 
-                  intervention_id: data.id,
-                  lot_reference: data.lot?.reference,
-                  previous_assignee: currentData.assigned_contact_id 
-                },
-                relatedEntityType: 'intervention',
-                relatedEntityId: data.id
-              })
-            }
-
-            // Notifier l'ancien assigné du changement
-            if (currentData.assigned_contact_id && currentData.assigned_contact_id !== updates.assigned_contact_id) {
-              await notificationService.createNotification({
-                userId: currentData.assigned_contact_id,
-                teamId: data.lot.building.team_id,
-                createdBy: data.manager_id || currentData.manager_id,
-                type: 'assignment',
-                priority: 'normal',
-                title: 'Intervention réassignée',
-                message: `L'intervention "${data.title || `${data.type || ''}`}"${data.lot?.reference ? ` pour ${data.lot.reference}` : ''} a été réassignée à quelqu'un d'autre`,
-                metadata: { 
-                  intervention_id: data.id,
-                  lot_reference: data.lot?.reference,
-                  new_assignee: updates.assigned_contact_id 
-                },
-                relatedEntityType: 'intervention',
-                relatedEntityId: data.id
-              })
-            }
-            console.log('✅ Assignment notifications created for intervention:', data.id)
-          }
+          // TODO: Assignment notifications should be handled via intervention_contacts table
         } catch (notificationError) {
           console.error('❌ Error creating intervention update notifications:', notificationError)
           // Ne pas faire échouer la mise à jour pour les notifications
@@ -1813,7 +1758,7 @@ export const contactService = {
       
       // Validation des valeurs enum
       console.log('🔍 [CONTACT-SERVICE] Starting enum validation...')
-      const validContactTypes = ['locataire', 'prestataire', 'gestionnaire', 'syndic', 'notaire', 'assurance', 'autre']
+      const validContactTypes = ['locataire', 'proprietaire', 'prestataire', 'gestionnaire', 'syndic', 'notaire', 'assurance', 'autre']
       const validInterventionTypes = ['plomberie', 'electricite', 'chauffage', 'serrurerie', 'peinture', 'menage', 'jardinage', 'autre']
       
       if (contact.contact_type && !validContactTypes.includes(contact.contact_type)) {
@@ -2817,12 +2762,12 @@ export const contactInvitationService = {
     }
   },
 
-  // Récupérer les invitations en attente pour une équipe
+  // ✅ NOUVEAU: Récupérer seulement les invitations PENDING pour une équipe
   async getPendingInvitations(teamId: string) {
     try {
-      console.log('📧 [INVITATION-SERVICE] Getting pending invitations for team:', teamId)
+      console.log('📧 [INVITATION-SERVICE] Getting PENDING invitations for team:', teamId)
       
-      // 1. Récupérer toutes les invitations en attente pour cette équipe
+      // 1. Récupérer seulement les invitations PENDING pour cette équipe  
       const { data: pendingInvitations, error: invitationsError } = await supabase
         .from('user_invitations')
         .select(`
@@ -2832,9 +2777,12 @@ export const contactInvitationService = {
           first_name,
           last_name,
           invitation_code,
+          status,
+          invited_at,
           expires_at,
           accepted_at,
           created_at,
+          updated_at,
           invited_by,
           inviter:invited_by(
             id,
@@ -2845,8 +2793,7 @@ export const contactInvitationService = {
           )
         `)
         .eq('team_id', teamId)
-        .is('accepted_at', null) // Invitations pas encore acceptées
-        .gt('expires_at', new Date().toISOString()) // Pas encore expirées
+        .eq('status', 'pending') // ✅ CORRECTION: Filtrer seulement les invitations pending
         .order('created_at', { ascending: false })
       
       if (invitationsError) {
@@ -2859,7 +2806,7 @@ export const contactInvitationService = {
         return []
       }
 
-      console.log(`📧 [INVITATION-SERVICE] Found ${pendingInvitations.length} pending invitations`)
+      console.log(`📧 [INVITATION-SERVICE] Found ${pendingInvitations.length} invitations`)
 
       // 2. Transformer les données pour correspondre au format attendu
       const formattedInvitations = pendingInvitations.map(invitation => {
@@ -2879,20 +2826,22 @@ export const contactInvitationService = {
           created_at: invitation.created_at
         }
 
-        console.log(`📋 [INVITATION-SERVICE] Processing invitation for ${invitation.email}`)
+        console.log(`📋 [INVITATION-SERVICE] Processing invitation for ${invitation.email} with status: ${invitation.status || 'pending'}`)
 
         return {
           ...contactData,
           invitation_id: invitation.id,
-          invitation_status: 'pending', // Statut dérivé du fait que accepted_at est null
-          invited_at: invitation.created_at,
+          status: invitation.status || 'pending', // ✅ NOUVEAU: Utiliser le vrai statut
+          invitation_status: invitation.status || 'pending', // Garder l'ancien nom pour compatibilité
+          invited_at: invitation.invited_at || invitation.created_at,
           expires_at: invitation.expires_at,
+          accepted_at: invitation.accepted_at,
           invitation_code: invitation.invitation_code,
           inviter_info: invitation.inviter
         }
       })
 
-      console.log('✅ [INVITATION-SERVICE] Found pending invitations:', formattedInvitations.length)
+      console.log('✅ [INVITATION-SERVICE] Found invitations:', formattedInvitations.length)
       return formattedInvitations
 
     } catch (error) {
@@ -3148,8 +3097,10 @@ export const mapContactTypeToDatabase = (frontendType: string): Database['public
     'other': 'autre',
     // Support des types database aussi (au cas où)
     'locataire': 'locataire',
+    'propriétaire': 'proprietaire', // ✅ Frontend avec accent → BDD sans accent
     'prestataire': 'prestataire',
     'gestionnaire': 'gestionnaire',
+    'syndic': 'syndic',
     'notaire': 'notaire',
     'assurance': 'assurance',
     'autre': 'autre'
@@ -3168,58 +3119,12 @@ export const mapContactTypeToDatabase = (frontendType: string): Database['public
 
 // Tenant Services
 export const tenantService = {
-  // Helper method to get contact_id from user_id
-  async getUserContactId(userId: string): Promise<string | null> {
-    console.log("🔗 getUserContactId called for userId:", userId)
-    
-    try {
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      const contactId = userInvitation?.contact_id || null
-      console.log("✅ Found contact_id for user:", contactId)
-      return contactId
-    } catch (error) {
-      console.error("❌ Error in getUserContactId:", error)
-      throw error
-    }
-  },
 
   async getTenantData(userId: string) {
     console.log("👤 getTenantData called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return null
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Then get lots linked to this contact via lot_contacts where contact_type is 'locataire'
+      // Get lots linked directly to this user via lot_contacts where contact_type is 'locataire'
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select(`
@@ -3239,7 +3144,7 @@ export const tenantService = {
           start_date,
           end_date
         `)
-        .eq('contact_id', contactId)
+        .eq('user_id', userId)
         .eq('contact_type', 'locataire')
         .is('end_date', null) // Only active relations
         .order('is_primary', { ascending: false }) // Primary contacts first
@@ -3250,7 +3155,7 @@ export const tenantService = {
       }
 
       if (!lotContacts || lotContacts.length === 0) {
-        console.log("❌ No lot found for contact:", contactId)
+        console.log("❌ No lot found for user:", userId)
         return null
       }
 
@@ -3270,28 +3175,7 @@ export const tenantService = {
     console.log("🏠 getAllTenantLots called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return []
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Get all lots linked to this contact via lot_contacts where contact_type is 'locataire'
+      // Get all lots linked directly to this user via lot_contacts where contact_type is 'locataire'
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select(`
@@ -3311,7 +3195,7 @@ export const tenantService = {
           start_date,
           end_date
         `)
-        .eq('contact_id', contactId)
+        .eq('user_id', userId)
         .eq('contact_type', 'locataire')
         .is('end_date', null) // Only active relations
         .order('is_primary', { ascending: false }) // Primary contacts first
@@ -3334,32 +3218,11 @@ export const tenantService = {
     console.log("🔧 getTenantInterventions called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return []
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Then get all lot IDs where this contact is a tenant
+      // Get all lot IDs where this user is a tenant
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('contact_id', contactId)
+        .eq('user_id', userId)
         .eq('contact_type', 'locataire')
         .is('end_date', null) // Only active relations
 
@@ -3371,11 +3234,11 @@ export const tenantService = {
       const lotIds = lotContacts?.map(lc => lc.lot_id).filter(Boolean) || []
       
       if (lotIds.length === 0) {
-        console.log("❌ No lots found for contact:", contactId)
+        console.log("❌ No lots found for user:", userId)
         return []
       }
 
-      // Finally get interventions for those lots
+      // Get interventions for those lots
       const { data, error } = await supabase
         .from('interventions')
         .select(`
@@ -3383,8 +3246,7 @@ export const tenantService = {
           lot:lot_id(
             reference,
             building:building_id(name)
-          ),
-          assigned_contact:assigned_contact_id(name, phone, email)
+          )
         `)
         .in('lot_id', lotIds)
         .order('created_at', { ascending: false })
@@ -3407,38 +3269,11 @@ export const tenantService = {
     console.log("📊 getTenantStats called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return {
-          openRequests: 0,
-          inProgress: 0,
-          thisMonthInterventions: 0,
-          documentsCount: 0,
-          nextPaymentDate: 15
-        }
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Then get all lot IDs where this contact is a tenant
+      // Get all lot IDs where this user is a tenant
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('contact_id', contactId)
+        .eq('user_id', userId)
         .eq('contact_type', 'locataire')
         .is('end_date', null) // Only active relations
 
@@ -3450,7 +3285,7 @@ export const tenantService = {
       const lotIds = lotContacts?.map(lc => lc.lot_id).filter(Boolean) || []
       
       if (lotIds.length === 0) {
-        console.log("❌ No lots found for contact:", contactId)
+        console.log("❌ No lots found for user:", userId)
         return {
           openRequests: 0,
           inProgress: 0,

@@ -44,6 +44,7 @@ interface ContactData {
 
 const contactTypes = [
   { value: "locataire", label: "Locataire", color: "bg-blue-100 text-blue-800" },
+  { value: "propriétaire", label: "Propriétaire", color: "bg-emerald-100 text-emerald-800" },
   { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" },
   { value: "gestionnaire", label: "Gestionnaire", color: "bg-purple-100 text-purple-800" },
   { value: "syndic", label: "Syndic", color: "bg-orange-100 text-orange-800" },

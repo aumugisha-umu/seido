@@ -45,36 +45,90 @@ export async function POST(request: Request) {
     if (invitationCode) {
       // Marquer par invitation_code (plus précis)
       console.log('🔑 [MARK-INVITATION-API] Marking invitation by code:', invitationCode)
+      console.log('🔍 [MARK-INVITATION-API-DEBUG] Searching user_invitations with query:', {
+        table: 'user_invitations',
+        where: {
+          invitation_code: invitationCode,
+          status: 'pending'
+        }
+      })
+      
+      // D'abord, regarder TOUTES les invitations pour ce code pour diagnostic
+      const { data: allInvitationsForCode, error: debugError } = await supabaseAdmin
+        .from('user_invitations')
+        .select('*')
+        .eq('invitation_code', invitationCode)
+      
+      console.log('🔍 [MARK-INVITATION-API-DEBUG] ALL invitations for code:', {
+        count: allInvitationsForCode?.length || 0,
+        invitations: allInvitationsForCode?.map(inv => ({
+          id: inv.id,
+          email: inv.email,
+          status: inv.status,
+          invitation_code: inv.invitation_code,
+          accepted_at: inv.accepted_at,
+          created_at: inv.created_at
+        }))
+      })
       
       const { data: existingInvitation, error: checkError } = await supabaseAdmin
         .from('user_invitations')
         .select('*')
         .eq('invitation_code', invitationCode)
-        .is('accepted_at', null) // Seulement les invitations pas encore acceptées
+        .eq('status', 'pending')
         .single()
       
       if (checkError || !existingInvitation) {
-        console.error('❌ [MARK-INVITATION-API] No invitation found for code:', invitationCode, checkError)
+        console.error('❌ [MARK-INVITATION-API] No pending invitation found for code:', invitationCode)
+        console.error('❌ [MARK-INVITATION-API] CheckError details:', checkError)
         return NextResponse.json(
-          { error: 'Invitation non trouvée pour ce code' },
+          { error: 'Invitation non trouvée ou déjà acceptée pour ce code' },
           { status: 404 }
         )
       }
 
-      console.log('🔍 [MARK-INVITATION-API] Found invitation:', {
+      console.log('🔍 [MARK-INVITATION-API] Found pending invitation:', {
         id: existingInvitation.id,
         email: existingInvitation.email,
+        status: existingInvitation.status,
+        invitation_code: existingInvitation.invitation_code,
         accepted_at: existingInvitation.accepted_at,
-        team: existingInvitation.team_id
+        team: existingInvitation.team_id,
+        created_at: existingInvitation.created_at
       })
 
+      console.log('⚡ [MARK-INVITATION-API-DEBUG] Executing update query:', {
+        update: {
+          status: 'accepted',
+          accepted_at: 'NOW()'
+        },
+        where: {
+          invitation_code: invitationCode,
+          status: 'pending'
+        }
+      })
+      
       const { data, error } = await supabaseAdmin
         .from('user_invitations')
         .update({
+          status: 'accepted', // ✅ NOUVEAU: Changer le statut
           accepted_at: new Date().toISOString()
         })
         .eq('invitation_code', invitationCode)
+        .eq('status', 'pending') // ✅ NOUVEAU: Seulement les invitations pending
         .select()
+      
+      console.log('📊 [MARK-INVITATION-API-DEBUG] Update result:', {
+        success: !error,
+        error: error,
+        updatedCount: data?.length || 0,
+        updatedInvitations: data?.map(inv => ({
+          id: inv.id,
+          email: inv.email,
+          status: inv.status,
+          accepted_at: inv.accepted_at
+        }))
+      })
       
       result = { data, error }
       
@@ -86,20 +140,21 @@ export async function POST(request: Request) {
         .from('user_invitations')
         .select('*')
         .eq('email', email)
-        .is('accepted_at', null) // Seulement les invitations pas encore acceptées
+        .eq('status', 'pending') // ✅ NOUVEAU: Utiliser le statut au lieu de accepted_at
       
       console.log('🔍 [MARK-INVITATION-API] Found pending invitations for email:', existingInvitations?.length || 0)
       existingInvitations?.forEach((inv, index) => {
-        console.log(`  ${index + 1}. ID: ${inv.id}, Accepted: ${inv.accepted_at ? 'Yes' : 'No'}, Team: ${inv.team_id}`)
+        console.log(`  ${index + 1}. ID: ${inv.id}, Status: ${inv.status}, Team: ${inv.team_id}`)
       })
 
       const { data, error } = await supabaseAdmin
         .from('user_invitations')
         .update({
+          status: 'accepted', // ✅ NOUVEAU: Changer le statut
           accepted_at: new Date().toISOString()
         })
         .eq('email', email)
-        .is('accepted_at', null) // Seulement les invitations pas encore acceptées
+        .eq('status', 'pending') // ✅ NOUVEAU: Seulement les invitations pending
         .select()
       
       result = { data, error }
@@ -115,7 +170,7 @@ export async function POST(request: Request) {
 
     console.log(`✅ [MARK-INVITATION-API] ${result.data?.length || 0} invitation(s) marked as accepted`)
     result.data?.forEach((inv, index) => {
-      console.log(`  ✅ Updated invitation ${index + 1}: ${inv.id} → accepted_at: ${inv.accepted_at}`)
+      console.log(`  ✅ Updated invitation ${index + 1}: ${inv.id} → status: ${inv.status}, accepted_at: ${inv.accepted_at}`)
     })
 
     return NextResponse.json({

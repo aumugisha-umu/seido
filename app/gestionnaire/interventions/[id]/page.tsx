@@ -124,7 +124,6 @@ interface InterventionDetail {
   }
   contacts: {
     locataires: DatabaseContact[]
-    proprietaires: DatabaseContact[]
     syndics: DatabaseContact[]
     autres: DatabaseContact[]
   }
@@ -171,8 +170,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
   const [expandedCategories, setExpandedCategories] = useState({
     locataires: true, // Locataires visible par défaut
-    proprietaires: false, // Autres catégories cachées par défaut
-    syndics: false,
+    syndics: false, // Autres catégories cachées par défaut
     autres: false,
   })
 
@@ -217,12 +215,6 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
-        proprietaires: contacts.filter((contact: any) => 
-          contact.contact_type === 'proprietaire' || contact.lot_contact_type === 'proprietaire'
-        ).map((contact: any) => ({
-          ...contact,
-          inChat: false
-        })),
         syndics: contacts.filter((contact: any) => 
           contact.contact_type === 'syndic' || contact.lot_contact_type === 'syndic'
         ).map((contact: any) => ({
@@ -230,7 +222,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           inChat: false
         })),
         autres: contacts.filter((contact: any) => 
-          !['locataire', 'proprietaire', 'syndic'].includes(contact.contact_type || contact.lot_contact_type)
+          !['locataire', 'syndic'].includes(contact.contact_type || contact.lot_contact_type)
         ).map((contact: any) => ({
           ...contact,
           inChat: false
@@ -686,80 +678,6 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              {intervention.contacts.proprietaires.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("proprietaires")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <User className="h-4 w-4 text-purple-600" />
-                      <span>Propriétaires ({intervention.contacts.proprietaires.length})</span>
-                    </h5>
-                    {expandedCategories.proprietaires ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.proprietaires && (
-                    <div className="space-y-2">
-                      {intervention.contacts.proprietaires.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          {/* ... existing contact content ... */}
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                              <User className="h-4 w-4 text-purple-600" />
-                            </div>
-                            <div>
-                              <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("proprietaires", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {intervention.contacts.syndics.length > 0 && (
                 <div className="pt-4 border-t">

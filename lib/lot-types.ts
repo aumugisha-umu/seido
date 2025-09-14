@@ -96,7 +96,6 @@ export interface LotWithCategory {
   is_occupied?: boolean | null
   category: LotCategory
   building_id: string
-  tenant_id?: string | null
   charges_amount?: number | null
   created_at?: string | null
   updated_at?: string | null

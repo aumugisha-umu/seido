@@ -15,7 +15,7 @@ import {
 import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarChart3, UserPlus, Plus, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
-import { useManagerStats } from "@/hooks/use-manager-stats"
+import { useManagerStats, useContactStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function DashboardGestionnaire() {
@@ -23,6 +23,7 @@ export default function DashboardGestionnaire() {
   const router = useRouter()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const { stats, loading, error, refetch } = useManagerStats()
+  const { contactStats, loading: contactsLoading, refetch: refetchContactStats } = useContactStats()
   const { user } = useAuth() // ✅ AJOUTÉ: Pour obtenir l'équipe utilisateur
 
   const handleContactSubmit = async (contactData: any) => {
@@ -77,6 +78,7 @@ export default function DashboardGestionnaire() {
       
       // Recharger les statistiques pour refléter le nouveau contact
       refetch()
+      refetchContactStats()
       
     } catch (error) {
       console.error("❌ [DASHBOARD] Erreur lors de la création du contact:", error)
@@ -244,12 +246,41 @@ export default function DashboardGestionnaire() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Revenus</CardTitle>
-                <Euro className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Contacts</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0€</div>
-                <p className="text-sm text-gray-600">Aucun revenu à afficher</p>
+                {contactsLoading ? (
+                  <>
+                    <Skeleton className="h-8 w-16 mb-2" />
+                    <Skeleton className="h-4 w-20 mb-1" />
+                    <Skeleton className="h-4 w-24" />
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{contactStats.totalContacts}</div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-green-600">
+                        {contactStats.totalActiveAccounts} comptes actifs
+                      </p>
+                      {contactStats.invitationsPending > 0 && (
+                        <p className="text-sm text-orange-600">
+                          {contactStats.invitationsPending} invitations en attente
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {Object.entries(contactStats.contactsByType)
+                          .filter(([_, stats]) => stats.total > 0)
+                          .slice(0, 3) // Limiter à 3 catégories pour l'affichage
+                          .map(([type, stats]) => (
+                            <Badge key={type} variant="secondary" className="text-xs">
+                              {type}: {stats.total}
+                            </Badge>
+                          ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -313,6 +344,7 @@ export default function DashboardGestionnaire() {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
+        onSuccess={refetchContactStats}
         defaultType="locataire"
       />
     </div>

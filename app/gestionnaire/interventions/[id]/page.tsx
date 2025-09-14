@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { interventionService, contactService } from "@/lib/database-service"
+import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
@@ -62,7 +62,8 @@ interface DatabaseContact {
   name: string
   email: string
   phone: string | null
-  contact_type: string
+  role: string // ✅ Champ principal 
+  provider_category?: string // ✅ Champ secondaire
   company?: string | null
   speciality?: string | null
   inChat?: boolean // Ajouté pour la fonctionnalité chat
@@ -207,22 +208,34 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       
       console.log('✅ Contacts loaded:', contacts.length)
 
-      // 3. Organiser les contacts par type
+      // 3. Organiser les contacts par type (nouvelle architecture)
+      const getContactAssignmentType = (contact: any) => {
+        if (contact.role && contact.provider_category !== undefined) {
+          return determineAssignmentType({
+            id: contact.id,
+            role: contact.role,
+            provider_category: contact.provider_category
+          })
+        }
+        // ✅ Pas de fallback nécessaire, role est obligatoire
+        return 'other' // Défaut si aucune correspondance
+      }
+      
       const organizedContacts = {
         locataires: contacts.filter((contact: any) => 
-          contact.contact_type === 'locataire' || contact.lot_contact_type === 'locataire'
+          getContactAssignmentType(contact) === 'tenant'
         ).map((contact: any) => ({
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
         syndics: contacts.filter((contact: any) => 
-          contact.contact_type === 'syndic' || contact.lot_contact_type === 'syndic'
+          getContactAssignmentType(contact) === 'syndic'
         ).map((contact: any) => ({
           ...contact,
           inChat: false
         })),
         autres: contacts.filter((contact: any) => 
-          !['locataire', 'syndic'].includes(contact.contact_type || contact.lot_contact_type)
+          !['tenant', 'syndic'].includes(getContactAssignmentType(contact))
         ).map((contact: any) => ({
           ...contact,
           inChat: false
@@ -793,7 +806,26 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                               <div className="flex items-center space-x-2">
                                 <h6 className="font-medium text-gray-900">{contact.name}</h6>
                                 <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  {contact.contact_type}
+                                  {contact.role && contact.provider_category !== undefined ? 
+                                    (() => {
+                                      const type = determineAssignmentType({
+                                        id: contact.id,
+                                        role: contact.role,
+                                        provider_category: contact.provider_category
+                                      })
+                                      const labels: Record<string, string> = {
+                                        tenant: 'Locataire',
+                                        manager: 'Gestionnaire',
+                                        provider: 'Prestataire',
+                                        syndic: 'Syndic',
+                                        notary: 'Notaire',
+                                        insurance: 'Assurance',
+                                        other: 'Autre'
+                                      }
+                                      return labels[type] || type
+                                    })() 
+                                    : 'N/A' // ✅ Plus besoin de contact_type
+                                  }
                                 </Badge>
                               </div>
                               <div className="flex items-center space-x-3 text-xs text-gray-600">

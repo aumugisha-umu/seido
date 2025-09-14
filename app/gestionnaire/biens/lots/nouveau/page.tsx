@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
-import ContactSelector from "@/components/contact-selector"
+import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
@@ -123,6 +123,7 @@ export default function NewLotPage() {
   const [teams, setTeams] = useState<Team[]>([])
   const [error, setError] = useState<string>("")
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
+  const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   const [lotData, setLotData] = useState<LotData>({
     buildingAssociation: "existing",
@@ -287,7 +288,6 @@ export default function NewLotPage() {
     if (lotData.generalBuildingInfo?.name) {
       const currentName = lotData.generalBuildingInfo.name.toLowerCase()
       const shouldReset = 
-        (lotData.buildingAssociation === "new" && currentName.startsWith('lot')) ||
         (lotData.buildingAssociation === "independent" && currentName.startsWith('immeuble')) ||
         (lotData.buildingAssociation === "existing") // Toujours réinitialiser pour "existing" car pas de formulaire building-info
       
@@ -304,20 +304,7 @@ export default function NewLotPage() {
   }, [lotData.buildingAssociation])
 
   // Initialiser la référence par défaut pour les nouveaux immeubles
-  useEffect(() => {
-    if (managerData?.buildings && lotData.generalBuildingInfo?.name === "" && lotData.buildingAssociation === "new") {
-      const nextBuildingNumber = managerData.buildings.length + 1
-      const defaultRef = `Immeuble ${nextBuildingNumber}`
-      
-      setLotData(prev => ({
-        ...prev,
-        generalBuildingInfo: {
-          ...prev.generalBuildingInfo!,
-          name: defaultRef
-        }
-      }))
-    }
-  }, [managerData?.buildings, lotData.generalBuildingInfo?.name, lotData.buildingAssociation])
+  // Note: Désactivé car l'option "new" redirige maintenant vers la page de création d'immeuble
 
   // Initialiser et mettre à jour automatiquement la référence du lot
   useEffect(() => {
@@ -380,6 +367,14 @@ export default function NewLotPage() {
 
 
   const handleNext = () => {
+    // Si on est à l'étape 1 et qu'on a choisi de créer un nouvel immeuble, rediriger
+    if (currentStep === 1 && lotData.buildingAssociation === "new") {
+      console.log("🏗️ Redirecting to building creation...")
+      router.push("/gestionnaire/biens/immeubles/nouveau")
+      return
+    }
+    
+    // Sinon, navigation normale
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1)
     }
@@ -406,18 +401,23 @@ export default function NewLotPage() {
       console.log("🚀 Creating lot with data:", lotData)
       
       const lotDataToCreate = {
-        reference: lotData.generalBuildingInfo?.name || `Lot ${Date.now()}`,
-        building_id: lotData.buildingAssociation === "existing" && lotData.selectedBuilding ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as any)?.id) : null,
-        floor: lotData.generalBuildingInfo?.floor ? parseInt(String(lotData.generalBuildingInfo.floor)) : 0,
-        apartment_number: lotData.generalBuildingInfo?.doorNumber || null,
-        surface_area: null, // Propriété temporairement désactivée
-        rooms: null, // Propriété temporairement désactivée  
-        category: lotData.category,
+        reference: lotData.buildingAssociation === "independent" 
+          ? (lotData.generalBuildingInfo?.name || `Lot ${Date.now()}`)
+          : (lotData.reference || `Lot ${Date.now()}`),
+        building_id: (lotData.buildingAssociation === "existing" && lotData.selectedBuilding) 
+          ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as any)?.id) 
+          : null,
+        floor: lotData.buildingAssociation === "independent"
+          ? (lotData.generalBuildingInfo?.floor ? parseInt(String(lotData.generalBuildingInfo.floor)) : 0)
+          : (lotData.floor ? parseInt(String(lotData.floor)) : 0),
+        apartment_number: lotData.buildingAssociation === "independent"
+          ? (lotData.generalBuildingInfo?.doorNumber || null)
+          : (lotData.doorNumber || null),
+        category: lotData.buildingAssociation === "independent"
+          ? (lotData.generalBuildingInfo?.category || lotData.category)
+          : lotData.category,
         team_id: userTeam.id,
-        // Si on a des gestionnaires assignés, prendre le premier comme gestionnaire principal
-        manager_id: lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0 
-          ? lotData.assignedLotManagers[0].id 
-          : null
+        // Note: surface_area et rooms supprimés - colonnes inexistantes dans la DB
       }
 
       // Créer le lot
@@ -428,7 +428,6 @@ export default function NewLotPage() {
       // Assigner les gestionnaires au lot via lot_contacts si des gestionnaires ont été sélectionnés
       if (lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) {
         console.log("👥 Assigning managers to lot via lot_contacts:", lotData.assignedLotManagers)
-        console.log("✅ Principal manager already set via manager_id:", lotData.assignedLotManagers[0].id)
         
         // Assigner tous les gestionnaires via lot_contacts
         const managerAssignmentPromises = lotData.assignedLotManagers.map(async (manager, index) => {
@@ -438,9 +437,7 @@ export default function NewLotPage() {
             return await contactService.addContactToLot(
               result.id,
               manager.id,
-              'gestionnaire',
-              isPrincipal, // Le premier est principal, les autres sont additionnels
-              `Assigné lors de la création du lot${isPrincipal ? ' (gestionnaire principal)' : ''}`
+              isPrincipal // Le premier est principal, les autres sont additionnels
             )
           } catch (error) {
             console.error(`❌ Error assigning manager ${manager.name} to lot:`, error)
@@ -454,8 +451,41 @@ export default function NewLotPage() {
         console.log("✅ Manager assignments completed:", {
           total: lotData.assignedLotManagers.length,
           successful: successfulAssignments.length,
-          principalManagerId: lotData.assignedLotManagers[0].id,
+          principalManager: lotData.assignedLotManagers[0].name,
           additionalManagers: successfulAssignments.length - 1
+        })
+      }
+
+      // Assigner les contacts sélectionnés au lot
+      const totalContacts = Object.values(lotData.assignedContacts).flat().length
+      if (totalContacts > 0) {
+        console.log("👥 Assigning selected contacts to lot:", totalContacts, "contacts")
+        
+        // Créer les promesses d'assignation pour tous les types de contacts
+        const contactAssignmentPromises = Object.entries(lotData.assignedContacts).flatMap(([contactType, contacts]) => 
+          contacts.map(async (contact, index) => {
+            try {
+              const isPrimary = index === 0 // Le premier contact de chaque type est principal
+              console.log(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${result.id}`)
+              return await contactService.addContactToLot(
+                result.id,
+                contact.id,
+                isPrimary
+              )
+            } catch (error) {
+              console.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
+              return null
+            }
+          })
+        )
+
+        const contactAssignmentResults = await Promise.all(contactAssignmentPromises)
+        const successfulContactAssignments = contactAssignmentResults.filter((result: any) => result !== null)
+        
+        console.log("✅ Contact assignments completed:", {
+          total: totalContacts,
+          successful: successfulContactAssignments.length,
+          failed: totalContacts - successfulContactAssignments.length
         })
       }
 
@@ -533,7 +563,7 @@ export default function NewLotPage() {
       if (lotData.buildingAssociation === "existing") {
         return lotData.selectedBuilding !== undefined
       } else if (lotData.buildingAssociation === "new") {
-        return lotData.generalBuildingInfo?.address && lotData.generalBuildingInfo.address.trim() !== ""
+        return true // Toujours permettre de passer à l'étape suivante (redirection)
       } else {
         return true // Lot indépendant
       }
@@ -811,30 +841,55 @@ export default function NewLotPage() {
       )}
 
       {lotData.buildingAssociation === "new" && (
-        <Card>
+        <Card className="border-blue-200 bg-blue-50/30">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Building2 className="h-5 w-5" />
-              <span>Nouvel immeuble</span>
+            <CardTitle className="flex items-center space-x-2 text-blue-900">
+              <Building2 className="h-5 w-5 text-blue-600" />
+              <span>Création d'un nouvel immeuble</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <BuildingInfoForm
-              buildingInfo={lotData.generalBuildingInfo!}
-              setBuildingInfo={(info) => setLotData((prev) => ({ ...prev, generalBuildingInfo: info }))}
-              selectedManagerId={selectedManagerId}
-              setSelectedManagerId={setSelectedManagerId}
-              teamManagers={teamManagers}
-              userTeam={userTeam}
-              isLoading={isLoading}
-              onCreateManager={openGestionnaireModal}
-              showManagerSection={true}
-              showAddressSection={true}
-              entityType="immeuble"
-              showTitle={false}
-              buildingsCount={buildings.length}
-              categoryCountsByTeam={categoryCountsByTeam}
-            />
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-blue-100/50 rounded-lg border border-blue-200">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-white font-semibold text-sm">1</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-900 mb-2">
+                    Vous allez d'abord créer l'immeuble
+                  </h4>
+                  <p className="text-blue-700 text-sm leading-relaxed">
+                    En cliquant sur "Suivant", vous serez redirigé vers la page de création d'immeuble. 
+                    Une fois l'immeuble créé, vous pourrez revenir ici pour créer votre lot et l'associer 
+                    à ce nouvel immeuble.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-white font-semibold text-sm">2</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-amber-900 mb-2">
+                    Puis vous créerez le lot
+                  </h4>
+                  <p className="text-amber-700 text-sm leading-relaxed">
+                    Après avoir créé l'immeuble, vous pourrez utiliser l'option "Lier à un immeuble existant" 
+                    pour associer votre lot au nouvel immeuble que vous venez de créer.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="pt-2">
+              <p className="text-xs text-gray-600 italic">
+                💡 Conseil : Cette approche en deux étapes vous permet de créer un immeuble complet 
+                avec tous ses lots d'un coup, puis d'ajouter des lots individuels plus tard si nécessaire.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -887,8 +942,8 @@ export default function NewLotPage() {
       <div className="space-y-6">
 
 
-        {/* Détails du lot - Seulement si pas lot indépendant (car BuildingInfoForm gère déjà ces détails) */}
-        {(lotData.buildingAssociation === "existing" || lotData.buildingAssociation === "new") && (
+        {/* Détails du lot - Seulement si lié à un immeuble existant */}
+        {lotData.buildingAssociation === "existing" && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -953,8 +1008,9 @@ export default function NewLotPage() {
     )
   }
 
-  // Callbacks pour le composant ContactSelector
-  const handleContactAdd = (contactType: string, contact: any) => {
+  // Callbacks pour le composant ContactSelector - Interface mise à jour
+  const handleContactSelected = (contact: any, contactType: string, context?: { lotId?: string }) => {
+    console.log('✅ Contact selected:', contact.name, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
       assignedContacts: {
@@ -964,7 +1020,8 @@ export default function NewLotPage() {
     }))
   }
 
-  const handleContactRemove = (contactType: string, contactId: string) => {
+  const handleContactRemoved = (contactId: string, contactType: string, context?: { lotId?: string }) => {
+    console.log('🗑️ Contact removed:', contactId, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
       assignedContacts: {
@@ -974,6 +1031,11 @@ export default function NewLotPage() {
         ),
       },
     }))
+  }
+
+  const handleContactCreated = (contact: any, contactType: string, context?: { lotId?: string }) => {
+    console.log('🆕 Contact created:', contact.name, 'type:', contactType)
+    // Le contact créé est automatiquement ajouté par handleContactSelected
   }
 
   // Fonctions pour la gestion des gestionnaires de lot
@@ -1011,8 +1073,8 @@ export default function NewLotPage() {
   }
 
   const renderStep3 = () => {
-    // Montrer la section gestionnaire seulement si le lot est lié à un immeuble
-    const showLotManagerSection = lotData.buildingAssociation === "existing" || lotData.buildingAssociation === "new"
+    // Montrer la section gestionnaire seulement si le lot est lié à un immeuble existant
+    const showLotManagerSection = lotData.buildingAssociation === "existing"
 
     return (
       <div className="space-y-6">
@@ -1097,13 +1159,16 @@ export default function NewLotPage() {
         )}
 
         <ContactSelector
+          ref={contactSelectorRef}
+          teamId={userTeam?.id}
           displayMode="full"
           title="Assignation des contacts"
           description="Assignez des contacts à vos lots (optionnel)"
-          userTeam={userTeam}
-          assignedContacts={lotData.assignedContacts}
-          onContactAdd={handleContactAdd}
-          onContactRemove={handleContactRemove}
+          selectedContacts={lotData.assignedContacts}
+          onContactSelected={handleContactSelected}
+          onContactRemoved={handleContactRemoved}
+          onContactCreated={handleContactCreated}
+          allowedContactTypes={["tenant", "provider", "syndic", "insurance", "other"]}
         />
       </div>
     )
@@ -1182,18 +1247,12 @@ export default function NewLotPage() {
                 </div>
               )}
 
-              {(lotData.buildingAssociation === "new" || lotData.buildingAssociation === "independent") && lotData.generalBuildingInfo && (
+              {lotData.buildingAssociation === "independent" && lotData.generalBuildingInfo && (
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      {lotData.buildingAssociation === "new" ? (
-                        <Building className="w-3.5 h-3.5 text-slate-500" />
-                      ) : (
-                        <Home className="w-3.5 h-3.5 text-slate-500" />
-                      )}
-                      <span className="text-xs font-medium text-slate-700">
-                        {lotData.buildingAssociation === "new" ? "Nom de l'immeuble" : "Référence du lot"}
-                      </span>
+                      <Home className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-xs font-medium text-slate-700">Référence du lot</span>
                     </div>
                     <p className="text-sm font-medium text-slate-900 pl-5">
                       {lotData.generalBuildingInfo.name || "Non spécifié"}

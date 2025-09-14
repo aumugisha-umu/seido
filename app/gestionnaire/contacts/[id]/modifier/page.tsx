@@ -36,21 +36,29 @@ interface ContactData {
   phone?: string
   address?: string
   company?: string
-  contact_type?: string
+  role: string // ✅ Champ principal de la nouvelle architecture
+  provider_category?: string // ✅ Champ secondaire pour les prestataires
   speciality?: string
   notes?: string
   team_id?: string
 }
 
-const contactTypes = [
+// ✅ Rôles principaux basés sur le nouvel enum user_role de la DB
+const userRoles = [
   { value: "locataire", label: "Locataire", color: "bg-blue-100 text-blue-800" },
-  { value: "propriétaire", label: "Propriétaire", color: "bg-emerald-100 text-emerald-800" },
-  { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" },
   { value: "gestionnaire", label: "Gestionnaire", color: "bg-purple-100 text-purple-800" },
-  { value: "syndic", label: "Syndic", color: "bg-orange-100 text-orange-800" },
-  { value: "notaire", label: "Notaire", color: "bg-gray-100 text-gray-800" },
-  { value: "assurance", label: "Assurance", color: "bg-red-100 text-red-800" },
-  { value: "autre", label: "Autre", color: "bg-gray-100 text-gray-600" },
+  { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" },
+  { value: "admin", label: "Administrateur", color: "bg-red-100 text-red-800" }
+]
+
+// ✅ Catégories de prestataires (pour role = 'prestataire')
+const providerCategories = [
+  { value: "prestataire", label: "Service général" },
+  { value: "syndic", label: "Syndic" },
+  { value: "notaire", label: "Notaire" },
+  { value: "assurance", label: "Assurance" },
+  { value: "proprietaire", label: "Propriétaire" },
+  { value: "autre", label: "Autre" }
 ]
 
 const specialities = [
@@ -80,7 +88,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     phone: "",
     address: "",
     company: "",
-    contact_type: "",
+    role: "prestataire", // ✅ Valeur par défaut directement avec le rôle DB
+    provider_category: "prestataire", // ✅ Catégorie par défaut
     speciality: "",
     notes: "",
   })
@@ -115,7 +124,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         phone: contactData.phone || "",
         address: contactData.address || "",
         company: contactData.company || "",
-        contact_type: contactData.contact_type || "",
+        role: contactData.role || "prestataire", // ✅ Utilisation directe du rôle DB
+        provider_category: contactData.provider_category || "prestataire", // ✅ Catégorie directe
         speciality: contactData.speciality || "",
         notes: contactData.notes || "",
         team_id: contactData.team_id
@@ -142,8 +152,13 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       errors.email = "Format d'email invalide"
     }
     
-    if (!formData.contact_type) {
-      errors.contact_type = "Le type de contact est obligatoire"
+    if (!formData.role) {
+      errors.role = "Le rôle est obligatoire"
+    }
+    
+    // ✅ Validation spécifique pour les prestataires
+    if (formData.role === "prestataire" && !formData.provider_category) {
+      errors.provider_category = "La catégorie de prestataire est obligatoire"
     }
     
     setValidationErrors(errors)
@@ -166,7 +181,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       
       console.log("💾 Saving contact:", formData)
       
-      // Préparer les données pour la mise à jour (exclure l'id)
+      // ✅ Préparer les données pour la mise à jour (sans conversion)
       const updateData = {
         name: formData.name,
         first_name: formData.first_name || null,
@@ -175,7 +190,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         phone: formData.phone || null,
         address: formData.address || null,
         company: formData.company || null,
-        contact_type: formData.contact_type as any,
+        role: formData.role, // ✅ Utilisation directe du rôle
+        provider_category: formData.provider_category, // ✅ Utilisation directe de la catégorie
         speciality: formData.speciality || null,
         notes: formData.notes || null,
       }
@@ -218,8 +234,18 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  const getContactTypeLabel = (type: string) => {
-    return contactTypes.find(ct => ct.value === type)?.label || type
+  // ✅ Nouvelle fonction pour obtenir le label du rôle/catégorie
+  const getRoleLabel = (contact: ContactData) => {
+    // Trouver le label du rôle principal
+    const roleLabel = userRoles.find(r => r.value === contact.role)?.label || contact.role
+    
+    // Pour les prestataires, ajouter la catégorie
+    if (contact.role === "prestataire" && contact.provider_category) {
+      const categoryLabel = providerCategories.find(c => c.value === contact.provider_category)?.label
+      return categoryLabel || roleLabel
+    }
+    
+    return roleLabel
   }
 
   const getSpecialityLabel = (speciality: string) => {
@@ -294,7 +320,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
           
           <div className="flex items-center space-x-2">
             <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-              {getContactTypeLabel(contact.contact_type || "")}
+              {getRoleLabel(contact)} {/* ✅ Utilisation directe des nouveaux champs */}
             </Badge>
           </div>
         </div>
@@ -403,31 +429,56 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
 
-              {/* Type de contact */}
+              {/* ✅ Rôle utilisateur */}
               <div className="space-y-2">
-                <Label htmlFor="contact_type">Type de contact *</Label>
+                <Label htmlFor="role">Rôle *</Label>
                 <Select
-                  value={formData.contact_type}
-                  onValueChange={(value) => handleInputChange("contact_type", value)}
+                  value={formData.role}
+                  onValueChange={(value) => handleInputChange("role", value)}
                 >
-                  <SelectTrigger className={validationErrors.contact_type ? "border-red-500" : ""}>
-                    <SelectValue placeholder="Sélectionner le type" />
+                  <SelectTrigger className={validationErrors.role ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Sélectionner le rôle" />
                   </SelectTrigger>
                   <SelectContent>
-                    {contactTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
+                    {userRoles.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
                         <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${type.color}`}></div>
-                          <span>{type.label}</span>
+                          <div className={`w-2 h-2 rounded-full ${role.color}`}></div>
+                          <span>{role.label}</span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {validationErrors.contact_type && (
-                  <p className="text-sm text-red-600">{validationErrors.contact_type}</p>
+                {validationErrors.role && (
+                  <p className="text-sm text-red-600">{validationErrors.role}</p>
                 )}
               </div>
+
+              {/* ✅ Catégorie prestataire (affiché seulement si rôle = prestataire) */}
+              {formData.role === "prestataire" && (
+                <div className="space-y-2">
+                  <Label htmlFor="provider_category">Catégorie de prestataire *</Label>
+                  <Select
+                    value={formData.provider_category || ""}
+                    onValueChange={(value) => handleInputChange("provider_category", value)}
+                  >
+                    <SelectTrigger className={validationErrors.provider_category ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Sélectionner la catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {providerCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {validationErrors.provider_category && (
+                    <p className="text-sm text-red-600">{validationErrors.provider_category}</p>
+                  )}
+                </div>
+              )}
 
               {/* Spécialité */}
               <div className="space-y-2">

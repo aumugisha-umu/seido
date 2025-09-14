@@ -34,7 +34,8 @@ export async function POST(request: Request) {
       phone,
       address,
       notes,
-      contact_type,
+      role, // ✅ Nouveau champ direct
+      provider_category, // ✅ Nouveau champ direct  
       speciality,
       team_id,
       is_active = true
@@ -42,15 +43,24 @@ export async function POST(request: Request) {
 
     console.log('🚀 [CREATE-CONTACT-API] Received request:', { 
       email, 
-      contact_type, 
+      role, 
+      provider_category,
       team_id,
       hasServiceRole: !!supabaseAdmin 
     })
 
-    // Validation des données requises
-    if (!name || !email || !contact_type || !team_id) {
+    // ✅ Validation des données requises (nouvelle logique)
+    if (!name || !email || !role || !team_id) {
       return NextResponse.json(
-        { error: 'Données requises manquantes: name, email, contact_type, team_id' },
+        { error: 'Données requises manquantes: name, email, role, team_id' },
+        { status: 400 }
+      )
+    }
+
+    // ✅ Validation spécifique pour les prestataires
+    if (role === 'prestataire' && !provider_category) {
+      return NextResponse.json(
+        { error: 'provider_category est obligatoire pour les prestataires' },
         { status: 400 }
       )
     }
@@ -67,6 +77,8 @@ export async function POST(request: Request) {
       company: null, // Peut être ajouté plus tard
       speciality: (speciality && speciality.trim()) ? 
         speciality as Database['public']['Enums']['intervention_type'] : null,
+      role: role as Database['public']['Enums']['user_role'],
+      provider_category: provider_category as Database['public']['Enums']['provider_category'] | null,
       team_id,
       is_active
     }

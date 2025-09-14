@@ -13,7 +13,7 @@ import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { contactService, teamService, contactInvitationService } from "@/lib/database-service"
+import { contactService, teamService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
 
 export default function ContactsPage() {
@@ -486,32 +486,50 @@ export default function ContactsPage() {
     return specialities[speciality as keyof typeof specialities] || speciality
   }
 
-  const getContactTypeLabel = (contactType: string) => {
-    const types = {
-      'locataire': 'Locataire',
-      'propriétaire': 'Propriétaire',
-      'prestataire': 'Prestataire',
-      'gestionnaire': 'Gestionnaire',
-      'syndic': 'Syndic',
-      'notaire': 'Notaire',
-      'assurance': 'Assurance',
-      'autre': 'Autre'
+  // Fonction pour obtenir le type d'assignation basé sur role/provider_category
+  const getAssignmentType = (contact: any): string => {
+    if (!contact.role) return 'Non défini'
+    
+    const assignmentUser = {
+      id: contact.id,
+      role: contact.role,
+      provider_category: contact.provider_category,
+      speciality: contact.speciality
     }
-    return types[contactType as keyof typeof types] || 'Non défini'
+    
+    return determineAssignmentType(assignmentUser)
   }
 
-  const getContactTypeBadgeStyle = (contactType: string) => {
-    const styles = {
-      'locataire': 'bg-blue-100 text-blue-800',
-      'propriétaire': 'bg-emerald-100 text-emerald-800',
-      'prestataire': 'bg-green-100 text-green-800',
-      'gestionnaire': 'bg-purple-100 text-purple-800',
-      'syndic': 'bg-orange-100 text-orange-800',
-      'notaire': 'bg-gray-100 text-gray-800',
-      'assurance': 'bg-red-100 text-red-800',
-      'autre': 'bg-gray-100 text-gray-600'
+  const getContactTypeLabel = (contact: any) => {
+    const assignmentType = getAssignmentType(contact)
+    
+    const types = {
+      'tenant': 'Locataire',
+      'owner': 'Propriétaire', 
+      'provider': 'Prestataire',
+      'manager': 'Gestionnaire',
+      'syndic': 'Syndic',
+      'notary': 'Notaire',
+      'insurance': 'Assurance',
+      'other': 'Autre'
     }
-    return styles[contactType as keyof typeof styles] || 'bg-gray-100 text-gray-600'
+    return types[assignmentType as keyof typeof types] || 'Non défini'
+  }
+
+  const getContactTypeBadgeStyle = (contact: any) => {
+    const assignmentType = getAssignmentType(contact)
+    
+    const styles = {
+      'tenant': 'bg-blue-100 text-blue-800',
+      'owner': 'bg-emerald-100 text-emerald-800',
+      'provider': 'bg-green-100 text-green-800',
+      'manager': 'bg-purple-100 text-purple-800',
+      'syndic': 'bg-orange-100 text-orange-800',
+      'notary': 'bg-gray-100 text-gray-800',
+      'insurance': 'bg-red-100 text-red-800',
+      'other': 'bg-gray-100 text-gray-600'
+    }
+    return styles[assignmentType as keyof typeof styles] || 'bg-gray-100 text-gray-600'
   }
 
   return (
@@ -621,7 +639,7 @@ export default function ContactsPage() {
                               Invitation renvoyée à {invitation.email}
                             </div>
                             <div className="text-xs text-green-600">
-                              {getContactTypeLabel(invitation.contact_type)} • {invitation.name}
+                              {getContactTypeLabel(invitation)} • {invitation.name}
                             </div>
                           </div>
                         </div>
@@ -709,7 +727,7 @@ export default function ContactsPage() {
                             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
                               <span>
-                                {getContactTypeLabel(invitation.contact_type)} • {invitation.name}
+                                {getContactTypeLabel(invitation)} • {invitation.name}
                               </span>
                               {invitation.company && (
                                 <span>• {invitation.company}</span>
@@ -826,12 +844,12 @@ export default function ContactsPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-1">
                           <h3 className="font-medium text-gray-900">{contact.name}</h3>
-                          {contact.contact_type && (
+                          {contact.role && (
                             <Badge 
                               variant="secondary" 
-                              className={`${getContactTypeBadgeStyle(contact.contact_type)} text-xs font-medium`}
+                              className={`${getContactTypeBadgeStyle(contact)} text-xs font-medium`}
                             >
-                              {getContactTypeLabel(contact.contact_type)}
+                              {getContactTypeLabel(contact)}
                             </Badge>
                           )}
                           {/* ✅ NOUVEAU: Badge "Vous" si c'est l'utilisateur connecté */}
@@ -917,6 +935,7 @@ export default function ContactsPage() {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
+        onSuccess={loadContacts}
         defaultType="locataire"
       />
     </div>

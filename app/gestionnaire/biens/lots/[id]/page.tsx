@@ -10,7 +10,7 @@ import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Fi
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { lotService, interventionService, contactService } from "@/lib/database-service"
+import { lotService, interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -323,9 +323,9 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center space-x-4 mb-2">
           <h1 className="text-2xl font-bold text-slate-900">{lot.reference}</h1>
-          <Badge variant={lot.is_occupied || lot.tenant_id ? "default" : "secondary"} 
-                 className={lot.is_occupied || lot.tenant_id ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-            {lot.is_occupied || lot.tenant_id ? "Occupé" : "Vacant"}
+          <Badge variant={lot.is_occupied ? "default" : "secondary"} 
+                 className={lot.is_occupied ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+            {lot.is_occupied ? "Occupé" : "Vacant"}
           </Badge>
           {lot.apartment_number && (
             <span className="text-sm text-slate-600">Appartement {lot.apartment_number}</span>
@@ -425,8 +425,8 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                 <div className="flex justify-between">
                   <span className="text-gray-600">Statut d'occupation</span>
                   <span className="font-medium">
-                    <Badge variant={lot.is_occupied || lot.tenant_id ? "default" : "secondary"}>
-                      {lot.is_occupied || lot.tenant_id ? "Occupé" : "Vacant"}
+                    <Badge variant={lot.is_occupied ? "default" : "secondary"}>
+                      {lot.is_occupied ? "Occupé" : "Vacant"}
                     </Badge>
                   </span>
                 </div>
@@ -455,7 +455,11 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
             </Card>
 
             {/* Gestionnaires assignés */}
-            {contacts.filter(contact => contact.lot_contact_type === 'gestionnaire').length > 0 && (
+            {contacts.filter(contact => determineAssignmentType({
+              id: contact.id,
+              role: contact.role,
+              provider_category: contact.provider_category
+            }) === 'manager').length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -465,7 +469,11 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {contacts
-                    .filter(contact => contact.lot_contact_type === 'gestionnaire')
+                    .filter(contact => determineAssignmentType({
+                      id: contact.id,
+                      role: contact.role,
+                      provider_category: contact.provider_category
+                    }) === 'manager')
                     .map((manager, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border-l-4 border-l-purple-500">
                         <div className="flex-1 min-w-0">

@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       teamId 
     })
 
-    // ✅ NOUVELLE LOGIQUE: Convertir contact_type vers role + provider_category
+    // ✅ LOGIQUE: Mapper les types de contacts vers role + provider_category
     const mapContactTypeToRoleAndCategory = (contactType: string) => {
       const mapping: Record<string, { 
         role: Database['public']['Enums']['user_role'], 
@@ -164,8 +164,7 @@ export async function POST(request: Request) {
           last_name: lastName,
           display_name: `${firstName} ${lastName}`,
           role: validUserRole, // ✅ Utiliser le rôle mappé
-          provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
-          contact_type: role, // ✅ Garder le type original pour référence
+          provider_category: providerCategory, // ✅ Catégorie de prestataire
           team_id: teamId,
           invited: true
         },
@@ -192,8 +191,7 @@ export async function POST(request: Request) {
             last_name: lastName,
             display_name: `${firstName} ${lastName}`,
             role: validUserRole, // ✅ Utiliser le rôle mappé
-            provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
-            contact_type: role, // ✅ Garder le type original pour référence
+            provider_category: providerCategory, // ✅ Catégorie de prestataire
             team_id: teamId,
             invited: true
           },

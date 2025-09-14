@@ -175,38 +175,40 @@ export async function POST(request: NextRequest) {
       // Get tenant for this lot if exists
       console.log("👤 Looking for tenant in lot...")
       
-      // First check if there's a direct tenant user linked to the lot
-      const { data: lotData } = await supabase
-        .from('lots')
-        .select('tenant_id')
-        .eq('id', lotId)
-        .single()
-
-      if (lotData?.tenant_id) {
-        tenantId = lotData.tenant_id
-        console.log("✅ Found tenant from lot.tenant_id:", tenantId)
-      } else {
-        // Fallback: Look for tenant in lot_contacts
+      // ✅ Utiliser uniquement lot_contacts (nouvelle architecture)
+      console.log("🔄 Using only lot_contacts for tenant lookup...")
+      
+      {
+        // ✅ Look for tenant in lot_contacts avec nouvelle logique
         const { data: tenantContactData } = await supabase
           .from('lot_contacts')
           .select(`
-            contacts!inner(
+            user:user_id (
               id,
               name,
               email,
-              contact_type
-            )
+              role,
+              provider_category
+            ),
+            is_primary
           `)
           .eq('lot_id', lotId)
-          .eq('contacts.contact_type', 'locataire')
-          .is('end_date', null)
-          .maybeSingle()
+          .or('end_date.is.null,end_date.gt.now()') // Contacts actifs
 
-        if (tenantContactData?.contacts) {
-          // For now we don't link to user_id, just store contact info
-          console.log("✅ Found tenant contact for lot:", tenantContactData.contacts.name)
+        if (tenantContactData && tenantContactData.length > 0) {
+          // ✅ Trouver le locataire parmi les contacts (rôle français DB)
+          const tenantContact = tenantContactData.find(contact => {
+            return contact.user?.role === 'locataire' // Utiliser le rôle français de la DB
+          })
+          
+          if (tenantContact?.user) {
+            tenantId = tenantContact.user.id
+            console.log("✅ Found tenant from lot_contacts:", tenantId)
+          } else {
+            console.log("ℹ️ No tenant found in lot_contacts")
+          }
         } else {
-          console.log("⚠️ No tenant found for this lot - creating intervention without tenant")
+          console.log("ℹ️ No contacts found for this lot")
         }
       }
 

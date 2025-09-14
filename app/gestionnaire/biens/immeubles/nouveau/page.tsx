@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,13 +37,13 @@ import {
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
-import ContactFormModal from "@/components/contact-form-modal"
+import ContactFormModal from "@/components/contact-form-modal"  // Encore utilisé pour la création de gestionnaire
 import { BuildingInfoForm } from "@/components/building-info-form"
-import ContactSelector from "@/components/contact-selector"
+import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
-import { compositeService, teamService, contactService, contactInvitationService, lotService, type Team } from "@/lib/database-service"
+import { compositeService, teamService, contactService, contactInvitationService, lotService, determineAssignmentType, type Team } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
@@ -96,6 +96,15 @@ const countries = [
   "Allemagne",
 ]
 
+// Mapping des noms de pays vers codes ISO-2
+const countryToISOCode: Record<string, string> = {
+  "Belgique": "BE",
+  "France": "FR", 
+  "Luxembourg": "LU",
+  "Pays-Bas": "NL",
+  "Allemagne": "DE",
+}
+
 export default function NewImmeubleePage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -129,14 +138,13 @@ export default function NewImmeubleePage() {
   })
   const [assignedManagers, setAssignedManagers] = useState<{[key: string]: any[]}>({}) // gestionnaires assignés par lot
   const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignés par lot
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const [selectedContactType, setSelectedContactType] = useState<string>("")
-  const [selectedLotForContact, setSelectedLotForContact] = useState<string>("") // lot sélectionné pour assignation de contact
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
-  const [prefilledContactType, setPrefilledContactType] = useState<string>("")
-  const [existingContacts, setExistingContacts] = useState<any[]>([])
-  const [isLoadingContacts, setIsLoadingContacts] = useState(false)
+  
+  // [SUPPRIMÉ] États des modals maintenant gérés dans ContactSelector centralisé :
+  // isContactModalOpen, selectedContactType, selectedLotForContact, searchTerm,
+  // isContactFormModalOpen, prefilledContactType, existingContacts, isLoadingContacts
+  
+  // Référence au ContactSelector pour ouvrir les modals depuis l'extérieur
+  const contactSelectorRef = useRef<ContactSelectorRef>(null)
   
   // États pour la gestion des gestionnaires
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false)
@@ -409,12 +417,29 @@ export default function NewImmeubleePage() {
     }
   }
 
-  // Callbacks pour la gestion des contacts au niveau de l'immeuble
-  const handleBuildingContactAdd = (contactType: string, contact: Contact) => {
+  // Callbacks pour la gestion des contacts (nouvelle interface centralisée avec contexte)
+  const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
+    console.log('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
+    
+    if (context?.lotId) {
+      // AJOUTER AU LOT SPÉCIFIQUE
+      setLotContactAssignments((prev) => {
+        const lotId = context.lotId!  // On sait que lotId existe ici
+        return {
+          ...prev,
+          [lotId]: {
+            ...prev[lotId],
+            [contactType]: [...(prev[lotId]?.[contactType] || []), contact]
+          }
+        }
+      })
+    } else {
+      // AJOUTER AUX CONTACTS GÉNÉRAUX DE L'IMMEUBLE
     setBuildingContacts((prev) => ({
       ...prev,
       [contactType]: [...prev[contactType], contact],
     }))
+    }
     
     // Ajouter aussi à la liste globale des contacts si pas déjà présent
     if (!contacts.some(c => c.id === contact.id)) {
@@ -422,7 +447,7 @@ export default function NewImmeubleePage() {
     }
   }
 
-  const handleBuildingContactRemove = (contactType: string, contactId: string) => {
+  const handleBuildingContactRemove = (contactId: string, contactType: string) => {
     setBuildingContacts((prev) => ({
       ...prev,
       [contactType]: prev[contactType].filter(contact => contact.id !== contactId),
@@ -440,56 +465,17 @@ export default function NewImmeubleePage() {
     }
   }
 
-  const openGlobalContactModal = async (type: string) => {
-    setSelectedContactType(type)
-    setSelectedLotForContact("") // Pas de lot spécifique
-    setSearchTerm("")
-    setIsContactModalOpen(true)
-    
-    // Charger les contacts existants du type correspondant
-    if (userTeam?.id) {
-      setIsLoadingContacts(true)
-      try {
-        const teamContacts = await contactService.getTeamContacts(userTeam.id)
-        
-        // Filtrer selon le type de contact demandé (même logique que openContactModal)
-        let filteredContacts = teamContacts
-        if (type === 'provider') {
-          // Pour les prestataires, on affiche tous ceux qui ont une spécialité
-          filteredContacts = teamContacts.filter(contact => contact.speciality)
-        } else if (type === 'tenant') {
-          // Pour les locataires, on affiche ceux avec contact_type "locataire"
-          filteredContacts = teamContacts.filter(contact => 
-            contact.contact_type === 'locataire' || (!contact.speciality || contact.speciality === 'autre')
-          )
-        } else if (type === 'syndic') {
-          // Pour les syndics, on affiche ceux avec contact_type "syndic"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'syndic')
-        } else if (type === 'notary') {
-          // Pour les notaires, on affiche ceux avec contact_type "notaire"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'notaire')
-        } else if (type === 'insurance') {
-          // Pour les assurances, on affiche ceux avec contact_type "assurance"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'assurance')
-        } else if (type === 'other') {
-          // Pour les autres, on affiche ceux avec contact_type "autre"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'autre')
-        }
-        
-        setExistingContacts(filteredContacts)
-      } catch (error) {
-        console.error("Error loading team contacts:", error)
-        setExistingContacts([])
-      } finally {
-        setIsLoadingContacts(false)
-      }
+  // Fonction pour ouvrir le ContactSelector avec un type spécifique (pour les boutons individuels)
+  const openContactModalForType = (contactType: string, lotId?: string) => {
+    console.log('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', lotId)
+    if (contactSelectorRef.current) {
+      contactSelectorRef.current.openContactModal(contactType, lotId)
+    } else {
+      console.error('❌ [IMMEUBLE] ContactSelector ref not found')
     }
   }
 
-  const addContact = (contactData: any) => {
-    // Utiliser la nouvelle fonction pour gérer les assignations par lot
-    addExistingContactToLot(contactData)
-  }
+  // [SUPPRIMÉ] addContact maintenant géré dans ContactSelector
 
   const removeContact = (id: string) => {
     setContacts(contacts.filter((contact) => contact.id !== id))
@@ -546,21 +532,7 @@ export default function NewImmeubleePage() {
     return { totalLots: lots.length }
   }
 
-  // Filtrer les contacts selon le terme de recherche
-  const getFilteredContacts = () => {
-    if (!searchTerm.trim()) return existingContacts
-    
-    return existingContacts.filter(contact => 
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contact.phone && contact.phone.includes(searchTerm))
-    )
-  }
-
-  // Obtenir les informations du type de contact sélectionné
-  const getSelectedContactTypeInfo = () => {
-    return contactTypes.find(type => type.key === selectedContactType) || contactTypes[0]
-  }
+  // [SUPPRIMÉ] getFilteredContacts et getSelectedContactTypeInfo maintenant gérés dans ContactSelector
 
   const canProceedToNextStep = () => {
     if (currentStep === 1) {
@@ -610,11 +582,10 @@ export default function NewImmeubleePage() {
         name: buildingInfo.name.trim() || `Immeuble ${buildingInfo.address}`,
         address: buildingInfo.address.trim(),
         city: buildingInfo.city.trim() || "Non spécifié",
-        country: buildingInfo.country.trim() || "Belgique",
+        country: countryToISOCode[buildingInfo.country.trim()] || countryToISOCode["Belgique"] || "BE",
         postal_code: buildingInfo.postalCode.trim() || "",
         description: buildingInfo.description.trim(),
         construction_year: buildingInfo.constructionYear ? parseInt(buildingInfo.constructionYear) : undefined,
-        manager_id: selectedManagerId,
         team_id: userTeam!.id,
       }
 
@@ -654,7 +625,7 @@ export default function NewImmeubleePage() {
         // Ajouter les gestionnaires assignés à ce lot
         const managersForThisLot = assignedManagers[lotId] || []
         const managerAssignments = managersForThisLot.map((manager, index) => ({
-          contactId: manager.id,
+          contactId: manager.user.id, // ✅ CORRECTION : utiliser manager.user.id au lieu de manager.id
           contactType: 'gestionnaire',
           isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
           isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour le champ manager_id
@@ -702,146 +673,15 @@ export default function NewImmeubleePage() {
     return 0
   }
 
-  const openContactFormModal = (type: string) => {
-    setPrefilledContactType(type)
-    setIsContactFormModalOpen(true)
-    setIsContactModalOpen(false) // Close the selection modal
-    
-    // Préserver les informations du lot et type sélectionnés
-    // Ne pas réinitialiser selectedLotForContact et selectedContactType
-    // Ils restent définis depuis openContactModal()
-  }
+  // [SUPPRIMÉ] openContactFormModal maintenant géré dans ContactSelector
 
-  // Fonction pour nettoyer le contexte de sélection (appelée en cas d'annulation)
-  const cleanContactContext = () => {
-    setSelectedLotForContact("")
-    setSelectedContactType("")
-    setPrefilledContactType("")
-  }
+  // [SUPPRIMÉ] cleanContactContext maintenant inutile (gestion centralisée dans ContactSelector)
 
-  // Fonction pour ouvrir le modal de contact pour un lot spécifique
-  const openContactModal = async (lotId: string, contactType: string) => {
-    setSelectedLotForContact(lotId)
-    setSelectedContactType(contactType)
-    setSearchTerm("")
-    setIsContactModalOpen(true)
-    
-    // Charger les contacts existants du type correspondant (comme dans openGlobalContactModal)
-    if (userTeam?.id) {
-      setIsLoadingContacts(true)
-      try {
-        const teamContacts = await contactService.getTeamContacts(userTeam.id)
-        
-        // Filtrer selon le type de contact demandé
-        let filteredContacts = teamContacts
-        if (contactType === 'provider') {
-          // Pour les prestataires, on affiche tous ceux qui ont une spécialité
-          filteredContacts = teamContacts.filter(contact => contact.speciality)
-        } else if (contactType === 'tenant') {
-          // Pour les locataires, on affiche ceux avec contact_type "locataire"
-          filteredContacts = teamContacts.filter(contact => 
-            contact.contact_type === 'locataire' || (!contact.speciality || contact.speciality === 'autre')
-          )
-        } else if (contactType === 'syndic') {
-          // Pour les syndics, on affiche ceux avec contact_type "syndic"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'syndic')
-        } else if (contactType === 'notary') {
-          // Pour les notaires, on affiche ceux avec contact_type "notaire"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'notaire')
-        } else if (contactType === 'insurance') {
-          // Pour les assurances, on affiche ceux avec contact_type "assurance"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'assurance')
-        } else if (contactType === 'other') {
-          // Pour les autres, on affiche ceux avec contact_type "autre"
-          filteredContacts = teamContacts.filter(contact => contact.contact_type === 'autre')
-        }
-        
-        setExistingContacts(filteredContacts)
-      } catch (error) {
-        console.error("Error loading team contacts:", error)
-        setExistingContacts([])
-      } finally {
-        setIsLoadingContacts(false)
-      }
-    }
-  }
+  // [SUPPRIMÉ] La fonction openContactModal est maintenant centralisée dans ContactSelector
 
-  // Fonction pour ajouter un contact existant à un lot
-  const addExistingContactToLot = (contact: any) => {
-    const newContact: Contact = {
-      id: contact.id,
-      name: contact.name,
-      email: contact.email,
-      type: selectedContactType as any,
-    }
-    
-    // Ajouter le contact à la liste globale s'il n'y est pas déjà
-    if (!contacts.some(c => c.id === contact.id)) {
-      setContacts([...contacts, newContact])
-    }
+  // [SUPPRIMÉ] addExistingContactToLot maintenant inutile (gestion centralisée dans ContactSelector)
 
-    // Assigner le contact au lot spécifique si un lot est sélectionné
-    if (selectedLotForContact) {
-      assignContactToLot(selectedLotForContact, selectedContactType, newContact)
-    }
-    
-    setIsContactModalOpen(false)
-    setSearchTerm("")
-  }
-
-  const handleContactCreated = async (contactData: any) => {
-    try {
-      if (!userTeam?.id) {
-        console.error("No team found for user")
-        return
-      }
-
-      // Utiliser le service d'invitation pour créer le contact et optionnellement l'utilisateur
-      const result = await contactInvitationService.createContactWithOptionalInvite({
-        type: contactData.type,
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        address: contactData.address,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: userTeam.id
-      })
-
-      // Ajouter le contact créé à la liste locale
-      const newContact: Contact = {
-        id: result.contact.id,
-        name: result.contact.name,
-        email: result.contact.email,
-        type: result.contact.contact_type as any,
-      }
-      
-      setContacts([...contacts, newContact])
-      
-      // Ajouter le contact à la liste des contacts existants pour qu'il apparaisse dans les modals
-      setExistingContacts(prevExisting => [...prevExisting, result.contact])
-      
-      // Assigner le contact au lot spécifique si un lot est sélectionné
-      if (selectedLotForContact && result.contact.contact_type) {
-        // Utiliser selectedContactType (frontend format) pour la consistance avec les contacts existants
-        // au lieu de result.contact.contact_type (database format)
-        assignContactToLot(selectedLotForContact, selectedContactType, newContact)
-      }
-      
-      setIsContactFormModalOpen(false)
-      
-      // Nettoyer le contexte après assignation réussie
-      setSelectedLotForContact("")
-      setSelectedContactType("")
-      setPrefilledContactType("")
-      
-    } catch (error) {
-      console.error("Erreur lors de la création du contact:", error)
-      // Vous pourriez vouloir afficher une notification d'erreur à l'utilisateur ici
-    }
-  }
+  // [SUPPRIMÉ] handleContactCreated maintenant géré dans ContactSelector centralisé
 
   const handleGestionnaireCreated = async (contactData: any) => {
     try {
@@ -1197,13 +1037,14 @@ export default function NewImmeubleePage() {
               <Card className="border-orange-200 bg-orange-50/30">
                 <CardContent className="p-4">
                   <ContactSelector
+                    ref={contactSelectorRef}
+                    teamId={userTeam?.id}
                     displayMode="compact"
                     title="Contacts de l'immeuble"
                     description="Disponibles pour tous les lots"
-                    userTeam={userTeam}
-                    assignedContacts={buildingContacts}
-                    onContactAdd={handleBuildingContactAdd}
-                    onContactRemove={handleBuildingContactRemove}
+                    selectedContacts={buildingContacts}
+                    onContactSelected={handleContactAdd}
+                    onContactRemoved={handleBuildingContactRemove}
                     allowedContactTypes={["provider", "syndic", "notary", "insurance", "other"]}
                     hideTitle={false}
                   />
@@ -1355,7 +1196,7 @@ export default function NewImmeubleePage() {
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => openContactModal(lot.id, type.key)}
+                                        onClick={() => openContactModalForType(type.key, lot.id)}
                                         className="w-full text-xs py-1.5 h-7"
                                       >
                                         <Plus className="w-3 h-3 mr-1" />
@@ -1710,134 +1551,7 @@ export default function NewImmeubleePage() {
           </Card>
         )}
 
-        {/* Contact Selection Modal */}
-        <Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
-          <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
-                {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
-                {selectedContactType === 'syndic' && <Shield className="w-5 h-5" />}
-                {selectedContactType === 'notary' && <FileCheck className="w-5 h-5" />}
-                {selectedContactType === 'insurance' && <Car className="w-5 h-5" />}
-                {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
-                Sélectionner un {getSelectedContactTypeInfo().label.toLowerCase()}
-              </DialogTitle>
-              <DialogDescription>
-                {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
-                {selectedContactType === 'provider' && 'Prestataire pour les interventions'}
-                {selectedContactType === 'syndic' && 'Syndic de copropriété'}
-                {selectedContactType === 'notary' && 'Notaire pour les actes'}
-                {selectedContactType === 'insurance' && 'Compagnie d\'assurance'}
-                {selectedContactType === 'other' && 'Autre type de contact'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                <Input
-                  placeholder={`Rechercher un ${getSelectedContactTypeInfo().label.toLowerCase()} par nom, email, téléphone...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              {/* Loading state */}
-              {isLoadingContacts && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                  <span className="ml-2 text-gray-500">Chargement des contacts...</span>
-                </div>
-              )}
-
-              {/* Contacts list */}
-              {!isLoadingContacts && (
-                <div className="max-h-64 overflow-y-auto">
-                  {getFilteredContacts().length > 0 ? (
-                    <div className="space-y-2">
-                      {getFilteredContacts().map((contact) => (
-                        <div
-                          key={contact.id}
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium">{contact.name}</div>
-                            <div className="text-sm text-gray-500">{contact.email}</div>
-                            {contact.phone && (
-                              <div className="text-xs text-gray-400">{contact.phone}</div>
-                            )}
-                            {contact.speciality && (
-                              <div className="text-xs text-green-600 capitalize mt-1">
-                                {contact.speciality}
-                              </div>
-                            )}
-                          </div>
-                          <Button 
-                            onClick={() => addContact(contact)} 
-                            className="bg-blue-600 text-white hover:bg-blue-700"
-                            size="sm"
-                          >
-                            Sélectionner
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        {selectedContactType === 'tenant' && <User className="w-8 h-8 text-blue-600" />}
-                        {selectedContactType === 'provider' && <Briefcase className="w-8 h-8 text-green-600" />}
-                        {selectedContactType === 'syndic' && <Shield className="w-8 h-8 text-purple-600" />}
-                        {selectedContactType === 'notary' && <FileCheck className="w-8 h-8 text-orange-600" />}
-                        {selectedContactType === 'insurance' && <Car className="w-8 h-8 text-red-600" />}
-                        {selectedContactType === 'other' && <MoreHorizontal className="w-8 h-8 text-gray-600" />}
-                      </div>
-                      <h3 className="font-medium text-gray-900 mb-2">
-                        {searchTerm ? 'Aucun contact trouvé' : `Aucun ${getSelectedContactTypeInfo().label.toLowerCase()} enregistré`}
-                      </h3>
-                      <p className="text-sm text-gray-500 mb-4">
-                        {searchTerm 
-                          ? `Aucun contact ne correspond à "${searchTerm}"`
-                          : `Vous n'avez pas encore de ${getSelectedContactTypeInfo().label.toLowerCase()} dans votre équipe`
-                        }
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between pt-4 border-t gap-3">
-                <Button
-                  variant="ghost"
-                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                  onClick={() => openContactFormModal(selectedContactType)}
-                >
-                  <Plus className="w-4 h-4" />
-                  Créer un nouveau {getSelectedContactTypeInfo().label.toLowerCase()}
-                </Button>
-                <Button variant="ghost" className="w-full sm:w-auto" onClick={() => {
-                  setIsContactModalOpen(false)
-                  cleanContactContext() // Nettoyer le contexte en cas d'annulation
-                }}>
-                  Annuler
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Contact Form Modal */}
-        <ContactFormModal
-          isOpen={isContactFormModalOpen}
-          onClose={() => {
-            setIsContactFormModalOpen(false)
-            cleanContactContext() // Nettoyer le contexte en cas d'annulation
-          }}
-          onSubmit={handleContactCreated}
-          defaultType={prefilledContactType}
-        />
+        {/* [SUPPRIMÉ] Contact Selection Modal et Contact Form Modal maintenant gérés dans ContactSelector centralisé */}
 
         {/* Gestionnaire Creation Modal */}
         <ContactFormModal

@@ -64,17 +64,7 @@ CREATE TYPE intervention_type AS ENUM (
     'autre'
 );
 
--- Types de contact pour les relations (plus large que user_role)
-CREATE TYPE contact_type AS ENUM (
-    'gestionnaire',
-    'locataire',
-    'prestataire',
-    'syndic',
-    'notaire',
-    'assurance',
-    'proprietaire',
-    'autre'
-);
+-- Types de contact supprimés : logique déterminée via user.role et user.provider_category
 
 -- Types de lots
 CREATE TYPE lot_category AS ENUM (
@@ -248,21 +238,19 @@ CREATE TABLE buildings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Table de liaison bâtiments-contacts (tous types de contacts)
+-- Table de liaison bâtiments-contacts (logique de type via user.role/provider_category)
 CREATE TABLE building_contacts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     building_id UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    contact_type contact_type NOT NULL,
     is_primary BOOLEAN DEFAULT FALSE,
     start_date DATE DEFAULT CURRENT_DATE,
     end_date DATE,
-    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Contraintes
-    UNIQUE(building_id, user_id, contact_type),
+    UNIQUE(building_id, user_id),
     CHECK(start_date IS NULL OR end_date IS NULL OR end_date > start_date)
 );
 
@@ -270,10 +258,10 @@ CREATE TABLE building_contacts (
 -- LOTS (ARCHITECTURE SIMPLIFIÉE)  
 -- =============================================================================
 
--- Table des lots (SANS tenant_id direct)
+-- Table des lots (SANS tenant_id direct) - building_id optionnel pour les lots indépendants
 CREATE TABLE lots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    building_id UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
+    building_id UUID REFERENCES buildings(id) ON DELETE CASCADE, -- NULL pour lots indépendants
     reference VARCHAR(50) NOT NULL,
     
     -- Informations du lot
@@ -298,21 +286,19 @@ CREATE TABLE lots (
     UNIQUE(building_id, reference)
 );
 
--- Table de liaison lots-contacts (tous types de contacts)
+-- Table de liaison lots-contacts (logique de type via user.role/provider_category)
 CREATE TABLE lot_contacts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lot_id UUID NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    contact_type contact_type NOT NULL,
     is_primary BOOLEAN DEFAULT FALSE,
     start_date DATE DEFAULT CURRENT_DATE,
     end_date DATE,
-    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Contraintes
-    UNIQUE(lot_id, user_id, contact_type),
+    UNIQUE(lot_id, user_id),
     CHECK(start_date IS NULL OR end_date IS NULL OR end_date > start_date)
 );
 
@@ -634,85 +620,45 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =============================================================================
 -- FONCTIONS DE GESTION DES RELATIONS
 -- =============================================================================
-
--- Fonction pour compter les contacts actifs par type
-CREATE OR REPLACE FUNCTION count_active_contacts_by_type(
-    entity_table TEXT, 
-    entity_id UUID, 
-    contact_type_param contact_type
-)
-RETURNS INTEGER AS $$
-DECLARE
-    result INTEGER;
-    query TEXT;
-BEGIN
-    query := format('
-        SELECT COUNT(*)
-        FROM %I_contacts 
-        WHERE %I_id = $1 
-        AND contact_type = $2
-        AND (end_date IS NULL OR end_date > CURRENT_DATE)',
-        entity_table, entity_table
-    );
-    
-    EXECUTE query INTO result USING entity_id, contact_type_param;
-    RETURN result;
-END;
-$$ LANGUAGE plpgsql;
-
--- Fonction pour obtenir le contact principal par type
-CREATE OR REPLACE FUNCTION get_primary_contact_by_type(
-    entity_table TEXT,
-    entity_id UUID, 
-    contact_type_param contact_type
-)
-RETURNS UUID AS $$
-DECLARE
-    result UUID;
-    query TEXT;
-BEGIN
-    query := format('
-        SELECT user_id
-        FROM %I_contacts 
-        WHERE %I_id = $1 
-        AND contact_type = $2
-        AND is_primary = TRUE
-        AND (end_date IS NULL OR end_date > CURRENT_DATE)
-        LIMIT 1',
-        entity_table, entity_table
-    );
-    
-    EXECUTE query INTO result USING entity_id, contact_type_param;
-    RETURN result;
-END;
-$$ LANGUAGE plpgsql;
+-- Note: Fonctions supprimées car elles dépendaient de contact_type.
+-- La logique sera implémentée directement dans les services application.
 
 -- =============================================================================
 -- TRIGGERS DE SYNCHRONISATION
 -- =============================================================================
 
--- Trigger pour maintenir is_occupied basé sur lot_contacts
+-- Trigger pour maintenir is_occupied basé sur lot_contacts (nouvelle logique role-based)
 CREATE OR REPLACE FUNCTION sync_lot_occupancy()
 RETURNS TRIGGER AS $$
 DECLARE
     lot_uuid UUID;
     active_tenants_count INTEGER;
+    user_role_value TEXT;
     should_process BOOLEAN := FALSE;
 BEGIN
     -- Déterminer le lot_id selon l'opération
     IF TG_OP = 'DELETE' THEN
         lot_uuid = OLD.lot_id;
-        should_process = (OLD.contact_type = 'locataire');
+        -- Vérifier si c'était un locataire
+        SELECT role INTO user_role_value FROM users WHERE id = OLD.user_id;
+        should_process = (user_role_value = 'locataire');
     ELSE
         lot_uuid = NEW.lot_id;
-        should_process = (NEW.contact_type = 'locataire');
+        -- Vérifier si c'est un locataire
+        SELECT role INTO user_role_value FROM users WHERE id = NEW.user_id;
+        should_process = (user_role_value = 'locataire');
     END IF;
 
     -- Ne traiter que les changements de locataires
     IF should_process THEN
-        -- Compter les locataires actifs
-        SELECT count_active_contacts_by_type('lot', lot_uuid, 'locataire'::contact_type) 
-        INTO active_tenants_count;
+        -- Compter les locataires actifs via jointure avec users
+        SELECT COUNT(*)
+        INTO active_tenants_count
+        FROM lot_contacts lc
+        INNER JOIN users u ON lc.user_id = u.id
+        WHERE lc.lot_id = lot_uuid
+        AND u.role = 'locataire'
+        AND (lc.end_date IS NULL OR lc.end_date > CURRENT_DATE);
 
         -- Mettre à jour is_occupied
         UPDATE lots 
@@ -727,6 +673,28 @@ BEGIN
     ELSE
         RETURN NEW;
     END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour valider les contraintes métier sur building_contacts
+CREATE OR REPLACE FUNCTION validate_building_contact_assignment()
+RETURNS TRIGGER AS $$
+DECLARE
+    user_role_value TEXT;
+BEGIN
+    -- Récupérer le rôle de l'utilisateur
+    SELECT role INTO user_role_value 
+    FROM users 
+    WHERE id = NEW.user_id;
+    
+    -- Vérifier que ce n'est pas un locataire
+    IF user_role_value = 'locataire' THEN
+        RAISE EXCEPTION 'Un locataire ne peut pas être assigné à un immeuble. Les locataires doivent être assignés à des lots spécifiques.'
+            USING ERRCODE = '23514', -- Check violation
+                  HINT = 'Assignez ce locataire à un lot plutôt qu''au building.';
+    END IF;
+    
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -788,6 +756,11 @@ CREATE TRIGGER sync_lot_occupancy_trigger
     AFTER INSERT OR UPDATE OR DELETE ON lot_contacts
     FOR EACH ROW EXECUTE FUNCTION sync_lot_occupancy();
 
+-- Trigger de validation métier pour building_contacts
+CREATE TRIGGER validate_building_contact_trigger
+    BEFORE INSERT OR UPDATE ON building_contacts
+    FOR EACH ROW EXECUTE FUNCTION validate_building_contact_assignment();
+
 -- =============================================================================
 -- INDEX POUR PERFORMANCES
 -- =============================================================================
@@ -810,8 +783,7 @@ CREATE INDEX idx_buildings_postal_code ON buildings(postal_code);
 -- Index building_contacts
 CREATE INDEX idx_building_contacts_building ON building_contacts(building_id);
 CREATE INDEX idx_building_contacts_user ON building_contacts(user_id);
-CREATE INDEX idx_building_contacts_type ON building_contacts(building_id, contact_type);
-CREATE INDEX idx_building_contacts_active ON building_contacts(building_id, contact_type) 
+CREATE INDEX idx_building_contacts_active ON building_contacts(building_id) 
     WHERE end_date IS NULL;
 
 -- Index lots
@@ -823,8 +795,7 @@ CREATE INDEX idx_lots_category ON lots(category);
 -- Index lot_contacts
 CREATE INDEX idx_lot_contacts_lot ON lot_contacts(lot_id);
 CREATE INDEX idx_lot_contacts_user ON lot_contacts(user_id);
-CREATE INDEX idx_lot_contacts_type ON lot_contacts(lot_id, contact_type);
-CREATE INDEX idx_lot_contacts_active ON lot_contacts(lot_id, contact_type) 
+CREATE INDEX idx_lot_contacts_active ON lot_contacts(lot_id) 
     WHERE end_date IS NULL;
 
 -- Index interventions
@@ -887,6 +858,22 @@ CREATE INDEX idx_intervention_documents_uploaded_at ON intervention_documents(up
 -- email: 'admin@seido.fr'
 -- user_metadata: { first_name: 'Admin', last_name: 'SEIDO', role: 'admin' }
 -- Ensuite le profil sera automatiquement créé dans la table users
+
+-- =============================================================================
+-- VUE ACTIVITY LOGS AVEC INFORMATIONS UTILISATEUR
+-- =============================================================================
+
+-- Vue pour faciliter les requêtes avec informations utilisateur
+CREATE VIEW activity_logs_with_user AS
+SELECT 
+    al.*,
+    u.name as user_name,
+    u.email as user_email,
+    u.role as user_role,
+    t.name as team_name
+FROM activity_logs al
+JOIN users u ON al.user_id = u.id
+JOIN teams t ON al.team_id = t.id;
 
 -- =============================================================================
 -- FONCTIONS UTILITAIRES POUR NOTIFICATIONS ET ACTIVITY_LOGS

@@ -20,6 +20,7 @@ interface ContactFormModalProps {
   onClose: () => void
   onSubmit: (contactData: ContactFormData) => Promise<void>
   defaultType?: string
+  onSuccess?: () => Promise<void> | void // Fonction optionnelle appelée après création réussie
 }
 
 interface ContactFormData {
@@ -47,15 +48,16 @@ interface FormErrors {
   general?: string
 }
 
+// Types de contacts utilisant les clés frontend (cohérente avec ContactSelector)
 const contactTypes = [
-  { value: "locataire", label: "Locataire" },
-  { value: "propriétaire", label: "Propriétaire" },
-  { value: "prestataire", label: "Prestataire" },
+  { value: "tenant", label: "Locataire" },
+  { value: "manager", label: "Gestionnaire" },
+  { value: "provider", label: "Prestataire" },
   { value: "syndic", label: "Syndic" },
-  { value: "notaire", label: "Notaire" },
-  { value: "assurance", label: "Assurance" },
-  { value: "gestionnaire", label: "Gestionnaire" },
-  { value: "autre", label: "Autre" },
+  { value: "notary", label: "Notaire" },
+  { value: "insurance", label: "Assurance" },
+  { value: "owner", label: "Propriétaire" },
+  { value: "other", label: "Autre" },
 ]
 
 const specialityTypes = [
@@ -71,31 +73,31 @@ const specialityTypes = [
 
 const getContactTitle = (type: string) => {
   switch (type) {
-    case "locataire":
+    case "tenant":
       return { title: "Créer un locataire", subtitle: "Personne qui occupe le logement" }
-    case "propriétaire":
+    case "owner":
       return { title: "Créer un propriétaire", subtitle: "Personne qui possède le bien immobilier" }
-    case "prestataire":
+    case "provider":
       return { title: "Créer un prestataire", subtitle: "Entreprise ou artisan pour les interventions" }
     case "syndic":
       return { title: "Créer un syndic", subtitle: "Gestionnaire de la copropriété" }
-    case "notaire":
+    case "notary":
       return { title: "Créer un notaire", subtitle: "Professionnel du droit immobilier" }
-    case "assurance":
+    case "insurance":
       return { title: "Créer une assurance", subtitle: "Compagnie d'assurance du bien" }
-    case "gestionnaire":
+    case "manager":
       return { title: "Créer un gestionnaire", subtitle: "Responsable de la gestion des biens" }
     default:
       return { title: "Créer un contact", subtitle: "Ajouter un contact pour votre bien" }
   }
 }
 
-const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire" }: ContactFormModalProps) => {
+const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", onSuccess }: ContactFormModalProps) => {
   const { toast } = useToast()
   
   // Types de contacts qui doivent avoir la checkbox cochée par défaut
   const shouldInviteByDefault = (type: string) => {
-    return ['gestionnaire', 'locataire', 'propriétaire', 'prestataire'].includes(type)
+    return ['manager', 'tenant', 'owner', 'provider'].includes(type)
   }
 
   const [formData, setFormData] = useState<ContactFormData>({
@@ -264,10 +266,15 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "locataire"
       // Fermer la modale
       onClose()
 
-      // Rafraîchir la page pour afficher les nouvelles données
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000) // Petit délai pour laisser le temps au toast de s'afficher
+      // Rafraîchir les données si une fonction de callback est fournie
+      if (onSuccess) {
+        try {
+          await onSuccess()
+        } catch (refreshError) {
+          console.error('❌ Erreur lors du rafraîchissement des données:', refreshError)
+          // Le toast de succès a déjà été affiché, on n'affiche pas d'erreur pour ne pas confuser l'utilisateur
+        }
+      }
 
     } catch (error: any) {
       console.error('❌ Erreur lors de la création du contact:', error)

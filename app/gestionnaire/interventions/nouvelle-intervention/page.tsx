@@ -39,7 +39,7 @@ import { useSearchParams } from "next/navigation"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
-import { userService, contactService, teamService, tenantService, lotService } from "@/lib/database-service"
+import { userService, contactService, teamService, tenantService, lotService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -110,10 +110,10 @@ export default function NouvelleInterventionPage() {
           manager.isCurrentUser = manager.email === user.email
         })
         
-        // 3. Récupérer les prestataires depuis contacts
+        // 3. Récupérer les prestataires depuis contacts (nouvelle architecture)
         const contacts = await contactService.getTeamContacts(team.id)
         const providersData = contacts
-          .filter((contact: any) => contact.contact_type === 'prestataire')
+          .filter((contact: any) => determineAssignmentType(contact) === 'provider')
           .map((contact: any) => ({
             id: contact.id,
             name: contact.name,
@@ -281,8 +281,10 @@ export default function NouvelleInterventionPage() {
   }
 
   const handleContactCreated = (newContact: any) => {
-    // Ajouter le nouveau contact à la liste appropriée
-    if (newContact.contact_type === 'gestionnaire') {
+    // Ajouter le nouveau contact à la liste appropriée (nouvelle architecture)
+    const assignmentType = determineAssignmentType(newContact)
+    
+    if (assignmentType === 'manager') {
       const managerData = {
         id: newContact.id,
         name: newContact.name,
@@ -293,7 +295,7 @@ export default function NouvelleInterventionPage() {
         type: "gestionnaire",
       }
       setManagers((prev) => [...prev, managerData])
-    } else if (newContact.contact_type === 'prestataire') {
+    } else if (assignmentType === 'provider') {
       const providerData = {
         id: newContact.id,
         name: newContact.name,

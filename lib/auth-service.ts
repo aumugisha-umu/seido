@@ -150,7 +150,7 @@ class AuthService {
         await contactService.create({
           name: fullName,
           email: authUser.email!,
-          contact_type: 'gestionnaire' as Database['public']['Enums']['contact_type'],
+          role: 'manager',
           team_id: team.id,
           is_active: true,
           notes: 'Contact créé automatiquement lors de la finalisation du profil'

@@ -110,7 +110,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     }
 
     const totalLots = lots.length
-    const occupiedLots = lots.filter(lot => lot.is_occupied || lot.tenant_id).length
+    const occupiedLots = lots.filter(lot => lot.is_occupied).length // ✅ Utiliser seulement is_occupied (calculé automatiquement)
     const vacantLots = totalLots - occupiedLots
     const occupancyRate = totalLots > 0 ? Math.round((occupiedLots / totalLots) * 100) : 0
 
@@ -470,7 +470,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Locataires uniques</span>
                   <span className="font-medium">
-                    {lots.filter(lot => lot.tenant_id).map(lot => lot.tenant_id).filter((id, index, arr) => arr.indexOf(id) === index).length}
+                    {lots.filter(lot => lot.tenant).map(lot => lot.tenant.id).filter((id, index, arr) => arr.indexOf(id) === index).length}
                   </span>
                 </div>
               </CardContent>

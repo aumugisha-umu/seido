@@ -1239,13 +1239,23 @@ class NotificationService {
    */
   private async getLotManagers(lotId: string): Promise<string[]> {
     try {
-      const { data: lotManagers } = await supabase
+      const { data: lotContacts } = await supabase
         .from('lot_contacts')
-        .select('contact_id')
+        .select(`
+          user:user_id(
+            id,
+            role,
+            provider_category
+          )
+        `)
         .eq('lot_id', lotId)
-        .eq('contact_type', 'gestionnaire')
 
-      return lotManagers?.map(lm => lm.contact_id) || []
+      // Filtrer pour récupérer seulement les gestionnaires
+      const managers = lotContacts?.filter(lc => 
+        lc.user?.role === 'manager'
+      ).map(lc => lc.user.id) || []
+
+      return managers
     } catch (error) {
       console.error('Error getting lot managers:', error)
       return []

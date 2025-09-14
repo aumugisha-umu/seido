@@ -197,6 +197,7 @@ export default function GestionnaireDashboard() {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
+        onSuccess={refetch}
         defaultType="locataire"
       />
     </div>

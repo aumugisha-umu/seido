@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       selectedLotId,
       
       // Contact assignments
-      selectedManagerId,
+      selectedManagerIds, // ✅ Nouveau format: array de gestionnaires
       selectedProviderIds,
       
       // Scheduling
@@ -120,17 +120,49 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
+    console.log("🔍 Validating required fields:", { 
+      title: !!title, 
+      description: !!description, 
+      selectedManagerIds: selectedManagerIds?.length || 0,
+      hasLogement: !!(selectedBuildingId || selectedLotId) 
+    })
+    
     if (!title || !description || (!selectedBuildingId && !selectedLotId)) {
       return NextResponse.json({
         success: false,
         error: 'Champs requis manquants (titre, description, logement)'
       }, { status: 400 })
     }
+    
+    if (!selectedManagerIds || selectedManagerIds.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Au moins un gestionnaire doit être assigné'
+      }, { status: 400 })
+    }
 
     // Get user data from database
     console.log("👤 Getting user data...")
-    const user = await userService.getById(authUser.id)
+    console.log("👤 Looking for user with auth_user_id:", authUser.id)
+    
+    // ✅ Utiliser findByAuthUserId au lieu de getById pour la nouvelle structure DB
+    let user
+    try {
+      user = await userService.findByAuthUserId(authUser.id)
+      console.log("✅ Found user via findByAuthUserId:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+    } catch (error) {
+      console.error("❌ Error with findByAuthUserId, trying getById:", error)
+      // Fallback: essayer avec getById au cas où
+      try {
+        user = await userService.getById(authUser.id)
+        console.log("✅ Found user via getById fallback:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+      } catch (fallbackError) {
+        console.error("❌ Both methods failed:", fallbackError)
+      }
+    }
+    
     if (!user) {
+      console.error("❌ No user found for auth_user_id:", authUser.id)
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
@@ -298,13 +330,12 @@ export async function POST(request: NextRequest) {
       scheduledDate = `${fixedDateTime.date}T${fixedDateTime.time}:00.000Z`
     }
 
-    // Determine primary assigned contact (prefer provider over manager for assigned_contact_id)
-    let primaryContactId: string | null = null
-    if (selectedProviderIds && selectedProviderIds.length > 0) {
-      primaryContactId = selectedProviderIds[0] // Use first provider as primary
-    }
+    // ✅ Note: assigned_contact_id n'existe plus dans la nouvelle structure DB
+    // Les assignations se font maintenant via intervention_contacts
 
     // Prepare intervention data
+    console.log("📝 Preparing intervention data with multiple managers:", selectedManagerIds)
+    
     const interventionData: any = {
       title,
       description,
@@ -312,8 +343,7 @@ export async function POST(request: NextRequest) {
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
       tenant_id: tenantId, // Can be null for manager-created interventions
-      manager_id: selectedManagerId || authUser.id, // Use selected manager or current user
-      assigned_contact_id: primaryContactId,
+      // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
       team_id: interventionTeamId,
       status: 'validee' as Database['public']['Enums']['intervention_status'], // Manager interventions are pre-validated
       scheduled_date: scheduledDate,
@@ -341,33 +371,38 @@ export async function POST(request: NextRequest) {
 
     // Handle multiple contact assignments
     console.log("👥 Creating contact assignments...")
+    console.log("👥 Selected managers:", selectedManagerIds.length)
+    console.log("👥 Selected providers:", selectedProviderIds?.length || 0)
+    
     const contactAssignments: Array<{
       intervention_id: string,
-      contact_id: string,
+      user_id: string, // ✅ Correction: c'est user_id, pas contact_id
       role: string,
       is_primary: boolean,
       individual_message?: string
     }> = []
 
-    // Add manager assignment
-    if (selectedManagerId) {
+    // ✅ Add all manager assignments
+    selectedManagerIds.forEach((managerId: string, index: number) => {
+      console.log(`👥 Adding manager assignment ${index + 1}:`, managerId)
       contactAssignments.push({
         intervention_id: intervention.id,
-        contact_id: selectedManagerId,
+        user_id: managerId, // ✅ Correction: user_id
         role: 'gestionnaire',
-        is_primary: true,
-        individual_message: messageType === 'individual' ? individualMessages[selectedManagerId] : undefined
+        is_primary: index === 0, // First manager is primary
+        individual_message: messageType === 'individual' ? individualMessages[managerId] : undefined
       })
-    }
+    })
 
-    // Add provider assignments
+    // ✅ Add provider assignments
     if (selectedProviderIds && selectedProviderIds.length > 0) {
       selectedProviderIds.forEach((providerId: string, index: number) => {
+        console.log(`🔧 Adding provider assignment ${index + 1}:`, providerId)
         contactAssignments.push({
           intervention_id: intervention.id,
-          contact_id: providerId,
+          user_id: providerId, // ✅ Correction: user_id
           role: 'prestataire',
-          is_primary: index === 0, // First provider is primary
+          is_primary: false, // Les gestionnaires sont prioritaires pour is_primary
           individual_message: messageType === 'individual' ? individualMessages[providerId] : undefined
         })
       })

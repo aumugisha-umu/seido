@@ -13,30 +13,38 @@ import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { useContactsData } from "@/hooks/use-contacts-data"
 import { contactService, teamService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
+import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function ContactsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   
+  // ✅ NOUVEAU: Utiliser le hook optimisé avec système de cache
+  const { 
+    contacts, 
+    pendingInvitations, 
+    userTeam, 
+    contactsInvitationStatus, 
+    loading, 
+    error: contactsError, 
+    refetch: refetchContacts 
+  } = useContactsData()
+  
   // ✅ Toujours appeler tous les hooks, indépendamment du return early
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const [contacts, setContacts] = useState<any[]>([])
   const [filteredContacts, setFilteredContacts] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [userTeam, setUserTeam] = useState<any>(null)
-  const [pendingInvitations, setPendingInvitations] = useState<any[]>([])
   const [loadingInvitations, setLoadingInvitations] = useState(false)
   const [resentInvitations, setResentInvitations] = useState<{[key: string]: {success: boolean, message?: string, magicLink?: string}}>({})
   const [resendingInvitations, setResendingInvitations] = useState<{[key: string]: boolean}>({})
   const [copiedLinks, setCopiedLinks] = useState<{[key: string]: boolean}>({})
   const [cancellingInvitations, setCancellingInvitations] = useState<{[key: string]: boolean}>({})
-  const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true)
-  const [contactsInvitationStatus, setContactsInvitationStatus] = useState<{[key: string]: string}>({}) // Pour stocker le statut d'invitation de chaque contact
+  const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true) // Pour stocker le statut d'invitation de chaque contact
 
   // Fonction pour obtenir le badge de statut d'invitation
   const getStatusBadge = (status: string) => {
@@ -97,58 +105,14 @@ export default function ContactsPage() {
     )
   }
 
-  // ✅ Fonction pour charger le statut d'invitation de tous les contacts basé uniquement sur les invitations réelles
-  const loadContactsInvitationStatus = useCallback(async (teamId: string, contacts: any[]) => {
-    try {
-      console.log("🔍 Loading invitation status for", contacts.length, "contacts...")
-      console.log("🔍 Team ID:", teamId)
-      
-      // Utiliser une API pour récupérer toutes les invitations de l'équipe
-      const response = await fetch(`/api/team-invitations?teamId=${teamId}`)
-      
-      if (!response.ok) {
-        console.warn("⚠️ Could not fetch team invitations, using empty status map")
-        setContactsInvitationStatus({})
-        return
-      }
-      
-      const { invitations } = await response.json()
-      console.log("📧 Found invitations:", invitations?.length || 0)
-      
-      const statusMap: {[key: string]: string} = {}
-      
-      // Marquer uniquement les contacts qui ont une invitation réelle
-      invitations?.forEach((invitation: any) => {
-        if (invitation.email) {
-          statusMap[invitation.email.toLowerCase()] = invitation.status || 'pending'
-        }
-      })
-      
-      console.log("📊 Final invitation status mapping:", statusMap)
-      console.log("👤 Contacts with invitations:", Object.keys(statusMap).length, "/ Total contacts:", contacts.length)
-      
-      setContactsInvitationStatus(statusMap)
-      
-    } catch (error) {
-      console.error("❌ Error loading contacts invitation status:", error)
-      console.error("❌ Error details:", {
-        message: error instanceof Error ? error.message : String(error),
-        teamId,
-        contactsLength: contacts.length
-      })
-      // Ne pas faire échouer l'interface si les badges ne se chargent pas
-      setContactsInvitationStatus({})
-    }
-  }, [])
-
-  // Récupérer les contacts quand l'utilisateur et l'équipe sont prêts
+  // ✅ Gérer les erreurs de contacts et les combiner avec les erreurs locales
   useEffect(() => {
-    if (user?.id && teamStatus === 'verified') {
-      loadContacts()
+    if (contactsError) {
+      setError(contactsError)
     }
-  }, [user?.id, teamStatus])
+  }, [contactsError])
 
-  // Filtrer les contacts selon le terme de recherche
+  // ✅ Filtrer les contacts selon le terme de recherche (le seul useEffect qui reste nécessaire)
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredContacts(contacts)
@@ -163,79 +127,9 @@ export default function ContactsPage() {
     }
   }, [contacts, searchTerm])
 
-  // ✅ NOUVEAU: Charger le statut d'invitation quand les contacts et l'équipe sont prêts
-  useEffect(() => {
-    if (userTeam?.id && contacts.length > 0) {
-      loadContactsInvitationStatus(userTeam.id, contacts).catch(error => {
-        console.error("❌ Failed to load contacts invitation status:", error)
-      })
-    }
-  }, [userTeam?.id, contacts.length, loadContactsInvitationStatus])
-
   // ✅ Maintenant vérifier si on doit afficher la vérification d'équipe APRÈS tous les hooks
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
     return <TeamCheckModal onTeamResolved={() => {}} />
-  }
-
-  const loadContacts = async () => {
-    if (!user?.id) {
-      setError("Utilisateur non connecté")
-      setLoading(false)
-      return
-    }
-
-    // Ne pas charger si l'équipe n'est pas encore vérifiée
-    if (teamStatus !== 'verified') {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      console.log("📞 Loading contacts for user:", user.id)
-      
-      // 1. Récupérer l'équipe de l'utilisateur
-      const userTeams = await teamService.getUserTeams(user.id)
-      if (!userTeams || userTeams.length === 0) {
-        console.log("⚠️ No team found for user")
-        setContacts([])
-        setFilteredContacts([])
-        setLoading(false)
-        return
-      }
-      
-      const team = userTeams[0]
-      setUserTeam(team)
-      console.log("🏢 Found team:", team.id, team.name)
-      
-      // 2. Récupérer les contacts de l'équipe
-      const teamContacts = await contactService.getTeamContacts(team.id)
-      console.log("✅ Contacts loaded:", teamContacts.length)
-      
-      setContacts(teamContacts)
-      setFilteredContacts(teamContacts)
-      
-      // 3. Charger les invitations en attente maintenant que nous avons l'équipe
-      try {
-        const invitations = await contactInvitationService.getPendingInvitations(team.id)
-        console.log("✅ Pending invitations loaded:", invitations.length)
-        setPendingInvitations(invitations)
-      } catch (invitationError) {
-        console.error("❌ Error loading pending invitations:", invitationError)
-        // Ne pas faire échouer le chargement principal pour les invitations
-        setPendingInvitations([])
-      }
-      
-      // 4. Charger le statut d'invitation pour tous les contacts (défini plus bas)
-      // Cette fonction sera appelée après le chargement des contacts
-      
-    } catch (error) {
-      console.error("❌ Error loading contacts:", error)
-      setError("Erreur lors du chargement des contacts")
-    } finally {
-      setLoading(false)
-    }
   }
 
   // ✅ NOUVEAU: Fonction pour charger les invitations séparément
@@ -246,10 +140,10 @@ export default function ContactsPage() {
       
       const invitations = await contactInvitationService.getPendingInvitations(teamId)
       console.log("✅ Invitations loaded:", invitations.length)
-      setPendingInvitations(invitations)
+      // Note: maintenant les invitations sont gérées par useContactsData, 
+      // cette fonction est gardée pour les actions spéciales si nécessaire
     } catch (invitationError) {
       console.error("❌ Error loading invitations:", invitationError)
-      setPendingInvitations([])
     } finally {
       setLoadingInvitations(false)
     }
@@ -440,9 +334,8 @@ export default function ContactsPage() {
       }
       
       console.log("🔄 [CONTACTS-PAGE] Reloading contacts...")
-      // Recharger la liste des contacts
-      await loadContacts()
-      // Note: les invitations en attente sont rechargées automatiquement dans loadContacts()
+      // ✅ NOUVEAU: Utiliser le refetch du hook optimisé
+      await refetchContacts()
       console.log("✅ [CONTACTS-PAGE] Contacts reloaded, closing modal")
       setIsContactModalOpen(false)
       
@@ -463,8 +356,8 @@ export default function ContactsPage() {
       console.log("🗑️ Deleting contact:", contactId)
       await contactService.delete(contactId)
       
-      // Recharger la liste des contacts
-      await loadContacts()
+      // ✅ NOUVEAU: Utiliser le refetch du hook optimisé
+      await refetchContacts()
       
     } catch (error) {
       console.error("❌ Error deleting contact:", error)
@@ -534,23 +427,6 @@ export default function ContactsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                onClick={() => router.push("/gestionnaire/dashboard")}
-                className="flex items-center space-x-2"
-              >
-                <Building2 className="h-5 w-5" />
-                <span>← Retour au dashboard</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -935,9 +811,12 @@ export default function ContactsPage() {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
-        onSuccess={loadContacts}
+        onSuccess={refetchContacts}
         defaultType="locataire"
       />
+
+      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
+      <NavigationDebugPanel />
     </div>
   )
 }

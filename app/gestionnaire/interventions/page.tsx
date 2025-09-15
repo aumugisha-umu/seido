@@ -47,6 +47,7 @@ import { ApprovalModal } from "@/components/intervention/modals/approval-modal"
 import { ConfirmationModal } from "@/components/intervention/modals/confirmation-modal"
 import { SuccessModal } from "@/components/intervention/modals/success-modal"
 import { ProgrammingModal } from "@/components/intervention/modals/programming-modal"
+import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 import { 
   getInterventionLocationText, 
@@ -452,6 +453,9 @@ export default function InterventionsPage() {
         onConfirm={planningHook.handleProgrammingConfirm}
         isFormValid={Boolean(planningHook.isProgrammingFormValid())}
       />
+
+      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
+      <NavigationDebugPanel />
     </div>
   )
 }

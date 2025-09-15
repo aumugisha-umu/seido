@@ -1651,8 +1651,13 @@ export const contactService = {
       console.log("📊 Raw team members data:", { count: data?.length, data })
       
       // Filtrer côté client pour les gestionnaires uniquement
+      console.log("🔍 Filtrage des gestionnaires...")
       const managers = data
-        ?.filter((member: any) => member.user?.role === 'gestionnaire')
+        ?.filter((member: any) => {
+          const isManager = member.user?.role === 'gestionnaire'
+          console.log(`   👤 ${member.user?.name || member.user?.email}: role=${member.user?.role} → isManager=${isManager}`)
+          return isManager
+        })
         ?.map((member: any) => ({
           id: member.user.id,
           name: member.user.name || `${member.user.first_name || ''} ${member.user.last_name || ''}`.trim() || member.user.email,

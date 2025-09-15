@@ -1,6 +1,7 @@
 "use client"
 
 import PropertySelector from "@/components/property-selector"
+import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function BiensPage() {
   return (
@@ -13,8 +14,11 @@ export default function BiensPage() {
           </h1>
         </div>
 
-        <PropertySelector mode="view" title="Portfolio Immobilier" showActions={true} />
+        <PropertySelector mode="view" showActions={true} />
       </main>
+
+      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
+      <NavigationDebugPanel />
     </div>
   )
 }

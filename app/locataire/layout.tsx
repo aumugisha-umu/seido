@@ -3,12 +3,16 @@
 import type React from "react"
 import DashboardHeader from "@/components/dashboard-header"
 import AuthGuard from "@/components/auth-guard"
+import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
 
 export default function LocataireLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // ✅ NOUVEAU: Initialiser le système de refresh automatique lors de la navigation
+  useNavigationRefresh()
+
   return (
     <AuthGuard requiredRole="locataire">
       <div className="min-h-screen bg-gray-50">

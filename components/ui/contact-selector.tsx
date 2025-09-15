@@ -22,18 +22,15 @@ const CustomSelectItem = ({
   ...props 
 }: any) => {
   return (
-    <SelectPrimitive.Item
-      data-slot="select-item"
+    <div
       className={cn(
-        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-sm select-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
-      value={keepOpen ? undefined : value}
-      onSelect={keepOpen ? undefined : () => onSelect(value)}
       {...props}
     >
       <div className="flex items-center justify-between w-full">
-        <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+        <span>{children}</span>
         <Button
           size="sm" 
           variant={isSelected ? "default" : "outline"}
@@ -50,7 +47,7 @@ const CustomSelectItem = ({
           {isSelected ? "Sélectionné" : "Sélectionner"}
         </Button>
       </div>
-    </SelectPrimitive.Item>
+    </div>
   )
 }
 
@@ -90,11 +87,8 @@ const ContactSelector = ({
 
   // Fonction pour vérifier si un contact est sélectionné
   const isContactSelected = (contactId: string) => {
-    if (contactType === 'gestionnaire') {
-      return selectedContactId === contactId
-    } else {
-      return selectedContactIds.includes(contactId)
-    }
+    // Comportement unifié : tous les types utilisent maintenant selectedContactIds
+    return selectedContactIds.map(id => String(id)).includes(String(contactId))
   }
 
   const handleContactCreated = async (contactData: any) => {
@@ -165,13 +159,23 @@ const ContactSelector = ({
     )
   }
 
-  // Pour les prestataires (multi-sélection), on n'utilise pas de valeur fixe
-  const selectValue = contactType === 'prestataire' ? "" : selectedContactId
-  const selectPlaceholder = contactType === 'prestataire' 
-    ? (selectedContactIds.length > 0 
+  // Comportement unifié : on utilise toujours un placeholder dynamique
+  const selectValue = "" // Toujours vide pour avoir un comportement uniforme
+  
+  const getPlaceholderText = () => {
+    if (contactType === 'prestataire') {
+      return selectedContactIds.length > 0 
         ? `${selectedContactIds.length} prestataire${selectedContactIds.length > 1 ? 's' : ''} sélectionné${selectedContactIds.length > 1 ? 's' : ''}`
-        : placeholder)
-    : placeholder
+        : placeholder
+    } else if (contactType === 'gestionnaire') {
+      return selectedContactIds.length > 0 
+        ? `${selectedContactIds.length} gestionnaire${selectedContactIds.length > 1 ? 's' : ''} sélectionné${selectedContactIds.length > 1 ? 's' : ''}`
+        : placeholder
+    }
+    return placeholder
+  }
+  
+  const selectPlaceholder = getPlaceholderText()
 
   return (
     <>
@@ -199,7 +203,7 @@ const ContactSelector = ({
               value={contact.id}
               onSelect={handleSelectChange}
               isSelected={isContactSelected(contact.id)}
-              keepOpen={contactType === 'prestataire'}
+              keepOpen={true} // Toujours garder ouvert pour la multi-sélection
             >
               <div className="flex items-center gap-2">
                 <span>{contact.name}</span>

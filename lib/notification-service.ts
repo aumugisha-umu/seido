@@ -12,6 +12,7 @@ interface CreateNotificationParams {
   priority?: NotificationPriority
   title: string
   message: string
+  isPersonal?: boolean
   metadata?: Record<string, any>
   relatedEntityType?: string
   relatedEntityId?: string
@@ -29,36 +30,56 @@ class NotificationService {
     priority = 'normal',
     title,
     message,
+    isPersonal = false,
     metadata = {},
     relatedEntityType,
     relatedEntityId
   }: CreateNotificationParams) {
     try {
-      console.log('📬 Creating notification:', { userId, type, title })
+      console.log('📬 [NOTIFICATION-SERVICE] Creating notification:', { 
+        userId, 
+        teamId, 
+        createdBy, 
+        type, 
+        title, 
+        isPersonal,
+        priority 
+      })
+
+      const notificationData = {
+        user_id: userId,
+        team_id: teamId,
+        created_by: createdBy,
+        type,
+        priority,
+        title,
+        message,
+        is_personal: isPersonal,
+        metadata,
+        related_entity_type: relatedEntityType,
+        related_entity_id: relatedEntityId
+      }
+
+      console.log('📬 [NOTIFICATION-SERVICE] Inserting notification data:', notificationData)
 
       const { data, error } = await supabase
         .from('notifications')
-        .insert({
-          user_id: userId,
-          team_id: teamId,
-          created_by: createdBy,
-          type,
-          priority,
-          title,
-          message,
-          metadata,
-          related_entity_type: relatedEntityType,
-          related_entity_id: relatedEntityId
-        })
+        .insert(notificationData)
         .select('*')
         .single()
 
       if (error) {
-        console.error('❌ Error creating notification:', error)
+        console.error('❌ [NOTIFICATION-SERVICE] Error creating notification:', error)
         return null
       }
 
-      console.log('✅ Notification created:', data.id)
+      console.log('✅ [NOTIFICATION-SERVICE] Notification created successfully:', {
+        id: data.id,
+        user_id: data.user_id,
+        team_id: data.team_id,
+        is_personal: data.is_personal,
+        title: data.title
+      })
       return data
     } catch (error) {
       console.error('❌ Exception creating notification:', error)
@@ -165,7 +186,7 @@ class NotificationService {
   }) {
     try {
       // Récupérer les informations du lot et de l'immeuble pour identifier les responsables
-      let buildingManagerId = null
+      let buildingManagerIds: string[] = []
       let lotManagerIds: string[] = []
       
       if (lotId) {
@@ -175,12 +196,15 @@ class NotificationService {
           .select(`
             id,
             reference,
-            building:buildings(id, name, manager_id)
+            building:buildings(id, name)
           `)
           .eq('id', lotId)
           .single()
         
-        buildingManagerId = lotData?.building?.manager_id
+        // Récupérer les gestionnaires du bâtiment via building_contacts
+        if (lotData?.building?.id) {
+          buildingManagerIds = await this.getBuildingManagers(lotData.building.id)
+        }
 
         // Récupérer les gestionnaires spécifiquement assignés au lot
         lotManagerIds = await this.getLotManagers(lotId)
@@ -204,8 +228,14 @@ class NotificationService {
       // Identifier les gestionnaires directement responsables
       const directResponsibles = new Set()
       if (managerId && managerId !== createdBy) directResponsibles.add(managerId)
-      if (buildingManagerId && buildingManagerId !== createdBy) directResponsibles.add(buildingManagerId)
       if (assignedTo && assignedTo !== createdBy) directResponsibles.add(assignedTo)
+      
+      // Ajouter les gestionnaires du bâtiment
+      buildingManagerIds.forEach(buildingManagerId => {
+        if (buildingManagerId !== createdBy) {
+          directResponsibles.add(buildingManagerId)
+        }
+      })
       
       // Ajouter les gestionnaires spécifiquement assignés au lot
       lotManagerIds.forEach(lotManagerId => {
@@ -262,7 +292,7 @@ class NotificationService {
       }
 
       const logDetails = [
-        buildingManagerId && buildingManagerId !== createdBy ? 'building manager' : null,
+        buildingManagerIds.length > 0 ? `${buildingManagerIds.length} building manager(s)` : null,
         lotManagerIds.length > 0 ? `${lotManagerIds.length} lot manager(s)` : null,
         managerId && managerId !== createdBy ? 'intervention manager' : null,
         assignedTo && assignedTo !== createdBy ? 'assignee' : null
@@ -306,16 +336,28 @@ class NotificationService {
   }) {
     try {
       const statusLabels = {
-        nouvelle_demande: 'Nouvelle demande',
-        en_attente_validation: 'En attente de validation',
-        validee: 'Validée',
+        // Phase 1: Demande
+        demande: 'Demande',
+        rejetee: 'Rejetée',
+        approuvee: 'Approuvée',
+        
+        // Phase 2: Planification & Exécution
+        demande_de_devis: 'Demande de devis',
+        planification: 'Planification',
+        planifiee: 'Planifiée',
         en_cours: 'En cours',
-        terminee: 'Terminée',
+        
+        // Phase 3: Clôture
+        cloturee_par_prestataire: 'Clôturée par prestataire',
+        cloturee_par_locataire: 'Clôturée par locataire',
+        cloturee_par_gestionnaire: 'Clôturée par gestionnaire',
+        
+        // Transversal
         annulee: 'Annulée'
       }
 
       // Récupérer les informations du lot et de l'immeuble pour identifier les responsables
-      let buildingManagerId = null
+      let buildingManagerIds: string[] = []
       let lotManagerIds: string[] = []
       
       if (lotId) {
@@ -325,12 +367,15 @@ class NotificationService {
           .select(`
             id,
             reference,
-            building:buildings(id, name, manager_id)
+            building:buildings(id, name)
           `)
           .eq('id', lotId)
           .single()
         
-        buildingManagerId = lotData?.building?.manager_id
+        // Récupérer les gestionnaires du bâtiment via building_contacts
+        if (lotData?.building?.id) {
+          buildingManagerIds = await this.getBuildingManagers(lotData.building.id)
+        }
 
         // Récupérer les gestionnaires spécifiquement assignés au lot
         lotManagerIds = await this.getLotManagers(lotId)
@@ -354,8 +399,14 @@ class NotificationService {
       // Identifier les gestionnaires directement responsables
       const directResponsibles = new Set()
       if (managerId && managerId !== changedBy) directResponsibles.add(managerId)
-      if (buildingManagerId && buildingManagerId !== changedBy) directResponsibles.add(buildingManagerId)
       if (assignedTo && assignedTo !== changedBy) directResponsibles.add(assignedTo)
+      
+      // Ajouter les gestionnaires du bâtiment
+      buildingManagerIds.forEach(buildingManagerId => {
+        if (buildingManagerId !== changedBy) {
+          directResponsibles.add(buildingManagerId)
+        }
+      })
       
       // Ajouter les gestionnaires spécifiquement assignés au lot
       lotManagerIds.forEach(lotManagerId => {
@@ -419,7 +470,7 @@ class NotificationService {
       }
 
       const logDetails = [
-        buildingManagerId && buildingManagerId !== changedBy ? 'building manager' : null,
+        buildingManagerIds.length > 0 ? `${buildingManagerIds.length} building manager(s)` : null,
         lotManagerIds.length > 0 ? `${lotManagerIds.length} lot manager(s)` : null,
         managerId && managerId !== changedBy ? 'intervention manager' : null,
         assignedTo && assignedTo !== changedBy ? 'assignee' : null
@@ -1249,15 +1300,45 @@ class NotificationService {
           )
         `)
         .eq('lot_id', lotId)
+        .is('end_date', null) // Only active assignments
 
-      // Filtrer pour récupérer seulement les gestionnaires
+      // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
       const managers = lotContacts?.filter(lc => 
-        lc.user?.role === 'manager'
+        lc.user?.role === 'gestionnaire'
       ).map(lc => lc.user.id) || []
 
       return managers
     } catch (error) {
       console.error('Error getting lot managers:', error)
+      return []
+    }
+  }
+
+  /**
+   * Récupérer les gestionnaires spécifiquement assignés à un bâtiment
+   */
+  private async getBuildingManagers(buildingId: string): Promise<string[]> {
+    try {
+      const { data: buildingContacts } = await supabase
+        .from('building_contacts')
+        .select(`
+          user:user_id(
+            id,
+            role,
+            provider_category
+          )
+        `)
+        .eq('building_id', buildingId)
+        .is('end_date', null) // Only active assignments
+
+      // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
+      const managers = buildingContacts?.filter(bc => 
+        bc.user?.role === 'gestionnaire'
+      ).map(bc => bc.user.id) || []
+
+      return managers
+    } catch (error) {
+      console.error('Error getting building managers:', error)
       return []
     }
   }
@@ -1486,6 +1567,195 @@ class NotificationService {
       console.log(`📬 Contact deletion notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
       console.error('❌ Failed to notify contact deleted:', error)
+    }
+  }
+
+  /**
+   * Notifier le changement de statut d'une intervention
+   */
+  async notifyInterventionStatusChanged(intervention: any, statusFrom: string, statusTo: string, changedBy: string, reason?: string) {
+    try {
+      if (!intervention.team_id || !changedBy) return
+
+      // Récupérer les gestionnaires directement liés via intervention_contacts
+      let directManagerIds: string[] = []
+      
+      const { data: interventionContacts } = await supabase
+        .from('intervention_contacts')
+        .select(`
+          user:user_id(id, role)
+        `)
+        .eq('intervention_id', intervention.id)
+        .eq('role', 'gestionnaire')
+        .is('end_date', null)
+
+      if (interventionContacts) {
+        directManagerIds = interventionContacts.map(ic => ic.user.id)
+      }
+
+      // Si pas de gestionnaires directs assignés, on utilise les gestionnaires du lot
+      if (directManagerIds.length === 0 && intervention.lot_id) {
+        const lotManagerIds = await this.getLotManagers(intervention.lot_id)
+        directManagerIds = lotManagerIds
+      }
+
+      // Récupérer tous les gestionnaires de l'équipe
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          user:users(id, name, role)
+        `)
+        .eq('team_id', intervention.team_id)
+
+      if (!teamMembers) return
+
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== changedBy
+      )
+
+      // Identifier les gestionnaires directement responsables
+      const directResponsibles = new Set(directManagerIds.filter(id => id !== changedBy))
+
+      // Notification pour le locataire (toujours personnelle)
+      if (intervention.tenant_id && intervention.tenant_id !== changedBy) {
+        let tenantTitle: string, tenantMessage: string, priority: "low" | "normal" | "high" | "urgent"
+
+        switch (statusTo) {
+          case 'approuvee':
+            tenantTitle = 'Intervention approuvée'
+            tenantMessage = `Votre demande d'intervention "${intervention.title}" a été approuvée. Elle va maintenant être planifiée.`
+            priority = 'normal'
+            break
+          case 'rejetee':
+            tenantTitle = 'Intervention rejetée'
+            tenantMessage = `Votre demande d'intervention "${intervention.title}" a été rejetée. ${reason ? `Motif: ${reason}` : ''}`
+            priority = 'high'
+            break
+          case 'annulee':
+            tenantTitle = 'Intervention annulée'
+            tenantMessage = `L'intervention "${intervention.title}" a été annulée. ${reason ? `Motif: ${reason}` : ''}`
+            priority = 'high'
+            break
+          default:
+            tenantTitle = 'Statut intervention modifié'
+            tenantMessage = `Le statut de l'intervention "${intervention.title}" a été modifié.`
+            priority = 'normal'
+        }
+
+        await this.createNotification({
+          userId: intervention.tenant_id,
+          teamId: intervention.team_id,
+          createdBy: changedBy,
+          type: 'intervention',
+          priority,
+          title: tenantTitle,
+          message: tenantMessage,
+          isPersonal: true,
+          metadata: {
+            interventionId: intervention.id,
+            interventionTitle: intervention.title,
+            statusFrom,
+            statusTo,
+            reason: reason || null
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: intervention.id
+        })
+      }
+
+      // Notifications pour les gestionnaires
+      let actionLabel, personalTitle, teamTitle
+      
+      switch (statusTo) {
+        case 'approuvee':
+          actionLabel = 'approuvée'
+          personalTitle = 'Intervention approuvée sous votre responsabilité'
+          teamTitle = 'Intervention approuvée'
+          break
+        case 'rejetee':
+          actionLabel = 'rejetée'
+          personalTitle = 'Intervention rejetée sous votre responsabilité'
+          teamTitle = 'Intervention rejetée'
+          break
+        case 'annulee':
+          actionLabel = 'annulée'
+          personalTitle = 'Intervention annulée sous votre responsabilité'
+          teamTitle = 'Intervention annulée'
+          break
+        default:
+          actionLabel = 'modifiée'
+          personalTitle = 'Intervention modifiée sous votre responsabilité'
+          teamTitle = 'Statut d\'intervention modifié'
+      }
+
+      const notificationPromises = allManagers.map(async (manager) => {
+        const isDirectlyResponsible = directResponsibles.has(manager.user_id)
+
+        if (isDirectlyResponsible) {
+          // Notification personnelle pour les gestionnaires directement responsables
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: intervention.team_id,
+            createdBy: changedBy,
+            type: 'intervention',
+            priority: 'normal',
+            title: personalTitle,
+            message: `L'intervention "${intervention.title}" a été ${actionLabel}.${reason ? ` Motif: ${reason}` : ''}`,
+            isPersonal: true,
+            metadata: {
+              interventionId: intervention.id,
+              interventionTitle: intervention.title,
+              statusFrom,
+              statusTo,
+              reason: reason || null
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: intervention.id
+          })
+        } else {
+          // Notification d'équipe pour les autres gestionnaires
+          return this.createNotification({
+            userId: manager.user_id,
+            teamId: intervention.team_id,
+            createdBy: changedBy,
+            type: 'intervention',
+            priority: 'normal',
+            title: teamTitle,
+            message: `L'intervention "${intervention.title}" a été ${actionLabel} par votre équipe.`,
+            isPersonal: false,
+            metadata: {
+              interventionId: intervention.id,
+              interventionTitle: intervention.title,
+              statusFrom,
+              statusTo,
+              reason: reason || null
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: intervention.id
+          })
+        }
+      })
+
+      await Promise.all(notificationPromises)
+
+      // Notifications pour les prestataires assignés (simplifiées pour éviter les erreurs de schema)
+      let providerCount = 0
+      try {
+        // TODO: Implémenter les notifications prestataires quand le schema sera corrigé
+        console.log("📧 Provider notifications skipped (schema issues)")
+      } catch (error) {
+        console.warn("⚠️ Error getting provider contacts:", error)
+      }
+
+      const directCount = directResponsibles.size
+      const teamCount = allManagers.length - directCount
+      const tenantCount = intervention.tenant_id && intervention.tenant_id !== changedBy ? 1 : 0
+      
+      console.log(`📬 Intervention status change notifications sent: ${directCount} personal managers, ${teamCount} team managers, ${tenantCount} tenant, ${providerCount} providers`)
+
+    } catch (error) {
+      console.error('❌ Failed to notify intervention status changed:', error)
     }
   }
 }

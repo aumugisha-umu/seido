@@ -54,9 +54,13 @@ import { useInterventionExecution } from "@/hooks/use-intervention-execution"
 import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
 
 import { ApprovalModal } from "@/components/intervention/modals/approval-modal"
-import { ConfirmationModal } from "@/components/intervention/modals/confirmation-modal"
+import { ApproveConfirmationModal } from "@/components/intervention/modals/approve-confirmation-modal"
+import { RejectConfirmationModal } from "@/components/intervention/modals/reject-confirmation-modal"
 import { SuccessModal } from "@/components/intervention/modals/success-modal"
 import { ProgrammingModal } from "@/components/intervention/modals/programming-modal"
+import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
+import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
+import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 import { 
@@ -100,16 +104,19 @@ export default function InterventionsPage() {
     }
   }
 
-  // Filter function for interventions based on tab
+  // Filter function for interventions based on tab (NOUVEAU WORKFLOW)
   const getFilteredInterventions = (tabId: string) => {
     if (tabId === "toutes") {
       return interventions
-    } else if (tabId === "nouvelle_demande_group") {
-      return interventions.filter((i) => ["nouvelle_demande", "devis", "a_programmer"].includes(i.status))
+    } else if (tabId === "demandes_group") {
+      // Demandes : Demande, Approuvée
+      return interventions.filter((i) => ["demande", "approuvee"].includes(i.status))
     } else if (tabId === "en_cours_group") {
-      return interventions.filter((i) => ["programme", "en_cours", "finalisation_attente"].includes(i.status))
-    } else if (tabId === "terminee_group") {
-      return interventions.filter((i) => ["terminee", "annulee", "rejete"].includes(i.status))
+      // En cours : Demande de devis, Planification, Planifiée, En cours, Clôturée par prestataire
+      return interventions.filter((i) => ["demande_de_devis", "planification", "planifiee", "en_cours", "cloturee_par_prestataire"].includes(i.status))
+    } else if (tabId === "cloturees_group") {
+      // Clôturées : Clôturée par locataire, Clôturée par gestionnaire, Annulée, Rejetée
+      return interventions.filter((i) => ["cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"].includes(i.status))
     }
     return interventions.filter((i) => i.status === tabId)
   }
@@ -132,7 +139,8 @@ export default function InterventionsPage() {
 
     const statusActions = []
 
-    if (intervention.status === "nouvelle_demande") {
+    // Phase 1 : Demande
+    if (intervention.status === "demande") {
       statusActions.push({
         label: "Approuver / Rejeter",
         icon: Check,
@@ -140,7 +148,8 @@ export default function InterventionsPage() {
       })
     }
 
-    if (intervention.status === "devis") {
+    // Phase 2 : Planification & Exécution
+    if (intervention.status === "demande_de_devis") {
       statusActions.push({
         label: "Afficher les devis",
         icon: Eye,
@@ -148,30 +157,37 @@ export default function InterventionsPage() {
       })
     }
 
-    if (intervention.status === "a_programmer") {
+    if (intervention.status === "approuvee") {
       statusActions.push({
-        label: "Programmer",
+        label: "Planifier",
         icon: Calendar,
         onClick: () => planningHook.handleProgrammingModal(intervention),
       })
     }
 
-    if (intervention.status === "programme") {
+    if (intervention.status === "planifiee") {
       statusActions.push({
-        label: "Exécuter / Annuler",
+        label: "Démarrer / Annuler",
         icon: Play,
         onClick: () => executionHook.handleExecutionModal(intervention, "start"),
       })
     }
 
-    if (intervention.status === "finalisation_attente") {
+    // Phase 3 : Clôture
+    if (intervention.status === "cloturee_par_locataire") {
       statusActions.push({
-        label: "Finaliser et payer",
+        label: "Finaliser et clôturer",
         icon: CheckCircle,
         onClick: () => finalizationHook.handleFinalizeModal(intervention),
       })
     }
 
+    // Pour les statuts "demande" et "approuvee", ne pas inclure les actions communes
+    if (intervention.status === "demande" || intervention.status === "approuvee") {
+      return statusActions
+    }
+
+    // Pour tous les autres statuts, inclure les actions communes
     return [...statusActions, ...commonActions]
   }
 
@@ -206,24 +222,24 @@ export default function InterventionsPage() {
         {filteredInterventions.map((intervention) => (
           <Card key={intervention.id} className="group hover:shadow-sm transition-all duration-200 flex flex-col h-full hover:bg-slate-50/50">
             <CardContent className="p-0 flex flex-col flex-1">
-              <div className="p-4 sm:p-5 flex flex-col flex-1">
-                <div className="space-y-3 flex-1">
+              <div className="p-3 sm:p-4 lg:p-5 flex flex-col flex-1">
+                <div className="space-y-2.5 sm:space-y-3 flex-1">
                   {/* Header Row */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                       {/* Type Icon */}
                       {(() => {
                         const typeConfig = getInterventionTypeIcon(intervention.type || "")
                         const IconComponent = typeConfig.icon
                         return (
-                          <div className={`w-10 h-10 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                            <IconComponent className={`h-5 w-5 ${typeConfig.iconColor}`} />
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${typeConfig.iconColor}`} />
                           </div>
                         )
                       })()}
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-base text-slate-900 truncate">{intervention.title}</h3>
-                        <div className="flex items-center text-xs text-slate-600 mt-1 min-w-0">
+                        <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate leading-tight">{intervention.title}</h3>
+                        <div className="flex items-center text-xs text-slate-600 mt-0.5 sm:mt-1 min-w-0">
                           {getInterventionLocationIcon(intervention) === "building" ? (
                             <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
                           ) : (
@@ -231,7 +247,7 @@ export default function InterventionsPage() {
                           )}
                           <span className="truncate">{getInterventionLocationText(intervention)}</span>
                           {isBuildingWideIntervention(intervention) && (
-                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5">
+                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5 hidden sm:inline-flex">
                               Bâtiment entier
                             </Badge>
                           )}
@@ -240,17 +256,17 @@ export default function InterventionsPage() {
                     </div>
                     
                     {/* Action Buttons */}
-                    <div className="flex-shrink-0 ml-2 flex items-center space-x-1">
+                    <div className="flex-shrink-0 flex items-center space-x-1">
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="h-8 px-3 text-xs"
+                        className="h-8 w-8 sm:w-auto sm:px-3 p-0 sm:p-2 text-xs flex-shrink-0"
                         onClick={() => router.push(`/gestionnaire/interventions/${intervention.id}`)}
                       >
-                        <Eye className="h-3 w-3 mr-1" />
-                        Détails
+                        <Eye className="h-3 w-3" />
+                        <span className="hidden sm:inline ml-1">Détails</span>
                       </Button>
-                      {getStatusActions(intervention).length > 2 && (
+                      {getStatusActions(intervention).length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700">
@@ -258,19 +274,7 @@ export default function InterventionsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {getStatusActions(intervention).slice(0, -2).map((action, idx) => (
-                              <div key={idx}>
-                                <DropdownMenuItem
-                                  onClick={action.onClick}
-                                  className={("className" in action) ? action.className : ""}
-                                >
-                                  <action.icon className="h-4 w-4 mr-2" />
-                                  {action.label}
-                                </DropdownMenuItem>
-                              </div>
-                            ))}
-                            <DropdownMenuSeparator />
-                            {getStatusActions(intervention).slice(-2).map((action, idx) => (
+                            {getStatusActions(intervention).map((action, idx) => (
                               <DropdownMenuItem
                                 key={idx}
                                 onClick={action.onClick}
@@ -280,6 +284,12 @@ export default function InterventionsPage() {
                                 {action.label}
                               </DropdownMenuItem>
                             ))}
+                            
+                            {/* Bouton d'annulation pour les statuts éligibles */}
+                            <InterventionCancelButton
+                              intervention={intervention}
+                              variant="dropdown-item"
+                            />
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -287,18 +297,18 @@ export default function InterventionsPage() {
                   </div>
 
                   {/* Status & Priority Badges */}
-                  <div className="flex items-center gap-2">
-                    <Badge className={`${getStatusColor(intervention.status)} text-xs px-2 py-1`}>
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
                       {getStatusLabel(intervention.status)}
                     </Badge>
-                    <Badge className={`${getPriorityColor(intervention.urgency)} text-xs px-2 py-1`}>
+                    <Badge className={`${getPriorityColor(intervention.urgency)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
                       {getPriorityLabel(intervention.urgency)}
                     </Badge>
                   </div>
 
                   {/* Description */}
                   {intervention.description && (
-                    <p className="text-sm text-slate-600 line-clamp-2">
+                    <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">
                       {intervention.description}
                     </p>
                   )}
@@ -356,7 +366,7 @@ export default function InterventionsPage() {
     )
   }
 
-  // Tabs configuration for ContentNavigator
+  // Tabs configuration for ContentNavigator (NOUVEAU WORKFLOW)
   const interventionsTabsConfig = [
     {
       id: "toutes",
@@ -366,31 +376,31 @@ export default function InterventionsPage() {
       content: renderInterventionsList("toutes")
     },
     {
-      id: "nouvelle_demande_group", 
-      label: "Nouvelles",
+      id: "demandes_group", 
+      label: "Demandes",
       icon: AlertTriangle,
       count: loading ? "..." : interventions.filter((i) => 
-        ["nouvelle_demande", "devis", "a_programmer"].includes(i.status)
+        ["demande", "approuvee"].includes(i.status)
       ).length,
-      content: renderInterventionsList("nouvelle_demande_group")
+      content: renderInterventionsList("demandes_group")
     },
     {
       id: "en_cours_group",
       label: "En cours", 
       icon: Settings,
       count: loading ? "..." : interventions.filter((i) => 
-        ["programme", "en_cours", "finalisation_attente"].includes(i.status)
+        ["demande_de_devis", "planification", "planifiee", "en_cours", "cloturee_par_prestataire"].includes(i.status)
       ).length,
       content: renderInterventionsList("en_cours_group")
     },
     {
-      id: "terminee_group",
-      label: "Terminées",
+      id: "cloturees_group",
+      label: "Clôturées",
       icon: Archive, 
       count: loading ? "..." : interventions.filter((i) => 
-        ["terminee", "annulee", "rejete"].includes(i.status)
+        ["cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"].includes(i.status)
       ).length,
-      content: renderInterventionsList("terminee_group")
+      content: renderInterventionsList("cloturees_group")
     }
   ]
 
@@ -455,8 +465,9 @@ export default function InterventionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+    <InterventionCancellationProvider>
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Page Header - Harmonized */}
         <div className="mb-6 lg:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -496,25 +507,44 @@ export default function InterventionsPage() {
         isOpen={approvalHook.approvalModal.isOpen}
         onClose={approvalHook.closeApprovalModal}
         intervention={approvalHook.approvalModal.intervention}
-        onApprove={approvalHook.handleApprove}
-        onReject={approvalHook.handleReject}
+        action={approvalHook.approvalModal.action}
+        rejectionReason={approvalHook.rejectionReason}
+        internalComment={approvalHook.internalComment}
+        onRejectionReasonChange={approvalHook.setRejectionReason}
+        onInternalCommentChange={approvalHook.setInternalComment}
+        onActionChange={approvalHook.handleActionChange}
+        onConfirm={approvalHook.handleConfirmAction}
+      />
+
+      {/* Modal de confirmation d'approbation */}
+      <ApproveConfirmationModal
+        isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve"}
+        onClose={approvalHook.closeConfirmationModal}
+        onConfirm={approvalHook.handleFinalConfirmation}
+        intervention={approvalHook.confirmationModal.intervention}
+        internalComment={approvalHook.internalComment}
+        onInternalCommentChange={approvalHook.setInternalComment}
         isLoading={approvalHook.isLoading}
       />
 
-      <ConfirmationModal
-        isOpen={approvalHook.confirmationModal.isOpen}
+      {/* Modal de confirmation de rejet */}
+      <RejectConfirmationModal
+        isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject"}
         onClose={approvalHook.closeConfirmationModal}
-        onConfirm={approvalHook.handleConfirmAction}
+        onConfirm={approvalHook.handleFinalConfirmation}
         intervention={approvalHook.confirmationModal.intervention}
-        action={approvalHook.confirmationModal.action}
+        rejectionReason={approvalHook.rejectionReason}
+        onRejectionReasonChange={approvalHook.setRejectionReason}
+        internalComment={approvalHook.internalComment}
+        onInternalCommentChange={approvalHook.setInternalComment}
         isLoading={approvalHook.isLoading}
       />
 
       <SuccessModal
         isOpen={approvalHook.successModal.isOpen}
         onClose={approvalHook.closeSuccessModal}
-        intervention={approvalHook.successModal.intervention}
         action={approvalHook.successModal.action}
+        interventionTitle={approvalHook.successModal.interventionTitle}
       />
 
       <ProgrammingModal
@@ -525,8 +555,12 @@ export default function InterventionsPage() {
         isLoading={planningHook.isLoading}
       />
 
+      {/* Manager global des modales d'annulation */}
+      <InterventionCancellationManager />
+
       {/* Debug Panel */}
       <NavigationDebugPanel />
     </div>
+  </InterventionCancellationProvider>
   )
 }

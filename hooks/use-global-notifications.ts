@@ -33,7 +33,15 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
   }
 
   const fetchUnreadCount = async () => {
+    console.log('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
+      userId: user?.id,
+      teamStatus,
+      hasTeam,
+      userTeamId
+    })
+    
     if (!user?.id || teamStatus !== 'verified' || !hasTeam || !userTeamId) {
+      console.log('❌ [GLOBAL-NOTIFICATIONS] Conditions not met, skipping fetch')
       setUnreadCount(0)
       setLoading(false)
       return
@@ -58,6 +66,11 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
         read: 'false'
       })
 
+      console.log('📡 [GLOBAL-NOTIFICATIONS] Fetching notifications with params:', {
+        personalUrl: `/api/notifications?${personalParams}`,
+        teamUrl: `/api/notifications?${teamParams}`
+      })
+
       const [personalResponse, teamResponse] = await Promise.all([
         fetch(`/api/notifications?${personalParams}`),
         fetch(`/api/notifications?${teamParams}`)
@@ -72,8 +85,21 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
         teamResponse.json()
       ])
 
+      console.log('📬 [GLOBAL-NOTIFICATIONS] API responses:', {
+        personalResult,
+        teamResult,
+        personalStatus: personalResponse.status,
+        teamStatus: teamResponse.status
+      })
+
       const personalCount = personalResult.success ? (personalResult.data || []).length : 0
       const teamCount = teamResult.success ? (teamResult.data || []).length : 0
+      
+      console.log('📊 [GLOBAL-NOTIFICATIONS] Notification counts:', {
+        personalCount,
+        teamCount,
+        total: personalCount + teamCount
+      })
       
       setUnreadCount(personalCount + teamCount)
     } catch (err) {

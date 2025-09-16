@@ -1055,20 +1055,48 @@ export const interventionService = {
             is_primary,
             user:user_id(id, name, email, phone, role, provider_category)
           )
+        ),
+        intervention_contacts(
+          role,
+          is_primary,
+          individual_message,
+          user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
       .order('created_at', { ascending: false })
     
     if (error) throw error
     
-    // Post-traitement pour extraire le locataire principal
+    // Post-traitement pour extraire les informations enrichies
     return data?.map(intervention => {
+      // Extract tenant from lot contacts
       if (intervention.lot?.lot_contacts) {
         const tenants = intervention.lot.lot_contacts.filter(contact => 
           determineAssignmentType(contact.user) === 'tenant'
         )
         intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
       }
+      
+      // Extract assigned users by role
+      if (intervention.intervention_contacts) {
+        intervention.assigned_managers = intervention.intervention_contacts
+          .filter(ic => ic.role === 'gestionnaire')
+          .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+        
+        intervention.assigned_providers = intervention.intervention_contacts
+          .filter(ic => ic.role === 'prestataire')
+          .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+        
+        intervention.assigned_supervisors = intervention.intervention_contacts
+          .filter(ic => ic.role === 'superviseur')
+          .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+          
+        // For backwards compatibility, set primary assigned contact
+        intervention.assigned_contact = intervention.intervention_contacts?.find(ic => 
+          ic.role === 'prestataire' && ic.is_primary
+        )?.user || null
+      }
+      
       return intervention
     })
   },
@@ -1283,26 +1311,8 @@ export const interventionService = {
       
       if (error) throw error
 
-      // Créer des notifications automatiquement
-      if (data && data.lot?.building?.team_id) {
-        try {
-          await notificationService.notifyInterventionCreated({
-            interventionId: data.id,
-            interventionTitle: data.title || `Intervention ${data.type || ''}`,
-            teamId: data.lot.building.team_id,
-            createdBy: intervention.tenant_id,
-            managerId: intervention.tenant_id,
-            lotId: data.lot_id,
-            lotReference: data.lot?.reference,
-            urgency: intervention.urgency === 'urgente' ? 'urgent' : 
-                     intervention.urgency === 'haute' ? 'high' : 'normal'
-          })
-          console.log('✅ Notifications created for new intervention:', data.id)
-        } catch (notificationError) {
-          console.error('❌ Error creating intervention notifications:', notificationError)
-          // Ne pas faire échouer la création de l'intervention pour les notifications
-        }
-      }
+      // Note: Notifications will be created after auto-assignment in the API
+      // This avoids the need for manager_id fields and uses the actual assigned users
       
       return data
     } catch (error) {
@@ -1473,6 +1483,188 @@ export const interventionService = {
         ic.role === 'prestataire' && ic.is_primary
       )?.user || null
     })) || []
+  },
+
+  // Assign users to an intervention automatically based on team and lot/building context
+  async autoAssignIntervention(interventionId: string, lotId?: string, buildingId?: string, teamId?: string) {
+    console.log("👥 Auto-assigning intervention:", { interventionId, lotId, buildingId, teamId })
+    
+    try {
+      const assignments: Array<{
+        intervention_id: string
+        user_id: string
+        role: string
+        is_primary: boolean
+        individual_message?: string
+      }> = []
+
+      // 1. Get all team managers (gestionnaires) if teamId is provided
+      if (teamId) {
+        const { data: teamManagers, error: teamError } = await supabase
+          .from('team_members')
+          .select(`
+            user_id,
+            role,
+            user:user_id(id, name, role)
+          `)
+          .eq('team_id', teamId)
+          .eq('user.role', 'gestionnaire')
+
+        if (teamError) {
+          console.error("❌ Error fetching team managers:", teamError)
+        } else if (teamManagers && teamManagers.length > 0) {
+          console.log("👨‍💼 Found team managers:", teamManagers.length)
+          
+          // Add all team managers as gestionnaires
+          teamManagers.forEach((manager, index) => {
+            assignments.push({
+              intervention_id: interventionId,
+              user_id: manager.user_id,
+              role: 'gestionnaire',
+              is_primary: index === 0, // First manager is primary
+              individual_message: `Assigné automatiquement comme gestionnaire de l'équipe`
+            })
+          })
+        }
+      }
+
+      // 2. Get lot-specific managers if lotId is provided
+      if (lotId) {
+        const { data: lotManagers, error: lotError } = await supabase
+          .from('lot_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            user:user_id(id, name, role)
+          `)
+          .eq('lot_id', lotId)
+          .eq('user.role', 'gestionnaire')
+          .is('end_date', null) // Only active assignments
+
+        if (lotError) {
+          console.error("❌ Error fetching lot managers:", lotError)
+        } else if (lotManagers && lotManagers.length > 0) {
+          console.log("🏠 Found lot-specific managers:", lotManagers.length)
+          
+          // Add lot managers as gestionnaires (override team assignment if same user)
+          lotManagers.forEach(manager => {
+            // Check if already added as team manager
+            const existingIndex = assignments.findIndex(a => a.user_id === manager.user_id && a.role === 'gestionnaire')
+            
+            if (existingIndex >= 0) {
+              // Update existing assignment to be lot-specific and potentially primary
+              assignments[existingIndex].is_primary = manager.is_primary
+              assignments[existingIndex].individual_message = `Assigné comme gestionnaire spécifique du lot`
+            } else {
+              // Add as new lot manager
+              assignments.push({
+                intervention_id: interventionId,
+                user_id: manager.user_id,
+                role: 'gestionnaire',
+                is_primary: manager.is_primary,
+                individual_message: `Assigné comme gestionnaire spécifique du lot`
+              })
+            }
+          })
+        }
+      }
+
+      // 3. Get building-specific managers if buildingId is provided (and no lot specified)
+      if (buildingId && !lotId) {
+        const { data: buildingManagers, error: buildingError } = await supabase
+          .from('building_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            user:user_id(id, name, role)
+          `)
+          .eq('building_id', buildingId)
+          .eq('user.role', 'gestionnaire')
+          .is('end_date', null) // Only active assignments
+
+        if (buildingError) {
+          console.error("❌ Error fetching building managers:", buildingError)
+        } else if (buildingManagers && buildingManagers.length > 0) {
+          console.log("🏢 Found building-specific managers:", buildingManagers.length)
+          
+          // Add building managers as gestionnaires
+          buildingManagers.forEach(manager => {
+            // Check if already added
+            const existingIndex = assignments.findIndex(a => a.user_id === manager.user_id && a.role === 'gestionnaire')
+            
+            if (existingIndex >= 0) {
+              // Update existing assignment
+              assignments[existingIndex].is_primary = manager.is_primary
+              assignments[existingIndex].individual_message = `Assigné comme gestionnaire spécifique du bâtiment`
+            } else {
+              // Add as new building manager
+              assignments.push({
+                intervention_id: interventionId,
+                user_id: manager.user_id,
+                role: 'gestionnaire',
+                is_primary: manager.is_primary,
+                individual_message: `Assigné comme gestionnaire spécifique du bâtiment`
+              })
+            }
+          })
+        }
+      }
+
+      // 4. Optionally get prestataires assigned to the lot/building (for future assignment)
+      if (lotId) {
+        const { data: lotProviders, error: providerError } = await supabase
+          .from('lot_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            user:user_id(id, name, role, provider_category, speciality)
+          `)
+          .eq('lot_id', lotId)
+          .eq('user.role', 'prestataire')
+          .is('end_date', null) // Only active assignments
+
+        if (providerError) {
+          console.error("❌ Error fetching lot providers:", providerError)
+        } else if (lotProviders && lotProviders.length > 0) {
+          console.log("🔧 Found lot-specific providers:", lotProviders.length, "(will be available for manual assignment)")
+          
+          // Note: We don't auto-assign prestataires to new interventions
+          // They should be manually assigned based on the intervention type and their speciality
+          // But we could store them for potential future auto-assignment logic
+        }
+      }
+
+      // Insert all assignments
+      if (assignments.length > 0) {
+        console.log("💾 Creating intervention assignments:", assignments.length)
+        
+        const { data: createdAssignments, error: assignError } = await supabase
+          .from('intervention_contacts')
+          .insert(assignments)
+          .select(`
+            id,
+            user_id,
+            role,
+            is_primary,
+            user:user_id(id, name, email)
+          `)
+
+        if (assignError) {
+          console.error("❌ Error creating intervention assignments:", assignError)
+          throw assignError
+        }
+
+        console.log("✅ Successfully created intervention assignments:", createdAssignments?.length || 0)
+        return createdAssignments
+      } else {
+        console.log("⚠️ No users found to assign to intervention")
+        return []
+      }
+
+    } catch (error) {
+      console.error("❌ Error in autoAssignIntervention:", error)
+      throw error
+    }
   }
 }
 
@@ -3781,7 +3973,7 @@ export const tenantService = {
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       
       const openRequests = interventions?.filter(i => 
-        ['nouvelle_demande', 'en_attente_validation', 'validee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length || 0
 
       const inProgress = interventions?.filter(i => i.status === 'en_cours').length || 0

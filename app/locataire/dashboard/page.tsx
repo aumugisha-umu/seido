@@ -4,10 +4,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Home, MessageSquare, CreditCard, AlertTriangle, Calendar, FileText } from "lucide-react"
+import {
+  Home,
+  MessageSquare,
+  CreditCard,
+  AlertTriangle,
+  Calendar,
+  FileText,
+  Clock,
+  CheckCircle,
+  Wrench,
+  User,
+  MessageCircle,
+  MapPin,
+  Building2,
+  Eye,
+  Droplets,
+  Zap,
+  Flame,
+  Key,
+  Paintbrush,
+  Hammer,
+  Archive,
+  Plus
+} from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTenantData } from "@/hooks/use-tenant-data"
 import { useRouter } from "next/navigation"
+import ContentNavigator from "@/components/content-navigator"
+import {
+  getInterventionLocationText,
+  getInterventionLocationIcon,
+  isBuildingWideIntervention,
+  getStatusColor,
+  getStatusLabel,
+  getPriorityColor,
+  getPriorityLabel
+} from "@/lib/intervention-utils"
 
 export default function LocataireDashboard() {
   const { user } = useAuth()
@@ -22,7 +55,7 @@ export default function LocataireDashboard() {
 
   if (error) {
     return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
@@ -30,13 +63,13 @@ export default function LocataireDashboard() {
             </p>
           </CardContent>
         </Card>
-      </main>
+      </div>
     )
   }
 
   if (!tenantData) {
     return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -44,7 +77,7 @@ export default function LocataireDashboard() {
             </p>
           </CardContent>
         </Card>
-      </main>
+      </div>
     )
   }
 
@@ -53,317 +86,456 @@ export default function LocataireDashboard() {
   }
 
   const handleNewIntervention = () => {
-    router.push('/locataire/interventions/nouvelle')
+    router.push('/locataire/interventions/nouvelle-demande')
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Page Header - Responsive */}
-        <div className="mb-6 lg:mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl lg:text-4xl mb-2">Bonjour {user.name} 👋</h1>
-              <p className="text-slate-600">Gestion de votre logement et services</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button size="sm" variant="outline" className="bg-transparent" onClick={handleNewIntervention}>
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Signaler un problème
+  const handleOpenChat = () => {
+    // TODO: Remplacer par la vraie logique de chat
+    console.log('Opening chat with manager...')
+    
+    // Exemples d'implémentation possibles :
+    // 1. Router vers une page de chat dédiée
+    // router.push('/locataire/chat/manager')
+    
+    // 2. Ouvrir un modal de chat
+    // setIsChatModalOpen(true)
+    
+    // 3. Router vers une liste de conversations
+    // router.push('/locataire/conversations')
+    
+    // Pour l'instant, on peut rediriger vers le dashboard comme fallback
+    router.push('/locataire/dashboard')
+  }
+
+  // Get intervention type icon and color (comme dans gestionnaire)
+  const getInterventionTypeIcon = (type: string) => {
+    const typeConfig = {
+      plomberie: { icon: Droplets, color: "bg-blue-100", iconColor: "text-blue-600" },
+      electricite: { icon: Zap, color: "bg-yellow-100", iconColor: "text-yellow-600" },
+      chauffage: { icon: Flame, color: "bg-red-100", iconColor: "text-red-600" },
+      serrurerie: { icon: Key, color: "bg-gray-100", iconColor: "text-gray-600" },
+      peinture: { icon: Paintbrush, color: "bg-purple-100", iconColor: "text-purple-600" },
+      maintenance: { icon: Hammer, color: "bg-orange-100", iconColor: "text-orange-600" },
+    }
+    
+    return typeConfig[type?.toLowerCase() as keyof typeof typeConfig] || {
+      icon: Wrench,
+      color: "bg-amber-100",
+      iconColor: "text-amber-600"
+    }
+  }
+
+  // Filter function for interventions based on tab (pour locataires)
+  const getFilteredInterventions = (tabId: string) => {
+    if (tabId === "en_cours") {
+      // En cours : demande, approuvée, planifiée, en cours
+      return tenantInterventions.filter((i) => ["demande", "approuvee", "planifiee", "en_cours"].includes(i.status))
+    } else if (tabId === "cloturees") {
+      // Clôturées : clôturées par prestataire, locataire, gestionnaire + annulées et rejetées
+      return tenantInterventions.filter((i) => ["cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"].includes(i.status))
+    }
+    return tenantInterventions
+  }
+
+  // Function to render interventions list (même rendu que gestionnaire)
+  const renderInterventionsList = (tabId: string) => {
+    const filteredInterventions = getFilteredInterventions(tabId)
+    
+    if (filteredInterventions.length === 0) {
+      return (
+        <div className="text-center py-8 sm:py-12 px-4">
+          <div className="max-w-sm mx-auto">
+            <Wrench className="h-10 w-10 sm:h-12 sm:w-12 text-slate-400 mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-slate-900 mb-2">
+              {tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention clôturée"}
+            </h3>
+            <p className="text-sm sm:text-base text-slate-500 mb-4 sm:mb-6 leading-relaxed">
+              {tabId === "en_cours" 
+                ? "Vos demandes d'intervention apparaîtront ici"
+                : "L'historique de vos interventions clôturées apparaîtra ici"}
+            </p>
+            {tabId === "en_cours" && (
+              <Button 
+                onClick={handleNewIntervention}
+                className="w-full sm:w-auto"
+                size="default"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Créer une nouvelle demande
               </Button>
-            </div>
+            )}
           </div>
         </div>
+      )
+    }
 
-        <div className="space-y-8">
-
-      {/* Informations logement */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <Home className="w-5 h-5" />
-            Mon logement
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div>
-              <h3 className="font-medium mb-1">{tenantData.building.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {tenantData.apartment_number || `Lot ${tenantData.reference}`}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}, {tenantData.building.country || 'Belgique'}
-              </p>
-              {(tenantData.surface_area || tenantData.rooms) && (
-                <p className="text-sm text-muted-foreground">
-                  {tenantData.surface_area && `${tenantData.surface_area}m²`}
-                  {tenantData.surface_area && tenantData.rooms && " - "}
-                  {tenantData.rooms && `${tenantData.rooms} pièces`}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col justify-center">
-              {tenantData.surface ? (
-                <>
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-2xl font-bold text-primary">{tenantData.surface}m²</span>
-                    <span className="text-sm text-muted-foreground">surface</span>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">Surface non définie</p>
-              )}
-            </div>
-            <div className="flex flex-col justify-center">
-              <div className="text-right lg:text-left">
-                <p className="text-sm text-muted-foreground">Informations</p>
-                <p className="text-2xl font-bold">
-                  {tenantData.surface 
-                    ? `${tenantData.surface}m²`
-                    : "Non défini"
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Demandes ouvertes</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tenantStats?.openRequests || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {tenantStats?.inProgress || 0} en cours
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Prochaine échéance</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tenantStats?.nextPaymentDate || 15}</div>
-            <p className="text-xs text-muted-foreground">
-              {new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Documents</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tenantStats?.documentsCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Disponibles</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Interventions</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tenantStats?.thisMonthInterventions || 0}</div>
-            <p className="text-xs text-muted-foreground">Ce mois</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Demandes récentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Mes demandes récentes</CardTitle>
-          <CardDescription>Suivi de vos demandes d'intervention</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {tenantInterventions.length > 0 ? (
-            <div className="space-y-4">
-              {tenantInterventions.map((intervention) => (
-                <div key={intervention.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Badge 
-                      variant={getStatusVariant(intervention.status)}
-                      className={getStatusClassName(intervention.status)}
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+        {filteredInterventions.map((intervention) => (
+          <Card key={intervention.id} className="group hover:shadow-sm transition-all duration-200 flex flex-col h-full hover:bg-slate-50/50 cursor-pointer"
+                onClick={() => handleInterventionClick(intervention.id)}>
+            <CardContent className="p-0 flex flex-col flex-1">
+              <div className="p-3 sm:p-4 lg:p-5 flex flex-col flex-1">
+                <div className="space-y-2.5 sm:space-y-3 flex-1">
+                  {/* Header Row - Mobile Optimized */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                      {/* Type Icon */}
+                      {(() => {
+                        const typeConfig = getInterventionTypeIcon(intervention.type || "")
+                        const IconComponent = typeConfig.icon
+                        return (
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${typeConfig.iconColor}`} />
+                          </div>
+                        )
+                      })()}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate leading-tight">
+                          {intervention.title}
+                        </h3>
+                        <div className="flex items-center text-xs text-slate-600 mt-0.5 sm:mt-1 min-w-0">
+                          {getInterventionLocationIcon(intervention) === "building" ? (
+                            <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
+                          ) : (
+                            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                          )}
+                          <span className="truncate">{getInterventionLocationText(intervention)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile Action Button */}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="h-8 w-8 sm:h-8 sm:w-auto sm:px-3 p-0 sm:p-2 flex-shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleInterventionClick(intervention.id)
+                      }}
                     >
+                      <Eye className="h-3 w-3" />
+                      <span className="hidden sm:inline ml-1">Détails</span>
+                    </Button>
+                  </div>
+
+                  {/* Status & Priority Badges - Mobile Optimized */}
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
                       {getStatusLabel(intervention.status)}
                     </Badge>
-                    <div>
-                      <p className="font-medium">{intervention.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {intervention.completed_date 
-                          ? `Terminé le ${new Date(intervention.completed_date).toLocaleDateString('fr-FR')}`
-                          : `Demandé le ${new Date(intervention.created_at).toLocaleDateString('fr-FR')}`
-                        }
-                      </p>
-                    </div>
+                    {intervention.urgency && (
+                      <Badge className={`${getPriorityColor(intervention.urgency)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
+                        {getPriorityLabel(intervention.urgency)}
+                      </Badge>
+                    )}
+                    {isBuildingWideIntervention(intervention) && (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                        Bâtiment entier
+                      </Badge>
+                    )}
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => handleInterventionClick(intervention.id)}
-                  >
-                    Voir détails
-                  </Button>
+
+                  {/* Description - Mobile Friendly */}
+                  {intervention.description && (
+                    <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                      {intervention.description}
+                    </p>
+                  )}
+
+                  {/* Footer Info - Simplified for Mobile */}
+                  <div className="pt-2 border-t border-slate-100 mt-auto">
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const typeConfig = getInterventionTypeIcon(intervention.type || "")
+                          const IconComponent = typeConfig.icon
+                          return (
+                            <>
+                              <div className={`w-4 h-4 ${typeConfig.color} rounded flex items-center justify-center`}>
+                                <IconComponent className={`h-2.5 w-2.5 ${typeConfig.iconColor}`} />
+                              </div>
+                              <span className="text-xs text-slate-600 truncate">
+                                {intervention.type || "Non spécifié"}
+                              </span>
+                            </>
+                          )
+                        })()}
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span className="text-xs">
+                          {intervention.created_at
+                            ? new Date(intervention.created_at).toLocaleDateString("fr-FR", {
+                                day: '2-digit',
+                                month: '2-digit'
+                              })
+                            : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Schedule info - Only show if available and on mobile */}
+                    {("scheduled_date" in intervention && intervention.scheduled_date && typeof intervention.scheduled_date === 'string') ? (
+                      <div className="flex items-center gap-1 mt-1.5 sm:hidden">
+                        <Calendar className="h-3 w-3 text-emerald-600" />
+                        <span className="text-xs text-emerald-600">
+                          Programmé: {new Date(intervention.scheduled_date).toLocaleDateString("fr-FR", {
+                            day: '2-digit',
+                            month: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">Aucune demande d'intervention</p>
-              <Button variant="outline" onClick={handleNewIntervention}>
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Créer ma première demande
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  // Tabs configuration pour les locataires
+  const interventionsTabsConfig = [
+    {
+      id: "en_cours",
+      label: "En cours",
+      icon: Clock,
+      count: loading ? "..." : getFilteredInterventions("en_cours").length,
+      content: renderInterventionsList("en_cours")
+    },
+    {
+      id: "cloturees",
+      label: "Clôturées",
+      icon: Archive,
+      count: loading ? "..." : getFilteredInterventions("cloturees").length,
+      content: renderInterventionsList("cloturees")
+    }
+  ]
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      {/* Page Header - Simple et centré */}
+      <div className="text-center lg:text-left mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user.name} 👋</h1>
+            <p className="text-slate-600">Signalez vos problèmes ici et faites-en le suivi facilement</p>
+          </div>
+          <div className="flex justify-center lg:justify-end">
+            <Button className="px-6 py-3 text-base font-semibold" onClick={handleNewIntervention}>
+              <Plus className="w-5 h-5 mr-2" />
+              Créer une nouvelle demande
+            </Button>
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Section 1: Informations du logement */}
+      <section>
+        <Card className="mb-8">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <Home className="w-5 h-5" />
+              Informations du logement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Nom / Référence */}
+              <div>
+                <div className="space-y-1">
+                  <p className="text-sm text-slate-600">Nom / Référence</p>
+                  <p className="font-semibold text-slate-900">{tenantData.building.name}</p>
+                  <p className="text-sm text-slate-600">{tenantData.reference}</p>
+                </div>
+              </div>
+              
+              {/* Adresse */}
+              <div>
+                <div className="space-y-1">
+                  <p className="text-sm text-slate-600">Adresse</p>
+                  <p className="text-slate-900">{tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}</p>
+                </div>
+              </div>
+
+              {/* Gestionnaire */}
+              <div>
+                <div className="space-y-1">
+                  <p className="text-sm text-slate-600">Gestionnaire</p>
+                  <div 
+                    onClick={handleOpenChat}
+                    className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-full cursor-pointer transition-colors group"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleOpenChat()
+                      }
+                    }}
+                    aria-label="Jean Martin • Cliquer pour ouvrir le chat"
+                  >
+                    <User className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium">Jean Martin</span>
+                    <MessageCircle className="w-4 h-4 text-blue-600 opacity-70 group-hover:opacity-100 transition-opacity ml-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Section 2: Interventions avec ContentNavigator */}
+      <section>
+        <div className="mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-slate-900" />
+              <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
+            </div>
+            <Button 
+              className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start" 
+              onClick={handleNewIntervention}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Créer une nouvelle demande</span>
+            </Button>
+          </div>
+        </div>
+
+        <ContentNavigator
+          tabs={interventionsTabsConfig}
+          defaultTab="en_cours"
+          searchPlaceholder="Rechercher par titre ou description..."
+          onSearch={(value) => console.log("Recherche:", value)}
+        />
+      </section>
     </div>
   )
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <Skeleton className="h-9 w-64 mb-2" />
-          <Skeleton className="h-5 w-48" />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      {/* Header skeleton */}
+      <div className="text-center lg:text-left mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2 mx-auto lg:mx-0" />
+            <Skeleton className="h-5 w-80 mx-auto lg:mx-0" />
+          </div>
+          <Skeleton className="h-12 w-48 mx-auto lg:mx-0" />
         </div>
-        <Skeleton className="h-9 w-40" />
       </div>
 
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
+      {/* Informations du logement skeleton */}
+      <Card className="mb-8">
+        <CardHeader className="pb-4">
+          <Skeleton className="h-6 w-48" />
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
               <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-56" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-24" />
-              <Skeleton className="h-6 w-32" />
             </div>
             <div className="space-y-2">
               <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-40 rounded-full" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="pb-2">
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-8 mb-1" />
-              <Skeleton className="h-3 w-16" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
+      {/* Interventions en cours skeleton */}
+      <Card className="mb-8">
+        <CardHeader className="pb-4">
           <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-6 w-16" />
-                  <div>
-                    <Skeleton className="h-4 w-32 mb-1" />
-                    <Skeleton className="h-3 w-24" />
+              <div key={i} className="border rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="w-5 h-5 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-5 w-40" />
+                      <Skeleton className="h-6 w-20" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                    <Skeleton className="h-4 w-64" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-3 w-32" />
+                      <Skeleton className="h-3 w-36" />
+                    </div>
                   </div>
                 </div>
-                <Skeleton className="h-8 w-24" />
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
+
+          {/* Interventions skeleton */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Skeleton className="w-5 h-5" />
+          <Skeleton className="h-6 w-48" />
         </div>
-      </main>
+        
+        <Card>
+          <CardContent className="pt-6 space-y-4">
+            {/* Tab skeleton */}
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+            
+            {/* Grid skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <Skeleton className="w-10 h-10 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                  <div className="flex gap-2">
+                      <Skeleton className="h-6 w-20" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  <Skeleton className="h-4 w-full" />
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex gap-3">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-18" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      </div>
     </div>
   )
 }
 
-function getStatusVariant(status: string) {
-  switch (status) {
-    case 'terminee':
-      return 'outline' as const
-    case 'en_cours':
-      return 'default' as const
-    case 'nouvelle_demande':
-    case 'en_attente_validation':
-      return 'secondary' as const
-    case 'validee':
-      return 'default' as const
-    default:
-      return 'outline' as const
-  }
-}
-
-function getStatusClassName(status: string) {
-  switch (status) {
-    case 'terminee':
-      return 'border-green-200 text-green-800'
-    case 'en_cours':
-      return 'bg-blue-100 text-blue-800'
-    case 'validee':
-      return 'bg-orange-100 text-orange-800'
-    case 'nouvelle_demande':
-    case 'en_attente_validation':
-      return ''
-    case 'annulee':
-      return 'border-red-200 text-red-800'
-    default:
-      return ''
-  }
-}
-
-function getStatusLabel(status: string) {
-  switch (status) {
-    case 'terminee':
-      return 'Terminé'
-    case 'en_cours':
-      return 'En cours'
-    case 'nouvelle_demande':
-      return 'Nouvelle demande'
-    case 'en_attente_validation':
-      return 'En attente'
-    case 'validee':
-      return 'Validé'
-    case 'annulee':
-      return 'Annulé'
-    default:
-      return status
-  }
-}
+// Les fonctions de style sont maintenant gérées par les utilitaires dans /lib/intervention-utils

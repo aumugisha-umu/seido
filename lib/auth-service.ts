@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { userService, teamService } from './database-service'
 import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
 import type { Database } from './database.types'
+import { activityLogger } from './activity-logger'
 
 export interface AuthUser {
   id: string
@@ -93,6 +94,45 @@ class AuthService {
       // NOUVELLE ARCHITECTURE: L'utilisateur est déjà créé dans users avec auth_user_id
       // Plus besoin de créer un contact séparé - architecture unifiée
       console.log('✅ [AUTH-SERVICE] Architecture unifiée: utilisateur créé avec auth_user_id:', authData.user.id)
+
+      // LOGS D'ACTIVITÉ: Enregistrer la création de l'équipe et du compte utilisateur
+      try {
+        // Configurer le contexte pour les logs
+        activityLogger.setContext({
+          teamId: team.id,
+          userId: userProfile.id
+        })
+
+        // Log pour la création de l'équipe (premier log de l'équipe)
+        await activityLogger.logTeamAction(
+          'create',
+          team.id,
+          team.name,
+          {
+            created_by: userProfile.id,
+            creator_name: name,
+            description: team.description
+          }
+        )
+
+        // Log pour la création du compte utilisateur  
+        await activityLogger.logUserAction(
+          'create',
+          userProfile.id,
+          name,
+          {
+            email: authData.user.email!,
+            role: 'gestionnaire',
+            phone: phone || null,
+            first_login: true
+          }
+        )
+
+        console.log('✅ [AUTH-SERVICE] Activity logs created for user and team creation')
+      } catch (logError) {
+        console.error('⚠️ [AUTH-SERVICE] Failed to create activity logs:', logError)
+        // Non bloquant, on continue même si les logs échouent
+      }
 
       // Retourner l'utilisateur auth
       const authUser: AuthUser = {

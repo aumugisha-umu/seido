@@ -17,16 +17,46 @@ export async function GET(request: NextRequest) {
     // Vérifier l'authentification
     const session = await getServerSession()
     if (!session) {
+      console.log('❌ [NOTIFICATIONS-API] Unauthorized request')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const supabase = await createSupabaseServerClient()
+    console.log('🔍 [NOTIFICATIONS-API] Request params:', {
+      userId,
+      teamId,
+      scope,
+      read,
+      type,
+      limit,
+      offset,
+      sessionUserId: session.user.id
+    })
+
+    const supabaseGet = await createSupabaseServerClient()
+
+    // ✅ CONVERSION AUTH ID → DATABASE ID
+    // Récupérer l'ID utilisateur de la table users à partir de l'ID Supabase Auth
+    const { userService } = await import('@/lib/database-service')
+    const dbUserGet = await userService.findByAuthUserId(session.user.id)
+    
+    if (!dbUserGet) {
+      console.log('❌ [NOTIFICATIONS-API] User not found in database for auth ID:', session.user.id)
+      return NextResponse.json(
+        { error: 'User not found in database' },
+        { status: 404 }
+      )
+    }
+    
+    console.log('🔄 [NOTIFICATIONS-API] Auth ID converted:', {
+      authId: session.user.id,
+      dbUserId: dbUserGet.id
+    })
 
     // Construire la requête de base
-    let query = supabase
+    let query = supabaseGet
       .from('notifications')
       .select(`
         *,
@@ -44,20 +74,19 @@ export async function GET(request: NextRequest) {
 
     // Appliquer les filtres selon le scope
     if (scope === 'personal') {
-      // Notifications personnelles : seulement celles adressées à l'utilisateur connecté avec isPersonal = true
-      query = query.eq('user_id', session.user.id)
+      console.log('🔍 [NOTIFICATIONS-API] Using personal scope filter')
+      // Notifications personnelles : seulement celles adressées à l'utilisateur connecté avec is_personal = true
+      query = query.eq('user_id', dbUserGet.id).eq('is_personal', true)
       if (teamId) {
         query = query.eq('team_id', teamId)
       }
-      // Filtrer par métadonnées isPersonal = true
-      query = query.eq('metadata->>isPersonal', 'true')
     } else if (scope === 'team') {
-      // Notifications d'équipe : notifications de l'équipe avec isPersonal = false ET destinées à l'utilisateur connecté
+      console.log('🔍 [NOTIFICATIONS-API] Using team scope filter')
+      // Notifications d'équipe : notifications de l'équipe avec is_personal = false ET destinées à l'utilisateur connecté
       if (teamId) {
-        query = query.eq('team_id', teamId).eq('user_id', session.user.id)
-        // Filtrer par métadonnées isPersonal = false
-        query = query.eq('metadata->>isPersonal', 'false')
+        query = query.eq('team_id', teamId).eq('user_id', dbUserGet.id).eq('is_personal', false)
       } else {
+        console.log('❌ [NOTIFICATIONS-API] team_id required for team scope')
         // Si pas de teamId spécifié pour le scope team, renvoyer erreur
         return NextResponse.json(
           { error: 'team_id is required for team scope' },
@@ -65,6 +94,7 @@ export async function GET(request: NextRequest) {
         )
       }
     } else {
+      console.log('🔍 [NOTIFICATIONS-API] Using default scope filter')
       // Comportement par défaut (toutes les notifications selon les filtres)
       if (userId) {
         query = query.eq('user_id', userId)
@@ -88,12 +118,25 @@ export async function GET(request: NextRequest) {
     const { data: notifications, error } = await query
 
     if (error) {
-      console.error('Error fetching notifications:', error)
+      console.error('❌ [NOTIFICATIONS-API] Database error:', error)
       return NextResponse.json(
         { error: 'Failed to fetch notifications', details: error.message, code: error.code },
         { status: 500 }
       )
     }
+
+    console.log('📊 [NOTIFICATIONS-API] Query result:', {
+      count: notifications?.length || 0,
+      notifications: notifications?.map(n => ({
+        id: n.id,
+        title: n.title,
+        is_personal: n.is_personal,
+        user_id: n.user_id,
+        team_id: n.team_id,
+        read: n.read,
+        created_at: n.created_at
+      }))
+    })
 
     return NextResponse.json({
       success: true,
@@ -123,7 +166,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createSupabaseServerClient()
+    const supabasePost = await createSupabaseServerClient()
+
+    // ✅ CONVERSION AUTH ID → DATABASE ID
+    const { userService } = await import('@/lib/database-service')
+    const dbUserPost = await userService.findByAuthUserId(session.user.id)
+    
+    if (!dbUserPost) {
+      return NextResponse.json(
+        { error: 'User not found in database' },
+        { status: 404 }
+      )
+    }
 
     const {
       user_id,
@@ -132,6 +186,7 @@ export async function POST(request: NextRequest) {
       priority = 'normal',
       title,
       message,
+      is_personal = false,
       metadata = {},
       related_entity_type,
       related_entity_id
@@ -145,16 +200,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: notification, error } = await supabase
+    const { data: notification, error } = await supabasePost
       .from('notifications')
       .insert({
         user_id,
         team_id,
-        created_by: session.user.id,
+        created_by: dbUserPost.id,
         type,
         priority,
         title,
         message,
+        is_personal,
         metadata,
         related_entity_type,
         related_entity_id
@@ -201,8 +257,6 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const supabase = await createSupabaseServerClient()
-
     if (!notificationId) {
       return NextResponse.json(
         { error: 'Notification ID is required' },
@@ -232,9 +286,22 @@ export async function PATCH(request: NextRequest) {
         )
     }
 
+    const supabasePatch = await createSupabaseServerClient()
+
+    // ✅ CONVERSION AUTH ID → DATABASE ID
+    const { userService } = await import('@/lib/database-service')
+    const dbUserPatch = await userService.findByAuthUserId(session.user.id)
+    
+    if (!dbUserPatch) {
+      return NextResponse.json(
+        { error: 'User not found in database' },
+        { status: 404 }
+      )
+    }
+
     // Pour les notifications d'équipe, vérifier que l'utilisateur fait partie de l'équipe
     // Pour les notifications personnelles, vérifier que l'utilisateur est le propriétaire
-    const { data: notificationCheck, error: checkError } = await supabase
+    const { data: notificationCheck, error: checkError } = await supabasePatch
       .from('notifications')
       .select(`
         id,
@@ -258,8 +325,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Vérifier les permissions : soit c'est sa notification personnelle, soit il fait partie de l'équipe
-    const isOwner = notificationCheck.user_id === session.user.id
-    const isTeamMember = notificationCheck.teams?.team_members?.some((member: any) => member.user_id === session.user.id)
+    const isOwner = notificationCheck.user_id === dbUserPatch.id
+    const isTeamMember = notificationCheck.teams?.team_members?.some((member: any) => member.user_id === dbUserPatch.id)
 
     if (!isOwner && !isTeamMember) {
       return NextResponse.json(
@@ -268,7 +335,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const { data: notification, error } = await supabase
+    const { data: notification, error } = await supabasePatch
       .from('notifications')
       .update(updateData)
       .eq('id', notificationId)

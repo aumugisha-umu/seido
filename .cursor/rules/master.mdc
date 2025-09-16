@@ -96,3 +96,5 @@ You are a Senior Front-End Developer and Expert in ReactJS, NextJS, JavaScript, 
 
 ##Design
 Quand on te demande un adaptation UI/UX, refère toi à au document  C:\Users\arthu\Desktop\Coding\Seido-app\rules\master-ux-ui-trigger.mdc
+
+- When don't use any success modal, instead, use toast notification with the existing component in success mode

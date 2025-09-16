@@ -12,6 +12,7 @@ export interface Notification {
   message: string
   read: boolean
   archived: boolean
+  is_personal: boolean
   metadata: Record<string, any>
   related_entity_type?: string
   related_entity_id?: string
@@ -66,7 +67,17 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   } = options
 
   const fetchNotifications = async () => {
+    console.log('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
+      userId: user?.id,
+      teamId,
+      scope,
+      read,
+      type,
+      limit
+    })
+    
     if (!user?.id || !teamId) {
+      console.log('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
       setLoading(false)
       return
     }
@@ -89,14 +100,26 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       if (read !== undefined) params.append('read', read.toString())
       if (type) params.append('type', type)
 
-      const response = await fetch(`/api/notifications?${params}`)
+      const url = `/api/notifications?${params}`
+      console.log('📡 [USE-NOTIFICATIONS] Fetching from:', url)
+      
+      const response = await fetch(url)
+      
+      console.log('📡 [USE-NOTIFICATIONS] Response status:', response.status)
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.log('❌ [USE-NOTIFICATIONS] Error response:', errorData)
         throw new Error(`Failed to fetch notifications: ${errorData.details || response.statusText}`)
       }
 
       const result = await response.json()
+      
+      console.log('📬 [USE-NOTIFICATIONS] API result:', {
+        success: result.success,
+        dataLength: result.data?.length || 0,
+        data: result.data
+      })
       
       if (result.success) {
         setNotifications(result.data || [])

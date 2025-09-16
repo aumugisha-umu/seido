@@ -34,14 +34,26 @@ CREATE TYPE provider_category AS ENUM (
     'autre'         -- Autres types de prestataires
 );
 
--- Status des interventions
+-- Status des interventions (WORKFLOW COMPLET SELON SPECIFICATIONS)
 CREATE TYPE intervention_status AS ENUM (
-    'nouvelle_demande',
-    'en_attente_validation',
-    'validee',
-    'en_cours',
-    'terminee',
-    'annulee'
+    -- Phase 1: Demande
+    'demande',                     -- Soumise par locataire (remplace nouvelle_demande)
+    'rejetee',                     -- Refusée par gestionnaire (avec motif)
+    'approuvee',                   -- Approuvée par gestionnaire, en attente d'enrichissement
+    
+    -- Phase 2: Planification & Exécution  
+    'demande_de_devis',           -- Devis requis du prestataire (optionnel)
+    'planification',              -- En cours de planification (créneaux proposés)
+    'planifiee',                  -- Planifiée avec créneau confirmé
+    'en_cours',                   -- Travaux en cours d'exécution
+    
+    -- Phase 3: Clôture par étapes
+    'cloturee_par_prestataire',   -- Prestataire a marqué comme terminé
+    'cloturee_par_locataire',     -- Locataire a validé (ou contesté)
+    'cloturee_par_gestionnaire',  -- Gestionnaire a finalisé définitivement
+    
+    -- Statuts transversaux
+    'annulee'                     -- Annulée à tout moment avec justification
 );
 
 -- Urgence des interventions
@@ -314,7 +326,7 @@ CREATE TABLE interventions (
     description TEXT NOT NULL,
     type intervention_type NOT NULL,
     urgency intervention_urgency NOT NULL DEFAULT 'normale',
-    status intervention_status NOT NULL DEFAULT 'nouvelle_demande',
+    status intervention_status NOT NULL DEFAULT 'demande',
     
     -- Relations principales (via tables de liaison pour les contacts)
     lot_id UUID REFERENCES lots(id) ON DELETE CASCADE,
@@ -454,6 +466,7 @@ CREATE TABLE notifications (
     -- Statut
     read BOOLEAN DEFAULT FALSE,
     archived BOOLEAN DEFAULT FALSE,
+    is_personal BOOLEAN DEFAULT FALSE,
     
     -- Données additionnelles
     metadata JSONB DEFAULT '{}',
@@ -824,6 +837,8 @@ CREATE INDEX idx_notifications_related_entity ON notifications(related_entity_ty
     WHERE related_entity_type IS NOT NULL;
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id, read, created_at DESC) WHERE read = FALSE;
 CREATE INDEX idx_notifications_team_unread ON notifications(team_id, read, created_at DESC) WHERE read = FALSE;
+CREATE INDEX idx_notifications_personal ON notifications(user_id, is_personal, read, created_at DESC);
+CREATE INDEX idx_notifications_team_scope ON notifications(team_id, is_personal, read, created_at DESC);
 
 -- Index invitations
 CREATE INDEX idx_invitations_email ON user_invitations(email);

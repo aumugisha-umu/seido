@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { userService, teamService } from '@/lib/database-service'
 import type { Database } from '@/lib/database.types'
+import { activityLogger } from '@/lib/activity-logger'
 
 export async function POST(request: Request) {
   try {
@@ -35,6 +36,45 @@ export async function POST(request: Request) {
       created_by: userProfile.id // ✅ UUID valide de users
     })
     console.log('✅ [STEP-2] Team created:', team.id)
+
+    // LOGS D'ACTIVITÉ: Enregistrer la création de l'équipe et du compte utilisateur
+    try {
+      // Configurer le contexte pour les logs
+      activityLogger.setContext({
+        teamId: team.id,
+        userId: userProfile.id
+      })
+
+      // Log pour la création de l'équipe (premier log de l'équipe)
+      await activityLogger.logTeamAction(
+        'create',
+        team.id,
+        team.name,
+        {
+          created_by: userProfile.id,
+          creator_name: name,
+          description: team.description
+        }
+      )
+
+      // Log pour la création du compte utilisateur  
+      await activityLogger.logUserAction(
+        'create',
+        userProfile.id,
+        name,
+        {
+          email: email,
+          role: 'gestionnaire',
+          phone: phone || null,
+          first_login: true
+        }
+      )
+
+      console.log('✅ [LOGS] Activity logs created for user and team creation')
+    } catch (logError) {
+      console.error('⚠️ [LOGS] Failed to create activity logs:', logError)
+      // Non bloquant, on continue même si les logs échouent
+    }
 
     // Lier le user à l'équipe
     await userService.update(userProfile.id, {

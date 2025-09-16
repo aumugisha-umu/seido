@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import type React from "react"
 
 import {
@@ -53,6 +53,8 @@ export default function NouvelleDemandePage() {
   const { tenantData, loading, error, refreshData } = useTenantData()
   
   // ALL useState hooks must be declared before any conditional returns
+  const [allTenantLots, setAllTenantLots] = useState<any[]>([])
+  const [lotsLoading, setLotsLoading] = useState(true)
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -74,35 +76,85 @@ export default function NouvelleDemandePage() {
   const [createdInterventionId, setCreatedInterventionId] = useState<string | null>(null)
   const [creationError, setCreationError] = useState<string | null>(null)
 
-  const steps = [
-    { id: 1, name: "Logement", description: "Choisir le logement", icon: Home },
-    { id: 2, name: "Demande", description: "Décrire le problème", icon: Building2 },
-    { id: 3, name: "Confirmation", description: "Demande envoyée", icon: CheckCircle },
-  ]
+  // Détermine si on doit afficher l'étape de sélection du logement
+  const shouldSkipStepOne = useMemo(() => {
+    return allTenantLots.length === 1
+  }, [allTenantLots])
 
-  // Auto-select the tenant's logement using useEffect to avoid hooks order issues
-  const logements = tenantData ? [
-    {
-      id: tenantData.id,
-      name: tenantData.apartment_number || `Lot ${tenantData.reference}`,
-      address: `${tenantData.building.address}, ${tenantData.building.postal_code} ${tenantData.building.city}`,
-      surface: tenantData.surface_area ? `${tenantData.surface_area}m²` : "Surface non spécifiée",
-      building: tenantData.building.name,
-      interventions: "Aucune intervention active", // Could be calculated from tenantInterventions if needed
+  // Steps dynamiques selon le nombre de lots
+  const steps = useMemo(() => {
+    const baseSteps = [
+      { id: 1, name: "Logement", description: "Choisir le logement", icon: Home },
+      { id: 2, name: "Demande", description: "Décrire le problème", icon: Building2 },
+      { id: 3, name: "Confirmation", description: "Demande envoyée", icon: CheckCircle },
+    ]
+    
+    // Si on doit passer l'étape 1, on ajuste les IDs et supprime l'étape 1
+    if (shouldSkipStepOne) {
+      return [
+        { id: 2, name: "Demande", description: "Décrire le problème", icon: Building2 },
+        { id: 3, name: "Confirmation", description: "Demande envoyée", icon: CheckCircle },
+      ]
     }
-  ] : []
+    
+    return baseSteps
+  }, [shouldSkipStepOne])
 
-  // Use useEffect to auto-select logement to avoid hooks order issues
+  // Fetch all tenant lots (separate from the main tenantData)
+  useEffect(() => {
+    const fetchAllTenantLots = async () => {
+      if (!user?.id || user.role !== 'locataire') {
+        setLotsLoading(false)
+        return
+      }
+
+      try {
+        setLotsLoading(true)
+        // Import du service tenant
+        const { tenantService } = await import('@/lib/database-service')
+        const lots = await tenantService.getAllTenantLots(user.id)
+        setAllTenantLots(lots || [])
+      } catch (err) {
+        console.error('Error fetching tenant lots:', err)
+        setAllTenantLots([])
+      } finally {
+        setLotsLoading(false)
+      }
+    }
+
+    fetchAllTenantLots()
+  }, [user])
+
+  // Transform lots data for display
+  const logements = useMemo(() => {
+    return allTenantLots.map(lot => ({
+      id: lot.id,
+      name: lot.apartment_number || `Lot ${lot.reference}`,
+      address: `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}`,
+      surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
+      building: lot.building.name,
+      interventions: "Aucune intervention active", // Could be calculated if needed
+      reference: lot.reference,
+      building_id: lot.building.id
+    }))
+  }, [allTenantLots])
+
+  // Auto-select logement and skip step 1 if only one lot
   useEffect(() => {
     if (!selectedLogement && logements.length > 0) {
       setSelectedLogement(logements[0].id)
+      
+      // If only one lot, skip to step 2 directly
+      if (shouldSkipStepOne) {
+        setCurrentStep(2)
+      }
     }
-  }, [selectedLogement, logements])
+  }, [selectedLogement, logements, shouldSkipStepOne])
 
   // Conditional returns AFTER all hooks
   if (!user) return <div>Chargement...</div>
   
-  if (loading) return <LoadingSkeleton />
+  if (loading || lotsLoading) return <LoadingSkeleton />
   
   if (error) {
     return (
@@ -118,7 +170,7 @@ export default function NouvelleDemandePage() {
     )
   }
 
-  if (!tenantData) {
+  if (allTenantLots.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
@@ -182,13 +234,16 @@ export default function NouvelleDemandePage() {
       setIsCreating(true)
       setCreationError(null) // Clear any previous error
       
+      // Get the selected lot data
+      const selectedLotData = logements.find(l => l.id === selectedLogement)
+      
       // Prepare the intervention data
       const interventionData = {
         title: formData.titre,
         description: formData.description,
         type: formData.type || null,
         urgency: formData.urgence || 'normale',
-        lot_id: tenantData?.id, // Use the tenant's lot ID
+        lot_id: selectedLogement, // Use the selected lot ID
         files: uploadedFiles, // For future file handling
         availabilities: disponibilites // For future availability handling
       }
@@ -219,7 +274,7 @@ export default function NouvelleDemandePage() {
       await handleSuccess({
         successTitle: "Demande d'intervention créée avec succès",
         successDescription: `Votre demande "${result.intervention.title}" a été transmise à votre gestionnaire.`,
-        redirectPath: "/locataire/interventions",
+        redirectPath: "/locataire/dashboard",
         refreshData: refreshData,
       })
 
@@ -270,13 +325,13 @@ export default function NouvelleDemandePage() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  if (currentStep === 1) {
+  if (currentStep === 1 && !shouldSkipStepOne) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/locataire/interventions"
+            href="/locataire/dashboard"
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -364,13 +419,15 @@ export default function NouvelleDemandePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <button
-            onClick={() => setCurrentStep(1)}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Changer de logement
-          </button>
+          {!shouldSkipStepOne && (
+            <button
+              onClick={() => setCurrentStep(1)}
+              className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Changer de logement
+            </button>
+          )}
 
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Déclarer un sinistre</h1>
           <p className="text-gray-600">
@@ -550,12 +607,7 @@ export default function NouvelleDemandePage() {
             <div>
               <Label className="text-sm font-medium text-gray-700">Vos disponibilités (optionnel)</Label>
               <div className="mt-2 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-600 cursor-pointer" onClick={ajouterDisponibilite}>
-                    Ajouter une disponibilité
-                  </span>
-                </div>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div>
@@ -638,8 +690,11 @@ export default function NouvelleDemandePage() {
 
           {/* Actions */}
           <div className="flex justify-between pt-6">
-            <Button variant="outline" onClick={() => setCurrentStep(1)}>
-              Annuler
+            <Button 
+              variant="outline" 
+              onClick={() => shouldSkipStepOne ? router.push('/locataire/dashboard') : setCurrentStep(1)}
+            >
+              {shouldSkipStepOne ? 'Annuler' : 'Retour'}
             </Button>
             <Button
               onClick={handleSubmit}

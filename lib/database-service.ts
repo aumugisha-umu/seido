@@ -1280,6 +1280,19 @@ export const interventionService = {
             is_primary,
             user:user_id(id, name, email, phone, role, provider_category)
           )
+        ),
+        building:building_id(
+          *,
+          building_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        intervention_contacts(
+          role,
+          is_primary,
+          individual_message,
+          user:user_id(id, name, email, phone, role, provider_category, speciality)
         )
       `)
       .eq('id', id)
@@ -1293,6 +1306,27 @@ export const interventionService = {
         determineAssignmentType(contact.user) === 'tenant'
       )
       data.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+    }
+
+    // Post-traitement pour extraire les gestionnaires, prestataires et superviseurs assignés
+    if (data?.intervention_contacts) {
+      data.assigned_managers = data.intervention_contacts
+        .filter(ic => ic.role === 'gestionnaire')
+        .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+      
+      data.assigned_providers = data.intervention_contacts
+        .filter(ic => ic.role === 'prestataire')
+        .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+      
+      data.assigned_supervisors = data.intervention_contacts
+        .filter(ic => ic.role === 'superviseur')
+        .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+      
+      // Pour la compatibilité, définir le gestionnaire principal comme "manager"
+      data.manager = data.assigned_managers?.find(m => m.is_primary) || data.assigned_managers?.[0] || null
+      
+      // Pour la compatibilité, définir le prestataire principal comme "assigned_contact"
+      data.assigned_contact = data.assigned_providers?.find(p => p.is_primary) || data.assigned_providers?.[0] || null
     }
     
     return data
@@ -1364,7 +1398,10 @@ export const interventionService = {
             console.log('✅ Status change notifications created for intervention:', data.id)
           }
 
-          // TODO: Assignment notifications should be handled via intervention_contacts table
+          // Notifications pour les changements d'assignation (nouveaux gestionnaires/prestataires)
+          // Note: Pour détecter les changements d'assignation, il faudrait comparer les intervention_contacts
+          // avant et après la mise à jour. Pour l'instant, cette fonctionnalité est gérée au niveau API
+          // lors des assignations explicites d'utilisateurs à une intervention.
         } catch (notificationError) {
           console.error('❌ Error creating intervention update notifications:', notificationError)
           // Ne pas faire échouer la mise à jour pour les notifications

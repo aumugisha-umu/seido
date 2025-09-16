@@ -628,7 +628,7 @@ export default function NewImmeubleePage() {
           contactId: manager.user.id, // ✅ CORRECTION : utiliser manager.user.id au lieu de manager.id
           contactType: 'gestionnaire',
           isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
-          isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour le champ manager_id
+          isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour lot_contacts.is_primary
         }))
         
         return {

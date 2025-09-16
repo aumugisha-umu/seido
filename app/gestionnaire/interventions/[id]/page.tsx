@@ -285,13 +285,13 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           phone: interventionData.tenant.phone
         } : undefined,
         manager: interventionData.manager ? {
-          id: interventionData.manager_id,
+          id: interventionData.manager.id,
           name: interventionData.manager.name,
           email: interventionData.manager.email,
           phone: interventionData.manager.phone
         } : undefined,
         assignedContact: interventionData.assigned_contact ? {
-          id: interventionData.assigned_contact_id,
+          id: interventionData.assigned_contact.id,
           name: interventionData.assigned_contact.name,
           email: interventionData.assigned_contact.email,
           phone: interventionData.assigned_contact.phone,

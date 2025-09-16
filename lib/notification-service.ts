@@ -648,12 +648,27 @@ class NotificationService {
         member.user?.role === 'gestionnaire' && member.user_id !== createdBy
       )
 
-      // Identifier le gestionnaire directement responsable (s'il est différent du créateur)
-      const directManager = building.manager_id && building.manager_id !== createdBy ? building.manager_id : null
+      // Identifier les gestionnaires directement responsables via building_contacts
+      const { data: buildingContacts } = await supabase
+        .from('building_contacts')
+        .select(`
+          user_id, 
+          is_primary,
+          user:user_id(role)
+        `)
+        .eq('building_id', building.id)
+        .is('end_date', null) // Only active assignments
+
+      const directManagers = new Set<string>()
+      buildingContacts?.forEach(contact => {
+        if (contact.is_primary && contact.user_id !== createdBy && contact.user?.role === 'gestionnaire') {
+          directManagers.add(contact.user_id)
+        }
+      })
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
-        const isDirectlyResponsible = manager.user_id === directManager
+        const isDirectlyResponsible = directManagers.has(manager.user_id)
 
         if (isDirectlyResponsible) {
           // Notification personnelle pour le gestionnaire directement responsable
@@ -698,7 +713,7 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManager ? '1 personal, ' + (allManagers.length - 1) + ' team' : allManagers.length + ' team'})`)
+      console.log(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
       console.error('❌ Failed to notify building created:', error)
     }
@@ -726,12 +741,27 @@ class NotificationService {
         member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
       )
 
-      // Identifier le gestionnaire directement responsable (s'il est différent du créateur)
-      const directManager = building.manager_id && building.manager_id !== updatedBy ? building.manager_id : null
+      // Identifier les gestionnaires directement responsables via building_contacts
+      const { data: buildingContacts } = await supabase
+        .from('building_contacts')
+        .select(`
+          user_id, 
+          is_primary,
+          user:user_id(role)
+        `)
+        .eq('building_id', building.id)
+        .is('end_date', null) // Only active assignments
+
+      const directManagers = new Set<string>()
+      buildingContacts?.forEach(contact => {
+        if (contact.is_primary && contact.user_id !== updatedBy && contact.user?.role === 'gestionnaire') {
+          directManagers.add(contact.user_id)
+        }
+      })
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
-        const isDirectlyResponsible = manager.user_id === directManager
+        const isDirectlyResponsible = directManagers.has(manager.user_id)
 
         if (isDirectlyResponsible) {
           // Notification personnelle pour le gestionnaire directement responsable
@@ -776,7 +806,7 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManager ? '1 personal, ' + (allManagers.length - 1) + ' team' : allManagers.length + ' team'})`)
+      console.log(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
       console.error('❌ Failed to notify building updated:', error)
     }
@@ -803,12 +833,27 @@ class NotificationService {
         member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
       )
 
-      // Identifier le gestionnaire directement responsable (s'il est différent du supprimeur)
-      const directManager = building.manager_id && building.manager_id !== deletedBy ? building.manager_id : null
+      // Identifier les gestionnaires directement responsables via building_contacts
+      const { data: buildingContacts } = await supabase
+        .from('building_contacts')
+        .select(`
+          user_id, 
+          is_primary,
+          user:user_id(role)
+        `)
+        .eq('building_id', building.id)
+        .is('end_date', null) // Only active assignments
+
+      const directManagers = new Set<string>()
+      buildingContacts?.forEach(contact => {
+        if (contact.is_primary && contact.user_id !== deletedBy && contact.user?.role === 'gestionnaire') {
+          directManagers.add(contact.user_id)
+        }
+      })
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
-        const isDirectlyResponsible = manager.user_id === directManager
+        const isDirectlyResponsible = directManagers.has(manager.user_id)
 
         if (isDirectlyResponsible) {
           // Notification personnelle pour le gestionnaire directement responsable
@@ -851,7 +896,7 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManager ? '1 personal, ' + (allManagers.length - 1) + ' team' : allManagers.length + ' team'})`)
+      console.log(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
       console.error('❌ Failed to notify building deleted:', error)
     }
@@ -881,30 +926,59 @@ class NotificationService {
       // Identifier TOUS les gestionnaires directement responsables
       const directResponsibles = new Set<string>()
       
-      // 1. Gestionnaire principal du lot (lot.manager_id)
-      if (lot.manager_id && lot.manager_id !== createdBy) {
-        directResponsibles.add(lot.manager_id)
-      }
-      
-      // 2. Gestionnaires additionnels du lot (lot_contacts)
+      // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
       const lotManagerIds = await this.getLotManagers(lot.id)
-      lotManagerIds.forEach(managerId => {
-        if (managerId !== createdBy) {
-          directResponsibles.add(managerId)
+      const { data: lotContacts } = await supabase
+        .from('lot_contacts')
+        .select(`
+          user_id, 
+          is_primary,
+          user:user_id(role)
+        `)
+        .eq('lot_id', lot.id)
+        .is('end_date', null) // Only active assignments
+
+      const lotPrimaryManagers = new Set<string>()
+      const lotAdditionalManagers = new Set<string>()
+      
+      lotContacts?.forEach(contact => {
+        if (contact.user?.role === 'gestionnaire' && contact.user_id !== createdBy) {
+          directResponsibles.add(contact.user_id)
+          if (contact.is_primary) {
+            lotPrimaryManagers.add(contact.user_id)
+          } else {
+            lotAdditionalManagers.add(contact.user_id)
+          }
         }
       })
       
-      // 3. Gestionnaire de l'immeuble parent
-      if (building?.manager_id && building.manager_id !== createdBy) {
-        directResponsibles.add(building.manager_id)
+      // 2. Gestionnaires de l'immeuble parent (building_contacts)
+      const buildingPrimaryManagers = new Set<string>()
+      if (building?.id) {
+        const { data: buildingContacts } = await supabase
+          .from('building_contacts')
+          .select(`
+            user_id, 
+            is_primary,
+            user:user_id(role)
+          `)
+          .eq('building_id', building.id)
+          .is('end_date', null) // Only active assignments
+
+        buildingContacts?.forEach(contact => {
+          if (contact.is_primary && contact.user_id !== createdBy && contact.user?.role === 'gestionnaire') {
+            directResponsibles.add(contact.user_id)
+            buildingPrimaryManagers.add(contact.user_id)
+          }
+        })
       }
       
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
         const isDirectlyResponsible = directResponsibles.has(manager.user_id)
-        const isLotPrincipal = manager.user_id === lot.manager_id
-        const isLotAdditional = lotManagerIds.includes(manager.user_id) && manager.user_id !== lot.manager_id
-        const isBuildingManager = manager.user_id === building?.manager_id
+        const isLotPrincipal = lotPrimaryManagers.has(manager.user_id)
+        const isLotAdditional = lotAdditionalManagers.has(manager.user_id)
+        const isBuildingManager = buildingPrimaryManagers.has(manager.user_id)
 
         if (isDirectlyResponsible) {
           // Notification personnelle pour les gestionnaires directement responsables
@@ -918,6 +992,10 @@ class NotificationService {
           } else if (isBuildingManager) {
             title = 'Nouveau lot dans votre immeuble'
             message = `Un nouveau lot "${lot.reference}" a été créé dans l'immeuble "${building?.name || 'N/A'}" dont vous êtes responsable`
+          } else {
+            // Cas par défaut si aucune condition spécifique n'est remplie
+            title = 'Nouveau lot créé'
+            message = `Un nouveau lot "${lot.reference}" a été créé dans l'immeuble "${building?.name || 'N/A'}"`
           }
           
           return this.createNotification({
@@ -966,9 +1044,9 @@ class NotificationService {
 
       console.log(`📬 Lot creation notifications sent to ${allManagers.length} gestionnaires`)
       console.log(`📬   - ${directResponsibles.size} personal notifications`)
-      console.log(`📬     • ${lot.manager_id ? '1' : '0'} lot principal`)
-      console.log(`📬     • ${lotManagerIds.filter(id => id !== lot.manager_id).length} lot additionnels`)
-      console.log(`📬     • ${building?.manager_id && !lotManagerIds.includes(building.manager_id) && building.manager_id !== lot.manager_id ? '1' : '0'} building manager`)
+      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
       console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
       console.error('❌ Failed to notify lot created:', error)
@@ -999,30 +1077,59 @@ class NotificationService {
       // Identifier TOUS les gestionnaires directement responsables
       const directResponsibles = new Set<string>()
       
-      // 1. Gestionnaire principal du lot (lot.manager_id)
-      if (lot.manager_id && lot.manager_id !== updatedBy) {
-        directResponsibles.add(lot.manager_id)
-      }
-      
-      // 2. Gestionnaires additionnels du lot (lot_contacts)
+      // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
       const lotManagerIds = await this.getLotManagers(lot.id)
-      lotManagerIds.forEach(managerId => {
-        if (managerId !== updatedBy) {
-          directResponsibles.add(managerId)
+      const { data: lotContacts } = await supabase
+        .from('lot_contacts')
+        .select(`
+          user_id, 
+          is_primary,
+          user:user_id(role)
+        `)
+        .eq('lot_id', lot.id)
+        .is('end_date', null) // Only active assignments
+
+      const lotPrimaryManagers = new Set<string>()
+      const lotAdditionalManagers = new Set<string>()
+      
+      lotContacts?.forEach(contact => {
+        if (contact.user?.role === 'gestionnaire' && contact.user_id !== updatedBy) {
+          directResponsibles.add(contact.user_id)
+          if (contact.is_primary) {
+            lotPrimaryManagers.add(contact.user_id)
+          } else {
+            lotAdditionalManagers.add(contact.user_id)
+          }
         }
       })
       
-      // 3. Gestionnaire de l'immeuble parent
-      if (building?.manager_id && building.manager_id !== updatedBy) {
-        directResponsibles.add(building.manager_id)
+      // 2. Gestionnaires de l'immeuble parent (building_contacts)
+      const buildingPrimaryManagers = new Set<string>()
+      if (building?.id) {
+        const { data: buildingContacts } = await supabase
+          .from('building_contacts')
+          .select(`
+            user_id, 
+            is_primary,
+            user:user_id(role)
+          `)
+          .eq('building_id', building.id)
+          .is('end_date', null) // Only active assignments
+
+        buildingContacts?.forEach(contact => {
+          if (contact.is_primary && contact.user_id !== updatedBy && contact.user?.role === 'gestionnaire') {
+            directResponsibles.add(contact.user_id)
+            buildingPrimaryManagers.add(contact.user_id)
+          }
+        })
       }
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
         const isDirectlyResponsible = directResponsibles.has(manager.user_id)
-        const isLotPrincipal = manager.user_id === lot.manager_id
-        const isLotAdditional = lotManagerIds.includes(manager.user_id) && manager.user_id !== lot.manager_id
-        const isBuildingManager = manager.user_id === building?.manager_id
+        const isLotPrincipal = lotPrimaryManagers.has(manager.user_id)
+        const isLotAdditional = lotAdditionalManagers.has(manager.user_id)
+        const isBuildingManager = buildingPrimaryManagers.has(manager.user_id)
 
         if (isDirectlyResponsible) {
           // Notification personnelle pour les gestionnaires directement responsables
@@ -1036,6 +1143,10 @@ class NotificationService {
           } else if (isBuildingManager) {
             title = 'Lot de votre immeuble modifié'
             message = `Le lot "${lot.reference}" de l'immeuble "${building?.name || 'N/A'}" dont vous êtes responsable a été modifié`
+          } else {
+            // Cas par défaut si aucune condition spécifique n'est remplie
+            title = 'Lot modifié'
+            message = `Le lot "${lot.reference}" dans l'immeuble "${building?.name || 'N/A'}" a été modifié`
           }
 
           return this.createNotification({
@@ -1084,9 +1195,9 @@ class NotificationService {
 
       console.log(`📬 Lot update notifications sent to ${allManagers.length} gestionnaires`)
       console.log(`📬   - ${directResponsibles.size} personal notifications`)
-      console.log(`📬     • ${lot.manager_id ? '1' : '0'} lot principal`)
-      console.log(`📬     • ${lotManagerIds.filter(id => id !== lot.manager_id).length} lot additionnels`)
-      console.log(`📬     • ${building?.manager_id && !lotManagerIds.includes(building.manager_id) && building.manager_id !== lot.manager_id ? '1' : '0'} building manager`)
+      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
       console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
       console.error('❌ Failed to notify lot updated:', error)
@@ -1117,30 +1228,59 @@ class NotificationService {
       // Identifier TOUS les gestionnaires directement responsables
       const directResponsibles = new Set<string>()
       
-      // 1. Gestionnaire principal du lot (lot.manager_id)
-      if (lot.manager_id && lot.manager_id !== deletedBy) {
-        directResponsibles.add(lot.manager_id)
-      }
-      
-      // 2. Gestionnaires additionnels du lot (lot_contacts)
+      // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
       const lotManagerIds = await this.getLotManagers(lot.id)
-      lotManagerIds.forEach(managerId => {
-        if (managerId !== deletedBy) {
-          directResponsibles.add(managerId)
+      const { data: lotContacts } = await supabase
+        .from('lot_contacts')
+        .select(`
+          user_id, 
+          is_primary,
+          user:user_id(role)
+        `)
+        .eq('lot_id', lot.id)
+        .is('end_date', null) // Only active assignments
+
+      const lotPrimaryManagers = new Set<string>()
+      const lotAdditionalManagers = new Set<string>()
+      
+      lotContacts?.forEach(contact => {
+        if (contact.user?.role === 'gestionnaire' && contact.user_id !== deletedBy) {
+          directResponsibles.add(contact.user_id)
+          if (contact.is_primary) {
+            lotPrimaryManagers.add(contact.user_id)
+          } else {
+            lotAdditionalManagers.add(contact.user_id)
+          }
         }
       })
       
-      // 3. Gestionnaire de l'immeuble parent
-      if (building?.manager_id && building.manager_id !== deletedBy) {
-        directResponsibles.add(building.manager_id)
+      // 2. Gestionnaires de l'immeuble parent (building_contacts)
+      const buildingPrimaryManagers = new Set<string>()
+      if (building?.id) {
+        const { data: buildingContacts } = await supabase
+          .from('building_contacts')
+          .select(`
+            user_id, 
+            is_primary,
+            user:user_id(role)
+          `)
+          .eq('building_id', building.id)
+          .is('end_date', null) // Only active assignments
+
+        buildingContacts?.forEach(contact => {
+          if (contact.is_primary && contact.user_id !== deletedBy && contact.user?.role === 'gestionnaire') {
+            directResponsibles.add(contact.user_id)
+            buildingPrimaryManagers.add(contact.user_id)
+          }
+        })
       }
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
         const isDirectlyResponsible = directResponsibles.has(manager.user_id)
-        const isLotPrincipal = manager.user_id === lot.manager_id
-        const isLotAdditional = lotManagerIds.includes(manager.user_id) && manager.user_id !== lot.manager_id
-        const isBuildingManager = manager.user_id === building?.manager_id
+        const isLotPrincipal = lotPrimaryManagers.has(manager.user_id)
+        const isLotAdditional = lotAdditionalManagers.has(manager.user_id)
+        const isBuildingManager = buildingPrimaryManagers.has(manager.user_id)
 
         if (isDirectlyResponsible) {
           // Notification personnelle pour les gestionnaires directement responsables
@@ -1154,6 +1294,10 @@ class NotificationService {
           } else if (isBuildingManager) {
             title = 'Lot de votre immeuble supprimé'
             message = `Le lot "${lot.reference}" de l'immeuble "${building?.name || 'N/A'}" dont vous êtes responsable a été supprimé`
+          } else {
+            // Cas par défaut si aucune condition spécifique n'est remplie
+            title = 'Lot supprimé'
+            message = `Le lot "${lot.reference}" dans l'immeuble "${building?.name || 'N/A'}" a été supprimé`
           }
 
           return this.createNotification({
@@ -1198,9 +1342,9 @@ class NotificationService {
 
       console.log(`📬 Lot deletion notifications sent to ${allManagers.length} gestionnaires`)
       console.log(`📬   - ${directResponsibles.size} personal notifications`)
-      console.log(`📬     • ${lot.manager_id ? '1' : '0'} lot principal`)
-      console.log(`📬     • ${lotManagerIds.filter(id => id !== lot.manager_id).length} lot additionnels`)
-      console.log(`📬     • ${building?.manager_id && !lotManagerIds.includes(building.manager_id) && building.manager_id !== lot.manager_id ? '1' : '0'} building manager`)
+      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
       console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
       console.error('❌ Failed to notify lot deleted:', error)
@@ -1354,62 +1498,127 @@ class NotificationService {
       const { data: buildingLinks } = await supabase
         .from('building_contacts')
         .select(`
-          building:buildings(id, name, manager_id)
+          building:buildings(id, name),
+          building_id
         `)
-        .eq('contact_id', contactId)
+        .eq('user_id', contactId) // Corrected field name from contact_id to user_id
 
       if (buildingLinks) {
-        buildingLinks.forEach(link => {
-          if (link.building?.manager_id && link.building.manager_id !== excludeUserId) {
-            directResponsibles.add(link.building.manager_id)
-          }
-        })
+        // Pour chaque bâtiment lié, récupérer ses gestionnaires principaux
+        const buildingIds = buildingLinks.map(link => link.building_id)
+        
+        if (buildingIds.length > 0) {
+          const { data: buildingManagers } = await supabase
+            .from('building_contacts')
+            .select(`
+              user_id,
+              building_id,
+              is_primary,
+              user:user_id(role)
+            `)
+            .in('building_id', buildingIds)
+            .eq('user.role', 'gestionnaire')
+            .eq('is_primary', true)
+            .is('end_date', null)
+
+          buildingManagers?.forEach(manager => {
+            if (manager.user_id !== excludeUserId) {
+              directResponsibles.add(manager.user_id)
+            }
+          })
+        }
       }
 
-      // Vérifier les liens avec les lots via lot_contacts (s'il existe)
+      // Vérifier les liens avec les lots via lot_contacts
       const { data: lotLinks } = await supabase
         .from('lot_contacts')
         .select(`
           lot:lots(
             id, 
             reference, 
-            building:buildings(id, name, manager_id)
+            building_id,
+            building:buildings(id, name)
           )
         `)
-        .eq('contact_id', contactId)
+        .eq('user_id', contactId) // Corrected field name
         .limit(10)
 
       if (lotLinks) {
+        // Pour chaque lot lié, récupérer les gestionnaires principaux de son bâtiment
+        const uniqueBuildingIds = new Set<string>()
         lotLinks.forEach(link => {
-          if (link.lot?.building?.manager_id && link.lot.building.manager_id !== excludeUserId) {
-            directResponsibles.add(link.lot.building.manager_id)
+          if (link.lot?.building_id) {
+            uniqueBuildingIds.add(link.lot.building_id)
           }
         })
+        
+        if (uniqueBuildingIds.size > 0) {
+          const { data: lotBuildingManagers } = await supabase
+            .from('building_contacts')
+            .select(`
+              user_id,
+              building_id,
+              is_primary,
+              user:user_id(role)
+            `)
+            .in('building_id', Array.from(uniqueBuildingIds))
+            .eq('user.role', 'gestionnaire')
+            .eq('is_primary', true)
+            .is('end_date', null)
+
+          lotBuildingManagers?.forEach(manager => {
+            if (manager.user_id !== excludeUserId) {
+              directResponsibles.add(manager.user_id)
+            }
+          })
+        }
       }
 
-      // Vérifier les liens avec les interventions
+      // Vérifier les liens avec les interventions via intervention_contacts
       const { data: interventionLinks } = await supabase
-        .from('interventions')
+        .from('intervention_contacts')
         .select(`
-          id,
-          manager_id,
-          lot:lots(
+          intervention:interventions(
             id,
-            building:buildings(id, name, manager_id)
+            lot:lots(
+              id,
+              building_id,
+              building:buildings(id, name)
+            )
           )
         `)
-        .eq('assigned_contact_id', contactId)
+        .eq('user_id', contactId)
         .limit(10)
 
       if (interventionLinks) {
-        interventionLinks.forEach(intervention => {
-          if (intervention.manager_id && intervention.manager_id !== excludeUserId) {
-            directResponsibles.add(intervention.manager_id)
-          }
-          if (intervention.lot?.building?.manager_id && intervention.lot.building.manager_id !== excludeUserId) {
-            directResponsibles.add(intervention.lot.building.manager_id)
+        // Pour chaque intervention liée, récupérer les gestionnaires principaux de son bâtiment
+        const interventionBuildingIds = new Set<string>()
+        interventionLinks.forEach(link => {
+          if (link.intervention?.lot?.building_id) {
+            interventionBuildingIds.add(link.intervention.lot.building_id)
           }
         })
+        
+        if (interventionBuildingIds.size > 0) {
+          const { data: interventionBuildingManagers } = await supabase
+            .from('building_contacts')
+            .select(`
+              user_id,
+              building_id,
+              is_primary,
+              user:user_id(role)
+            `)
+            .in('building_id', Array.from(interventionBuildingIds))
+            .eq('user.role', 'gestionnaire')
+            .eq('is_primary', true)
+            .is('end_date', null)
+
+          interventionBuildingManagers?.forEach(manager => {
+            if (manager.user_id !== excludeUserId) {
+              directResponsibles.add(manager.user_id)
+            }
+          })
+        }
       }
     } catch (error) {
       console.error('Error getting contact direct responsibles:', error)

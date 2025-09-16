@@ -120,7 +120,8 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         description: buildingData.description || "",
       })
       
-      setSelectedManagerId(buildingData.manager_id || "")
+      // TODO: Migrer vers le nouveau système de building_contacts
+      // setSelectedManagerId(buildingData.manager_id || "")
 
     } catch (error) {
       console.error("❌ Error loading building data:", error)
@@ -146,10 +147,11 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       return
     }
 
-    if (!selectedManagerId) {
-      setError("Veuillez sélectionner un responsable")
-      return
-    }
+    // TODO: Migrer vers le nouveau système de building_contacts
+    // if (!selectedManagerId) {
+    //   setError("Veuillez sélectionner un responsable")
+    //   return
+    // }
 
     try {
       setSaving(true)
@@ -165,7 +167,8 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         description: buildingInfo.description.trim(),
         construction_year: buildingInfo.constructionYear ? parseInt(buildingInfo.constructionYear) : undefined,
         floors: buildingInfo.floors ? parseInt(buildingInfo.floors) : undefined,
-        manager_id: selectedManagerId,
+        // TODO: Migrer vers le nouveau système de building_contacts
+        // manager_id: selectedManagerId,
       }
 
       await buildingService.update(resolvedParams.id, updateData)
@@ -331,13 +334,14 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
             <CardTitle>Informations de l'immeuble</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* TODO: Migrer vers le nouveau système de building_contacts */}
             <BuildingInfoForm
               buildingInfo={buildingInfo}
               setBuildingInfo={setBuildingInfo}
-              selectedManagerId={selectedManagerId}
-              setSelectedManagerId={setSelectedManagerId}
-              teamManagers={teamManagers}
-              userTeam={userTeam}
+              selectedManagerId=""
+              setSelectedManagerId={() => {}}
+              teamManagers={[]}
+              userTeam={null}
               isLoading={teamManagers.length === 0 && userTeam === null}
               showManagerSection={true}
               showAddressSection={true}

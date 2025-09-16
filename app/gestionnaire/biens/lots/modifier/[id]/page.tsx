@@ -130,7 +130,8 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
         category: (lotData.category as LotCategory) || "appartement",
       })
       
-      setSelectedManagerId(lotData.manager_id || "")
+      // TODO: Migrer vers le nouveau système de lot_contacts
+      // setSelectedManagerId(lotData.manager_id || "")
 
     } catch (error) {
       console.error("❌ Error loading lot data:", error)
@@ -151,10 +152,11 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       return
     }
 
-    if (!selectedManagerId) {
-      setError("Veuillez sélectionner un responsable")
-      return
-    }
+    // TODO: Migrer vers le nouveau système de lot_contacts
+    // if (!selectedManagerId) {
+    //   setError("Veuillez sélectionner un responsable")
+    //   return
+    // }
 
     try {
       setSaving(true)
@@ -167,7 +169,8 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
         apartment_number: lotInfo.doorNumber?.trim() || undefined,
         category: lotInfo.category,
         description: lotInfo.description.trim(),
-        manager_id: selectedManagerId,
+        // TODO: Migrer vers le nouveau système de lot_contacts
+        // manager_id: selectedManagerId,
       }
 
       await lotService.update(resolvedParams.id, updateData)
@@ -338,13 +341,14 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
             <CardTitle>Informations du lot</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* TODO: Migrer vers le nouveau système de lot_contacts */}
             <BuildingInfoForm
               buildingInfo={lotInfo}
               setBuildingInfo={setLotInfo}
-              selectedManagerId={selectedManagerId}
-              setSelectedManagerId={setSelectedManagerId}
-              teamManagers={teamManagers}
-              userTeam={userTeam}
+              selectedManagerId=""
+              setSelectedManagerId={() => {}}
+              teamManagers={[]}
+              userTeam={null}
               isLoading={teamManagers.length === 0 && userTeam === null}
               showManagerSection={true}
               showAddressSection={false} // Les lots héritent de l'adresse du bâtiment

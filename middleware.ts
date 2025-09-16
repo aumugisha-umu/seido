@@ -45,9 +45,9 @@ export async function middleware(request: NextRequest) {
         let userRole = 'gestionnaire' // fallback par défaut
         
         try {
-          // Chercher le cookie access token de Supabase
+          // Chercher le cookie access token de Supabase - nom correct
           const authTokenCookie = cookies.find(cookie => 
-            cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')
+            cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token')
           )
           
           console.log('🔍 [MIDDLEWARE-SIMPLE] Auth token cookie search result:', {
@@ -63,24 +63,26 @@ export async function middleware(request: NextRequest) {
             })
             
             let authData
+            let rawCookieValue = authTokenCookie.value
+            
             try {
-              // Le cookie contient un JSON avec access_token
-              authData = JSON.parse(authTokenCookie.value)
-            } catch (parseError) {
-              console.log('⚠️ [MIDDLEWARE-SIMPLE] Cookie JSON parse failed, trying base64 decode:', {
-                error: parseError.message,
-                cookieStart: authTokenCookie.value.substring(0, 20)
-              })
-              
-              // Si le cookie est base64 encodé, le décoder d'abord
-              try {
-                const decodedValue = atob(authTokenCookie.value)
-                authData = JSON.parse(decodedValue)
+              // Si le cookie commence par "base64-", enlever ce préfixe et décoder
+              if (rawCookieValue.startsWith('base64-')) {
+                console.log('🔍 [MIDDLEWARE-SIMPLE] Cookie has base64- prefix, removing and decoding...')
+                const base64Content = rawCookieValue.substring(7) // Enlever "base64-"
+                rawCookieValue = atob(base64Content)
                 console.log('✅ [MIDDLEWARE-SIMPLE] Successfully decoded base64 cookie')
-              } catch (base64Error) {
-                console.log('❌ [MIDDLEWARE-SIMPLE] Base64 decode also failed:', base64Error.message)
-                throw parseError // Garder l'erreur originale
               }
+              
+              // Parser le JSON résultant
+              authData = JSON.parse(rawCookieValue)
+            } catch (parseError) {
+              console.log('⚠️ [MIDDLEWARE-SIMPLE] Cookie parsing failed:', {
+                error: parseError.message,
+                cookieStart: authTokenCookie.value.substring(0, 30),
+                hasBase64Prefix: authTokenCookie.value.startsWith('base64-')
+              })
+              throw parseError
             }
             
             console.log('🔍 [MIDDLEWARE-SIMPLE] Auth data parsed:', {

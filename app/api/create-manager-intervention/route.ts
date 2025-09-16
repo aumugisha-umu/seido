@@ -255,6 +255,7 @@ export async function POST(request: NextRequest) {
       
       if (!buildingId) {
         return NextResponse.json({
+          success: false,
           error: "ID du bâtiment invalide"
         }, { status: 400 })
       }
@@ -262,6 +263,7 @@ export async function POST(request: NextRequest) {
       const building = await buildingService.getById(buildingId)
       if (!building) {
         return NextResponse.json({
+          success: false,
           error: "Building not found"
         }, { status: 404 })
       }
@@ -336,6 +338,41 @@ export async function POST(request: NextRequest) {
     // Prepare intervention data
     console.log("📝 Preparing intervention data with multiple managers:", selectedManagerIds)
     
+    // ✅ LOGIQUE MÉTIER: Déterminer le statut selon les règles de création par gestionnaire
+    let interventionStatus: Database['public']['Enums']['intervention_status']
+    
+    console.log("🔍 Analyse des conditions pour déterminer le statut:", {
+      hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
+      expectsQuote,
+      hasTenant: !!tenantId,
+      onlyOneManager: selectedManagerIds.length === 1,
+      noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
+      schedulingType,
+      hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
+    })
+    
+    // CAS 1: Demande de devis si prestataires assignés + devis requis
+    if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
+      interventionStatus = 'demande_de_devis'
+      console.log("✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
+      
+    // CAS 2: Planifiée directement si conditions strictes remplies
+    } else if (
+      !tenantId && // Pas de locataire dans le bien
+      selectedManagerIds.length === 1 && // Que le gestionnaire créateur
+      (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
+      schedulingType === 'fixed' && // Date/heure fixe
+      fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
+    ) {
+      interventionStatus = 'planifiee'
+      console.log("✅ Statut déterminé: PLANIFIEE (pas locataire + seul gestionnaire + date fixe)")
+      
+    // CAS 3: Planification dans tous les autres cas
+    } else {
+      interventionStatus = 'planification'
+      console.log("✅ Statut déterminé: PLANIFICATION (cas par défaut)")
+    }
+    
     const interventionData: any = {
       title,
       description,
@@ -345,7 +382,7 @@ export async function POST(request: NextRequest) {
       tenant_id: tenantId, // Can be null for manager-created interventions
       // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
       team_id: interventionTeamId,
-      status: 'validee' as Database['public']['Enums']['intervention_status'], // Manager interventions are pre-validated
+      status: interventionStatus, // ✅ NOUVEAU: Statut déterminé selon les règles métier
       scheduled_date: scheduledDate,
       manager_comment: location ? `Localisation: ${location}` : null,
       requires_quote: expectsQuote || false,

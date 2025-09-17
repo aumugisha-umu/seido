@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
+import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
 const getInterventionLocationText = (intervention: InterventionDetail): string => {
@@ -367,38 +368,12 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour
           </Button>
         </div>
       </div>
     )
   }
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency.toLowerCase()) {
-      case "urgent":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "normale":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "faible":
-        return "bg-gray-100 text-gray-800 border-gray-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "en attente":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "en cours":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "terminé":
-        return "bg-green-100 text-green-800 border-green-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
 
   const findCommonSlots = () => {
     if (intervention.scheduling.type !== "slots" || !intervention.availabilities.length) {
@@ -464,56 +439,42 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     }))
   }
 
+  const handleBack = () => {
+    router.push('/gestionnaire/interventions')
+  }
+
+  const handleArchive = () => {
+    console.log('Archive intervention:', intervention.id)
+    // TODO: Implémenter la logique d'archivage
+  }
+
+  const handleStatusAction = (action: string) => {
+    console.log('Status action:', action, 'for intervention:', intervention.id)
+    // TODO: Implémenter les actions selon le statut
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour
-          </Button>
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <h1 className="text-2xl font-bold text-gray-900">{intervention.title}</h1>
-              <Badge className={getUrgencyColor(intervention.urgency)}>{intervention.urgency}</Badge>
-              <Badge className={getStatusColor(intervention.status)}>{intervention.status}</Badge>
-            </div>
+    <div>
+      {/* Header amélioré */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: intervention.reference,
+          status: intervention.status,
+          urgency: intervention.urgency,
+          createdAt: intervention.createdAt,
+          createdBy: intervention.createdBy,
+          lot: intervention.lot,
+          building: intervention.building,
+        }}
+        onBack={handleBack}
+        onArchive={handleArchive}
+        onStatusAction={handleStatusAction}
+      />
 
-            <div className="flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-1 text-gray-500">
-                <User className="h-3 w-3" />
-                <span>{intervention.createdBy}</span>
-              </div>
-              <div className="flex items-center space-x-1 text-gray-500">
-                <CalendarDays className="h-3 w-3" />
-                <span>
-                  {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline">
-            <Edit className="h-4 w-4 mr-2" />
-            Modifier
-          </Button>
-
-          <Button variant="outline">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Ouvrir le chat
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6">
           {/* Détails de l'intervention */}
@@ -536,7 +497,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
                 <div>
                   <h4 className="font-medium text-gray-900 mb-1">Priorité</h4>
-                  <Badge className={getUrgencyColor(intervention.urgency)}>{intervention.urgency}</Badge>
+                  <span className="text-gray-700">{intervention.urgency}</span>
                 </div>
               </div>
             </CardContent>
@@ -1426,6 +1387,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
               </CardContent>
             </Card>
           )}
+        </div>
         </div>
       </div>
     </div>

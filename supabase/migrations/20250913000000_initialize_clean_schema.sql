@@ -172,6 +172,7 @@ CREATE TABLE users (
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     phone VARCHAR(20),
+    avatar_url TEXT, -- URL de la photo de profil stockée dans Supabase Storage
     
     -- Informations professionnelles (pour prestataires)
     address TEXT,
@@ -976,6 +977,43 @@ ON CONFLICT (id) DO NOTHING;
 -- VALIDATION ET RÉSUMÉ
 -- =============================================================================
 
+-- =============================================================================
+-- CONFIGURATION STORAGE - AVATARS
+-- =============================================================================
+
+-- Créer le bucket avatars s'il n'existe pas
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Politique RLS pour permettre aux utilisateurs de gérer leurs propres avatars
+DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
+CREATE POLICY "Users can upload their own avatar"
+ON storage.objects FOR INSERT WITH CHECK (
+    bucket_id = 'avatars' AND 
+    (storage.foldername(name))[1] = auth.uid()::text
+);
+
+DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
+CREATE POLICY "Users can update their own avatar"
+ON storage.objects FOR UPDATE USING (
+    bucket_id = 'avatars' AND 
+    (storage.foldername(name))[1] = auth.uid()::text
+);
+
+DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
+CREATE POLICY "Users can delete their own avatar"
+ON storage.objects FOR DELETE USING (
+    bucket_id = 'avatars' AND 
+    (storage.foldername(name))[1] = auth.uid()::text
+);
+
+DROP POLICY IF EXISTS "Avatar images are publicly accessible" ON storage.objects;
+CREATE POLICY "Avatar images are publicly accessible"
+ON storage.objects FOR SELECT USING (
+    bucket_id = 'avatars'
+);
+
 DO $$
 BEGIN
     RAISE NOTICE '=== SCHÉMA SEIDO ARCHITECTURE SIMPLIFIÉE INITIALISÉ ===';
@@ -987,6 +1025,8 @@ BEGIN
     RAISE NOTICE '✅ Documents, notifications, invitations, logs inclus';
     RAISE NOTICE '✅ Fonctions, triggers, et index optimisés';
     RAISE NOTICE '✅ Données initiales créées';
+    RAISE NOTICE '📸 Configuration du storage pour les avatars...';
+    RAISE NOTICE '✅ Storage pour avatars configuré';
     RAISE NOTICE '';
     RAISE NOTICE '🎯 Architecture simplifiée prête - pas de migration nécessaire';
     RAISE NOTICE '📋 Prochaine étape: Adapter le code application';

@@ -13,6 +13,7 @@ export interface AuthUser {
   display_name?: string
   role: Database['public']['Enums']['user_role']
   phone?: string
+  avatar_url?: string
   created_at?: string
   updated_at?: string
 }
@@ -144,6 +145,7 @@ class AuthService {
         display_name: name,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
+        avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
@@ -220,6 +222,7 @@ class AuthService {
         display_name: fullName,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
+        avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
@@ -289,6 +292,7 @@ class AuthService {
         display_name: data.user.user_metadata?.display_name || userProfile.name,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
+        avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
@@ -359,6 +363,7 @@ class AuthService {
             display_name: authUser.user_metadata?.display_name || userProfile.name,
             role: userProfile.role,
             phone: userProfile.phone || undefined,
+            avatar_url: userProfile.avatar_url || undefined,
             created_at: userProfile.created_at || undefined,
             updated_at: userProfile.updated_at || undefined,
           }
@@ -389,6 +394,7 @@ class AuthService {
           display_name: authUser.user_metadata?.display_name || undefined,
           role: 'gestionnaire',
           phone: undefined,
+          avatar_url: undefined,
           created_at: undefined,
           updated_at: undefined,
         }
@@ -428,8 +434,28 @@ class AuthService {
         return { user: null, error: authError }
       }
 
-      // Mettre à jour le profil dans notre table
-      const updatedProfile = await userService.update(authUser.id, {
+      // ✅ CORRIGER: Récupérer l'ID utilisateur dans la table users via auth_user_id
+      const { data: dbUser, error: findError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .single()
+
+      if (findError || !dbUser) {
+        console.error('❌ [UPDATE-PROFILE] User not found in database:', findError)
+        return { user: null, error: findError as AuthError || { message: 'Utilisateur non trouvé', name: 'UserNotFound', status: 404 } as AuthError }
+      }
+
+      console.log('✅ [UPDATE-PROFILE] Found user in database:', dbUser.id)
+      console.log('🔄 [UPDATE-PROFILE] Updating with data:', {
+        name: updates.name,
+        first_name: updates.first_name,
+        last_name: updates.last_name,
+        phone: updates.phone
+      })
+
+      // Mettre à jour le profil dans notre table avec le bon ID
+      const updatedProfile = await userService.update(dbUser.id, {
         name: updates.name,
         first_name: updates.first_name,
         last_name: updates.last_name,
@@ -437,6 +463,8 @@ class AuthService {
         phone: updates.phone,
         role: updates.role,
       })
+
+      console.log('✅ [UPDATE-PROFILE] Profile updated successfully:', updatedProfile.id)
 
       // Mettre à jour le display_name dans Supabase Auth si le nom change
       if (updates.display_name || updates.name) {
@@ -462,14 +490,24 @@ class AuthService {
         display_name: updates.display_name || updatedProfile.name,
         role: updatedProfile.role,
         phone: updatedProfile.phone || undefined,
+        avatar_url: updatedProfile.avatar_url || undefined,
         created_at: updatedProfile.created_at || undefined,
         updated_at: updatedProfile.updated_at || undefined,
       }
 
       return { user, error: null }
     } catch (error) {
-      console.error('Error updating profile:', error)
-      return { user: null, error: error as AuthError }
+      console.error('❌ [UPDATE-PROFILE] Unexpected error:', error)
+      console.error('❌ [UPDATE-PROFILE] Error details:', JSON.stringify(error, null, 2))
+      
+      // Créer un message d'erreur plus explicite
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la mise à jour du profil'
+      
+      return { user: null, error: { 
+        message: errorMessage,
+        name: 'UpdateProfileError',
+        status: 500
+      } as AuthError }
     }
   }
 

@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       role = 'gestionnaire', 
       teamId, 
       phone,
+      speciality, // ✅ AJOUT: Spécialité pour les prestataires
       shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
     } = body
 
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
       email, 
       firstName, 
       lastName, 
+      speciality,
       shouldInviteToApp,
       teamId 
     })
@@ -113,6 +115,7 @@ export async function POST(request: Request) {
           last_name: lastName,
           role: validUserRole, // ✅ Utiliser le rôle mappé
           provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
+          speciality: speciality || null, // ✅ AJOUT: Spécialité pour les prestataires
           phone: phone || null,
           team_id: teamId,
           is_active: true
@@ -290,9 +293,9 @@ export async function POST(request: Request) {
         shouldInviteToApp ? 'invite' : 'create',
         'contact',
         userProfile.id,
-        `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${firstName} ${lastName}`,
+        `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${firstName} ${lastName}${speciality ? ` (${speciality})` : ''}`,
           'success',
-        { email, shouldInviteToApp }
+        { email, speciality, shouldInviteToApp }
       )
       } catch (logError) {
       console.warn('⚠️ Failed to log activity:', logError)

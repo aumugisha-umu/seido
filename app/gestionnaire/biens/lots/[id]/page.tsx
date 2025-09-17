@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
+import { PropertyDetailHeader } from "@/components/property-detail-header"
 
 export default function LotDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
@@ -83,7 +84,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const handleDelete = async () => {
+  const confirmDelete = async () => {
     if (!lot?.id) return
 
     try {
@@ -281,84 +282,73 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     )
   }
 
+  const handleBack = () => {
+    if (lot.building?.id) {
+      router.push(`/gestionnaire/biens/immeubles/${lot.building.id}`)
+    } else {
+      router.push('/gestionnaire/biens')
+    }
+  }
+
+  const handleEdit = () => {
+    router.push(`/gestionnaire/biens/lots/modifier/${resolvedParams.id}`)
+  }
+
+  const handleCustomAction = (actionKey: string) => {
+    switch (actionKey) {
+      case "add-intervention":
+        router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
+        break
+      default:
+        console.log("Action not implemented:", actionKey)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
+      {/* Header amélioré */}
+      <PropertyDetailHeader
+        property={{
+          id: lot.id,
+          title: lot.reference,
+          reference: lot.reference,
+          createdAt: lot.created_at,
+          createdBy: lot.manager?.name,
+          isOccupied: lot.is_occupied,
+          apartmentNumber: lot.apartment_number,
+          floor: lot.floor,
+          building: lot.building ? {
+            name: lot.building.name,
+            address: lot.building.address,
+            city: lot.building.city,
+          } : undefined,
+        }}
+        type="lot"
+        onBack={handleBack}
+        onEdit={handleEdit}
+        customActions={[
+          { key: "add-intervention", label: "Créer une intervention", icon: Plus, onClick: () => handleCustomAction("add-intervention") },
+        ]}
+        onArchive={() => console.log("Archive lot:", lot.id)}
+      />
 
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${resolvedParams.id}`)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Modifier
-              </Button>
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={() => setShowDeleteModal(true)}
-                disabled={isDeleting}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </Button>
-            </div>
+      {/* Surface et pièces - Info supplémentaire */}
+      {(lot.surface_area || lot.rooms) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+          <div className="flex items-center justify-center space-x-6 text-sm text-slate-600">
+            {lot.surface_area && (
+              <div className="flex items-center space-x-1">
+                <span>📐 {lot.surface_area} m²</span>
+              </div>
+            )}
+            {lot.rooms && (
+              <div className="flex items-center space-x-1">
+                <span>🏠 {lot.rooms} pièces</span>
+              </div>
+            )}
           </div>
         </div>
-      </header>
-
-      {/* Lot Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center space-x-4 mb-2">
-          <h1 className="text-2xl font-bold text-slate-900">{lot.reference}</h1>
-          <Badge variant={lot.is_occupied ? "default" : "secondary"} 
-                 className={lot.is_occupied ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-            {lot.is_occupied ? "Occupé" : "Vacant"}
-          </Badge>
-          {lot.apartment_number && (
-            <span className="text-sm text-slate-600">Appartement {lot.apartment_number}</span>
-          )}
-        </div>
-        <div className="flex items-center space-x-4 text-slate-600">
-          {lot.building && (
-            <>
-              <div className="flex items-center space-x-1">
-                <Building2 className="h-4 w-4" />
-                <span>{lot.building.name}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <MapPin className="h-4 w-4" />
-                <span>{lot.building.address}, {lot.building.city}</span>
-              </div>
-            </>
-          )}
-          <div className="flex items-center space-x-1">
-            <span>📍 Étage {lot.floor ?? "Non défini"}</span>
-          </div>
-          {lot.surface_area && (
-            <div className="flex items-center space-x-1">
-              <span>📐 {lot.surface_area} m²</span>
-            </div>
-          )}
-          {lot.rooms && (
-            <div className="flex items-center space-x-1">
-              <span>🏠 {lot.rooms} pièces</span>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Tabs Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -712,7 +702,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       <DeleteConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleDelete}
+        onConfirm={confirmDelete}
         title="Confirmer la suppression"
         message="Êtes-vous sûr de vouloir supprimer ce lot ? Cette action supprimera également toutes les données associées (interventions, contacts, etc.)."
         itemName={lot?.reference}

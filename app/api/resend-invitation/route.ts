@@ -135,19 +135,20 @@ export async function POST(request: Request) {
       // Ne pas faire échouer la requête pour cette erreur
     }
 
-    // ÉTAPE 5: Mettre à jour l'invitation avec une nouvelle date d'expiration
+    // ÉTAPE 5: Mettre à jour l'invitation avec statut pending et nouvelle date d'expiration
     try {
       const newExpirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 jours
       
       await supabaseAdmin
         .from('user_invitations')
         .update({
+          status: 'pending', // ✅ Remettre à pending après renvoi
           expires_at: newExpirationDate,
           updated_at: new Date().toISOString()
         })
         .eq('id', invitationId)
       
-      console.log('✅ [RESEND-INVITATION] Updated invitation expiration')
+      console.log('✅ [RESEND-INVITATION] Updated invitation status to pending and expiration')
     } catch (updateError) {
       console.warn('⚠️ [RESEND-INVITATION] Failed to update invitation:', updateError)
       // Ne pas faire échouer pour cette erreur

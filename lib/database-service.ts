@@ -516,12 +516,12 @@ export const buildingService = {
       
       // Log de succès et notification
       if (data && currentData?.team_id) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
           // Log d'activité avec contexte explicite
           await activityLogger.log({
             teamId: currentData.team_id,
-            userId: user.id,
+            userId: localUserId,
             actionType: 'update',
             entityType: 'building',
             entityId: data.id,
@@ -533,16 +533,13 @@ export const buildingService = {
               previous_name: currentData.name
             }
           }).catch(logError => 
-            console.error("Failed to log building update:", logError)
+            console.error("Failed to log building update:", logError instanceof Error ? logError.message : String(logError))
           )
 
           // Notification de modification
-          const localUserId = await getLocalUserId()
-          if (localUserId) {
-            await notificationService.notifyBuildingUpdated(data, localUserId, updates).catch(notificationError =>
-            console.error("Failed to send building update notification:", notificationError)
+          await notificationService.notifyBuildingUpdated(data, localUserId, updates).catch(notificationError =>
+            console.error("Failed to send building update notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
           )
-          }
         }
       }
       
@@ -588,12 +585,12 @@ export const buildingService = {
       
       // Log de succès et notification
       if (currentData?.team_id) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
           // Log d'activité avec contexte explicite
           await activityLogger.log({
             teamId: currentData.team_id,
-            userId: user.id,
+            userId: localUserId,
             actionType: 'delete',
             entityType: 'building',
             entityId: id,
@@ -606,16 +603,13 @@ export const buildingService = {
               deleted_at: new Date().toISOString()
             }
           }).catch(logError => 
-            console.error("Failed to log building deletion:", logError)
+            console.error("Failed to log building deletion:", logError instanceof Error ? logError.message : String(logError))
           )
 
           // Notification de suppression
-          const localUserId = await getLocalUserId()
-          if (localUserId) {
-            await notificationService.notifyBuildingDeleted(currentData, localUserId).catch(notificationError =>
-            console.error("Failed to send building deletion notification:", notificationError)
+          await notificationService.notifyBuildingDeleted(currentData, localUserId).catch(notificationError =>
+            console.error("Failed to send building deletion notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
           )
-          }
         }
       }
       
@@ -886,12 +880,12 @@ export const lotService = {
       
       // Log de succès et notification
       if (data && currentData?.team_id) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
           // Log d'activité avec contexte explicite
           await activityLogger.log({
             teamId: currentData.team_id,
-            userId: user.id,
+            userId: localUserId,
             actionType: 'update',
             entityType: 'lot',
             entityId: data.id,
@@ -904,7 +898,7 @@ export const lotService = {
               building_id: data.building_id
             }
           }).catch(logError => 
-            console.error("Failed to log lot update:", logError)
+            console.error("Failed to log lot update:", logError instanceof Error ? logError.message : String(logError))
           )
 
           // Notification de modification - récupérer les informations du building
@@ -914,12 +908,9 @@ export const lotService = {
             .eq('id', data.building_id)
             .single()
 
-          const localUserId = await getLocalUserId()
-          if (localUserId) {
-            await notificationService.notifyLotUpdated(data, building, localUserId, updates).catch(notificationError =>
-            console.error("Failed to send lot update notification:", notificationError)
+          await notificationService.notifyLotUpdated(data, building, localUserId, updates).catch(notificationError =>
+            console.error("Failed to send lot update notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
           )
-          }
         }
       }
       
@@ -965,12 +956,12 @@ export const lotService = {
       
       // Log de succès et notification
       if (currentData?.team_id) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
           // Log d'activité avec contexte explicite
           await activityLogger.log({
             teamId: currentData.team_id,
-            userId: user.id,
+            userId: localUserId,
             actionType: 'delete',
             entityType: 'lot',
             entityId: id,
@@ -985,7 +976,7 @@ export const lotService = {
               deleted_at: new Date().toISOString()
             }
           }).catch(logError => 
-            console.error("Failed to log lot deletion:", logError)
+            console.error("Failed to log lot deletion:", logError instanceof Error ? logError.message : String(logError))
           )
 
           // Notification de suppression - récupérer les informations du building
@@ -995,12 +986,9 @@ export const lotService = {
             .eq('id', currentData.building_id)
             .single()
 
-          const localUserId = await getLocalUserId()
-          if (localUserId) {
-            await notificationService.notifyLotDeleted(currentData, building, localUserId).catch(notificationError =>
-            console.error("Failed to send lot deletion notification:", notificationError)
+          await notificationService.notifyLotDeleted(currentData, building, localUserId).catch(notificationError =>
+            console.error("Failed to send lot deletion notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
           )
-          }
         }
       }
       
@@ -2384,7 +2372,11 @@ export const contactService = {
         .single()
       
       if (error) {
-        console.error("❌ Contact update error:", error)
+        console.error("❌ Contact update error:", {
+          message: error.message,
+          code: error.code,
+          details: error.details
+        })
         
         // Log de l'erreur
         if (currentData?.team_id) {
@@ -2393,9 +2385,17 @@ export const contactService = {
             'contact',
             currentData.name || 'Contact',
             error.message || 'Erreur lors de la modification',
-            { updates, contact_id: id, error: error }
+            { 
+              updates, 
+              contact_id: id, 
+              error: {
+                message: error.message,
+                code: error.code,
+                details: error.details
+              }
+            }
           ).catch(logError => 
-            console.error("Failed to log contact update error:", logError)
+            console.error("Failed to log contact update error:", logError instanceof Error ? logError.message : String(logError))
           )
         }
         
@@ -2404,12 +2404,12 @@ export const contactService = {
       
       // Log de succès et notification
       if (data && currentData?.team_id) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
           // Log d'activité avec contexte explicite
           await activityLogger.log({
             teamId: currentData.team_id,
-            userId: user.id,
+            userId: localUserId,
             actionType: 'update',
             entityType: 'contact',
             entityId: data.id,
@@ -2423,22 +2423,19 @@ export const contactService = {
               provider_category: data.provider_category || currentData.provider_category
             }
           }).catch(logError => 
-            console.error("Failed to log contact update:", logError)
+            console.error("Failed to log contact update:", logError instanceof Error ? logError.message : String(logError))
           )
 
           // Notification de modification
-          const localUserId = await getLocalUserId()
-          if (localUserId) {
-            await notificationService.notifyContactUpdated(data, localUserId, updates).catch(notificationError =>
-            console.error("Failed to send contact update notification:", notificationError)
+          await notificationService.notifyContactUpdated(data, localUserId, updates).catch(notificationError =>
+            console.error("Failed to send contact update notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
           )
-          }
         }
       }
       
       return data
     } catch (error) {
-      console.error("❌ contactService.update error:", error)
+      console.error("❌ contactService.update error:", error instanceof Error ? error.message : String(error))
       throw error
     }
   },
@@ -2478,12 +2475,12 @@ export const contactService = {
       
       // Log de succès et notification
       if (currentData?.team_id) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
           // Log d'activité avec contexte explicite
           await activityLogger.log({
             teamId: currentData.team_id,
-            userId: user.id,
+            userId: localUserId,
             actionType: 'delete',
             entityType: 'contact',
             entityId: id,
@@ -2498,16 +2495,13 @@ export const contactService = {
               deleted_at: new Date().toISOString()
             }
           }).catch(logError => 
-            console.error("Failed to log contact deletion:", logError)
+            console.error("Failed to log contact deletion:", logError instanceof Error ? logError.message : String(logError))
           )
 
           // Notification de suppression
-          const localUserId = await getLocalUserId()
-          if (localUserId) {
-            await notificationService.notifyContactDeleted(currentData, localUserId).catch(notificationError =>
-            console.error("Failed to send contact deletion notification:", notificationError)
+          await notificationService.notifyContactDeleted(currentData, localUserId).catch(notificationError =>
+            console.error("Failed to send contact deletion notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
           )
-          }
         }
       }
       
@@ -3387,6 +3381,7 @@ export const contactInvitationService = {
           providerCategory: mapFrontendTypeToUserRole(contactData.type).provider_category,
           teamId: contactData.teamId,
           phone: contactData.phone,
+          speciality: contactData.speciality, // ✅ AJOUT: Spécialité pour les prestataires
           shouldInviteToApp: contactData.inviteToApp // ✅ NOUVEAU PARAMÈTRE
         })
       })

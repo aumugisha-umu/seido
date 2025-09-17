@@ -71,13 +71,18 @@ class ActivityLogger {
         .single()
 
       if (error) {
-        console.error('ActivityLogger: Error saving log:', error)
+        console.error('ActivityLogger: Error saving log:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        })
         return null
       }
 
       return data?.id || null
     } catch (error) {
-      console.error('ActivityLogger: Unexpected error:', error)
+      console.error('ActivityLogger: Unexpected error:', error instanceof Error ? error.message : String(error))
       return null
     }
   }

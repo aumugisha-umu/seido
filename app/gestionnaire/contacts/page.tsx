@@ -7,7 +7,14 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "lucide-react"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
@@ -38,6 +45,7 @@ export default function ContactsPage() {
   // ✅ Toujours appeler tous les hooks, indépendamment du return early
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [filteredContacts, setFilteredContacts] = useState<any[]>([])
+  const [filteredInvitations, setFilteredInvitations] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loadingInvitations, setLoadingInvitations] = useState(false)
@@ -113,20 +121,103 @@ export default function ContactsPage() {
     }
   }, [contactsError])
 
-  // ✅ Filtrer les contacts selon le terme de recherche (le seul useEffect qui reste nécessaire)
+  // État pour les filtres
+  const [filters, setFilters] = useState({
+    role: "all",
+    category: "all", 
+    speciality: "all",
+    invitationStatus: "all"
+  })
+
+  // ✅ Filtrer les contacts ET les invitations selon le terme de recherche ET les filtres
   useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredContacts(contacts)
-    } else {
-      const filtered = contacts.filter(contact => 
+    // Filtrage des contacts
+    let filteredContactsResult = contacts
+
+    // Filtrage par terme de recherche
+    if (searchTerm.trim() !== "") {
+      filteredContactsResult = filteredContactsResult.filter(contact => 
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      setFilteredContacts(filtered)
     }
-  }, [contacts, searchTerm])
+
+    // Filtrage par rôle
+    if (filters.role !== "all") {
+      filteredContactsResult = filteredContactsResult.filter(contact => contact.role === filters.role)
+    }
+
+    // Filtrage par catégorie (provider_category)
+    if (filters.category !== "all") {
+      filteredContactsResult = filteredContactsResult.filter(contact => contact.provider_category === filters.category)
+    }
+
+    // Filtrage par spécialité
+    if (filters.speciality !== "all") {
+      filteredContactsResult = filteredContactsResult.filter(contact => contact.speciality === filters.speciality)
+    }
+
+    // Filtrage par statut d'invitation
+    if (filters.invitationStatus !== "all") {
+      filteredContactsResult = filteredContactsResult.filter(contact => {
+        const invitationStatus = contactsInvitationStatus[contact.email?.toLowerCase()]
+        
+        if (filters.invitationStatus === "no_account") {
+          return !invitationStatus
+        } else if (filters.invitationStatus === "active") {
+          return invitationStatus === "accepted"
+        } else {
+          return invitationStatus === filters.invitationStatus
+        }
+      })
+    }
+
+    setFilteredContacts(filteredContactsResult)
+
+    // Filtrage des invitations
+    let filteredInvitationsResult = pendingInvitations
+
+    // Filtrage par terme de recherche
+    if (searchTerm.trim() !== "") {
+      filteredInvitationsResult = filteredInvitationsResult.filter(invitation => 
+        invitation.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invitation.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invitation.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invitation.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filtrage par rôle
+    if (filters.role !== "all") {
+      filteredInvitationsResult = filteredInvitationsResult.filter(invitation => invitation.role === filters.role)
+    }
+
+    // Filtrage par catégorie (provider_category)
+    if (filters.category !== "all") {
+      filteredInvitationsResult = filteredInvitationsResult.filter(invitation => invitation.provider_category === filters.category)
+    }
+
+    // Filtrage par spécialité
+    if (filters.speciality !== "all") {
+      filteredInvitationsResult = filteredInvitationsResult.filter(invitation => invitation.speciality === filters.speciality)
+    }
+
+    // Pour les invitations, on peut filtrer par statut d'invitation directement
+    if (filters.invitationStatus !== "all") {
+      if (filters.invitationStatus === "no_account") {
+        // Les invitations représentent des comptes en attente, donc on ne filtre pas sur "no_account"
+        filteredInvitationsResult = []
+      } else if (filters.invitationStatus === "active") {
+        filteredInvitationsResult = filteredInvitationsResult.filter(invitation => invitation.status === "accepted")
+      } else {
+        filteredInvitationsResult = filteredInvitationsResult.filter(invitation => invitation.status === filters.invitationStatus)
+      }
+    }
+
+    setFilteredInvitations(filteredInvitationsResult)
+  }, [contacts, pendingInvitations, searchTerm, filters, contactsInvitationStatus])
 
   // ✅ Maintenant vérifier si on doit afficher la vérification d'équipe APRÈS tous les hooks
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -444,14 +535,6 @@ export default function ContactsPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
-                variant="outline" 
-                className="flex items-center space-x-2"
-                onClick={() => {/* TODO: Implement contact import */}}
-              >
-                <Users className="h-4 w-4" />
-                <span>Importer</span>
-              </Button>
-              <Button 
                 className="flex items-center space-x-2"
                 onClick={() => setIsContactModalOpen(true)}
               >
@@ -575,33 +658,57 @@ export default function ContactsPage() {
                           </div>
 
                           <div className="flex items-center space-x-2">
+                            {/* Bouton Détails */}
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                              className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
+                              onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
                             >
-                              <Send className="h-3 w-3 mr-1" />
-                              Contacter
+                              <Eye className="h-4 w-4 mr-2" />
+                              Détails
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-slate-600 hover:text-slate-700"
-                              onClick={() => router.push(`/gestionnaire/contacts/${contact.id}/modifier`)}
-                            >
-                              <Edit className="h-3 w-3 mr-1" />
-                              Modifier
-                            </Button>
-                            <DeleteConfirmModal
-                              isOpen={false}
-                              onClose={() => {}}
-                              onConfirm={() => handleDeleteContact(contact.id)}
-                              itemName={contact.name}
-                              itemType="le contact"
-                              title="Supprimer le contact"
-                              message={`Êtes-vous sûr de vouloir supprimer ${contact.name} ? Cette action est irréversible.`}
-                            />
+                            
+                            {/* Menu contextuel */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-slate-600 hover:text-slate-700"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/gestionnaire/contacts/modifier/${contact.id}`)}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                                  className="cursor-pointer"
+                                >
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Contacter
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    // TODO: Implémenter l'archivage du contact
+                                    console.log('Archiver contact:', contact.id)
+                                    setError("Fonctionnalité d'archivage bientôt disponible")
+                                  }}
+                                  className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                >
+                                  <Archive className="h-4 w-4 mr-2" />
+                                  Archiver
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       ))}
@@ -614,19 +721,24 @@ export default function ContactsPage() {
               id: "invitations",
               label: "Invitations",
               icon: Send,
-              count: loading ? "..." : pendingInvitations.length,
+              count: loading ? "..." : filteredInvitations.length,
               content: (
-                pendingInvitations.length === 0 ? (
+                filteredInvitations.length === 0 ? (
                   <div className="text-center py-12">
                     <Send className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">Aucune invitation en attente</h3>
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">
+                      {pendingInvitations.length === 0 ? "Aucune invitation en attente" : "Aucune invitation trouvée"}
+                    </h3>
                     <p className="text-slate-500 mb-6">
-                      Les invitations que vous enverrez apparaîtront ici
+                      {pendingInvitations.length === 0 
+                        ? "Les invitations que vous enverrez apparaîtront ici"
+                        : "Essayez de modifier votre recherche ou vos filtres."
+                      }
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {pendingInvitations.map((invitation) => (
+                    {filteredInvitations.map((invitation) => (
                       <div
                         key={invitation.id}
                         className={
@@ -790,17 +902,93 @@ export default function ContactsPage() {
           searchPlaceholder="Rechercher un contact..."
           filters={[
             {
-              id: "type",
-              label: "Type de contact",
+              id: "role",
+              label: "Rôle",
               options: [
-                { value: "all", label: "Tous les types" },
-                { value: "tenant", label: "Locataires" },
-                { value: "provider", label: "Prestataires" }
+                { value: "all", label: "Tous les rôles" },
+                { value: "gestionnaire", label: "Gestionnaire" },
+                { value: "locataire", label: "Locataire" },
+                { value: "prestataire", label: "Prestataire" }
+              ],
+              defaultValue: "all"
+            },
+            {
+              id: "category",
+              label: "Catégorie",
+              options: [
+                { value: "all", label: "Toutes les catégories" },
+                { value: "prestataire", label: "Prestataire général" },
+                { value: "syndic", label: "Syndic" },
+                { value: "notaire", label: "Notaire" },
+                { value: "assurance", label: "Assurance" },
+                { value: "proprietaire", label: "Propriétaire" },
+                { value: "autre", label: "Autre" }
+              ],
+              defaultValue: "all"
+            },
+            {
+              id: "speciality",
+              label: "Spécialité",
+              options: [
+                { value: "all", label: "Toutes les spécialités" },
+                { value: "plomberie", label: "Plomberie" },
+                { value: "electricite", label: "Électricité" },
+                { value: "chauffage", label: "Chauffage" },
+                { value: "serrurerie", label: "Serrurerie" },
+                { value: "peinture", label: "Peinture" },
+                { value: "menage", label: "Ménage" },
+                { value: "jardinage", label: "Jardinage" },
+                { value: "autre", label: "Autre" }
+              ],
+              defaultValue: "all"
+            },
+            {
+              id: "invitationStatus",
+              label: "Statut d'invitation",
+              options: [
+                { value: "all", label: "Tous les statuts" },
+                { value: "no_account", label: "Pas de compte" },
+                { value: "pending", label: "Invitation envoyée" },
+                { value: "expired", label: "Expirée" },
+                { value: "cancelled", label: "Annulée" },
+                { value: "active", label: "Actif" }
               ],
               defaultValue: "all"
             }
           ]}
           onSearch={(value) => setSearchTerm(value)}
+          onFilterChange={(filterId, value) => {
+            setFilters(prev => {
+              const newFilters = {
+                ...prev,
+                [filterId]: value
+              }
+              
+              // Si on change le rôle et que ce n'est plus "prestataire", 
+              // réinitialiser la catégorie et la spécialité
+              if (filterId === 'role' && value !== 'prestataire') {
+                newFilters.category = 'all'
+                newFilters.speciality = 'all'
+              }
+              
+              // Si on change la catégorie et que ce n'est plus "prestataire",
+              // réinitialiser la spécialité
+              if (filterId === 'category' && value !== 'prestataire') {
+                newFilters.speciality = 'all'
+              }
+              
+              return newFilters
+            })
+          }}
+          onResetFilters={() => {
+            setFilters({
+              role: "all",
+              category: "all", 
+              speciality: "all",
+              invitationStatus: "all"
+            })
+          }}
+          filterValues={filters}
         />
 
         {/* Section temporaire masquée - Pending Invitations */}
@@ -1103,33 +1291,57 @@ export default function ContactsPage() {
                     </div>
 
                     <div className="flex items-center space-x-2">
+                      {/* Bouton Détails */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                        className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
+                        onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
                       >
-                        <Send className="h-3 w-3 mr-1" />
-                        Contacter
+                        <Eye className="h-4 w-4 mr-2" />
+                        Détails
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-slate-600 hover:text-slate-700"
-                        onClick={() => router.push(`/gestionnaire/contacts/${contact.id}/modifier`)}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Modifier
-                      </Button>
-                      <DeleteConfirmModal
-                        isOpen={false}
-                        onClose={() => {}}
-                        onConfirm={() => handleDeleteContact(contact.id)}
-                        itemName={contact.name}
-                        itemType="le contact"
-                        title="Supprimer le contact"
-                        message={`Êtes-vous sûr de vouloir supprimer ${contact.name} ? Cette action est irréversible.`}
-                      />
+                      
+                      {/* Menu contextuel */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-slate-600 hover:text-slate-700"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/gestionnaire/contacts/modifier/${contact.id}`)}
+                            className="cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                            className="cursor-pointer"
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Contacter
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              // TODO: Implémenter l'archivage du contact
+                              console.log('Archiver contact:', contact.id)
+                              setError("Fonctionnalité d'archivage bientôt disponible")
+                            }}
+                            className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          >
+                            <Archive className="h-4 w-4 mr-2" />
+                            Archiver
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}

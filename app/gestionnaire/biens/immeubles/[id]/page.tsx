@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter } from "lucide-react"
+import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter, Home } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { getLotCategoryConfig } from "@/lib/lot-types"
@@ -19,6 +19,7 @@ import { AlertCircle } from "lucide-react"
 import LotCard from "@/components/lot-card"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
+import { PropertyDetailHeader } from "@/components/property-detail-header"
 
 export default function BuildingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
@@ -137,7 +138,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     }
   }
 
-  const handleDelete = async () => {
+  const confirmDelete = async () => {
     if (!building?.id) return
 
     try {
@@ -154,6 +155,27 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       setError("Erreur lors de la suppression de l'immeuble")
       setIsDeleting(false)
       setShowDeleteModal(false)
+    }
+  }
+
+  const handleBack = () => {
+    router.push('/gestionnaire/biens')
+  }
+
+  const handleEdit = () => {
+    router.push(`/gestionnaire/biens/immeubles/modifier/${resolvedParams.id}`)
+  }
+
+  const handleCustomAction = (actionKey: string) => {
+    switch (actionKey) {
+      case "add-intervention":
+        router.push(`/gestionnaire/interventions/nouvelle?buildingId=${building.id}`)
+        break
+      case "add-lot":
+        router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
+        break
+      default:
+        console.log("Action not implemented:", actionKey)
     }
   }
 
@@ -331,48 +353,30 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/gestionnaire/biens")}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour à la liste des biens</span>
-            </Button>
-
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${resolvedParams.id}`)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Modifier
-              </Button>
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={() => setShowDeleteModal(true)}
-                disabled={isDeleting}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Building Name */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">{building.name}</h1>
-        <p className="text-gray-600 mt-1">{building.address}, {building.city}</p>
-      </div>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header amélioré */}
+      <PropertyDetailHeader
+        property={{
+          id: building.id,
+          title: building.name,
+          name: building.name,
+          createdAt: building.created_at,
+          createdBy: building.manager?.name,
+          address: building.address,
+          city: building.city,
+          totalLots: stats.totalLots,
+          occupiedLots: stats.occupiedLots,
+          occupancyRate: stats.occupancyRate,
+        }}
+        type="building"
+        onBack={handleBack}
+        onEdit={handleEdit}
+        customActions={[
+          { key: "add-intervention", label: "Créer une intervention", icon: Plus, onClick: () => handleCustomAction("add-intervention") },
+          { key: "add-lot", label: "Ajouter un lot", icon: Home, onClick: () => handleCustomAction("add-lot") },
+        ]}
+        onArchive={() => console.log("Archive building:", building.id)}
+      />
 
       {/* Tabs Navigation with shadcn/ui */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -694,7 +698,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       <DeleteConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleDelete}
+        onConfirm={confirmDelete}
         title="Confirmer la suppression"
         message="Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action supprimera également tous les lots associés et leurs données."
         itemName={building?.name}

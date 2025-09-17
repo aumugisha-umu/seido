@@ -31,7 +31,9 @@ interface ContentNavigatorProps {
   filters?: FilterConfig[]
   onSearch?: (value: string) => void
   onFilterChange?: (filterId: string, value: string) => void
+  onResetFilters?: () => void
   className?: string
+  filterValues?: { [key: string]: string }
 }
 
 export default function ContentNavigator({
@@ -41,7 +43,9 @@ export default function ContentNavigator({
   filters = [],
   onSearch,
   onFilterChange,
+  onResetFilters,
   className = "",
+  filterValues = {},
 }: ContentNavigatorProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [searchValue, setSearchValue] = useState("")
@@ -61,6 +65,24 @@ export default function ContentNavigator({
   }
 
   const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0]
+
+  // Fonction pour déterminer quels filtres afficher selon la logique dynamique
+  const getVisibleFilters = () => {
+    return filters.filter(filter => {
+      // Le filtre "category" n'est visible que si role = "prestataire"
+      if (filter.id === 'category') {
+        return filterValues.role === 'prestataire'
+      }
+      
+      // Le filtre "speciality" n'est visible que si category = "prestataire" (prestataire général)
+      if (filter.id === 'speciality') {
+        return filterValues.category === 'prestataire'
+      }
+      
+      // Tous les autres filtres sont toujours visibles
+      return true
+    })
+  }
 
   return (
     <Card className={className}>
@@ -135,6 +157,74 @@ export default function ContentNavigator({
                     <Filter className="h-4 w-4" />
                     <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
                   </Button>
+
+                  {/* Filters Dropdown Panel - Mobile */}
+                  {showFilters && (
+                    <>
+                      {/* Backdrop */}
+                      <div 
+                        className="fixed inset-0 z-10 bg-black/20"
+                        onClick={() => setShowFilters(false)}
+                      />
+                      
+                      {/* Dropdown Panel */}
+                      <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                        <div className="space-y-4">
+                          {getVisibleFilters().map((filter) => (
+                            <div key={filter.id}>
+                              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                                {filter.label}
+                              </label>
+                              <Select 
+                                value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
+                                onValueChange={(value) => handleFilterChange(filter.id, value)}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {filter.options.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-slate-500 hover:text-slate-700"
+                            onClick={() => {
+                              if (onResetFilters) {
+                                onResetFilters()
+                              } else {
+                                // Fallback: Reset all filters to default one by one
+                                filters.forEach(filter => {
+                                  handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
+                                })
+                              }
+                            }}
+                          >
+                            Réinitialiser
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setShowFilters(false)}
+                            className="text-slate-500 hover:text-slate-700"
+                          >
+                            Fermer
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -201,73 +291,78 @@ export default function ContentNavigator({
                   <span>Filtres</span>
                   <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
                 </Button>
+
+                {/* Filters Dropdown Panel - Desktop */}
+                {showFilters && (
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="fixed inset-0 z-10 bg-black/20 lg:bg-transparent"
+                      onClick={() => setShowFilters(false)}
+                    />
+                    
+                    {/* Dropdown Panel */}
+                    <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                      <div className="space-y-4">
+                        {getVisibleFilters().map((filter) => (
+                          <div key={filter.id}>
+                            <label className="text-sm font-medium text-slate-700 mb-2 block">
+                              {filter.label}
+                            </label>
+                            <Select 
+                              value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
+                              onValueChange={(value) => handleFilterChange(filter.id, value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {filter.options.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-slate-500 hover:text-slate-700"
+                          onClick={() => {
+                            if (onResetFilters) {
+                              onResetFilters()
+                            } else {
+                              // Fallback: Reset all filters to default one by one
+                              filters.forEach(filter => {
+                                handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
+                              })
+                            }
+                          }}
+                        >
+                          Réinitialiser
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setShowFilters(false)}
+                          className="text-slate-500 hover:text-slate-700"
+                        >
+                          Fermer
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
 
-          {/* Filters Dropdown Panel - Shared between mobile and desktop */}
-          {showFilters && filters.length > 0 && (
-            <>
-              {/* Backdrop */}
-              <div 
-                className="fixed inset-0 z-10 bg-black/20 lg:bg-transparent"
-                onClick={() => setShowFilters(false)}
-              />
-              
-              {/* Dropdown Panel */}
-              <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                <div className="space-y-4">
-                  {filters.map((filter) => (
-                    <div key={filter.id}>
-                      <label className="text-sm font-medium text-slate-700 mb-2 block">
-                        {filter.label}
-                      </label>
-                      <Select 
-                        defaultValue={filter.defaultValue || filter.options[0]?.value}
-                        onValueChange={(value) => handleFilterChange(filter.id, value)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filter.options.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Actions */}
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="text-slate-500 hover:text-slate-700"
-                    onClick={() => {
-                      // Reset all filters to default
-                      filters.forEach(filter => {
-                        handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
-                      })
-                    }}
-                  >
-                    Réinitialiser
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowFilters(false)}
-                    className="text-slate-500 hover:text-slate-700"
-                  >
-                    Fermer
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
         </div>
 
         {/* Tab Content */}

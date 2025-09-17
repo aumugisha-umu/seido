@@ -350,7 +350,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          <div className={formData.type === "prestataire" ? "grid grid-cols-2 gap-4" : "space-y-2"}>
+          <div className={formData.type === "provider" ? "grid grid-cols-2 gap-4" : "space-y-2"}>
             <div className="space-y-2">
               <Label htmlFor="type" className="text-sm font-medium text-gray-700">
                 Type de contact <span className="text-red-500">*</span>
@@ -370,7 +370,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
             </div>
 
             {/* Champ Spécialité - À côté du type quand c'est un prestataire */}
-            {formData.type === "prestataire" && (
+            {formData.type === "provider" && (
               <div className="space-y-2">
                 <Label htmlFor="speciality" className="text-sm font-medium text-gray-700">
                   Spécialité

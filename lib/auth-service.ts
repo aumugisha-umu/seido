@@ -661,29 +661,25 @@ class AuthService {
               callback(user)
               return
             }
-          } catch (error) {
-            console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Error processing profile:', error)
-            
-            // ✅ FALLBACK: Toujours utiliser JWT en cas d'erreur
-            const fallbackUser: AuthUser = {
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
-              first_name: session.user.user_metadata?.first_name,
-              last_name: session.user.user_metadata?.last_name,
-              display_name: session.user.user_metadata?.display_name,
-              role: session.user.user_metadata?.role || 'gestionnaire',
-              phone: undefined,
-              created_at: undefined,
-              updated_at: undefined,
-            }
-            
-            console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using error fallback:', fallbackUser.email, fallbackUser.role)
-            callback(fallbackUser)
-          }
         } catch (error) {
-          console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Fatal error:', error)
-          callback(null)
+          console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Error processing profile:', error)
+          
+          // ✅ FALLBACK: Toujours utiliser JWT en cas d'erreur
+          const fallbackUser: AuthUser = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+            first_name: session.user.user_metadata?.first_name,
+            last_name: session.user.user_metadata?.last_name,
+            display_name: session.user.user_metadata?.display_name,
+            role: session.user.user_metadata?.role || 'gestionnaire',
+            phone: undefined,
+            created_at: undefined,
+            updated_at: undefined,
+          }
+          
+          console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using error fallback:', fallbackUser.email, fallbackUser.role)
+          callback(fallbackUser)
         }
       } else {
         console.log('ℹ️ [AUTH-STATE-CHANGE-SIMPLE] Event not handled:', event)

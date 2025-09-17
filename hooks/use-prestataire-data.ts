@@ -118,22 +118,29 @@ export const usePrestataireData = (userId: string) => {
       // Plus besoin de passer par user_invitations.contact_id car users remplace contacts
       const { supabase } = await import('@/lib/supabase')
       
-      // Vérifier que l'utilisateur existe et est un prestataire
+      // Vérifier que l'utilisateur existe d'abord, puis vérifier son rôle
       const { data: userProfile, error: userError } = await supabase
         .from('users')
-        .select('id, role, team_id')
+        .select('id, role, team_id, name, email')
         .eq('id', userId)
-        .eq('role', 'prestataire')
         .single()
 
       if (userError) {
-        console.error("❌ Error getting prestataire profile:", userError)
+        console.error("❌ Error getting user profile:", userError)
         throw userError
       }
 
       if (!userProfile) {
-        console.log("❌ No prestataire profile found for user:", userId)
-        throw new Error("Aucun profil prestataire trouvé pour cet utilisateur")
+        console.log("❌ No user profile found for ID:", userId)
+        throw new Error("Aucun profil utilisateur trouvé")
+      }
+
+      console.log("✅ Found user profile:", userProfile.name, userProfile.role)
+
+      // Vérifier que l'utilisateur est bien un prestataire
+      if (userProfile.role !== 'prestataire') {
+        console.log("❌ User is not a prestataire:", userProfile.role)
+        throw new Error(`Utilisateur n'est pas un prestataire (rôle: ${userProfile.role})`)
       }
 
       const contactId = userProfile.id

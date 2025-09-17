@@ -1183,72 +1183,73 @@ export const interventionService = {
   },
 
   async getByProviderId(providerId: string) {
-    // Dans la nouvelle architecture, les prestataires sont assignés via lot_contacts et building_contacts
-    // Nous devons d'abord trouver tous les lots/bâtiments où ce prestataire est assigné
+    // Approche simplifiée : chercher directement les interventions assignées à ce prestataire
+    // via la table intervention_contacts 
     
     try {
-      // 1. Trouver tous les lots où ce prestataire est assigné
-      const { data: lotAssignments, error: lotError } = await supabase
-        .from('lot_contacts')
-        .select('lot_id')
+      console.log("🔍 Getting interventions for provider:", providerId)
+      
+      // 1. Trouver les interventions où ce prestataire est directement assigné
+      const { data: interventionAssignments, error: assignmentError } = await supabase
+        .from('intervention_contacts')
+        .select('intervention_id')
         .eq('user_id', providerId)
-        .eq('users.role', 'prestataire') // Utiliser le rôle français de la DB
       
-      if (lotError) throw lotError
+      if (assignmentError) throw assignmentError
       
-      // 2. Trouver tous les bâtiments où ce prestataire est assigné  
-      const { data: buildingAssignments, error: buildingError } = await supabase
-        .from('building_contacts')
-        .select('building_id')
-        .eq('user_id', providerId)
-        .eq('users.role', 'prestataire') // Utiliser le rôle français de la DB
-        
-      if (buildingError) throw buildingError
+      const interventionIds = interventionAssignments?.map(a => a.intervention_id) || []
+      console.log("📋 Found intervention assignments:", interventionIds.length)
       
-      const assignedLotIds = lotAssignments?.map(a => a.lot_id) || []
-      const assignedBuildingIds = buildingAssignments?.map(a => a.building_id) || []
-      
-      // 3. Trouver toutes les interventions de ces lots et bâtiments
-      let query = supabase
-      .from('interventions')
-      .select(`
-        *,
-          lot:lot_id(
-            reference, 
-            building:building_id(name, address),
-            lot_contacts(
-              is_primary,
-              user:user_id(id, name, email, phone, role, provider_category)
-            )
-          )
-        `)
-      .order('created_at', { ascending: false })
-    
-      if (assignedLotIds.length > 0 && assignedBuildingIds.length > 0) {
-        query = query.or(`lot_id.in.(${assignedLotIds.join(',')}),building_id.in.(${assignedBuildingIds.join(',')})`)
-      } else if (assignedLotIds.length > 0) {
-        query = query.in('lot_id', assignedLotIds)
-      } else if (assignedBuildingIds.length > 0) {
-        query = query.in('building_id', assignedBuildingIds)
-      } else {
-        // Aucune assignation trouvée, retourner un tableau vide
+      if (interventionIds.length === 0) {
+        console.log("📋 No interventions found for provider")
         return []
       }
-
-      const { data, error } = await query
       
-    if (error) throw error
-      
-      // Post-traitement pour ajouter les locataires
-      return data?.map(intervention => {
-        if (intervention.lot?.lot_contacts) {
-          const tenants = intervention.lot.lot_contacts.filter(contact => 
-            determineAssignmentType(contact.user) === 'tenant'
+      // 2. Récupérer les détails des interventions
+      const { data, error } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot:lot_id(
+            reference, 
+            building:building_id(name, address)
           )
-          intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
-        }
-        return intervention
-      })
+        `)
+        .in('id', interventionIds)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      console.log("📋 Found interventions:", data?.length || 0)
+      
+      // 3. Pour chaque intervention, récupérer les contacts du lot pour identifier le locataire
+      const enrichedInterventions = await Promise.all(
+        (data || []).map(async (intervention) => {
+          if (intervention.lot_id) {
+            try {
+              const { data: lotContacts, error: contactsError } = await supabase
+                .from('lot_contacts')
+                .select(`
+                  is_primary,
+                  user:user_id(id, name, email, phone, role)
+                `)
+                .eq('lot_id', intervention.lot_id)
+                
+              if (!contactsError && lotContacts) {
+                // Trouver le locataire principal
+                const tenants = lotContacts.filter(contact => 
+                  contact.user?.role === 'locataire'
+                )
+                intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+              }
+            } catch (contactError) {
+              console.error("⚠️ Error fetching lot contacts:", contactError)
+            }
+          }
+          return intervention
+        })
+      )
+      
+      return enrichedInterventions
       
     } catch (error) {
       console.error("❌ Error in getByProviderId:", error)

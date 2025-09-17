@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, X, MapPin, User, Wrench, Calendar, Clock } from "lucide-react"
+import { Check, X, MapPin, User, Wrench, Calendar, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,7 +25,7 @@ interface ApprovalModalProps {
   onRejectionReasonChange: (reason: string) => void
   onInternalCommentChange: (comment: string) => void
   onActionChange: (action: "approve" | "reject") => void
-  onConfirm: () => void
+  onConfirm: (action?: "approve" | "reject") => void
 }
 
 export const ApprovalModal = ({
@@ -204,51 +204,17 @@ export const ApprovalModal = ({
             </div>
           )}
 
-          {/* Raison du rejet */}
-          {action === "reject" && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <X className="h-5 w-5 text-red-600" />
-                </div>
-                <h3 className="text-lg font-medium text-slate-800 leading-snug">Raison du rejet</h3>
+          {/* Message d'information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-blue-600" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="rejection-reason" className="text-sm font-medium text-slate-700">
-                  Expliquez la raison du rejet (visible par le locataire) *
-                </Label>
-                <Textarea
-                  id="rejection-reason"
-                  value={rejectionReason}
-                  onChange={(e) => onRejectionReasonChange(e.target.value)}
-                  placeholder="Expliquez pourquoi cette intervention est rejetée..."
-                  className="min-h-[120px] text-base leading-normal"
-                  aria-required="true"
-                />
-              </div>
+              <h3 className="text-lg font-medium text-slate-800 leading-snug">Prochaine étape</h3>
             </div>
-          )}
-
-          {/* Commentaire interne */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <User className="h-5 w-5 text-amber-600" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-800 leading-snug">Commentaire interne</h3>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="internal-comment" className="text-sm font-medium text-slate-700">
-                Notes internes (visible uniquement par l'équipe de gestion)
-              </Label>
-              <Textarea
-                id="internal-comment"
-                value={internalComment}
-                onChange={(e) => onInternalCommentChange(e.target.value)}
-                placeholder="Ajoutez des notes internes sur cette intervention..."
-                className="min-h-[100px] text-base leading-normal"
-              />
-            </div>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              Après avoir choisi votre action, vous pourrez ajouter des commentaires et finaliser votre décision.
+            </p>
           </div>
         </div>
 
@@ -263,7 +229,10 @@ export const ApprovalModal = ({
           <div className="flex space-x-3">
             <Button
               variant="outline"
-              onClick={() => onActionChange("reject")}
+              onClick={() => {
+                onActionChange("reject")
+                onConfirm("reject")
+              }}
               className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
             >
               <X className="h-4 w-4 mr-2" />
@@ -271,31 +240,13 @@ export const ApprovalModal = ({
             </Button>
             <Button
               onClick={() => {
-                if (action === "reject") {
-                  onConfirm()
-                } else {
-                  onActionChange("approve")
-                  onConfirm()
-                }
+                onActionChange("approve")
+                onConfirm("approve")
               }}
-              disabled={action === "reject" && !rejectionReason.trim()}
-              className={
-                action === "reject" 
-                  ? "bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white" 
-                  : "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 text-white"
-              }
+              className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 text-white"
             >
-              {action === "reject" ? (
-                <>
-                  <X className="h-4 w-4 mr-2" />
-                  Confirmer le rejet
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Approuver l'intervention
-                </>
-              )}
+              <Check className="h-4 w-4 mr-2" />
+              Approuver l'intervention
             </Button>
           </div>
         </DialogFooter>

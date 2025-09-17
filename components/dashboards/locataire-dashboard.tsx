@@ -104,44 +104,17 @@ export default function LocataireDashboard() {
               <p className="text-sm text-muted-foreground">
                 {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}, {tenantData.building.country || 'Belgique'}
               </p>
-              {(tenantData.surface_area || tenantData.rooms) && (
+              {tenantData.rooms && (
                 <p className="text-sm text-muted-foreground">
-                  {tenantData.surface_area && `${tenantData.surface_area}m²`}
-                  {tenantData.surface_area && tenantData.rooms && " - "}
-                  {tenantData.rooms && `${tenantData.rooms} pièces`}
+                  {tenantData.rooms} pièces
                 </p>
-              )}
-            </div>
-            <div className="flex flex-col justify-center">
-              {tenantData.rent_amount ? (
-                <>
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-2xl font-bold text-primary">{tenantData.rent_amount}€</span>
-                    <span className="text-sm text-muted-foreground">hors charges</span>
-                  </div>
-                  {tenantData.charges_amount && (
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-semibold">+ {tenantData.charges_amount}€</span>
-                      <Badge variant="outline" className="text-xs h-5">
-                        Provision mensuelle
-                      </Badge>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">Loyer non défini</p>
               )}
             </div>
             <div className="flex flex-col justify-center">
               <div className="text-right lg:text-left">
                 <p className="text-sm text-muted-foreground">Total mensuel</p>
                 <p className="text-2xl font-bold">
-                  {tenantData.rent_amount && tenantData.charges_amount 
-                    ? `${tenantData.rent_amount + tenantData.charges_amount}€`
-                    : tenantData.rent_amount 
-                      ? `${tenantData.rent_amount}€`
-                      : "Non défini"
-                  }
+                  Non défini
                 </p>
               </div>
             </div>

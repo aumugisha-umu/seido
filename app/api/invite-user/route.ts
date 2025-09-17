@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { userService, teamService } from '@/lib/database-service'
+import { activityLogger } from '@/lib/activity-logger'
+import { getServerSession } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 
-// Créer un client Supabase avec les permissions admin
+// Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
   console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - invitations will be disabled')
@@ -22,6 +24,24 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
+    // Vérifier l'authentification et récupérer le profil utilisateur
+    const session = await getServerSession()
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      )
+    }
+
+    // Récupérer le profil utilisateur pour avoir le bon ID
+    const currentUserProfile = await userService.findByAuthUserId(session.user.id)
+    if (!currentUserProfile) {
+      return NextResponse.json(
+        { error: 'Profil utilisateur non trouvé' },
+        { status: 404 }
+      )
+    }
+
     // Vérifier si le service d'invitation est disponible
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -31,193 +51,271 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    
     const {
       email,
       firstName,
       lastName,
+      role = 'gestionnaire', 
+      teamId, 
       phone,
-      role,
-      teamId,
-      isResend = false // Nouveau paramètre pour distinguer création vs renvoi
+      speciality, // ✅ AJOUT: Spécialité pour les prestataires
+      shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
     } = body
 
-    // Validation des données
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email manquant' },
-        { status: 400 }
-      )
+    console.log('📧 [INVITE-USER-SIMPLE] Creating contact:', { 
+      email, 
+      firstName, 
+      lastName, 
+      speciality,
+      shouldInviteToApp,
+      teamId 
+    })
+
+    // ✅ LOGIQUE: Mapper les types de contacts vers role + provider_category
+    const mapContactTypeToRoleAndCategory = (contactType: string) => {
+      const mapping: Record<string, { 
+        role: Database['public']['Enums']['user_role'], 
+        provider_category: Database['public']['Enums']['provider_category'] | null 
+      }> = {
+        'gestionnaire': { role: 'gestionnaire', provider_category: null },
+        'locataire': { role: 'locataire', provider_category: null },
+        'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
+        // Prestataires spécialisés → tous deviennent 'prestataire' avec category spécifique
+        'syndic': { role: 'prestataire', provider_category: 'syndic' },
+        'notaire': { role: 'prestataire', provider_category: 'notaire' },
+        'assurance': { role: 'prestataire', provider_category: 'assurance' },
+        'proprietaire': { role: 'prestataire', provider_category: 'proprietaire' }, // ✅ Sans accent (comme dans l'enum BDD)
+        'autre': { role: 'prestataire', provider_category: 'autre' }
+      }
+      
+      return mapping[contactType] || { role: 'gestionnaire', provider_category: null }
     }
 
-    // Rediriger vers la page callback qui traitera l'authentification
-    let redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+    const { role: validUserRole, provider_category: providerCategory } = mapContactTypeToRoleAndCategory(role)
+    console.log(`🔄 [ROLE-MAPPING] Contact type "${role}" → User role "${validUserRole}" + Category "${providerCategory}"`)
 
-    if (isResend) {
-      // CAS 2: RENVOI D'INVITATION (utilisateur existe déjà)
-      console.log('🔄 Resending invitation to existing user:', email)
+    // ÉTAPE 1: CRÉER USER + LIEN ÉQUIPE (TOUJOURS)
+    console.log('👤 [STEP-1] Creating user profile...')
+    
+    let userProfile
+    try {
+      // Vérifier si l'utilisateur existe déjà
+      const existingUser = await userService.findByEmail(email)
       
-      console.log('📫 [RESEND-INVITATION] Generating magic link and sending email for existing user...')
-      
-      // Générer un nouveau magic link avec email automatique pour utilisateur existant
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
+      if (existingUser) {
+        console.log('✅ [STEP-1] User already exists:', existingUser.id)
+        userProfile = existingUser
+      } else {
+        // Créer nouveau user
+        userProfile = await userService.create({
+          auth_user_id: null, // Pas encore d'auth
         email: email,
-        options: {
-          redirectTo: redirectTo,
-          // Pour les utilisateurs existants, on peut forcer l'envoi d'email
-          data: {
-            invitation_type: 'resend',
-            timestamp: new Date().toISOString()
-          }
-        }
-      })
-
-      if (linkError) {
-        console.error('❌ [RESEND-INVITATION] Error generating magic link:', {
-          error: linkError.message,
-          code: linkError.status,
-          email: email
+          name: `${firstName} ${lastName}`,
+          first_name: firstName,
+          last_name: lastName,
+          role: validUserRole, // ✅ Utiliser le rôle mappé
+          provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
+          speciality: speciality || null, // ✅ AJOUT: Spécialité pour les prestataires
+          phone: phone || null,
+          team_id: teamId,
+          is_active: true
         })
+        console.log('✅ [STEP-1] User profile created:', userProfile.id)
+      }
+    } catch (userError) {
+      console.error('❌ [STEP-1] Failed to create user:', userError)
         return NextResponse.json(
-          { error: 'Erreur lors de la génération du lien: ' + linkError.message },
+        { error: 'Erreur lors de la création du contact: ' + (userError instanceof Error ? userError.message : String(userError)) },
           { status: 500 }
         )
       }
 
-      if (!linkData.properties) {
-        console.error('❌ [RESEND-INVITATION] No properties in link data')
-        return NextResponse.json(
-          { error: 'Erreur lors de la génération du lien magic' },
-          { status: 500 }
-        )
-      }
+    // Ajouter à l'équipe si pas déjà membre
+    try {
+      await teamService.addMember(teamId, userProfile.id, 'member')
+      console.log('✅ [STEP-1] User added to team:', teamId)
+    } catch (teamError) {
+      console.log('⚠️ [STEP-1] User might already be in team or team error:', teamError)
+      // Non bloquant, continuer
+    }
 
-      console.log('✅ [RESEND-INVITATION] Magic link generated successfully')
+    let invitationResult = null
+
+    // ÉTAPE 2: INVITATION OPTIONNELLE (SI CHECKBOX COCHÉE)
+    if (shouldInviteToApp) {
+      console.log('📨 [STEP-2] Creating auth invitation...')
       
-      // Pour les renvois, utiliser signInWithOtp pour envoyer l'email de connexion
       try {
-        console.log('📫 [RESEND-INVITATION] Sending magic link email via signInWithOtp...')
-        const { data: otpData, error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-          email: email,
-          options: {
-            emailRedirectTo: redirectTo,
-            shouldCreateUser: false // Utilisateur existe déjà
-          }
-        })
-
-        if (otpError) {
-          console.warn('⚠️ [RESEND-INVITATION] Email sending failed:', {
-            error: otpError.message,
-            code: otpError.status
-          })
-          // Continuer quand même, le magic link est généré
-        } else {
-          console.log('✅ [RESEND-INVITATION] Email sent successfully via OTP method')
+        // Vérifier si l'utilisateur a déjà un auth_user_id (renvoi d'invitation)
+        if (userProfile.auth_user_id) {
+          console.log('🔄 [STEP-2] User already has auth_user_id, this is a resend - generating new invitation...')
+          
+          // Pour un renvoi, on peut forcer la création d'une nouvelle invitation
+          // ou utiliser une autre méthode selon la logique Supabase
         }
-      } catch (emailError) {
-        console.warn('⚠️ [RESEND-INVITATION] Email sending exception:', emailError)
-        // Continuer quand même, le magic link est généré
-      }
-
-      console.log('✅ [RESEND-INVITATION] Resend process completed successfully')
-      return NextResponse.json({
-        success: true,
-        message: 'Invitation renvoyée avec succès - un nouvel email a été envoyé',
-        magicLink: linkData.properties.action_link, // Le vrai lien magic de Supabase
+        
+        // Créer l'invitation Supabase Auth
+        const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+        
+      // D'abord générer le magic link pour avoir le vrai lien
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
         email: email,
-        emailSent: true
-      })
-
-    } else {
-      // CAS 1: NOUVELLE INVITATION (création d'utilisateur)
-      if (!firstName || !lastName || !role || !teamId) {
-        return NextResponse.json(
-          { error: 'Données manquantes pour la création d\'utilisateur' },
-          { status: 400 }
-        )
-      }
-
-      console.log('📧 Inviting new user:', { email, role, teamId })
-
-      // Inviter l'utilisateur via Supabase Auth avec magic link
-      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
         data: {
           full_name: `${firstName} ${lastName}`,
           first_name: firstName,
           last_name: lastName,
           display_name: `${firstName} ${lastName}`,
-          role: role,
+          role: validUserRole, // ✅ Utiliser le rôle mappé
+          provider_category: providerCategory, // ✅ Catégorie de prestataire
           team_id: teamId,
           invited: true
         },
         redirectTo: redirectTo
       })
 
+      console.log('📋 [STEP-2] Supabase generateLink response:', {
+        hasUser: !!linkData?.user,
+        hasActionLink: !!linkData?.properties?.action_link,
+        userId: linkData?.user?.id,
+        email: linkData?.user?.email
+      })
+
+      let inviteData = linkData
+      let inviteError = linkError
+
+      // Si la génération de lien réussit, envoyer aussi l'email d'invitation
+      if (!inviteError && linkData?.user) {
+        console.log('📧 [STEP-2] Sending invitation email via inviteUserByEmail...')
+        const { error: emailError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+          data: {
+            full_name: `${firstName} ${lastName}`,
+            first_name: firstName,
+            last_name: lastName,
+            display_name: `${firstName} ${lastName}`,
+            role: validUserRole, // ✅ Utiliser le rôle mappé
+            provider_category: providerCategory, // ✅ Catégorie de prestataire
+            team_id: teamId,
+            invited: true
+          },
+          redirectTo: redirectTo
+        })
+        
+        if (emailError) {
+          console.warn('⚠️ [STEP-2] Failed to send email, but magic link generated:', emailError.message)
+        } else {
+          console.log('✅ [STEP-2] Invitation email sent successfully')
+        }
+      }
+
       if (inviteError) {
-        console.error('❌ Invitation error:', inviteError)
-        return NextResponse.json(
-          { error: 'Erreur lors de l\'envoi de l\'invitation: ' + inviteError.message },
-          { status: 500 }
-        )
+          console.error('❌ [STEP-2] generateLink failed:', inviteError?.message || inviteError)
+          throw inviteError
+        } else {
+          // Traitement normal : nouvelle invitation créée avec succès
+          // Mettre à jour le user avec l'auth_user_id
+          if (inviteData?.user) {
+          await userService.update(userProfile.id, {
+            auth_user_id: inviteData.user.id
+          })
+          console.log('✅ [STEP-2] User linked to auth:', inviteData.user.id)
+          
+          // ✅ SOLUTION: Créer aussi une entrée dans la table user_invitations pour le suivi
+          console.log('📋 [STEP-2] Creating invitation record in user_invitations table...')
+          try {
+            const { data: invitationRecord, error: invitationError } = await supabaseAdmin
+              .from('user_invitations')
+              .insert({
+                email: email,
+                first_name: firstName,
+                last_name: lastName,
+                role: validUserRole, // ✅ Utiliser le rôle mappé
+                provider_category: providerCategory, // ✅ NOUVEAU: Ajouter la catégorie
+                team_id: teamId,
+                invited_by: currentUserProfile.id, // L'utilisateur qui fait l'invitation
+                invitation_code: inviteData.user.id, // Utiliser l'auth user ID comme code unique
+                status: 'pending', // ✅ NOUVEAU: Statut explicite
+                expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 jours
+              })
+              .select()
+              .single()
+
+            if (invitationError) {
+              console.error('⚠️ [STEP-2] Failed to create invitation record:', invitationError)
+              // Ne pas faire échouer l'invitation principale pour cette erreur
+            } else {
+              console.log('✅ [STEP-2] Invitation record created:', invitationRecord.id)
+            }
+          } catch (invitationRecordError) {
+            console.error('⚠️ [STEP-2] Exception creating invitation record:', invitationRecordError)
+            // Ne pas faire échouer l'invitation principale
+          }
+          
+          // Utiliser le vrai magic link généré par Supabase
+          const realMagicLink = linkData?.properties?.action_link
+          
+          invitationResult = {
+            success: true,
+            authUserId: inviteData.user.id,
+            invitationSent: true,
+            magicLink: realMagicLink,
+            message: 'Email d\'invitation envoyé avec succès'
+          }
+          
+          console.log('🔗 [STEP-2] Real magic link generated:', realMagicLink ? 'YES' : 'NO')
+          if (realMagicLink) {
+            console.log('📋 [STEP-2] Magic link preview:', realMagicLink.substring(0, 100) + '...')
+          }
+          } // Fermeture du if (inviteData?.user)
+        } // Fermeture du else (traitement normal)
+
+      } catch (inviteError) {
+        console.error('❌ [STEP-2] Invitation failed:', inviteError)
+        invitationResult = {
+          success: false,
+          error: inviteError instanceof Error ? inviteError.message : String(inviteError)
+        }
       }
-
-      if (!inviteData.user) {
-        return NextResponse.json(
-          { error: 'Erreur lors de la création de l\'invitation' },
-          { status: 500 }
-        )
+    } else {
+      console.log('⏭️ [STEP-2] Skipping invitation (checkbox not checked)')
+      invitationResult = {
+        success: true,
+        invitationSent: false,
+        message: 'Contact créé sans invitation'
       }
+    }
 
-      console.log('✅ Invitation sent, user ID:', inviteData.user.id)
-
-      // 2. ✅ CORRECTION: Créer d'abord le profil utilisateur
-      console.log('📝 Creating user profile FIRST...')
-      const userData = {
-        id: inviteData.user.id,
-        email: inviteData.user.email!,
-        name: `${firstName} ${lastName}`,
-        first_name: firstName,
-        last_name: lastName,
-        role: role as Database['public']['Enums']['user_role'],
-        phone: phone || null,
-      }
-
+    // Logging de l'activité
       try {
-        const userProfile = await userService.create(userData)
-        console.log('✅ User profile created:', userProfile.id)
-      } catch (userError) {
-        console.error('❌ CRITICAL ERROR: Failed to create user profile:', userError)
-        return NextResponse.json(
-          { error: 'Erreur critique: impossible de créer le profil utilisateur: ' + (userError instanceof Error ? userError.message : String(userError)) },
-          { status: 500 }
-        )
+        await activityLogger.logUserAction(
+          session.user.id,
+          teamId,
+        shouldInviteToApp ? 'invite' : 'create',
+        'contact',
+        userProfile.id,
+        `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${firstName} ${lastName}${speciality ? ` (${speciality})` : ''}`,
+          'success',
+        { email, speciality, shouldInviteToApp }
+      )
+      } catch (logError) {
+      console.warn('⚠️ Failed to log activity:', logError)
       }
 
-      // 3. Maintenant ajouter l'utilisateur à l'équipe (le profil existe)
-      try {
-        await teamService.addMember(teamId, inviteData.user.id, 'member')
-        console.log('✅ User added to team AFTER profile creation:', teamId)
-      } catch (teamError) {
-        console.error('❌ ERROR: Failed to add user to team after profile creation:', teamError)
-        // Le profil existe mais pas dans l'équipe - pas critique car le contact est créé
-        console.log('⚠️ User profile exists but not in team - this is non-critical')
-      }
-
-      // Note: user_invitations record creation skipped - requires contact_id which we don't have for direct user invitations
-      console.log('📝 Skipping user_invitations record creation (requires contact_id for database constraint)')
+    console.log('🎉 [INVITE-USER-SIMPLE] Process completed successfully')
 
       return NextResponse.json({
         success: true,
-        message: 'Invitation envoyée avec succès',
-        userId: inviteData.user.id
-      })
-    } // Fin du cas nouvelle invitation
+      message: shouldInviteToApp ? 
+        'Contact créé et invitation envoyée avec succès' : 
+        'Contact créé avec succès',
+      contact: userProfile,
+      invitation: invitationResult
+    })
 
   } catch (error) {
-    console.error('❌ Unexpected error in invite-user API:', error)
+    console.error('❌ [INVITE-USER-SIMPLE] Unexpected error:', error)
     return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
+      { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

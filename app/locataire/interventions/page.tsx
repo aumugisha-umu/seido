@@ -27,16 +27,36 @@ const getStatusIcon = (status: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "nouvelle_demande":
-    case "en_attente_validation":
-      return "bg-yellow-100 text-yellow-800"
-    case "validee":
-    case "en_cours":
-      return "bg-blue-100 text-blue-800"
-    case "terminee":
-      return "bg-green-100 text-green-800"
-    case "annulee":
+    // Phase 1: Demande
+    case "demande":
       return "bg-red-100 text-red-800"
+    case "rejetee":
+      return "bg-red-100 text-red-800"
+    case "approuvee":
+      return "bg-green-100 text-green-800"
+    
+    // Phase 2: Planification & Exécution
+    case "demande_de_devis":
+      return "bg-blue-100 text-blue-800"
+    case "planification":
+      return "bg-yellow-100 text-yellow-800"
+    case "planifiee":
+      return "bg-purple-100 text-purple-800"
+    case "en_cours":
+      return "bg-indigo-100 text-indigo-800"
+    
+    // Phase 3: Clôture
+    case "cloturee_par_prestataire":
+      return "bg-orange-100 text-orange-800"
+    case "cloturee_par_locataire":
+      return "bg-emerald-100 text-emerald-800"
+    case "cloturee_par_gestionnaire":
+      return "bg-green-100 text-green-800"
+    
+    // Transversal
+    case "annulee":
+      return "bg-gray-100 text-gray-800"
+    
     default:
       return "bg-gray-100 text-gray-800"
   }
@@ -44,18 +64,36 @@ const getStatusColor = (status: string) => {
 
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case "nouvelle_demande":
-      return "Nouvelle demande"
-    case "en_attente_validation":
-      return "En attente"
-    case "validee":
-      return "Validé"
+    // Phase 1: Demande
+    case "demande":
+      return "Demande"
+    case "rejetee":
+      return "Rejetée"
+    case "approuvee":
+      return "Approuvée"
+    
+    // Phase 2: Planification & Exécution
+    case "demande_de_devis":
+      return "Demande de devis"
+    case "planification":
+      return "Planification"
+    case "planifiee":
+      return "Planifiée"
     case "en_cours":
       return "En cours"
-    case "terminee":
-      return "Terminé"
+    
+    // Phase 3: Clôture
+    case "cloturee_par_prestataire":
+      return "Clôturée par prestataire"
+    case "cloturee_par_locataire":
+      return "Clôturée par locataire"
+    case "cloturee_par_gestionnaire":
+      return "Clôturée par gestionnaire"
+    
+    // Transversal
     case "annulee":
-      return "Annulé"
+      return "Annulée"
+    
     default:
       return status
   }
@@ -139,12 +177,17 @@ export default function LocataireInterventionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="nouvelle_demande">Nouvelle demande</SelectItem>
-                <SelectItem value="en_attente_validation">En attente</SelectItem>
-                <SelectItem value="validee">Validé</SelectItem>
+                <SelectItem value="demande">Demande</SelectItem>
+                <SelectItem value="rejetee">Rejetée</SelectItem>
+                <SelectItem value="approuvee">Approuvée</SelectItem>
+                <SelectItem value="demande_de_devis">Demande de devis</SelectItem>
+                <SelectItem value="planification">Planification</SelectItem>
+                <SelectItem value="planifiee">Planifiée</SelectItem>
                 <SelectItem value="en_cours">En cours</SelectItem>
-                <SelectItem value="terminee">Terminé</SelectItem>
-                <SelectItem value="annulee">Annulé</SelectItem>
+                <SelectItem value="cloturee_par_prestataire">Clôturée par prestataire</SelectItem>
+                <SelectItem value="cloturee_par_locataire">Clôturée par locataire</SelectItem>
+                <SelectItem value="cloturee_par_gestionnaire">Clôturée par gestionnaire</SelectItem>
+                <SelectItem value="annulee">Annulée</SelectItem>
               </SelectContent>
             </Select>
           </div>

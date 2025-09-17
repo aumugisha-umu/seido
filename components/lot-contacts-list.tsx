@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle } from "lucide-react"
-import { contactService } from "@/lib/database-service"
+import { contactService, determineAssignmentType } from "@/lib/database-service"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 
@@ -57,7 +57,8 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       setError(null)
       console.log("📞 Loading contacts for lot:", lotId)
       
-      const lotContacts = await contactService.getLotContacts(lotId)
+      // Adapter pour nouvelle architecture - récupérer les locataires pour ce lot
+      const lotContacts = await contactService.getLotContactsByType(lotId, 'tenant')
       console.log("✅ Lot contacts loaded:", lotContacts?.length || 0)
       
       clearTimeout(timeoutId)
@@ -164,8 +165,11 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     const labels: { [key: string]: string } = {
       tenant: "Locataire",
       owner: "Propriétaire", 
-      service_provider: "Prestataire",
+      provider: "Prestataire",
       manager: "Gestionnaire",
+      syndic: "Syndic",
+      notary: "Notaire",
+      insurance: "Assurance",
       other: "Autre"
     }
     return labels[type] || type
@@ -283,11 +287,9 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
                     <div>
                       <div className="flex items-center space-x-2">
                         <span className="font-medium">{contact.name}</span>
-                        {contact.contact_type && (
-                          <Badge variant="outline" className="text-xs">
-                            {getContactTypeLabel(contact.contact_type)}
-                          </Badge>
-                        )}
+                        <Badge variant="outline" className="text-xs">
+                          {getContactTypeLabel(determineAssignmentType(contact))}
+                        </Badge>
                         {contact.speciality && (
                           <Badge variant="secondary" className="text-xs">
                             {getSpecialityLabel(contact.speciality)}
@@ -392,7 +394,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
             setSelectedContact(null)
           }}
           onSubmit={handleContactSubmit}
-          defaultType={selectedContact?.contact_type}
+          defaultType={selectedContact ? determineAssignmentType(selectedContact) : undefined}
         />
       )}
 

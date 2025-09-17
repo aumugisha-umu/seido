@@ -32,7 +32,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     createdAt: "2025-01-09T10:30:00Z",
     location: "Salle de bain principale",
     logement: {
-      name: "Lot003",
+      name: "Lot 3",
       address: "123 Rue de la Paix, 75001 Paris",
       building: "Résidence Champs-Élysées",
       floor: "Étage 1",

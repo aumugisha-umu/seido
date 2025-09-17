@@ -1,6 +1,8 @@
 import { supabase, withRetry } from './supabase'
 import { connectionManager } from './connection-manager'
 import type { Database } from './database.types'
+import { activityLogger } from './activity-logger'
+import { notificationService } from './notification-service'
 
 // Log Supabase configuration on module load
 console.log("🔧 Database service loaded with Supabase:", {
@@ -32,6 +34,38 @@ export interface TeamMember {
   user_id: string
   role: 'admin' | 'member'
   joined_at: string
+}
+
+// Helper function to get local user ID from Supabase auth user ID
+async function getLocalUserId(): Promise<string | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('🔍 getLocalUserId - Auth user:', user?.id)
+    if (!user?.id) {
+      console.log('⚠️ No auth user found')
+      return null
+    }
+
+    // Find local user by auth_user_id
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    console.log('🔍 getLocalUserId - Query result:', { data, error })
+
+    if (error) {
+      console.error('❌ Failed to find local user ID:', error)
+      return null
+    }
+
+    console.log('✅ getLocalUserId - Found local user ID:', data.id)
+    return data.id
+  } catch (error) {
+    console.error('❌ Error getting local user ID:', error)
+    return null
+  }
 }
 
 // User Services
@@ -141,6 +175,8 @@ export const userService = {
 
   async create(user: Database['public']['Tables']['users']['Insert']) {
     console.log('🔄 Creating user in database:', user)
+    
+    // NOUVELLE ARCHITECTURE: ID généré automatiquement, pas de contrainte auth.users
     const { data, error } = await supabase
       .from('users')
       .insert(user)
@@ -154,23 +190,9 @@ export const userService = {
       console.error('Error details:', error.details)
       console.error('Error hint:', error.hint)
       console.error('User data:', user)
-      console.error('Full error object:', error)
-      console.error('Error keys:', Object.keys(error))
-      console.error('Error as string:', String(error))
-      
-      // Essayer de créer un nouvel objet avec les propriétés de l'erreur
-      const errorInfo = {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        stack: error.stack
-      }
-      console.error('Error info object:', errorInfo)
-      
       throw error
     }
+    
     console.log('✅ User successfully created in database:', data)
     return data
   },
@@ -195,6 +217,40 @@ export const userService = {
     
     if (error) throw error
     return true
+  },
+
+  async findByEmail(email: string) {
+    console.log('🔍 [USER-SERVICE] Finding user by email:', email)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = pas trouvé
+      console.error('❌ [USER-SERVICE] Error finding user by email:', error)
+      throw error
+    }
+    
+    console.log('✅ [USER-SERVICE] User found:', data ? 'yes' : 'no')
+    return data
+  },
+
+  async findByAuthUserId(authUserId: string) {
+    console.log('🔍 [USER-SERVICE] Finding user by auth_user_id:', authUserId)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_user_id', authUserId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = pas trouvé
+      console.error('❌ [USER-SERVICE] Error finding user by auth_user_id:', error)
+      throw error
+    }
+    
+    console.log('✅ [USER-SERVICE] User found by auth_user_id:', data ? 'yes' : 'no')
+    return data
   }
 }
 
@@ -205,14 +261,33 @@ export const buildingService = {
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
         team:team_id(id, name, description),
-        lots(id, reference, is_occupied, tenant:tenant_id(name, email))
+        lots(
+          id, 
+          reference, 
+          is_occupied, 
+          category,
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les gestionnaires principaux
+    return data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find(bc => 
+        determineAssignmentType(bc.user) === 'manager' && bc.is_primary
+      )?.user || null
+    }))
   },
 
   async getTeamBuildings(teamId: string) {
@@ -220,36 +295,70 @@ export const buildingService = {
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
         team:team_id(id, name, description),
-        lots(id, reference, is_occupied, tenant:tenant_id(name, email))
+        lots(
+          id, 
+          reference, 
+          is_occupied, 
+          category,
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
       .eq('team_id', teamId)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les gestionnaires principaux
+    return data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find(bc => 
+        determineAssignmentType(bc.user) === 'manager' && bc.is_primary
+      )?.user || null
+    }))
   },
 
   async getUserBuildings(userId: string) {
+    // Nouvelle logique : récupérer via building_contacts ET team_members
     const { data, error } = await supabase
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
-        team:team_id(
+        team:team_id(id, name, description),
+        lots(
           id, 
-          name, 
-          description,
-          team_members!inner(user_id)
+          reference, 
+          is_occupied, 
+          category,
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
         ),
-        lots(id, reference, is_occupied, tenant:tenant_id(name, email))
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
-      .or(`manager_id.eq.${userId},team.team_members.user_id.eq.${userId}`)
+      .or(`building_contacts.user_id.eq.${userId},team_id.in.(select team_id from team_members where user_id = '${userId}')`)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les gestionnaires principaux
+    return data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find(bc => 
+        determineAssignmentType(bc.user) === 'manager' && bc.is_primary
+      )?.user || null
+    }))
   },
 
   async getById(id: string) {
@@ -257,7 +366,6 @@ export const buildingService = {
       .from('buildings')
       .select(`
         *,
-        manager:manager_id(name, email, phone),
         team:team_id(
           id, 
           name, 
@@ -265,18 +373,37 @@ export const buildingService = {
           team_members(
             id,
             role,
-            user:user_id(id, name, email, role)
+            user:user_id(id, name, email)
           )
         ),
         lots(
           *,
-          tenant:tenant_id(name, email, phone)
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
       .eq('id', id)
       .single()
     
     if (error) throw error
+    
+    // Post-traitement pour extraire les gestionnaires principaux et locataires
+    if (data) {
+      data.manager = data.building_contacts?.[0]?.user || null
+      
+      // Pour chaque lot, extraire le locataire principal
+      data.lots = data.lots?.map(lot => ({
+        ...lot,
+        tenant: lot.lot_contacts?.[0]?.user || null
+      }))
+    }
+    
     return data
   },
 
@@ -289,17 +416,62 @@ export const buildingService = {
         .insert(building)
         .select(`
           *,
-          manager:manager_id(name, email, phone),
           team:team_id(id, name, description)
         `)
         .single()
       
       if (error) {
         console.error("❌ Building creation error:", error)
+        
+        // Log de l'erreur
+        if (building.team_id) {
+          await activityLogger.logError(
+            'create',
+            'building',
+            building.name || 'Nouvel immeuble',
+            error.message || 'Erreur lors de la création',
+            { building: building, error: error }
+          ).catch(logError => 
+            console.error("Failed to log building creation error:", logError)
+          )
+        }
+        
         throw error
       }
       
       console.log("✅ Building created in database:", data)
+      
+      // Log de succès et notification
+      if (data && building.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: building.team_id,
+            userId: localUserId, // ✅ Utiliser l'ID utilisateur local
+            actionType: 'create',
+            entityType: 'building',
+            entityId: data.id,
+            entityName: data.name,
+            description: `Nouvel immeuble ajouté : ${data.name}`,
+            status: 'success',
+            metadata: {
+              address: data.address,
+              city: data.city,
+              total_lots: data.total_lots,
+              manager_name: data.manager?.name
+            }
+          }).catch(logError => 
+            console.error("Failed to log building creation:", logError)
+          )
+
+          // Notification de création
+          await notificationService.notifyBuildingCreated(data, localUserId).catch(notificationError =>
+            console.error("Failed to send building creation notification:", notificationError)
+          )
+        }
+      }
+      
       return data
     } catch (error) {
       console.error("❌ buildingService.create error:", error)
@@ -308,25 +480,144 @@ export const buildingService = {
   },
 
   async update(id: string, updates: Database['public']['Tables']['buildings']['Update']) {
-    const { data, error } = await supabase
-      .from('buildings')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour le log
+      const { data: currentData } = await supabase
+        .from('buildings')
+        .select('id, name, team_id')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('buildings')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("❌ Building update error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'update',
+            'building',
+            currentData.name || 'Immeuble',
+            error.message || 'Erreur lors de la modification',
+            { updates, building_id: id, error: error }
+          ).catch(logError => 
+            console.error("Failed to log building update error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (data && currentData?.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: localUserId,
+            actionType: 'update',
+            entityType: 'building',
+            entityId: data.id,
+            entityName: data.name || currentData.name,
+            description: `Immeuble modifié : ${data.name || currentData.name}`,
+            status: 'success',
+            metadata: {
+              changes: updates,
+              previous_name: currentData.name
+            }
+          }).catch(logError => 
+            console.error("Failed to log building update:", logError instanceof Error ? logError.message : String(logError))
+          )
+
+          // Notification de modification
+          await notificationService.notifyBuildingUpdated(data, localUserId, updates).catch(notificationError =>
+            console.error("Failed to send building update notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
+          )
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error("❌ buildingService.update error:", error)
+      throw error
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('buildings')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
-    return true
+    try {
+      // Récupérer les données actuelles pour le log avant suppression
+      const { data: currentData } = await supabase
+        .from('buildings')
+        .select('id, name, team_id, address, city')
+        .eq('id', id)
+        .single()
+
+      const { error } = await supabase
+        .from('buildings')
+        .delete()
+        .eq('id', id)
+      
+      if (error) {
+        console.error("❌ Building deletion error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'delete',
+            'building',
+            currentData.name || 'Immeuble',
+            error.message || 'Erreur lors de la suppression',
+            { building_id: id, building_data: currentData, error: error }
+          ).catch(logError => 
+            console.error("Failed to log building deletion error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (currentData?.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: localUserId,
+            actionType: 'delete',
+            entityType: 'building',
+            entityId: id,
+            entityName: currentData.name || 'Immeuble supprimé',
+            description: `Immeuble supprimé : ${currentData.name || 'Immeuble supprimé'}`,
+            status: 'success',
+            metadata: {
+              address: currentData.address,
+              city: currentData.city,
+              deleted_at: new Date().toISOString()
+            }
+          }).catch(logError => 
+            console.error("Failed to log building deletion:", logError instanceof Error ? logError.message : String(logError))
+          )
+
+          // Notification de suppression
+          await notificationService.notifyBuildingDeleted(currentData, localUserId).catch(notificationError =>
+            console.error("Failed to send building deletion notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
+          )
+        }
+      }
+      
+      return true
+    } catch (error) {
+      console.error("❌ buildingService.delete error:", error)
+      throw error
+    }
   }
 }
 
@@ -338,12 +629,31 @@ export const lotService = {
       .select(`
         *,
         building:building_id(name, address, city),
-        tenant:tenant_id(name, email, phone)
+        lot_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
       .order('reference')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les locataires et calculer is_occupied
+    return data?.map(lot => {
+      const tenants = lot.lot_contacts?.filter(contact => 
+        determineAssignmentType(contact.user) === 'tenant'
+      ) || []
+      
+      return {
+        ...lot,
+        // Locataire principal (premier tenant trouvé)
+        tenant: tenants.find(contact => contact.is_primary)?.user || tenants[0]?.user || null,
+        // Calculer automatiquement is_occupied basé sur la présence de tenants
+        is_occupied: tenants.length > 0,
+        // Garder tous les tenants pour compatibilité
+        tenants: tenants.map(contact => contact.user)
+      }
+    })
   },
 
   async getByBuildingId(buildingId: string) {
@@ -351,13 +661,32 @@ export const lotService = {
       .from('lots')
       .select(`
         *,
-        tenant:tenant_id(name, email, phone)
+        lot_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
       .eq('building_id', buildingId)
       .order('reference')
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les locataires et calculer is_occupied
+    return data?.map(lot => {
+      const tenants = lot.lot_contacts?.filter(contact => 
+        determineAssignmentType(contact.user) === 'tenant'
+      ) || []
+      
+      return {
+        ...lot,
+        // Locataire principal (premier tenant trouvé)
+        tenant: tenants.find(contact => contact.is_primary)?.user || tenants[0]?.user || null,
+        // Calculer automatiquement is_occupied basé sur la présence de tenants
+        is_occupied: tenants.length > 0,
+        // Garder tous les contacts pour compatibilité
+        tenants: tenants.map(contact => contact.user)
+      }
+    })
   },
 
   async getById(id: string) {
@@ -366,12 +695,27 @@ export const lotService = {
       .select(`
         *,
         building:building_id(name, address, city),
-        tenant:tenant_id(name, email, phone)
+        lot_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
       .eq('id', id)
       .single()
     
     if (error) throw error
+    
+    // Post-traitement pour extraire les locataires et calculer is_occupied
+    if (data) {
+      const tenants = data.lot_contacts?.filter(contact => 
+        determineAssignmentType(contact.user) === 'tenant'
+      ) || []
+      
+      data.tenant = tenants.find(contact => contact.is_primary)?.user || tenants[0]?.user || null
+      data.is_occupied = tenants.length > 0
+      data.tenants = tenants.map(contact => contact.user)
+    }
+    
     return data
   },
 
@@ -392,9 +736,9 @@ export const lotService = {
         console.warn("❌ Error getting contact stats, calculating manually:", statsError)
         // Fallback to manual calculation
         const contacts = await contactService.getLotContacts(id)
-        const tenants = contacts.filter((c: any) => c.contact_type === 'locataire' || c.lot_contact_type === 'locataire')
-        const syndics = contacts.filter((c: any) => c.contact_type === 'syndic' || c.lot_contact_type === 'syndic')
-        const prestataires = contacts.filter((c: any) => c.contact_type === 'prestataire' || c.lot_contact_type === 'prestataire')
+        const tenants = contacts.filter((c: any) => c.assignment_type === 'tenant')
+        const syndics = contacts.filter((c: any) => c.assignment_type === 'syndic')
+        const prestataires = contacts.filter((c: any) => c.assignment_type === 'provider')
         
         return {
           ...lot,
@@ -428,10 +772,70 @@ export const lotService = {
       
       if (error) {
         console.error("❌ Lot creation error:", error)
+        
+        // Log de l'erreur
+        if (lot.team_id) {
+          await activityLogger.logError(
+            'create',
+            'lot',
+            lot.reference || 'Nouveau lot',
+            error.message || 'Erreur lors de la création',
+            { lot: lot, error: error }
+          ).catch(logError => 
+            console.error("Failed to log lot creation error:", logError)
+          )
+        }
+        
         throw error
       }
       
       console.log("✅ Lot created in database:", data)
+      
+      // Log de succès
+      if (data && lot.team_id) {
+        const localUserId = await getLocalUserId()
+        console.log('🔍 lotService.create - localUserId for logging:', localUserId)
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: lot.team_id,
+            userId: localUserId, // ✅ Utiliser l'ID utilisateur local
+            actionType: 'create',
+            entityType: 'lot',
+            entityId: data.id,
+            entityName: data.reference,
+            description: `Nouveau lot créé : ${data.reference}`,
+            status: 'success',
+            metadata: {
+              building_id: data.building_id,
+              category: data.category,
+              floor: data.floor
+            }
+          }).catch(logError => 
+            console.error("Failed to log lot creation:", logError)
+          )
+
+          // Notification de création - récupérer les informations du building
+          const { data: building } = await supabase
+            .from('buildings')
+            .select('id, name')
+            .eq('id', data.building_id)
+            .single()
+
+          await notificationService.notifyLotCreated(data, building, localUserId).catch(notificationError =>
+            console.error("Failed to send lot creation notification:", notificationError)
+          )
+        } else {
+          console.log('⚠️ lotService.create - No local user ID found, skipping activity log and notification')
+        }
+      }
+      
+      // Vider le cache des stats pour refléter immédiatement les nouveaux lots
+      if (data) {
+        console.log("🗑️ Clearing stats cache after lot creation")
+        statsService.clearStatsCache() // Vider tout le cache
+      }
+      
       return data
     } catch (error) {
       console.error("❌ lotService.create error:", error)
@@ -440,25 +844,188 @@ export const lotService = {
   },
 
   async update(id: string, updates: Database['public']['Tables']['lots']['Update']) {
-    const { data, error } = await supabase
-      .from('lots')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour le log
+      const { data: currentData } = await supabase
+        .from('lots')
+        .select('id, reference, team_id, building_id')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('lots')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("❌ Lot update error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'update',
+            'lot',
+            currentData.reference || 'Lot',
+            error.message || 'Erreur lors de la modification',
+            { updates, lot_id: id, error: error }
+          ).catch(logError => 
+            console.error("Failed to log lot update error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (data && currentData?.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: localUserId,
+            actionType: 'update',
+            entityType: 'lot',
+            entityId: data.id,
+            entityName: data.reference || currentData.reference,
+            description: `Lot modifié : ${data.reference || currentData.reference}`,
+            status: 'success',
+            metadata: {
+              changes: updates,
+              previous_reference: currentData.reference,
+              building_id: data.building_id
+            }
+          }).catch(logError => 
+            console.error("Failed to log lot update:", logError instanceof Error ? logError.message : String(logError))
+          )
+
+          // Notification de modification - récupérer les informations du building
+          const { data: building } = await supabase
+            .from('buildings')
+            .select('id, name')
+            .eq('id', data.building_id)
+            .single()
+
+          await notificationService.notifyLotUpdated(data, building, localUserId, updates).catch(notificationError =>
+            console.error("Failed to send lot update notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
+          )
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error("❌ lotService.update error:", error)
+      throw error
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('lots')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
-    return true
+    try {
+      // Récupérer les données actuelles pour le log avant suppression
+      const { data: currentData } = await supabase
+        .from('lots')
+        .select('id, reference, team_id, building_id, category, surface_area, rooms')
+        .eq('id', id)
+        .single()
+
+      const { error } = await supabase
+        .from('lots')
+        .delete()
+        .eq('id', id)
+      
+      if (error) {
+        console.error("❌ Lot deletion error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'delete',
+            'lot',
+            currentData.reference || 'Lot',
+            error.message || 'Erreur lors de la suppression',
+            { lot_id: id, lot_data: currentData, error: error }
+          ).catch(logError => 
+            console.error("Failed to log lot deletion error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (currentData?.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: localUserId,
+            actionType: 'delete',
+            entityType: 'lot',
+            entityId: id,
+            entityName: currentData.reference || 'Lot supprimé',
+            description: `Lot supprimé : ${currentData.reference || 'Lot supprimé'}`,
+            status: 'success',
+            metadata: {
+              building_id: currentData.building_id,
+              category: currentData.category,
+              surface_area: currentData.surface_area,
+              rooms: currentData.rooms,
+              deleted_at: new Date().toISOString()
+            }
+          }).catch(logError => 
+            console.error("Failed to log lot deletion:", logError instanceof Error ? logError.message : String(logError))
+          )
+
+          // Notification de suppression - récupérer les informations du building
+          const { data: building } = await supabase
+            .from('buildings')
+            .select('id, name')
+            .eq('id', currentData.building_id)
+            .single()
+
+          await notificationService.notifyLotDeleted(currentData, building, localUserId).catch(notificationError =>
+            console.error("Failed to send lot deletion notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
+          )
+        }
+      }
+      
+      return true
+    } catch (error) {
+      console.error("❌ lotService.delete error:", error)
+      throw error
+    }
+  },
+
+  // Compter les lots par catégorie pour une équipe
+  async getCountByCategory(teamId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('lots')
+        .select(`
+          category,
+          building:building_id!inner(
+            team_id
+          )
+        `)
+        .eq('building.team_id', teamId)
+      
+      if (error) throw error
+      
+      // Compter les occurrences de chaque catégorie
+      const counts: Record<string, number> = {}
+      data.forEach(lot => {
+        const category = lot.category || 'appartement' // valeur par défaut
+        counts[category] = (counts[category] || 0) + 1
+      })
+      
+      return counts
+    } catch (error) {
+      console.error("❌ Error getting lot counts by category:", error)
+      throw error
+    }
   }
 }
 
@@ -469,15 +1036,57 @@ export const interventionService = {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(reference, building:building_id(name, address)),
-        tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
+        lot:lot_id(
+          reference, 
+          building:building_id(name, address),
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        intervention_contacts(
+          role,
+          is_primary,
+          individual_message,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
       `)
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire les informations enrichies
+    return data?.map(intervention => {
+      // Extract tenant from lot contacts
+      if (intervention.lot?.lot_contacts) {
+        const tenants = intervention.lot.lot_contacts.filter(contact => 
+          determineAssignmentType(contact.user) === 'tenant'
+        )
+        intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+      }
+      
+      // Extract assigned users by role
+      if (intervention.intervention_contacts) {
+        intervention.assigned_managers = intervention.intervention_contacts
+          .filter(ic => ic.role === 'gestionnaire')
+          .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+        
+        intervention.assigned_providers = intervention.intervention_contacts
+          .filter(ic => ic.role === 'prestataire')
+          .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+        
+        intervention.assigned_supervisors = intervention.intervention_contacts
+          .filter(ic => ic.role === 'superviseur')
+          .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+          
+        // For backwards compatibility, set primary assigned contact
+        intervention.assigned_contact = intervention.intervention_contacts?.find(ic => 
+          ic.role === 'prestataire' && ic.is_primary
+        )?.user || null
+      }
+      
+      return intervention
+    })
   },
 
   async getByStatus(status: Intervention['status']) {
@@ -485,16 +1094,30 @@ export const interventionService = {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(reference, building:building_id(name, address)),
-        tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
+        lot:lot_id(
+          reference, 
+          building:building_id(name, address),
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        )
       `)
       .eq('status', status)
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire le locataire principal
+    return data?.map(intervention => {
+      if (intervention.lot?.lot_contacts) {
+        const tenants = intervention.lot.lot_contacts.filter(contact => 
+          determineAssignmentType(contact.user) === 'tenant'
+        )
+        intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+      }
+      return intervention
+    })
   },
 
   async getByTenantId(tenantId: string) {
@@ -502,15 +1125,30 @@ export const interventionService = {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(reference, building:building_id(name, address)),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
+        lot:lot_id(
+          reference, 
+          building:building_id(name, address),
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        )
       `)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour ajouter le locataire du lot
+    return data?.map(intervention => {
+      if (intervention.lot?.lot_contacts) {
+        const tenants = intervention.lot.lot_contacts.filter(contact => 
+          determineAssignmentType(contact.user) === 'tenant'
+        )
+        intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+      }
+      return intervention
+    })
   },
 
   async getByLotId(lotId: string) {
@@ -518,32 +1156,104 @@ export const interventionService = {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(reference, building:building_id(name, address)),
-        tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email),
-        assigned_contact:assigned_contact_id(name, email, phone)
+        lot:lot_id(
+          reference, 
+          building:building_id(name, address),
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        )
       `)
       .eq('lot_id', lotId)
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return data
+    
+    // Post-traitement pour extraire le locataire principal
+    return data?.map(intervention => {
+      if (intervention.lot?.lot_contacts) {
+        const tenants = intervention.lot.lot_contacts.filter(contact => 
+          determineAssignmentType(contact.user) === 'tenant'
+        )
+        intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+      }
+      return intervention
+    })
   },
 
   async getByProviderId(providerId: string) {
-    const { data, error } = await supabase
+    // Dans la nouvelle architecture, les prestataires sont assignés via lot_contacts et building_contacts
+    // Nous devons d'abord trouver tous les lots/bâtiments où ce prestataire est assigné
+    
+    try {
+      // 1. Trouver tous les lots où ce prestataire est assigné
+      const { data: lotAssignments, error: lotError } = await supabase
+        .from('lot_contacts')
+        .select('lot_id')
+        .eq('user_id', providerId)
+        .eq('users.role', 'prestataire') // Utiliser le rôle français de la DB
+      
+      if (lotError) throw lotError
+      
+      // 2. Trouver tous les bâtiments où ce prestataire est assigné  
+      const { data: buildingAssignments, error: buildingError } = await supabase
+        .from('building_contacts')
+        .select('building_id')
+        .eq('user_id', providerId)
+        .eq('users.role', 'prestataire') // Utiliser le rôle français de la DB
+        
+      if (buildingError) throw buildingError
+      
+      const assignedLotIds = lotAssignments?.map(a => a.lot_id) || []
+      const assignedBuildingIds = buildingAssignments?.map(a => a.building_id) || []
+      
+      // 3. Trouver toutes les interventions de ces lots et bâtiments
+      let query = supabase
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(reference, building:building_id(name, address)),
-        tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email)
-      `)
-      .eq('assigned_contact_id', providerId)
+          lot:lot_id(
+            reference, 
+            building:building_id(name, address),
+            lot_contacts(
+              is_primary,
+              user:user_id(id, name, email, phone, role, provider_category)
+            )
+          )
+        `)
       .order('created_at', { ascending: false })
     
+      if (assignedLotIds.length > 0 && assignedBuildingIds.length > 0) {
+        query = query.or(`lot_id.in.(${assignedLotIds.join(',')}),building_id.in.(${assignedBuildingIds.join(',')})`)
+      } else if (assignedLotIds.length > 0) {
+        query = query.in('lot_id', assignedLotIds)
+      } else if (assignedBuildingIds.length > 0) {
+        query = query.in('building_id', assignedBuildingIds)
+      } else {
+        // Aucune assignation trouvée, retourner un tableau vide
+        return []
+      }
+
+      const { data, error } = await query
+      
     if (error) throw error
-    return data
+      
+      // Post-traitement pour ajouter les locataires
+      return data?.map(intervention => {
+        if (intervention.lot?.lot_contacts) {
+          const tenants = intervention.lot.lot_contacts.filter(contact => 
+            determineAssignmentType(contact.user) === 'tenant'
+          )
+          intervention.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+        }
+        return intervention
+      })
+      
+    } catch (error) {
+      console.error("❌ Error in getByProviderId:", error)
+      throw error
+    }
   },
 
   async getById(id: string) {
@@ -553,40 +1263,144 @@ export const interventionService = {
         *,
         lot:lot_id(
           *,
-          building:building_id(*)
+          building:building_id(*),
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
         ),
-        tenant:tenant_id(name, email, phone),
-        manager:manager_id(name, email, phone),
-        assigned_contact:assigned_contact_id(name, email, phone)
+        building:building_id(
+          *,
+          building_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        intervention_contacts(
+          role,
+          is_primary,
+          individual_message,
+          user:user_id(id, name, email, phone, role, provider_category, speciality)
+        )
       `)
       .eq('id', id)
       .single()
     
     if (error) throw error
+    
+    // Post-traitement pour extraire le locataire principal
+    if (data?.lot?.lot_contacts) {
+      const tenants = data.lot.lot_contacts.filter(contact => 
+        determineAssignmentType(contact.user) === 'tenant'
+      )
+      data.tenant = tenants.find(c => c.is_primary)?.user || tenants[0]?.user || null
+    }
+
+    // Post-traitement pour extraire les gestionnaires, prestataires et superviseurs assignés
+    if (data?.intervention_contacts) {
+      data.assigned_managers = data.intervention_contacts
+        .filter(ic => ic.role === 'gestionnaire')
+        .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+      
+      data.assigned_providers = data.intervention_contacts
+        .filter(ic => ic.role === 'prestataire')
+        .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+      
+      data.assigned_supervisors = data.intervention_contacts
+        .filter(ic => ic.role === 'superviseur')
+        .map(ic => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
+      
+      // Pour la compatibilité, définir le gestionnaire principal comme "manager"
+      data.manager = data.assigned_managers?.find(m => m.is_primary) || data.assigned_managers?.[0] || null
+      
+      // Pour la compatibilité, définir le prestataire principal comme "assigned_contact"
+      data.assigned_contact = data.assigned_providers?.find(p => p.is_primary) || data.assigned_providers?.[0] || null
+    }
+    
     return data
   },
 
   async create(intervention: Database['public']['Tables']['interventions']['Insert']) {
-    const { data, error } = await supabase
-      .from('interventions')
-      .insert(intervention)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('interventions')
+        .insert(intervention)
+        .select(`
+          *,
+          lot:lot_id(reference, building:building_id(name, team_id))
+        `)
+        .single()
+      
+      if (error) throw error
+
+      // Note: Notifications will be created after auto-assignment in the API
+      // This avoids the need for manager_id fields and uses the actual assigned users
+      
+      return data
+    } catch (error) {
+      console.error('❌ interventionService.create error:', error)
+      throw error
+    }
   },
 
   async update(id: string, updates: Database['public']['Tables']['interventions']['Update']) {
-    const { data, error } = await supabase
-      .from('interventions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour détecter les changements
+      const { data: currentData } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot:lot_id(reference, building:building_id(name, team_id))
+        `)
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('interventions')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          lot:lot_id(reference, building:building_id(name, team_id))
+        `)
+        .single()
+      
+      if (error) throw error
+
+      // Créer des notifications pour les changements importants
+      if (data && currentData && data.lot?.building?.team_id) {
+        try {
+          // Changement de statut
+          if (updates.status && updates.status !== currentData.status) {
+            await notificationService.notifyInterventionStatusChange({
+              interventionId: data.id,
+              interventionTitle: data.title || `Intervention ${data.type || ''}`,
+              oldStatus: currentData.status,
+              newStatus: updates.status,
+              teamId: data.lot.building.team_id,
+              changedBy: data.tenant_id || currentData.tenant_id,
+              managerId: data.tenant_id || currentData.tenant_id,
+              lotId: data.lot_id || currentData.lot_id,
+              lotReference: data.lot?.reference
+            })
+            console.log('✅ Status change notifications created for intervention:', data.id)
+          }
+
+          // Notifications pour les changements d'assignation (nouveaux gestionnaires/prestataires)
+          // Note: Pour détecter les changements d'assignation, il faudrait comparer les intervention_contacts
+          // avant et après la mise à jour. Pour l'instant, cette fonctionnalité est gérée au niveau API
+          // lors des assignations explicites d'utilisateurs à une intervention.
+        } catch (notificationError) {
+          console.error('❌ Error creating intervention update notifications:', notificationError)
+          // Ne pas faire échouer la mise à jour pour les notifications
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error('❌ interventionService.update error:', error)
+      throw error
+    }
   },
 
   async delete(id: string) {
@@ -597,18 +1411,298 @@ export const interventionService = {
     
     if (error) throw error
     return true
+  },
+
+  // Get documents for an intervention
+  async getDocuments(interventionId: string) {
+    const { data, error } = await supabase
+      .from('intervention_documents')
+      .select(`
+        *,
+        uploaded_by_user:uploaded_by(name, email),
+        validated_by_user:validated_by(name, email)
+      `)
+      .eq('intervention_id', interventionId)
+      .order('uploaded_at', { ascending: false })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get interventions with their documents for a building
+  async getInterventionsWithDocumentsByBuildingId(buildingId: string) {
+    // First get all lots for this building
+    const lots = await lotService.getByBuildingId(buildingId)
+    const lotIds = lots?.map(lot => lot.id) || []
+    
+    if (lotIds.length === 0) return []
+    
+    // Get interventions for these lots
+    const { data: interventions, error } = await supabase
+      .from('interventions')
+      .select(`
+        *,
+        lot:lot_id(reference, building:building_id(name, address)),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        ),
+        documents:intervention_documents(
+          id,
+          filename,
+          original_filename,
+          file_size,
+          mime_type,
+          document_type,
+          uploaded_at,
+          uploaded_by
+        )
+      `)
+      .in('lot_id', lotIds)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    // Post-traitement pour extraire le prestataire principal
+    return interventions?.map(intervention => ({
+      ...intervention,
+      assigned_contact: intervention.intervention_contacts?.find(ic => 
+        ic.role === 'prestataire' && ic.is_primary
+      )?.user || null
+    })) || []
+  },
+
+  // Get interventions with their documents for a lot
+  async getInterventionsWithDocumentsByLotId(lotId: string) {
+    const { data, error } = await supabase
+      .from('interventions')
+      .select(`
+        *,
+        lot:lot_id(reference, building:building_id(name, address)),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, phone)
+        ),
+        documents:intervention_documents(
+          id,
+          filename,
+          original_filename,
+          file_size,
+          mime_type,
+          document_type,
+          uploaded_at,
+          uploaded_by
+        )
+      `)
+      .eq('lot_id', lotId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    // Post-traitement pour extraire le prestataire principal
+    return data?.map(intervention => ({
+      ...intervention,
+      assigned_contact: intervention.intervention_contacts?.find(ic => 
+        ic.role === 'prestataire' && ic.is_primary
+      )?.user || null
+    })) || []
+  },
+
+  // Assign users to an intervention automatically based on team and lot/building context
+  async autoAssignIntervention(interventionId: string, lotId?: string, buildingId?: string, teamId?: string) {
+    console.log("👥 Auto-assigning intervention:", { interventionId, lotId, buildingId, teamId })
+    
+    try {
+      const assignments: Array<{
+        intervention_id: string
+        user_id: string
+        role: string
+        is_primary: boolean
+        individual_message?: string
+      }> = []
+
+      // 1. Get all team managers (gestionnaires) if teamId is provided
+      if (teamId) {
+        const { data: teamManagers, error: teamError } = await supabase
+          .from('team_members')
+          .select(`
+            user_id,
+            role,
+            user:user_id(id, name, role)
+          `)
+          .eq('team_id', teamId)
+          .eq('user.role', 'gestionnaire')
+
+        if (teamError) {
+          console.error("❌ Error fetching team managers:", teamError)
+        } else if (teamManagers && teamManagers.length > 0) {
+          console.log("👨‍💼 Found team managers:", teamManagers.length)
+          
+          // Add all team managers as gestionnaires
+          teamManagers.forEach((manager, index) => {
+            assignments.push({
+              intervention_id: interventionId,
+              user_id: manager.user_id,
+              role: 'gestionnaire',
+              is_primary: index === 0, // First manager is primary
+              individual_message: `Assigné automatiquement comme gestionnaire de l'équipe`
+            })
+          })
+        }
+      }
+
+      // 2. Get lot-specific managers if lotId is provided
+      if (lotId) {
+        const { data: lotManagers, error: lotError } = await supabase
+          .from('lot_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            user:user_id(id, name, role)
+          `)
+          .eq('lot_id', lotId)
+          .eq('user.role', 'gestionnaire')
+          .is('end_date', null) // Only active assignments
+
+        if (lotError) {
+          console.error("❌ Error fetching lot managers:", lotError)
+        } else if (lotManagers && lotManagers.length > 0) {
+          console.log("🏠 Found lot-specific managers:", lotManagers.length)
+          
+          // Add lot managers as gestionnaires (override team assignment if same user)
+          lotManagers.forEach(manager => {
+            // Check if already added as team manager
+            const existingIndex = assignments.findIndex(a => a.user_id === manager.user_id && a.role === 'gestionnaire')
+            
+            if (existingIndex >= 0) {
+              // Update existing assignment to be lot-specific and potentially primary
+              assignments[existingIndex].is_primary = manager.is_primary
+              assignments[existingIndex].individual_message = `Assigné comme gestionnaire spécifique du lot`
+            } else {
+              // Add as new lot manager
+              assignments.push({
+                intervention_id: interventionId,
+                user_id: manager.user_id,
+                role: 'gestionnaire',
+                is_primary: manager.is_primary,
+                individual_message: `Assigné comme gestionnaire spécifique du lot`
+              })
+            }
+          })
+        }
+      }
+
+      // 3. Get building-specific managers if buildingId is provided (and no lot specified)
+      if (buildingId && !lotId) {
+        const { data: buildingManagers, error: buildingError } = await supabase
+          .from('building_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            user:user_id(id, name, role)
+          `)
+          .eq('building_id', buildingId)
+          .eq('user.role', 'gestionnaire')
+          .is('end_date', null) // Only active assignments
+
+        if (buildingError) {
+          console.error("❌ Error fetching building managers:", buildingError)
+        } else if (buildingManagers && buildingManagers.length > 0) {
+          console.log("🏢 Found building-specific managers:", buildingManagers.length)
+          
+          // Add building managers as gestionnaires
+          buildingManagers.forEach(manager => {
+            // Check if already added
+            const existingIndex = assignments.findIndex(a => a.user_id === manager.user_id && a.role === 'gestionnaire')
+            
+            if (existingIndex >= 0) {
+              // Update existing assignment
+              assignments[existingIndex].is_primary = manager.is_primary
+              assignments[existingIndex].individual_message = `Assigné comme gestionnaire spécifique du bâtiment`
+            } else {
+              // Add as new building manager
+              assignments.push({
+                intervention_id: interventionId,
+                user_id: manager.user_id,
+                role: 'gestionnaire',
+                is_primary: manager.is_primary,
+                individual_message: `Assigné comme gestionnaire spécifique du bâtiment`
+              })
+            }
+          })
+        }
+      }
+
+      // 4. Optionally get prestataires assigned to the lot/building (for future assignment)
+      if (lotId) {
+        const { data: lotProviders, error: providerError } = await supabase
+          .from('lot_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            user:user_id(id, name, role, provider_category, speciality)
+          `)
+          .eq('lot_id', lotId)
+          .eq('user.role', 'prestataire')
+          .is('end_date', null) // Only active assignments
+
+        if (providerError) {
+          console.error("❌ Error fetching lot providers:", providerError)
+        } else if (lotProviders && lotProviders.length > 0) {
+          console.log("🔧 Found lot-specific providers:", lotProviders.length, "(will be available for manual assignment)")
+          
+          // Note: We don't auto-assign prestataires to new interventions
+          // They should be manually assigned based on the intervention type and their speciality
+          // But we could store them for potential future auto-assignment logic
+        }
+      }
+
+      // Insert all assignments
+      if (assignments.length > 0) {
+        console.log("💾 Creating intervention assignments:", assignments.length)
+        
+        const { data: createdAssignments, error: assignError } = await supabase
+          .from('intervention_contacts')
+          .insert(assignments)
+          .select(`
+            id,
+            user_id,
+            role,
+            is_primary,
+            user:user_id(id, name, email)
+          `)
+
+        if (assignError) {
+          console.error("❌ Error creating intervention assignments:", assignError)
+          throw assignError
+        }
+
+        console.log("✅ Successfully created intervention assignments:", createdAssignments?.length || 0)
+        return createdAssignments
+      } else {
+        console.log("⚠️ No users found to assign to intervention")
+        return []
+      }
+
+    } catch (error) {
+      console.error("❌ Error in autoAssignIntervention:", error)
+      throw error
+    }
   }
 }
 
-// Contact Services
+// Contact Services (NEW: using users table)
 export const contactService = {
   async getAll() {
     const { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
       `)
+      .eq('is_active', true)
       .order('name')
     
     if (error) throw error
@@ -617,7 +1711,7 @@ export const contactService = {
 
   async getById(id: string) {
     const { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
@@ -631,12 +1725,13 @@ export const contactService = {
 
   async getBySpeciality(speciality: any) {
     const { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
       `)
       .eq('speciality', speciality)
+      .eq('is_active', true)
       .order('name')
     
     if (error) throw error
@@ -648,7 +1743,7 @@ export const contactService = {
     
     // Essayer d'abord avec le filtre team_id
     let { data, error } = await supabase
-      .from('contacts')
+      .from('users')
       .select(`
         *,
         team:team_id(id, name, description)
@@ -663,7 +1758,7 @@ export const contactService = {
       console.log("⚠️ No team contacts found, trying fallback query (all contacts)")
       
       const fallbackResult = await supabase
-        .from('contacts')
+        .from('users')
         .select(`
           *,
           team:team_id(id, name, description)
@@ -689,24 +1784,29 @@ export const contactService = {
     }
     
     console.log("✅ Returning contacts:", data?.length || 0)
+    if (data && data.length > 0) {
+      console.log("📋 Sample contact structure:", JSON.stringify(data[0], null, 2))
+    }
     return data || []
   },
 
-  // Nouvelle méthode pour récupérer les contacts d'un bâtiment entier
-  async getBuildingContacts(buildingId: string, contactType?: string) {
-    console.log("🏢 getBuildingContacts called with buildingId:", buildingId, "contactType:", contactType)
+  // Nouvelle méthode pour récupérer les contacts d'un bâtiment entier (nouvelle architecture)
+  async getBuildingContacts(buildingId: string, assignmentType?: string) {
+    console.log("🏢 getBuildingContacts called with buildingId:", buildingId, "assignmentType:", assignmentType)
     
     try {
       const { data, error } = await supabase
         .from('building_contacts')
         .select(`
-          contact:contact_id (
+          is_primary,
+          user:user_id(
             id,
             name,
             email,
             phone,
             company,
-            contact_type,
+            role,
+            provider_category,
             speciality,
             is_active
           )
@@ -719,12 +1819,12 @@ export const contactService = {
       }
 
       let contacts = (data || [])
-        .map((item: any) => item.contact)
+        .map((item: any) => item.user)
         .filter((contact: any) => contact && contact.is_active !== false)
 
-      // Filtrer par type de contact si spécifié
-      if (contactType) {
-        contacts = contacts.filter((contact: any) => contact?.contact_type === contactType)
+      // Filtrer par type d'assignation si spécifié
+      if (assignmentType) {
+        contacts = contacts.filter((contact: any) => determineAssignmentType(contact) === assignmentType)
       }
       
       console.log("✅ Found building contacts:", contacts.length)
@@ -768,8 +1868,13 @@ export const contactService = {
       console.log("📊 Raw team members data:", { count: data?.length, data })
       
       // Filtrer côté client pour les gestionnaires uniquement
+      console.log("🔍 Filtrage des gestionnaires...")
       const managers = data
-        ?.filter((member: any) => member.user?.role === 'gestionnaire')
+        ?.filter((member: any) => {
+          const isManager = member.user?.role === 'gestionnaire'
+          console.log(`   👤 ${member.user?.name || member.user?.email}: role=${member.user?.role} → isManager=${isManager}`)
+          return isManager
+        })
         ?.map((member: any) => ({
           id: member.user.id,
           name: member.user.name || `${member.user.first_name || ''} ${member.user.last_name || ''}`.trim() || member.user.email,
@@ -811,158 +1916,106 @@ export const contactService = {
     return data
   },
 
-  async getLotContacts(lotId: string, contactType?: Database['public']['Enums']['contact_type']) {
-    console.log("🏠 getLotContacts called with lotId:", lotId, "contactType:", contactType)
+  async getLotContacts(lotId: string, assignmentType?: string) {
+    console.log("🏠 getLotContacts called with lotId:", lotId, "assignmentType:", assignmentType)
     
     try {
-      // Use the new lot_contacts table directly
-      let query = supabase
+      // Use the new lot_contacts table with user role/provider_category logic
+      const { data, error } = await supabase
         .from('lot_contacts')
         .select(`
-          contact:contact_id (
+          user:user_id (
             id,
             name,
+            first_name,
+            last_name,
             email,
             phone,
             company,
             speciality,
-            contact_type,
+            role,
+            provider_category,
             address,
             notes,
             is_active,
             team:team_id(id, name, description)
           ),
-          contact_type,
           is_primary,
           start_date,
-          end_date,
-          notes
+          end_date
         `)
         .eq('lot_id', lotId)
-        .is('end_date', null) // Only active contacts
-
-      // Filter by contact type if specified
-      if (contactType) {
-        query = query.eq('contact_type', contactType)
-      }
-
-      const { data, error } = await query.order('is_primary', { ascending: false })
+        .or('end_date.is.null,end_date.gt.now()') // Active contacts
+        .eq('user.is_active', true)
+        .order('is_primary', { ascending: false })
       
       if (error) {
         console.error("❌ Error getting lot contacts:", error)
-        // Si la table lot_contacts n'existe pas ou est vide, utiliser l'ancienne méthode
-        if (error.code === 'PGRST116' || error.message?.includes('lot_contacts')) {
-          console.log("📝 Falling back to building contacts method...")
-          return this.getLotContactsLegacy(lotId, contactType)
-        }
         throw error
       }
 
-      // Extract contacts from the relationship and add lot_contact metadata
-      const contacts = data?.map((item: any) => ({
-        ...item.contact,
-        lot_contact_type: item.contact_type,
+      // Extract contacts and determine their assignment type
+      let contacts = data?.map((item: any) => ({
+        ...item.user,
+        assignment_type: determineAssignmentType(item.user),
         is_primary_for_lot: item.is_primary,
         lot_start_date: item.start_date,
-        lot_notes: item.notes
+        lot_end_date: item.end_date
       })).filter(Boolean) || []
       
-      console.log("✅ Found lot contacts via lot_contacts:", contacts.length)
+      // Filter by assignment type if specified
+      if (assignmentType) {
+        contacts = contacts.filter(contact => contact.assignment_type === assignmentType)
+      }
+      
+      console.log(`✅ Found lot contacts: ${contacts.length} total${assignmentType ? ` (filtered by ${assignmentType})` : ''}`)
       return contacts
 
     } catch (error) {
-      console.error("🚨 Unexpected error in getLotContacts:", error)
-      // En cas d'erreur inattendue, essayer la méthode legacy puis retourner un tableau vide
-      try {
-        return this.getLotContactsLegacy(lotId, contactType)
-      } catch (legacyError) {
-        console.error("❌ Legacy method also failed:", legacyError)
-        return []
-      }
-    }
-  },
-
-  // Legacy method as fallback
-  async getLotContactsLegacy(lotId: string, contactType?: Database['public']['Enums']['contact_type']) {
-    console.log("🏠 getLotContactsLegacy called with lotId:", lotId)
-    
-    try {
-      // First get the building ID from the lot
-      console.log("📋 Step 1: Getting lot data...")
-      const { data: lot, error: lotError } = await supabase
-        .from('lots')
-        .select('building_id')
-        .eq('id', lotId)
-        .single()
-      
-      if (lotError) {
-        console.error("❌ Error getting lot:", lotError)
-        if (lotError.code === 'PGRST116') {
-          console.log("📝 Lot not found, returning empty array")
-          return []
-        }
-        throw lotError
-      }
-
-      if (!lot?.building_id) {
-        console.log("⚠️ No building found for lot, returning empty array")
-        return []
-      }
-
-      console.log("🏢 Step 2: Getting contacts for building:", lot.building_id)
-
-      const { data, error } = await supabase
-        .from('building_contacts')
-        .select(`
-          contact:contact_id (
-            id,
-            name,
-            email,
-            phone,
-            company,
-            speciality,
-            contact_type,
-            address,
-            notes,
-            is_active,
-            team:team_id(id, name, description)
-          )
-        `)
-        .eq('building_id', lot.building_id)
-
-      if (error) {
-        console.error("❌ Error getting building contacts:", error)
-        if (error.code === 'PGRST116') {
-          console.log("📝 No building_contacts found, returning empty array")
-          return []
-        }
-        throw error
-      }
-
-      // Extract contacts and filter by type if specified
-      let contacts = data?.map(item => item.contact).filter(Boolean) || []
-      
-      if (contactType) {
-        contacts = contacts.filter(contact => contact?.contact_type === contactType)
-      }
-      
-      console.log("✅ Found lot contacts via building_contacts:", contacts.length)
-      return contacts
-
-    } catch (error) {
-      console.error("🚨 Unexpected error in getLotContactsLegacy:", error)
+      console.error("🚨 Error in getLotContacts:", error)
       return []
     }
   },
 
-  // Get contacts by specific type for a lot
-  async getLotContactsByType(lotId: string, contactType: Database['public']['Enums']['contact_type']) {
-    return this.getLotContacts(lotId, contactType)
+  // Legacy method removed - use getLotContacts instead
+
+  // Get contacts by specific assignment type for a lot (nouvelle architecture)
+  async getLotContactsByType(lotId: string, assignmentType: string) {
+    const { data, error } = await supabase
+      .from('lot_contacts')
+      .select(`
+        is_primary,
+        user:user_id(
+          id,
+          name, 
+          email,
+          phone,
+          company,
+          speciality,
+          address,
+          notes,
+          is_active,
+          role,
+          provider_category,
+          team:team_id(id, name, description)
+        )
+      `)
+      .eq('lot_id', lotId)
+      .eq('user.is_active', true)
+      .order('is_primary', { ascending: false })
+    
+    if (error) throw error
+    
+    // Filtrer par type d'assignation basé sur role/provider_category
+    const contacts = (data?.map(item => item.user).filter(Boolean) || [])
+      .filter(user => determineAssignmentType(user) === assignmentType)
+    
+    return contacts
   },
 
   // Get active tenants for a lot
   async getLotTenants(lotId: string) {
-    return this.getLotContactsByType(lotId, 'locataire')
+    return this.getLotContactsByType(lotId, 'tenant')
   },
 
   // Count active tenants for a lot
@@ -971,18 +2024,36 @@ export const contactService = {
     return tenants.length
   },
 
-  // Add a contact to a lot
-  async addContactToLot(lotId: string, contactId: string, contactType: Database['public']['Enums']['contact_type'], isPrimary: boolean = false, notes?: string) {
-    console.log("🔗 Adding contact to lot:", { lotId, contactId, contactType, isPrimary })
+  // Add a contact to a lot (nouvelle architecture basée sur role/provider_category)
+  async addContactToLot(lotId: string, userId: string, isPrimary: boolean = false, startDate?: string, endDate?: string) {
+    console.log("🔗 Adding contact to lot:", { lotId, userId, isPrimary })
     
     try {
-      const { data, error } = await supabase.rpc('add_contact_to_lot', {
-        p_lot_id: lotId,
-        p_contact_id: contactId,
-        p_contact_type: contactType,
-        p_is_primary: isPrimary,
-        p_notes: notes
-      })
+      // Récupérer les infos de l'utilisateur pour validation
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('role, provider_category')
+        .eq('id', userId)
+        .single()
+      
+      if (userError) throw userError
+      
+      // Valider l'assignation
+      if (!validateAssignment(user as AssignmentUser, 'lot')) {
+        throw new Error(`L'utilisateur avec le rôle ${user.role} ne peut pas être assigné à un lot`)
+      }
+      
+      const { data, error } = await supabase
+        .from('lot_contacts')
+        .insert({
+          lot_id: lotId,
+          user_id: userId,
+          is_primary: isPrimary,
+          start_date: startDate || new Date().toISOString().split('T')[0],
+          end_date: endDate || null
+        })
+        .select()
+        .single()
       
       if (error) throw error
       console.log("✅ Contact added to lot successfully")
@@ -994,16 +2065,58 @@ export const contactService = {
     }
   },
 
-  // Remove a contact from a lot
-  async removeContactFromLot(lotId: string, contactId: string, contactType: Database['public']['Enums']['contact_type']) {
-    console.log("🗑️ Removing contact from lot:", { lotId, contactId, contactType })
+  // Add a contact to a building (nouvelle architecture basée sur role/provider_category)
+  async addContactToBuilding(buildingId: string, userId: string, isPrimary: boolean = false, startDate?: string, endDate?: string) {
+    console.log("🔗 Adding contact to building:", { buildingId, userId, isPrimary })
     
     try {
-      const { data, error } = await supabase.rpc('remove_contact_from_lot', {
-        p_lot_id: lotId,
-        p_contact_id: contactId,
-        p_contact_type: contactType
-      })
+      // Récupérer les infos de l'utilisateur pour validation
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('role, provider_category')
+        .eq('id', userId)
+        .single()
+      
+      if (userError) throw userError
+      
+      // Valider l'assignation (les locataires ne peuvent être assignés aux buildings)
+      if (!validateAssignment(user as AssignmentUser, 'building')) {
+        throw new Error(`L'utilisateur avec le rôle ${user.role} ne peut pas être assigné à un immeuble. Les locataires doivent être assignés à des lots.`)
+      }
+      
+      const { data, error } = await supabase
+        .from('building_contacts')
+        .insert({
+          building_id: buildingId,
+          user_id: userId,
+          is_primary: isPrimary,
+          start_date: startDate || new Date().toISOString().split('T')[0],
+          end_date: endDate || null
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      console.log("✅ Contact added to building successfully")
+      return data
+      
+    } catch (error) {
+      console.error("❌ Error adding contact to building:", error)
+      throw error
+    }
+  },
+
+  // Remove a contact from a lot (nouvelle architecture)
+  async removeContactFromLot(lotId: string, userId: string) {
+    console.log("🗑️ Removing contact from lot:", { lotId, userId })
+    
+    try {
+      const { data, error } = await supabase
+        .from('lot_contacts')
+        .delete()
+        .eq('lot_id', lotId)
+        .eq('user_id', userId)
+        .select()
       
       if (error) throw error
       console.log("✅ Contact removed from lot successfully")
@@ -1015,10 +2128,35 @@ export const contactService = {
     }
   },
 
+  // Remove a contact from a building (nouvelle architecture)
+  async removeContactFromBuilding(buildingId: string, userId: string) {
+    console.log("🗑️ Removing contact from building:", { buildingId, userId })
+    
+    try {
+      const { data, error } = await supabase
+        .from('building_contacts')
+        .delete()
+        .eq('building_id', buildingId)
+        .eq('user_id', userId)
+        .select()
+      
+      if (error) throw error
+      console.log("✅ Contact removed from building successfully")
+      return data
+      
+    } catch (error) {
+      console.error("❌ Error removing contact from building:", error)
+      throw error
+    }
+  },
+
 
   async create(contact: any) {
-    console.log('🗃️ [CONTACT-SERVICE] Creating contact:', contact.name, contact.email)
-    console.log('📋 [CONTACT-SERVICE] Contact data to insert:', JSON.stringify(contact, null, 2))
+    console.log('🗃️ [CONTACT-SERVICE] Creating user (new architecture):', contact.name, contact.email)
+    console.log('📋 [CONTACT-SERVICE] Contact data:', JSON.stringify(contact, null, 2))
+    
+    // NOUVELLE ARCHITECTURE: Utiliser directement les données user avec role/provider_category
+    const userDataOnly = { ...contact }
     
     try {
       // Validation des données requises avant insertion
@@ -1042,7 +2180,7 @@ export const contactService = {
         
         // Créer un timeout spécifique pour le test RLS
         const permissionPromise = supabase
-          .from('contacts')
+          .from('users')
           .select('id')
           .limit(1)
         
@@ -1079,15 +2217,9 @@ export const contactService = {
       
       console.log('🎯 [CONTACT-SERVICE] Permission test result:', permissionTestPassed ? 'PASSED' : 'SKIPPED - CONTINUING ANYWAY')
       
-      // Validation des valeurs enum
+      // Validation des valeurs enum (nouvelle architecture)
       console.log('🔍 [CONTACT-SERVICE] Starting enum validation...')
-      const validContactTypes = ['locataire', 'prestataire', 'gestionnaire', 'syndic', 'notaire', 'assurance', 'autre']
       const validInterventionTypes = ['plomberie', 'electricite', 'chauffage', 'serrurerie', 'peinture', 'menage', 'jardinage', 'autre']
-      
-      if (contact.contact_type && !validContactTypes.includes(contact.contact_type)) {
-        console.error('❌ [CONTACT-SERVICE] Invalid contact_type:', contact.contact_type)
-        throw new Error(`Invalid contact_type: ${contact.contact_type}. Must be one of: ${validContactTypes.join(', ')}`)
-      }
       
       if (contact.speciality && !validInterventionTypes.includes(contact.speciality)) {
         console.error('❌ [CONTACT-SERVICE] Invalid speciality:', contact.speciality)
@@ -1100,8 +2232,8 @@ export const contactService = {
       
       // Créer un timeout pour détecter les blocages
       const insertPromise = supabase
-        .from('contacts')
-        .insert(contact)
+        .from('users')
+        .insert(userDataOnly) // NOUVELLE ARCHITECTURE: insérer avec role/provider_category
         .select()
         .single()
       
@@ -1122,6 +2254,20 @@ export const contactService = {
           hint: error.hint,
           code: error.code
         })
+        
+        // Log de l'erreur
+        if (contact.team_id) {
+          await activityLogger.logError(
+            'create',
+            'contact',
+            contact.name || 'Nouveau contact',
+            error.message || 'Erreur lors de la création',
+            { contact: contact, error: error }
+          ).catch(logError => 
+            console.error("Failed to log contact creation error:", logError)
+          )
+        }
+        
         throw error
       }
       
@@ -1131,6 +2277,39 @@ export const contactService = {
       }
       
       console.log('✅ [CONTACT-SERVICE] Contact created successfully:', data.id)
+      
+      // Log de succès et notification
+      if (data && contact.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: contact.team_id,
+            userId: localUserId, // ✅ Utiliser l'ID utilisateur local
+            actionType: 'create',
+            entityType: 'contact',
+            entityId: data.id,
+            entityName: data.name,
+            description: `Nouveau contact créé : ${data.name}`,
+            status: 'success',
+            metadata: {
+              email: data.email,
+              role: data.role,
+              provider_category: data.provider_category,
+              company: data.company,
+              speciality: data.speciality
+            }
+          }).catch(logError => 
+            console.error("Failed to log contact creation:", logError)
+          )
+
+          // Notification de création
+          await notificationService.notifyContactCreated(data, localUserId).catch(notificationError =>
+            console.error("Failed to send contact creation notification:", notificationError)
+          )
+        }
+      }
+      
       return data
     } catch (error) {
       console.error('❌ [CONTACT-SERVICE] Exception caught:', {
@@ -1148,7 +2327,7 @@ export const contactService = {
       console.log(`🔍 Looking for existing contact with email: ${contact.email}`)
       
       const { data: existingContact, error: findError } = await supabase
-        .from('contacts')
+        .from('users')
         .select(`
           *,
           team:team_id(id, name, description)
@@ -1177,25 +2356,160 @@ export const contactService = {
   },
 
   async update(id: string, updates: Database['public']['Tables']['contacts']['Update']) {
-    const { data, error } = await supabase
-      .from('contacts')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Récupérer les données actuelles pour le log
+      const { data: currentData } = await supabase
+        .from('users')
+        .select('id, name, email, team_id, role, provider_category')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("❌ Contact update error:", {
+          message: error.message,
+          code: error.code,
+          details: error.details
+        })
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'update',
+            'contact',
+            currentData.name || 'Contact',
+            error.message || 'Erreur lors de la modification',
+            { 
+              updates, 
+              contact_id: id, 
+              error: {
+                message: error.message,
+                code: error.code,
+                details: error.details
+              }
+            }
+          ).catch(logError => 
+            console.error("Failed to log contact update error:", logError instanceof Error ? logError.message : String(logError))
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (data && currentData?.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: localUserId,
+            actionType: 'update',
+            entityType: 'contact',
+            entityId: data.id,
+            entityName: data.name || currentData.name,
+            description: `Contact modifié : ${data.name || currentData.name}`,
+            status: 'success',
+            metadata: {
+              changes: updates,
+              previous_name: currentData.name,
+              role: data.role || currentData.role,
+              provider_category: data.provider_category || currentData.provider_category
+            }
+          }).catch(logError => 
+            console.error("Failed to log contact update:", logError instanceof Error ? logError.message : String(logError))
+          )
+
+          // Notification de modification
+          await notificationService.notifyContactUpdated(data, localUserId, updates).catch(notificationError =>
+            console.error("Failed to send contact update notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
+          )
+        }
+      }
+      
+      return data
+    } catch (error) {
+      console.error("❌ contactService.update error:", error instanceof Error ? error.message : String(error))
+      throw error
+    }
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('contacts')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
-    return true
+    try {
+      // Récupérer les données actuelles pour le log avant suppression
+      const { data: currentData } = await supabase
+        .from('users')
+        .select('id, name, email, team_id, role, provider_category, company')
+        .eq('id', id)
+        .single()
+
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', id)
+      
+      if (error) {
+        console.error("❌ Contact deletion error:", error)
+        
+        // Log de l'erreur
+        if (currentData?.team_id) {
+          await activityLogger.logError(
+            'delete',
+            'contact',
+            currentData.name || 'Contact',
+            error.message || 'Erreur lors de la suppression',
+            { contact_id: id, contact_data: currentData, error: error }
+          ).catch(logError => 
+            console.error("Failed to log contact deletion error:", logError)
+          )
+        }
+        
+        throw error
+      }
+      
+      // Log de succès et notification
+      if (currentData?.team_id) {
+        const localUserId = await getLocalUserId()
+        if (localUserId) {
+          // Log d'activité avec contexte explicite
+          await activityLogger.log({
+            teamId: currentData.team_id,
+            userId: localUserId,
+            actionType: 'delete',
+            entityType: 'contact',
+            entityId: id,
+            entityName: currentData.name || 'Contact supprimé',
+            description: `Contact supprimé : ${currentData.name || 'Contact supprimé'}`,
+            status: 'success',
+            metadata: {
+              email: currentData.email,
+              role: currentData.role,
+              provider_category: currentData.provider_category,
+              company: currentData.company,
+              deleted_at: new Date().toISOString()
+            }
+          }).catch(logError => 
+            console.error("Failed to log contact deletion:", logError instanceof Error ? logError.message : String(logError))
+          )
+
+          // Notification de suppression
+          await notificationService.notifyContactDeleted(currentData, localUserId).catch(notificationError =>
+            console.error("Failed to send contact deletion notification:", notificationError instanceof Error ? notificationError.message : String(notificationError))
+          )
+        }
+      }
+      
+      return true
+    } catch (error) {
+      console.error("❌ contactService.delete error:", error)
+      throw error
+    }
   }
 }
 
@@ -1437,6 +2751,21 @@ export const teamService = {
       }
       
       console.log('✅ Team member added successfully')
+      
+      // 5. Mettre à jour le team_id dans la table users
+      console.log('🔄 Updating user team_id...')
+      const { error: updateError } = await (supabase as any)
+        .from('users')
+        .update({ team_id: teamData.id })
+        .eq('id', team.created_by)
+      
+      if (updateError) {
+        console.error('❌ Failed to update user team_id:', updateError)
+        // Continue quand même, l'utilisateur est dans team_members
+      } else {
+        console.log('✅ User team_id updated successfully')
+      }
+      
       console.log('🎉 Team creation complete:', teamData.id)
       
       return teamData
@@ -1530,18 +2859,26 @@ export const teamService = {
 
   // Vérifier et créer une équipe personnelle si nécessaire (pour dashboard)
   async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; team?: any; error?: string }> {
-    console.log("🔍 Checking team status for user:", userId)
+    console.log("🔍 [TEAM-STATUS-NEW] Checking team status for user:", userId)
     
     try {
-      // 1. Récupérer les informations de l'utilisateur
-      const user = await userService.getById(userId)
-      console.log("👤 User found:", user.name, user.role)
+      // 1. Récupérer les informations de l'utilisateur (NOUVELLE ARCHITECTURE)
+      let user
+      try {
+        user = await userService.getById(userId)
+        console.log("👤 [TEAM-STATUS-NEW] User found by ID:", user.name, user.role)
+      } catch (userError) {
+        console.log("⚠️ [TEAM-STATUS-NEW] User not found by ID, this might be normal for new signup")
+        // Si l'utilisateur n'est pas trouvé, retourner hasTeam: true pour éviter les erreurs
+        // Le signup flow handle déjà la création d'équipe
+        return { hasTeam: true, team: null }
+      }
       
       // 2. Vérifier si l'utilisateur a déjà une équipe
       const existingTeams = await this.getUserTeams(userId)
       
       if (existingTeams.length > 0) {
-        console.log("✅ User already has team(s):", existingTeams.length)
+        console.log("✅ [TEAM-STATUS-NEW] User already has team(s):", existingTeams.length)
         return { hasTeam: true, team: existingTeams[0] }
       }
       
@@ -1681,12 +3018,15 @@ export const statsService = {
       const team = userTeams[0]
       console.log("🏢 Found team:", team.id, team.name)
       
-      // 2. Get buildings for this team
+      // 2. Get buildings for this team (NOUVELLE ARCHITECTURE)
       const { data: buildings, error: buildingsError } = await supabase
         .from('buildings')
         .select(`
           *,
-          manager:manager_id(id, name, email)
+          building_contacts(
+            is_primary,
+            user:user_id(id, name, email, role, provider_category)
+          )
         `)
         .eq('team_id', team.id)
       
@@ -1697,41 +3037,58 @@ export const statsService = {
       
       console.log("🏗️ Found buildings:", buildings?.length || 0)
       
-      // 3. Get lots for these buildings
+      // 3. Get lots for these buildings AND independent lots for the team
       const buildingIds = buildings?.map(b => b.id) || []
       let lots: any[] = []
       
-      if (buildingIds.length > 0) {
-        const { data: lotsData, error: lotsError } = await supabase
-          .from('lots')
-          .select(`
-            *,
-            building:building_id(id, name, address),
-            tenant:tenant_id(name, email, phone)
-          `)
-          .in('building_id', buildingIds)
-        
-        if (lotsError) {
-          console.error("❌ Error fetching lots:", lotsError)
-          throw lotsError
-        }
-        
-        lots = lotsData || []
-        console.log("🏠 Found lots:", lots.length)
+      // Récupérer TOUS les lots : ceux liés aux bâtiments ET les lots indépendants de l'équipe
+      const { data: lotsData, error: lotsError } = await supabase
+        .from('lots')
+        .select(`
+          *,
+          building:building_id(id, name, address),
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        `)
+        .or(buildingIds.length > 0 
+          ? `building_id.in.(${buildingIds.join(',')}),and(building_id.is.null,team_id.eq.${team.id})`
+          : `building_id.is.null,team_id.eq.${team.id}`
+        )
+      
+      if (lotsError) {
+        console.error("❌ Error fetching lots:", lotsError)
+        throw lotsError
       }
+      
+      // Post-traitement pour extraire les locataires principaux
+      const enrichedLots = (lotsData || []).map(lot => ({
+        ...lot,
+        tenant: lot.lot_contacts?.find(lc => 
+          determineAssignmentType(lc.user) === 'tenant' && lc.is_primary
+        )?.user || null
+      }))
+      
+      lots = enrichedLots
+      console.log("🏠 Found lots with contacts (including independent):", lots.length)
       
       // 4. Get contacts for this team
       const contacts = await contactService.getTeamContacts(team.id)
       console.log("👥 Found contacts:", contacts?.length || 0)
       
-      // 5. Get ALL interventions for this team (much simpler!)
+      // 5. Get ALL interventions for this team (NOUVELLE ARCHITECTURE)
       const { data: interventions, error: interventionsError } = await supabase
         .from('interventions')
         .select(`
           *,
           lot:lot_id(id, reference, building:building_id(name, address)),
           building:building_id(id, name, address),
-          assigned_contact:assigned_contact_id(name, email)
+          intervention_contacts(
+            role,
+            is_primary,
+            user:user_id(id, name, email)
+          )
         `)
         .eq('team_id', team.id)
         .order('created_at', { ascending: false })
@@ -1743,10 +3100,18 @@ export const statsService = {
       
       console.log("🔧 Found team interventions:", interventions?.length || 0)
       
-      // 6. Format buildings with embedded lots for PropertySelector
+      // Post-traitement pour extraire les prestataires assignés
+      const processedInterventions = interventions?.map(intervention => ({
+        ...intervention,
+        assigned_contact: intervention.intervention_contacts?.find(ic => 
+          ic.role === 'prestataire' && ic.is_primary
+        )?.user || null
+      })) || []
+      
+      // 6. Format buildings with embedded lots (SEULEMENT les vrais immeubles)
       const formattedBuildings = buildings?.map(building => {
         const buildingLots = lots.filter(lot => lot.building_id === building.id)
-        const buildingInterventions = (interventions || []).filter(intervention => 
+        const buildingInterventions = (processedInterventions || []).filter(intervention => 
           intervention.building_id === building.id || 
           buildingLots.some(lot => lot.id === intervention.lot_id)
         )
@@ -1755,7 +3120,7 @@ export const statsService = {
           ...building,
           lots: buildingLots.map(lot => ({
             ...lot,
-            status: lot.tenant_id ? 'occupied' : 'vacant',
+            status: lot.is_occupied ? 'occupied' : 'vacant', // ✅ Utiliser le nouveau champ calculé automatiquement
             tenant: lot.tenant?.name || null,
             interventions: (interventions || []).filter(i => i.lot_id === lot.id).length
           })),
@@ -1763,13 +3128,14 @@ export const statsService = {
         }
       }) || []
       
-      // 7. Calculate stats
-      const occupiedLotsCount = lots.filter(lot => lot.tenant_id).length
+      // 7. Calculate stats - séparation onglets Immeubles/Lots
+      const independentLots = lots.filter(lot => lot.building_id === null)
+      const occupiedLotsCount = lots.filter(lot => lot.is_occupied).length // ✅ Utiliser le nouveau champ calculé automatiquement
       const occupancyRate = lots.length > 0 ? Math.round((occupiedLotsCount / lots.length) * 100) : 0
       
       const stats = {
-        buildingsCount: buildings?.length || 0,
-        lotsCount: lots.length,
+        buildingsCount: buildings?.length || 0, // ✅ SEULEMENT les vrais immeubles
+        lotsCount: lots.length, // ✅ TOUS les lots (immeubles + indépendants)
         occupiedLotsCount,
         occupancyRate,
         contactsCount: contacts?.length || 0,
@@ -1777,12 +3143,15 @@ export const statsService = {
       }
       
       console.log("📊 Final stats:", stats)
+      console.log("🏢 Real buildings:", buildings?.length || 0)
+      console.log("🏠 Total lots (building + independent):", lots.length)
+      console.log("🆓 Independent lots:", independentLots.length)
       
       const result = {
-        buildings: formattedBuildings,
-        lots,
-        contacts: contacts || [],
-        interventions: interventions || [],
+        buildings: formattedBuildings, // ✅ Onglet "Immeubles" : seulement les vrais immeubles
+        lots, // ✅ Onglet "Lots" : TOUS les lots (avec building_id et building_id=null)
+          contacts: contacts || [],
+          interventions: processedInterventions || [],
         stats,
         team
       }
@@ -1796,9 +3165,172 @@ export const statsService = {
       console.error("❌ Error in getManagerStats:", error)
       
       // En cas d'erreur, essayer de retourner des données en cache si disponibles
-      const cached = this._statsCache.get(cacheKey)
+      const errorCacheKey = `stats_${userId}`
+      const cached = this._statsCache.get(errorCacheKey)
       if (cached) {
         console.log("⚠️ Error occurred, returning stale cached data")
+        return cached.data
+      }
+      
+      throw error
+    }
+  },
+
+  async getContactStats(userId: string) {
+    try {
+      console.log("👥 Getting contact stats for user:", userId)
+      
+      // Vérifier le cache des stats contacts
+      const cacheKey = `contact_stats_${userId}`
+      const cached = this._statsCache.get(cacheKey)
+      const now = Date.now()
+      
+      if (cached && (now - cached.timestamp) < this._STATS_CACHE_TTL) {
+        console.log("✅ Returning cached contact stats")
+        return cached.data
+      }
+      
+      // 1. Get user's team
+      const userTeams = await teamService.getUserTeams(userId)
+      if (!userTeams || userTeams.length === 0) {
+        console.log("⚠️ No team found for user")
+        const emptyResult = {
+          totalContacts: 0,
+          contactsByType: {
+            gestionnaire: { total: 0, active: 0 },
+            locataire: { total: 0, active: 0 },
+            prestataire: { total: 0, active: 0 },
+            syndic: { total: 0, active: 0 },
+            notaire: { total: 0, active: 0 },
+            assurance: { total: 0, active: 0 },
+            proprietaire: { total: 0, active: 0 },
+            autre: { total: 0, active: 0 }
+          },
+          totalActiveAccounts: 0,
+          invitationsPending: 0
+        }
+        this._statsCache.set(cacheKey, { data: emptyResult, timestamp: now })
+        return emptyResult
+      }
+      
+      const team = userTeams[0]
+      console.log("🏢 Found team for contact stats:", team.id)
+      
+      // 2. Get all users in the team (contacts with active accounts)
+      const { data: activeUsers, error: usersError } = await supabase
+        .from('team_members')
+        .select(`
+          user:user_id(
+            id,
+            name,
+            first_name,
+            last_name,
+            email,
+            role,
+            provider_category,
+            created_at
+          )
+        `)
+        .eq('team_id', team.id)
+      
+      if (usersError) {
+        console.error("❌ Error fetching team members:", usersError)
+        throw usersError
+      }
+      
+      // 3. Get pending invitations
+      const { data: pendingInvitations, error: invitationsError } = await supabase
+        .from('user_invitations')
+        .select('id, role, provider_category, email, status')
+        .eq('team_id', team.id)
+        .eq('status', 'pending')
+      
+      if (invitationsError) {
+        console.error("❌ Error fetching pending invitations:", invitationsError)
+        throw invitationsError
+      }
+      
+      // 4. Process statistics
+      const contactsByType = {
+        gestionnaire: { total: 0, active: 0 },
+        locataire: { total: 0, active: 0 },
+        prestataire: { total: 0, active: 0 },
+        syndic: { total: 0, active: 0 },
+        notaire: { total: 0, active: 0 },
+        assurance: { total: 0, active: 0 },
+        proprietaire: { total: 0, active: 0 },
+        autre: { total: 0, active: 0 }
+      }
+      
+      // Helper function to map user role to contact type
+      const mapUserRoleToContactType = (role: string, providerCategory?: string | null) => {
+        switch (role) {
+          case 'gestionnaire':
+            return 'gestionnaire'
+          case 'locataire':
+            return 'locataire'
+          case 'prestataire':
+            // For prestataires, use provider_category if available
+            return providerCategory && providerCategory !== 'prestataire' ? providerCategory : 'prestataire'
+          case 'admin':
+            return 'gestionnaire' // Admins are counted as gestionnaires for stats
+          default:
+            return 'autre'
+        }
+      }
+
+      // Count active users by type
+      let totalActiveAccounts = 0
+      if (activeUsers) {
+        for (const member of activeUsers) {
+          if (member.user?.role) {
+            const contactType = mapUserRoleToContactType(member.user.role, member.user.provider_category) as keyof typeof contactsByType
+            if (contactsByType[contactType]) {
+              contactsByType[contactType].active += 1
+              contactsByType[contactType].total += 1
+              totalActiveAccounts += 1
+            }
+          }
+        }
+      }
+      
+      // Count pending invitations by type
+      const invitationsPending = pendingInvitations?.length || 0
+      if (pendingInvitations) {
+        for (const invitation of pendingInvitations) {
+          if (invitation.role) {
+            const contactType = mapUserRoleToContactType(invitation.role, invitation.provider_category) as keyof typeof contactsByType
+            if (contactsByType[contactType]) {
+              contactsByType[contactType].total += 1
+            }
+          }
+        }
+      }
+      
+      const totalContacts = Object.values(contactsByType).reduce((sum, type) => sum + type.total, 0)
+      
+      const result = {
+        totalContacts,
+        contactsByType,
+        totalActiveAccounts,
+        invitationsPending
+      }
+      
+      console.log("📊 Final contact stats:", result)
+      
+      // Mettre en cache le résultat
+      this._statsCache.set(cacheKey, { data: result, timestamp: now })
+      
+      return result
+      
+    } catch (error) {
+      console.error("❌ Error in getContactStats:", error)
+      
+      // En cas d'erreur, essayer de retourner des données en cache si disponibles
+      const errorCacheKey = `contact_stats_${userId}`
+      const cached = this._statsCache.get(errorCacheKey)
+      if (cached) {
+        console.log("⚠️ Error occurred, returning stale cached contact data")
         return cached.data
       }
       
@@ -1810,6 +3342,7 @@ export const statsService = {
   clearStatsCache(userId?: string) {
     if (userId) {
       this._statsCache.delete(`stats_${userId}`)
+      this._statsCache.delete(`contact_stats_${userId}`)
     } else {
       this._statsCache.clear()
     }
@@ -1832,192 +3365,75 @@ export const contactInvitationService = {
     teamId: string
   }) {
     try {
-      console.log('🚀 [CONTACT-INVITATION-SERVICE] Starting with data:', contactData)
+      console.log('🚀 [CONTACT-INVITATION-SERVICE-SIMPLE] Starting with data:', contactData)
       
-       // 1. Créer le contact dans la base de données
-       const contactToCreate = {
-         name: `${contactData.firstName} ${contactData.lastName}`,
-         first_name: contactData.firstName,
-         last_name: contactData.lastName,
-         email: contactData.email,
-         phone: contactData.phone || null,
-         address: contactData.address || null,
-         notes: contactData.notes || null,
-         contact_type: contactData.type as Database['public']['Enums']['contact_type'], // Type de contact (locataire, prestataire, etc.)
-         speciality: (contactData.speciality && contactData.speciality.trim()) ? 
-           contactData.speciality as Database['public']['Enums']['intervention_type'] : null, // Spécialité technique (plomberie, etc.)
-         team_id: contactData.teamId,
-         is_active: true // Explicitement définir comme actif
-       }
-
-      console.log('📝 [CONTACT-INVITATION-SERVICE] Prepared object for DB:', contactToCreate)
+      // ✅ NOUVEAU FLUX SIMPLE: Utiliser la nouvelle API invite-user
+      const response = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: contactData.email,
+          firstName: contactData.firstName,
+          lastName: contactData.lastName,
+          role: mapFrontendTypeToUserRole(contactData.type).role,
+          providerCategory: mapFrontendTypeToUserRole(contactData.type).provider_category,
+          teamId: contactData.teamId,
+          phone: contactData.phone,
+          speciality: contactData.speciality, // ✅ AJOUT: Spécialité pour les prestataires
+          shouldInviteToApp: contactData.inviteToApp // ✅ NOUVEAU PARAMÈTRE
+        })
+      })
       
-      console.log('🔄 [CONTACT-INVITATION-SERVICE] Calling contactService.create...')
-      let newContact;
+      const result = await response.json()
       
-      try {
-        newContact = await contactService.create(contactToCreate)
-        console.log('✅ [CONTACT-INVITATION-SERVICE] Contact creation completed via direct service:', newContact)
-      } catch (directError) {
-        console.warn('⚠️ [CONTACT-INVITATION-SERVICE] Direct service failed, trying API route fallback:', directError instanceof Error ? directError.message : 'Unknown error')
-        
-        // FALLBACK: Utiliser l'API route qui bypass les problèmes côté client
-        try {
-          console.log('🔄 [CONTACT-INVITATION-SERVICE] Trying API route fallback...')
-          
-          const response = await fetch('/api/create-contact', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(contactToCreate)
-          })
-          
-          const result = await response.json()
-          
-          if (!response.ok || !result.success) {
-            throw new Error(result.error || `API returned ${response.status}`)
-          }
-          
-          newContact = result.contact
-          console.log('✅ [CONTACT-INVITATION-SERVICE] Contact creation completed via API fallback:', newContact)
-          
-        } catch (apiError) {
-          console.error('❌ [CONTACT-INVITATION-SERVICE] Both direct service and API fallback failed:', apiError)
-          throw directError // Throw the original error
-        }
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `API returned ${response.status}`)
       }
       
-      let invitationResult = null
-      
-      // 2. Si invitation requise et que le type le permet
-      if (contactData.inviteToApp && contactData.email && ['gestionnaire', 'locataire', 'prestataire'].includes(contactData.type)) {
-        
-        // Importer dynamiquement pour éviter les dépendances circulaires
-        const { authService } = await import('./auth-service')
-        
-        // Déterminer le rôle utilisateur basé sur le type de contact
-        let userRole: Database['public']['Enums']['user_role'] = 'locataire'
-        if (contactData.type === 'gestionnaire') {
-          userRole = 'gestionnaire'
-        } else if (contactData.type === 'prestataire') {
-          userRole = 'prestataire'
-        }
-        
-        try {
-          invitationResult = await authService.inviteUser({
-            email: contactData.email,
-            firstName: contactData.firstName,
-            lastName: contactData.lastName,
-            phone: contactData.phone,
-            role: userRole,
-            teamId: contactData.teamId
-          })
-          
-          // Si l'invitation a réussi, créer l'enregistrement d'invitation avec le contact associé
-          if (invitationResult.success && invitationResult.userId && newContact.id) {
-            try {
-              // Générer un token unique pour cette invitation
-              const generateUniqueToken = () => {
-                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-                let result = ''
-                for (let i = 0; i < 20; i++) {
-                  result += chars.charAt(Math.floor(Math.random() * chars.length))
-                }
-                return result
-              }
-
-              const invitationToken = generateUniqueToken()
-              console.log('🔑 [CONTACT-INVITATION-SERVICE] Generated token for contact invitation:', invitationToken)
-
-              const { error: invitationRecordError } = await supabase
-                .from('user_invitations')
-                .upsert({
-                  user_id: invitationResult.userId,
-                  contact_id: newContact.id,
-                  team_id: contactData.teamId,
-                  email: contactData.email,
-                  role: userRole,
-                  status: 'pending',
-                  magic_link_token: invitationToken
-                })
-              
-              if (invitationRecordError) {
-                console.error('⚠️ [CONTACT-INVITATION-SERVICE] Failed to create invitation record:', invitationRecordError)
-              } else {
-                console.log('✅ [CONTACT-INVITATION-SERVICE] Invitation record created for contact with token:', newContact.id)
-              }
-            } catch (recordError) {
-              console.error('⚠️ [CONTACT-INVITATION-SERVICE] Error creating invitation record:', recordError)
-            }
-          }
-          
-          // Les logs sont gérés dans la page qui appelle ce service
-        } catch (inviteError) {
-          invitationResult = { 
-            success: false, 
-            error: 'Service d\'invitation temporairement indisponible'
-          }
-        }
-      }
-      
-      return {
-        contact: newContact,
-        invitation: invitationResult
-      }
+      console.log('✅ [CONTACT-INVITATION-SERVICE-SIMPLE] Process completed:', result)
+      return result
       
     } catch (error) {
-      console.error('❌ [CONTACT-INVITATION-SERVICE] Error:', error)
-      console.error('❌ [CONTACT-INVITATION-SERVICE] Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack',
-        contactData: contactData
-      })
+      console.error('❌ [CONTACT-INVITATION-SERVICE-SIMPLE] Error:', error)
       throw error
     }
   },
 
-  // Récupérer les invitations en attente pour une équipe
+  // ✅ NOUVEAU: Récupérer seulement les invitations PENDING pour une équipe
   async getPendingInvitations(teamId: string) {
     try {
-      console.log('📧 [INVITATION-SERVICE] Getting pending invitations for team:', teamId)
+      console.log('📧 [INVITATION-SERVICE] Getting PENDING invitations for team:', teamId)
       
-      // 1. Récupérer toutes les invitations en statut 'pending' pour cette équipe
+      // 1. Récupérer seulement les invitations PENDING pour cette équipe  
       const { data: pendingInvitations, error: invitationsError } = await supabase
         .from('user_invitations')
         .select(`
           id,
-          user_id,
-          contact_id,
           email,
           role,
+          first_name,
+          last_name,
+          invitation_code,
           status,
           invited_at,
           expires_at,
-          users!user_invitations_user_id_fkey (
+          accepted_at,
+          created_at,
+          updated_at,
+          invited_by,
+          inviter:invited_by(
             id,
             name,
             first_name,
             last_name,
-            email,
-            created_at
-          ),
-          contacts!user_invitations_contact_id_fkey (
-            id,
-            name,
-            first_name,
-            last_name,
-            email,
-            contact_type,
-            company,
-            speciality,
-            created_at
+            email
           )
         `)
         .eq('team_id', teamId)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString()) // Pas encore expirées
-        .order('invited_at', { ascending: false })
+        .eq('status', 'pending') // ✅ CORRECTION: Filtrer seulement les invitations pending
+        .order('created_at', { ascending: false })
       
       if (invitationsError) {
         console.error('❌ [INVITATION-SERVICE] Error fetching pending invitations:', invitationsError)
@@ -2029,36 +3445,43 @@ export const contactInvitationService = {
         return []
       }
 
-      console.log(`📧 [INVITATION-SERVICE] Found ${pendingInvitations.length} pending invitations`)
+      console.log(`📧 [INVITATION-SERVICE] Found ${pendingInvitations.length} invitations`)
 
       // 2. Transformer les données pour correspondre au format attendu
       const formattedInvitations = pendingInvitations.map(invitation => {
-        // Si il y a un contact associé, utiliser ses données, sinon utiliser les données de l'invitation
-        const contactData = invitation.contacts || {
-          id: invitation.user_id, // Utiliser l'user_id comme fallback
-          name: invitation.users?.name || 'Utilisateur invité',
-          first_name: invitation.users?.first_name || '',
-          last_name: invitation.users?.last_name || '',
+        // Créer un objet contact à partir des données d'invitation
+        const fullName = `${invitation.first_name || ''} ${invitation.last_name || ''}`.trim()
+        const displayName = fullName || invitation.email.split('@')[0]
+        
+        const contactData = {
+          id: invitation.id,
+          name: displayName,
+          first_name: invitation.first_name || '',
+          last_name: invitation.last_name || '',
           email: invitation.email,
-          contact_type: invitation.role, // Mapper le rôle vers le type de contact
+          role: invitation.role, // Utiliser role directement
+          provider_category: invitation.provider_category || null,
           company: null,
           speciality: null,
-          created_at: invitation.invited_at
+          created_at: invitation.created_at
         }
 
-        console.log(`📋 [INVITATION-SERVICE] Processing invitation for ${invitation.email}`)
+        console.log(`📋 [INVITATION-SERVICE] Processing invitation for ${invitation.email} with status: ${invitation.status || 'pending'}`)
 
         return {
           ...contactData,
           invitation_id: invitation.id,
-          invitation_status: invitation.status,
-          invited_at: invitation.invited_at,
+          status: invitation.status || 'pending', // ✅ NOUVEAU: Utiliser le vrai statut
+          invitation_status: invitation.status || 'pending', // Garder l'ancien nom pour compatibilité
+          invited_at: invitation.invited_at || invitation.created_at,
           expires_at: invitation.expires_at,
-          user_info: invitation.users
+          accepted_at: invitation.accepted_at,
+          invitation_code: invitation.invitation_code,
+          inviter_info: invitation.inviter
         }
       })
 
-      console.log('✅ [INVITATION-SERVICE] Found pending invitations:', formattedInvitations.length)
+      console.log('✅ [INVITATION-SERVICE] Found invitations:', formattedInvitations.length)
       return formattedInvitations
 
     } catch (error) {
@@ -2259,56 +3682,38 @@ export const contactInvitationService = {
   },
 
   // Renvoyer une invitation
-  async resendInvitation(contactId: string) {
+  async resendInvitation(invitationId: string) {
     try {
-      console.log('🔄 [INVITATION-SERVICE] Resending invitation for contact:', contactId)
+      console.log('🔄 [INVITATION-SERVICE] Resending invitation for ID:', invitationId)
       
-      // 1. Récupérer les informations du contact
-      const contact = await contactService.getById(contactId)
-      if (!contact) {
-        throw new Error('Contact non trouvé')
-      }
-
-      if (!contact.email) {
-        throw new Error('Contact invalide - email manquant')
-      }
-
-      // 2. Vérifier qu'il y a bien un utilisateur associé
-      const user = await userService.getByEmail(contact.email)
-      if (!user) {
-        throw new Error('Aucun utilisateur trouvé pour renvoyer l\'invitation')
-      }
-
-      console.log('👤 [INVITATION-SERVICE] Found existing user:', user.id, 'for email:', contact.email)
-
-      // 3. Appeler l'API invite-user en mode renvoi pour générer un nouveau magic link
-      console.log('📧 [INVITATION-SERVICE] Calling API to generate new magic link')
-      const response = await fetch('/api/invite-user', {
+      // Utiliser la nouvelle API dédiée au renvoi d'invitation
+      console.log('📧 [INVITATION-SERVICE] Calling dedicated resend API')
+      const response = await fetch('/api/resend-invitation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: contact.email,
-          role: user.role,
-          isResend: true // Paramètre pour indiquer que c'est un renvoi
+          invitationId: invitationId
         })
       })
 
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        console.error('❌ [INVITATION-SERVICE] API error:', result.error)
+        console.error('❌ [INVITATION-SERVICE] Resend API error:', result.error)
         throw new Error(result.error || `API returned ${response.status}`)
       }
 
-      console.log('✅ [INVITATION-SERVICE] Magic link generated successfully')
+      console.log('✅ [INVITATION-SERVICE] Invitation resent successfully')
+      console.log('🔗 [INVITATION-SERVICE] Magic link available:', !!result.magicLink)
       
       return { 
         success: true, 
-        userId: user.id,
-        message: result.message,
-        magicLink: result.magicLink // Le vrai magic link généré par Supabase (avec invitation_id dans l'URL)
+        message: result.message || 'Invitation renvoyée avec succès',
+        userId: result.userId,
+        magicLink: result.magicLink,
+        emailSent: result.emailSent
       }
 
     } catch (error) {
@@ -2321,89 +3726,105 @@ export const contactInvitationService = {
   }
 }
 
-// Helper function to map frontend contact types to database enum values
-export const mapContactTypeToDatabase = (frontendType: string): Database['public']['Enums']['contact_type'] => {
-  const typeMapping: Record<string, Database['public']['Enums']['contact_type']> = {
-    'tenant': 'locataire',
-    'provider': 'prestataire', 
-    'syndic': 'syndic',
-    'notary': 'notaire',
-    'insurance': 'assurance',
-    'other': 'autre',
-    // Support des types database aussi (au cas où)
-    'locataire': 'locataire',
-    'prestataire': 'prestataire',
-    'gestionnaire': 'gestionnaire',
-    'notaire': 'notaire',
-    'assurance': 'assurance',
-    'autre': 'autre'
+// =============================================================================
+// NOUVELLE LOGIQUE D'ASSIGNATION BASÉE SUR ROLE/PROVIDER_CATEGORY
+// =============================================================================
+
+export interface AssignmentUser {
+  id: string
+  name?: string
+  // ✅ Support rôles français (DB) ET anglais (interface)
+  role: 'admin' | 'manager' | 'tenant' | 'provider' | 'gestionnaire' | 'locataire' | 'prestataire'
+  // ✅ Support catégories françaises (DB) ET anglaises (interface)  
+  provider_category?: 'service' | 'insurance' | 'legal' | 'syndic' | 'owner' | 'other' | 'prestataire' | 'assurance' | 'notaire' | 'proprietaire' | 'autre' | null
+  speciality?: string
+}
+
+// Fonction pour déterminer le type d'assignation d'un utilisateur
+export const determineAssignmentType = (user: AssignmentUser): string => {
+  // ✅ Support des rôles français (DB) ET anglais (interface)
+  if (user.role === 'tenant' || user.role === 'locataire') return 'tenant'
+  if (user.role === 'manager' || user.role === 'gestionnaire' || user.role === 'admin') return 'manager'
+  
+  if (user.role === 'provider' || user.role === 'prestataire') {
+    // ✅ Support des catégories françaises (DB) ET anglaises (interface)
+    const category = user.provider_category
+    if (category === 'syndic') return 'syndic'
+    if (category === 'legal' || category === 'notaire') return 'notary' 
+    if (category === 'insurance' || category === 'assurance') return 'insurance'
+    if (category === 'owner' || category === 'proprietaire') return 'owner'
+    if (category === 'other' || category === 'autre') return 'other'
+    if (category === 'service' || category === 'prestataire') return 'provider'
+    return 'provider' // Prestataire générique par défaut
+  }
+  
+  return 'other'
+}
+
+// Fonction pour filtrer les utilisateurs par type d'assignation demandé
+export const filterUsersByRole = (users: AssignmentUser[], requestedType: string): AssignmentUser[] => {
+  return users.filter(user => determineAssignmentType(user) === requestedType)
+}
+
+// Fonction pour valider l'assignation selon le contexte
+export const validateAssignment = (user: AssignmentUser, context: 'building' | 'lot'): boolean => {
+  // Les locataires ne peuvent être assignés qu'aux lots, jamais aux buildings
+  if ((user.role === 'tenant' || user.role === 'locataire') && context === 'building') {
+    return false
+  }
+  return true
+}
+
+// Fonction pour obtenir les utilisateurs actifs par type d'assignation
+export const getActiveUsersByAssignmentType = async (teamId: string, assignmentType: string): Promise<AssignmentUser[]> => {
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('id, role, provider_category, speciality, name, email, phone')
+    .eq('team_id', teamId)
+    .eq('is_active', true)
+  
+  if (error) throw error
+  
+  return filterUsersByRole(users as AssignmentUser[], assignmentType)
+}
+
+// Fonction pour mapper les types frontend vers les rôles utilisateur réels
+export const mapFrontendTypeToUserRole = (frontendType: string): { role: string; provider_category?: string } => {
+  const typeMapping: Record<string, { role: string; provider_category?: string }> = {
+    // Types frontend vers rôles français (base de données)
+    'tenant': { role: 'locataire' },
+    'manager': { role: 'gestionnaire' },
+    'provider': { role: 'prestataire', provider_category: 'prestataire' },
+    'syndic': { role: 'prestataire', provider_category: 'syndic' },
+    'notary': { role: 'prestataire', provider_category: 'notaire' },
+    'insurance': { role: 'prestataire', provider_category: 'assurance' },
+    'owner': { role: 'prestataire', provider_category: 'proprietaire' },
+    'other': { role: 'prestataire', provider_category: 'autre' },
+    // Support direct des types database (compatibilité ascendante)
+    'locataire': { role: 'locataire' },
+    'gestionnaire': { role: 'gestionnaire' },
+    'prestataire': { role: 'prestataire', provider_category: 'prestataire' }
   }
   
   const mappedType = typeMapping[frontendType]
   if (!mappedType) {
-    console.error('❌ Unknown contact type for mapping:', frontendType)
+    console.error('❌ Unknown frontend type for mapping:', frontendType)
     console.error('📋 Available mappings:', Object.keys(typeMapping))
-    throw new Error(`Unknown contact type: ${frontendType}`)
+    throw new Error(`Unknown frontend type: ${frontendType}`)
   }
   
-  console.log(`🔄 Mapped contact type: ${frontendType} → ${mappedType}`)
+  console.log(`🔄 Mapped frontend type: ${frontendType} → role: ${mappedType.role}, provider_category: ${mappedType.provider_category || 'none'}`)
   return mappedType
 }
 
 // Tenant Services
 export const tenantService = {
-  // Helper method to get contact_id from user_id
-  async getUserContactId(userId: string): Promise<string | null> {
-    console.log("🔗 getUserContactId called for userId:", userId)
-    
-    try {
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      const contactId = userInvitation?.contact_id || null
-      console.log("✅ Found contact_id for user:", contactId)
-      return contactId
-    } catch (error) {
-      console.error("❌ Error in getUserContactId:", error)
-      throw error
-    }
-  },
 
   async getTenantData(userId: string) {
     console.log("👤 getTenantData called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return null
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Then get lots linked to this contact via lot_contacts where contact_type is 'locataire'
+      // Get lots linked directly to this user via lot_contacts (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select(`
@@ -2418,13 +3839,11 @@ export const tenantService = {
               description
             )
           ),
-          contact_type,
           is_primary,
           start_date,
           end_date
         `)
-        .eq('contact_id', contactId)
-        .eq('contact_type', 'locataire')
+        .eq('user_id', userId)
         .is('end_date', null) // Only active relations
         .order('is_primary', { ascending: false }) // Primary contacts first
 
@@ -2434,7 +3853,7 @@ export const tenantService = {
       }
 
       if (!lotContacts || lotContacts.length === 0) {
-        console.log("❌ No lot found for contact:", contactId)
+        console.log("❌ No lot found for user:", userId)
         return null
       }
 
@@ -2454,28 +3873,7 @@ export const tenantService = {
     console.log("🏠 getAllTenantLots called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return []
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Get all lots linked to this contact via lot_contacts where contact_type is 'locataire'
+      // Get all lots linked directly to this user via lot_contacts (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select(`
@@ -2490,13 +3888,11 @@ export const tenantService = {
               description
             )
           ),
-          contact_type,
           is_primary,
           start_date,
           end_date
         `)
-        .eq('contact_id', contactId)
-        .eq('contact_type', 'locataire')
+        .eq('user_id', userId)
         .is('end_date', null) // Only active relations
         .order('is_primary', { ascending: false }) // Primary contacts first
 
@@ -2518,33 +3914,11 @@ export const tenantService = {
     console.log("🔧 getTenantInterventions called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return []
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Then get all lot IDs where this contact is a tenant
+      // Get all lot IDs where this user is assigned (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('contact_id', contactId)
-        .eq('contact_type', 'locataire')
+        .eq('user_id', userId)
         .is('end_date', null) // Only active relations
 
       if (lotContactsError) {
@@ -2555,11 +3929,11 @@ export const tenantService = {
       const lotIds = lotContacts?.map(lc => lc.lot_id).filter(Boolean) || []
       
       if (lotIds.length === 0) {
-        console.log("❌ No lots found for contact:", contactId)
+        console.log("❌ No lots found for user:", userId)
         return []
       }
 
-      // Finally get interventions for those lots
+      // Get interventions for those lots
       const { data, error } = await supabase
         .from('interventions')
         .select(`
@@ -2567,8 +3941,7 @@ export const tenantService = {
           lot:lot_id(
             reference,
             building:building_id(name)
-          ),
-          assigned_contact:assigned_contact_id(name, phone, email)
+          )
         `)
         .in('lot_id', lotIds)
         .order('created_at', { ascending: false })
@@ -2591,39 +3964,11 @@ export const tenantService = {
     console.log("📊 getTenantStats called for userId:", userId)
     
     try {
-      // First, get the contact_id linked to this user
-      const { data: userInvitation, error: invitationError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .single()
-
-      if (invitationError) {
-        console.error("❌ Error getting user invitation:", invitationError)
-        throw invitationError
-      }
-
-      if (!userInvitation?.contact_id) {
-        console.log("❌ No contact found for user:", userId)
-        return {
-          openRequests: 0,
-          inProgress: 0,
-          thisMonthInterventions: 0,
-          documentsCount: 0,
-          nextPaymentDate: 15
-        }
-      }
-
-      const contactId = userInvitation.contact_id
-      console.log("✅ Found contact_id for user:", contactId)
-
-      // Then get all lot IDs where this contact is a tenant
+      // Get all lot IDs where this user is assigned (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('contact_id', contactId)
-        .eq('contact_type', 'locataire')
+        .eq('user_id', userId)
         .is('end_date', null) // Only active relations
 
       if (lotContactsError) {
@@ -2634,7 +3979,7 @@ export const tenantService = {
       const lotIds = lotContacts?.map(lc => lc.lot_id).filter(Boolean) || []
       
       if (lotIds.length === 0) {
-        console.log("❌ No lots found for contact:", contactId)
+        console.log("❌ No lots found for user:", userId)
         return {
           openRequests: 0,
           inProgress: 0,
@@ -2660,7 +4005,7 @@ export const tenantService = {
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       
       const openRequests = interventions?.filter(i => 
-        ['nouvelle_demande', 'en_attente_validation', 'validee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length || 0
 
       const inProgress = interventions?.filter(i => i.status === 'en_cours').length || 0
@@ -2702,7 +4047,6 @@ export const compositeService = {
       postal_code: string
       description?: string
       construction_year?: number
-      manager_id: string
       team_id?: string
     }
     lots: Array<{
@@ -2711,7 +4055,6 @@ export const compositeService = {
       apartment_number?: string
       surface_area?: number
       rooms?: number
-      rent_amount?: number
       charges_amount?: number
     }>
   }) {
@@ -2780,7 +4123,6 @@ export const compositeService = {
       postal_code: string
       description?: string
       construction_year?: number
-      manager_id: string
       team_id?: string
     }
     lots: Array<{
@@ -2789,7 +4131,6 @@ export const compositeService = {
       apartment_number?: string
       surface_area?: number
       rooms?: number
-      rent_amount?: number
       charges_amount?: number
     }>
     contacts: Array<{
@@ -2879,8 +4220,21 @@ export const compositeService = {
 
         // Étape 4: Créer les assignations lot-contact si fournies
         if (data.lotContactAssignments && data.lotContactAssignments.length > 0) {
-          console.log("📝 Step 4: Creating lot-contact assignments...")
+          console.log("📝 Step 4: Creating lot-contact assignments and setting lot managers...")
           
+          // Première passe : assigner les gestionnaires principaux aux lots (manager_id)
+          // TEMPORAIRE : Système de gestionnaires principaux désactivé (utilise maintenant lot_contacts)
+          const lotManagerUpdates = []
+          console.log("📝 Note: Principal manager assignment via manager_id is disabled (now using lot_contacts)")
+
+          const managerUpdateResults = await Promise.all(lotManagerUpdates.map(fn => fn()))
+          const successfulManagerUpdates = managerUpdateResults.filter(result => result !== null)
+          
+          console.log("✅ Principal lot managers set:", {
+            count: successfulManagerUpdates.length
+          })
+          
+          // Deuxième passe : créer toutes les assignations lot-contact (y compris gestionnaires)
           const assignmentPromises = data.lotContactAssignments.flatMap(lotAssignment => 
             lotAssignment.assignments.map(async (assignment, index) => {
               const targetLot = lots[lotAssignment.lotIndex]
@@ -2889,22 +4243,17 @@ export const compositeService = {
                 return null
               }
 
-              console.log(`📝 Assigning contact ${assignment.contactId} (${assignment.contactType}) to lot ${targetLot.reference}:`, {
+              console.log(`📝 Assigning contact ${assignment.contactId} to lot ${targetLot.reference}:`, {
                 lotId: targetLot.id,
                 contactId: assignment.contactId,
-                contactType: assignment.contactType,
-                isPrimary: assignment.isPrimary
+                isPrimary: assignment.isPrimary,
+                isLotPrincipal: (assignment as any).isLotPrincipal
               })
-
-              // ✅ CORRECTION: Mapper le type frontend vers le type database
-              const databaseContactType = mapContactTypeToDatabase(assignment.contactType)
               
               return contactService.addContactToLot(
                 targetLot.id,
                 assignment.contactId,
-                databaseContactType,
-                assignment.isPrimary,
-                `Assigné lors de la création du bâtiment`
+                assignment.isPrimary
               )
             })
           )
@@ -2913,7 +4262,8 @@ export const compositeService = {
           const successfulAssignments = assignmentResults.filter(result => result !== null)
 
           console.log("✅ Step 4 completed - Lot-contact assignments created:", {
-            assignmentCount: successfulAssignments.length
+            assignmentCount: successfulAssignments.length,
+            principalManagers: successfulManagerUpdates.length
           })
         }
 

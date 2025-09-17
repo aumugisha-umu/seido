@@ -30,8 +30,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { interventionService, contactService } from "@/lib/database-service"
+import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
+import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
 const getInterventionLocationText = (intervention: InterventionDetail): string => {
@@ -62,7 +63,8 @@ interface DatabaseContact {
   name: string
   email: string
   phone: string | null
-  contact_type: string
+  role: string // ✅ Champ principal 
+  provider_category?: string // ✅ Champ secondaire
   company?: string | null
   speciality?: string | null
   inChat?: boolean // Ajouté pour la fonctionnalité chat
@@ -124,7 +126,6 @@ interface InterventionDetail {
   }
   contacts: {
     locataires: DatabaseContact[]
-    proprietaires: DatabaseContact[]
     syndics: DatabaseContact[]
     autres: DatabaseContact[]
   }
@@ -171,8 +172,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
   const [expandedCategories, setExpandedCategories] = useState({
     locataires: true, // Locataires visible par défaut
-    proprietaires: false, // Autres catégories cachées par défaut
-    syndics: false,
+    syndics: false, // Autres catégories cachées par défaut
     autres: false,
   })
 
@@ -209,28 +209,34 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       
       console.log('✅ Contacts loaded:', contacts.length)
 
-      // 3. Organiser les contacts par type
+      // 3. Organiser les contacts par type (nouvelle architecture)
+      const getContactAssignmentType = (contact: any) => {
+        if (contact.role && contact.provider_category !== undefined) {
+          return determineAssignmentType({
+            id: contact.id,
+            role: contact.role,
+            provider_category: contact.provider_category
+          })
+        }
+        // ✅ Pas de fallback nécessaire, role est obligatoire
+        return 'other' // Défaut si aucune correspondance
+      }
+      
       const organizedContacts = {
         locataires: contacts.filter((contact: any) => 
-          contact.contact_type === 'locataire' || contact.lot_contact_type === 'locataire'
+          getContactAssignmentType(contact) === 'tenant'
         ).map((contact: any) => ({
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
-        proprietaires: contacts.filter((contact: any) => 
-          contact.contact_type === 'proprietaire' || contact.lot_contact_type === 'proprietaire'
-        ).map((contact: any) => ({
-          ...contact,
-          inChat: false
-        })),
         syndics: contacts.filter((contact: any) => 
-          contact.contact_type === 'syndic' || contact.lot_contact_type === 'syndic'
+          getContactAssignmentType(contact) === 'syndic'
         ).map((contact: any) => ({
           ...contact,
           inChat: false
         })),
         autres: contacts.filter((contact: any) => 
-          !['locataire', 'proprietaire', 'syndic'].includes(contact.contact_type || contact.lot_contact_type)
+          !['tenant', 'syndic'].includes(getContactAssignmentType(contact))
         ).map((contact: any) => ({
           ...contact,
           inChat: false
@@ -280,13 +286,13 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           phone: interventionData.tenant.phone
         } : undefined,
         manager: interventionData.manager ? {
-          id: interventionData.manager_id,
+          id: interventionData.manager.id,
           name: interventionData.manager.name,
           email: interventionData.manager.email,
           phone: interventionData.manager.phone
         } : undefined,
         assignedContact: interventionData.assigned_contact ? {
-          id: interventionData.assigned_contact_id,
+          id: interventionData.assigned_contact.id,
           name: interventionData.assigned_contact.name,
           email: interventionData.assigned_contact.email,
           phone: interventionData.assigned_contact.phone,
@@ -362,38 +368,12 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour
           </Button>
         </div>
       </div>
     )
   }
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency.toLowerCase()) {
-      case "urgent":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "normale":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "faible":
-        return "bg-gray-100 text-gray-800 border-gray-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "en attente":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "en cours":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "terminé":
-        return "bg-green-100 text-green-800 border-green-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
 
   const findCommonSlots = () => {
     if (intervention.scheduling.type !== "slots" || !intervention.availabilities.length) {
@@ -459,56 +439,42 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     }))
   }
 
+  const handleBack = () => {
+    router.push('/gestionnaire/interventions')
+  }
+
+  const handleArchive = () => {
+    console.log('Archive intervention:', intervention.id)
+    // TODO: Implémenter la logique d'archivage
+  }
+
+  const handleStatusAction = (action: string) => {
+    console.log('Status action:', action, 'for intervention:', intervention.id)
+    // TODO: Implémenter les actions selon le statut
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour
-          </Button>
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <h1 className="text-2xl font-bold text-gray-900">{intervention.title}</h1>
-              <Badge className={getUrgencyColor(intervention.urgency)}>{intervention.urgency}</Badge>
-              <Badge className={getStatusColor(intervention.status)}>{intervention.status}</Badge>
-            </div>
+    <div>
+      {/* Header amélioré */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: intervention.reference,
+          status: intervention.status,
+          urgency: intervention.urgency,
+          createdAt: intervention.createdAt,
+          createdBy: intervention.createdBy,
+          lot: intervention.lot,
+          building: intervention.building,
+        }}
+        onBack={handleBack}
+        onArchive={handleArchive}
+        onStatusAction={handleStatusAction}
+      />
 
-            <div className="flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-1 text-gray-500">
-                <User className="h-3 w-3" />
-                <span>{intervention.createdBy}</span>
-              </div>
-              <div className="flex items-center space-x-1 text-gray-500">
-                <CalendarDays className="h-3 w-3" />
-                <span>
-                  {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline">
-            <Edit className="h-4 w-4 mr-2" />
-            Modifier
-          </Button>
-
-          <Button variant="outline">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Ouvrir le chat
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6">
           {/* Détails de l'intervention */}
@@ -531,7 +497,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
                 <div>
                   <h4 className="font-medium text-gray-900 mb-1">Priorité</h4>
-                  <Badge className={getUrgencyColor(intervention.urgency)}>{intervention.urgency}</Badge>
+                  <span className="text-gray-700">{intervention.urgency}</span>
                 </div>
               </div>
             </CardContent>
@@ -594,9 +560,9 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   size="sm"
                   onClick={() => {
                     if (intervention.lot) {
-                      router.push(`/gestionnaire/lots/${intervention.lot.id}`)
+                      router.push(`/gestionnaire/biens/lots/${intervention.lot.id}`)
                     } else if (intervention.building) {
-                      router.push(`/gestionnaire/biens/${intervention.building.id}`)
+                      router.push(`/gestionnaire/biens/immeubles/${intervention.building.id}`)
                     }
                   }}
                 >
@@ -686,80 +652,6 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              {intervention.contacts.proprietaires.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("proprietaires")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <User className="h-4 w-4 text-purple-600" />
-                      <span>Propriétaires ({intervention.contacts.proprietaires.length})</span>
-                    </h5>
-                    {expandedCategories.proprietaires ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.proprietaires && (
-                    <div className="space-y-2">
-                      {intervention.contacts.proprietaires.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          {/* ... existing contact content ... */}
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                              <User className="h-4 w-4 text-purple-600" />
-                            </div>
-                            <div>
-                              <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("proprietaires", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {intervention.contacts.syndics.length > 0 && (
                 <div className="pt-4 border-t">
@@ -875,7 +767,26 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                               <div className="flex items-center space-x-2">
                                 <h6 className="font-medium text-gray-900">{contact.name}</h6>
                                 <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  {contact.contact_type}
+                                  {contact.role && contact.provider_category !== undefined ? 
+                                    (() => {
+                                      const type = determineAssignmentType({
+                                        id: contact.id,
+                                        role: contact.role,
+                                        provider_category: contact.provider_category
+                                      })
+                                      const labels: Record<string, string> = {
+                                        tenant: 'Locataire',
+                                        manager: 'Gestionnaire',
+                                        provider: 'Prestataire',
+                                        syndic: 'Syndic',
+                                        notary: 'Notaire',
+                                        insurance: 'Assurance',
+                                        other: 'Autre'
+                                      }
+                                      return labels[type] || type
+                                    })() 
+                                    : 'N/A' // ✅ Plus besoin de contact_type
+                                  }
                                 </Badge>
                               </div>
                               <div className="flex items-center space-x-3 text-xs text-gray-600">
@@ -1476,6 +1387,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
               </CardContent>
             </Card>
           )}
+        </div>
         </div>
       </div>
     </div>

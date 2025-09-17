@@ -54,6 +54,10 @@ export const useInterventionApproval = () => {
   const [rejectionReason, setRejectionReason] = useState("")
   const [internalComment, setInternalComment] = useState("")
 
+  // États de chargement et d'erreurs
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   // Actions
   const handleApprovalAction = (intervention: InterventionAction, action: "approve" | "reject") => {
     setApprovalModal({
@@ -65,8 +69,22 @@ export const useInterventionApproval = () => {
     setInternalComment("")
   }
 
-  const handleConfirmAction = () => {
-    if (approvalModal.action === "approve") {
+  const handleActionChange = (action: "approve" | "reject") => {
+    setApprovalModal(prev => ({
+      ...prev,
+      action: action
+    }))
+    
+    // Reset rejection reason when switching to approve
+    if (action === "approve") {
+      setRejectionReason("")
+    }
+  }
+
+  const handleConfirmAction = (actionOverride?: "approve" | "reject") => {
+    const action = actionOverride || approvalModal.action
+    
+    if (action === "approve") {
       setConfirmationModal({
         isOpen: true,
         intervention: approvalModal.intervention,
@@ -74,7 +92,7 @@ export const useInterventionApproval = () => {
         rejectionReason: "",
         internalComment: internalComment,
       })
-    } else if (approvalModal.action === "reject") {
+    } else if (action === "reject") {
       setConfirmationModal({
         isOpen: true,
         intervention: approvalModal.intervention,
@@ -92,9 +110,12 @@ export const useInterventionApproval = () => {
 
     const approvalData: ApprovalData = {
       action: confirmationModal.action as "approve" | "reject",
-      rejectionReason: confirmationModal.rejectionReason,
-      internalComment: confirmationModal.internalComment,
+      rejectionReason: rejectionReason, // ✅ Utilise la valeur actuelle
+      internalComment: internalComment, // ✅ Utilise la valeur actuelle
     }
+
+    setIsLoading(true)
+    setError(null)
 
     try {
       if (confirmationModal.action === "approve") {
@@ -103,20 +124,16 @@ export const useInterventionApproval = () => {
           approvalData
         )
 
-        // Rediriger vers la création d'intervention pour traitement
-        const redirectUrl = interventionActionsService.generateApprovalRedirectUrl(
-          confirmationModal.intervention
-        )
-        
         setSuccessModal({
           isOpen: true,
           action: confirmationModal.action,
           interventionTitle: confirmationModal.intervention.title || "",
         })
 
-        // Rediriger après un délai
+        // Rafraîchir les données (trigger un re-fetch)
+        // Note: Dans un vrai contexte, on pourrait utiliser SWR mutate ou similar
         setTimeout(() => {
-          router.push(redirectUrl)
+          window.location.reload() // Simple refresh pour maintenant
         }, 2000)
 
       } else if (confirmationModal.action === "reject") {
@@ -130,10 +147,17 @@ export const useInterventionApproval = () => {
           action: confirmationModal.action,
           interventionTitle: confirmationModal.intervention.title || "",
         })
+
+        // Rafraîchir les données après rejet aussi
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
       }
     } catch (error) {
       console.error("Error processing intervention:", error)
-      // TODO: Handle error state
+      setError(error instanceof Error ? error.message : 'Erreur inconnue')
+    } finally {
+      setIsLoading(false)
     }
 
     // Reset états
@@ -179,13 +203,17 @@ export const useInterventionApproval = () => {
     successModal,
     rejectionReason,
     internalComment,
+    isLoading,
+    error,
 
     // Setters
     setRejectionReason,
     setInternalComment,
+    setError,
 
     // Actions
     handleApprovalAction,
+    handleActionChange,
     handleConfirmAction,
     handleFinalConfirmation,
     closeApprovalModal,

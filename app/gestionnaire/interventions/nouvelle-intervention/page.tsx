@@ -32,20 +32,25 @@ import {
   MessageSquare,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
-import { userService, contactService, teamService } from "@/lib/database-service"
+import { userService, contactService, teamService, tenantService, lotService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { interventionSteps } from "@/lib/step-configurations"
 
 export default function NouvelleInterventionPage() {
+  console.log("🚀 NouvelleInterventionPage - Composant initialisé")
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
-  const [selectedBuildingId, setSelectedBuildingId] = useState<number | undefined>()
-  const [selectedLotId, setSelectedLotId] = useState<number | undefined>()
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
+  const [selectedLotId, setSelectedLotId] = useState<string | undefined>()
   const [formData, setFormData] = useState({
     title: "",
     type: "",
@@ -62,7 +67,7 @@ export default function NouvelleInterventionPage() {
   const [globalMessage, setGlobalMessage] = useState("")
   const [individualMessages, setIndividualMessages] = useState<Record<number, string>>({})
 
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
+  const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([])
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([])
 
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -81,33 +86,56 @@ export default function NouvelleInterventionPage() {
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
   const router = useRouter()
+  const { toast } = useToast()
+  const { handleSuccess } = useCreationSuccess()
   const searchParams = useSearchParams()
   const { user } = useAuth()
+  
+  // Log simplifié maintenant que le problème est résolu
+  console.log("🔍 États:", { 
+    managers: managers.length, 
+    providers: providers.length, 
+    selectedManagers: selectedManagerIds.length,
+    selectedProviders: selectedProviderIds.length
+  })
 
-  // Fonction pour charger les données réelles depuis la DB
+  // Fonction pour charger les données réelles depuis la DB avec logique unifiée
   const loadRealData = async () => {
-    if (!user?.id) return
+    console.log("📡 loadRealData démarré avec user:", user?.id)
+    if (!user?.id) {
+      console.log("⚠️ Pas d'utilisateur, arrêt de loadRealData")
+      return
+    }
 
     setLoading(true)
     try {
+      console.log("🔄 Chargement des données en cours...")
       // 1. Récupérer l'équipe de l'utilisateur
       const teams = await teamService.getUserTeams(user.id)
       const team = teams[0]
       if (team) {
         setCurrentUserTeam(team)
         
-        // 2. Récupérer les gestionnaires réels depuis team_members -> users
-        const managersData = await contactService.getTeamManagers(team.id)
-        
-        // Marquer l'utilisateur connecté
-        managersData.forEach((manager: any) => {
-          manager.isCurrentUser = manager.email === user.email
-        })
-        
-        // 3. Récupérer les prestataires depuis contacts
+        // 2. NOUVELLE LOGIQUE UNIFIÉE : Récupérer tous les contacts et filtrer
         const contacts = await contactService.getTeamContacts(team.id)
+        console.log("📋 All team contacts:", contacts.map(c => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
+        
+        // Filtrer les gestionnaires avec la même logique que les prestataires
+        const managersData = contacts
+          .filter((contact: any) => determineAssignmentType(contact) === 'manager')
+          .map((contact: any) => ({
+            id: contact.id,
+            name: contact.name,
+            role: "Gestionnaire",
+            email: contact.email,
+            phone: contact.phone,
+            isCurrentUser: contact.email === user.email,
+            type: "gestionnaire",
+          }))
+        
+        // Filtrer les prestataires avec la même logique
         const providersData = contacts
-          .filter((contact: any) => contact.contact_type === 'prestataire')
+          .filter((contact: any) => determineAssignmentType(contact) === 'provider')
           .map((contact: any) => ({
             id: contact.id,
             name: contact.name,
@@ -119,13 +147,17 @@ export default function NouvelleInterventionPage() {
             type: "prestataire",
           }))
 
+        console.log("👥 Managers filtrés:", managersData.map(m => ({ id: m.id, name: m.name, email: m.email, isCurrentUser: m.isCurrentUser })))
+        console.log("🔧 Providers filtrés:", providersData.map(p => ({ id: p.id, name: p.name, email: p.email })))
+        
         setManagers(managersData)
         setProviders(providersData)
 
         // Pré-sélectionner l'utilisateur connecté comme gestionnaire
         const currentManager = managersData.find(manager => manager.isCurrentUser)
-        if (currentManager && !selectedManagerId) {
-          setSelectedManagerId(currentManager.id)
+        if (currentManager && selectedManagerIds.length === 0) {
+          console.log("🏠 Pré-sélection du gestionnaire connecté:", { id: currentManager.id, name: currentManager.name })
+          setSelectedManagerIds([String(currentManager.id)])
         }
       }
     } catch (error) {
@@ -135,8 +167,64 @@ export default function NouvelleInterventionPage() {
     }
   }
 
+  // Load tenant's assigned lots
+  const loadTenantLots = async (tenantId: string) => {
+    try {
+      const lots = await tenantService.getAllTenantLots(tenantId)
+      console.log("📍 Tenant lots loaded:", lots)
+      
+      if (lots.length > 0) {
+        // If tenant has only one lot, auto-select it
+        if (lots.length === 1) {
+          const lot = lots[0]
+          setSelectedLogement({
+            id: lot.id,
+            name: lot.reference,
+            type: "lot",
+            building: lot.building?.name || "Immeuble",
+            address: lot.building?.address || "",
+            buildingId: lot.building_id
+          })
+          setSelectedLotId(lot.id)
+          setSelectedBuildingId(lot.building_id)
+          setCurrentStep(2) // Skip to step 2 since lot is pre-selected
+        }
+        // If multiple lots, let user choose in step 1
+      }
+    } catch (error) {
+      console.error("❌ Error loading tenant lots:", error)
+    }
+  }
+
+  // Load specific lot by ID or reference
+  const loadSpecificLot = async (lotIdentifier: string) => {
+    try {
+      // Try to get lot by ID first, then by reference if needed
+      const lot = await lotService.getById(lotIdentifier)
+      console.log("📍 Specific lot loaded:", lot)
+      
+      if (lot) {
+        setSelectedLogement({
+          id: lot.id,
+          name: lot.reference,
+          type: "lot",
+          building: lot.building?.name || "Immeuble",
+          address: lot.building?.address || "",
+          buildingId: lot.building_id
+        })
+        setSelectedLotId(lot.id)
+        setSelectedBuildingId(lot.building_id)
+        setCurrentStep(2) // Skip to step 2 since lot is pre-selected
+      }
+    } catch (error) {
+      console.error("❌ Error loading specific lot:", error)
+      // If lot not found, don't pre-select anything, let user choose in step 1
+    }
+  }
+
   // Charger les données au montage du composant
   useEffect(() => {
+    console.log("🔄 Chargement des contacts pour user:", user?.email)
     loadRealData()
   }, [user?.id])
 
@@ -161,27 +249,17 @@ export default function NouvelleInterventionPage() {
         availabilities: [],
       })
 
-      // Pre-select logement based on location info
-      // Parse location to extract lot info (e.g., "Lot003 • 123 Rue de la Paix, 75001 Paris")
-      if (tenantLocation.includes("Lot")) {
+      // Pre-select lot based on tenant or location info
+      const tenantId = searchParams.get("tenantId")
+      if (tenantId) {
+        // For tenant-initiated interventions, get their assigned lots
+        loadTenantLots(tenantId)
+      } else if (tenantLocation.includes("Lot")) {
+        // Parse location to extract lot info and load real lot data
         const lotMatch = tenantLocation.match(/Lot(\d+)/)
         if (lotMatch) {
           const lotNumber = lotMatch[1]
-          // TODO: Récupérer les vraies données du lot depuis la DB
-          // Pour l'instant on garde un comportement minimal
-          setSelectedLogement({
-            id: Number.parseInt(lotNumber),
-            name: `Lot${lotNumber.padStart(3, "0")}`,
-            type: "lot",
-            building: "Logement pré-sélectionné",
-            address: "Adresse à récupérer depuis la DB",
-            floor: 1,
-            tenant: searchParams.get("tenantId") || "Locataire",
-          })
-          setSelectedLotId(Number.parseInt(lotNumber))
-
-          // Skip to step 2 since step 1 is pre-filled
-          setCurrentStep(2)
+          loadSpecificLot(lotNumber)
         }
       }
 
@@ -197,16 +275,30 @@ export default function NouvelleInterventionPage() {
   const getSelectedContacts = () => {
     const contacts = []
     
-    // Ajouter le gestionnaire sélectionné
-    if (selectedManagerId) {
-      const manager = managers.find(m => m.id === selectedManagerId)
-      if (manager) contacts.push(manager)
-    }
+    // Ajouter les gestionnaires sélectionnés
+    selectedManagerIds.forEach(managerId => {
+      const manager = managers.find(m => String(m.id) === String(managerId))
+      if (manager) {
+        contacts.push(manager)
+      } else {
+        console.warn("⚠️ Gestionnaire non trouvé:", { 
+          managerId, 
+          availableManagers: managers.map(m => ({ id: m.id, name: m.name }))
+        })
+      }
+    })
     
     // Ajouter les prestataires sélectionnés
     selectedProviderIds.forEach(providerId => {
-      const provider = providers.find(p => p.id === providerId)
-      if (provider) contacts.push(provider)
+      const provider = providers.find(p => String(p.id) === String(providerId))
+      if (provider) {
+        contacts.push(provider)
+      } else {
+        console.warn("⚠️ Prestataire non trouvé:", { 
+          providerId, 
+          availableProviders: providers.map(p => ({ id: p.id, name: p.name }))
+        })
+      }
     })
     
     return contacts
@@ -214,24 +306,53 @@ export default function NouvelleInterventionPage() {
 
   // Fonctions de gestion des contacts
   const handleManagerSelect = (managerId: string) => {
-    setSelectedManagerId(managerId)
+    console.log("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
+    const normalizedManagerId = String(managerId)
+    setSelectedManagerIds(prevIds => {
+      console.log("👤 IDs gestionnaires actuels:", prevIds)
+      const normalizedPrevIds = prevIds.map(id => String(id))
+      if (normalizedPrevIds.includes(normalizedManagerId)) {
+        // Si déjà sélectionné, le retirer
+        const newIds = normalizedPrevIds.filter(id => id !== normalizedManagerId)
+        console.log("👤 Gestionnaire retiré, nouveaux IDs:", newIds)
+        return newIds
+      } else {
+        // Sinon l'ajouter
+        const newIds = [...normalizedPrevIds, normalizedManagerId]
+        console.log("👤 Gestionnaire ajouté, nouveaux IDs:", newIds)
+        return newIds
+      }
+    })
   }
 
   const handleProviderSelect = (providerId: string) => {
+    console.log("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
+    console.log("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
+    const normalizedProviderId = String(providerId)
     setSelectedProviderIds(prevIds => {
-      if (prevIds.includes(providerId)) {
+      console.log("🔧 IDs prestataires actuels:", prevIds)
+      const normalizedPrevIds = prevIds.map(id => String(id))
+      if (normalizedPrevIds.includes(normalizedProviderId)) {
         // Si déjà sélectionné, le retirer
-        return prevIds.filter(id => id !== providerId)
+        const newIds = normalizedPrevIds.filter(id => id !== normalizedProviderId)
+        console.log("🔧 Prestataire retiré, nouveaux IDs:", newIds)
+        return newIds
       } else {
         // Sinon l'ajouter
-        return [...prevIds, providerId]
+        const newIds = [...normalizedPrevIds, normalizedProviderId]
+        console.log("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
+        return newIds
       }
     })
   }
 
   const handleContactCreated = (newContact: any) => {
-    // Ajouter le nouveau contact à la liste appropriée
-    if (newContact.contact_type === 'gestionnaire') {
+    // Ajouter le nouveau contact à la liste appropriée (nouvelle architecture)
+    console.log("🆕 Contact créé:", { id: newContact.id, name: newContact.name, role: newContact.role, provider_category: newContact.provider_category })
+    const assignmentType = determineAssignmentType(newContact)
+    console.log("🔍 AssignmentType déterminé:", assignmentType)
+    
+    if (assignmentType === 'manager') {
       const managerData = {
         id: newContact.id,
         name: newContact.name,
@@ -241,8 +362,9 @@ export default function NouvelleInterventionPage() {
         isCurrentUser: newContact.email === user?.email,
         type: "gestionnaire",
       }
+      console.log("➕ Ajout du gestionnaire à la liste:", managerData.name)
       setManagers((prev) => [...prev, managerData])
-    } else if (newContact.contact_type === 'prestataire') {
+    } else if (assignmentType === 'provider') {
       const providerData = {
         id: newContact.id,
         name: newContact.name,
@@ -253,21 +375,59 @@ export default function NouvelleInterventionPage() {
         isCurrentUser: false,
         type: "prestataire",
       }
+      console.log("➕ Ajout du prestataire à la liste:", providerData.name)
       setProviders((prev) => [...prev, providerData])
+    } else {
+      console.log("⚠️ Contact créé mais pas ajouté aux listes (assignmentType non géré):", assignmentType)
     }
   }
 
 
-  const handleBuildingSelect = (buildingId: number) => {
-    setSelectedBuildingId(buildingId)
+  const handleBuildingSelect = (buildingId: string | null) => {
+    setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    setSelectedLogement({ type: "building", id: buildingId })
+    if (buildingId) {
+      setSelectedLogement({ type: "building", id: buildingId })
+    } else {
+      setSelectedLogement(null)
+    }
   }
 
-  const handleLotSelect = (lotId: number, buildingId?: number) => {
-    setSelectedLotId(lotId)
-    setSelectedBuildingId(buildingId)
-    setSelectedLogement({ type: "lot", id: lotId, buildingId })
+  const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
+    if (!lotId) {
+      setSelectedLotId(undefined)
+      setSelectedBuildingId(buildingId || undefined)
+      setSelectedLogement(null)
+      return
+    }
+    try {
+      // Load real lot data when selecting a lot
+      const lot = await lotService.getById(lotId)
+      
+      if (lot) {
+        setSelectedLogement({
+          id: lot.id,
+          name: lot.reference,
+          type: "lot",
+          building: lot.building?.name || "Immeuble",
+          address: lot.building?.address || "",
+          buildingId: lot.building_id
+        })
+        setSelectedLotId(lot.id)
+        setSelectedBuildingId(lot.building_id)
+      } else {
+        // Fallback to minimal data if lot not found
+        setSelectedLotId(lotId)
+        setSelectedBuildingId(buildingId)
+        setSelectedLogement({ type: "lot", id: lotId, buildingId })
+      }
+    } catch (error) {
+      console.error("❌ Error loading lot data:", error)
+      // Fallback to minimal data
+      setSelectedLotId(lotId)
+      setSelectedBuildingId(buildingId)
+      setSelectedLogement({ type: "lot", id: lotId, buildingId })
+    }
   }
 
   const addAvailability = () => {
@@ -355,6 +515,8 @@ export default function NouvelleInterventionPage() {
 
     try {
       console.log("🚀 Starting intervention creation...")
+      console.log("👤 Current user:", { id: user?.id, email: user?.email })
+      console.log("🏗️ Current team:", { id: currentUserTeam?.id, name: currentUserTeam?.name })
       
       // Prepare data for API call
       const interventionData = {
@@ -370,7 +532,7 @@ export default function NouvelleInterventionPage() {
         selectedLotId,
         
         // Contact assignments
-        selectedManagerId,
+        selectedManagerIds,
         selectedProviderIds,
         
         // Scheduling
@@ -398,6 +560,12 @@ export default function NouvelleInterventionPage() {
       }
 
       console.log("📝 Sending intervention data:", interventionData)
+      console.log("🔍 Detailed contact assignments:", {
+        managersCount: selectedManagerIds.length,
+        managerIds: selectedManagerIds,
+        providersCount: selectedProviderIds.length, 
+        providerIds: selectedProviderIds
+      })
 
       // Call the API
       const response = await fetch('/api/create-manager-intervention', {
@@ -408,31 +576,30 @@ export default function NouvelleInterventionPage() {
         body: JSON.stringify(interventionData),
       })
 
+      console.log("📡 API Response status:", response.status)
       const result = await response.json()
 
       if (!response.ok) {
+        console.error("❌ API Error response:", result)
         throw new Error(result.error || 'Erreur lors de la création de l\'intervention')
       }
 
       console.log("✅ Intervention created successfully:", result)
 
-      // Store the created intervention ID
-      setCreatedInterventionId(result.intervention.id)
-
-      // Show success modal
-      setShowSuccessModal(true)
-      setCountdown(10)
-
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            router.push(`/gestionnaire/interventions/${result.intervention.id}`)
-            return 0
+      // Gérer le succès avec vidage du cache (la navigation forcera le rechargement)
+      await handleSuccess({
+        successTitle: "Intervention créée avec succès",
+        successDescription: `L'intervention "${result.intervention.title}" a été créée et assignée.`,
+        redirectPath: "/gestionnaire/interventions",
+        refreshData: async () => {
+          // Vider le cache pour forcer le rechargement des interventions lors de la navigation
+          const { statsService } = await import("@/lib/database-service")
+          if (user?.id) {
+            statsService.clearStatsCache(user.id)
           }
-          return prev - 1
-        })
-      }, 1000)
+        },
+        hardRefreshFallback: false, // La navigation vers une nouvelle page force naturellement le rechargement
+      })
 
     } catch (error) {
       console.error("❌ Error creating intervention:", error)
@@ -452,97 +619,31 @@ export default function NouvelleInterventionPage() {
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour aux interventions
-            </Button>
-          </div>
-
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Créer une intervention</h1>
-          <p className="text-gray-600">Créez une nouvelle demande d'intervention pour votre patrimoine immobilier.</p>
-        </div>
-
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center space-x-6">
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 1 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <Home className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Logement</p>
-                <p className="text-xs text-gray-500">Choisir le logement</p>
-              </div>
-            </div>
-
-            <div className={`h-1 w-12 ${currentStep >= 2 ? "bg-blue-500" : "bg-gray-200"}`} />
-
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 2 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Demande</p>
-                <p className="text-xs text-gray-500">Décrire le problème</p>
-              </div>
-            </div>
-
-            <div className={`h-1 w-12 ${currentStep >= 3 ? "bg-blue-500" : "bg-gray-200"}`} />
-
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 3 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <Users className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Contacts</p>
-                <p className="text-xs text-gray-500">Planification</p>
-              </div>
-            </div>
-
-            <div className={`h-1 w-12 ${currentStep >= 4 ? "bg-blue-500" : "bg-gray-200"}`} />
-
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  currentStep >= 4 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                <CheckCircle className="h-5 w-5" />
-              </div>
-              <div className="mt-2 text-center">
-                <p className="text-sm font-medium">Confirmation</p>
-                <p className="text-xs text-gray-500">Demande envoyée</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StepProgressHeader
+          title="Créer une intervention"
+          backButtonText="Retour aux interventions"
+          onBack={() => router.back()}
+          steps={interventionSteps}
+          currentStep={currentStep}
+        />
 
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            <PropertySelector
-              mode="select"
-              title="Créer une intervention"
-              subtitle="Sélectionnez le logement pour lequel vous souhaitez créer une intervention."
-              onBuildingSelect={handleBuildingSelect}
-              onLotSelect={handleLotSelect}
-              selectedBuildingId={selectedBuildingId}
-              selectedLotId={selectedLotId}
-              showActions={false}
-            />
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-gray-900">Créer une intervention</h2>
+                <p className="text-gray-600">Sélectionnez le lot pour lequel vous souhaitez créer une intervention.</p>
+              </div>
+              <PropertySelector
+                mode="select"
+                onBuildingSelect={handleBuildingSelect}
+                onLotSelect={handleLotSelect}
+                selectedBuildingId={selectedBuildingId}
+                selectedLotId={selectedLotId}
+                showActions={false}
+              />
+            </div>
 
             <div className="flex justify-end">
               <Button onClick={handleNext} disabled={!selectedLogement} className="px-8">
@@ -753,7 +854,7 @@ export default function NouvelleInterventionPage() {
               <div>
                 <h4 className="font-medium mb-3">Assigner l'intervention à</h4>
                 <p className="text-sm text-gray-600 mb-4">
-                  Le gestionnaire est automatiquement assigné. Vous pouvez optionnellement ajouter un prestataire.
+                  Sélectionnez un ou plusieurs gestionnaires et optionnellement des prestataires.
                 </p>
 
                 {/* Contact Selection */}
@@ -762,15 +863,15 @@ export default function NouvelleInterventionPage() {
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                       <User className="h-4 w-4" />
-                      <span>Gestionnaire *</span>
+                      <span>Gestionnaires *</span>
                     </label>
                     <ContactSelector
                       contacts={managers}
-                      selectedContactId={selectedManagerId}
+                      selectedContactIds={selectedManagerIds}
                       onContactSelect={handleManagerSelect}
                       onContactCreated={handleContactCreated}
                       contactType="gestionnaire"
-                      placeholder="Sélectionner un gestionnaire"
+                      placeholder="Sélectionner des gestionnaires"
                       isLoading={loading}
                       teamId={currentUserTeam?.id || ""}
                     />
@@ -780,7 +881,7 @@ export default function NouvelleInterventionPage() {
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                       <Wrench className="h-4 w-4" />
-                      <span>Prestataire</span>
+                      <span>Prestataires</span>
                     </label>
                     <ContactSelector
                       contacts={providers}
@@ -796,11 +897,17 @@ export default function NouvelleInterventionPage() {
                 </div>
 
                 {/* Selected Contacts Display */}
-                {(selectedManagerId || selectedProviderIds.length > 0) && (
+                {(selectedManagerIds.length > 0 || selectedProviderIds.length > 0) && (
                   <div className="space-y-3">
                     <h5 className="font-medium text-sm text-gray-700">
                       Personnes assignées ({getSelectedContacts().length})
                     </h5>
+                    {/* Debug info */}
+                    {console.log("🔍 État de sélection:", { 
+                      selectedManagerIds, 
+                      selectedProviderIds, 
+                      selectedContactsCount: getSelectedContacts().length 
+                    })}
                     {getSelectedContacts().map((contact) => (
                       <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
@@ -829,9 +936,9 @@ export default function NouvelleInterventionPage() {
                           size="sm"
                           onClick={() => {
                             if (contact.type === "gestionnaire") {
-                              setSelectedManagerId("")
+                              setSelectedManagerIds(prev => prev.filter(id => String(id) !== String(contact.id)))
                             } else if (contact.type === "prestataire") {
-                              setSelectedProviderIds(prev => prev.filter(id => id !== contact.id))
+                              setSelectedProviderIds(prev => prev.filter(id => String(id) !== String(contact.id)))
                             }
                           }}
                           className="text-red-500 hover:text-red-700"
@@ -952,7 +1059,7 @@ export default function NouvelleInterventionPage() {
               </div>
 
               {/* Message Options */}
-              {(selectedManagerId || selectedProviderIds.length > 0) && (
+              {(selectedManagerIds.length > 0 || selectedProviderIds.length > 0) && (
                 <div>
                   <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center space-x-3">
@@ -1076,7 +1183,7 @@ export default function NouvelleInterventionPage() {
                 </Button>
                 <Button 
                   onClick={handleNext} 
-                  disabled={!selectedManagerId} 
+                  disabled={selectedManagerIds.length === 0} 
                   className="px-8"
                 >
                   Créer l'intervention

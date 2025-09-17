@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/use-auth"
 
 export default function SignupPage() {
   const router = useRouter()
-  const { signUp, signIn, user, loading } = useAuth()
+  const { signUp, signIn, user, loading, refreshUser } = useAuth()
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -30,12 +30,16 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  // justSignedUp removed - pas besoin avec middleware
+  const [signupSuccess, setSignupSuccess] = useState(false)
+  const [successUserName, setSuccessUserName] = useState("")
 
   // Middleware gère les redirections automatiques
   useEffect(() => {
     console.log('🔄 [SIGNUP-CLEAN] Signup page loaded, middleware will handle redirections')
   }, [])
+
+  // La redirection est maintenant gérée automatiquement par AuthProvider
+  // Plus besoin de logique de redirection ici !
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -85,32 +89,54 @@ export default function SignupPage() {
 
     try {
       const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`
-      const { user: authUser, error: authError } = await signUp({
-        email: formData.email.trim(),
-        password: formData.password,
-        name: fullName,
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone.trim() || undefined,
+      
+      console.log("🚀 [SIGNUP-SIMPLE] Starting simple signup process with loader...")
+      
+      // ✅ FLUX SIMPLIFIÉ: Auth → Équipe → User → Dashboard
+      const response = await fetch('/api/signup-complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+          name: fullName,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          phone: formData.phone.trim() || undefined,
+        })
       })
 
-      if (authError) {
-        if (authError.message.includes('User already registered')) {
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        if (result.error?.includes('User already registered') || result.error?.includes('already exists')) {
           setError("Un compte avec cet email existe déjà")
         } else {
-          setError("Erreur lors de la création du compte: " + authError.message)
+          setError(result.error || "Erreur lors de la création du compte")
         }
-      } else if (authUser) {
-        console.log("✅ [SIGNUP-CLEAN] Compte créé avec succès pour:", authUser.name, "role:", authUser.role)
+      } else if (result.ready) {
+        // ✅ Tout est prêt ! Activer la modale de succès
+        console.log("✅ [SIGNUP-SIMPLE] Setup complete:", result.user.name)
+        console.log("🏠 [SIGNUP-SIMPLE] Team ready:", result.team.name)
+        console.log("⏳ [SIGNUP-SIMPLE] Showing success modal, waiting for useAuth to load user...")
         
-        console.log("🔄 [SIGNUP-CLEAN] Triggering router refresh to activate middleware...")
-        router.refresh() // Force re-evaluation du middleware avec nouveaux cookies
-        console.log("✅ [SIGNUP-CLEAN] Router refresh triggered, middleware should redirect now")
+        // Activer la modale de succès
+        setSuccessUserName(result.user.name)
+        setSignupSuccess(true)
+        setIsLoading(false) // Arrêter le loader du formulaire
+
+        // 🔄 SOLUTION: Rafraîchir l'état utilisateur pour déclencher la redirection automatique
+        console.log("🔄 [SIGNUP-SIMPLE] Refreshing user state to trigger auto-redirect...")
+        setTimeout(() => {
+          refreshUser() // Ceci va mettre à jour le context et déclencher la redirection
+        }, 1500) // Laisser le temps à la modale de s'afficher
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }
     } catch (error) {
-      console.error("Erreur d'inscription:", error)
+      console.error("❌ [SIGNUP-SIMPLE] Erreur d'inscription:", error)
       setError("Une erreur est survenue lors de la création du compte")
     } finally {
       setIsLoading(false)
@@ -348,6 +374,44 @@ export default function SignupPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modale de succès d'inscription */}
+      {signupSuccess && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md mx-auto shadow-2xl border-primary/20">
+            <CardHeader className="text-center pb-6">
+              <div className="flex justify-center mb-4">
+                <div className="relative">
+                  <CheckCircle className="w-16 h-16 text-green-500" />
+                  <div className="absolute -top-1 -right-1">
+                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <CardTitle className="text-2xl text-center">
+                🎉 Inscription réussie !
+              </CardTitle>
+              <CardDescription className="text-center text-base">
+                Bienvenue <span className="font-semibold text-primary">{successUserName}</span> !<br/>
+                Votre compte et équipe ont été créés avec succès.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center pb-8">
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                <p className="text-sm text-muted-foreground">
+                  Finalisation en cours...
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Vous allez être redirigé vers votre dashboard automatiquement.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,95 +1,88 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 interface DeleteConfirmModalProps {
-  itemName: string
-  itemType: string
+  isOpen: boolean
+  onClose: () => void
   onConfirm: () => void
-  trigger?: React.ReactNode
+  title: string
+  message: string
+  itemName?: string
+  itemType?: string
+  isLoading?: boolean
+  danger?: boolean
 }
 
-export function DeleteConfirmModal({ itemName, itemType, onConfirm, trigger }: DeleteConfirmModalProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-
-  const handleConfirm = async () => {
-    setIsDeleting(true)
-    try {
-      await onConfirm()
-      setIsOpen(false)
-    } catch (error) {
-      console.error("Error deleting item:", error)
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const defaultTrigger = (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-      onClick={() => setIsOpen(true)}
-    >
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  )
-
+export const DeleteConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  itemName,
+  itemType = "élément",
+  isLoading = false,
+  danger = true,
+}: DeleteConfirmModalProps) => {
   return (
-    <>
-      {trigger ? <div onClick={() => setIsOpen(true)}>{trigger}</div> : defaultTrigger}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center space-x-2">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <span>{title}</span>
+          </DialogTitle>
+        </DialogHeader>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Trash2 className="h-5 w-5 text-red-600" />
-              <span>Confirmer la suppression</span>
-            </DialogTitle>
-            <DialogDescription className="text-left">
-              Êtes-vous sûr de vouloir supprimer {itemType} <strong>{itemName}</strong> ?
-              <br />
-              Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex space-x-2">
-            <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isDeleting}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirm}
-              disabled={isDeleting}
-              className="flex items-center space-x-2"
-            >
-              {isDeleting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Suppression...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  <span>Supprimer</span>
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            {message}
+          </p>
+
+          {itemName && (
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="font-medium text-sm text-gray-900">{itemName}</p>
+              <p className="text-sm text-gray-600 capitalize">{itemType}</p>
+            </div>
+          )}
+
+          {danger && (
+            <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+              <p className="text-sm font-medium text-red-800">⚠️ Attention</p>
+              <p className="text-sm text-red-700">
+                Cette action est irréversible et supprimera définitivement cet {itemType}.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Annuler
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                Suppression...
+              </>
+            ) : (
+              "Confirmer la suppression"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

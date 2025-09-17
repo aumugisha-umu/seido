@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { userService, teamService } from './database-service'
 import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
 import type { Database } from './database.types'
+import { activityLogger } from './activity-logger'
 
 export interface AuthUser {
   id: string
@@ -12,6 +13,7 @@ export interface AuthUser {
   display_name?: string
   role: Database['public']['Enums']['user_role']
   phone?: string
+  avatar_url?: string
   created_at?: string
   updated_at?: string
 }
@@ -71,23 +73,67 @@ class AuthService {
         return { user: null, error: authError || { message: 'Erreur création compte', name: 'SignUpError', status: 400 } as AuthError }
       }
 
-      // Créer le profil utilisateur
+      // Créer le profil utilisateur (NOUVELLE ARCHITECTURE)
       const userProfile = await userService.create({
-        id: authData.user.id,
+        auth_user_id: authData.user.id, // ✅ LIEN vers auth.users.id
         email: authData.user.email!,
         name,
         first_name,
         last_name,
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+        provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
         phone: phone || null,
       })
 
-      // Créer l'équipe personnelle
-      await teamService.create({
+      // Créer l'équipe personnelle (NOUVELLE ARCHITECTURE)
+      const team = await teamService.create({
         name: `Équipe de ${name}`,
         description: `Équipe personnelle de ${name}`,
-        created_by: authData.user.id
+        created_by: userProfile.id // ✅ UTILISE l'ID généré de users, pas auth.users.id
       })
+
+      // NOUVELLE ARCHITECTURE: L'utilisateur est déjà créé dans users avec auth_user_id
+      // Plus besoin de créer un contact séparé - architecture unifiée
+      console.log('✅ [AUTH-SERVICE] Architecture unifiée: utilisateur créé avec auth_user_id:', authData.user.id)
+
+      // LOGS D'ACTIVITÉ: Enregistrer la création de l'équipe et du compte utilisateur
+      try {
+        // Configurer le contexte pour les logs
+        activityLogger.setContext({
+          teamId: team.id,
+          userId: userProfile.id
+        })
+
+        // Log pour la création de l'équipe (premier log de l'équipe)
+        await activityLogger.logTeamAction(
+          'create',
+          team.id,
+          team.name,
+          {
+            created_by: userProfile.id,
+            creator_name: name,
+            description: team.description
+          }
+        )
+
+        // Log pour la création du compte utilisateur  
+        await activityLogger.logUserAction(
+          'create',
+          userProfile.id,
+          name,
+          {
+            email: authData.user.email!,
+            role: 'gestionnaire',
+            phone: phone || null,
+            first_login: true
+          }
+        )
+
+        console.log('✅ [AUTH-SERVICE] Activity logs created for user and team creation')
+      } catch (logError) {
+        console.error('⚠️ [AUTH-SERVICE] Failed to create activity logs:', logError)
+        // Non bloquant, on continue même si les logs échouent
+      }
 
       // Retourner l'utilisateur auth
       const authUser: AuthUser = {
@@ -99,6 +145,7 @@ class AuthService {
         display_name: name,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
+        avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
@@ -127,16 +174,34 @@ class AuthService {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+        provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
         phone: phone?.trim() || null,
       })
 
       // Créer équipe personnelle
       const teamName = `Équipe de ${fullName}`
-      await teamService.create({
+      const team = await teamService.create({
         name: teamName,
         description: `Équipe personnelle de ${fullName}`,
         created_by: authUser.id
       })
+
+      // Créer automatiquement un contact pour ce gestionnaire
+      try {
+        const { contactService } = await import('./database-service')
+        await contactService.create({
+          name: fullName,
+          email: authUser.email!,
+          role: 'manager',
+          team_id: team.id,
+          is_active: true,
+          notes: 'Contact créé automatiquement lors de la finalisation du profil'
+        })
+        console.log('✅ Contact gestionnaire créé lors de la finalisation du profil')
+      } catch (contactError) {
+        console.error('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
+        // Ne pas faire échouer la finalisation pour cette erreur
+      }
 
       // Mettre à jour metadata auth
       await supabase.auth.updateUser({
@@ -157,6 +222,7 @@ class AuthService {
         display_name: fullName,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
+        avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
@@ -179,21 +245,33 @@ class AuthService {
         return { user: null, error: error || { message: 'Utilisateur non trouvé', name: 'SignInError', status: 401 } as AuthError }
       }
 
-      // Vérifier si profil existe, sinon créer
+      // Vérifier si profil existe, sinon créer (NOUVELLE ARCHITECTURE)
       let userProfile
       try {
-        userProfile = await userService.getById(data.user.id)
+        // NOUVELLE ARCHITECTURE: Chercher par auth_user_id au lieu de id
+        const { data: usersData, error: findError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_user_id', data.user.id)
+          .single()
+          
+        if (findError && findError.code !== 'PGRST116') {
+          throw findError
+        }
+          
+        userProfile = usersData
       } catch (profileError) {
-        // Créer profil depuis metadata
+        // Créer profil depuis metadata (NOUVELLE ARCHITECTURE)
         const metadata = data.user.user_metadata
         if (metadata && metadata.full_name) {
           userProfile = await userService.create({
-            id: data.user.id,
+            auth_user_id: data.user.id, // ✅ NOUVELLE ARCHITECTURE
             email: data.user.email!,
             name: metadata.full_name,
             first_name: metadata.first_name || null,
             last_name: metadata.last_name || null,
             role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+            provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
             phone: metadata.phone || null,
           })
           
@@ -214,6 +292,7 @@ class AuthService {
         display_name: data.user.user_metadata?.display_name || userProfile.name,
         role: userProfile.role,
         phone: userProfile.phone || undefined,
+        avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
         updated_at: userProfile.updated_at || undefined,
       }
@@ -255,29 +334,70 @@ class AuthService {
         return { user: null, error: null }
       }
 
-      // ✅ SIMPLIFIÉ: Utiliser JWT metadata directement (comme onAuthStateChange)
+      // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id
+      console.log('🔍 [getCurrentUser-NEW] Looking up user profile for auth_user_id:', authUser.id)
+      console.log('🔍 [getCurrentUser-NEW] Auth user email:', authUser.email)
+      console.log('🔍 [getCurrentUser-NEW] Auth user confirmed:', authUser.email_confirmed_at)
+      
+      try {
+        // Chercher l'utilisateur par auth_user_id
+        const { data: userProfile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_user_id', authUser.id)
+          .single()
+          
+        console.log('🔍 [getCurrentUser-NEW] Profile query result:', {
+          userProfile: userProfile ? 'found' : 'not found',
+          error: profileError ? profileError.message : 'none',
+          authUserId: authUser.id
+        })
+          
+        if (userProfile) {
+          const user: AuthUser = {
+            id: userProfile.id, // ✅ ID de la table users, pas auth.users
+            email: userProfile.email,
+            name: userProfile.name,
+            first_name: userProfile.first_name || undefined,
+            last_name: userProfile.last_name || undefined,
+            display_name: authUser.user_metadata?.display_name || userProfile.name,
+            role: userProfile.role,
+            phone: userProfile.phone || undefined,
+            avatar_url: userProfile.avatar_url || undefined,
+            created_at: userProfile.created_at || undefined,
+            updated_at: userProfile.updated_at || undefined,
+          }
+          console.log('✅ [getCurrentUser-NEW] User profile found:', {
+            id: user.id,
+            auth_user_id: authUser.id,
+            email: user.email,
+            name: user.name,
+            linkStatus: 'LINKED'
+          })
+          return { user, error: null }
+        } else {
+          console.log('❌ [getCurrentUser-NEW] No profile found for auth_user_id:', authUser.id)
+        }
+      } catch (profileError) {
+        console.error('❌ [getCurrentUser-NEW] Error looking up profile:', profileError)
+      }
+      
+      // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
       if (authUser.email) {
+        console.log('⚠️ [getCurrentUser-NEW] No profile found, using JWT fallback')
         const user: AuthUser = {
-          id: authUser.id,
+          id: authUser.id, // Fallback vers auth.users.id
           email: authUser.email!,
-          name: authUser.user_metadata?.full_name || authUser.user_metadata?.display_name || 'Utilisateur',
+          name: authUser.user_metadata?.full_name || 'Utilisateur',
           first_name: authUser.user_metadata?.first_name || undefined,
           last_name: authUser.user_metadata?.last_name || undefined,
           display_name: authUser.user_metadata?.display_name || undefined,
-          role: (authUser.user_metadata?.role as Database['public']['Enums']['user_role']) || 'gestionnaire',
-          phone: authUser.user_metadata?.phone || undefined,
+          role: 'gestionnaire',
+          phone: undefined,
+          avatar_url: undefined,
           created_at: undefined,
           updated_at: undefined,
         }
-
-        console.log('✅ [AUTH-SERVICE] getCurrentUser from JWT (no DB call):', {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          source: 'JWT_METADATA_ONLY'
-        })
-
         return { user, error: null }
       }
       
@@ -314,8 +434,28 @@ class AuthService {
         return { user: null, error: authError }
       }
 
-      // Mettre à jour le profil dans notre table
-      const updatedProfile = await userService.update(authUser.id, {
+      // ✅ CORRIGER: Récupérer l'ID utilisateur dans la table users via auth_user_id
+      const { data: dbUser, error: findError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .single()
+
+      if (findError || !dbUser) {
+        console.error('❌ [UPDATE-PROFILE] User not found in database:', findError)
+        return { user: null, error: findError as AuthError || { message: 'Utilisateur non trouvé', name: 'UserNotFound', status: 404 } as AuthError }
+      }
+
+      console.log('✅ [UPDATE-PROFILE] Found user in database:', dbUser.id)
+      console.log('🔄 [UPDATE-PROFILE] Updating with data:', {
+        name: updates.name,
+        first_name: updates.first_name,
+        last_name: updates.last_name,
+        phone: updates.phone
+      })
+
+      // Mettre à jour le profil dans notre table avec le bon ID
+      const updatedProfile = await userService.update(dbUser.id, {
         name: updates.name,
         first_name: updates.first_name,
         last_name: updates.last_name,
@@ -323,6 +463,8 @@ class AuthService {
         phone: updates.phone,
         role: updates.role,
       })
+
+      console.log('✅ [UPDATE-PROFILE] Profile updated successfully:', updatedProfile.id)
 
       // Mettre à jour le display_name dans Supabase Auth si le nom change
       if (updates.display_name || updates.name) {
@@ -348,14 +490,24 @@ class AuthService {
         display_name: updates.display_name || updatedProfile.name,
         role: updatedProfile.role,
         phone: updatedProfile.phone || undefined,
+        avatar_url: updatedProfile.avatar_url || undefined,
         created_at: updatedProfile.created_at || undefined,
         updated_at: updatedProfile.updated_at || undefined,
       }
 
       return { user, error: null }
     } catch (error) {
-      console.error('Error updating profile:', error)
-      return { user: null, error: error as AuthError }
+      console.error('❌ [UPDATE-PROFILE] Unexpected error:', error)
+      console.error('❌ [UPDATE-PROFILE] Error details:', JSON.stringify(error, null, 2))
+      
+      // Créer un message d'erreur plus explicite
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la mise à jour du profil'
+      
+      return { user: null, error: { 
+        message: errorMessage,
+        name: 'UpdateProfileError',
+        status: 500
+      } as AuthError }
     }
   }
 
@@ -369,27 +521,86 @@ class AuthService {
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         try {
-          // ✅ TOUJOURS utiliser JWT metadata - évite les race conditions signup
+          // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id
+          console.log('🔍 [AUTH-SERVICE-NEW] Looking up user profile for auth_user_id:', session.user.id)
+          
+          try {
+            // Chercher l'utilisateur par auth_user_id
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('*')
+              .eq('auth_user_id', session.user.id)
+              .single()
+              
+            if (userProfile) {
+              const user: AuthUser = {
+                id: userProfile.id, // ✅ ID de la table users, pas auth.users
+                email: userProfile.email,
+                name: userProfile.name,
+                first_name: userProfile.first_name || undefined,
+                last_name: userProfile.last_name || undefined,
+                display_name: session.user.user_metadata?.display_name || userProfile.name,
+                role: userProfile.role,
+                phone: userProfile.phone || undefined,
+                created_at: userProfile.created_at || undefined,
+                updated_at: userProfile.updated_at || undefined,
+              }
+              console.log('✅ [AUTH-SERVICE-NEW] User profile found:', {
+                id: user.id,
+                auth_user_id: session.user.id,
+                email: user.email,
+                name: user.name
+              })
+              
+              // ✅ MARQUER L'INVITATION COMME ACCEPTÉE SI C'EST UNE PREMIÈRE CONNEXION
+              if (event === 'SIGNED_IN' && session.user.user_metadata?.invited) {
+                console.log('📧 [AUTH-SERVICE-NEW] User was invited, marking invitation as accepted...')
+                console.log('🔍 [AUTH-SERVICE-DEBUG] Invitation marking details:', {
+                  email: userProfile.email,
+                  authUserId: session.user.id,
+                  profileUserId: userProfile.id,
+                  invitationCode: session.user.id
+                })
+                try {
+                  await fetch('/api/mark-invitation-accepted', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      email: userProfile.email,
+                      invitationCode: session.user.id // ✅ Correct: auth.users.id
+                    })
+                  })
+                  console.log('✅ [AUTH-SERVICE-NEW] Invitation marked as accepted')
+                } catch (inviteError) {
+                  console.warn('⚠️ [AUTH-SERVICE-NEW] Failed to mark invitation as accepted:', inviteError)
+                  // Ne pas faire échouer la connexion pour cette erreur
+                }
+              }
+              
+              callback(user)
+              return
+            }
+          } catch (profileError) {
+            console.warn('⚠️ [AUTH-SERVICE-NEW] Error looking up profile:', profileError)
+          }
+          
+          // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
           if (session.user.email) {
+            console.log('⚠️ [AUTH-SERVICE-NEW] No profile found, using JWT fallback')
             const user: AuthUser = {
-              id: session.user.id,
+              id: session.user.id, // Fallback vers auth.users.id
               email: session.user.email!,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.display_name || 'Utilisateur',
+              name: session.user.user_metadata?.full_name || 'Utilisateur',
               first_name: session.user.user_metadata?.first_name || undefined,
               last_name: session.user.user_metadata?.last_name || undefined,
               display_name: session.user.user_metadata?.display_name || undefined,
-              role: (session.user.user_metadata?.role as Database['public']['Enums']['user_role']) || 'gestionnaire',
+              role: 'gestionnaire',
               phone: undefined,
               created_at: undefined,
               updated_at: undefined,
             }
-            console.log('✅ [AUTH-SERVICE] User created from JWT (race condition avoided):', {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: user.role,
-              source: 'JWT_ONLY_NO_DB_CALL'
-            })
             callback(user)
             return
           }

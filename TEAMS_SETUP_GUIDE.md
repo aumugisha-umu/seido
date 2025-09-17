@@ -1,6 +1,6 @@
 # Guide d'installation du système d'équipes
 
-Ce guide explique comment mettre en place et utiliser le nouveau système d'équipes pour la gestion des bâtiments, lots et contacts.
+Ce guide explique comment mettre en place et utiliser le nouveau système d'équipes pour la gestion des immeubles, lots et contacts.
 
 ## 🚀 Installation
 
@@ -44,10 +44,10 @@ npx supabase gen types typescript --project-id YOUR_PROJECT_ID > lib/database.ty
 ### Système d'équipes
 - **Création d'équipes** : Les gestionnaires peuvent créer des équipes
 - **Gestion des membres** : Ajout/suppression de membres avec rôles (admin/member)
-- **Accès partagé** : Tous les membres de l'équipe ont accès aux bâtiments/contacts de l'équipe
+- **Accès partagé** : Tous les membres de l'équipe ont accès aux immeubles/contacts de l'équipe
 - **Compatibilité** : Compatible avec la gestion individuelle existante
 
-### Création de bâtiments
+### Création d'immeubles
 - **Interface mise à jour** : Sélection d'équipe dans le formulaire
 - **Intégration Supabase** : Sauvegarde complète des données
 - **Gestion d'erreurs** : Validation et messages d'erreur appropriés
@@ -73,18 +73,18 @@ const team = await teamService.create({
 await teamService.addMember(teamId, userId, 'member')
 ```
 
-### 3. Créer un bâtiment avec équipe
+### 3. Créer un immeuble avec équipe
 
-Le formulaire `app/gestionnaire/nouveau-batiment/page.tsx` gère automatiquement :
+Le formulaire `app/gestionnaire/nouveau-immeuble/page.tsx` gère automatiquement :
 - Chargement des équipes de l'utilisateur
 - Sélection d'équipe (optionnelle)
-- Création du bâtiment avec lots et contacts
+- Création de l'immeuble avec lots et contacts
 - Association automatique à l'équipe sélectionnée
 
 ### 4. Accès aux données
 
 ```typescript
-// Récupérer les bâtiments d'un utilisateur (individuels + équipe)
+// Récupérer les immeubles d'un utilisateur (individuels + équipe)
 const buildings = await buildingService.getUserBuildings(userId)
 
 // Récupérer les contacts d'une équipe
@@ -112,9 +112,9 @@ La migration crée automatiquement :
 
 ### Tester le formulaire
 1. Connectez-vous comme gestionnaire
-2. Allez sur `/gestionnaire/nouveau-batiment`
+2. Allez sur `/gestionnaire/nouveau-immeuble`
 3. Vérifiez que les équipes apparaissent dans le formulaire
-4. Créez un bâtiment avec des lots
+4. Créez un immeuble avec des lots
 5. Vérifiez que les données sont sauvegardées correctement
 
 ## 🐛 Dépannage
@@ -143,7 +143,7 @@ Si la migration échoue :
 - `lib/database-service.ts` : Services étendus avec équipes
 
 ### Interface
-- `app/gestionnaire/nouveau-batiment/page.tsx` : Formulaire intégré Supabase
+- `app/gestionnaire/nouveau-immeuble/page.tsx` : Formulaire intégré Supabase
 
 ### Types
 - Types `Team` et `TeamMember` temporaires ajoutés

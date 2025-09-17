@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "Seido-app"
+project_id = "seido-app"
 
 [api]
 enabled = true
@@ -321,7 +321,7 @@ backend = "postgres"
 # Experimental features may be deprecated any time
 [experimental]
 # Configures Postgres storage engine to use OrioleDB (S3)
-orioledb_version = ""
+# orioledb_version = ""
 # Configures S3 bucket URL, eg. <bucket_name>.s3-<region>.amazonaws.com
 s3_host = "env(S3_HOST)"
 # Configures S3 bucket region, eg. us-east-1

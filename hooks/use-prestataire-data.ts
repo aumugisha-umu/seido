@@ -45,12 +45,16 @@ export interface UrgentIntervention {
 // Mapping des statuts database vers les statuts frontend attendus
 const mapStatusToFrontend = (dbStatus: string): string => {
   const statusMap: Record<string, string> = {
-    'nouvelle_demande': 'nouvelle-demande',
-    'en_attente_validation': 'en_attente_validation',
-    'validee': 'devis-a-fournir',
-    'en_cours': 'programmee',
-    'terminee': 'terminee',
-    'annulee': 'annulee'
+    'demande': 'nouvelle-demande',
+    'rejetee': 'rejetee',
+    'approuvee': 'approuvee',
+    'demande_de_devis': 'devis-a-fournir',
+    'planification': 'planification',
+    'planifiee': 'programmee',
+    'en_cours': 'en_cours',
+    'cloturee_par_prestataire': 'terminee',
+    'cloturee_par_locataire': 'terminee',
+    'cloturee_par_gestionnaire': 'terminee'
   }
   return statusMap[dbStatus] || dbStatus
 }
@@ -165,12 +169,12 @@ export const usePrestataireData = (userId: string) => {
       const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       
       const interventionsEnCours = transformedInterventions.filter(i => 
-        ['nouvelle-demande', 'devis-a-fournir', 'programmee', 'en_cours'].includes(i.status)
+        ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status)
       ).length
 
       const urgentesCount = transformedInterventions.filter(i => 
         ['haute', 'urgente'].includes(i.priority) && 
-        ['nouvelle-demande', 'devis-a-fournir', 'programmee', 'en_cours'].includes(i.status)
+        ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status)
       ).length
 
       const terminesCeMois = transformedInterventions.filter(i => {
@@ -188,7 +192,7 @@ export const usePrestataireData = (userId: string) => {
       // 5. Get urgent interventions for dashboard
       const urgentInterventions: UrgentIntervention[] = transformedInterventions
         .filter(i => ['haute', 'urgente'].includes(i.priority) && 
-                    ['nouvelle-demande', 'devis-a-fournir', 'programmee', 'en_cours'].includes(i.status))
+                    ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status))
         .slice(0, 3) // Show only top 3
         .map(i => ({
           id: i.id,

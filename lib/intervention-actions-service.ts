@@ -52,6 +52,11 @@ export interface FinalizationData {
   paymentComment?: string
 }
 
+export interface CancellationData {
+  cancellationReason: string
+  internalComment?: string
+}
+
 export class InterventionActionsService {
   private static instance: InterventionActionsService
   
@@ -66,72 +71,273 @@ export class InterventionActionsService {
    * Actions d'approbation/rejet
    */
   async approveIntervention(intervention: InterventionAction, data: ApprovalData): Promise<void> {
-    console.log(`[v0] Approving intervention ${intervention.id}`)
-    console.log(`[v0] Internal comment: ${data.internalComment}`)
+    console.log(`✅ Approving intervention ${intervention.id}`)
+    console.log(`📝 Internal comment: ${data.internalComment}`)
     
-    // Ici on appellerait l'API réelle
-    // await fetch('/api/interventions/approve', { ... })
-    
-    // Pour l'instant, simulation
-    return new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await fetch('/api/intervention-approve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        internalComment: data.internalComment
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de l'approbation: ${response.status}`)
+    }
+
+    console.log(`✅ Intervention approved successfully: ${result.intervention.id}`)
+    return result
   }
 
   async rejectIntervention(intervention: InterventionAction, data: ApprovalData): Promise<void> {
-    console.log(`[v0] Rejecting intervention ${intervention.id}`)
-    console.log(`[v0] Rejection reason: ${data.rejectionReason}`)
-    console.log(`[v0] Internal comment: ${data.internalComment}`)
+    console.log(`❌ Rejecting intervention ${intervention.id}`)
+    console.log(`📝 Rejection reason: ${data.rejectionReason}`)
+    console.log(`📝 Internal comment: ${data.internalComment}`)
     
-    // Ici on appellerait l'API réelle
-    // await fetch('/api/interventions/reject', { ... })
-    
-    return new Promise(resolve => setTimeout(resolve, 1000))
+    if (!data.rejectionReason) {
+      throw new Error('Le motif de rejet est requis')
+    }
+
+    const response = await fetch('/api/intervention-reject', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        rejectionReason: data.rejectionReason,
+        internalComment: data.internalComment
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors du rejet: ${response.status}`)
+    }
+
+    console.log(`❌ Intervention rejected successfully: ${result.intervention.id}`)
+    return result
+  }
+
+  /**
+   * Annulation d'intervention
+   */
+  async cancelIntervention(intervention: InterventionAction, data: CancellationData): Promise<void> {
+    if (!data.cancellationReason?.trim()) {
+      throw new Error("Le motif d'annulation est requis")
+    }
+
+    console.log(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
+
+    const response = await fetch('/api/intervention-cancel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        cancellationReason: data.cancellationReason,
+        internalComment: data.internalComment,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(error || 'Erreur lors de l\'annulation de l\'intervention')
+    }
+
+    const result = await response.json()
+    console.log(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
+    return result
   }
 
   /**
    * Actions de programmation
    */
   async programIntervention(intervention: InterventionAction, data: PlanningData): Promise<void> {
-    console.log("[v0] Programming confirmed with option:", data.option)
+    console.log("📅 Programming intervention with option:", data.option)
     
     if (data.option === "direct") {
-      console.log("[v0] Direct schedule:", data.directSchedule)
+      console.log("📅 Direct schedule:", data.directSchedule)
     } else if (data.option === "propose") {
-      console.log("[v0] Proposed slots:", data.proposedSlots)
+      console.log("📅 Proposed slots:", data.proposedSlots)
     }
 
-    // Ici on appellerait l'API réelle
-    // await fetch('/api/interventions/program', { ... })
-    
-    return new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await fetch('/api/intervention-schedule', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        planningType: data.option,
+        directSchedule: data.directSchedule,
+        proposedSlots: data.proposedSlots,
+        internalComment: `Planification ${data.option === 'direct' ? 'directe' : data.option === 'propose' ? 'avec choix' : 'à organiser'}`
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la planification: ${response.status}`)
+    }
+
+    console.log("📅 Intervention scheduled successfully:", result.intervention.id)
+    return result
   }
 
   /**
    * Actions d'exécution
    */
   async executeIntervention(intervention: InterventionAction, data: ExecutionData): Promise<void> {
-    console.log(`[v0] ${data.action === 'start' ? 'Starting' : 'Cancelling'} intervention ${intervention.id}`)
-    console.log(`[v0] Comment: ${data.comment}`)
-    console.log(`[v0] Internal comment: ${data.internalComment}`)
-    console.log(`[v0] Files: ${data.files.length}`)
+    console.log(`🚀 ${data.action === 'start' ? 'Starting' : 'Cancelling'} intervention ${intervention.id}`)
+    console.log(`📝 Comment: ${data.comment}`)
+    console.log(`📝 Internal comment: ${data.internalComment}`)
+    console.log(`📁 Files: ${data.files.length}`)
 
-    // Ici on appellerait l'API réelle
-    // await fetch('/api/interventions/execute', { ... })
-    
-    return new Promise(resolve => setTimeout(resolve, 1000))
+    if (data.action === 'start') {
+      const response = await fetch('/api/intervention-start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          interventionId: intervention.id,
+          startComment: data.comment || 'Intervention démarrée',
+          internalComment: data.internalComment
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `Erreur lors du démarrage: ${response.status}`)
+      }
+
+      console.log("🚀 Intervention started successfully:", result.intervention.id)
+      return result
+
+    } else if (data.action === 'cancel') {
+      // Cancel functionality to be implemented later
+      console.log("❌ Cancel functionality not implemented yet")
+      throw new Error("Fonctionnalité d'annulation non encore implémentée")
+    } else {
+      throw new Error(`Action d'exécution non reconnue: ${data.action}`)
+    }
   }
 
   /**
    * Actions de finalisation
    */
   async finalizeIntervention(intervention: InterventionAction, data: FinalizationData): Promise<void> {
-    console.log(`[v0] Finalizing intervention ${intervention.id}`)
-    console.log(`[v0] Final amount: ${data.finalAmount || 'Same as quote'}`)
-    console.log(`[v0] Payment comment: ${data.paymentComment}`)
+    console.log(`🏁 Finalizing intervention ${intervention.id}`)
+    console.log(`💰 Final amount: ${data.finalAmount || 'Same as quote'}`)
+    console.log(`📝 Payment comment: ${data.paymentComment}`)
 
-    // Ici on appellerait l'API réelle
-    // await fetch('/api/interventions/finalize', { ... })
-    
-    return new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await fetch('/api/intervention-finalize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        finalizationComment: data.paymentComment,
+        paymentStatus: 'approved', // Default status, could be made configurable
+        finalAmount: data.finalAmount,
+        paymentMethod: data.paymentMethod || 'Non spécifié',
+        adminNotes: data.adminNotes
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la finalisation: ${response.status}`)
+    }
+
+    console.log("🏁 Intervention finalized successfully:", result.intervention.id)
+    return result
+  }
+
+  /**
+   * Action de completion par prestataire
+   */
+  async completeIntervention(intervention: InterventionAction, data: {
+    completionNotes?: string,
+    internalComment?: string,
+    finalCost?: number,
+    workDescription?: string
+  }): Promise<void> {
+    console.log(`✅ Completing intervention ${intervention.id}`)
+    console.log(`📝 Work description: ${data.workDescription}`)
+    console.log(`💰 Final cost: ${data.finalCost}€`)
+
+    const response = await fetch('/api/intervention-complete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        completionNotes: data.completionNotes,
+        internalComment: data.internalComment,
+        finalCost: data.finalCost,
+        workDescription: data.workDescription
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la completion: ${response.status}`)
+    }
+
+    console.log("✅ Intervention completed successfully:", result.intervention.id)
+    return result
+  }
+
+  /**
+   * Action de validation par locataire
+   */
+  async validateByTenant(intervention: InterventionAction, data: {
+    validationStatus: 'approved' | 'contested',
+    tenantComment?: string,
+    contestReason?: string,
+    satisfactionRating?: number
+  }): Promise<void> {
+    console.log(`👍 Tenant validating intervention ${intervention.id}`)
+    console.log(`📝 Status: ${data.validationStatus}`)
+
+    const response = await fetch('/api/intervention-validate-tenant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        validationStatus: data.validationStatus,
+        tenantComment: data.tenantComment,
+        contestReason: data.contestReason,
+        satisfactionRating: data.satisfactionRating
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la validation: ${response.status}`)
+    }
+
+    console.log("👍 Intervention validated by tenant successfully:", result.intervention.id)
+    return result
   }
 
   /**

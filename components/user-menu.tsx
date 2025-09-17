@@ -47,6 +47,16 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
     router.push(`/${role}/profile`)
   }
 
+  const getRoleDisplayName = (role: string) => {
+    const roleNames = {
+      admin: "Administrateur",
+      gestionnaire: "Gestionnaire", 
+      prestataire: "Prestataire",
+      locataire: "Locataire"
+    }
+    return roleNames[role as keyof typeof roleNames] || role.charAt(0).toUpperCase() + role.slice(1)
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -54,11 +64,14 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
           variant="ghost" 
           className="flex items-center space-x-3 h-auto px-3 py-2 border border-transparent hover:bg-gray-100 hover:border-gray-300 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
         >
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-primary-foreground font-medium text-sm">{userInitial}</span>
           </div>
-          <span className="text-gray-700 font-medium hidden sm:block">{userName}</span>
-          <ChevronDown className="h-4 w-4 text-gray-500" />
+          <div className="hidden sm:flex flex-col items-start">
+            <span className="text-gray-700 font-medium text-sm leading-tight">{userName}</span>
+            <span className="text-gray-500 text-xs leading-tight">{getRoleDisplayName(role)}</span>
+          </div>
+          <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       
@@ -67,7 +80,7 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {role.charAt(0).toUpperCase() + role.slice(1)}
+              {getRoleDisplayName(role)}
             </p>
           </div>
         </DropdownMenuLabel>

@@ -24,26 +24,36 @@ export const isBuildingWideIntervention = (intervention: InterventionAction): bo
 
 export const getStatusColor = (status: string) => {
   switch (status) {
-    case "nouvelle_demande":
+    // Phase 1: Demande
+    case "demande":
       return "bg-red-100 text-red-800 border-red-200"
-    case "approuve":
+    case "rejetee":
+      return "bg-red-100 text-red-800 border-red-200"
+    case "approuvee":
       return "bg-green-100 text-green-800 border-green-200"
-    case "rejete":
-      return "bg-gray-100 text-gray-800 border-gray-200"
-    case "devis":
+    
+    // Phase 2: Planification & Exécution
+    case "demande_de_devis":
       return "bg-blue-100 text-blue-800 border-blue-200"
-    case "a_programmer":
+    case "planification":
       return "bg-yellow-100 text-yellow-800 border-yellow-200"
-    case "programme":
+    case "planifiee":
       return "bg-purple-100 text-purple-800 border-purple-200"
     case "en_cours":
-      return "bg-blue-100 text-blue-800 border-blue-200"
-    case "finalisation_attente":
+      return "bg-indigo-100 text-indigo-800 border-indigo-200"
+    
+    // Phase 3: Clôture
+    case "cloturee_par_prestataire":
       return "bg-orange-100 text-orange-800 border-orange-200"
-    case "terminee":
+    case "cloturee_par_locataire":
+      return "bg-emerald-100 text-emerald-800 border-emerald-200"
+    case "cloturee_par_gestionnaire":
       return "bg-green-100 text-green-800 border-green-200"
+    
+    // Transversal
     case "annulee":
       return "bg-gray-100 text-gray-800 border-gray-200"
+    
     default:
       return "bg-gray-100 text-gray-800 border-gray-200"
   }
@@ -51,26 +61,36 @@ export const getStatusColor = (status: string) => {
 
 export const getStatusLabel = (status: string) => {
   switch (status) {
-    case "nouvelle_demande":
-      return "Nouvelle demande"
-    case "approuve":
-      return "Approuvé"
-    case "rejete":
-      return "Rejeté"
-    case "devis":
-      return "Devis"
-    case "a_programmer":
-      return "À programmer"
-    case "programme":
-      return "Programmé"
+    // Phase 1: Demande
+    case "demande":
+      return "Demande"
+    case "rejetee":
+      return "Rejetée"
+    case "approuvee":
+      return "Approuvée"
+    
+    // Phase 2: Planification & Exécution
+    case "demande_de_devis":
+      return "Demande de devis"
+    case "planification":
+      return "Planification"
+    case "planifiee":
+      return "Planifiée"
     case "en_cours":
       return "En cours"
-    case "finalisation_attente":
-      return "Finalisation en attente"
-    case "terminee":
-      return "Terminée"
+    
+    // Phase 3: Clôture
+    case "cloturee_par_prestataire":
+      return "Clôturée par prestataire"
+    case "cloturee_par_locataire":
+      return "Clôturée par locataire"
+    case "cloturee_par_gestionnaire":
+      return "Clôturée par gestionnaire"
+    
+    // Transversal
     case "annulee":
       return "Annulée"
+    
     default:
       return status
   }

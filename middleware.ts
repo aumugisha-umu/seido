@@ -25,28 +25,36 @@ export async function middleware(request: NextRequest) {
   
   // Si route publique → vérifier si déjà connecté pour rediriger
   if (publicRoutes.includes(pathname)) {
-    // Routes auth : rediriger si déjà connecté
-    if (pathname.startsWith('/auth/')) {
+    // Routes auth : rediriger si déjà connecté (SAUF /auth/callback qui doit s'exécuter)
+    if (pathname.startsWith('/auth/') && pathname !== '/auth/callback') {
       const cookies = request.cookies.getAll()
       const hasAuthCookie = cookies.some(cookie => 
         cookie.name.startsWith('sb-') && cookie.value && cookie.value.length > 0
       )
+      
+      console.log('🔍 [MIDDLEWARE-SIMPLE] Auth route detected:', pathname, 'hasAuthCookie:', hasAuthCookie)
+      console.log('🔍 [MIDDLEWARE-SIMPLE] All cookies:', cookies.map(c => ({ 
+        name: c.name, 
+        hasValue: !!c.value,
+        valueLength: c.value?.length || 0,
+        isSupabase: c.name.startsWith('sb-')
+      })))
       
       if (hasAuthCookie) {
         // Essayer de récupérer le rôle depuis le JWT token dans les cookies
         let userRole = 'gestionnaire' // fallback par défaut
         
         try {
-          // Chercher le cookie access token de Supabase
+          // Chercher le cookie access token de Supabase - nom correct
           const authTokenCookie = cookies.find(cookie => 
-            cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')
+            cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token')
           )
           
-          console.log('🔍 [MIDDLEWARE-SIMPLE] Available cookies:', cookies.map(c => ({ name: c.name, hasValue: !!c.value })))
-          console.log('🔍 [MIDDLEWARE-SIMPLE] Auth token cookie found:', {
+          console.log('🔍 [MIDDLEWARE-SIMPLE] Auth token cookie search result:', {
             found: !!authTokenCookie,
             cookieName: authTokenCookie?.name,
-            hasValue: !!authTokenCookie?.value
+            hasValue: !!authTokenCookie?.value,
+            totalSupabaseCookies: cookies.filter(c => c.name.startsWith('sb-')).length
           })
           
           if (authTokenCookie && authTokenCookie.value) {
@@ -55,24 +63,26 @@ export async function middleware(request: NextRequest) {
             })
             
             let authData
+            let rawCookieValue = authTokenCookie.value
+            
             try {
-              // Le cookie contient un JSON avec access_token
-              authData = JSON.parse(authTokenCookie.value)
-            } catch (parseError) {
-              console.log('⚠️ [MIDDLEWARE-SIMPLE] Cookie JSON parse failed, trying base64 decode:', {
-                error: parseError.message,
-                cookieStart: authTokenCookie.value.substring(0, 20)
-              })
-              
-              // Si le cookie est base64 encodé, le décoder d'abord
-              try {
-                const decodedValue = atob(authTokenCookie.value)
-                authData = JSON.parse(decodedValue)
+              // Si le cookie commence par "base64-", enlever ce préfixe et décoder
+              if (rawCookieValue.startsWith('base64-')) {
+                console.log('🔍 [MIDDLEWARE-SIMPLE] Cookie has base64- prefix, removing and decoding...')
+                const base64Content = rawCookieValue.substring(7) // Enlever "base64-"
+                rawCookieValue = atob(base64Content)
                 console.log('✅ [MIDDLEWARE-SIMPLE] Successfully decoded base64 cookie')
-              } catch (base64Error) {
-                console.log('❌ [MIDDLEWARE-SIMPLE] Base64 decode also failed:', base64Error.message)
-                throw parseError // Garder l'erreur originale
               }
+              
+              // Parser le JSON résultant
+              authData = JSON.parse(rawCookieValue)
+            } catch (parseError) {
+              console.log('⚠️ [MIDDLEWARE-SIMPLE] Cookie parsing failed:', {
+                error: parseError.message,
+                cookieStart: authTokenCookie.value.substring(0, 30),
+                hasBase64Prefix: authTokenCookie.value.startsWith('base64-')
+              })
+              throw parseError
             }
             
             console.log('🔍 [MIDDLEWARE-SIMPLE] Auth data parsed:', {
@@ -115,9 +125,14 @@ export async function middleware(request: NextRequest) {
         console.log('🔄 [MIDDLEWARE-SIMPLE] Auth page + existing session → REDIRECT to:', {
           detectedRole: userRole,
           targetPath: dashboardPath,
-          originalPath: pathname
+          originalPath: pathname,
+          timestamp: new Date().toISOString(),
+          redirectUrl: new URL(dashboardPath, request.url).toString()
         })
-        return NextResponse.redirect(new URL(dashboardPath, request.url))
+        
+        const redirectResponse = NextResponse.redirect(new URL(dashboardPath, request.url))
+        console.log('✅ [MIDDLEWARE-SIMPLE] Redirect response created successfully')
+        return redirectResponse
       }
     }
     

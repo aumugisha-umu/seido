@@ -34,7 +34,8 @@ export async function POST(request: Request) {
       phone,
       address,
       notes,
-      contact_type,
+      role, // ✅ Nouveau champ direct
+      provider_category, // ✅ Nouveau champ direct  
       speciality,
       team_id,
       is_active = true
@@ -42,36 +43,47 @@ export async function POST(request: Request) {
 
     console.log('🚀 [CREATE-CONTACT-API] Received request:', { 
       email, 
-      contact_type, 
+      role, 
+      provider_category,
       team_id,
       hasServiceRole: !!supabaseAdmin 
     })
 
-    // Validation des données requises
-    if (!name || !email || !contact_type || !team_id) {
+    // ✅ Validation des données requises (nouvelle logique)
+    if (!name || !email || !role || !team_id) {
       return NextResponse.json(
-        { error: 'Données requises manquantes: name, email, contact_type, team_id' },
+        { error: 'Données requises manquantes: name, email, role, team_id' },
         { status: 400 }
       )
     }
 
-    // Préparer l'objet contact
-    const contactToCreate = {
+    // ✅ Validation spécifique pour les prestataires
+    if (role === 'prestataire' && !provider_category) {
+      return NextResponse.json(
+        { error: 'provider_category est obligatoire pour les prestataires' },
+        { status: 400 }
+      )
+    }
+
+    // Préparer l'objet user (nouvelle architecture)
+    const userToCreate = {
+      email,
       name,
       first_name: first_name || null,
       last_name: last_name || null,
-      email,
       phone: phone || null,
       address: address || null,
       notes: notes || null,
-      contact_type: contact_type as Database['public']['Enums']['contact_type'],
+      company: null, // Peut être ajouté plus tard
       speciality: (speciality && speciality.trim()) ? 
         speciality as Database['public']['Enums']['intervention_type'] : null,
+      role: role as Database['public']['Enums']['user_role'],
+      provider_category: provider_category as Database['public']['Enums']['provider_category'] | null,
       team_id,
       is_active
     }
 
-    console.log('📝 [CREATE-CONTACT-API] Contact data:', JSON.stringify(contactToCreate, null, 2))
+    console.log('📝 [CREATE-CONTACT-API] User data:', JSON.stringify(userToCreate, null, 2))
 
     let result;
 
@@ -80,8 +92,8 @@ export async function POST(request: Request) {
       console.log('🔐 [CREATE-CONTACT-API] Using admin client (service role)')
       
       const { data, error } = await supabaseAdmin
-        .from('contacts')
-        .insert(contactToCreate)
+        .from('users')
+        .insert(userToCreate)
         .select()
         .single()
 
@@ -94,10 +106,10 @@ export async function POST(request: Request) {
     } else {
       // Méthode 2: Utiliser le service contact normal (fallback)
       console.log('📝 [CREATE-CONTACT-API] Using normal contact service (fallback)')
-      result = await contactService.create(contactToCreate)
+      result = await contactService.create(userToCreate)
     }
 
-    console.log('✅ [CREATE-CONTACT-API] Contact created successfully:', result.id)
+    console.log('✅ [CREATE-CONTACT-API] User/Contact created successfully:', result.id)
 
     return NextResponse.json({
       success: true,

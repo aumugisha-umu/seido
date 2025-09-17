@@ -4,6 +4,36 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
+// Helper function to determine document type from file type and name
+function getDocumentType(mimeType: string, filename: string): string {
+  const lowerFilename = filename.toLowerCase()
+  
+  // Photos
+  if (mimeType.startsWith('image/')) {
+    if (lowerFilename.includes('avant')) return 'photo_avant'
+    if (lowerFilename.includes('apres') || lowerFilename.includes('après')) return 'photo_apres'
+    return 'photo_avant' // Default for images
+  }
+  
+  // Documents
+  if (mimeType === 'application/pdf') {
+    if (lowerFilename.includes('rapport')) return 'rapport'
+    if (lowerFilename.includes('facture')) return 'facture'
+    if (lowerFilename.includes('devis')) return 'devis'
+    if (lowerFilename.includes('plan')) return 'plan'
+    if (lowerFilename.includes('certificat')) return 'certificat'
+    if (lowerFilename.includes('garantie')) return 'garantie'
+  }
+  
+  // Spreadsheets and documents
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
+    if (lowerFilename.includes('devis')) return 'devis'
+    if (lowerFilename.includes('facture')) return 'facture'
+  }
+  
+  return 'autre' // Default type
+}
+
 export async function POST(request: NextRequest) {
   console.log("🔧 create-manager-intervention API route called")
   
@@ -66,7 +96,7 @@ export async function POST(request: NextRequest) {
       selectedLotId,
       
       // Contact assignments
-      selectedManagerId,
+      selectedManagerIds, // ✅ Nouveau format: array de gestionnaires
       selectedProviderIds,
       
       // Scheduling
@@ -90,17 +120,49 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
+    console.log("🔍 Validating required fields:", { 
+      title: !!title, 
+      description: !!description, 
+      selectedManagerIds: selectedManagerIds?.length || 0,
+      hasLogement: !!(selectedBuildingId || selectedLotId) 
+    })
+    
     if (!title || !description || (!selectedBuildingId && !selectedLotId)) {
       return NextResponse.json({
         success: false,
         error: 'Champs requis manquants (titre, description, logement)'
       }, { status: 400 })
     }
+    
+    if (!selectedManagerIds || selectedManagerIds.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Au moins un gestionnaire doit être assigné'
+      }, { status: 400 })
+    }
 
     // Get user data from database
     console.log("👤 Getting user data...")
-    const user = await userService.getById(authUser.id)
+    console.log("👤 Looking for user with auth_user_id:", authUser.id)
+    
+    // ✅ Utiliser findByAuthUserId au lieu de getById pour la nouvelle structure DB
+    let user
+    try {
+      user = await userService.findByAuthUserId(authUser.id)
+      console.log("✅ Found user via findByAuthUserId:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+    } catch (error) {
+      console.error("❌ Error with findByAuthUserId, trying getById:", error)
+      // Fallback: essayer avec getById au cas où
+      try {
+        user = await userService.getById(authUser.id)
+        console.log("✅ Found user via getById fallback:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+      } catch (fallbackError) {
+        console.error("❌ Both methods failed:", fallbackError)
+      }
+    }
+    
     if (!user) {
+      console.error("❌ No user found for auth_user_id:", authUser.id)
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
@@ -145,38 +207,40 @@ export async function POST(request: NextRequest) {
       // Get tenant for this lot if exists
       console.log("👤 Looking for tenant in lot...")
       
-      // First check if there's a direct tenant user linked to the lot
-      const { data: lotData } = await supabase
-        .from('lots')
-        .select('tenant_id')
-        .eq('id', lotId)
-        .single()
-
-      if (lotData?.tenant_id) {
-        tenantId = lotData.tenant_id
-        console.log("✅ Found tenant from lot.tenant_id:", tenantId)
-      } else {
-        // Fallback: Look for tenant in lot_contacts
+      // ✅ Utiliser uniquement lot_contacts (nouvelle architecture)
+      console.log("🔄 Using only lot_contacts for tenant lookup...")
+      
+      {
+        // ✅ Look for tenant in lot_contacts avec nouvelle logique
         const { data: tenantContactData } = await supabase
           .from('lot_contacts')
           .select(`
-            contacts!inner(
+            user:user_id (
               id,
               name,
               email,
-              contact_type
-            )
+              role,
+              provider_category
+            ),
+            is_primary
           `)
           .eq('lot_id', lotId)
-          .eq('contacts.contact_type', 'locataire')
-          .is('end_date', null)
-          .maybeSingle()
+          .or('end_date.is.null,end_date.gt.now()') // Contacts actifs
 
-        if (tenantContactData?.contacts) {
-          // For now we don't link to user_id, just store contact info
-          console.log("✅ Found tenant contact for lot:", tenantContactData.contacts.name)
+        if (tenantContactData && tenantContactData.length > 0) {
+          // ✅ Trouver le locataire parmi les contacts (rôle français DB)
+          const tenantContact = tenantContactData.find(contact => {
+            return contact.user?.role === 'locataire' // Utiliser le rôle français de la DB
+          })
+          
+          if (tenantContact?.user) {
+            tenantId = tenantContact.user.id
+            console.log("✅ Found tenant from lot_contacts:", tenantId)
+          } else {
+            console.log("ℹ️ No tenant found in lot_contacts")
+          }
         } else {
-          console.log("⚠️ No tenant found for this lot - creating intervention without tenant")
+          console.log("ℹ️ No contacts found for this lot")
         }
       }
 
@@ -191,6 +255,7 @@ export async function POST(request: NextRequest) {
       
       if (!buildingId) {
         return NextResponse.json({
+          success: false,
           error: "ID du bâtiment invalide"
         }, { status: 400 })
       }
@@ -198,6 +263,7 @@ export async function POST(request: NextRequest) {
       const building = await buildingService.getById(buildingId)
       if (!building) {
         return NextResponse.json({
+          success: false,
           error: "Building not found"
         }, { status: 404 })
       }
@@ -266,13 +332,47 @@ export async function POST(request: NextRequest) {
       scheduledDate = `${fixedDateTime.date}T${fixedDateTime.time}:00.000Z`
     }
 
-    // Determine primary assigned contact (prefer provider over manager for assigned_contact_id)
-    let primaryContactId: string | null = null
-    if (selectedProviderIds && selectedProviderIds.length > 0) {
-      primaryContactId = selectedProviderIds[0] // Use first provider as primary
-    }
+    // ✅ Note: assigned_contact_id n'existe plus dans la nouvelle structure DB
+    // Les assignations se font maintenant via intervention_contacts
 
     // Prepare intervention data
+    console.log("📝 Preparing intervention data with multiple managers:", selectedManagerIds)
+    
+    // ✅ LOGIQUE MÉTIER: Déterminer le statut selon les règles de création par gestionnaire
+    let interventionStatus: Database['public']['Enums']['intervention_status']
+    
+    console.log("🔍 Analyse des conditions pour déterminer le statut:", {
+      hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
+      expectsQuote,
+      hasTenant: !!tenantId,
+      onlyOneManager: selectedManagerIds.length === 1,
+      noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
+      schedulingType,
+      hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
+    })
+    
+    // CAS 1: Demande de devis si prestataires assignés + devis requis
+    if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
+      interventionStatus = 'demande_de_devis'
+      console.log("✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
+      
+    // CAS 2: Planifiée directement si conditions strictes remplies
+    } else if (
+      !tenantId && // Pas de locataire dans le bien
+      selectedManagerIds.length === 1 && // Que le gestionnaire créateur
+      (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
+      schedulingType === 'fixed' && // Date/heure fixe
+      fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
+    ) {
+      interventionStatus = 'planifiee'
+      console.log("✅ Statut déterminé: PLANIFIEE (pas locataire + seul gestionnaire + date fixe)")
+      
+    // CAS 3: Planification dans tous les autres cas
+    } else {
+      interventionStatus = 'planification'
+      console.log("✅ Statut déterminé: PLANIFICATION (cas par défaut)")
+    }
+    
     const interventionData: any = {
       title,
       description,
@@ -280,10 +380,9 @@ export async function POST(request: NextRequest) {
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
       tenant_id: tenantId, // Can be null for manager-created interventions
-      manager_id: selectedManagerId || authUser.id, // Use selected manager or current user
-      assigned_contact_id: primaryContactId,
+      // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
       team_id: interventionTeamId,
-      status: 'validee' as Database['public']['Enums']['intervention_status'], // Manager interventions are pre-validated
+      status: interventionStatus, // ✅ NOUVEAU: Statut déterminé selon les règles métier
       scheduled_date: scheduledDate,
       manager_comment: location ? `Localisation: ${location}` : null,
       requires_quote: expectsQuote || false,
@@ -309,33 +408,38 @@ export async function POST(request: NextRequest) {
 
     // Handle multiple contact assignments
     console.log("👥 Creating contact assignments...")
+    console.log("👥 Selected managers:", selectedManagerIds.length)
+    console.log("👥 Selected providers:", selectedProviderIds?.length || 0)
+    
     const contactAssignments: Array<{
       intervention_id: string,
-      contact_id: string,
+      user_id: string, // ✅ Correction: c'est user_id, pas contact_id
       role: string,
       is_primary: boolean,
       individual_message?: string
     }> = []
 
-    // Add manager assignment
-    if (selectedManagerId) {
+    // ✅ Add all manager assignments
+    selectedManagerIds.forEach((managerId: string, index: number) => {
+      console.log(`👥 Adding manager assignment ${index + 1}:`, managerId)
       contactAssignments.push({
         intervention_id: intervention.id,
-        contact_id: selectedManagerId,
+        user_id: managerId, // ✅ Correction: user_id
         role: 'gestionnaire',
-        is_primary: true,
-        individual_message: messageType === 'individual' ? individualMessages[selectedManagerId] : undefined
+        is_primary: index === 0, // First manager is primary
+        individual_message: messageType === 'individual' ? individualMessages[managerId] : undefined
       })
-    }
+    })
 
-    // Add provider assignments
+    // ✅ Add provider assignments
     if (selectedProviderIds && selectedProviderIds.length > 0) {
       selectedProviderIds.forEach((providerId: string, index: number) => {
+        console.log(`🔧 Adding provider assignment ${index + 1}:`, providerId)
         contactAssignments.push({
           intervention_id: intervention.id,
-          contact_id: providerId,
+          user_id: providerId, // ✅ Correction: user_id
           role: 'prestataire',
-          is_primary: index === 0, // First provider is primary
+          is_primary: false, // Les gestionnaires sont prioritaires pour is_primary
           individual_message: messageType === 'individual' ? individualMessages[providerId] : undefined
         })
       })
@@ -383,10 +487,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TODO: Handle file uploads if provided
+    // Handle file uploads if provided
     if (files && files.length > 0) {
-      console.log("📎 File handling not yet implemented, files provided:", files.length)
-      // This would involve uploading files to Supabase Storage and linking them to the intervention
+      console.log("📎 Processing file uploads:", files.length)
+      
+      try {
+        // Store file information for later processing
+        // Note: Actual file upload will be handled by separate API calls from the frontend
+        // This is because FormData with files needs special handling in Next.js
+        console.log("📝 Files will be uploaded separately via upload API")
+        console.log("Files to upload:", files.map((f: any) => ({ name: f.name, size: f.size, type: f.type })))
+        
+        // We'll return the file information so the frontend can handle the uploads
+        // The frontend will call /api/upload-intervention-document for each file
+        
+      } catch (error) {
+        console.error("❌ Error handling file information:", error)
+        // Don't fail the entire intervention creation for file handling errors
+      }
     }
 
     // Store additional metadata in manager_comment

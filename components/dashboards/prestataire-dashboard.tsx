@@ -24,70 +24,81 @@ export default function PrestataireDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+          <div className="space-y-8">
+            <div className="animate-pulse">
+              <div className="h-8 bg-slate-200 rounded w-1/3 mb-2"></div>
+              <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+            </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-3">
-                  <div className="h-4 bg-gray-200 rounded"></div>
-                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-slate-200 rounded"></div>
+                  <div className="h-8 bg-slate-200 rounded w-1/2"></div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
+          </div>
+        </main>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="text-center py-8">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Erreur de chargement</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()}>
-            Réessayer
-          </Button>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-medium text-slate-900 mb-2">Erreur de chargement</h2>
+            <p className="text-slate-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Réessayer
+            </Button>
+          </div>
+        </main>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Bonjour {user?.name} 👋</h1>
-          <p className="text-muted-foreground">Gestion de vos interventions et services</p>
+    <div className="min-h-screen bg-slate-50">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Page Header - Responsive */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl lg:text-4xl mb-2">Bonjour {user?.name} 👋</h1>
+              <p className="text-slate-600">Gestion de vos interventions et services</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="bg-transparent">
+                <Calendar className="h-4 w-4 mr-2" />
+                Planning
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="bg-transparent"
+                onClick={() => router.push('/prestataire/interventions')}
+              >
+                <Wrench className="h-4 w-4 mr-2" />
+                Voir toutes les interventions
+              </Button>
+              <Button size="sm" variant="outline" className="bg-transparent">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Rapports
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="bg-background">
-            <Calendar className="h-4 w-4 mr-2" />
-            Planning
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="bg-background"
-            onClick={() => router.push('/prestataire/interventions')}
-          >
-            <Wrench className="h-4 w-4 mr-2" />
-            Voir toutes les interventions
-          </Button>
-          <Button size="sm" variant="outline" className="bg-background">
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Rapports
-          </Button>
-        </div>
-      </div>
+
+        <div className="space-y-8">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -185,6 +196,8 @@ export default function PrestataireDashboard() {
           )}
         </CardContent>
       </Card>
+        </div>
+      </main>
     </div>
   )
 }

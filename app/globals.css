@@ -255,6 +255,43 @@
   .btn-primary-enhanced:hover::before {
     left: 100%;
   }
+  
+  /* Custom scrollbar for expanded lots */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 0; /* Disable horizontal scrollbar */
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-horizontal {
+    display: none; /* Hide horizontal scrollbar */
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  
+  .scrollbar-track-slate-100::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  
+  .scrollbar-thumb-slate-300::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+  }
 }
 
 @keyframes gradient {

@@ -47,7 +47,7 @@ const mockNotifications: Notification[] = [
     id: "2",
     type: "payment",
     title: "Nouveau document disponible",
-    message: "Votre quittance de loyer pour janvier 2024 est disponible dans votre espace",
+    message: "Vos documents de janvier 2024 sont disponibles dans votre espace",
     date: "2024-01-14",
     time: "16:45",
     read: false,

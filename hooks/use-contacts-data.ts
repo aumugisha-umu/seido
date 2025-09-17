@@ -47,8 +47,23 @@ export function useContactsData() {
       setError(null)
       console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
       
-      // 1. Récupérer l'équipe de l'utilisateur
-      const userTeams = await teamService.getUserTeams(userId)
+      // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
+      let userTeams = []
+      try {
+        userTeams = await teamService.getUserTeams(userId)
+      } catch (teamError) {
+        console.error("❌ [CONTACTS-DATA] Error fetching user teams:", teamError)
+        setData({
+          contacts: [],
+          pendingInvitations: [],
+          userTeam: null,
+          contactsInvitationStatus: {}
+        })
+        setError("Erreur lors du chargement de votre équipe. Veuillez réessayer.")
+        setLoading(false)
+        return
+      }
+      
       if (!userTeams || userTeams.length === 0) {
         console.log("⚠️ [CONTACTS-DATA] No team found for user")
         setData({

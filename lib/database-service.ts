@@ -2869,10 +2869,23 @@ export const teamService = {
         user = await userService.getById(userId)
         console.log("👤 [TEAM-STATUS-NEW] User found by ID:", user.name, user.role)
       } catch (userError) {
-        console.log("⚠️ [TEAM-STATUS-NEW] User not found by ID, this might be normal for new signup")
-        // Si l'utilisateur n'est pas trouvé, retourner hasTeam: true pour éviter les erreurs
-        // Le signup flow handle déjà la création d'équipe
-        return { hasTeam: true, team: null }
+        console.log("⚠️ [TEAM-STATUS-NEW] User not found by ID, checking teams directly")
+        
+        // L'utilisateur n'est pas trouvé - vérifier directement s'il a des équipes
+        // via team_members (plus robuste que de créer une équipe)
+        try {
+          const existingTeams = await this.getUserTeams(userId)
+          if (existingTeams.length > 0) {
+            console.log("✅ [TEAM-STATUS-NEW] User has teams despite profile issue:", existingTeams.length)
+            return { hasTeam: true, team: existingTeams[0] }
+          }
+        } catch (teamError) {
+          console.log("⚠️ [TEAM-STATUS-NEW] Could not fetch teams either:", teamError)
+        }
+        
+        // Aucune équipe trouvée et profil inaccessible - retourner une erreur douce
+        console.log("🔄 [TEAM-STATUS-NEW] No profile and no teams found - allowing access with warning")
+        return { hasTeam: true, team: null, error: "Profil utilisateur temporairement inaccessible" }
       }
       
       // 2. Vérifier si l'utilisateur a déjà une équipe

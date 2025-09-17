@@ -31,26 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // ✅ NOUVEAU: Initialiser la détection automatique des sessions corrompues
-    const initializeAuth = async () => {
-      console.log('🚀 [AUTH-PROVIDER] Initializing authentication system...')
-      
-      try {
-        // Détecter et nettoyer les sessions corrompues avant tout
-        await initializeSessionDetection()
-        
-        // Ensuite récupérer l'utilisateur actuel
-        getCurrentUser()
-        
-      } catch (initError) {
-        console.error('❌ [AUTH-PROVIDER] Error during auth initialization:', initError)
-        // Continuer quand même avec getCurrentUser en cas d'erreur d'initialisation
-        getCurrentUser()
-      }
-    }
-
-    // Démarrer l'initialisation
-    initializeAuth()
+    // ✅ SIMPLIFIÉ: Désactivation temporaire de la détection automatique
+    console.log('🚀 [AUTH-PROVIDER] Initializing authentication system (simplified)...')
+    
+    // Récupérer directement l'utilisateur sans détection automatique
+    getCurrentUser()
 
     // Écouter les changements d'état d'authentification
     const { data: { subscription } } = authService.onAuthStateChange((user) => {
@@ -90,125 +75,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getCurrentUser = async (retryCount = 0) => {
     try {
-      console.log(`🔍 [USE-AUTH] Getting current user (attempt ${retryCount + 1})...`)
+      console.log(`🔍 [USE-AUTH-SIMPLE] Getting current user (attempt ${retryCount + 1})...`)
       
-      // ✅ NOUVEAU: Logger l'état des cookies pour debug
-      logSessionState()
-      
-      // ✅ UTILISATION DE L'UTILITAIRE CENTRALISÉ
-      const timeoutDuration = calculateTimeout(ENV_CONFIG.authTimeout, retryCount)
-      
-      console.log(`⏱️ [USE-AUTH] Environment: ${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}, timeout: ${timeoutDuration}ms`)
-      
-      // Timeout avec durée adaptative
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('getCurrentUser timeout')), timeoutDuration)
-      )
-      
-      const userPromise = authService.getCurrentUser()
-      const result = await Promise.race([userPromise, timeoutPromise])
-      
-      // ✅ NOUVEAU: Vérifier si un nettoyage de session est nécessaire
-      if (result && result.requiresCleanup) {
-        console.log('🚨 [USE-AUTH] Session cleanup required - corrupted session detected')
-        
-        const errorType = analyzeSessionError('Auth session missing!', true)
-        
-        // Double vérification : ne nettoyer que si vraiment nécessaire
-        if (errorType !== 'recoverable') {
-          await cleanupCorruptedSession({
-            redirectToLogin: true,
-            reason: 'Corrupted session detected during getCurrentUser',
-            errorType,
-            clearStorage: true
-          })
-          
-          // Arrêter l'exécution ici car on redirige vers login
-          return
-        } else {
-          console.log('ℹ️ [USE-AUTH] Session cleanup not needed after double check - continuing normally')
-        }
-      }
-      
+      // ✅ SIMPLIFIÉ: Appel direct sans timeout complexe
+      const result = await authService.getCurrentUser()
       const { user } = result
       
-      console.log('✅ [USE-AUTH] Current user loaded:', user ? `${user.name} (${user.role})` : 'none')
+      console.log('✅ [USE-AUTH-SIMPLE] Current user loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
       
-      // Si pas d'user et on est sur dashboard après signup, essayer encore
-      if (!user && retryCount < 2 && window.location.pathname.includes('/dashboard')) {
-        console.log('🔄 [USE-AUTH] No user on dashboard - retrying in 1s...')
-        setTimeout(() => getCurrentUser(retryCount + 1), 1000)
-        return
-      }
-      
     } catch (error) {
-      console.error('❌ [USE-AUTH] Error getting current user:', error)
+      console.error('❌ [USE-AUTH-SIMPLE] Error getting current user:', error)
       
-      // ✅ NOUVEAU: Vérifier si l'erreur nécessite un nettoyage immédiat
-      if (error instanceof Error && error.name === 'SessionCleanupRequired') {
-        console.log('🚨 [USE-AUTH] Session cleanup required from error - checking if really needed')
-        
-        const errorType = analyzeSessionError(error.message, true)
-        
-        // Double vérification : ne nettoyer que si vraiment nécessaire
-        if (errorType !== 'recoverable') {
-          console.log('🚨 [USE-AUTH] Confirmed: session cleanup needed')
-          await cleanupCorruptedSession({
-            redirectToLogin: true,
-            reason: 'Session cleanup required error caught',
-            errorType,
-            clearStorage: true
-          })
-          
-          // Arrêter l'exécution ici car on redirige vers login
-          return
-        } else {
-          console.log('ℹ️ [USE-AUTH] Session cleanup not needed after double check - treating as normal error')
-        }
-      }
-      
-      // ✅ UTILISATION DE LA CONFIGURATION CENTRALISÉE
-      const maxRetries = ENV_CONFIG.retry.maxAttempts - 1 // -1 car on compte depuis 0
-      const retryDelay = retryCount < 1 ? 2000 : 3000 // 2s first retry, 3s subsequent
-      
-      // Retry si erreur et on est sur dashboard
-      if (retryCount < maxRetries && window.location.pathname.includes('/dashboard')) {
-        console.log(`🔄 [USE-AUTH] Error on dashboard (${retryCount + 1}/${maxRetries + 1}) - retrying in ${retryDelay}ms...`)
-        setTimeout(() => getCurrentUser(retryCount + 1), retryDelay)
-        return
-      }
-      
-      console.log('🚨 [USE-AUTH] Max retries reached - checking if session cleanup needed')
-      
-      // ✅ NOUVEAU: Si on a épuisé tous les retries, vérifier si on doit nettoyer la session
-      const shouldCleanup = typeof error === 'object' && error !== null && 
-                           'message' in error && 
-                           typeof (error as any).message === 'string'
-      
-      if (shouldCleanup) {
-        const errorType = analyzeSessionError((error as any).message, true)
-        if (errorType !== 'recoverable') {
-          console.log('🚨 [USE-AUTH] All retries failed with non-recoverable error - cleaning up session')
-          
-          await cleanupCorruptedSession({
-            redirectToLogin: true,
-            reason: 'Max retries reached with corrupted session',
-            errorType,
-            clearStorage: true
-          })
-          
-          // Arrêter l'exécution ici car on redirige vers login
-          return
-        } else {
-          console.log('ℹ️ [USE-AUTH] Error not requiring cleanup after cookie context check')
-        }
-      }
-      
-      console.log('🔄 [USE-AUTH] Setting user to null after max retries')
+      // ✅ SIMPLIFIÉ: Juste signaler null user, pas de nettoyage automatique 
+      console.log('🔄 [USE-AUTH-SIMPLE] Setting user to null after error')
       setUser(null)
     } finally {
-      console.log('✅ [USE-AUTH] Setting loading to false')
+      console.log('✅ [USE-AUTH-SIMPLE] Setting loading to false')
       setLoading(false)
     }
   }

@@ -194,9 +194,51 @@ export interface CleanupOptions {
 }
 
 /**
- * Nettoyage complet et redirection vers login
+ * ✅ FONCTION SIMPLIFIÉE pour test manuel
+ * Appelle cette fonction dans la console pour tester le nettoyage
+ */
+export const manualSessionCleanup = async (): Promise<void> => {
+  console.log('🧪 [MANUAL-CLEANUP] Starting manual session cleanup for testing...')
+  
+  try {
+    // 1. Nettoyer Supabase
+    console.log('1️⃣ [MANUAL-CLEANUP] Signing out from Supabase...')
+    await forceSupabaseSignOut()
+    
+    // 2. Attendre un peu
+    console.log('2️⃣ [MANUAL-CLEANUP] Waiting 500ms...')
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // 3. Redirection simple
+    console.log('3️⃣ [MANUAL-CLEANUP] Redirecting to login...')
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/login?reason=manual_cleanup'
+      console.log('✅ [MANUAL-CLEANUP] Redirect executed')
+    } else {
+      console.error('❌ [MANUAL-CLEANUP] No window object')
+    }
+    
+  } catch (error) {
+    console.error('❌ [MANUAL-CLEANUP] Error:', error)
+  }
+}
+
+// ✅ RENDRE DISPONIBLE GLOBALEMENT pour test dans la console
+if (typeof window !== 'undefined') {
+  (window as any).testSessionCleanup = manualSessionCleanup
+  console.log('🧪 [SESSION-CLEANUP] Test function available: window.testSessionCleanup()')
+}
+
+/**
+ * Nettoyage complet et redirection vers login (VERSION COMPLEXE TEMPORAIREMENT COMMENTÉE)
  */
 export const cleanupCorruptedSession = async (options: CleanupOptions): Promise<void> => {
+  console.log('⚠️ [SESSION-CLEANUP] Complex cleanup temporarily disabled - use manualSessionCleanup() for testing')
+  
+  // Fallback vers la fonction simple
+  await manualSessionCleanup()
+  
+  /* VERSION COMPLEXE TEMPORAIREMENT COMMENTÉE
   const { redirectToLogin, reason, errorType, clearStorage = true } = options
   
   console.log('🚨 [SESSION-CLEANUP] Starting complete session cleanup:', {
@@ -274,6 +316,7 @@ export const cleanupCorruptedSession = async (options: CleanupOptions): Promise<
   }
   
   console.log('✅ [SESSION-CLEANUP] Complete session cleanup finished')
+  */
 }
 
 /**
@@ -414,8 +457,15 @@ export const detectCorruptedSessionOnLoad = async (): Promise<boolean> => {
 
 /**
  * Fonction d'initialisation à appeler au démarrage de l'app
+ * ✅ TEMPORAIREMENT DÉSACTIVÉE pour debug
  */
 export const initializeSessionDetection = async (): Promise<void> => {
+  console.log('🔄 [SESSION-INIT] Session detection temporarily disabled for debugging')
+  // Temporairement désactivé
+  return
+  
+  /* 
+  // Code original commenté temporairement
   console.log('🚀 [SESSION-INIT] Initializing session detection system...')
   
   const isCorrupted = await detectCorruptedSessionOnLoad()
@@ -432,4 +482,5 @@ export const initializeSessionDetection = async (): Promise<void> => {
   } else {
     console.log('✅ [SESSION-INIT] Session detection completed - no issues found')
   }
+  */
 }

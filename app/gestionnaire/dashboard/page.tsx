@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { useManagerStats, useContactStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
+import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function DashboardGestionnaire() {
@@ -26,6 +27,9 @@ export default function DashboardGestionnaire() {
   const { stats, data, loading, error, refetch } = useManagerStats()
   const { contactStats, loading: contactsLoading, refetch: refetchContactStats } = useContactStats()
   const { user } = useAuth() // ✅ AJOUTÉ: Pour obtenir l'équipe utilisateur
+  
+  // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
+  useDashboardSessionTimeout()
 
   // Fonction pour obtenir le style et le libellé des statuts d'intervention
   const getInterventionStatusInfo = (status: string) => {

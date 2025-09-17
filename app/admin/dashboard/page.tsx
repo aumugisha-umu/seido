@@ -5,9 +5,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 
 export default function AdminDashboard() {
   const { user } = useAuth()
+  
+  // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
+  useDashboardSessionTimeout()
 
   return (
     <div className="min-h-screen bg-slate-50">

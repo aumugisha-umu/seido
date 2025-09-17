@@ -114,28 +114,30 @@ export const usePrestataireData = (userId: string) => {
     try {
       setData(prev => ({ ...prev, loading: true, error: null }))
       
-      // 1. Get the contact_id for this prestataire user
+      // 1. Dans la nouvelle architecture, userId est directement l'ID du profil utilisateur
+      // Plus besoin de passer par user_invitations.contact_id car users remplace contacts
       const { supabase } = await import('@/lib/supabase')
       
-      const { data: invitation, error: contactError } = await supabase
-        .from('user_invitations')
-        .select('contact_id')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
+      // Vérifier que l'utilisateur existe et est un prestataire
+      const { data: userProfile, error: userError } = await supabase
+        .from('users')
+        .select('id, role, team_id')
+        .eq('id', userId)
+        .eq('role', 'prestataire')
         .single()
 
-      if (contactError) {
-        console.error("❌ Error getting prestataire contact:", contactError)
-        throw contactError
+      if (userError) {
+        console.error("❌ Error getting prestataire profile:", userError)
+        throw userError
       }
 
-      if (!invitation?.contact_id) {
-        console.log("❌ No contact found for prestataire user:", userId)
-        throw new Error("Aucun contact prestataire trouvé pour cet utilisateur")
+      if (!userProfile) {
+        console.log("❌ No prestataire profile found for user:", userId)
+        throw new Error("Aucun profil prestataire trouvé pour cet utilisateur")
       }
 
-      const contactId = invitation.contact_id
-      console.log("✅ Found prestataire contact_id:", contactId)
+      const contactId = userProfile.id
+      console.log("✅ Found prestataire profile:", contactId)
 
       // 2. Get interventions assigned to this prestataire
       const interventions = await interventionService.getByProviderId(contactId)

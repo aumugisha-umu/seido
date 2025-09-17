@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { useAuthLoading } from "@/hooks/use-auth-loading"
 import { ENV_CONFIG } from "@/lib/environment"
+import { decideRedirectionStrategy, logRoutingDecision } from "@/lib/auth-router"
+import AuthLoading, { AUTH_LOADING_MESSAGES } from "./auth-loading"
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -13,6 +16,7 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children, requiredRole, fallback }: AuthGuardProps) {
   const { user, loading } = useAuth()
+  const { isAuthLoading, loadingMessage } = useAuthLoading(loading, user)
   const router = useRouter()
   const pathname = usePathname()
   const [callbackGracePeriod, setCallbackGracePeriod] = useState(false)
@@ -71,24 +75,41 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
 
     // Si un rôle spécifique est requis et que l'utilisateur n'a pas ce rôle
     if (user && requiredRole && user.role !== requiredRole) {
-      console.log(`🚫 [AUTH-GUARD] User role '${user.role}' does not match required role '${requiredRole}' - redirecting to their dashboard`)
-      router.push(`/${user.role}/dashboard`)
+      console.log(`🚫 [AUTH-GUARD] User role '${user.role}' does not match required role '${requiredRole}'`)
+      
+      // ✅ NOUVEAU : Utiliser le système de redirection centralisé
+      const decision = decideRedirectionStrategy(user, pathname || '', {
+        isAuthStateChange: false,
+        isMiddlewareEval: false
+      })
+      
+      logRoutingDecision(decision, user, { 
+        trigger: 'auth-guard-role-mismatch', 
+        requiredRole, 
+        userRole: user.role,
+        pathname 
+      })
+      
+      if (decision.strategy === 'immediate') {
+        console.log('🔄 [AUTH-GUARD] Using centralized routing for role mismatch redirect')
+        router.push(`/${user.role}/dashboard`)
+      } else {
+        console.log('🔄 [AUTH-GUARD] Role mismatch redirect deferred to system coordination')
+      }
+      
       return
     }
   }, [user, loading, requiredRole, router, callbackGracePeriod])
 
-  // Afficher le loading pendant l'authentification ou grace period
-  if (loading || callbackGracePeriod) {
+  // ✅ NOUVEAU : Affichage loading amélioré avec messages contextuels
+  if (isAuthLoading || callbackGracePeriod) {
+    const contextualMessage = callbackGracePeriod 
+      ? AUTH_LOADING_MESSAGES.callback
+      : loadingMessage || AUTH_LOADING_MESSAGES.verifying
+    
     return (
       fallback || (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">
-              {callbackGracePeriod ? 'Finalisation de la connexion...' : 'Vérification de l\'authentification...'}
-            </p>
-          </div>
-        </div>
+        <AuthLoading message={contextualMessage} />
       )
     )
   }

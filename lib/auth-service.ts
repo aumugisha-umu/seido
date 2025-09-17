@@ -1,5 +1,6 @@
 import { supabase, withRetry } from './supabase'
 import { userService, teamService } from './database-service'
+import { analyzeSessionError, shouldCleanupSession } from './session-cleanup'
 import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 import { activityLogger } from './activity-logger'
@@ -320,8 +321,8 @@ class AuthService {
     return { authUser, error: null }
   }
 
-  // ✅ AMÉLIORATION: Récupérer l'utilisateur actuel avec retry automatique
-  async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null }> {
+  // ✅ AMÉLIORATION: Récupérer l'utilisateur actuel avec retry automatique et cleanup
+  async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null; requiresCleanup?: boolean }> {
     try {
       // ✅ NOUVEAU: Utiliser withRetry pour la récupération de l'utilisateur
       const result = await withRetry(async () => {
@@ -331,6 +332,22 @@ class AuthService {
 
         if (error) {
           console.log('❌ [getCurrentUser-RETRY] Auth error:', error.message)
+          
+          // ✅ NOUVEAU: Vérifier si l'erreur nécessite un nettoyage de session (avec contexte cookies)
+          const errorType = analyzeSessionError(error.message, true)
+          console.log('🔍 [getCurrentUser-RETRY] Error analysis:', {
+            errorMessage: error.message,
+            errorType,
+            needsCleanup: errorType !== 'recoverable'
+          })
+          
+          if (shouldCleanupSession(error.message, true)) {
+            // Créer une erreur spéciale qui indique qu'un nettoyage est nécessaire
+            const cleanupError = new Error(`Auth error: ${error.message}`)
+            cleanupError.name = 'SessionCleanupRequired'
+            throw cleanupError
+          }
+          
           throw new Error(`Auth error: ${error.message}`)
         }
 
@@ -425,7 +442,15 @@ class AuthService {
       return result
     } catch (error) {
       console.error('❌ [getCurrentUser-RETRY] All retries failed:', error)
-      return { user: null, error: null }
+      
+      // ✅ NOUVEAU: Indiquer si un nettoyage de session est nécessaire
+      const requiresCleanup = error instanceof Error && error.name === 'SessionCleanupRequired'
+      
+      return { 
+        user: null, 
+        error: null,
+        requiresCleanup 
+      }
     }
   }
 
@@ -532,10 +557,13 @@ class AuthService {
     }
   }
 
-  // Écouter les changements d'état d'authentification
+  // Écouter les changements d'état d'authentification avec détection des sessions corrompues
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
     return supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔍 [AUTH-STATE-CHANGE] Event received:', event, 'Session valid:', !!session?.user)
+      
       if (!session?.user || !session.user.email_confirmed_at) {
+        console.log('ℹ️ [AUTH-STATE-CHANGE] No valid session or unconfirmed email')
         callback(null)
         return
       }
@@ -547,12 +575,45 @@ class AuthService {
           
           try {
             // Chercher l'utilisateur par auth_user_id
-            const { data: userProfile } = await supabase
+            const { data: userProfile, error: profileError } = await supabase
               .from('users')
               .select('*')
               .eq('auth_user_id', session.user.id)
               .single()
+            
+            // ✅ NOUVEAU: Détecter les sessions corrompues (user supprimé de la DB)
+            if (profileError && profileError.code === 'PGRST116') {
+              console.log('🚨 [AUTH-STATE-CHANGE] User profile not found - account deleted or corrupted session')
+              console.log('🔍 [AUTH-STATE-CHANGE] Profile error details:', {
+                code: profileError.code,
+                message: profileError.message,
+                authUserId: session.user.id,
+                email: session.user.email
+              })
               
+              // Session corrompue détectée - signaler pour nettoyage
+              callback(null)
+              
+              // ✅ NOUVEAU: Déclencher un nettoyage automatique après un délai
+              setTimeout(async () => {
+                const { cleanupCorruptedSession, analyzeSessionError } = await import('./session-cleanup')
+                console.log('🚨 [AUTH-STATE-CHANGE] Triggering automatic session cleanup for deleted user profile')
+                
+                await cleanupCorruptedSession({
+                  redirectToLogin: true,
+                  reason: 'User profile not found in database - account may have been deleted',
+                  errorType: analyzeSessionError('User not found', false), // Ne pas vérifier les cookies pour ce cas spécifique
+                  clearStorage: true
+                })
+              }, 1000)
+              
+              return
+            } else if (profileError) {
+              console.error('❌ [AUTH-STATE-CHANGE] Database error looking up profile:', profileError)
+              callback(null)
+              return
+            }
+            
             if (userProfile) {
               const user: AuthUser = {
                 id: userProfile.id, // ✅ ID de la table users, pas auth.users

@@ -130,8 +130,14 @@ export async function middleware(request: NextRequest) {
           redirectUrl: new URL(dashboardPath, request.url).toString()
         })
         
+        // ✅ AMÉLIORATION SaaS : Headers pour coordination avec client
         const redirectResponse = NextResponse.redirect(new URL(dashboardPath, request.url))
-        console.log('✅ [MIDDLEWARE-SIMPLE] Redirect response created successfully')
+        redirectResponse.headers.set('x-auth-redirect', 'true')
+        redirectResponse.headers.set('x-redirect-from', pathname)
+        redirectResponse.headers.set('x-redirect-to', dashboardPath)
+        redirectResponse.headers.set('x-user-role', userRole)
+        
+        console.log('✅ [MIDDLEWARE-SIMPLE] Redirect response created with coordination headers')
         return redirectResponse
       }
     }
@@ -153,10 +159,24 @@ export async function middleware(request: NextRequest) {
     
     if (hasAuthCookie) {
       console.log('✅ [MIDDLEWARE-SIMPLE] Protected route + auth cookie → ALLOW')
-      return NextResponse.next()
+      
+      // ✅ AMÉLIORATION SaaS : Headers informatifs pour le client
+      const response = NextResponse.next()
+      response.headers.set('x-auth-status', 'authenticated')
+      response.headers.set('x-route-type', 'protected')
+      
+      return response
     } else {
       console.log('🚫 [MIDDLEWARE-SIMPLE] Protected route + no auth → REDIRECT to login')
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      
+      // ✅ AMÉLIORATION SaaS : Headers pour coordination avec client
+      const redirectResponse = NextResponse.redirect(new URL('/auth/login', request.url))
+      redirectResponse.headers.set('x-auth-redirect', 'true')
+      redirectResponse.headers.set('x-redirect-reason', 'unauthenticated')
+      redirectResponse.headers.set('x-redirect-from', pathname)
+      redirectResponse.headers.set('x-redirect-to', '/auth/login')
+      
+      return redirectResponse
     }
   }
   

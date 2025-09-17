@@ -74,9 +74,11 @@ export default function LoginPage() {
         console.log("✅ [LOGIN-CLEAN] Connexion réussie pour:", authUser.email, "role:", authUser.role)
         setError("") // Clear any previous errors
         
-        console.log("🔄 [LOGIN-CLEAN] Triggering router refresh to activate middleware...")
-        router.refresh() // Force re-evaluation du middleware avec nouveaux cookies
-        console.log("✅ [LOGIN-CLEAN] Router refresh triggered, middleware should redirect now")
+        // ✅ NOUVEAU : Le système de routage centralisé gère la redirection
+        console.log("🎯 [LOGIN-CLEAN] Authentication successful - centralized routing system will handle redirection")
+        
+        // Plus besoin de router.refresh() - évite les conflits avec Auth Provider
+        // Le middleware détectera automatiquement les nouveaux cookies lors de la prochaine navigation
         
       } else {
         console.log("⚠️ [LOGIN-SUBMIT] No user and no error - unusual state")

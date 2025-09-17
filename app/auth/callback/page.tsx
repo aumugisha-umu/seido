@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { decideRedirectionStrategy, logRoutingDecision, getDashboardPath } from '@/lib/auth-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -13,6 +14,38 @@ export default function AuthCallback() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [message, setMessage] = useState('')
   const [userRole, setUserRole] = useState<string | null>(null)
+
+  // ✅ FONCTION CENTRALISÉE pour gérer toutes les redirections du callback
+  const executeCallbackRedirect = async (role: string, reason: string) => {
+    console.log('🎯 [AUTH-CALLBACK] executeCallbackRedirect called:', { role, reason })
+    
+    const dashboardPath = getDashboardPath(role)
+    const decision = decideRedirectionStrategy(
+      { role } as any, // Mock user object avec role
+      window.location.pathname,
+      { isAuthStateChange: true, isMiddlewareEval: false }
+    )
+    
+    logRoutingDecision(decision, { role } as any, { 
+      trigger: 'callback-redirect', 
+      reason,
+      dashboardPath 
+    })
+    
+    console.log(`🔄 [AUTH-CALLBACK] Redirect decision: ${decision.strategy} → ${dashboardPath}`)
+    
+    if (decision.strategy === 'immediate') {
+      // Stratégie immédiate - utiliser Next.js routing
+      console.log('✅ [AUTH-CALLBACK] Using Next.js routing for immediate redirect')
+      setTimeout(() => router.push(dashboardPath), 500)
+    } else {
+      // Fallback - hard redirect pour garantir la redirection
+      console.log('✅ [AUTH-CALLBACK] Using hard redirect as fallback')
+      setTimeout(() => {
+        window.location.href = dashboardPath
+      }, 1000)
+    }
+  }
 
   useEffect(() => {
     handleAuthCallback()
@@ -101,21 +134,17 @@ export default function AuthCallback() {
                 sessionError = null
               } else {
                 const userRole = role || 'gestionnaire'
-                const dashboardPath = `/${userRole}/dashboard`
                 
-                // ❌ REDIRECTION DE TIMEOUT COMMENTÉE POUR DEBUG
-                console.log('🚫 [DEBUG-INVITATION] Timeout redirect #1 disabled - would redirect to:', dashboardPath)
+                // ✅ NOUVEAU : Redirection centralisée après timeout  
+                console.log('⏳ [AUTH-CALLBACK] Session timeout detected - using centralized redirect')
                 setStatus('error')
-                setMessage(`🚫 DEBUG MODE: Session timeout détecté. Aucune redirection automatique vers ${dashboardPath}`)
+                setMessage(`⏳ Session timeout détecté. Redirection vers votre espace ${userRole}...`)
+                
+                await executeCallbackRedirect(userRole, 'session-timeout')
                 return
-                // setTimeout(() => {
-                //   window.location.href = dashboardPath
-                // }, 500)
-                // return
               }
             } catch (getSessionTimeout) {
               const userRole = role || 'gestionnaire'
-              const dashboardPath = `/${userRole}/dashboard`
               
               console.log('⚠️ [DEBUG-INVITATION] Session timeout, but continuing with invitation processing...')
               console.log('🔍 [DEBUG-INVITATION] Will try to mark invitations even without session')
@@ -144,19 +173,17 @@ export default function AuthCallback() {
                     setStatus('success')
                     setMessage(`✅ Invitation traitée avec succès. Redirection vers votre espace ${userRole}...`)
                     
-                    // ✅ REDIRECTION APRÈS TRAITEMENT RÉUSSI DE L'INVITATION
-                    setTimeout(() => {
-                      console.log('🔄 [AUTH-CALLBACK] Redirecting after successful invitation processing...')
-                      window.location.href = dashboardPath
+                    // ✅ NOUVEAU : Redirection centralisée après traitement réussi
+                    setTimeout(async () => {
+                      await executeCallbackRedirect(userRole, 'invitation-success')
                     }, 2000)
                   } else {
                     setStatus('error')
                     setMessage(`❌ Erreur lors du traitement de l'invitation. Redirection vers votre espace ${userRole}...`)
                     
-                    // ✅ REDIRECTION MÊME EN CAS D'ÉCHEC (après délai)
-                    setTimeout(() => {
-                      console.log('🔄 [AUTH-CALLBACK] Redirecting after failed invitation processing...')
-                      window.location.href = dashboardPath
+                    // ✅ NOUVEAU : Redirection centralisée après échec 
+                    setTimeout(async () => {
+                      await executeCallbackRedirect(userRole, 'invitation-error')
                     }, 3000)
                   }
                 } catch (invitationError) {
@@ -164,10 +191,9 @@ export default function AuthCallback() {
                   setStatus('error')
                   setMessage(`❌ Erreur technique. Redirection vers votre espace ${userRole}...`)
                   
-                  // ✅ REDIRECTION MÊME EN CAS D'ERREUR TECHNIQUE
-                  setTimeout(() => {
-                    console.log('🔄 [AUTH-CALLBACK] Redirecting after invitation error...')
-                    window.location.href = dashboardPath
+                  // ✅ NOUVEAU : Redirection centralisée après erreur technique
+                  setTimeout(async () => {
+                    await executeCallbackRedirect(userRole, 'invitation-exception')
                   }, 3000)
                 }
               } else {
@@ -175,10 +201,9 @@ export default function AuthCallback() {
                 setStatus('error')
                 setMessage(`❌ Session timeout détecté. Redirection vers votre espace ${userRole}...`)
                 
-                // ✅ REDIRECTION EN CAS DE TIMEOUT SANS EMAIL
-                setTimeout(() => {
-                  console.log('🔄 [AUTH-CALLBACK] Redirecting after session timeout...')
-                  window.location.href = dashboardPath
+                // ✅ NOUVEAU : Redirection centralisée après timeout sans email
+                setTimeout(async () => {
+                  await executeCallbackRedirect(userRole, 'timeout-no-email')
                 }, 3000)
               }
               
@@ -277,24 +302,11 @@ export default function AuthCallback() {
               metadata: sessionData.session.user.user_metadata
             })
             
-            // ✅ REDIRECTION APRÈS TRAITEMENT COMPLET DES INVITATIONS
+            // ✅ NOUVEAU : Redirection centralisée après traitement des invitations
             setTimeout(async () => {
               console.log('🔄 [AUTH-CALLBACK] Redirecting to dashboard after processing new tokens...')
-              const { data: { session } } = await supabase.auth.getSession()
-              if (session?.user) {
-                const dashboardPath = `/${userRole}/dashboard`
-                router.refresh()
-                
-                setTimeout(() => {
-                  router.push(dashboardPath)
-                }, 200)
-              } else {
-                setTimeout(() => {
-                  const dashboardPath = `/${userRole}/dashboard`
-                  window.location.href = dashboardPath
-                }, 500)
-              }
-            }, 2000) // ✅ Délai réduit à 2s mais suffisant pour les invitations
+              await executeCallbackRedirect(userRole, 'new-token-flow-complete')
+            }, 2000)
             
           } else {
             throw new Error('Session non établie après setSession')
@@ -407,16 +419,11 @@ export default function AuthCallback() {
             fullMetadata: user.user_metadata
           })
           
-          // ✅ REDIRECTION APRÈS TRAITEMENT DES INVITATIONS
+          // ✅ NOUVEAU : Redirection centralisée après traitement des invitations
           setTimeout(async () => {
             console.log('🔄 [AUTH-CALLBACK] Redirecting to dashboard after processing...')
-            const dashboardPath = `/${role}/dashboard`
-            router.refresh()
-            
-            setTimeout(() => {
-              router.push(dashboardPath)
-            }, 200)
-          }, 2000) // Délai pour permettre aux API calls de finir
+            await executeCallbackRedirect(role, 'existing-session-complete')
+          }, 2000)
         } else {
           throw new Error('Aucune session trouvée')
         }
@@ -437,8 +444,9 @@ export default function AuthCallback() {
       console.error('❌ [AUTH-CALLBACK] Error occurred during callback processing')
       console.error('❌ [AUTH-CALLBACK] Will redirect to /auth/login?error=callback_failed')
       
-      // ✅ REDIRECTION D'ERREUR RESTAURÉE
+      // ✅ NOUVEAU : Redirection d'erreur avec système centralisé
       setTimeout(() => {
+        console.log('❌ [AUTH-CALLBACK] Fatal error - redirecting to login')
         router.push('/auth/login?error=callback_failed')
       }, 3000)
     }

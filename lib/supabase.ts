@@ -63,7 +63,7 @@ export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonK
   }
 })
 
-// ✅ UTILISATION CONFIG CENTRALISÉE: Utilité retry adaptée à l'environnement
+// ✅ UTILISATION CONFIG CENTRALISÉE: Utilité retry adaptée à l'environnement avec gestion session cleanup
 export const withRetry = async <T>(
   operation: () => Promise<T>,
   maxRetries?: number,
@@ -82,6 +82,12 @@ export const withRetry = async <T>(
     } catch (error) {
       lastError = error as Error
       console.log(`🔄 [WITH-RETRY] Attempt ${attempt}/${retries} failed:`, error)
+
+      // ✅ NOUVEAU: Arrêter immédiatement sur les erreurs nécessitant un cleanup
+      if (lastError.name === 'SessionCleanupRequired') {
+        console.log('🚨 [WITH-RETRY] Session cleanup required - stopping retries immediately')
+        throw lastError
+      }
 
       if (attempt === retries) {
         break

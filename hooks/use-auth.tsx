@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
 import { ENV_CONFIG, calculateTimeout } from '@/lib/environment'
+import { decideRedirectionStrategy, logRoutingDecision } from '@/lib/auth-router'
+import { cleanupCorruptedSession, analyzeSessionError, logSessionState, initializeSessionDetection } from '@/lib/session-cleanup'
 import type { AuthError } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -29,8 +31,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Récupérer l'utilisateur actuel au chargement
-    getCurrentUser()
+    // ✅ NOUVEAU: Initialiser la détection automatique des sessions corrompues
+    const initializeAuth = async () => {
+      console.log('🚀 [AUTH-PROVIDER] Initializing authentication system...')
+      
+      try {
+        // Détecter et nettoyer les sessions corrompues avant tout
+        await initializeSessionDetection()
+        
+        // Ensuite récupérer l'utilisateur actuel
+        getCurrentUser()
+        
+      } catch (initError) {
+        console.error('❌ [AUTH-PROVIDER] Error during auth initialization:', initError)
+        // Continuer quand même avec getCurrentUser en cas d'erreur d'initialisation
+        getCurrentUser()
+      }
+    }
+
+    // Démarrer l'initialisation
+    initializeAuth()
 
     // Écouter les changements d'état d'authentification
     const { data: { subscription } } = authService.onAuthStateChange((user) => {
@@ -43,59 +63,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Redirection automatique après authentification
+  // ✅ NOUVEAU : Redirection intelligente avec système centralisé
   useEffect(() => {
-    // Ne rediriger que si : user chargé, pas en cours de chargement, et on est sur une page d'auth
-    if (user && !loading && pathname?.startsWith('/auth')) {
-      
-      // ✅ PROTECTION RENFORCÉE : pas de redirection sur callback ou reset-password
-      if (pathname.includes('/callback') || pathname.includes('/reset-password')) {
-        console.log('🚫 [AUTH-PROVIDER] Redirection blocked - on callback/reset page:', pathname)
-        return
-      }
-      
-      // ✅ PROTECTION SUPPLÉMENTAIRE : vérifier l'URL actuelle aussi
-      if (window.location.pathname.includes('/callback') || window.location.pathname.includes('/reset-password')) {
-        console.log('🚫 [AUTH-PROVIDER] Redirection blocked - window location on callback/reset page:', window.location.pathname)
-        return
-      }
-      
-      console.log('🎯 [AUTH-PROVIDER] Auto-redirect detected:', {
-        user: user.name,
-        role: user.role,
-        currentPath: pathname,
-        windowLocation: window.location.pathname,
-        redirectAllowed: true
-      })
-      
-      // Déterminer le dashboard selon le rôle
-      let targetDashboard = '/gestionnaire/dashboard' // default
-      
-      switch (user.role) {
-        case 'gestionnaire':
-          targetDashboard = '/gestionnaire/dashboard'
-          break
-        case 'locataire':
-          targetDashboard = '/locataire/dashboard'
-          break
-        case 'prestataire':
-          targetDashboard = '/prestataire/dashboard'
-          break
-        case 'admin':
-          targetDashboard = '/admin/dashboard'
-          break
-        default:
-          targetDashboard = '/gestionnaire/dashboard'
-      }
-      
-      console.log('🚀 [AUTH-PROVIDER] Redirecting to:', targetDashboard)
-      router.push(targetDashboard)
+    // Ne traiter que si loading terminé et pathname disponible  
+    if (loading || !pathname) return
+    
+    // Décider de la stratégie de redirection avec le système centralisé
+    const decision = decideRedirectionStrategy(user, pathname, {
+      isAuthStateChange: true,
+      isLoginSubmit: false // Ce n'est pas une soumission de login
+    })
+    
+    logRoutingDecision(decision, user, { trigger: 'auth-provider-effect', pathname })
+    
+    // Exécuter selon la stratégie
+    if (decision.strategy === 'immediate' && decision.targetPath) {
+      console.log('🚀 [AUTH-PROVIDER] Executing immediate redirection to:', decision.targetPath)
+      router.push(decision.targetPath)
+    } else if (decision.strategy === 'middleware-only') {
+      console.log('🔄 [AUTH-PROVIDER] Deferring to middleware for redirection')
+      // Le middleware s'en charge - ne rien faire ici
+    } else {
+      console.log('🚫 [AUTH-PROVIDER] No redirection needed:', decision.reason)
     }
   }, [user, loading, pathname, router])
 
   const getCurrentUser = async (retryCount = 0) => {
     try {
       console.log(`🔍 [USE-AUTH] Getting current user (attempt ${retryCount + 1})...`)
+      
+      // ✅ NOUVEAU: Logger l'état des cookies pour debug
+      logSessionState()
       
       // ✅ UTILISATION DE L'UTILITAIRE CENTRALISÉ
       const timeoutDuration = calculateTimeout(ENV_CONFIG.authTimeout, retryCount)
@@ -108,7 +106,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       )
       
       const userPromise = authService.getCurrentUser()
-      const { user } = await Promise.race([userPromise, timeoutPromise])
+      const result = await Promise.race([userPromise, timeoutPromise])
+      
+      // ✅ NOUVEAU: Vérifier si un nettoyage de session est nécessaire
+      if (result && result.requiresCleanup) {
+        console.log('🚨 [USE-AUTH] Session cleanup required - corrupted session detected')
+        
+        const errorType = analyzeSessionError('Auth session missing!', true)
+        
+        // Double vérification : ne nettoyer que si vraiment nécessaire
+        if (errorType !== 'recoverable') {
+          await cleanupCorruptedSession({
+            redirectToLogin: true,
+            reason: 'Corrupted session detected during getCurrentUser',
+            errorType,
+            clearStorage: true
+          })
+          
+          // Arrêter l'exécution ici car on redirige vers login
+          return
+        } else {
+          console.log('ℹ️ [USE-AUTH] Session cleanup not needed after double check - continuing normally')
+        }
+      }
+      
+      const { user } = result
       
       console.log('✅ [USE-AUTH] Current user loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
@@ -123,6 +145,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('❌ [USE-AUTH] Error getting current user:', error)
       
+      // ✅ NOUVEAU: Vérifier si l'erreur nécessite un nettoyage immédiat
+      if (error instanceof Error && error.name === 'SessionCleanupRequired') {
+        console.log('🚨 [USE-AUTH] Session cleanup required from error - checking if really needed')
+        
+        const errorType = analyzeSessionError(error.message, true)
+        
+        // Double vérification : ne nettoyer que si vraiment nécessaire
+        if (errorType !== 'recoverable') {
+          console.log('🚨 [USE-AUTH] Confirmed: session cleanup needed')
+          await cleanupCorruptedSession({
+            redirectToLogin: true,
+            reason: 'Session cleanup required error caught',
+            errorType,
+            clearStorage: true
+          })
+          
+          // Arrêter l'exécution ici car on redirige vers login
+          return
+        } else {
+          console.log('ℹ️ [USE-AUTH] Session cleanup not needed after double check - treating as normal error')
+        }
+      }
+      
       // ✅ UTILISATION DE LA CONFIGURATION CENTRALISÉE
       const maxRetries = ENV_CONFIG.retry.maxAttempts - 1 // -1 car on compte depuis 0
       const retryDelay = retryCount < 1 ? 2000 : 3000 // 2s first retry, 3s subsequent
@@ -134,7 +179,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       
-      console.log('🔄 [USE-AUTH] Max retries reached or not on dashboard - setting user to null')
+      console.log('🚨 [USE-AUTH] Max retries reached - checking if session cleanup needed')
+      
+      // ✅ NOUVEAU: Si on a épuisé tous les retries, vérifier si on doit nettoyer la session
+      const shouldCleanup = typeof error === 'object' && error !== null && 
+                           'message' in error && 
+                           typeof (error as any).message === 'string'
+      
+      if (shouldCleanup) {
+        const errorType = analyzeSessionError((error as any).message, true)
+        if (errorType !== 'recoverable') {
+          console.log('🚨 [USE-AUTH] All retries failed with non-recoverable error - cleaning up session')
+          
+          await cleanupCorruptedSession({
+            redirectToLogin: true,
+            reason: 'Max retries reached with corrupted session',
+            errorType,
+            clearStorage: true
+          })
+          
+          // Arrêter l'exécution ici car on redirige vers login
+          return
+        } else {
+          console.log('ℹ️ [USE-AUTH] Error not requiring cleanup after cookie context check')
+        }
+      }
+      
+      console.log('🔄 [USE-AUTH] Setting user to null after max retries')
       setUser(null)
     } finally {
       console.log('✅ [USE-AUTH] Setting loading to false')
@@ -143,10 +214,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
+    console.log('🚀 [AUTH-PROVIDER] signIn called - setting login context')
+    
     const result = await authService.signIn({ email, password })
     if (result.user) {
+      console.log('✅ [AUTH-PROVIDER] signIn successful, updating user state')
       setUser(result.user)
+      
+      // ✅ NOUVEAU : Décision de redirection après login submit
+      const decision = decideRedirectionStrategy(result.user, pathname || '/auth/login', {
+        isLoginSubmit: true,
+        isAuthStateChange: false
+      })
+      
+      logRoutingDecision(decision, result.user, { trigger: 'login-submit', pathname })
+      
+      // Stratégie middleware-only : on laisse le middleware + router.refresh() gérer
+      if (decision.strategy === 'middleware-only') {
+        console.log('🔄 [AUTH-PROVIDER] Login successful - deferring to middleware redirection')
+        // La page login va faire router.refresh() et le middleware redirigera
+      } else if (decision.strategy === 'immediate' && decision.targetPath) {
+        console.log('🚀 [AUTH-PROVIDER] Login successful - immediate redirection to:', decision.targetPath)
+        // Redirection immédiate (cas rare après login)
+        setTimeout(() => router.push(decision.targetPath!), decision.delayMs || 0)
+      }
     }
+    
     return result
   }
 
@@ -168,23 +261,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 [LOGOUT] Starting sign out process...')
-      const { error } = await authService.signOut()
+      console.log('🚪 [LOGOUT] Starting enhanced sign out process...')
       
-      if (error) {
-        console.error('❌ [LOGOUT] Error during sign out:', error.message)
-        // Continuer quand même pour nettoyer l'état local
-      } else {
-        console.log('✅ [LOGOUT] Sign out successful')
-      }
+      // ✅ NOUVEAU: Utiliser le système de nettoyage complet
+      await cleanupCorruptedSession({
+        redirectToLogin: false, // Pas de redirection automatique sur signOut volontaire
+        reason: 'User initiated sign out',
+        errorType: 'corrupted', // Peu importe le type pour un signOut volontaire
+        clearStorage: true
+      })
       
       // Nettoyer l'état utilisateur local
       setUser(null)
-      console.log('🧹 [LOGOUT] Local user state cleared')
+      console.log('✅ [LOGOUT] Complete sign out and cleanup finished')
       
     } catch (error) {
-      console.error('❌ [LOGOUT] Exception during sign out:', error)
-      // Nettoyer l'état local même en cas d'erreur
+      console.error('❌ [LOGOUT] Exception during enhanced sign out:', error)
+      
+      // Fallback : nettoyage minimal si l'enhanced signOut échoue
+      try {
+        await authService.signOut()
+      } catch (fallbackError) {
+        console.error('❌ [LOGOUT] Fallback signOut also failed:', fallbackError)
+      }
+      
+      // Toujours nettoyer l'état local
       setUser(null)
     }
   }

@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Building2, CheckCircle, User, Phone } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { decideRedirectionStrategy, logRoutingDecision } from "@/lib/auth-router"
 
 export default function SignupSuccessPage() {
   const router = useRouter()
@@ -78,8 +79,22 @@ export default function SignupSuccessPage() {
         setError("Erreur lors de la complétion du profil: " + authError.message)
       } else if (authUser) {
         console.log("✅ Profil complété avec succès")
-        // Redirection automatique vers le dashboard grâce au useEffect
-        router.push(`/${authUser.role}/dashboard`)
+        
+        // ✅ NOUVEAU : Utiliser le système de routage centralisé
+        const decision = decideRedirectionStrategy(authUser, window.location.pathname, {
+          isAuthStateChange: true,
+          isLoginSubmit: false
+        })
+        
+        logRoutingDecision(decision, authUser, { 
+          trigger: 'profile-completion', 
+          pathname: window.location.pathname 
+        })
+        
+        console.log('🎯 [SIGNUP-SUCCESS] Profile completed - centralized routing will handle redirection')
+        
+        // Le système centralisé + Auth Provider s'occupera de la redirection
+        // Plus besoin de router.push() direct ici
       }
     } catch (error) {
       console.error("Erreur de complétion du profil:", error)

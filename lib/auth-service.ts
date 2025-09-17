@@ -557,64 +557,61 @@ class AuthService {
     }
   }
 
-  // Écouter les changements d'état d'authentification avec détection des sessions corrompues
+  // ✅ VERSION SIMPLIFIÉE de onAuthStateChange pour éviter les boucles
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
     return supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔍 [AUTH-STATE-CHANGE] Event received:', event, 'Session valid:', !!session?.user)
+      console.log('🔍 [AUTH-STATE-CHANGE-SIMPLE] Event:', event, 'Valid session:', !!session?.user)
       
       if (!session?.user || !session.user.email_confirmed_at) {
-        console.log('ℹ️ [AUTH-STATE-CHANGE] No valid session or unconfirmed email')
+        console.log('ℹ️ [AUTH-STATE-CHANGE-SIMPLE] No valid session or unconfirmed email')
         callback(null)
         return
       }
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         try {
-          // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id
-          console.log('🔍 [AUTH-SERVICE-NEW] Looking up user profile for auth_user_id:', session.user.id)
+          console.log('🔍 [AUTH-STATE-CHANGE-SIMPLE] Looking up user profile...')
           
-          try {
-            // Chercher l'utilisateur par auth_user_id
-            const { data: userProfile, error: profileError } = await supabase
-              .from('users')
-              .select('*')
-              .eq('auth_user_id', session.user.id)
-              .single()
+          // ✅ NOUVEAU: Timeout de 3s pour éviter les boucles infinies
+          const profilePromise = supabase
+            .from('users')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .single()
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile lookup timeout')), 3000)
+          )
+          
+          const { data: userProfile, error: profileError } = await Promise.race([
+            profilePromise,
+            timeoutPromise
+          ]) as any
+          
+          // ✅ SIMPLIFIÉ: Si profil pas trouvé, utiliser les données JWT
+          if (profileError) {
+            console.log('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Profile lookup failed, using JWT fallback:', profileError.message)
             
-            // ✅ NOUVEAU: Détecter les sessions corrompues (user supprimé de la DB)
-            if (profileError && profileError.code === 'PGRST116') {
-              console.log('🚨 [AUTH-STATE-CHANGE] User profile not found - account deleted or corrupted session')
-              console.log('🔍 [AUTH-STATE-CHANGE] Profile error details:', {
-                code: profileError.code,
-                message: profileError.message,
-                authUserId: session.user.id,
-                email: session.user.email
-              })
-              
-              // Session corrompue détectée - signaler pour nettoyage
-              callback(null)
-              
-              // ✅ NOUVEAU: Déclencher un nettoyage automatique après un délai
-              setTimeout(async () => {
-                const { cleanupCorruptedSession, analyzeSessionError } = await import('./session-cleanup')
-                console.log('🚨 [AUTH-STATE-CHANGE] Triggering automatic session cleanup for deleted user profile')
-                
-                await cleanupCorruptedSession({
-                  redirectToLogin: true,
-                  reason: 'User profile not found in database - account may have been deleted',
-                  errorType: analyzeSessionError('User not found', false), // Ne pas vérifier les cookies pour ce cas spécifique
-                  clearStorage: true
-                })
-              }, 1000)
-              
-              return
-            } else if (profileError) {
-              console.error('❌ [AUTH-STATE-CHANGE] Database error looking up profile:', profileError)
-              callback(null)
-              return
+            // Fallback vers les données JWT
+            const user: AuthUser = {
+              id: session.user.id,
+              email: session.user.email!,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+              first_name: session.user.user_metadata?.first_name,
+              last_name: session.user.user_metadata?.last_name,
+              display_name: session.user.user_metadata?.display_name,
+              role: session.user.user_metadata?.role || 'gestionnaire',
+              phone: undefined,
+              created_at: undefined,
+              updated_at: undefined,
             }
             
-            if (userProfile) {
+            console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using JWT fallback user:', user.email, user.role)
+            callback(user)
+            return
+          }
+            
+          if (userProfile) {
               const user: AuthUser = {
                 id: userProfile.id, // ✅ ID de la table users, pas auth.users
                 email: userProfile.email,
@@ -664,45 +661,32 @@ class AuthService {
               callback(user)
               return
             }
-          } catch (profileError) {
-            console.warn('⚠️ [AUTH-SERVICE-NEW] Error looking up profile:', profileError)
-          }
-          
-          // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
-          if (session.user.email) {
-            console.log('⚠️ [AUTH-SERVICE-NEW] No profile found, using JWT fallback')
-            const user: AuthUser = {
-              id: session.user.id, // Fallback vers auth.users.id
+          } catch (error) {
+            console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Error processing profile:', error)
+            
+            // ✅ FALLBACK: Toujours utiliser JWT en cas d'erreur
+            const fallbackUser: AuthUser = {
+              id: session.user.id,
               email: session.user.email!,
-              name: session.user.user_metadata?.full_name || 'Utilisateur',
-              first_name: session.user.user_metadata?.first_name || undefined,
-              last_name: session.user.user_metadata?.last_name || undefined,
-              display_name: session.user.user_metadata?.display_name || undefined,
-              role: 'gestionnaire',
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+              first_name: session.user.user_metadata?.first_name,
+              last_name: session.user.user_metadata?.last_name,
+              display_name: session.user.user_metadata?.display_name,
+              role: session.user.user_metadata?.role || 'gestionnaire',
               phone: undefined,
               created_at: undefined,
               updated_at: undefined,
             }
-            callback(user)
-            return
+            
+            console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using error fallback:', fallbackUser.email, fallbackUser.role)
+            callback(fallbackUser)
           }
-          
-          // ❌ FALLBACK SUPPRIMÉ - Causait race condition signup
-          console.log('⚠️ [AUTH-SERVICE] No email in session, using minimal fallback')
-          const fallbackUser: AuthUser = {
-            id: session.user.id,
-            email: 'unknown@email.com',
-            name: 'Utilisateur',
-            role: 'gestionnaire' as Database['public']['Enums']['user_role'],
-            phone: undefined,
-            created_at: undefined,
-            updated_at: undefined,
-          }
-          callback(fallbackUser)
         } catch (error) {
+          console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Fatal error:', error)
           callback(null)
         }
       } else {
+        console.log('ℹ️ [AUTH-STATE-CHANGE-SIMPLE] Event not handled:', event)
         callback(null)
       }
     })

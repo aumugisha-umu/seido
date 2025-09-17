@@ -137,50 +137,57 @@ export const clearSupabaseCookies = (): void => {
 }
 
 /**
- * Forcer la déconnexion complète de Supabase
+ * ✅ VERSION SIMPLIFIÉE de forceSupabaseSignOut pour éviter les timeouts
  */
 export const forceSupabaseSignOut = async (): Promise<void> => {
-  console.log('🚪 [SESSION-CLEANUP] Forcing complete Supabase sign out...')
+  console.log('🚪 [SESSION-CLEANUP-SIMPLE] Starting simple sign out...')
   
   try {
-    // Tentative de signOut normal
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.log('⚠️ [SESSION-CLEANUP] Normal signOut failed:', error.message)
-    } else {
-      console.log('✅ [SESSION-CLEANUP] Normal signOut successful')
-    }
-  } catch (signOutError) {
-    console.log('⚠️ [SESSION-CLEANUP] Exception during signOut:', signOutError)
+    // ✅ NOUVEAU: Timeout de 2 secondes max pour éviter les hangs
+    const signOutPromise = (async () => {
+      const { supabase } = await import('./supabase')
+      return await supabase.auth.signOut()
+    })()
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('SignOut timeout')), 2000)
+    )
+    
+    const result = await Promise.race([signOutPromise, timeoutPromise])
+    console.log('✅ [SESSION-CLEANUP-SIMPLE] SignOut completed:', result)
+    
+  } catch (error) {
+    console.log('⚠️ [SESSION-CLEANUP-SIMPLE] SignOut failed or timed out:', error)
+    // Continuer quand même avec le nettoyage des cookies
   }
   
-  // Nettoyer les cookies même si signOut échoue
+  // ✅ Toujours nettoyer les cookies, même si signOut échoue
+  console.log('🧹 [SESSION-CLEANUP-SIMPLE] Cleaning cookies...')
   clearSupabaseCookies()
   
-  // Vider le localStorage/sessionStorage si utilisé
+  // ✅ Nettoyer le storage rapidement
   try {
     if (typeof localStorage !== 'undefined') {
-      const keys = Object.keys(localStorage)
-      keys.forEach(key => {
+      Object.keys(localStorage).forEach(key => {
         if (key.includes('supabase') || key.includes('sb-')) {
           localStorage.removeItem(key)
-          console.log('🧹 [SESSION-CLEANUP] Cleared localStorage key:', key)
         }
       })
     }
     
     if (typeof sessionStorage !== 'undefined') {
-      const keys = Object.keys(sessionStorage)  
-      keys.forEach(key => {
+      Object.keys(sessionStorage).forEach(key => {
         if (key.includes('supabase') || key.includes('sb-')) {
           sessionStorage.removeItem(key)
-          console.log('🧹 [SESSION-CLEANUP] Cleared sessionStorage key:', key)
         }
       })
     }
+    console.log('✅ [SESSION-CLEANUP-SIMPLE] Storage cleared')
   } catch (storageError) {
-    console.log('⚠️ [SESSION-CLEANUP] Error clearing storage:', storageError)
+    console.log('⚠️ [SESSION-CLEANUP-SIMPLE] Storage error (ignored):', storageError)
   }
+  
+  console.log('✅ [SESSION-CLEANUP-SIMPLE] Force signOut completed')
 }
 
 /**

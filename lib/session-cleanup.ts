@@ -309,6 +309,21 @@ export const detectCorruptedSessionOnLoad = async (): Promise<boolean> => {
   
   console.log('🔍 [SESSION-DETECTION] Starting corrupted session detection on page load...')
   
+  // ✅ NOUVEAU: Ne pas faire de détection sur dashboard (false positives avec auth en cours)
+  const currentPath = window.location.pathname
+  const isOnDashboard = currentPath.includes('/dashboard')
+  const isOnAuthPage = currentPath.startsWith('/auth')
+  
+  if (isOnDashboard) {
+    console.log('ℹ️ [SESSION-DETECTION] Skipping detection on dashboard - auth may be in progress')
+    return false
+  }
+  
+  if (isOnAuthPage) {
+    console.log('ℹ️ [SESSION-DETECTION] Skipping detection on auth pages - normal to have no session')
+    return false
+  }
+  
   try {
     // Import dynamique pour éviter les problèmes de dépendances circulaires
     const { supabase } = await import('./supabase')
@@ -325,10 +340,10 @@ export const detectCorruptedSessionOnLoad = async (): Promise<boolean> => {
     
     console.log('🔍 [SESSION-DETECTION] Supabase cookies detected, checking session validity...')
     
-    // Tenter de récupérer la session avec un timeout court
+    // ✅ NOUVEAU: Timeout plus long pour éviter les faux positifs
     const sessionPromise = supabase.auth.getSession()
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Session check timeout')), 3000)
+      setTimeout(() => reject(new Error('Session check timeout')), 8000) // 8s au lieu de 3s
     )
     
     const { data: { session }, error } = await Promise.race([

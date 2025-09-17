@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
 import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
+import EnvironmentLogger from "@/components/environment-logger"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default function RootLayout({
         className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
         suppressHydrationWarning={true}
       >
+        <EnvironmentLogger />
         <AuthProvider>
           <TeamStatusProvider>
             <Suspense fallback={null}>{children}</Suspense>

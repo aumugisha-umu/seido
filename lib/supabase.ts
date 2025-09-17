@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { ENV_CONFIG, calculateRetryDelay } from './environment'
 import type { Database } from './database.types'
 
 // Validate environment variables
@@ -21,16 +22,35 @@ console.log('🔧 Supabase SSR client initializing with:', {
   keyPrefix: supabaseAnonKey?.substring(0, 20) + '...'
 })
 
-// ✅ Configuration optimisée pour éviter les timeouts lors de la navigation
+// ✅ UTILISATION DE L'UTILITAIRE CENTRALISÉ
 export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    // ✅ NOUVEAU: Plus sécurisé pour production
+    flowType: 'pkce'
   },
   global: {
     headers: {
-      'x-client-info': 'supabase-ssr-js/1.0.0'
+      'x-client-info': 'seido-app/1.0.0',
+      // ✅ UTILISATION CONFIG CENTRALISÉE: Headers pour améliorer les performances
+      ...(ENV_CONFIG.isProduction && {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      })
+    },
+    // ✅ UTILISATION CONFIG CENTRALISÉE: Configuration fetch adaptée à l'environnement
+    fetch: (url, options = {}) => {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), ENV_CONFIG.fetch.timeout)
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal
+      }).finally(() => {
+        clearTimeout(timeoutId)
+      })
     }
   },
   db: {
@@ -38,34 +58,40 @@ export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonK
   },
   realtime: {
     params: {
-      eventsPerSecond: 10
+      eventsPerSecond: ENV_CONFIG.isProduction ? 5 : 10 // Réduire en prod pour éviter la surcharge
     }
   }
 })
 
-// Utilité pour créer des requêtes avec retry automatique
+// ✅ UTILISATION CONFIG CENTRALISÉE: Utilité retry adaptée à l'environnement
 export const withRetry = async <T>(
   operation: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
+  maxRetries?: number,
+  baseDelay?: number
 ): Promise<T> => {
+  const retries = maxRetries ?? ENV_CONFIG.retry.maxAttempts
+  const delay = baseDelay ?? ENV_CONFIG.retry.baseDelay
+  
+  console.log(`🔄 [WITH-RETRY] Starting operation with ${retries} max retries (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
+  
   let lastError: Error
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       return await operation()
     } catch (error) {
       lastError = error as Error
-      console.log(`🔄 Retry attempt ${attempt}/${maxRetries} failed:`, error)
+      console.log(`🔄 [WITH-RETRY] Attempt ${attempt}/${retries} failed:`, error)
 
-      if (attempt === maxRetries) {
+      if (attempt === retries) {
         break
       }
 
-      // Backoff exponentiel avec jitter
-      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000
-      console.log(`⏳ Waiting ${Math.round(delay)}ms before retry...`)
-      await new Promise(resolve => setTimeout(resolve, delay))
+      // ✅ UTILISATION DE L'UTILITAIRE CENTRALISÉ
+      const totalDelay = calculateRetryDelay(attempt, delay)
+      
+      console.log(`⏳ [WITH-RETRY] Waiting ${Math.round(totalDelay)}ms before retry (env: ${ENV_CONFIG.isProduction ? 'PROD' : 'DEV'})...`)
+      await new Promise(resolve => setTimeout(resolve, totalDelay))
     }
   }
 

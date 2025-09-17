@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, withRetry } from './supabase'
 import { userService, teamService } from './database-service'
 import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
 import type { Database } from './database.types'
@@ -320,90 +320,111 @@ class AuthService {
     return { authUser, error: null }
   }
 
-  // Récupérer l'utilisateur actuel
+  // ✅ AMÉLIORATION: Récupérer l'utilisateur actuel avec retry automatique
   async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser()
+      // ✅ NOUVEAU: Utiliser withRetry pour la récupération de l'utilisateur
+      const result = await withRetry(async () => {
+        console.log('🔍 [getCurrentUser-RETRY] Attempting to get current user...')
+        
+        const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
-      if (error || !authUser) {
-        return { user: null, error: null }
-      }
+        if (error) {
+          console.log('❌ [getCurrentUser-RETRY] Auth error:', error.message)
+          throw new Error(`Auth error: ${error.message}`)
+        }
 
-      // Si pas confirmé, pas d'accès
-      if (!authUser.email_confirmed_at) {
-        return { user: null, error: null }
-      }
+        if (!authUser) {
+          console.log('ℹ️ [getCurrentUser-RETRY] No auth user found')
+          return { user: null, error: null }
+        }
 
-      // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id
-      console.log('🔍 [getCurrentUser-NEW] Looking up user profile for auth_user_id:', authUser.id)
-      console.log('🔍 [getCurrentUser-NEW] Auth user email:', authUser.email)
-      console.log('🔍 [getCurrentUser-NEW] Auth user confirmed:', authUser.email_confirmed_at)
-      
-      try {
-        // Chercher l'utilisateur par auth_user_id
-        const { data: userProfile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('auth_user_id', authUser.id)
-          .single()
-          
-        console.log('🔍 [getCurrentUser-NEW] Profile query result:', {
-          userProfile: userProfile ? 'found' : 'not found',
-          error: profileError ? profileError.message : 'none',
-          authUserId: authUser.id
-        })
-          
-        if (userProfile) {
-          const user: AuthUser = {
-            id: userProfile.id, // ✅ ID de la table users, pas auth.users
-            email: userProfile.email,
-            name: userProfile.name,
-            first_name: userProfile.first_name || undefined,
-            last_name: userProfile.last_name || undefined,
-            display_name: authUser.user_metadata?.display_name || userProfile.name,
-            role: userProfile.role,
-            phone: userProfile.phone || undefined,
-            avatar_url: userProfile.avatar_url || undefined,
-            created_at: userProfile.created_at || undefined,
-            updated_at: userProfile.updated_at || undefined,
-          }
-          console.log('✅ [getCurrentUser-NEW] User profile found:', {
-            id: user.id,
-            auth_user_id: authUser.id,
-            email: user.email,
-            name: user.name,
-            linkStatus: 'LINKED'
+        // Si pas confirmé, pas d'accès
+        if (!authUser.email_confirmed_at) {
+          console.log('ℹ️ [getCurrentUser-RETRY] User email not confirmed')
+          return { user: null, error: null }
+        }
+
+        // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id avec retry
+        console.log('🔍 [getCurrentUser-RETRY] Looking up user profile for auth_user_id:', authUser.id)
+        console.log('🔍 [getCurrentUser-RETRY] Auth user email:', authUser.email)
+        console.log('🔍 [getCurrentUser-RETRY] Auth user confirmed:', authUser.email_confirmed_at)
+        
+        try {
+          // Chercher l'utilisateur par auth_user_id avec timeout approprié
+          const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('auth_user_id', authUser.id)
+            .single()
+            
+          console.log('🔍 [getCurrentUser-RETRY] Profile query result:', {
+            userProfile: userProfile ? 'found' : 'not found',
+            error: profileError ? profileError.message : 'none',
+            authUserId: authUser.id
           })
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            // Erreur autre que "not found" - retry
+            throw new Error(`Profile query error: ${profileError.message}`)
+          }
+            
+          if (userProfile) {
+            const user: AuthUser = {
+              id: userProfile.id, // ✅ ID de la table users, pas auth.users
+              email: userProfile.email,
+              name: userProfile.name,
+              first_name: userProfile.first_name || undefined,
+              last_name: userProfile.last_name || undefined,
+              display_name: authUser.user_metadata?.display_name || userProfile.name,
+              role: userProfile.role,
+              phone: userProfile.phone || undefined,
+              avatar_url: userProfile.avatar_url || undefined,
+              created_at: userProfile.created_at || undefined,
+              updated_at: userProfile.updated_at || undefined,
+            }
+            console.log('✅ [getCurrentUser-RETRY] User profile found:', {
+              id: user.id,
+              auth_user_id: authUser.id,
+              email: user.email,
+              name: user.name,
+              linkStatus: 'LINKED'
+            })
+            return { user, error: null }
+          } else {
+            console.log('❌ [getCurrentUser-RETRY] No profile found for auth_user_id:', authUser.id)
+          }
+        } catch (profileError) {
+          console.error('❌ [getCurrentUser-RETRY] Error looking up profile:', profileError)
+          throw profileError // Re-throw pour déclencher retry
+        }
+        
+        // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
+        if (authUser.email) {
+          console.log('⚠️ [getCurrentUser-RETRY] No profile found, using JWT fallback')
+          const user: AuthUser = {
+            id: authUser.id, // Fallback vers auth.users.id
+            email: authUser.email!,
+            name: authUser.user_metadata?.full_name || 'Utilisateur',
+            first_name: authUser.user_metadata?.first_name || undefined,
+            last_name: authUser.user_metadata?.last_name || undefined,
+            display_name: authUser.user_metadata?.display_name || undefined,
+            role: 'gestionnaire',
+            phone: undefined,
+            avatar_url: undefined,
+            created_at: undefined,
+            updated_at: undefined,
+          }
           return { user, error: null }
-        } else {
-          console.log('❌ [getCurrentUser-NEW] No profile found for auth_user_id:', authUser.id)
         }
-      } catch (profileError) {
-        console.error('❌ [getCurrentUser-NEW] Error looking up profile:', profileError)
-      }
-      
-      // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
-      if (authUser.email) {
-        console.log('⚠️ [getCurrentUser-NEW] No profile found, using JWT fallback')
-        const user: AuthUser = {
-          id: authUser.id, // Fallback vers auth.users.id
-          email: authUser.email!,
-          name: authUser.user_metadata?.full_name || 'Utilisateur',
-          first_name: authUser.user_metadata?.first_name || undefined,
-          last_name: authUser.user_metadata?.last_name || undefined,
-          display_name: authUser.user_metadata?.display_name || undefined,
-          role: 'gestionnaire',
-          phone: undefined,
-          avatar_url: undefined,
-          created_at: undefined,
-          updated_at: undefined,
-        }
-        return { user, error: null }
-      }
-      
-      // Fallback si pas d'email
-      return { user: null, error: null }
+        
+        // Fallback si pas d'email
+        return { user: null, error: null }
+      })
+
+      return result
     } catch (error) {
+      console.error('❌ [getCurrentUser-RETRY] All retries failed:', error)
       return { user: null, error: null }
     }
   }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { ENV_CONFIG } from "@/lib/environment"
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -17,26 +18,29 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
   const [callbackGracePeriod, setCallbackGracePeriod] = useState(false)
 
   useEffect(() => {
+    // ✅ UTILISATION DE L'UTILITAIRE CENTRALISÉ
     // Grace period pour les pages callback ET après redirection (éviter race condition avec setSession)
     if (pathname?.includes('/auth/callback')) {
-      console.log('⏳ [AUTH-GUARD] Callback page detected - starting 3s grace period')
+      const callbackGracePeriod = ENV_CONFIG.gracePeriod.callback
+      console.log(`⏳ [AUTH-GUARD] Callback page detected - starting ${callbackGracePeriod}ms grace period (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
       setCallbackGracePeriod(true)
       const timer = setTimeout(() => {
         console.log('✅ [AUTH-GUARD] Grace period ended - resuming normal auth checks')
         setCallbackGracePeriod(false)
-      }, 3000) // 3s pour laisser setSession() + redirection s'exécuter
+      }, callbackGracePeriod)
       return () => clearTimeout(timer)
     } else {
       console.log('🔍 [AUTH-GUARD] Non-callback page - checking if grace period needed')
       // Si on vient de charger une page dashboard et qu'il n'y a pas encore d'user,
       // c'est probablement qu'on vient d'une redirection callback
       if (!user && !loading && (pathname?.includes('/dashboard'))) {
-        console.log('⏳ [AUTH-GUARD] Dashboard page without user - starting 2s grace period for post-redirect auth')
+        const dashboardGracePeriod = ENV_CONFIG.gracePeriod.dashboard
+        console.log(`⏳ [AUTH-GUARD] Dashboard page without user - starting ${dashboardGracePeriod}ms grace period for post-redirect auth (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
         setCallbackGracePeriod(true)
         const timer = setTimeout(() => {
           console.log('✅ [AUTH-GUARD] Post-redirect grace period ended')
           setCallbackGracePeriod(false)
-        }, 2000)
+        }, dashboardGracePeriod)
         return () => clearTimeout(timer)
       }
     }

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
+import { ENV_CONFIG, calculateTimeout } from '@/lib/environment'
 import type { AuthError } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -96,9 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log(`🔍 [USE-AUTH] Getting current user (attempt ${retryCount + 1})...`)
       
-      // Timeout pour éviter le blocage infini
+      // ✅ UTILISATION DE L'UTILITAIRE CENTRALISÉ
+      const timeoutDuration = calculateTimeout(ENV_CONFIG.authTimeout, retryCount)
+      
+      console.log(`⏱️ [USE-AUTH] Environment: ${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}, timeout: ${timeoutDuration}ms`)
+      
+      // Timeout avec durée adaptative
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('getCurrentUser timeout')), 8000)
+        setTimeout(() => reject(new Error('getCurrentUser timeout')), timeoutDuration)
       )
       
       const userPromise = authService.getCurrentUser()
@@ -117,14 +123,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('❌ [USE-AUTH] Error getting current user:', error)
       
-      // Retry une fois si erreur et on est sur dashboard
-      if (retryCount < 1 && window.location.pathname.includes('/dashboard')) {
-        console.log('🔄 [USE-AUTH] Error on dashboard - retrying in 2s...')
-        setTimeout(() => getCurrentUser(retryCount + 1), 2000)
+      // ✅ UTILISATION DE LA CONFIGURATION CENTRALISÉE
+      const maxRetries = ENV_CONFIG.retry.maxAttempts - 1 // -1 car on compte depuis 0
+      const retryDelay = retryCount < 1 ? 2000 : 3000 // 2s first retry, 3s subsequent
+      
+      // Retry si erreur et on est sur dashboard
+      if (retryCount < maxRetries && window.location.pathname.includes('/dashboard')) {
+        console.log(`🔄 [USE-AUTH] Error on dashboard (${retryCount + 1}/${maxRetries + 1}) - retrying in ${retryDelay}ms...`)
+        setTimeout(() => getCurrentUser(retryCount + 1), retryDelay)
         return
       }
       
-      console.log('🔄 [USE-AUTH] Setting user to null and continuing...')
+      console.log('🔄 [USE-AUTH] Max retries reached or not on dashboard - setting user to null')
       setUser(null)
     } finally {
       console.log('✅ [USE-AUTH] Setting loading to false')

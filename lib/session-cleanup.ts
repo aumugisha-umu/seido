@@ -206,40 +206,71 @@ export const cleanupCorruptedSession = async (options: CleanupOptions): Promise<
     clearStorage
   })
   
-  // Log pour tracking/debug
-  logRoutingDecision(
-    { 
-      strategy: 'none', 
-      reason: `session-cleanup-${errorType}`
-    },
-    null,
-    {
-      trigger: 'session-cleanup',
-      reason,
-      errorType,
-      timestamp: new Date().toISOString()
+  try {
+    // Log pour tracking/debug
+    logRoutingDecision(
+      { 
+        strategy: 'none', 
+        reason: `session-cleanup-${errorType}`
+      },
+      null,
+      {
+        trigger: 'session-cleanup',
+        reason,
+        errorType,
+        timestamp: new Date().toISOString()
+      }
+    )
+    
+    // Forcer la déconnexion complète
+    if (clearStorage) {
+      console.log('🧹 [SESSION-CLEANUP] Starting Supabase sign out...')
+      await forceSupabaseSignOut()
+      console.log('✅ [SESSION-CLEANUP] Supabase sign out completed')
     }
-  )
-  
-  // Forcer la déconnexion complète
-  if (clearStorage) {
-    await forceSupabaseSignOut()
-  }
-  
-  // Attendre un peu pour que les cookies soient bien nettoyés
-  await new Promise(resolve => setTimeout(resolve, 100))
-  
-  // Rediriger vers login si demandé
-  if (redirectToLogin) {
-    console.log('🔄 [SESSION-CLEANUP] Redirecting to login after cleanup...')
     
-    // Utiliser window.location pour forcer une navigation complète
-    // qui va recharger les middleware et composants sans les cookies corrompus
-    const loginUrl = '/auth/login?reason=session_cleanup'
+    // Attendre un peu pour que les cookies soient bien nettoyés
+    console.log('⏳ [SESSION-CLEANUP] Waiting 100ms for cookie cleanup...')
+    await new Promise(resolve => setTimeout(resolve, 100))
     
-    setTimeout(() => {
-      window.location.href = loginUrl
-    }, 200) // Petit délai pour s'assurer que les cookies sont nettoyés
+    // ✅ NOUVEAU: Debug détaillé pour la redirection
+    console.log('🔍 [SESSION-CLEANUP] Checking redirection condition:', {
+      redirectToLogin,
+      redirectToLoginType: typeof redirectToLogin,
+      windowExists: typeof window !== 'undefined'
+    })
+    
+    // Rediriger vers login si demandé
+    if (redirectToLogin) {
+      console.log('🔄 [SESSION-CLEANUP] Redirecting to login after cleanup...')
+      
+      if (typeof window === 'undefined') {
+        console.error('❌ [SESSION-CLEANUP] Cannot redirect - window is undefined (SSR context)')
+        return
+      }
+      
+      // Utiliser window.location pour forcer une navigation complète
+      const loginUrl = '/auth/login?reason=session_cleanup'
+      
+      console.log('⏰ [SESSION-CLEANUP] Setting up redirect timer to:', loginUrl)
+      
+      setTimeout(() => {
+        console.log('🚀 [SESSION-CLEANUP] Executing redirect now...')
+        try {
+          window.location.href = loginUrl
+          console.log('✅ [SESSION-CLEANUP] Redirect command executed')
+        } catch (redirectError) {
+          console.error('❌ [SESSION-CLEANUP] Redirect failed:', redirectError)
+        }
+      }, 200)
+      
+      console.log('⏱️ [SESSION-CLEANUP] Redirect timer set (200ms delay)')
+    } else {
+      console.log('🚫 [SESSION-CLEANUP] No redirection requested (redirectToLogin is falsy)')
+    }
+    
+  } catch (cleanupError) {
+    console.error('❌ [SESSION-CLEANUP] Error during cleanup process:', cleanupError)
   }
   
   console.log('✅ [SESSION-CLEANUP] Complete session cleanup finished')

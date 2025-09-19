@@ -125,3 +125,40 @@ export const getPriorityLabel = (urgency: string) => {
       return urgency
   }
 }
+
+export const getStatusActionMessage = (status: string, userRole?: string): string => {
+  switch (status) {
+    // Phase 1: Demande
+    case "demande":
+      return "En attente d'approbation du gestionnaire"
+    case "rejetee":
+      return "Intervention rejetée"
+    case "approuvee":
+      return "En attente d'assignation de prestataire"
+
+    // Phase 2: Planification & Exécution
+    case "demande_de_devis":
+      return "En attente du devis du prestataire"
+    case "planification":
+      return "En attente des disponibilités du locataire et prestataire"
+    case "planifiee":
+      return "Intervention programmée"
+    case "en_cours":
+      return "Intervention en cours d'exécution"
+
+    // Phase 3: Clôture
+    case "cloturee_par_prestataire":
+      return "En attente de validation du locataire"
+    case "cloturee_par_locataire":
+      return "En attente de finalisation par le gestionnaire"
+    case "cloturee_par_gestionnaire":
+      return "Intervention finalisée"
+
+    // Transversal
+    case "annulee":
+      return "Intervention annulée"
+
+    default:
+      return "Statut inconnu"
+  }
+}

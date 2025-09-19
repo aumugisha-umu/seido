@@ -11,6 +11,7 @@ import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { usePrestataireData } from "@/hooks/use-prestataire-data"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
+import { getStatusActionMessage } from "@/lib/intervention-utils"
 
 export default function PrestataireDashboard() {
   const { user } = useAuth()
@@ -185,6 +186,9 @@ export default function PrestataireDashboard() {
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
                         {intervention.location}
+                      </p>
+                      <p className="text-xs text-blue-600 font-medium mt-1">
+                        {getStatusActionMessage(intervention.status)}
                       </p>
                     </div>
                   </div>

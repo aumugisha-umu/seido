@@ -194,10 +194,13 @@ export default function LocataireDashboard() {
                     <div>
                       <p className="font-medium">{intervention.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {intervention.completed_date 
+                        {intervention.completed_date
                           ? `Terminé le ${new Date(intervention.completed_date).toLocaleDateString('fr-FR')}`
                           : `Demandé le ${new Date(intervention.created_at).toLocaleDateString('fr-FR')}`
                         }
+                      </p>
+                      <p className="text-xs text-blue-600 font-medium mt-1">
+                        {getStatusActionMessage(intervention.status)}
                       </p>
                     </div>
                   </div>
@@ -355,5 +358,24 @@ function getStatusLabel(status: string) {
       return 'Annulé'
     default:
       return status
+  }
+}
+
+function getStatusActionMessage(status: string): string {
+  switch (status) {
+    case 'nouvelle_demande':
+      return 'En attente d\'approbation du gestionnaire'
+    case 'en_attente_validation':
+      return 'En attente d\'approbation du gestionnaire'
+    case 'validee':
+      return 'En attente d\'assignation de prestataire'
+    case 'en_cours':
+      return 'Intervention en cours d\'exécution'
+    case 'terminee':
+      return 'Intervention terminée'
+    case 'annulee':
+      return 'Intervention annulée'
+    default:
+      return 'Statut en cours de traitement'
   }
 }

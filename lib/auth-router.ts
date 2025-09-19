@@ -83,15 +83,18 @@ export const shouldRedirectAfterAuth = (
  * Créer la configuration de routage depuis le pathname
  */
 export const createAuthRoutingConfig = (pathname: string): AuthRoutingConfig => {
-  const isAuthPage = pathname.startsWith('/auth/')
+  // ✅ NOUVEAU: Exclure les pages de configuration du mot de passe des redirections auth
+  const isAuthPage = pathname.startsWith('/auth/') &&
+                     !pathname.includes('/auth/set-password') &&
+                     !pathname.includes('/auth/update-password')
   const isCallbackPage = pathname.includes('/auth/callback')
   const isResetPasswordPage = pathname.includes('/auth/reset-password')
-  
+
   return {
     bypassRedirections: false, // Par défaut, permettre les redirections
     currentPath: pathname,
     isAuthPage,
-    isCallbackPage, 
+    isCallbackPage,
     isResetPasswordPage
   }
 }

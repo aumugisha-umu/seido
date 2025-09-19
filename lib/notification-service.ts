@@ -1967,6 +1967,41 @@ class NotificationService {
       console.error('❌ Failed to notify intervention status changed:', error)
     }
   }
+
+  /**
+   * Notifier la demande de devis à un prestataire
+   */
+  async notifyQuoteRequest(intervention: any, provider: any, requestedBy: string, deadline?: string, notes?: string) {
+    try {
+      if (!intervention.team_id || !provider.id || !requestedBy) return
+
+      // Notification au prestataire pour la demande de devis
+      await this.createNotification({
+        userId: provider.id,
+        teamId: intervention.team_id,
+        createdBy: requestedBy,
+        type: 'intervention',
+        priority: 'high',
+        title: 'Nouvelle demande de devis',
+        message: `Vous avez reçu une demande de devis pour l'intervention "${intervention.title}".${deadline ? ` Date limite: ${new Date(deadline).toLocaleDateString('fr-FR')}` : ''}`,
+        isPersonal: true,
+        metadata: {
+          interventionId: intervention.id,
+          interventionTitle: intervention.title,
+          deadline: deadline || null,
+          notes: notes || null,
+          actionRequired: 'quote_submission'
+        },
+        relatedEntityType: 'intervention',
+        relatedEntityId: intervention.id
+      })
+
+      console.log(`📬 Quote request notification sent to provider ${provider.name} (${provider.id})`)
+
+    } catch (error) {
+      console.error('❌ Failed to notify quote request:', error)
+    }
+  }
 }
 
 // Instance singleton

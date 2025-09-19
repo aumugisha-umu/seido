@@ -3838,6 +3838,25 @@ export const tenantService = {
     console.log("👤 getTenantData called for userId:", userId)
     
     try {
+      // ✅ CORRECTION: Gérer les IDs JWT-only
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        // Récupérer l'ID réel de l'utilisateur depuis la base de données
+        const authUserId = userId.replace('jwt_', '')
+        const userProfile = await userService.findByAuthUserId(authUserId)
+        if (userProfile) {
+          actualUserId = userProfile.id
+          console.log("🔄 [TENANT-SERVICE] Resolved JWT user ID:", {
+            original: userId,
+            authUserId,
+            actualUserId: actualUserId
+          })
+        } else {
+          console.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", userId)
+          return null
+        }
+      }
+      
       // Get lots linked directly to this user via lot_contacts (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
@@ -3857,7 +3876,7 @@ export const tenantService = {
           start_date,
           end_date
         `)
-        .eq('user_id', userId)
+        .eq('user_id', actualUserId)
         .is('end_date', null) // Only active relations
         .order('is_primary', { ascending: false }) // Primary contacts first
 
@@ -3928,11 +3947,30 @@ export const tenantService = {
     console.log("🔧 getTenantInterventions called for userId:", userId)
     
     try {
+      // ✅ CORRECTION: Gérer les IDs JWT-only
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        // Récupérer l'ID réel de l'utilisateur depuis la base de données
+        const authUserId = userId.replace('jwt_', '')
+        const userProfile = await userService.findByAuthUserId(authUserId)
+        if (userProfile) {
+          actualUserId = userProfile.id
+          console.log("🔄 [TENANT-INTERVENTIONS] Resolved JWT user ID:", {
+            original: userId,
+            authUserId,
+            actualUserId: actualUserId
+          })
+        } else {
+          console.error("❌ [TENANT-INTERVENTIONS] Could not resolve JWT user ID:", userId)
+          return []
+        }
+      }
+      
       // Get all lot IDs where this user is assigned (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('user_id', userId)
+        .eq('user_id', actualUserId)
         .is('end_date', null) // Only active relations
 
       if (lotContactsError) {
@@ -3978,11 +4016,36 @@ export const tenantService = {
     console.log("📊 getTenantStats called for userId:", userId)
     
     try {
+      // ✅ CORRECTION: Gérer les IDs JWT-only
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        // Récupérer l'ID réel de l'utilisateur depuis la base de données
+        const authUserId = userId.replace('jwt_', '')
+        const userProfile = await userService.findByAuthUserId(authUserId)
+        if (userProfile) {
+          actualUserId = userProfile.id
+          console.log("🔄 [TENANT-STATS] Resolved JWT user ID:", {
+            original: userId,
+            authUserId,
+            actualUserId: actualUserId
+          })
+        } else {
+          console.error("❌ [TENANT-STATS] Could not resolve JWT user ID:", userId)
+          return {
+            openRequests: 0,
+            inProgress: 0,
+            thisMonthInterventions: 0,
+            documentsCount: 0,
+            nextPaymentDate: 15
+          }
+        }
+      }
+      
       // Get all lot IDs where this user is assigned (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('user_id', userId)
+        .eq('user_id', actualUserId)
         .is('end_date', null) // Only active relations
 
       if (lotContactsError) {

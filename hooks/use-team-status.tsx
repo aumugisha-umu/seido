@@ -30,8 +30,19 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
       setTeamStatus('checking')
       setError(undefined)
       console.log('🔍 [TEAM-STATUS] Checking team status for user:', user.name)
-      
-      const result = await teamService.ensureUserHasTeam(user.id)
+
+      // ✅ CORRECTION: Gérer les IDs JWT-only en utilisant l'auth_user_id
+      let userId = user.id
+      if (user.id.startsWith('jwt_')) {
+        console.log('⚠️ [TEAM-STATUS] JWT-only user detected, skipping team check for now')
+        // Pour un utilisateur JWT-only, considérer qu'il a une équipe temporairement
+        // Le profil sera trouvé lors du prochain rafraîchissement
+        setHasTeam(true)
+        setTeamStatus('verified')
+        return
+      }
+
+      const result = await teamService.ensureUserHasTeam(userId)
       
       if (result.hasTeam) {
         console.log('✅ [TEAM-STATUS] User has team access')

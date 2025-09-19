@@ -35,6 +35,28 @@ export function useManagerStats() {
   const mountedRef = useRef(true)
 
   const fetchStats = useCallback(async (userId: string, bypassCache = false) => {
+    // ✅ NOUVEAU: Skip pour les utilisateurs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [MANAGER-STATS] JWT-only user detected, returning empty stats")
+      if (mountedRef.current) {
+        setData({
+          stats: {
+            buildingsCount: 0,
+            lotsCount: 0,
+            occupiedLotsCount: 0,
+            occupancyRate: 0,
+            contactsCount: 0,
+            documentsCount: 0,
+            recentActivities: []
+          }
+        })
+        setLoading(false)
+        setError(null)
+        lastUserIdRef.current = userId
+      }
+      return
+    }
+
     // Éviter les appels multiples
     if (loadingRef.current || !mountedRef.current) {
       console.log("🔒 [MANAGER-STATS] Skipping fetch - already loading or unmounted")
@@ -187,6 +209,32 @@ export function useContactStats() {
   const mountedRef = useRef(true)
 
   const fetchContactStats = useCallback(async (userId: string, bypassCache = false) => {
+    // ✅ NOUVEAU: Skip pour les utilisateurs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [CONTACT-STATS] JWT-only user detected, returning empty stats")
+      if (mountedRef.current) {
+        setContactStats({
+          totalContacts: 0,
+          contactsByType: {
+            locataire: 0,
+            gestionnaire: 0,
+            prestataire: 0,
+            syndic: 0,
+            notaire: 0,
+            assurance: 0,
+            proprietaire: 0,
+            autre: 0
+          },
+          totalActiveAccounts: 0,
+          invitationsPending: 0
+        })
+        setLoading(false)
+        setError(null)
+        lastUserIdRef.current = userId
+      }
+      return
+    }
+
     // Éviter les appels multiples
     if (loadingRef.current || !mountedRef.current) {
       console.log("🔒 [CONTACT-STATS] Skipping fetch - already loading or unmounted")

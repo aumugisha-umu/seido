@@ -80,21 +80,10 @@ export default function SignupSuccessPage() {
       } else if (authUser) {
         console.log("✅ Profil complété avec succès")
         
-        // ✅ NOUVEAU : Utiliser le système de routage centralisé
-        const decision = decideRedirectionStrategy(authUser, window.location.pathname, {
-          isAuthStateChange: true,
-          isLoginSubmit: false
-        })
-        
-        logRoutingDecision(decision, authUser, { 
-          trigger: 'profile-completion', 
-          pathname: window.location.pathname 
-        })
-        
-        console.log('🎯 [SIGNUP-SUCCESS] Profile completed - centralized routing will handle redirection')
-        
-        // Le système centralisé + Auth Provider s'occupera de la redirection
-        // Plus besoin de router.push() direct ici
+        // ✅ REFACTORISÉ: Redirection directe après complétion du profil
+        console.log('✅ [SIGNUP-SUCCESS-REFACTORED] Profile completed, redirecting to dashboard')
+
+        router.push('/gestionnaire/dashboard')
       }
     } catch (error) {
       console.error("Erreur de complétion du profil:", error)

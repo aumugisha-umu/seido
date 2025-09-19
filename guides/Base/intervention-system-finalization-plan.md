@@ -1,384 +1,450 @@
-# Plan de Finalisation du Système d'Interventions
+# Plan de Finalisation du Système d'Interventions - MISE À JOUR
 
 ## Vue d'ensemble
 
 Ce document détaille le plan étape par étape pour finaliser le système de gestion d'interventions conformément au workflow décrit dans `Intervention steps.md`. 
 
+**📅 DERNIÈRE MISE À JOUR** : 19 Septembre 2025 - Après implémentation complète du workflow de base
+
 ### État Actuel Analysé ✅
 
-**✅ FONCTIONNALITÉS EXISTANTES :**
+**✅ FONCTIONNALITÉS COMPLÈTEMENT IMPLÉMENTÉES :**
 
-1. **Interfaces Utilisateur de Base**
-   - Interface gestionnaire avec onglets (Toutes, Nouvelles, En cours, Terminées)
-   - Interface locataire avec liste des interventions et création de demande
-   - Interface prestataire avec onglets par statut
+#### 🎯 **Phase 0 : Migration Statuts - TERMINÉ ✅**
+- ✅ **Tous les statuts alignés** : `demande`, `rejetee`, `approuvee`, `demande_de_devis`, `planification`, `planifiee`, `en_cours`, `cloturee_par_prestataire`, `cloturee_par_locataire`, `cloturee_par_gestionnaire`, `annulee`
+- ✅ **Base de données migrée** avec les nouveaux enums
+- ✅ **Types TypeScript mis à jour** dans `database.types.ts`
+- ✅ **Mappings UI actualisés** dans `intervention-utils.ts`
 
-2. **Hooks de Gestion par Phase**
-   - `use-intervention-approval` : Approbation/rejet par gestionnaire
-   - `use-intervention-planning` : Planification et programmation
-   - `use-intervention-execution` : Démarrage/annulation
-   - `use-intervention-finalization` : Finalisation et paiement
+#### 🎯 **Phase 1 : APIs d'Actions Réelles - TERMINÉ ✅**
+- ✅ **`/api/intervention-approve`** : Demande → Approuvée + notifications
+- ✅ **`/api/intervention-reject`** : Demande → Rejetée + motif + notifications
+- ✅ **`/api/intervention-schedule`** : Planification complète avec créneaux
+- ✅ **`/api/intervention-start`** : Démarrage d'intervention
+- ✅ **`/api/intervention-complete`** : Clôture par prestataire
+- ✅ **`/api/intervention-validate-tenant`** : Validation par locataire
+- ✅ **`/api/intervention-finalize`** : Finalisation par gestionnaire
+- ✅ **`/api/intervention-cancel`** : Annulation complète avec workflow
 
-3. **APIs Backend FONCTIONNELLES**
-   - `create-intervention` : Création par locataire ✅
-   - `create-manager-intervention` : Création par gestionnaire ✅
-   - `upload-intervention-document` : Upload de fichiers ✅
-   - `download-intervention-document` : Téléchargement de fichiers ✅
-   - `view-intervention-document` : Visualisation de fichiers ✅
+#### 🎯 **Workflow Complet de Base - TERMINÉ ✅**
+- ✅ **Notifications intelligentes** avec logique granulaire (personnelles vs équipe)
+- ✅ **Activity logs automatiques** pour toutes les actions
+- ✅ **Interfaces UI harmonisées** avec nouveaux groupes d'onglets
+- ✅ **Système de modales robuste** (approbation, rejet, annulation)
+- ✅ **Hooks d'actions connectés** aux vraies APIs
 
-4. **Services Backend**
-   - `interventionService` : CRUD complet avec notifications
-   - `notificationService` : Système de notifications existant
-   - Système de documents et storage Supabase opérationnel
+#### 🎯 **Interfaces Utilisateur - TERMINÉ ✅**
+1. **Interface Gestionnaire**
+   - ✅ Groupes d'onglets : "Demandes | En cours | Clôturées"
+   - ✅ Actions contextuelles selon statut
+   - ✅ Workflow d'approbation/rejet complet
+   - ✅ Système d'annulation intégré
 
-5. **Composants et Modals**
-   - Modals d'approbation, confirmation, succès, programmation
-   - Composants de détails d'intervention
-   - Upload et gestion de fichiers
+2. **Interface Locataire**
+   - ✅ Création de demandes avec upload
+   - ✅ Suivi des interventions par statut
+   - ✅ Notifications temps réel
 
-**❌ ÉCARTS CRITIQUES IDENTIFIÉS :**
+3. **Interface Prestataire**
+   - ✅ Dashboard avec interventions assignées
+   - ✅ Gestion par statut
+   - ✅ Actions de clôture
 
-### 🚨 PROBLÈME MAJEUR : STATUTS NON ALIGNÉS
-
-**Statuts actuels dans la DB :**
-```sql
-intervention_status: "nouvelle_demande" | "en_attente_validation" | "validee" | "en_cours" | "terminee" | "annulee"
-```
-
-**Statuts requis selon le workflow souhaité :**
-```
-demande → rejetee/approuvee → demande_de_devis → planification → 
-planifiee → en_cours → cloturee_par_prestataire → cloturee_par_locataire → 
-cloturee_par_gestionnaire → annulee
-```
-
-**➡️ 9 STATUTS MANQUANTS :**
-- `demande` (remplace `nouvelle_demande`)
-- `rejetee`
-- `approuvee` 
-- `demande_de_devis`
-- `planification`
-- `planifiee`
-- `cloturee_par_prestataire`
-- `cloturee_par_locataire` 
-- `cloturee_par_gestionnaire`
-
-### ❌ APIs D'ACTIONS MANQUANTES
-
-**Actions simulées dans `intervention-actions-service.ts` :**
-- `approveIntervention()` → console.log ❌
-- `rejectIntervention()` → console.log ❌
-- `programIntervention()` → console.log ❌
-- `executeIntervention()` → console.log ❌
-- `finalizeIntervention()` → console.log ❌
-
-**APIs manquantes critiques :**
-- `app/api/intervention-approve/route.ts` ❌
-- `app/api/intervention-reject/route.ts` ❌
-- `app/api/intervention-schedule/route.ts` ❌
-- `app/api/intervention-start/route.ts` ❌
-- `app/api/intervention-complete/route.ts` ❌
-- `app/api/intervention-finalize/route.ts` ❌
-
-### ❌ FONCTIONNALITÉS WORKFLOW MANQUANTES
-
-#### Phase 1 : Demande
-- ✅ Création de demande par locataire (fonctionnel)
-- ✅ Upload de fichiers (fonctionnel)
-- ✅ Disponibilités (interface présente, stockage à finaliser)
-- ❌ **Approbation/Rejet** : Actions simulées (console.log)
-- ❌ **Notifications** : Partiellement implémentées
-- ❌ **Enrichissement après approbation** : Non connecté
-
-#### Phase 2 : Planification & Exécution
-- ❌ **Demande de devis (optionnel)** : Interface absente
-- ❌ **Sélection prestataire** : Interface présente mais non fonctionnelle
-- ❌ **Magic Links pour prestataires** : Non implémentés
-- ❌ **Chat locataire ↔ prestataire** : Non implémenté
-- ❌ **Collecte disponibilités (Doodle-like)** : Non implémenté
-- ❌ **Notifications automatisées** : Non implémentées
-
-#### Phase 3 : Clôture
-- ❌ **Clôture par prestataire** : Interface partiellement présente
-- ❌ **Validation par locataire** : Non implémenté
-- ❌ **Finalisation par gestionnaire** : Interface présente, logique simulée
-- ❌ **Masquage factures pour locataires** : Non implémenté
+#### 🎯 **Services Backend - TERMINÉ ✅**
+- ✅ **NotificationService** : Distribution intelligente par rôle et responsabilité
+- ✅ **ActivityLogger** : Enregistrement automatique de toutes les actions
+- ✅ **InterventionActionsService** : Couche d'abstraction pour toutes les actions
+- ✅ **Document management** : Upload, téléchargement, visualisation
 
 ---
 
-## Plan d'Implémentation RÉVISÉ
+## **❌ FONCTIONNALITÉS MANQUANTES POUR FLUX COMPLET**
 
-### ⚡ PHASE 0 : CORRECTION URGENTE DES STATUTS (1-2 jours)
+### **🔥 CRITIQUE - Workflows Avancés Manquants**
 
-#### 🎯 Étape 0.1 : Migration Base de Données
-**Objectif** : Ajouter les statuts manquants à l'enum `intervention_status`
+#### **1. Système de Devis Complet ❌**
+**Impact** : Workflow `approuvee → demande_de_devis` non fonctionnel
+**Manquant :**
+- [ ] Table `intervention_quotes` 
+- [ ] API `/api/intervention-quote-request` (gestionnaire → prestataire)
+- [ ] API `/api/intervention-quote-submit` (prestataire → système)
+- [ ] Interface prestataire de soumission de devis
+- [ ] Interface gestionnaire de validation de devis
+- [ ] Workflow : devis → validation → planification
 
-**Actions CRITIQUES :**
-- [ ] **Créer migration** : `20241216_add_missing_intervention_statuses.sql`
-```sql
--- Ajouter les nouveaux statuts à l'enum
-ALTER TYPE intervention_status ADD VALUE 'demande';
-ALTER TYPE intervention_status ADD VALUE 'rejetee';
-ALTER TYPE intervention_status ADD VALUE 'approuvee';
-ALTER TYPE intervention_status ADD VALUE 'demande_de_devis';
-ALTER TYPE intervention_status ADD VALUE 'planification';
-ALTER TYPE intervention_status ADD VALUE 'planifiee';
-ALTER TYPE intervention_status ADD VALUE 'cloturee_par_prestataire';
-ALTER TYPE intervention_status ADD VALUE 'cloturee_par_locataire';
-ALTER TYPE intervention_status ADD VALUE 'cloturee_par_gestionnaire';
+#### **2. Magic Links pour Prestataires ❌**
+**Impact** : Prestataires sans compte ne peuvent pas accéder aux interventions
+**Manquant :**
+- [ ] Table `intervention_magic_links`
+- [ ] API `/api/generate-magic-link` 
+- [ ] Page `/prestataire/intervention/[token]`
+- [ ] Système d'expiration et sécurisation
+- [ ] Email de notification avec lien
 
--- Optionnel : Migrer les données existantes
-UPDATE interventions SET status = 'demande' WHERE status = 'nouvelle_demande';
-UPDATE interventions SET status = 'approuvee' WHERE status = 'validee';
-```
+#### **3. Interfaces de Clôture Complètes ❌**
+**Impact** : Workflow de clôture incomplet côté prestataire/locataire
+**Manquant Prestataire :**
+- [ ] Formulaire complet de clôture avec photos avant/après
+- [ ] Upload de facture et rapport d'intervention
+- [ ] Catégorisation automatique des documents
+- [ ] Interface mobile-friendly sur site
 
-- [ ] **Mettre à jour `database.types.ts`** avec les nouveaux statuts
-- [ ] **Mettre à jour `intervention-utils.ts`** avec les nouveaux mappings colors/labels
+**Manquant Locataire :**
+- [ ] Interface de validation avec aperçu des travaux
+- [ ] Masquage des informations financières (factures)
+- [ ] Système de contestation avec preuves
+- [ ] Workflow de résolution de litiges
 
-#### 🎯 Étape 0.2 : Mise à Jour des Interfaces
-**Actions :**
-- [ ] Mettre à jour les filtres d'onglets dans les pages interventions
-- [ ] Réviser les groupements selon le nouveau workflow :
-  - **Demandé** : `demande`, `approuvee`
-  - **Exécution** : `demande_de_devis`, `planification`, `planifiee`, `en_cours`, `cloturee_par_prestataire`
-  - **Clôturé** : `cloturee_par_locataire`, `cloturee_par_gestionnaire`, `annulee`, `rejetee`
+---
 
-### 🔥 PHASE 1 : APIs D'ACTIONS RÉELLES (3-5 jours)
+### **⭐ AMÉLIORATIONS - Fonctionnalités Bonus**
 
-#### Étape 1.1 : APIs d'Approbation/Rejet
-**Objectif** : Remplacer les console.log par de vraies actions
+#### **4. Chat Temps Réel ❌**
+**Impact** : Communication entre parties prenantes limitée
+**Manquant :**
+- [ ] Table `intervention_messages`
+- [ ] Composant de chat temps réel
+- [ ] API WebSocket ou Server-Sent Events
+- [ ] Notifications de nouveaux messages
+- [ ] Interface mobile chat
 
-**Actions :**
-- [ ] **Créer `/api/intervention-approve/route.ts`**
-  ```typescript
-  // Changer statut demande → approuvee
-  // Créer notification au locataire
-  // Déclencher webhook/email optionnel
-  ```
+#### **5. Collecte de Disponibilités (Doodle-like) ❌**  
+**Impact** : Planification manuelle, pas de vote sur créneaux
+**Manquant :**
+- [ ] Interface de proposition de créneaux multiples
+- [ ] Interface de vote locataire/prestataire
+- [ ] Logique de sélection automatique du créneau optimal
+- [ ] Notifications de confirmation automatique
 
-- [ ] **Créer `/api/intervention-reject/route.ts`**
-  ```typescript  
-  // Changer statut demande → rejetee
-  // Enregistrer motif de rejet dans manager_comment
-  // Créer notification au locataire avec motif
-  ```
+#### **6. Indicateurs UX Avancés ❌**
+**Impact** : UX basique, manque de guidage utilisateur
+**Manquant :**
+- [ ] Badges d'actions attendues contextuels
+- [ ] Progress bars par phase d'intervention  
+- [ ] Notifications de rappel automatiques
+- [ ] Statuts en temps réel avec WebSocket
 
-- [ ] **Connecter avec `use-intervention-approval`**
-  - Remplacer les appels `console.log` par vrais appels fetch
-  - Gestion d'erreurs robuste
-  - Refresh des données après succès
+---
 
-#### Étape 1.2 : APIs de Planification
-**Actions :**
-- [ ] **Créer `/api/intervention-schedule/route.ts`**
-  ```typescript
-  // Gestion créneaux fixes vs proposés
-  // Statut approuvee → planifiee (si créneau fixe)
-  // Statut approuvee → planification (si créneaux à choisir)
-  // Notifications aux parties prenantes
-  ```
+## **PLAN D'IMPLÉMENTATION RÉVISÉ**
 
-- [ ] **Créer `/api/intervention-quote-request/route.ts`** (optionnel)
-  ```typescript
-  // Statut approuvee → demande_de_devis
-  // Envoi email/notification au prestataire
-  // Génération Magic Link si nécessaire
-  ```
+### **✅ PHASES COMPLÈTEMENT TERMINÉES**
+- **✅ Phase 0** : Migration Statuts *(1-2 jours)* - **TERMINÉ**
+- **✅ Phase 1** : APIs d'Actions Réelles *(3-5 jours)* - **TERMINÉ**  
+- **✅ Notifications & Logs** : Système complet *(1-2 jours)* - **TERMINÉ**
+- **✅ Workflows Base** : Approbation/Rejet/Annulation *(2-3 jours)* - **TERMINÉ**
 
-#### Étape 1.3 : APIs d'Exécution
-**Actions :**
-- [ ] **Créer `/api/intervention-start/route.ts`**
-  ```typescript
-  // Statut planifiee → en_cours
-  // Notifications automatiques
-  // Logging de début d'intervention
-  ```
+### **🔥 PHASE 2 : FONCTIONNALITÉS CRITIQUES MANQUANTES (5-8 jours)**
 
-- [ ] **Créer `/api/intervention-complete/route.ts`**
-  ```typescript
-  // Statut en_cours → cloturee_par_prestataire
-  // Upload photos finales, notes, facture
-  // Notification au locataire pour validation
-  ```
+#### **🎯 Étape 2.1 : Système de Devis Complet (2-3 jours)**
+**Objectif** : Workflow `approuvee → demande_de_devis → validation → planification`
 
-#### Étape 1.4 : APIs de Finalisation
-**Actions :**
-- [ ] **Créer `/api/intervention-validate-tenant/route.ts`**
-  ```typescript
-  // Statut cloturee_par_prestataire → cloturee_par_locataire
-  // Possibilité de contester avec fichiers/commentaires
-  // Notification au gestionnaire
-  ```
-
-- [ ] **Créer `/api/intervention-finalize/route.ts`**
-  ```typescript
-  // Statut cloturee_par_locataire → cloturee_par_gestionnaire
-  // Validation finale, processus paiement
-  // Archivage et clôture définitive
-  ```
-
-### PHASE 2 : Fonctionnalités Avancées (5-7 jours)
-
-#### Étape 2.1 : Système de Devis Complet
-**Objectif** : Workflow de devis optionnel
-
-**Actions :**
-- [ ] **Table `intervention_quotes`**
+**Actions Critiques :**
+- [ ] **Migration BD** : Table `intervention_quotes`
 ```sql
 CREATE TABLE intervention_quotes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  intervention_id uuid REFERENCES interventions(id),
-  provider_id uuid REFERENCES users(id),
-  amount decimal(10,2),
-  description text,
-  files jsonb,
+  intervention_id uuid REFERENCES interventions(id) NOT NULL,
+  provider_contact_id uuid REFERENCES contacts(id) NOT NULL,
+  amount decimal(10,2) NOT NULL,
+  description text NOT NULL,
+  documents jsonb DEFAULT '[]',
+  valid_until timestamp NOT NULL,
   status quote_status DEFAULT 'pending',
-  valid_until timestamp,
+  submitted_at timestamp DEFAULT now(),
+  reviewed_at timestamp,
+  reviewed_by uuid REFERENCES users(id),
+  review_comment text,
   created_at timestamp DEFAULT now()
 );
+
+CREATE TYPE quote_status AS ENUM ('pending', 'approved', 'rejected', 'expired');
 ```
 
-- [ ] **Interface de soumission** (prestataire)
-- [ ] **Interface de validation** (gestionnaire)  
-- [ ] **Workflow complet** devis → planification
+- [ ] **API `/api/intervention-quote-request`** (Gestionnaire → Prestataire)
+  - Statut `approuvee → demande_de_devis`
+  - Notification prestataire avec deadline
+  - Magic Link si pas de compte
 
-#### Étape 2.2 : Magic Links pour Prestataires
+- [ ] **API `/api/intervention-quote-submit`** (Prestataire → Système)
+  - Validation des données du devis  
+  - Upload documents (photos, factures pro forma)
+  - Notification gestionnaire pour validation
+
+- [ ] **API `/api/intervention-quote-validate`** (Gestionnaire)
+  - Approbation/rejet du devis avec commentaires
+  - Statut `demande_de_devis → planification` (si approuvé)
+  - Notifications aux parties
+
+- [ ] **Interface Prestataire** : Soumission de devis
+  - Formulaire responsive avec validation
+  - Upload multiple de documents
+  - Calcul automatique avec taxes
+
+- [ ] **Interface Gestionnaire** : Validation de devis
+  - Comparaison multi-devis
+  - Approbation en un clic
+  - Historique des décisions
+
+#### **🎯 Étape 2.2 : Magic Links pour Prestataires (1-2 jours)**
 **Objectif** : Accès sécurisé sans compte complet
 
 **Actions :**
-- [ ] **Table `intervention_magic_links`**
+- [ ] **Migration BD** : Table `intervention_magic_links`
 ```sql
 CREATE TABLE intervention_magic_links (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  intervention_id uuid REFERENCES interventions(id),
+  intervention_id uuid REFERENCES interventions(id) NOT NULL,
   provider_email text NOT NULL,
+  provider_name text,
   token text UNIQUE NOT NULL,
   expires_at timestamp NOT NULL,
   used_at timestamp,
-  created_at timestamp DEFAULT now()
+  last_accessed timestamp,
+  access_count integer DEFAULT 0,
+  created_by uuid REFERENCES users(id),
+  created_at timestamp DEFAULT now(),
+  
+  CONSTRAINT valid_expiration CHECK (expires_at > created_at)
 );
 ```
 
 - [ ] **API `/api/generate-magic-link`**
-- [ ] **Interface prestataire via token** `/prestataire/intervention/[token]`
-- [ ] **Sécurisation et expiration** des liens
+  - Génération token sécurisé (JWT ou UUID)
+  - Expiration automatique (24-48h)
+  - Email automatique avec instructions
+  - Logging pour audit de sécurité
 
-#### Étape 2.3 : Collecte de Disponibilités (Doodle-like)
-**Objectif** : Système de vote sur les créneaux
+- [ ] **Page `/prestataire/intervention/[token]`**
+  - Validation et vérification du token
+  - Interface complète d'intervention
+  - Actions disponibles selon statut
+  - Historique des accès
+
+- [ ] **Sécurisation Robuste**
+  - HTTPS obligatoire en production
+  - Rate limiting sur génération  
+  - Usage unique ou limité par token
+  - Audit trail complet
+
+#### **🎯 Étape 2.3 : Interfaces de Clôture Complètes (2-3 jours)**
+**Objectif** : Workflow de clôture complet et professionnel
+
+**Formulaire Prestataire Avancé :**
+- [ ] **Upload Photos Avant/Après** avec géolocalisation
+- [ ] **Rapport d'intervention détaillé** (template)
+- [ ] **Upload facture officielle** avec validation
+- [ ] **Catégorisation automatique** des documents
+- [ ] **Interface mobile-optimisée** pour terrain
+- [ ] **Signature électronique** prestataire
+
+**Interface Validation Locataire :**
+- [ ] **Galerie photos avant/après** comparative
+- [ ] **Masquage informations financières** (factures cachées)
+- [ ] **Système d'évaluation** (note + commentaires)
+- [ ] **Workflow de contestation** avec upload preuves
+- [ ] **Timeline visuelle** des étapes
+- [ ] **Signature électronique** locataire
+
+**Interface Finalisation Gestionnaire :**
+- [ ] **Vue consolidée complète** (photos, rapports, évaluations)
+- [ ] **Validation financière** avec factures visibles
+- [ ] **Workflow de résolution litiges** si contestation
+- [ ] **Export PDF** complet de l'intervention
+- [ ] **Intégration comptabilité** (préparation)
+- [ ] **Archivage automatique** avec indexation
+
+### **⭐ PHASE 3 : FONCTIONNALITÉS BONUS (3-5 jours)**
+*Améliorations UX et fonctionnalités avancées (optionnelles)*
+
+#### **🎯 Étape 3.1 : Chat Temps Réel (2-3 jours)**
+**Objectif** : Communication directe entre parties prenantes
 
 **Actions :**
-- [ ] **Interface de proposition** de créneaux multiples
-- [ ] **Interface de vote** locataire/prestataire  
-- [ ] **Logique de sélection** automatique du créneau optimal
-- [ ] **Notifications** de confirmation
+- [ ] **Migration BD** : Table `intervention_messages`
+```sql
+CREATE TABLE intervention_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  intervention_id uuid REFERENCES interventions(id) NOT NULL,
+  sender_id uuid REFERENCES users(id) NOT NULL,
+  sender_type user_role NOT NULL,
+  message_text text NOT NULL,
+  message_type message_type DEFAULT 'text',
+  attachments jsonb DEFAULT '[]',
+  is_system_message boolean DEFAULT false,
+  read_by jsonb DEFAULT '[]', -- Array of user IDs who read the message
+  created_at timestamp DEFAULT now(),
+  edited_at timestamp,
+  
+  CONSTRAINT non_empty_message CHECK (length(trim(message_text)) > 0)
+);
 
-#### Étape 2.4 : Chat Temps Réel
-**Objectif** : Communication directe locataire ↔ prestataire
+CREATE TYPE message_type AS ENUM ('text', 'image', 'document', 'system_notification');
+CREATE INDEX idx_intervention_messages_intervention_id ON intervention_messages(intervention_id);
+CREATE INDEX idx_intervention_messages_created_at ON intervention_messages(created_at);
+```
+
+- [ ] **API WebSocket/SSE** : Messages temps réel
+- [ ] **Composant Chat** : Interface moderne responsive
+- [ ] **Notifications Push** : Nouveaux messages
+- [ ] **Upload fichiers** : Photos, documents dans le chat
+- [ ] **Historique complet** : Recherche et archivage
+
+#### **🎯 Étape 3.2 : Collecte de Disponibilités Doodle-like (1-2 jours)**
+**Objectif** : Planification collaborative optimisée
 
 **Actions :**
-- [ ] **Table `intervention_messages`**
-- [ ] **Composant de chat** en temps réel
-- [ ] **API WebSocket ou Server-Sent Events**
-- [ ] **Notifications** de nouveaux messages
+- [ ] **Extension Table** : `intervention_time_slots` 
+```sql
+ALTER TABLE intervention_time_slots ADD COLUMN votes jsonb DEFAULT '[]';
+ALTER TABLE intervention_time_slots ADD COLUMN status slot_status DEFAULT 'proposed';
+CREATE TYPE slot_status AS ENUM ('proposed', 'confirmed', 'rejected', 'cancelled');
+```
 
-### PHASE 3 : Workflow de Clôture Robuste (3-4 jours)
+- [ ] **Interface Proposition** : Gestionnaire propose multiple créneaux
+- [ ] **Interface Vote** : Locataire/prestataire votent sur créneaux
+- [ ] **Algorithme de sélection** : Choix automatique du créneau optimal
+- [ ] **Notifications automatiques** : Confirmations et rappels
+- [ ] **Calendar intégration** : Export iCal des créneaux validés
 
-#### Étape 3.1 : Interface Complète de Clôture Prestataire
+#### **🎯 Étape 3.3 : Indicateurs UX Avancés (1 jour)**
+**Objectif** : Amélioration de l'expérience utilisateur
+
 **Actions :**
-- [ ] **Formulaire de clôture** avec upload multiple
-- [ ] **Catégorisation automatique** des documents (photos avant/après, facture, rapport)
-- [ ] **Validation côté client/serveur**
-- [ ] **Statut → `cloturee_par_prestataire`** automatique
+- [ ] **Badges d'actions** : Indicateurs visuels contextuels par statut
+- [ ] **Progress bars** : Visualisation avancement par phase
+- [ ] **Notifications smart** : Rappels automatiques selon délais
+- [ ] **Statuts temps réel** : Mise à jour live des statuts
+- [ ] **Dashboard amélioré** : Métriques et indicateurs clés
+- [ ] **Historique visual** : Timeline interactive des actions
 
-#### Étape 3.2 : Système de Validation Locataire
+### **🔧 PHASE 4 : OPTIMISATIONS & PRODUCTION (2-3 jours)**
+*Performance, sécurité et robustesse*
+
+#### **🎯 Étape 4.1 : Performance et Robustesse (1-2 jours)**
 **Actions :**
-- [ ] **Interface de validation** avec aperçu complet
-- [ ] **Masquage des informations financières** (factures)
-- [ ] **Système de contestation** avec upload de preuves
-- [ ] **Workflow de résolution** des litiges
+- [ ] **Index BD optimisés** : `intervention_id`, `status`, `team_id`, `created_at`
+- [ ] **Cache intelligent** : Redis pour données critiques
+- [ ] **Error boundaries** : Gestion robuste des erreurs UI
+- [ ] **Retry logic** : Logique de reprise pour actions critiques
+- [ ] **Rate limiting** : Protection APIs contre abus
+- [ ] **Monitoring** : Logs structurés et métriques
 
-#### Étape 3.3 : Finalisation Administrative
+#### **🎯 Étape 4.2 : Tests et Validation (1 jour)**
 **Actions :**
-- [ ] **Interface gestionnaire** de revue complète
-- [ ] **Validation des factures** et montants
-- [ ] **Processus de paiement** (intégration future)
-- [ ] **Archivage et reporting**
-
-### PHASE 4 : Polish et Optimisations (2-3 jours)
-
-#### Étape 4.1 : Indicateurs UX Avancés
-**Actions :**
-- [ ] **Badges d'actions attendues** contextuels
-- [ ] **Progress bars** par phase d'intervention
-- [ ] **Notifications de rappel** automatiques
-- [ ] **Statuts en temps réel**
-
-#### Étape 4.2 : Performance et Robustesse
-**Actions :**
-- [ ] **Optimisation des requêtes** avec indexes
-- [ ] **Cache des données** critiques
-- [ ] **Error boundaries** robustes
-- [ ] **Retry logic** pour les actions critiques
-
-#### Étape 4.3 : Tests et Validation
-**Actions :**
-- [ ] **Tests e2e** de chaque workflow complet
-- [ ] **Tests de permissions** par rôle
-- [ ] **Tests de performance** sous charge
-- [ ] **Validation mobile** responsive
+- [ ] **Tests E2E** : Workflow complet par rôle
+- [ ] **Tests de permissions** : Vérification sécurité par rôle
+- [ ] **Tests mobile** : Validation responsive
+- [ ] **Tests de charge** : Performance sous stress
+- [ ] **Tests de régression** : Non-régression fonctionnalités
+- [ ] **Documentation** : Guide utilisateur et technique
 
 ---
 
-## Ordre de Priorité RÉVISÉ
+## **ORDRE DE PRIORITÉ RÉVISÉ**
 
-### 🚨 CRITIQUE (À faire IMMÉDIATEMENT)
-1. **Migration Statuts** (Phase 0) - **1-2 jours**
-2. **APIs d'Actions Réelles** (Phase 1.1-1.4) - **3-5 jours**
+### **✅ TERMINÉ** *(9-12 jours déjà investis)*
+1. ✅ **Migration Statuts & Base** (Phase 0) - **TERMINÉ**
+2. ✅ **APIs d'Actions Complètes** (Phase 1) - **TERMINÉ**  
+3. ✅ **Workflows de Base** (Approbation/Rejet/Annulation) - **TERMINÉ**
+4. ✅ **Notifications Intelligentes** - **TERMINÉ**
 
-### 🔥 IMPORTANT (Fonctionnalités core)
-3. **Workflow Clôture** (Phase 3) - **3-4 jours** 
-4. **Magic Links** (Phase 2.2) - **1-2 jours**
-5. **Notifications Robustes** - **1-2 jours**
+### **🔥 CRITIQUE** *(Pour flux complet - 5-8 jours)*
+5. **Système de Devis Complet** (Phase 2.1) - **2-3 jours**
+6. **Magic Links Prestataires** (Phase 2.2) - **1-2 jours**  
+7. **Interfaces de Clôture Professionnelles** (Phase 2.3) - **2-3 jours**
 
-### ⭐ AMÉLIORATIONS (Si temps disponible)
-6. **Système Devis** (Phase 2.1) - **2-3 jours**
-7. **Chat Temps Réel** (Phase 2.4) - **2-3 jours**
-8. **Doodle-like** (Phase 2.3) - **2-3 jours**
+### **⭐ AMÉLIORATIONS** *(Fonctionnalités bonus - 3-5 jours)*
+8. **Chat Temps Réel** (Phase 3.1) - **2-3 jours**
+9. **Collecte Disponibilités Doodle-like** (Phase 3.2) - **1-2 jours**
+10. **Indicateurs UX Avancés** (Phase 3.3) - **1 jour**
 
----
-
-## Estimation Totale RÉVISÉE
-
-- **Phase 0** (Statuts) : 1-2 jours - **🚨 BLOQUANT**
-- **Phase 1** (APIs réelles) : 3-5 jours - **🚨 CRITIQUE**
-- **Phase 2** (Fonctionnalités) : 3-7 jours (selon choix)
-- **Phase 3** (Clôture) : 3-4 jours - **🔥 IMPORTANT**
-- **Phase 4** (Polish) : 2-3 jours
-
-**Total minimum fonctionnel** : 9-14 jours
-**Total avec fonctionnalités avancées** : 12-21 jours
+### **🔧 PRODUCTION** *(Robustesse - 2-3 jours)*
+11. **Performance & Optimisations** (Phase 4.1) - **1-2 jours**
+12. **Tests & Validation** (Phase 4.2) - **1 jour**
 
 ---
 
-## Notes Techniques Importantes
+## **ESTIMATION TOTALE RÉVISÉE**
 
-### Migration Statuts - ATTENTION ⚠️
-- **Les enums PostgreSQL ne permettent pas de RENOMMER** les valeurs
-- **Il faut AJOUTER les nouveaux** puis migrer les données
-- **Considérer un mapping temporaire** pendant la transition
+### **📊 Travail Accompli**
+- **✅ Déjà terminé** : 9-12 jours *(Phases 0 + 1 + Notifications + Workflows)*
 
-### Sécurité Magic Links 
-- **Expiration courte** (24-48h max)
-- **Usage unique** ou limité
-- **HTTPS obligatoire** en production
-- **Logging** des accès pour audit
+### **📋 Travail Restant**
+- **🔥 Phase 2** (Critique) : 5-8 jours - **NÉCESSAIRE pour flux complet**
+- **⭐ Phase 3** (Bonus) : 3-5 jours - **Améliore l'UX significativement**  
+- **🔧 Phase 4** (Production) : 2-3 jours - **Robustesse et performance**
 
-### Performance
-- **Index sur** `intervention_id`, `status`, `team_id`
-- **Optimisation requêtes** avec `intervention_contacts`
-- **Cache notifications** pour éviter spam
-- **Pagination** pour grandes listes
+### **🎯 Scénarios de Livraison**
+
+**MINIMUM VIABLE (Phase 2 seule)** : **5-8 jours**
+- Système de devis fonctionnel
+- Magic Links opérationnels  
+- Clôtures professionnelles
+- **→ FLUX D'INTERVENTION COMPLET**
+
+**CONFORT UTILISATEUR (+Phase 3)** : **8-13 jours**
+- Tout le MVP +
+- Chat temps réel
+- Planification Doodle-like
+- UX améliorée
+- **→ EXPÉRIENCE UTILISATEUR PREMIUM**
+
+**PRODUCTION-READY (+Phase 4)** : **10-16 jours**
+- Tout Confort +
+- Performance optimisée
+- Tests complets
+- Monitoring robuste
+- **→ DÉPLOIEMENT PRODUCTION SÉCURISÉ**
 
 ---
 
-*Ce plan a été créé suite à l'analyse complète des interfaces, APIs backend existantes, schéma de base de données et workflow souhaité. Il est prêt pour implémentation immédiate.*
+## **NOTES TECHNIQUES CRITIQUES**
+
+### **🔒 Sécurité Magic Links**
+- **Expiration** : 24-48h maximum
+- **Usage** : Unique ou limité (max 3 accès)
+- **HTTPS** : Obligatoire en production
+- **Audit Trail** : Logging complet des accès
+- **Rate Limiting** : Maximum 5 générations/heure/gestionnaire
+
+### **💾 Performance Base de Données**
+```sql
+-- Index critiques pour performance
+CREATE INDEX CONCURRENTLY idx_interventions_status_created ON interventions(status, created_at);
+CREATE INDEX CONCURRENTLY idx_intervention_contacts_intervention_role ON intervention_contacts(intervention_id, role);
+CREATE INDEX CONCURRENTLY idx_notifications_user_created ON notifications(user_id, created_at);
+CREATE INDEX CONCURRENTLY idx_activity_logs_entity_action ON activity_logs(entity_type, action, created_at);
+```
+
+### **📧 Intégration Email**
+- **SMTP** configuré pour Magic Links
+- **Templates** : Notifications prestataires
+- **Fallback** : Notifications in-app si email échoue
+- **Bounce handling** : Gestion des emails rejetés
+
+### **📱 Mobile-First**
+- **Interfaces prestataires** : Optimisées terrain
+- **Upload photos** : Compression automatique  
+- **Mode hors-ligne** : Cache local actions critiques
+- **Progressive Web App** : Installation possible
+
+---
+
+## **🚀 RECOMMANDATION DE DÉPLOIEMENT**
+
+### **PHASE PRIORITAIRE** *(5-8 jours)*
+**Objectif** : Flux d'intervention complet et fonctionnel
+
+1. **Démarrer immédiatement** avec le système de devis (2-3 jours)
+2. **Parallèlement** implémenter Magic Links (1-2 jours)  
+3. **Finaliser** avec interfaces de clôture (2-3 jours)
+
+**→ Livrable** : Application avec workflow intervention 100% fonctionnel
+
+### **EXTENSIONS RECOMMANDÉES** *(selon budget temps)*
+- **Si +3 jours** : Ajouter Chat temps réel
+- **Si +5 jours** : Ajouter Doodle-like + UX avancée
+- **Si +7 jours** : Finaliser avec optimisations production
+
+**Ce plan reflète l'état réel actuel post-implémentation des workflows de base. Prêt pour Phase 2 immédiate.**

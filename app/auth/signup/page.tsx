@@ -33,13 +33,26 @@ export default function SignupPage() {
   const [signupSuccess, setSignupSuccess] = useState(false)
   const [successUserName, setSuccessUserName] = useState("")
 
-  // Middleware gère les redirections automatiques
+  // ✅ REFACTORISÉ: Plus de redirections automatiques
   useEffect(() => {
-    console.log('🔄 [SIGNUP-CLEAN] Signup page loaded, middleware will handle redirections')
+    console.log('🔄 [SIGNUP-REFACTORED] Signup page loaded - no auto-redirections')
   }, [])
 
-  // La redirection est maintenant gérée automatiquement par AuthProvider
-  // Plus besoin de logique de redirection ici !
+  // ✅ NOUVEAU: Redirection coordonnée avec useAuth après signup réussi
+  useEffect(() => {
+    if (signupSuccess && user && !loading) {
+      console.log("✅ [SIGNUP-COORDINATED] User loaded by useAuth after signup, redirecting to dashboard")
+      console.log("👤 [SIGNUP-COORDINATED] User details:", user.name, user.role)
+
+      // Nettoyer le flag de signup récent
+      sessionStorage.removeItem('recent_signup')
+
+      // Rediriger vers le dashboard approprié
+      const dashboardPath = `/${user.role}/dashboard`
+      console.log("🚀 [SIGNUP-COORDINATED] Redirecting to:", dashboardPath)
+      router.push(dashboardPath)
+    }
+  }, [signupSuccess, user, loading, router])
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -122,16 +135,18 @@ export default function SignupPage() {
         console.log("🏠 [SIGNUP-SIMPLE] Team ready:", result.team.name)
         console.log("⏳ [SIGNUP-SIMPLE] Showing success modal, waiting for useAuth to load user...")
         
+        // ✅ REFACTORISÉ: Marquer signup réussi, attendre useAuth
+        console.log("✅ [SIGNUP-REFACTORED] Signup complete, waiting for useAuth to load user...")
+
+        // Marquer qu'un signup récent a eu lieu pour coordination avec AuthGuard
+        sessionStorage.setItem('recent_signup', 'true')
+
         // Activer la modale de succès
         setSuccessUserName(result.user.name)
         setSignupSuccess(true)
-        setIsLoading(false) // Arrêter le loader du formulaire
+        setIsLoading(false)
 
-        // 🔄 SOLUTION: Rafraîchir l'état utilisateur pour déclencher la redirection automatique
-        console.log("🔄 [SIGNUP-SIMPLE] Refreshing user state to trigger auto-redirect...")
-        setTimeout(() => {
-          refreshUser() // Ceci va mettre à jour le context et déclencher la redirection
-        }, 1500) // Laisser le temps à la modale de s'afficher
+        // ✅ La redirection sera gérée par useEffect quand useAuth aura chargé l'utilisateur
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }

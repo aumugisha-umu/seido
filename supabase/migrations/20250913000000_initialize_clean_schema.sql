@@ -89,6 +89,14 @@ CREATE TYPE lot_category AS ENUM (
     'autre'
 );
 
+-- Statuts de devis
+CREATE TYPE quote_status AS ENUM (
+    'pending',      -- En attente de validation par le gestionnaire
+    'approved',     -- Approuvé par le gestionnaire
+    'rejected',     -- Rejeté par le gestionnaire
+    'expired'       -- Expiré (passé la date limite)
+);
+
 -- Type pour les statuts d'invitation
 CREATE TYPE invitation_status AS ENUM (
     'pending',    -- En attente
@@ -164,7 +172,7 @@ CREATE TYPE activity_status AS ENUM (
 -- Note: Contient les infos de base + métadata auth.users (first_name, last_name, role)
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- NULL pour contacts non-authentifiés
+    auth_user_id UUID, -- Référence vers auth.users(id) - NULL pour contacts non-authentifiés
     
     -- Informations de base (temporairement maintenues pour compatibilité)
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -188,7 +196,10 @@ CREATE TABLE users (
     -- Notes et métadonnées
     notes TEXT,
     is_active BOOLEAN DEFAULT TRUE,
-    
+
+    -- Gestion du mot de passe (pour le flux d'invitation)
+    password_set BOOLEAN DEFAULT FALSE,
+
     -- Système d'équipes (obligatoire)
     team_id UUID, -- Référence ajoutée après création table teams
     
@@ -344,7 +355,9 @@ CREATE TABLE interventions (
     estimated_cost DECIMAL(10,2),
     final_cost DECIMAL(10,2),
     requires_quote BOOLEAN DEFAULT FALSE,
-    
+    quote_deadline TIMESTAMP WITH TIME ZONE,
+    quote_notes TEXT,
+
     -- Planification
     scheduling_type VARCHAR(20) DEFAULT 'flexible', -- 'flexible', 'strict', 'urgent'
     specific_location VARCHAR(255), -- Localisation précise dans le lot/bâtiment
@@ -826,6 +839,94 @@ CREATE INDEX idx_interventions_reference ON interventions(reference);
 CREATE INDEX idx_intervention_contacts_intervention ON intervention_contacts(intervention_id);
 CREATE INDEX idx_intervention_contacts_user ON intervention_contacts(user_id);
 CREATE INDEX idx_intervention_contacts_role ON intervention_contacts(intervention_id, role);
+
+-- Table des devis d'interventions
+CREATE TABLE intervention_quotes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
+    provider_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Détails financiers
+    labor_cost DECIMAL(10,2) NOT NULL,
+    materials_cost DECIMAL(10,2) DEFAULT 0,
+    total_amount DECIMAL(10,2) GENERATED ALWAYS AS (labor_cost + materials_cost) STORED,
+
+    -- Détails techniques
+    description TEXT NOT NULL,
+    work_details TEXT,
+    estimated_duration_hours INTEGER,
+    estimated_start_date DATE,
+
+    -- Documents et conditions
+    attachments JSONB DEFAULT '[]', -- URLs des documents/photos
+    terms_and_conditions TEXT,
+    warranty_period_months INTEGER DEFAULT 12,
+
+    -- Validité et workflow
+    valid_until DATE NOT NULL,
+    status quote_status DEFAULT 'pending',
+
+    -- Timestamps et validation
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    reviewed_by UUID REFERENCES users(id),
+    review_comments TEXT,
+    rejection_reason TEXT,
+
+    -- Audit
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+    -- Contraintes de validation
+    CONSTRAINT valid_costs CHECK (labor_cost >= 0 AND materials_cost >= 0),
+    CONSTRAINT valid_duration CHECK (estimated_duration_hours IS NULL OR estimated_duration_hours > 0),
+    CONSTRAINT valid_validity_date CHECK (valid_until >= CURRENT_DATE),
+
+    -- Un seul devis par prestataire par intervention (mais peut être resoumis)
+    CONSTRAINT unique_provider_intervention UNIQUE(intervention_id, provider_id)
+);
+
+-- Index pour performance sur les devis
+CREATE INDEX idx_intervention_quotes_intervention ON intervention_quotes(intervention_id);
+CREATE INDEX idx_intervention_quotes_provider ON intervention_quotes(provider_id);
+CREATE INDEX idx_intervention_quotes_status ON intervention_quotes(status);
+CREATE INDEX idx_intervention_quotes_valid_until ON intervention_quotes(valid_until);
+CREATE INDEX idx_intervention_quotes_submitted ON intervention_quotes(submitted_at DESC);
+
+-- Ajouter la référence au devis sélectionné après création de la table intervention_quotes
+ALTER TABLE interventions ADD COLUMN selected_quote_id UUID REFERENCES intervention_quotes(id) ON DELETE SET NULL;
+
+-- Table des liens d'accès magiques pour prestataires externes
+CREATE TABLE intervention_magic_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
+    provider_email TEXT NOT NULL,
+    provider_id UUID REFERENCES users(id) ON DELETE SET NULL, -- null si prestataire externe
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    individual_message TEXT,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    accessed_at TIMESTAMP WITH TIME ZONE,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accessed', 'expired', 'used')),
+    quote_submitted BOOLEAN DEFAULT FALSE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+    -- Contraintes de validation
+    CONSTRAINT valid_email CHECK (provider_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    CONSTRAINT valid_expiry CHECK (expires_at > created_at),
+    CONSTRAINT valid_token_length CHECK (length(token) >= 32),
+
+    -- Un seul lien par intervention/email
+    CONSTRAINT unique_intervention_email UNIQUE(intervention_id, provider_email)
+);
+
+-- Index pour performance sur les magic links
+CREATE INDEX idx_intervention_magic_links_intervention ON intervention_magic_links(intervention_id);
+CREATE INDEX idx_intervention_magic_links_token ON intervention_magic_links(token);
+CREATE INDEX idx_intervention_magic_links_email ON intervention_magic_links(provider_email);
+CREATE INDEX idx_intervention_magic_links_expires ON intervention_magic_links(expires_at);
+CREATE INDEX idx_intervention_magic_links_status ON intervention_magic_links(status);
 
 -- Index notifications (structure complète)
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);

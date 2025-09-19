@@ -110,19 +110,28 @@ export const usePrestataireData = (userId: string) => {
 
   const loadData = async () => {
     console.log("📊 Loading prestataire data for user:", userId)
-    
+
     try {
       setData(prev => ({ ...prev, loading: true, error: null }))
-      
+
+      // ✅ CORRECTION: Nettoyer l'ID utilisateur si c'est un JWT-only ID
+      const cleanUserId = userId.startsWith('jwt_') ? userId.replace('jwt_', '') : userId
+
+      console.log("🔍 [PRESTATAIRE-DATA] Using cleaned user ID:", {
+        originalId: userId,
+        cleanedId: cleanUserId,
+        isJwtOnly: userId.startsWith('jwt_')
+      })
+
       // 1. Dans la nouvelle architecture, userId est directement l'ID du profil utilisateur
       // Plus besoin de passer par user_invitations.contact_id car users remplace contacts
       const { supabase } = await import('@/lib/supabase')
-      
+
       // Vérifier que l'utilisateur existe d'abord, puis vérifier son rôle
       const { data: userProfile, error: userError } = await supabase
         .from('users')
         .select('id, role, team_id, name, email')
-        .eq('id', userId)
+        .eq('auth_user_id', cleanUserId)
         .single()
 
       if (userError) {
@@ -131,7 +140,7 @@ export const usePrestataireData = (userId: string) => {
       }
 
       if (!userProfile) {
-        console.log("❌ No user profile found for ID:", userId)
+        console.log("❌ No user profile found for auth_user_id:", cleanUserId)
         throw new Error("Aucun profil utilisateur trouvé")
       }
 

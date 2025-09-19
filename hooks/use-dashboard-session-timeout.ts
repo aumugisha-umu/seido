@@ -60,3 +60,4 @@ export const useDashboardSessionTimeout = () => {
     isMonitoring: !!timeoutRef.current
   }
 }
+

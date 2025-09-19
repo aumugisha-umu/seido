@@ -31,8 +31,15 @@ export default function LoginPage() {
   useEffect(() => {
     // Vérifier si c'est une redirection après confirmation
     const confirmed = searchParams.get('confirmed')
+    const message = searchParams.get('message')
+    
     if (confirmed === 'true') {
       console.log('🎉 User confirmed email - showing success message')
+      setShowConfirmationSuccess(true)
+    }
+    
+    if (message === 'password-updated') {
+      console.log('🔑 User updated password - showing success message')
       setShowConfirmationSuccess(true)
     }
     
@@ -145,8 +152,17 @@ export default function LoginPage() {
                 <Alert className="border-green-200 bg-green-50">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800">
-                    <strong>Email confirmé avec succès !</strong><br />
-                    Vous pouvez maintenant vous connecter avec vos identifiants.
+                    {searchParams.get('message') === 'password-updated' ? (
+                      <>
+                        <strong>Mot de passe mis à jour avec succès !</strong><br />
+                        Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Email confirmé avec succès !</strong><br />
+                        Vous pouvez maintenant vous connecter avec vos identifiants.
+                      </>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

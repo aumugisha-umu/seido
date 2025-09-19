@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTenantData } from "@/hooks/use-tenant-data"
+import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import { useRouter } from "next/navigation"
 import ContentNavigator from "@/components/content-navigator"
 import {
@@ -46,6 +47,9 @@ export default function LocataireDashboard() {
   const { user } = useAuth()
   const { tenantData, tenantStats, tenantInterventions, loading, error } = useTenantData()
   const router = useRouter()
+  
+  // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
+  useDashboardSessionTimeout()
 
   if (!user) return <div>Chargement...</div>
 

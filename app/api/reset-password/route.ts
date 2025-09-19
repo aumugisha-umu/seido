@@ -1,0 +1,290 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { getServerSession } from "@/lib/supabase-server"
+import { Database } from "@/lib/database.types"
+
+/**
+ * POST /api/reset-password
+ * Envoi d'email de réinitialisation de mot de passe via Service Role Key
+ * Utilise la même approche que le système d'invitations qui fonctionne
+ */
+
+// Client admin Supabase avec permissions élevées (même config que invitations)
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!supabaseServiceRoleKey) {
+  console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - password reset will be disabled')
+}
+
+const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseServiceRoleKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+) : null
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('🔄 [RESET-PASSWORD-API] Processing password reset request...')
+    console.log('🔧 [RESET-PASSWORD-API] Environment check:', {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+      serviceRoleKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...',
+      nodeEnv: process.env.NODE_ENV,
+      appUrl: process.env.NEXT_PUBLIC_APP_URL || 'not-set'
+    })
+
+    // Vérifier si le service est disponible (même check que invitations)
+    if (!supabaseAdmin) {
+      console.error('❌ [RESET-PASSWORD-API] Service not configured - SUPABASE_SERVICE_ROLE_KEY missing')
+      console.error('❌ [RESET-PASSWORD-API] Available env vars:', {
+        hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        allEnvKeys: Object.keys(process.env).filter(key => key.includes('SUPABASE'))
+      })
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Service de réinitialisation non configuré - SUPABASE_SERVICE_ROLE_KEY manquant',
+          debugInfo: {
+            hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+            hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            availableSupabaseEnvs: Object.keys(process.env).filter(key => key.includes('SUPABASE'))
+          }
+        },
+        { status: 503 }
+      )
+    }
+
+    const body = await request.json()
+    const { email } = body
+
+    // Validation de l'email
+    if (!email) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Email requis' 
+        },
+        { status: 400 }
+      )
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Format d\'email invalide' 
+        },
+        { status: 400 }
+      )
+    }
+
+    console.log('📧 [RESET-PASSWORD-API] Processing reset for email:', email)
+
+    // ÉTAPE 1: Vérifier que l'utilisateur existe dans auth.users
+    console.log('🔍 [RESET-PASSWORD-API] Checking if user exists in auth system...')
+    console.log('🔧 [RESET-PASSWORD-API] Using supabaseAdmin client:', {
+      hasClient: !!supabaseAdmin,
+      clientAuth: !!supabaseAdmin?.auth,
+      clientAdmin: !!supabaseAdmin?.auth.admin
+    })
+    
+    const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+    
+    console.log('🔧 [RESET-PASSWORD-API] List users result:', {
+      hasData: !!authUsers,
+      userCount: authUsers?.users?.length || 0,
+      hasError: !!listError,
+      errorMessage: listError?.message,
+      errorCode: listError?.status
+    })
+    
+    if (listError) {
+      console.error('❌ [RESET-PASSWORD-API] Error listing users:', {
+        message: listError.message,
+        status: listError.status,
+        name: listError.name
+      })
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Erreur lors de la vérification de l\'utilisateur',
+          debugInfo: {
+            listError: listError.message,
+            errorStatus: listError.status,
+            hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length
+          }
+        },
+        { status: 500 }
+      )
+    }
+
+    const userExists = authUsers.users.find(user => user.email?.toLowerCase() === email.toLowerCase())
+    
+    console.log('🔧 [RESET-PASSWORD-API] User search details:', {
+      searchEmail: email.toLowerCase(),
+      totalUsers: authUsers.users.length,
+      userEmails: authUsers.users.map(u => u.email?.toLowerCase()).filter(Boolean),
+      userFound: !!userExists
+    })
+    
+    if (!userExists) {
+      console.log('❌ [RESET-PASSWORD-API] User not found in auth system:', email)
+      console.log('🔧 [RESET-PASSWORD-API] Available users in system:', 
+        authUsers.users.map(u => ({ email: u.email, id: u.id, confirmed: u.email_confirmed_at }))
+      )
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Aucun compte n\'est associé à cette adresse email',
+          debugInfo: {
+            searchedEmail: email.toLowerCase(),
+            totalUsers: authUsers.users.length,
+            availableEmails: authUsers.users.map(u => u.email).filter(Boolean)
+          }
+        },
+        { status: 404 }
+      )
+    }
+
+    console.log('✅ [RESET-PASSWORD-API] User found in auth system:', {
+      id: userExists.id,
+      email: userExists.email,
+      confirmed: userExists.email_confirmed_at,
+      lastSignIn: userExists.last_sign_in_at,
+      createdAt: userExists.created_at
+    })
+
+    // ÉTAPE 2: Envoyer l'email de réinitialisation via Service Role Key
+    console.log('📧 [RESET-PASSWORD-API] Sending password reset email via admin API...')
+    
+    // Déterminer l'URL de base selon l'environnement
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    const redirectUrl = `${baseUrl}/auth/update-password`
+    console.log('🔧 [RESET-PASSWORD-API] Reset email config:', {
+      email: email,
+      redirectTo: redirectUrl,
+      method: 'admin.resetPasswordForEmail'
+    })
+    
+    try {
+      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      })
+
+      console.log('🔧 [RESET-PASSWORD-API] Reset email attempt result:', {
+        hasError: !!resetError,
+        errorMessage: resetError?.message,
+        errorStatus: resetError?.status,
+        errorName: resetError?.name
+      })
+
+      if (resetError) {
+        console.error('❌ [RESET-PASSWORD-API] Reset email failed:', {
+          message: resetError.message,
+          status: resetError.status,
+          name: resetError.name,
+          email: email,
+          redirectUrl: redirectUrl
+        })
+        
+        // Gestion d'erreurs spécifiques
+        let errorMessage = 'Erreur lors de l\'envoi de l\'email de réinitialisation'
+        
+        if (resetError.message.includes('rate limit')) {
+          errorMessage = 'Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.'
+        } else if (resetError.message.includes('User not found')) {
+          errorMessage = 'Aucun compte n\'est associé à cette adresse email'
+        } else if (resetError.message.includes('Email not confirmed')) {
+          errorMessage = 'L\'email de ce compte n\'a pas encore été confirmé'
+        }
+        
+        return NextResponse.json(
+          { 
+            success: false,
+            error: errorMessage,
+            details: resetError.message,
+            debugInfo: {
+              email: email,
+              redirectUrl: redirectUrl,
+              errorStatus: resetError.status,
+              hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+              supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
+            }
+          },
+          { status: 400 }
+        )
+      }
+
+      console.log('✅ [RESET-PASSWORD-API] Password reset email sent successfully!')
+      console.log('🔧 [RESET-PASSWORD-API] Success details:', {
+        email: email,
+        redirectUrl: redirectUrl,
+        userConfirmed: userExists.email_confirmed_at,
+        userId: userExists.id
+      })
+      
+      // ÉTAPE 3: Logs d'activité (optionnel, similaire aux invitations)
+      try {
+        console.log('📝 [RESET-PASSWORD-API] Logging password reset activity...')
+        // Ici on pourrait logger l'activité si nécessaire
+      } catch (logError) {
+        console.warn('⚠️ [RESET-PASSWORD-API] Failed to log activity (non-blocking):', logError)
+      }
+
+      return NextResponse.json(
+        { 
+          success: true,
+          message: 'Email de réinitialisation envoyé avec succès',
+          data: {
+            email: email,
+            resetEmailSent: true,
+            redirectUrl: redirectUrl,
+            userConfirmed: !!userExists.email_confirmed_at
+          },
+          debugInfo: process.env.NODE_ENV === 'development' ? {
+            userId: userExists.id,
+            userCreated: userExists.created_at,
+            userLastSignIn: userExists.last_sign_in_at,
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+            hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
+            appUrl: process.env.NEXT_PUBLIC_APP_URL
+          } : undefined
+        },
+        { status: 200 }
+      )
+
+    } catch (sendError) {
+      console.error('❌ [RESET-PASSWORD-API] Unexpected error sending reset email:', sendError)
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Erreur inattendue lors de l\'envoi de l\'email',
+          details: sendError instanceof Error ? sendError.message : 'Unknown error'
+        },
+        { status: 500 }
+      )
+    }
+
+  } catch (error) {
+    console.error('❌ [RESET-PASSWORD-API] Unexpected error in reset password API:', error)
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Erreur interne du serveur',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}

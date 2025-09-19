@@ -10,12 +10,16 @@ import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { usePrestataireData } from "@/hooks/use-prestataire-data"
+import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 
 export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { stats, urgentInterventions, loading, error } = usePrestataireData(user?.id || '')
+  
+  // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
+  useDashboardSessionTimeout()
 
   // Afficher la vérification d'équipe en cours ou échoué
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {

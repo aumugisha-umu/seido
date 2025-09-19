@@ -454,12 +454,87 @@ class AuthService {
     }
   }
 
-  // Réinitialiser le mot de passe
+  // Réinitialiser le mot de passe (via API serveur comme les invitations)
   async resetPassword(email: string): Promise<{ error: AuthError | null }> {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+    console.log('🔄 [RESET-PASSWORD-SERVICE] Starting server-side password reset for:', email)
+    console.log('🔧 [RESET-PASSWORD-SERVICE] Client environment:', {
+      currentUrl: typeof window !== 'undefined' ? window.location.href : 'server-side',
+      userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'server-side',
+      timestamp: new Date().toISOString()
     })
-    return { error }
+    
+    try {
+      console.log('🔧 [RESET-PASSWORD-SERVICE] Making API request to /api/reset-password...')
+      
+      // 🎯 NOUVELLE APPROCHE: Utiliser l'API serveur (même système que les invitations)
+      const response = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      console.log('🔧 [RESET-PASSWORD-SERVICE] API response status:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+      
+      const result = await response.json()
+      console.log('📊 [RESET-PASSWORD-SERVICE] Server API response:', {
+        success: result.success,
+        hasError: !!result.error,
+        hasData: !!result.data,
+        hasDebugInfo: !!result.debugInfo,
+        fullResult: result
+      })
+      
+      if (!response.ok || !result.success) {
+        console.error('❌ [RESET-PASSWORD-SERVICE] Server API failed:', {
+          status: response.status,
+          error: result.error,
+          details: result.details,
+          debugInfo: result.debugInfo
+        })
+        
+        // Inclure les informations de debug dans le message d'erreur si disponibles
+        let errorMessage = result.error || `Server API returned ${response.status}`
+        if (result.debugInfo && process.env.NODE_ENV === 'development') {
+          errorMessage += ` (Debug: ${JSON.stringify(result.debugInfo)})`
+        }
+        
+        return { 
+          error: {
+            message: errorMessage,
+            name: 'ServerError',
+            status: response.status
+          } as AuthError
+        }
+      }
+      
+      console.log('✅ [RESET-PASSWORD-SERVICE] Server API succeeded:', {
+        email: result.data?.email,
+        resetEmailSent: result.data?.resetEmailSent,
+        debugInfo: result.debugInfo
+      })
+      
+      console.log('🎉 [RESET-PASSWORD-SERVICE] Password reset email sent successfully via server API!')
+      return { error: null }
+      
+    } catch (unexpectedError) {
+      console.error('❌ [RESET-PASSWORD-SERVICE] Unexpected error during reset process:', {
+        error: unexpectedError,
+        message: unexpectedError instanceof Error ? unexpectedError.message : 'Unknown error',
+        stack: unexpectedError instanceof Error ? unexpectedError.stack : undefined
+      })
+      return { 
+        error: {
+          message: 'Erreur de réseau lors de l\'envoi de l\'email: ' + (unexpectedError instanceof Error ? unexpectedError.message : 'Unknown error'),
+          name: 'NetworkError',
+          status: 500
+        } as AuthError
+      }
+    }
   }
 
   // Renvoyer l'email de confirmation
@@ -572,7 +647,7 @@ class AuthService {
         try {
           console.log('🔍 [AUTH-STATE-CHANGE-SIMPLE] Looking up user profile...')
           
-          // ✅ NOUVEAU: Timeout de 3s pour éviter les boucles infinies
+          // ✅ TIMEOUT AUGMENTÉ: 8s pour éviter les timeouts sur connexions lentes
           const profilePromise = supabase
             .from('users')
             .select('*')
@@ -580,7 +655,7 @@ class AuthService {
             .single()
           
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile lookup timeout')), 3000)
+            setTimeout(() => reject(new Error('Profile lookup timeout')), 8000)
           )
           
           const { data: userProfile, error: profileError } = await Promise.race([
@@ -588,13 +663,46 @@ class AuthService {
             timeoutPromise
           ]) as any
           
-          // ✅ SIMPLIFIÉ: Si profil pas trouvé, utiliser les données JWT
+          // ✅ CORRIGÉ: Si profil pas trouvé, essayer de récupérer l'ID réel depuis la DB
           if (profileError) {
-            console.log('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Profile lookup failed, using JWT fallback:', profileError.message)
+            console.log('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Profile lookup failed, trying to get user ID from DB:', profileError.message)
             
-            // Fallback vers les données JWT
+            try {
+              // Essayer de récupérer juste l'ID réel depuis la table users
+              const { data: userIdData, error: idError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('auth_user_id', session.user.id)
+                .single()
+              
+              if (userIdData?.id) {
+                console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Found real user ID for fallback:', userIdData.id)
+                
+                // Fallback avec l'ID réel de la table users
+                const user: AuthUser = {
+                  id: userIdData.id, // ✅ CORRIGÉ: Utiliser l'ID réel de la table users
+                  email: session.user.email!,
+                  name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+                  first_name: session.user.user_metadata?.first_name,
+                  last_name: session.user.user_metadata?.last_name,
+                  display_name: session.user.user_metadata?.display_name,
+                  role: session.user.user_metadata?.role || 'gestionnaire',
+                  phone: undefined,
+                  created_at: undefined,
+                  updated_at: undefined,
+                }
+                
+                console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using corrected fallback user:', user.email, user.role, 'ID:', user.id)
+                callback(user)
+                return
+              }
+            } catch (idLookupError) {
+              console.warn('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Could not get real user ID, using auth_user_id as last resort:', idLookupError)
+            }
+            
+            // ❌ DERNIER RECOURS: Utiliser auth_user_id (peut causer des problèmes de relations)
             const user: AuthUser = {
-              id: session.user.id,
+              id: session.user.id, // ⚠️ ATTENTION: C'est l'auth_user_id, peut causer des problèmes
               email: session.user.email!,
               name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
               first_name: session.user.user_metadata?.first_name,
@@ -606,7 +714,7 @@ class AuthService {
               updated_at: undefined,
             }
             
-            console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using JWT fallback user:', user.email, user.role)
+            console.log('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Using auth_user_id as last resort:', user.email, user.role, 'ID:', user.id)
             callback(user)
             return
           }
@@ -664,9 +772,27 @@ class AuthService {
         } catch (error) {
           console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Error processing profile:', error)
           
-          // ✅ FALLBACK: Toujours utiliser JWT en cas d'erreur
+          // ✅ CORRIGÉ: Essayer de récupérer l'ID réel même en cas d'erreur
+          let fallbackUserId = session.user.id // Défaut à auth_user_id
+          
+          try {
+            // Essayer de récupérer l'ID réel de la table users
+            const { data: userIdData } = await supabase
+              .from('users')
+              .select('id')
+              .eq('auth_user_id', session.user.id)
+              .single()
+              
+            if (userIdData?.id) {
+              fallbackUserId = userIdData.id
+              console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Successfully retrieved real user ID for error fallback:', fallbackUserId)
+            }
+          } catch (idError) {
+            console.warn('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Could not get real user ID for error fallback, using auth_user_id')
+          }
+          
           const fallbackUser: AuthUser = {
-            id: session.user.id,
+            id: fallbackUserId, // ✅ CORRIGÉ: Utiliser l'ID réel si disponible
             email: session.user.email!,
             name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
             first_name: session.user.user_metadata?.first_name,
@@ -678,7 +804,7 @@ class AuthService {
             updated_at: undefined,
           }
           
-          console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using error fallback:', fallbackUser.email, fallbackUser.role)
+          console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using error fallback:', fallbackUser.email, fallbackUser.role, 'ID:', fallbackUser.id)
           callback(fallbackUser)
         }
       } else {

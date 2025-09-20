@@ -110,13 +110,18 @@ export async function POST(request: Request) {
     // ✅ L'utilisateur est déjà ajouté à l'équipe par teamService.create
     console.log('✅ [STEP-3] User already added to team as admin by teamService.create')
 
-    // ÉTAPE 4: REDIRECTION AVEC TOUTES LES INFOS
-    console.log('🎯 [STEP-4] All setup complete - ready for dashboard!')
-    
+    // ÉTAPE 4: RETOURNER LES CREDENTIALS POUR AUTO-LOGIN
+    console.log('🎯 [STEP-4] All setup complete - ready for auto-login!')
+
     return NextResponse.json({
       success: true,
       message: 'Compte créé avec succès',
       ready: true, // ✅ Signal pour arrêter le loader
+      // ✅ Credentials pour auto-login
+      credentials: {
+        email: userProfile.email,
+        password: password // Nécessaire pour l'auto-login
+      },
       user: {
         id: userProfile.id,
         auth_user_id: authData.user.id,

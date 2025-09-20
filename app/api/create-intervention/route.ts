@@ -56,18 +56,61 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Authenticated user:", authUser.id)
 
-    // Parse the request body
-    const body = await request.json()
-    console.log("📝 Request body:", body)
-    
+    // Parse the request body (handle both JSON and FormData)
+    let body: Record<string, unknown>
+    const files: File[] = []
+    const fileMetadata: Record<string, unknown>[] = []
+
+    const contentType = request.headers.get('content-type')
+
+    if (contentType?.includes('multipart/form-data')) {
+      // Handle FormData (with files)
+      console.log("📝 Processing FormData request")
+      const formData = await request.formData()
+
+      // Extract intervention data
+      const interventionDataString = formData.get('interventionData') as string
+      if (!interventionDataString) {
+        return NextResponse.json({
+          success: false,
+          error: 'Missing intervention data'
+        }, { status: 400 })
+      }
+
+      body = JSON.parse(interventionDataString)
+
+      // Extract files
+      const fileCount = parseInt(formData.get('fileCount') as string || '0')
+      console.log(`📎 Processing ${fileCount} files from FormData`)
+
+      for (let i = 0; i < fileCount; i++) {
+        const file = formData.get(`file_${i}`) as File
+        const metadataString = formData.get(`file_${i}_metadata`) as string
+
+        if (file && metadataString) {
+          files.push(file)
+          fileMetadata.push(JSON.parse(metadataString))
+          console.log(`📎 File ${i}: ${file.name} (${file.size} bytes)`)
+        }
+      }
+    } else {
+      // Handle JSON (backward compatibility)
+      console.log("📝 Processing JSON request")
+      body = await request.json()
+      console.log("📝 Request body:", body)
+
+      // Extract file metadata from JSON (if any)
+      if (body.files && Array.isArray(body.files)) {
+        fileMetadata = body.files
+      }
+    }
+
     const {
       title,
       description,
       type,
       urgency,
-      lot_id,
-      files,
-      availabilities
+      lot_id
     } = body
 
     // Validate required fields
@@ -387,17 +430,73 @@ export async function POST(request: NextRequest) {
       // Don't fail the whole creation if assignment fails - the intervention was created successfully
     }
 
-    // TODO: Handle file uploads if provided
+    // Handle file uploads if provided
     if (files && files.length > 0) {
-      console.log("📎 File handling not yet implemented, files provided:", files.length)
-      // This would involve uploading files to Supabase Storage and linking them to the intervention
+      console.log(`📎 Processing ${files.length} file(s) for intervention...`)
+
+      try {
+        const { fileService } = await import('@/lib/file-service')
+
+        let filesUploaded = 0
+        const fileErrors: string[] = []
+        const uploadedDocuments: unknown[] = []
+
+        // Process each file
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const metadata = fileMetadata[i] || {}
+
+          try {
+            console.log(`📎 Processing file ${i + 1}/${files.length}: ${file.name} (${file.size} bytes)`)
+
+            // Validate file before upload
+            const validation = fileService.validateFile(file)
+            if (!validation.isValid) {
+              console.error(`❌ File validation failed for ${file.name}:`, validation.error)
+              fileErrors.push(`${file.name}: ${validation.error}`)
+              continue
+            }
+
+            // Upload file to storage and create database record
+            const uploadResult = await fileService.uploadInterventionDocument(supabase, file, {
+              interventionId: intervention.id,
+              uploadedBy: user.id, // Use database user ID
+              documentType: 'intervention_photo', // Could be made dynamic based on file type
+              description: `File uploaded during intervention creation: ${file.name}`
+            })
+
+            console.log(`✅ File uploaded successfully: ${file.name}`)
+            uploadedDocuments.push(uploadResult.documentRecord)
+            filesUploaded++
+
+          } catch (fileError) {
+            console.error(`❌ Error uploading file ${file.name}:`, fileError)
+            fileErrors.push(`Failed to upload ${file.name}: ${fileError instanceof Error ? fileError.message : String(fileError)}`)
+          }
+        }
+
+        console.log(`📎 File upload summary: ${filesUploaded} files uploaded successfully, ${fileErrors.length} errors`)
+
+        if (filesUploaded > 0) {
+          // Update intervention to mark it as having attachments
+          await interventionService.update(intervention.id, {
+            has_attachments: true
+          })
+          console.log("✅ Updated intervention to mark has_attachments = true")
+        }
+
+        if (fileErrors.length > 0) {
+          console.warn("⚠️ Some files could not be uploaded:", fileErrors)
+          // Note: We don't fail the whole creation if some files fail - the intervention was created successfully
+        }
+
+      } catch (fileProcessingError) {
+        console.error("❌ Error during file processing (intervention still created):", fileProcessingError)
+        // Don't fail the whole creation if file processing fails - the intervention was created successfully
+      }
     }
 
-    // TODO: Handle availabilities if provided
-    if (availabilities && availabilities.length > 0) {
-      console.log("📅 Availability handling not yet implemented, availabilities provided:", availabilities.length)
-      // This would involve creating records in an intervention_availabilities table
-    }
 
     console.log("🎉 Intervention creation completed successfully")
 

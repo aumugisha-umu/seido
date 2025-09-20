@@ -38,21 +38,7 @@ export default function SignupPage() {
     console.log('🔄 [SIGNUP-REFACTORED] Signup page loaded - no auto-redirections')
   }, [])
 
-  // ✅ NOUVEAU: Redirection coordonnée avec useAuth après signup réussi
-  useEffect(() => {
-    if (signupSuccess && user && !loading) {
-      console.log("✅ [SIGNUP-COORDINATED] User loaded by useAuth after signup, redirecting to dashboard")
-      console.log("👤 [SIGNUP-COORDINATED] User details:", user.name, user.role)
-
-      // Nettoyer le flag de signup récent
-      sessionStorage.removeItem('recent_signup')
-
-      // Rediriger vers le dashboard approprié
-      const dashboardPath = `/${user.role}/dashboard`
-      console.log("🚀 [SIGNUP-COORDINATED] Redirecting to:", dashboardPath)
-      router.push(dashboardPath)
-    }
-  }, [signupSuccess, user, loading, router])
+  // ✅ Supprimé: Plus besoin d'attendre useAuth grâce à l'auto-login
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -135,18 +121,49 @@ export default function SignupPage() {
         console.log("🏠 [SIGNUP-SIMPLE] Team ready:", result.team.name)
         console.log("⏳ [SIGNUP-SIMPLE] Showing success modal, waiting for useAuth to load user...")
         
-        // ✅ REFACTORISÉ: Marquer signup réussi, attendre useAuth
-        console.log("✅ [SIGNUP-REFACTORED] Signup complete, waiting for useAuth to load user...")
+        // ✅ NOUVEAU FLUX: Auto-login après signup réussi
+        console.log("✅ [SIGNUP-AUTO-LOGIN] Signup complete, performing auto-login...")
 
-        // Marquer qu'un signup récent a eu lieu pour coordination avec AuthGuard
-        sessionStorage.setItem('recent_signup', 'true')
+        if (result.credentials) {
+          try {
+            // Auto-login avec les credentials retournés
+            console.log("🔐 [SIGNUP-AUTO-LOGIN] Performing automatic login...")
+            const loginResult = await signIn(result.credentials.email, result.credentials.password)
 
-        // Activer la modale de succès
-        setSuccessUserName(result.user.name)
-        setSignupSuccess(true)
-        setIsLoading(false)
+            if (loginResult.user && !loginResult.error) {
+              console.log("✅ [SIGNUP-AUTO-LOGIN] Auto-login successful!")
 
-        // ✅ La redirection sera gérée par useEffect quand useAuth aura chargé l'utilisateur
+              // Marquer qu'un signup récent a eu lieu
+              sessionStorage.setItem('recent_signup', 'true')
+
+              // Rediriger vers le dashboard approprié
+              const dashboardPath = `/${loginResult.user.role}/dashboard`
+              console.log("🚀 [SIGNUP-AUTO-LOGIN] Redirecting to:", dashboardPath)
+              router.push(dashboardPath)
+            } else {
+              console.error("❌ [SIGNUP-AUTO-LOGIN] Auto-login failed:", loginResult.error)
+
+              // Fallback: afficher le succès et laisser l'utilisateur se connecter manuellement
+              setSuccessUserName(result.user.name)
+              setSignupSuccess(true)
+              setIsLoading(false)
+            }
+          } catch (loginError) {
+            console.error("❌ [SIGNUP-AUTO-LOGIN] Auto-login error:", loginError)
+
+            // Fallback: afficher le succès et laisser l'utilisateur se connecter manuellement
+            setSuccessUserName(result.user.name)
+            setSignupSuccess(true)
+            setIsLoading(false)
+          }
+        } else {
+          console.error("❌ [SIGNUP-AUTO-LOGIN] No credentials returned from signup")
+
+          // Fallback: afficher le succès et laisser l'utilisateur se connecter manuellement
+          setSuccessUserName(result.user.name)
+          setSignupSuccess(true)
+          setIsLoading(false)
+        }
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }

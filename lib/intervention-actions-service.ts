@@ -70,7 +70,206 @@ export class InterventionActionsService {
   /**
    * Actions d'approbation/rejet
    */
-  async approveIntervention(intervention: InterventionAction, data: ApprovalData): Promise<void> {
+  // Nouvelles méthodes simplifiées pour le workflow
+  async approveIntervention(intervention: InterventionAction): Promise<any> {
+    console.log(`✅ Approving intervention ${intervention.id}`)
+
+    const response = await fetch('/api/intervention-approve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de l'approbation: ${response.status}`)
+    }
+
+    console.log(`✅ Intervention approved successfully: ${result.intervention.id}`)
+    return result
+  }
+
+  async rejectIntervention(intervention: InterventionAction, reason: string): Promise<any> {
+    console.log(`❌ Rejecting intervention ${intervention.id}`)
+    console.log(`📝 Rejection reason: ${reason}`)
+
+    if (!reason) {
+      throw new Error('Le motif de rejet est requis')
+    }
+
+    const response = await fetch('/api/intervention-reject', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        rejectionReason: reason
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors du rejet: ${response.status}`)
+    }
+
+    console.log(`❌ Intervention rejected successfully: ${result.intervention.id}`)
+    return result
+  }
+
+  async startIntervention(intervention: InterventionAction): Promise<any> {
+    console.log(`🚀 Starting intervention ${intervention.id}`)
+
+    const response = await fetch('/api/intervention-start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors du démarrage: ${response.status}`)
+    }
+
+    console.log("🚀 Intervention started successfully:", result.intervention.id)
+    return result
+  }
+
+  async completeByProvider(intervention: InterventionAction, report: string): Promise<any> {
+    console.log(`✅ Completing intervention ${intervention.id} by provider`)
+
+    const response = await fetch('/api/intervention-complete-provider', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        completionReport: report
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la finalisation: ${response.status}`)
+    }
+
+    console.log("✅ Intervention completed by provider:", result.intervention.id)
+    return result
+  }
+
+  async validateByTenant(intervention: InterventionAction): Promise<any> {
+    console.log(`✅ Validating intervention ${intervention.id} by tenant`)
+
+    const response = await fetch('/api/intervention-validate-tenant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la validation: ${response.status}`)
+    }
+
+    console.log("✅ Intervention validated by tenant:", result.intervention.id)
+    return result
+  }
+
+  async contestByTenant(intervention: InterventionAction, contestReason: string): Promise<any> {
+    console.log(`⚠️ Contesting intervention ${intervention.id} by tenant`)
+
+    const response = await fetch('/api/intervention-contest-tenant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        contestReason: contestReason
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la contestation: ${response.status}`)
+    }
+
+    console.log("⚠️ Intervention contested by tenant:", result.intervention.id)
+    return result
+  }
+
+  async finalizeByManager(intervention: InterventionAction): Promise<any> {
+    console.log(`🏁 Finalizing intervention ${intervention.id} by manager`)
+
+    const response = await fetch('/api/intervention-finalize-manager', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la finalisation: ${response.status}`)
+    }
+
+    console.log("🏁 Intervention finalized by manager:", result.intervention.id)
+    return result
+  }
+
+  async cancelIntervention(intervention: InterventionAction, reason: string): Promise<any> {
+    if (!reason?.trim()) {
+      throw new Error("Le motif d'annulation est requis")
+    }
+
+    console.log(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
+
+    const response = await fetch('/api/intervention-cancel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        cancellationReason: reason
+      }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de l'annulation: ${response.status}`)
+    }
+
+    console.log(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
+    return result
+  }
+
+  // Méthodes héritées (garder pour compatibilité)
+  async approveInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<void> {
     console.log(`✅ Approving intervention ${intervention.id}`)
     console.log(`📝 Internal comment: ${data.internalComment}`)
     

@@ -1282,6 +1282,64 @@ export const interventionService = {
           is_primary,
           individual_message,
           user:user_id(id, name, email, phone, role, provider_category, speciality)
+        ),
+        intervention_quotes!intervention_id(
+          id,
+          provider_id,
+          labor_cost,
+          materials_cost,
+          total_amount,
+          description,
+          work_details,
+          estimated_duration_hours,
+          estimated_start_date,
+          valid_until,
+          terms_and_conditions,
+          warranty_period_months,
+          attachments,
+          status,
+          submitted_at,
+          reviewed_at,
+          reviewed_by,
+          review_comments,
+          rejection_reason,
+          provider:provider_id(
+            id,
+            name,
+            email,
+            phone,
+            provider_category,
+            speciality
+          ),
+          reviewer:reviewed_by(
+            id,
+            name
+          )
+        ),
+        user_availabilities!intervention_id(
+          id,
+          user_id,
+          date,
+          start_time,
+          end_time,
+          created_at,
+          user:user_id(
+            id,
+            name,
+            role
+          )
+        ),
+        intervention_documents!intervention_id(
+          id,
+          filename,
+          original_filename,
+          file_size,
+          mime_type,
+          document_type,
+          uploaded_at,
+          uploaded_by,
+          storage_path,
+          uploaded_by
         )
       `)
       .eq('id', id)
@@ -1425,8 +1483,27 @@ export const interventionService = {
       `)
       .eq('intervention_id', interventionId)
       .order('uploaded_at', { ascending: false })
-    
+
     if (error) throw error
+    return data
+  },
+
+  // Create a document record for an intervention
+  async createDocument(documentData: Database['public']['Tables']['intervention_documents']['Insert']) {
+    console.log("💾 Creating intervention document record:", documentData)
+
+    const { data, error } = await supabase
+      .from('intervention_documents')
+      .insert(documentData)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("❌ Error creating intervention document:", error)
+      throw error
+    }
+
+    console.log("✅ Intervention document created:", data.id)
     return data
   },
 
@@ -2111,6 +2188,12 @@ export const contactService = {
   async removeContactFromLot(lotId: string, userId: string) {
     console.log("🗑️ Removing contact from lot:", { lotId, userId })
     
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [CONTACT-SERVICE] Cannot remove JWT-only user from lot")
+      throw new Error("Operation not available for JWT-only users")
+    }
+    
     try {
       const { data, error } = await supabase
         .from('lot_contacts')
@@ -2132,6 +2215,12 @@ export const contactService = {
   // Remove a contact from a building (nouvelle architecture)
   async removeContactFromBuilding(buildingId: string, userId: string) {
     console.log("🗑️ Removing contact from building:", { buildingId, userId })
+    
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [CONTACT-SERVICE] Cannot remove JWT-only user from building")
+      throw new Error("Operation not available for JWT-only users")
+    }
     
     try {
       const { data, error } = await supabase
@@ -2543,6 +2632,12 @@ export const teamService = {
   async getUserTeams(userId: string) {
     console.log("👥 teamService.getUserTeams called with userId:", userId)
     
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-SERVICE] JWT-only user detected, returning empty teams list")
+      return []
+    }
+    
     // Vérifier le cache d'abord
     const cacheKey = `teams_${userId}`
     const cached = this._teamsCache.get(cacheKey)
@@ -2818,6 +2913,12 @@ export const teamService = {
   },
 
   async removeMember(teamId: string, userId: string) {
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-SERVICE] Cannot remove JWT-only user from team")
+      throw new Error("Operation not available for JWT-only users")
+    }
+
     const { error } = await (supabase as any)
       .from('team_members')
       .delete()
@@ -2829,6 +2930,12 @@ export const teamService = {
   },
 
   async updateMemberRole(teamId: string, userId: string, role: 'admin' | 'member') {
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-SERVICE] Cannot update role for JWT-only user")
+      throw new Error("Operation not available for JWT-only users")
+    }
+
     const { data, error } = await (supabase as any)
       .from('team_members')
       .update({ role })
@@ -2861,6 +2968,12 @@ export const teamService = {
   // Vérifier et créer une équipe personnelle si nécessaire (pour dashboard)
   async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; team?: any; error?: string }> {
     console.log("🔍 [TEAM-STATUS-NEW] Checking team status for user:", userId)
+    
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-STATUS-NEW] JWT-only user detected, returning hasTeam: false")
+      return { hasTeam: false, error: "Mode JWT-only: équipe temporairement non disponible" }
+    }
     
     try {
       // 1. Récupérer les informations de l'utilisateur (NOUVELLE ARCHITECTURE)
@@ -3904,6 +4017,12 @@ export const tenantService = {
 
   async getAllTenantLots(userId: string) {
     console.log("🏠 getAllTenantLots called for userId:", userId)
+    
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TENANT-LOTS] JWT-only user detected, returning empty lots list")
+      return []
+    }
     
     try {
       // Get all lots linked directly to this user via lot_contacts (pour les locataires)

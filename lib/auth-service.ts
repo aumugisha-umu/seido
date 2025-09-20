@@ -586,7 +586,7 @@ class AuthService {
           let profileError = null
 
           try {
-            console.log('🔍 [AUTH-STATE-CHANGE-TIMEOUT] Searching user profile with 3s timeout...')
+            console.log('🔍 [AUTH-STATE-CHANGE-TIMEOUT] Searching user profile with 6s timeout...')
 
             // Promise.race pour timeout + fallback par email
             const profileResult = await Promise.race([
@@ -596,9 +596,9 @@ class AuthService {
                 .select('*')
                 .eq('auth_user_id', session.user.id)
                 .single(),
-              // Timeout de 3 secondes
+              // Timeout de 6 secondes (plus réaliste pour Supabase distant)
               new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile query timeout')), 3000)
+                setTimeout(() => reject(new Error('Profile query timeout')), 6000)
               )
             ])
 
@@ -618,7 +618,7 @@ class AuthService {
                     .eq('email', session.user.email)
                     .single(),
                   new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Email fallback timeout')), 2000)
+                    setTimeout(() => reject(new Error('Email fallback timeout')), 4000)
                   )
                 ])
 
@@ -666,11 +666,11 @@ class AuthService {
             return
           }
 
-          // ✅ Fallback : tentative rapide de requête directe (2s max)
+          // ✅ Fallback : tentative de requête directe (4s max)
           console.log('⚠️ [AUTH-STATE-CHANGE-FALLBACK] No profile found via timeout, trying quick direct query...')
 
           try {
-            // Requête directe avec timeout strict de 2s
+            // Requête directe avec timeout de 4s
             const directResult = await Promise.race([
               supabase
                 .from('users')
@@ -678,7 +678,7 @@ class AuthService {
                 .eq('auth_user_id', session.user.id)
                 .single(),
               new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Direct query timeout')), 2000)
+                setTimeout(() => reject(new Error('Direct query timeout')), 4000)
               )
             ])
 

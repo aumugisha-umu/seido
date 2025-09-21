@@ -18,6 +18,7 @@ interface QuoteRequestModal {
 interface QuoteRequestData {
   providerIds: string[]
   selectedProviders: Provider[]
+  providerId: string // ✅ Ajout pour compatibilité avec QuoteRequestModal
   deadline: string
   additionalNotes: string
   individualMessages: Record<string, string>
@@ -49,6 +50,7 @@ export const useInterventionQuoting = () => {
   const [formData, setFormData] = useState<QuoteRequestData>({
     providerIds: [],
     selectedProviders: [],
+    providerId: "", // ✅ Initialisation pour compatibilité avec QuoteRequestModal
     deadline: "",
     additionalNotes: "",
     individualMessages: {},
@@ -65,17 +67,30 @@ export const useInterventionQuoting = () => {
   // Récupérer les prestataires disponibles
   useEffect(() => {
     const fetchProviders = async () => {
-      if (!user?.team_id) return
+      if (!user?.team_id) {
+        console.warn('🚨 [PROVIDERS] No team_id available, user:', user)
+        return
+      }
 
+      console.log('🔍 [PROVIDERS] Fetching providers for team:', user.team_id)
       setProvidersLoading(true)
       try {
-        const response = await fetch(`/api/team-contacts?teamId=${user.team_id}&type=prestataire`)
+        const url = `/api/team-contacts?teamId=${user.team_id}&type=prestataire`
+        console.log('🌐 [PROVIDERS] API URL:', url)
+        
+        const response = await fetch(url)
+        console.log('📡 [PROVIDERS] Response status:', response.status, response.statusText)
+        
         if (response.ok) {
           const data = await response.json()
+          console.log('📊 [PROVIDERS] API Response data:', data)
+          console.log('👥 [PROVIDERS] Found providers:', data.contacts?.length || 0, data.contacts)
           setProviders(data.contacts || [])
+        } else {
+          console.error('❌ [PROVIDERS] API Error response:', await response.text())
         }
       } catch (err) {
-        console.error('Error fetching providers:', err)
+        console.error('❌ [PROVIDERS] Fetch error:', err)
       } finally {
         setProvidersLoading(false)
       }
@@ -102,6 +117,7 @@ export const useInterventionQuoting = () => {
     setFormData({
       providerIds: [],
       selectedProviders: [],
+      providerId: "", // ✅ Reset pour compatibilité avec QuoteRequestModal
       deadline: defaultDeadline.toISOString().split('T')[0], // Format YYYY-MM-DD
       additionalNotes: "",
       individualMessages: {},
@@ -121,6 +137,7 @@ export const useInterventionQuoting = () => {
     setFormData({
       providerIds: [],
       selectedProviders: [],
+      providerId: "", // ✅ Reset pour compatibilité avec QuoteRequestModal
       deadline: "",
       additionalNotes: "",
       individualMessages: {},
@@ -139,7 +156,25 @@ export const useInterventionQuoting = () => {
   }
 
   /**
-   * Ajouter/retirer un prestataire
+   * Sélectionner un prestataire unique (pour compatibilité avec QuoteRequestModal)
+   */
+  const selectProvider = (providerId: string, providerName: string) => {
+    const provider = providers.find(p => p.id === providerId)
+    if (!provider) return
+
+    setFormData(prev => ({
+      ...prev,
+      providerId: providerId,
+      providerIds: [providerId], // Synchroniser avec le système multi-prestataires
+      selectedProviders: [provider],
+      individualMessages: {
+        [providerId]: prev.additionalNotes || ""
+      }
+    }))
+  }
+
+  /**
+   * Ajouter/retirer un prestataire (pour sélection multiple)
    */
   const toggleProvider = (provider: Provider) => {
     setFormData(prev => {
@@ -156,14 +191,19 @@ export const useInterventionQuoting = () => {
           ...prev,
           providerIds: newProviderIds,
           selectedProviders: newSelectedProviders,
+          providerId: newProviderIds[0] || "", // Synchroniser providerId avec le premier élément
           individualMessages: newIndividualMessages
         }
       } else {
         // Ajouter le prestataire
+        const newProviderIds = [...prev.providerIds, provider.id]
+        const newSelectedProviders = [...prev.selectedProviders, provider]
+        
         return {
           ...prev,
-          providerIds: [...prev.providerIds, provider.id],
-          selectedProviders: [...prev.selectedProviders, provider],
+          providerIds: newProviderIds,
+          selectedProviders: newSelectedProviders,
+          providerId: newProviderIds[0], // Synchroniser providerId avec le premier élément
           individualMessages: {
             ...prev.individualMessages,
             [provider.id]: prev.additionalNotes || ""
@@ -281,6 +321,7 @@ export const useInterventionQuoting = () => {
     handleQuoteRequest,
     closeQuoteRequestModal,
     updateFormData,
+    selectProvider, // ✅ Ajout de la fonction pour compatibilité avec QuoteRequestModal
     toggleProvider,
     updateIndividualMessage,
     submitQuoteRequest,

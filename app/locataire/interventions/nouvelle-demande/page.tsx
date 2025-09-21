@@ -117,12 +117,14 @@ export default function NouvelleDemandePage() {
     return allTenantLots.map(lot => ({
       id: lot.id,
       name: lot.apartment_number || `Lot ${lot.reference}`,
-      address: `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}`,
+      address: lot.building ?
+        `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}` :
+        "Lot indépendant",
       surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
-      building: lot.building.name,
+      building: lot.building?.name || `Lot ${lot.reference}`,
       interventions: "Aucune intervention active", // Could be calculated if needed
       reference: lot.reference,
-      building_id: lot.building.id
+      building_id: lot.building?.id || null
     }))
   }, [allTenantLots])
 

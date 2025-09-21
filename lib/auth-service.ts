@@ -12,6 +12,7 @@ export interface AuthUser {
   last_name?: string
   display_name?: string
   role: Database['public']['Enums']['user_role']
+  team_id?: string // ✅ Ajout du team_id manquant
   phone?: string
   avatar_url?: string
   created_at?: string
@@ -208,6 +209,7 @@ class AuthService {
         last_name: userProfile.last_name || undefined,
         display_name: fullName,
         role: userProfile.role,
+        team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
         phone: userProfile.phone || undefined,
         avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
@@ -347,6 +349,7 @@ class AuthService {
           last_name: userProfile.last_name || undefined,
           display_name: authUser.user_metadata?.display_name || userProfile.name,
           role: userProfile.role,
+          team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
           phone: userProfile.phone || undefined,
           avatar_url: userProfile.avatar_url || undefined,
           created_at: userProfile.created_at || undefined,
@@ -374,6 +377,7 @@ class AuthService {
         last_name: authUser.user_metadata?.last_name || undefined,
         display_name: authUser.user_metadata?.display_name || undefined,
         role: 'gestionnaire',
+        team_id: undefined, // ✅ Pas de team_id disponible dans JWT fallback
         phone: undefined,
         avatar_url: undefined,
         created_at: undefined,
@@ -544,6 +548,7 @@ class AuthService {
         last_name: updatedProfile.last_name || undefined,
         display_name: updates.display_name || updatedProfile.name,
         role: updatedProfile.role,
+        team_id: updatedProfile.team_id, // ✅ Ajout du team_id manquant
         phone: updatedProfile.phone || undefined,
         avatar_url: updatedProfile.avatar_url || undefined,
         created_at: updatedProfile.created_at || undefined,
@@ -651,6 +656,7 @@ class AuthService {
               last_name: userProfile.last_name || undefined,
               display_name: session.user.user_metadata?.display_name || userProfile.name,
               role: userProfile.role,
+              team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
               phone: userProfile.phone || undefined,
               created_at: userProfile.created_at || undefined,
               updated_at: userProfile.updated_at || undefined,
@@ -693,6 +699,7 @@ class AuthService {
                 last_name: directResult.data.last_name || undefined,
                 display_name: session.user.user_metadata?.display_name || directResult.data.name,
                 role: directResult.data.role,
+                team_id: directResult.data.team_id, // ✅ Ajout du team_id manquant
                 phone: directResult.data.phone || undefined,
                 created_at: directResult.data.created_at || undefined,
                 updated_at: directResult.data.updated_at || undefined,

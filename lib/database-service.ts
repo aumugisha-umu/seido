@@ -1293,9 +1293,7 @@ export const interventionService = {
           work_details,
           estimated_duration_hours,
           estimated_start_date,
-          valid_until,
           terms_and_conditions,
-          warranty_period_months,
           attachments,
           status,
           submitted_at,
@@ -1591,7 +1589,7 @@ export const interventionService = {
   // Assign users to an intervention automatically based on team and lot/building context
   async autoAssignIntervention(interventionId: string, lotId?: string, buildingId?: string, teamId?: string) {
     console.log("👥 Auto-assigning intervention:", { interventionId, lotId, buildingId, teamId })
-    
+
     try {
       const assignments: Array<{
         intervention_id: string
@@ -1601,8 +1599,26 @@ export const interventionService = {
         individual_message?: string
       }> = []
 
-      // 1. Get all team managers (gestionnaires) if teamId is provided
-      if (teamId) {
+      // ✅ FIX: If teamId is missing but lotId is provided, try to derive team from lot
+      let effectiveTeamId = teamId
+      if (!effectiveTeamId && lotId) {
+        console.log("🔍 TeamId missing, trying to derive from lot:", lotId)
+        const { data: lot, error: lotError } = await supabase
+          .from('lots')
+          .select('team_id')
+          .eq('id', lotId)
+          .single()
+
+        if (!lotError && lot?.team_id) {
+          effectiveTeamId = lot.team_id
+          console.log("✅ Derived team ID from lot:", effectiveTeamId)
+        } else {
+          console.warn("⚠️ Could not derive team from lot:", lotError?.message)
+        }
+      }
+
+      // 1. Get all team managers (gestionnaires) if teamId is available
+      if (effectiveTeamId) {
         const { data: teamManagers, error: teamError } = await supabase
           .from('team_members')
           .select(`
@@ -1610,7 +1626,7 @@ export const interventionService = {
             role,
             user:user_id(id, name, role)
           `)
-          .eq('team_id', teamId)
+          .eq('team_id', effectiveTeamId)
           .eq('user.role', 'gestionnaire')
 
         if (teamError) {
@@ -2672,8 +2688,8 @@ export const teamService = {
       console.log("📡 Loading user teams with retry mechanism...")
       
       const result = await withRetry(async () => {
-        // Vérifier l'état de la connexion avant la requête
-        if (!connectionManager.isConnected()) {
+        // ✅ FIX: Skip connection check on server-side (API routes)
+        if (typeof window !== 'undefined' && !connectionManager.isConnected()) {
           console.log("🔄 Connection lost, forcing reconnection...")
           connectionManager.forceReconnection()
           throw new Error("Connection not available")
@@ -3975,7 +3991,12 @@ export const tenantService = {
         .from('lot_contacts')
         .select(`
           lot:lot_id(
-            *,
+            id,
+            reference,
+            floor,
+            apartment_number,
+            category,
+            building_id,
             building:building_id(
               id,
               name,
@@ -4008,6 +4029,38 @@ export const tenantService = {
       const lot = primaryLotContact.lot
 
       console.log("✅ Found tenant lot via lot_contacts:", lot)
+
+      // ✅ VALIDATION: Gestion des lots avec/sans bâtiment
+      if (!lot.building && lot.building_id) {
+        console.log("⚠️ [TENANT-DATA] Building relation not loaded, attempting separate fetch:", {
+          lotId: lot.id,
+          buildingId: lot.building_id,
+          userId: actualUserId
+        })
+
+        // Essayer de récupérer les données building séparément
+        const { data: buildingData, error: buildingError } = await supabase
+          .from('buildings')
+          .select('id, name, address, city, postal_code, description')
+          .eq('id', lot.building_id)
+          .single()
+
+        if (buildingError) {
+          console.error("❌ [TENANT-DATA] Building fetch failed:", buildingError)
+        } else if (buildingData) {
+          console.log("✅ [TENANT-DATA] Found building separately:", buildingData)
+          lot.building = buildingData
+        } else {
+          console.error("❌ [TENANT-DATA] Building not found in database:", lot.building_id)
+        }
+      } else if (!lot.building_id) {
+        console.log("ℹ️ [TENANT-DATA] Independent lot (no building_id):", {
+          lotId: lot.id,
+          reference: lot.reference,
+          category: lot.category
+        })
+      }
+
       return lot
     } catch (error) {
       console.error("❌ Error in getTenantData:", error)
@@ -4201,7 +4254,7 @@ export const tenantService = {
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       
       const openRequests = interventions?.filter(i => 
-        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours', 'cloturee_par_prestataire'].includes(i.status)
       ).length || 0
 
       const inProgress = interventions?.filter(i => i.status === 'en_cours').length || 0

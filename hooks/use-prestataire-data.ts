@@ -54,7 +54,8 @@ const mapStatusToFrontend = (dbStatus: string): string => {
     'en_cours': 'en_cours',
     'cloturee_par_prestataire': 'terminee',
     'cloturee_par_locataire': 'terminee',
-    'cloturee_par_gestionnaire': 'terminee'
+    'cloturee_par_gestionnaire': 'terminee',
+    'annulee': 'annulee'
   }
   return statusMap[dbStatus] || dbStatus
 }
@@ -128,10 +129,11 @@ export const usePrestataireData = (userId: string) => {
       const { supabase } = await import('@/lib/supabase')
 
       // Vérifier que l'utilisateur existe d'abord, puis vérifier son rôle
+      // ✅ CORRECTION : userId est maintenant l'ID du profil utilisateur, pas auth_user_id
       const { data: userProfile, error: userError } = await supabase
         .from('users')
         .select('id, role, team_id, name, email')
-        .eq('auth_user_id', cleanUserId)
+        .eq('id', cleanUserId)
         .single()
 
       if (userError) {
@@ -140,7 +142,7 @@ export const usePrestataireData = (userId: string) => {
       }
 
       if (!userProfile) {
-        console.log("❌ No user profile found for auth_user_id:", cleanUserId)
+        console.log("❌ No user profile found for user_id:", cleanUserId)
         throw new Error("Aucun profil utilisateur trouvé")
       }
 

@@ -126,7 +126,86 @@ export const getPriorityLabel = (urgency: string) => {
   }
 }
 
-export const getStatusActionMessage = (status: string, userRole?: string): string => {
+export const getStatusActionMessage = (status: string, userContext?: 'gestionnaire' | 'prestataire' | 'locataire'): string => {
+  // Messages adaptés selon le contexte utilisateur
+  if (userContext === 'prestataire') {
+    switch (status) {
+      // Phase 1: Demande
+      case "demande":
+        return "Demande en attente d'approbation"
+      case "rejetee":
+        return "Intervention rejetée"
+      case "approuvee":
+        return "Intervention approuvée"
+
+      // Phase 2: Planification & Exécution - Statuts mappés côté prestataire
+      case "demande_de_devis":
+      case "devis-a-fournir":
+        return "Vous devez soumettre un devis"
+      case "planification":
+        return "Vous devez planifier l'intervention"
+      case "planifiee":
+      case "programmee":
+        return "Intervention programmée - Vous pouvez commencer"
+      case "en_cours":
+        return "Intervention en cours - Terminez quand c'est fait"
+
+      // Phase 3: Clôture - Statuts mappés côté prestataire
+      case "cloturee_par_prestataire":
+        return "En attente de validation du locataire"
+      case "cloturee_par_locataire":
+        return "En attente de finalisation par le gestionnaire"
+      case "cloturee_par_gestionnaire":
+      case "terminee":
+        return "Intervention terminée"
+
+      // Transversal
+      case "annulee":
+        return "Intervention annulée"
+
+      default:
+        return "Statut inconnu"
+    }
+  }
+
+  if (userContext === 'locataire') {
+    switch (status) {
+      // Phase 1: Demande
+      case "demande":
+        return "Votre demande est en attente d'approbation"
+      case "rejetee":
+        return "Votre demande a été rejetée"
+      case "approuvee":
+        return "Demande approuvée - En attente d'assignation"
+
+      // Phase 2: Planification & Exécution
+      case "demande_de_devis":
+        return "En attente du devis du prestataire"
+      case "planification":
+        return "Planification en cours avec le prestataire"
+      case "planifiee":
+        return "Intervention programmée"
+      case "en_cours":
+        return "Intervention en cours"
+
+      // Phase 3: Clôture
+      case "cloturee_par_prestataire":
+        return "Intervention terminée - Merci de valider"
+      case "cloturee_par_locataire":
+        return "En attente de finalisation par le gestionnaire"
+      case "cloturee_par_gestionnaire":
+        return "Intervention finalisée"
+
+      // Transversal
+      case "annulee":
+        return "Intervention annulée"
+
+      default:
+        return "Statut inconnu"
+    }
+  }
+
+  // Messages par défaut pour gestionnaire ou contexte non spécifié
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -138,10 +217,12 @@ export const getStatusActionMessage = (status: string, userRole?: string): strin
 
     // Phase 2: Planification & Exécution
     case "demande_de_devis":
+    case "devis-a-fournir":
       return "En attente du devis du prestataire"
     case "planification":
       return "En attente des disponibilités du locataire et prestataire"
     case "planifiee":
+    case "programmee":
       return "Intervention programmée"
     case "en_cours":
       return "Intervention en cours d'exécution"
@@ -152,6 +233,7 @@ export const getStatusActionMessage = (status: string, userRole?: string): strin
     case "cloturee_par_locataire":
       return "En attente de finalisation par le gestionnaire"
     case "cloturee_par_gestionnaire":
+    case "terminee":
       return "Intervention finalisée"
 
     // Transversal

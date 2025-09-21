@@ -94,7 +94,8 @@ CREATE TYPE quote_status AS ENUM (
     'pending',      -- En attente de validation par le gestionnaire
     'approved',     -- Approuvé par le gestionnaire
     'rejected',     -- Rejeté par le gestionnaire
-    'expired'       -- Expiré (passé la date limite)
+    'expired',      -- Expiré (passé la date limite)
+    'cancelled'     -- Annulé par le prestataire
 );
 
 -- Type pour les statuts d'invitation

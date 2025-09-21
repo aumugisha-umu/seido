@@ -125,14 +125,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // Check if quote is still valid
-    const validUntilDate = new Date(quote.valid_until)
-    if (validUntilDate < new Date()) {
-      return NextResponse.json({
-        success: false,
-        error: 'Ce devis a expiré et ne peut plus être traité'
-      }, { status: 400 })
-    }
+    // Quote validation checks could be added here if needed
 
     console.log(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
 

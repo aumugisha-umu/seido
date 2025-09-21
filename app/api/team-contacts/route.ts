@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log(`🔍 Fetching team contacts for team ${teamId}, type: ${type || 'all'}`)
+    console.log(`🔍 [TEAM-CONTACTS] Fetching team contacts for team ${teamId}, type: ${type || 'all'}`)
 
     // Get all users from the team
     let query = supabase
@@ -65,11 +65,15 @@ export async function GET(request: NextRequest) {
       .eq('team_id', teamId)
       .eq('is_active', true)
 
+    console.log(`📋 [TEAM-CONTACTS] Base query: team_id=${teamId}, is_active=true`)
+
     // Filter by role if type is specified
     if (type) {
+      console.log(`🔍 [TEAM-CONTACTS] Filtering by type: ${type}`)
       switch (type) {
         case 'prestataire':
           query = query.eq('role', 'prestataire')
+          console.log(`📋 [TEAM-CONTACTS] Added filter: role=prestataire`)
           break
         case 'locataire':
           query = query.eq('role', 'locataire')
@@ -78,7 +82,7 @@ export async function GET(request: NextRequest) {
           query = query.eq('role', 'gestionnaire')
           break
         default:
-          // No filter for unknown types
+          console.log(`⚠️ [TEAM-CONTACTS] Unknown type: ${type}, no additional filter applied`)
           break
       }
     }
@@ -86,14 +90,21 @@ export async function GET(request: NextRequest) {
     const { data: contacts, error } = await query
 
     if (error) {
-      console.error('❌ Error fetching team contacts:', error)
+      console.error('❌ [TEAM-CONTACTS] Error fetching team contacts:', error)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des contacts'
       }, { status: 500 })
     }
 
-    console.log(`✅ Found ${contacts?.length || 0} contacts for team ${teamId}`)
+    console.log(`✅ [TEAM-CONTACTS] Found ${contacts?.length || 0} contacts for team ${teamId}`)
+    console.log(`📊 [TEAM-CONTACTS] Contacts details:`, contacts?.map(c => ({ 
+      id: c.id, 
+      name: c.name, 
+      role: c.role, 
+      provider_category: c.provider_category,
+      team_id: teamId
+    })))
 
     return NextResponse.json({
       success: true,

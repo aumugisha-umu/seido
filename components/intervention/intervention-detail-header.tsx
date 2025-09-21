@@ -243,7 +243,9 @@ export const InterventionDetailHeader = ({
   // Fonction pour obtenir le texte de localisation
   const getLocationText = () => {
     if (intervention.lot) {
-      return `Lot ${intervention.lot.reference} • ${intervention.lot.building.name}`
+      return intervention.lot.building
+        ? `Lot ${intervention.lot.reference} • ${intervention.lot.building.name}`
+        : `Lot indépendant ${intervention.lot.reference}`
     } else if (intervention.building) {
       return `Bâtiment entier • ${intervention.building.name}`
     }

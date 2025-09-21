@@ -286,11 +286,16 @@ export default function ExternalProviderInterventionPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Building className="h-4 w-4" />
-                <span>{intervention.lot.building.name}</span>
+                <span>{intervention.lot.building?.name || `Lot ${intervention.lot.reference}`}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <MapPin className="h-4 w-4" />
-                <span>{intervention.lot.building.address}, {intervention.lot.building.city}</span>
+                <span>
+                  {intervention.lot.building
+                    ? `${intervention.lot.building.address}, ${intervention.lot.building.city}`
+                    : "Lot indépendant"
+                  }
+                </span>
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <FileText className="h-4 w-4" />

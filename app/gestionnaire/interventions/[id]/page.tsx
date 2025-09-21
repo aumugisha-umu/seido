@@ -33,11 +33,14 @@ import { useState, useEffect } from "react"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
+import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
 const getInterventionLocationText = (intervention: InterventionDetail): string => {
   if (intervention.lot) {
-    return `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
+    return intervention.lot.building
+      ? `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
+      : `Lot indépendant ${intervention.lot.reference}`
   } else if (intervention.building) {
     return `Bâtiment entier - ${intervention.building.name}`
   }
@@ -186,8 +189,6 @@ interface InterventionDetail {
     workDetails?: string
     estimatedDurationHours?: number
     estimatedStartDate?: string
-    validUntil: string
-    warrantyPeriodMonths?: number
     status: string
     submittedAt: string
     reviewedAt?: string
@@ -297,13 +298,13 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         lot: interventionData.lot ? {
           id: interventionData.lot.id,
           reference: interventionData.lot.reference,
-          building: {
+          building: interventionData.lot.building ? {
             id: interventionData.lot.building.id,
             name: interventionData.lot.building.name,
             address: interventionData.lot.building.address,
             city: interventionData.lot.building.city,
             postal_code: interventionData.lot.building.postal_code
-          },
+          } : null,
           floor: interventionData.lot.floor,
           apartment_number: interventionData.lot.apartment_number
         } : undefined,
@@ -361,27 +362,40 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           endTime: avail.end_time,
           userId: avail.user.id
         })) || [],
-        quotes: interventionData.intervention_quotes?.map(quote => ({
-          id: quote.id,
-          providerId: quote.provider_id,
-          providerName: quote.provider.name,
-          providerSpeciality: quote.provider.speciality,
-          totalAmount: quote.total_amount,
-          laborCost: quote.labor_cost,
-          materialsCost: quote.materials_cost,
-          description: quote.description,
-          workDetails: quote.work_details,
-          estimatedDurationHours: quote.estimated_duration_hours,
-          estimatedStartDate: quote.estimated_start_date,
-          validUntil: quote.valid_until,
-          warrantyPeriodMonths: quote.warranty_period_months,
-          status: quote.status,
-          submittedAt: quote.submitted_at,
-          reviewedAt: quote.reviewed_at,
-          reviewComments: quote.review_comments,
-          rejectionReason: quote.rejection_reason,
-          attachments: typeof quote.attachments === 'string' ? JSON.parse(quote.attachments) : quote.attachments || []
-        })) || []
+        quotes: interventionData.intervention_quotes?.map(quote => {
+          console.log('🔄 [GESTIONNAIRE] Processing quote data:', {
+            id: quote.id,
+            status: quote.status,
+            provider: quote.provider.name
+          })
+
+          const transformedQuote = {
+            id: quote.id,
+            providerId: quote.provider_id,
+            providerName: quote.provider.name,
+            providerSpeciality: quote.provider.speciality,
+            totalAmount: quote.total_amount,
+            laborCost: quote.labor_cost,
+            materialsCost: quote.materials_cost,
+            description: quote.description,
+            workDetails: quote.work_details,
+            estimatedDurationHours: quote.estimated_duration_hours,
+            estimatedStartDate: quote.estimated_start_date,
+            status: quote.status,
+            submittedAt: quote.submitted_at,
+            reviewedAt: quote.reviewed_at,
+            reviewComments: quote.review_comments,
+            rejectionReason: quote.rejection_reason,
+            attachments: typeof quote.attachments === 'string' ? JSON.parse(quote.attachments) : quote.attachments || []
+          }
+
+          console.log('✅ [GESTIONNAIRE] Transformed quote:', {
+            id: transformedQuote.id,
+            status: transformedQuote.status
+          })
+
+          return transformedQuote
+        }) || []
       }
 
       console.log('✅ Transformed intervention data:', transformedIntervention)
@@ -604,9 +618,14 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   {intervention.lot ? (
                     <>
                       <p className="text-gray-600">
-                        {intervention.lot.building.address}, {intervention.lot.building.city} {intervention.lot.building.postal_code}
+                        {intervention.lot.building
+                          ? `${intervention.lot.building.address}, ${intervention.lot.building.city} ${intervention.lot.building.postal_code}`
+                          : "Lot indépendant"
+                        }
                       </p>
-                      <p className="text-sm text-gray-500">{intervention.lot.building.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {intervention.lot.building?.name || `Lot ${intervention.lot.reference}`}
+                      </p>
                       {intervention.lot.floor && (
                         <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
                       )}
@@ -1037,154 +1056,17 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             </CardContent>
           </Card>
 
-          {/* Devis */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <Receipt className="h-5 w-5 text-green-600" />
-                <span>Devis ({intervention.quotes.length})</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {intervention.quotes.length > 0 ? (
-                <div className="space-y-4">
-                  {intervention.quotes.map((quote) => {
-                    const getStatusColor = (status: string) => {
-                      switch (status) {
-                        case 'approved':
-                          return 'bg-green-50 border-green-200 text-green-800'
-                        case 'rejected':
-                          return 'bg-red-50 border-red-200 text-red-800'
-                        case 'pending':
-                        default:
-                          return 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                      }
-                    }
-
-                    const getStatusLabel = (status: string) => {
-                      switch (status) {
-                        case 'approved':
-                          return 'Accepté'
-                        case 'rejected':
-                          return 'Refusé'
-                        case 'pending':
-                        default:
-                          return 'En attente'
-                      }
-                    }
-
-                    const getBadgeColor = (status: string) => {
-                      switch (status) {
-                        case 'approved':
-                          return 'bg-green-100 text-green-800'
-                        case 'rejected':
-                          return 'bg-red-100 text-red-800'
-                        case 'pending':
-                        default:
-                          return 'bg-yellow-100 text-yellow-800'
-                      }
-                    }
-
-                    return (
-                      <div key={quote.id} className={`border rounded-lg p-4 ${getStatusColor(quote.status)}`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">{quote.providerName}</h4>
-                              <p className="text-sm text-gray-600">
-                                Prestataire {quote.providerSpeciality ? `• ${quote.providerSpeciality}` : ''}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getBadgeColor(quote.status)}`}>
-                              {getStatusLabel(quote.status)}
-                            </div>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {new Date(quote.submittedAt).toLocaleDateString('fr-FR')}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <p className="text-sm text-gray-600">Montant total</p>
-                            <p className="font-semibold text-lg text-gray-900">
-                              {quote.totalAmount.toFixed(2)} €
-                            </p>
-                            <div className="text-xs text-gray-500">
-                              Main d'œuvre: {quote.laborCost.toFixed(2)} € | Matériaux: {quote.materialsCost.toFixed(2)} €
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Durée estimée</p>
-                            <p className="font-medium">
-                              {quote.estimatedDurationHours ? `${quote.estimatedDurationHours}h` : 'Non spécifiée'}
-                            </p>
-                            {quote.estimatedStartDate && (
-                              <p className="text-xs text-gray-500">
-                                Début: {new Date(quote.estimatedStartDate).toLocaleDateString('fr-FR')}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="text-sm text-gray-700 mb-3">{quote.description}</p>
-
-                        {quote.workDetails && (
-                          <div className="mb-3 p-2 bg-gray-50 rounded text-xs text-gray-600">
-                            <strong>Détails techniques:</strong> {quote.workDetails}
-                          </div>
-                        )}
-
-                        {quote.status === 'rejected' && quote.rejectionReason && (
-                          <div className="mb-3 p-2 bg-red-50 rounded text-xs text-red-700">
-                            <strong>Motif de refus:</strong> {quote.rejectionReason}
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-gray-500">
-                            Validité: {new Date(quote.validUntil).toLocaleDateString('fr-FR')}
-                            {quote.warrantyPeriodMonths && ` • Garantie: ${quote.warrantyPeriodMonths} mois`}
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="outline">
-                              <Eye className="h-4 w-4 mr-1" />
-                              Détails
-                            </Button>
-
-                            {quote.status === 'pending' && (
-                              <>
-                                <Button size="sm" variant="default">
-                                  <Check className="h-4 w-4 mr-1" />
-                                  Accepter
-                                </Button>
-                                <Button size="sm" variant="outline">
-                                  <X className="h-4 w-4 mr-1" />
-                                  Refuser
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium">Aucun devis soumis</p>
-                  <p className="text-sm">Les prestataires n'ont pas encore envoyé de devis pour cette intervention.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Devis - Composant intégré */}
+          <IntegratedQuotesSection
+            quotes={intervention.quotes}
+            userContext="gestionnaire"
+            onDataChange={fetchInterventionData}
+            onDownloadAttachment={(attachment) => {
+              console.log('Download attachment:', attachment)
+              // TODO: Implémenter le téléchargement des pièces jointes
+            }}
+            showActions={true}
+          />
         </div>
 
         {/* Colonne latérale */}

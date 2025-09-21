@@ -51,16 +51,14 @@ export async function POST(request: NextRequest) {
       workDetails,
       estimatedDurationHours,
       estimatedStartDate,
-      validUntil,
       termsAndConditions,
-      warrantyPeriodMonths = 12,
       attachments = []
     } = body
 
-    if (!interventionId || !laborCost || !description || !validUntil) {
+    if (!interventionId || !laborCost || !description) {
       return NextResponse.json({
         success: false,
-        error: 'interventionId, laborCost, description et validUntil sont requis'
+        error: 'interventionId, laborCost et description sont requis'
       }, { status: 400 })
     }
 
@@ -144,20 +142,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate valid_until date
-    const validUntilDate = new Date(validUntil)
-    if (validUntilDate <= new Date()) {
-      return NextResponse.json({
-        success: false,
-        error: 'La date de validité doit être future'
-      }, { status: 400 })
-    }
-
     console.log("💰 Quote details:", {
       laborCost: laborCostNum,
       materialsCost: materialsCostNum,
-      totalAmount: laborCostNum + materialsCostNum,
-      validUntil: validUntilDate.toISOString()
+      totalAmount: laborCostNum + materialsCostNum
     })
 
     // Create or update quote (upsert based on unique constraint)
@@ -170,9 +158,7 @@ export async function POST(request: NextRequest) {
       work_details: workDetails?.trim() || null,
       estimated_duration_hours: estimatedDurationHours ? parseInt(estimatedDurationHours) : null,
       estimated_start_date: estimatedStartDate || null,
-      valid_until: validUntilDate.toISOString().split('T')[0], // DATE format
       terms_and_conditions: termsAndConditions?.trim() || null,
-      warranty_period_months: warrantyPeriodMonths || 12,
       attachments: JSON.stringify(attachments || []),
       status: 'pending' as const,
       submitted_at: new Date().toISOString(),
@@ -256,7 +242,6 @@ export async function POST(request: NextRequest) {
         work_details: quote.work_details,
         estimated_duration_hours: quote.estimated_duration_hours,
         estimated_start_date: quote.estimated_start_date,
-        valid_until: quote.valid_until,
         status: quote.status,
         submitted_at: quote.submitted_at,
         updated_at: quote.updated_at

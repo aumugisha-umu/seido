@@ -64,27 +64,37 @@ export const QuoteRequestModal = ({
       return
     }
 
-    // Filtrer les prestataires selon le type d'intervention
+    // Filtrer les prestataires selon le type d'intervention avec logique plus inclusive
     const relevantProviders = providers.filter(provider => {
-      if (!provider.provider_category || !intervention.type) return true
+      // Si le prestataire n'a pas de catégorie définie, l'inclure par défaut
+      if (!provider.provider_category) return true
+      
+      // Si l'intervention n'a pas de type spécifié, inclure tous les prestataires
+      if (!intervention.type) return true
 
-      // Correspondances type intervention -> catégorie prestataire
+      // Correspondances type intervention -> catégorie prestataire (plus inclusives)
       const typeMapping: Record<string, string[]> = {
-        'plomberie': ['plomberie', 'maintenance', 'general'],
-        'electricite': ['electricite', 'maintenance', 'general'],
-        'chauffage': ['chauffage', 'plomberie', 'maintenance', 'general'],
-        'serrurerie': ['serrurerie', 'maintenance', 'general'],
-        'peinture': ['peinture', 'maintenance', 'general'],
-        'menage': ['menage', 'maintenance', 'general'],
-        'jardinage': ['jardinage', 'maintenance', 'general'],
-        'autre': ['maintenance', 'general']
+        'plomberie': ['prestataire', 'autre'], // Inclut prestataires génériques
+        'electricite': ['prestataire', 'autre'],
+        'chauffage': ['prestataire', 'autre'],
+        'serrurerie': ['prestataire', 'autre'],
+        'peinture': ['prestataire', 'autre'],
+        'menage': ['prestataire', 'autre'],
+        'jardinage': ['prestataire', 'autre'],
+        'autre': ['prestataire', 'autre', 'syndic', 'assurance', 'notaire', 'proprietaire'] // Très inclusif pour "autre"
       }
 
-      const relevantCategories = typeMapping[intervention.type] || ['maintenance', 'general']
+      const relevantCategories = typeMapping[intervention.type] || ['prestataire', 'autre']
       return relevantCategories.includes(provider.provider_category)
     })
 
-    setFilteredProviders(relevantProviders)
+    // Logique de fallback : si aucun prestataire ne correspond au filtrage, afficher tous les prestataires
+    if (relevantProviders.length === 0 && providers.length > 0) {
+      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+      setFilteredProviders(providers)
+    } else {
+      setFilteredProviders(relevantProviders)
+    }
   }, [intervention, providers])
 
   if (!intervention) return null
@@ -184,10 +194,17 @@ export const QuoteRequestModal = ({
               </SelectContent>
             </Select>
 
-            {filteredProviders.length === 0 && (
+            {filteredProviders.length === 0 && providers.length === 0 && (
               <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded">
                 <AlertTriangle className="h-4 w-4" />
-                <span>Aucun prestataire disponible pour ce type d'intervention</span>
+                <span>Aucun prestataire n'a été ajouté à votre équipe. Ajoutez des prestataires dans la section Contacts.</span>
+              </div>
+            )}
+            
+            {filteredProviders.length === 0 && providers.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded">
+                <AlertTriangle className="h-4 w-4" />
+                <span>Tous vos prestataires sont affichés car aucun ne correspond spécifiquement au type "{intervention.type || 'non spécifié'}".</span>
               </div>
             )}
           </div>

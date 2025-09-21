@@ -36,6 +36,7 @@ interface InterventionsNavigatorProps {
     executionHook?: any
     finalizationHook?: any
   }
+  userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
 }
 
 export function InterventionsNavigator({
@@ -47,7 +48,8 @@ export function InterventionsNavigator({
   className = "",
   searchPlaceholder = "Rechercher par titre, description, ou lot...",
   showFilters = true,
-  actionHooks
+  actionHooks,
+  userContext = 'gestionnaire'
 }: InterventionsNavigatorProps) {
   const [filteredInterventions, setFilteredInterventions] = useState<any[]>(interventions)
   const [searchTerm, setSearchTerm] = useState("")
@@ -133,6 +135,7 @@ export function InterventionsNavigator({
         showStatusActions={showStatusActions}
         contactContext={contactContext}
         actionHooks={actionHooks}
+        userContext={userContext}
       />
     )
   }

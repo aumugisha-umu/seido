@@ -148,21 +148,34 @@ export async function POST(request: NextRequest) {
       // Get the team associated with this tenant via their lot
       console.log("👥 Getting tenant's team...")
       const tenantData = await tenantService.getTenantData(user.id)
+
+      // ✅ FIX: Try multiple sources for team ID for independent lots
       if (tenantData?.team_id) {
+        // First priority: direct team assignment on the lot
         teamId = tenantData.team_id
         console.log("✅ Found team ID from lot:", teamId)
-      } else {
-        // Get team from building via buildingService if not directly available
+      } else if (tenantData?.building_id) {
+        // Second priority: team from building (for lots in buildings)
         try {
-          if (tenantData?.building_id) {
-            const building = await buildingService.getById(tenantData.building_id)
-            if (building?.team_id) {
-              teamId = building.team_id
-              console.log("✅ Found team ID from building:", teamId)
-            }
+          const building = await buildingService.getById(tenantData.building_id)
+          if (building?.team_id) {
+            teamId = building.team_id
+            console.log("✅ Found team ID from building:", teamId)
           }
         } catch (error) {
           console.warn("⚠️ Could not get building details for team ID:", error)
+        }
+      } else {
+        // ✅ NEW: Fallback for independent lots - get team from user's team membership
+        console.log("⚠️ Independent lot detected, checking user's team membership...")
+        try {
+          const userTeams = await teamService.getUserTeams(user.id)
+          if (userTeams.length > 0) {
+            teamId = userTeams[0].id
+            console.log("✅ Found team ID from user membership for independent lot:", teamId)
+          }
+        } catch (error) {
+          console.warn("⚠️ Could not get user teams for independent lot:", error)
         }
       }
     } else {
@@ -291,9 +304,48 @@ export async function POST(request: NextRequest) {
         teamId || undefined
       )
       console.log("✅ Auto-assignment completed:", assignments?.length || 0, "users assigned")
-      
+
+      // ✅ FIX: Get effective team ID from auto-assignment if original teamId was null
+      let effectiveTeamId = teamId
+      let shouldUpdateInterventionTeam = false
+      if (!effectiveTeamId && assignments && assignments.length > 0) {
+        // Try to get team from assigned intervention
+        try {
+          const { data: interventionWithTeam } = await interventionService.getById(intervention.id)
+          if (interventionWithTeam?.team_id) {
+            effectiveTeamId = interventionWithTeam.team_id
+            console.log("✅ [CREATE-INTERVENTION] Using intervention team_id for notifications:", effectiveTeamId)
+          } else {
+            // Fallback: derive team from lot (same logic as auto-assignment)
+            const { data: lotTeam } = await supabase
+              .from('lots')
+              .select('team_id')
+              .eq('id', lot_id)
+              .single()
+
+            if (lotTeam?.team_id) {
+              effectiveTeamId = lotTeam.team_id
+              shouldUpdateInterventionTeam = true
+              console.log("✅ [CREATE-INTERVENTION] Derived team_id from lot for notifications:", effectiveTeamId)
+            }
+          }
+        } catch (error) {
+          console.warn("⚠️ [CREATE-INTERVENTION] Could not derive team_id for notifications:", error)
+        }
+      }
+
+      // ✅ UPDATE: Set team_id on intervention if it was derived
+      if (shouldUpdateInterventionTeam && effectiveTeamId) {
+        try {
+          await interventionService.update(intervention.id, { team_id: effectiveTeamId })
+          console.log("✅ [CREATE-INTERVENTION] Updated intervention with derived team_id:", effectiveTeamId)
+        } catch (error) {
+          console.warn("⚠️ [CREATE-INTERVENTION] Could not update intervention team_id:", error)
+        }
+      }
+
       // Create notifications for assigned users and team members
-      if (teamId) {
+      if (effectiveTeamId) {
         try {
           const { notificationService } = await import('@/lib/notification-service')
           
@@ -310,7 +362,7 @@ export async function POST(request: NextRequest) {
               .map((assignment: any) => {
               console.log('📬 [CREATE-INTERVENTION] Creating personal notification for manager LINKED TO BUILDING/LOT:', {
                 userId: assignment.user_id,
-                teamId,
+                teamId: effectiveTeamId,
                 createdBy: user.id,
                 isPersonal: true,
                 assignmentRole: assignment.role,
@@ -318,7 +370,7 @@ export async function POST(request: NextRequest) {
               })
               return notificationService.createNotification({
                 userId: assignment.user_id,
-                teamId,
+                teamId: effectiveTeamId,
                 createdBy: user.id,
                 type: 'intervention',
                 priority: intervention.urgency === 'urgente' ? 'urgent' : 
@@ -360,7 +412,7 @@ export async function POST(request: NextRequest) {
                 role
               )
             `)
-            .eq('team_id', teamId)
+            .eq('team_id', effectiveTeamId)
           
           if (teamMembers && teamMembers.length > 0) {
             const teamNotificationPromises = teamMembers
@@ -372,14 +424,14 @@ export async function POST(request: NextRequest) {
               .map(member => {
                 console.log('📬 [CREATE-INTERVENTION] Creating team notification for gestionnaire:', {
                   userId: member.user_id,
-                  teamId,
+                  teamId: effectiveTeamId,
                   createdBy: user.id,
                   isPersonal: false,
                   userRole: member.user?.role
                 })
                 return notificationService.createNotification({
                   userId: member.user_id,
-                  teamId,
+                  teamId: effectiveTeamId,
                   createdBy: user.id,
                   type: 'intervention',
                   priority: intervention.urgency === 'urgente' ? 'urgent' : 

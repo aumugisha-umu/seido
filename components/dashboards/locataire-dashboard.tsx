@@ -10,6 +10,7 @@ import { useTenantData } from "@/hooks/use-tenant-data"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { getStatusActionMessage } from "@/lib/intervention-utils"
 
 export default function LocataireDashboard() {
   const { user } = useAuth()
@@ -200,7 +201,7 @@ export default function LocataireDashboard() {
                         }
                       </p>
                       <p className="text-xs text-blue-600 font-medium mt-1">
-                        {getStatusActionMessage(intervention.status)}
+                        {getStatusActionMessage(intervention.status, 'locataire')}
                       </p>
                     </div>
                   </div>
@@ -361,21 +362,3 @@ function getStatusLabel(status: string) {
   }
 }
 
-function getStatusActionMessage(status: string): string {
-  switch (status) {
-    case 'nouvelle_demande':
-      return 'En attente d\'approbation du gestionnaire'
-    case 'en_attente_validation':
-      return 'En attente d\'approbation du gestionnaire'
-    case 'validee':
-      return 'En attente d\'assignation de prestataire'
-    case 'en_cours':
-      return 'Intervention en cours d\'exécution'
-    case 'terminee':
-      return 'Intervention terminée'
-    case 'annulee':
-      return 'Intervention annulée'
-    default:
-      return 'Statut en cours de traitement'
-  }
-}

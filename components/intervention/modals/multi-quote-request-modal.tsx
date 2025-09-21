@@ -72,27 +72,38 @@ export const MultiQuoteRequestModal = ({
       return
     }
 
-    // Filtrer les prestataires selon le type d'intervention
+    // Filtrer les prestataires selon le type d'intervention avec logique plus inclusive
     const relevantProviders = providers.filter(provider => {
-      if (!provider.provider_category || !intervention.type) return true
+      // Si le prestataire n'a pas de catégorie définie, l'inclure par défaut
+      if (!provider.provider_category) return true
+      
+      // Si l'intervention n'a pas de type spécifié, inclure tous les prestataires
+      if (!intervention.type) return true
 
-      // Correspondances type intervention -> catégorie prestataire
+      // Correspondances type intervention -> catégorie prestataire (plus inclusives)
       const typeMapping: Record<string, string[]> = {
-        'plomberie': ['plomberie', 'maintenance', 'general'],
-        'electricite': ['electricite', 'maintenance', 'general'],
-        'chauffage': ['chauffage', 'plomberie', 'maintenance', 'general'],
-        'serrurerie': ['serrurerie', 'maintenance', 'general'],
-        'peinture': ['peinture', 'maintenance', 'general'],
-        'menage': ['menage', 'maintenance', 'general'],
-        'jardinage': ['jardinage', 'maintenance', 'general'],
-        'autre': ['maintenance', 'general']
+        'plomberie': ['prestataire', 'autre'], // Inclut prestataires génériques
+        'electricite': ['prestataire', 'autre'],
+        'chauffage': ['prestataire', 'autre'],
+        'serrurerie': ['prestataire', 'autre'],
+        'peinture': ['prestataire', 'autre'],
+        'menage': ['prestataire', 'autre'],
+        'jardinage': ['prestataire', 'autre'],
+        'autre': ['prestataire', 'autre', 'syndic', 'assurance', 'notaire', 'proprietaire'] // Très inclusif pour "autre"
       }
 
-      const relevantCategories = typeMapping[intervention.type] || ['maintenance', 'general']
+      const relevantCategories = typeMapping[intervention.type] || ['prestataire', 'autre']
       return relevantCategories.includes(provider.provider_category)
     })
 
-    setFilteredProviders(relevantProviders)
+    // Logique de fallback : si aucun prestataire ne correspond au filtrage, afficher tous les prestataires
+    const finalProviders = relevantProviders.length === 0 && providers.length > 0 ? providers : relevantProviders
+
+    if (relevantProviders.length === 0 && providers.length > 0) {
+      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+    }
+
+    setFilteredProviders(finalProviders)
   }, [intervention, providers])
 
   if (!intervention) return null

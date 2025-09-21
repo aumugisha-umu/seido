@@ -70,6 +70,7 @@ interface InterventionsListProps {
     executionHook?: any
     finalizationHook?: any
   }
+  userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
 }
 
 export function InterventionsList({
@@ -81,12 +82,26 @@ export function InterventionsList({
   showStatusActions = true,
   contactContext,
   className = "",
-  actionHooks
+  actionHooks,
+  userContext = 'gestionnaire'
 }: InterventionsListProps) {
   const router = useRouter()
 
   // Limit interventions if maxItems is specified
   const displayedInterventions = maxItems ? interventions.slice(0, maxItems) : interventions
+
+  // Generate intervention URL based on user context
+  const getInterventionUrl = (interventionId: string) => {
+    switch (userContext) {
+      case 'prestataire':
+        return `/prestataire/interventions/${interventionId}`
+      case 'locataire':
+        return `/locataire/interventions/${interventionId}`
+      case 'gestionnaire':
+      default:
+        return `/gestionnaire/interventions/${interventionId}`
+    }
+  }
 
   // Get creator name
   const getCreatorName = (intervention: any): string => {
@@ -308,7 +323,7 @@ export function InterventionsList({
 
                 {/* Action Expected */}
                 <div className="text-xs text-blue-600 font-medium">
-                  → {getStatusActionMessage(intervention.status)}
+                  → {getStatusActionMessage(intervention.status, userContext)}
                 </div>
               </div>
 
@@ -318,7 +333,7 @@ export function InterventionsList({
                   variant="outline"
                   size="sm"
                   className="h-8 w-8 sm:w-auto sm:px-2 p-0 sm:p-2"
-                  onClick={() => router.push(`/gestionnaire/interventions/${intervention.id}`)}
+                  onClick={() => router.push(getInterventionUrl(intervention.id))}
                 >
                   <Eye className="h-3 w-3" />
                   <span className="hidden sm:inline ml-1">Détails</span>
@@ -474,7 +489,7 @@ export function InterventionsList({
                       variant="outline" 
                       size="sm"
                       className="h-8 w-8 sm:w-auto sm:px-3 p-0 sm:p-2 text-xs flex-shrink-0"
-                      onClick={() => router.push(`/gestionnaire/interventions/${intervention.id}`)}
+                      onClick={() => router.push(getInterventionUrl(intervention.id))}
                     >
                       <Eye className="h-3 w-3" />
                       <span className="hidden sm:inline ml-1">Détails</span>
@@ -540,7 +555,7 @@ export function InterventionsList({
                       <Clock className="h-2.5 w-2.5 text-blue-600" />
                     </div>
                     <p className="text-xs sm:text-sm text-blue-800 font-medium">
-                      {getStatusActionMessage(intervention.status)}
+                      {getStatusActionMessage(intervention.status, userContext)}
                     </p>
                   </div>
                 </div>

@@ -6,14 +6,12 @@ import {
   User,
   Euro,
   Clock,
-  Calendar,
   CheckCircle,
   X,
   AlertTriangle,
   Star,
   Phone,
   Mail,
-  Award,
   Info,
   MessageSquare
 } from "lucide-react"
@@ -37,9 +35,7 @@ interface Quote {
   work_details?: string
   estimated_duration_hours?: number
   estimated_start_date?: string
-  valid_until: string
   terms_and_conditions?: string
-  warranty_period_months: number
   attachments: string[]
   status: 'pending' | 'approved' | 'rejected'
   submitted_at: string
@@ -144,7 +140,6 @@ export const QuotesComparison = ({
     let detailScore = 0
     if (quote.work_details && quote.work_details.length > 100) detailScore += 10
     if (quote.terms_and_conditions) detailScore += 5
-    if (quote.warranty_period_months > 12) detailScore += 5
     if (quote.estimated_start_date) detailScore += 5
     score += detailScore
 
@@ -164,7 +159,6 @@ export const QuotesComparison = ({
 
   const QuoteCard = ({ quote, showActions = true }: { quote: Quote; showActions?: boolean }) => {
     const score = getQuoteScore(quote)
-    const isExpired = new Date(quote.valid_until) < new Date()
 
     return (
       <Card className={`h-full ${quote.status === 'approved' ? 'border-green-500 bg-green-50' : quote.status === 'rejected' ? 'border-red-500 bg-red-50' : ''}`}>
@@ -259,17 +253,6 @@ export const QuotesComparison = ({
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              <Award className="h-4 w-4 text-slate-500" />
-              <span>Garantie: {quote.warranty_period_months} mois</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-slate-500" />
-              <span className={isExpired ? 'text-red-600' : ''}>
-                Valide jusqu'au {new Date(quote.valid_until).toLocaleDateString('fr-FR')}
-              </span>
-            </div>
           </div>
 
           {/* Conditions particulières */}

@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
       schedulingType,
       fixedDateTime,
       timeSlots,
+      managerAvailabilities, // Disponibilités du gestionnaire (en plus des timeSlots proposés)
       
       // Messages
       messageType,
@@ -484,6 +485,78 @@ export async function POST(request: NextRequest) {
         } else {
           console.log("✅ Time slots created:", timeSlotsToInsert.length)
         }
+      }
+    }
+
+    // ✅ Handle manager availabilities if provided (gestionnaire's own availability)
+    if (managerAvailabilities && managerAvailabilities.length > 0) {
+      console.log("📅 Processing manager availabilities:", managerAvailabilities.length)
+
+      try {
+        // Validate and prepare manager availability data
+        const validatedAvailabilities = []
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        for (const avail of managerAvailabilities) {
+          const { date, startTime, endTime } = avail
+
+          // Basic validation
+          if (!date || !startTime || !endTime) {
+            console.warn("⚠️ Skipping invalid manager availability:", avail)
+            continue
+          }
+
+          // Validate date is not in the past
+          const availDate = new Date(date)
+          if (isNaN(availDate.getTime()) || availDate < today) {
+            console.warn("⚠️ Skipping past date manager availability:", date)
+            continue
+          }
+
+          // Validate time format
+          const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
+          if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+            console.warn("⚠️ Skipping invalid time format:", startTime, endTime)
+            continue
+          }
+
+          // Validate start < end
+          const [startHour, startMin] = startTime.split(':').map(Number)
+          const [endHour, endMin] = endTime.split(':').map(Number)
+          if (startHour > endHour || (startHour === endHour && startMin >= endMin)) {
+            console.warn("⚠️ Skipping invalid time range:", startTime, endTime)
+            continue
+          }
+
+          validatedAvailabilities.push({
+            user_id: user.id, // Manager's ID
+            intervention_id: intervention.id,
+            date: date,
+            start_time: startTime,
+            end_time: endTime
+          })
+        }
+
+        // Save manager availabilities to database
+        if (validatedAvailabilities.length > 0) {
+          const { data: savedAvailabilities, error: availError } = await supabase
+            .from('user_availabilities')
+            .insert(validatedAvailabilities)
+            .select()
+
+          if (availError) {
+            console.error("❌ Error saving manager availabilities:", availError)
+            // Don't fail the whole intervention creation, just log the error
+          } else {
+            console.log("✅ Manager availabilities saved:", savedAvailabilities.length)
+          }
+        } else {
+          console.log("ℹ️ No valid manager availabilities to save")
+        }
+      } catch (availabilityError) {
+        console.error("❌ Error processing manager availabilities:", availabilityError)
+        // Don't fail the intervention creation for availability errors
       }
     }
 

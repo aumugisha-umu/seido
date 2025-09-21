@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useInterventionApproval } from "@/hooks/use-intervention-approval"
+import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import { useInterventionExecution } from "@/hooks/use-intervention-execution"
 import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
@@ -18,6 +19,8 @@ import { ApprovalModal } from "@/components/intervention/modals/approval-modal"
 import { ApproveConfirmationModal } from "@/components/intervention/modals/approve-confirmation-modal"
 import { RejectConfirmationModal } from "@/components/intervention/modals/reject-confirmation-modal"
 import { SuccessModal } from "@/components/intervention/modals/success-modal"
+import { QuoteRequestModal } from "@/components/intervention/modals/quote-request-modal"
+import { QuoteRequestSuccessModal } from "@/components/intervention/modals/quote-request-success-modal"
 import { ProgrammingModal } from "@/components/intervention/modals/programming-modal"
 import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
@@ -41,6 +44,7 @@ export default function InterventionsPage() {
 
   // Hooks pour les différentes actions
   const approvalHook = useInterventionApproval()
+  const quotingHook = useInterventionQuoting()
   const planningHook = useInterventionPlanning()
   const executionHook = useInterventionExecution()
   const finalizationHook = useInterventionFinalization()
@@ -121,6 +125,7 @@ export default function InterventionsPage() {
           showFilters={true}
           actionHooks={{
             approvalHook,
+            quotingHook,
             planningHook,
             executionHook,
             finalizationHook
@@ -171,6 +176,30 @@ export default function InterventionsPage() {
         onClose={approvalHook.closeSuccessModal}
         action={approvalHook.successModal.action}
         interventionTitle={approvalHook.successModal.interventionTitle}
+      />
+
+      {/* Modales de demande de devis */}
+      <QuoteRequestModal
+        isOpen={quotingHook.quoteRequestModal.isOpen}
+        onClose={quotingHook.closeQuoteRequestModal}
+        intervention={quotingHook.quoteRequestModal.intervention}
+        deadline={quotingHook.formData.deadline}
+        additionalNotes={quotingHook.formData.additionalNotes}
+        selectedProviderId={quotingHook.formData.providerId}
+        providers={quotingHook.providers}
+        onDeadlineChange={(deadline) => quotingHook.updateFormData('deadline', deadline)}
+        onNotesChange={(notes) => quotingHook.updateFormData('additionalNotes', notes)}
+        onProviderSelect={quotingHook.selectProvider}
+        onSubmit={quotingHook.submitQuoteRequest}
+        isLoading={quotingHook.isLoading}
+        error={quotingHook.error}
+      />
+
+      <QuoteRequestSuccessModal
+        isOpen={quotingHook.successModal.isOpen}
+        onClose={quotingHook.closeSuccessModal}
+        providerName={quotingHook.successModal.providerName}
+        interventionTitle={quotingHook.successModal.interventionTitle}
       />
 
       <ProgrammingModal

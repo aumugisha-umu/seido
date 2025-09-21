@@ -130,13 +130,27 @@ export default function LocataireDashboard() {
   }
 
   // Filter function for interventions based on tab (pour locataires)
+  // ✅ COUVERTURE COMPLÈTE : Tous les statuts sont mappés pour garantir qu'aucune intervention ne disparaisse
   const getFilteredInterventions = (tabId: string) => {
     if (tabId === "en_cours") {
-      // En cours : demande, approuvée, planifiée, en cours
-      return tenantInterventions.filter((i) => ["demande", "approuvee", "planifiee", "en_cours"].includes(i.status))
+      // En cours : tous les statuts nécessitant une action du locataire ou en cours de traitement
+      return tenantInterventions.filter((i) => [
+        "demande",                   // Nouvelle demande en attente
+        "approuvee",                 // Approuvée par le gestionnaire  
+        "demande_de_devis",          // En attente de devis du prestataire
+        "planification",             // Phase de planification des dates
+        "planifiee",                 // Dates planifiées, en attente d'exécution
+        "en_cours",                  // Intervention en cours d'exécution
+        "cloturee_par_prestataire"   // ✅ DÉPLACÉ : Le locataire doit encore valider la clôture !
+      ].includes(i.status))
     } else if (tabId === "cloturees") {
-      // Clôturées : clôturées par prestataire, locataire, gestionnaire + annulées et rejetées
-      return tenantInterventions.filter((i) => ["cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"].includes(i.status))
+      // Clôturées : interventions définitivement terminées (aucune action requise du locataire)
+      return tenantInterventions.filter((i) => [
+        "cloturee_par_locataire",    // Validée et clôturée par le locataire
+        "cloturee_par_gestionnaire", // Clôturée administrativement par le gestionnaire
+        "rejetee",                   // Rejetée par le gestionnaire
+        "annulee"                    // Annulée (par n'importe quel acteur)
+      ].includes(i.status))
     }
     return tenantInterventions
   }
@@ -354,16 +368,25 @@ export default function LocataireDashboard() {
               <div>
                 <div className="space-y-1">
                   <p className="text-sm text-slate-600">Nom / Référence</p>
-                  <p className="font-semibold text-slate-900">{tenantData.building.name}</p>
-                  <p className="text-sm text-slate-600">{tenantData.reference}</p>
+                  <p className="font-semibold text-slate-900">
+                    {tenantData.building?.name || `Lot ${tenantData.reference}`}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    {tenantData.building ? tenantData.reference : `${tenantData.category || 'appartement'} • ${tenantData.reference}`}
+                  </p>
                 </div>
               </div>
-              
+
               {/* Adresse */}
               <div>
                 <div className="space-y-1">
                   <p className="text-sm text-slate-600">Adresse</p>
-                  <p className="text-slate-900">{tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}</p>
+                  <p className="text-slate-900">
+                    {tenantData.building ?
+                      `${tenantData.building.address}, ${tenantData.building.postal_code} ${tenantData.building.city}` :
+                      'Lot indépendant'
+                    }
+                  </p>
                 </div>
               </div>
 
@@ -390,6 +413,39 @@ export default function LocataireDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Informations supplémentaires du lot */}
+            {(tenantData.floor !== undefined || tenantData.rooms || tenantData.surface_area || tenantData.charges_amount) && (
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h3 className="text-base font-medium text-slate-900 mb-4">Détails du logement</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {tenantData.floor !== undefined && (
+                    <div>
+                      <p className="text-sm text-slate-600">Étage</p>
+                      <p className="font-semibold text-slate-900">{tenantData.floor}</p>
+                    </div>
+                  )}
+                  {tenantData.rooms && (
+                    <div>
+                      <p className="text-sm text-slate-600">Pièces</p>
+                      <p className="font-semibold text-slate-900">{tenantData.rooms}</p>
+                    </div>
+                  )}
+                  {tenantData.surface_area && (
+                    <div>
+                      <p className="text-sm text-slate-600">Surface</p>
+                      <p className="font-semibold text-slate-900">{tenantData.surface_area} m²</p>
+                    </div>
+                  )}
+                  {tenantData.charges_amount && (
+                    <div>
+                      <p className="text-sm text-slate-600">Charges</p>
+                      <p className="font-semibold text-slate-900">{tenantData.charges_amount.toFixed(2)} €</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>

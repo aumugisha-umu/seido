@@ -1282,6 +1282,62 @@ export const interventionService = {
           is_primary,
           individual_message,
           user:user_id(id, name, email, phone, role, provider_category, speciality)
+        ),
+        intervention_quotes!intervention_id(
+          id,
+          provider_id,
+          labor_cost,
+          materials_cost,
+          total_amount,
+          description,
+          work_details,
+          estimated_duration_hours,
+          estimated_start_date,
+          terms_and_conditions,
+          attachments,
+          status,
+          submitted_at,
+          reviewed_at,
+          reviewed_by,
+          review_comments,
+          rejection_reason,
+          provider:provider_id(
+            id,
+            name,
+            email,
+            phone,
+            provider_category,
+            speciality
+          ),
+          reviewer:reviewed_by(
+            id,
+            name
+          )
+        ),
+        user_availabilities!intervention_id(
+          id,
+          user_id,
+          date,
+          start_time,
+          end_time,
+          created_at,
+          user:user_id(
+            id,
+            name,
+            role
+          )
+        ),
+        intervention_documents!intervention_id(
+          id,
+          filename,
+          original_filename,
+          file_size,
+          mime_type,
+          document_type,
+          uploaded_at,
+          uploaded_by,
+          storage_path,
+          uploaded_by
         )
       `)
       .eq('id', id)
@@ -1425,8 +1481,27 @@ export const interventionService = {
       `)
       .eq('intervention_id', interventionId)
       .order('uploaded_at', { ascending: false })
-    
+
     if (error) throw error
+    return data
+  },
+
+  // Create a document record for an intervention
+  async createDocument(documentData: Database['public']['Tables']['intervention_documents']['Insert']) {
+    console.log("💾 Creating intervention document record:", documentData)
+
+    const { data, error } = await supabase
+      .from('intervention_documents')
+      .insert(documentData)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("❌ Error creating intervention document:", error)
+      throw error
+    }
+
+    console.log("✅ Intervention document created:", data.id)
     return data
   },
 
@@ -1514,7 +1589,7 @@ export const interventionService = {
   // Assign users to an intervention automatically based on team and lot/building context
   async autoAssignIntervention(interventionId: string, lotId?: string, buildingId?: string, teamId?: string) {
     console.log("👥 Auto-assigning intervention:", { interventionId, lotId, buildingId, teamId })
-    
+
     try {
       const assignments: Array<{
         intervention_id: string
@@ -1524,8 +1599,26 @@ export const interventionService = {
         individual_message?: string
       }> = []
 
-      // 1. Get all team managers (gestionnaires) if teamId is provided
-      if (teamId) {
+      // ✅ FIX: If teamId is missing but lotId is provided, try to derive team from lot
+      let effectiveTeamId = teamId
+      if (!effectiveTeamId && lotId) {
+        console.log("🔍 TeamId missing, trying to derive from lot:", lotId)
+        const { data: lot, error: lotError } = await supabase
+          .from('lots')
+          .select('team_id')
+          .eq('id', lotId)
+          .single()
+
+        if (!lotError && lot?.team_id) {
+          effectiveTeamId = lot.team_id
+          console.log("✅ Derived team ID from lot:", effectiveTeamId)
+        } else {
+          console.warn("⚠️ Could not derive team from lot:", lotError?.message)
+        }
+      }
+
+      // 1. Get all team managers (gestionnaires) if teamId is available
+      if (effectiveTeamId) {
         const { data: teamManagers, error: teamError } = await supabase
           .from('team_members')
           .select(`
@@ -1533,7 +1626,7 @@ export const interventionService = {
             role,
             user:user_id(id, name, role)
           `)
-          .eq('team_id', teamId)
+          .eq('team_id', effectiveTeamId)
           .eq('user.role', 'gestionnaire')
 
         if (teamError) {
@@ -2111,6 +2204,12 @@ export const contactService = {
   async removeContactFromLot(lotId: string, userId: string) {
     console.log("🗑️ Removing contact from lot:", { lotId, userId })
     
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [CONTACT-SERVICE] Cannot remove JWT-only user from lot")
+      throw new Error("Operation not available for JWT-only users")
+    }
+    
     try {
       const { data, error } = await supabase
         .from('lot_contacts')
@@ -2132,6 +2231,12 @@ export const contactService = {
   // Remove a contact from a building (nouvelle architecture)
   async removeContactFromBuilding(buildingId: string, userId: string) {
     console.log("🗑️ Removing contact from building:", { buildingId, userId })
+    
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [CONTACT-SERVICE] Cannot remove JWT-only user from building")
+      throw new Error("Operation not available for JWT-only users")
+    }
     
     try {
       const { data, error } = await supabase
@@ -2543,6 +2648,12 @@ export const teamService = {
   async getUserTeams(userId: string) {
     console.log("👥 teamService.getUserTeams called with userId:", userId)
     
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-SERVICE] JWT-only user detected, returning empty teams list")
+      return []
+    }
+    
     // Vérifier le cache d'abord
     const cacheKey = `teams_${userId}`
     const cached = this._teamsCache.get(cacheKey)
@@ -2577,8 +2688,8 @@ export const teamService = {
       console.log("📡 Loading user teams with retry mechanism...")
       
       const result = await withRetry(async () => {
-        // Vérifier l'état de la connexion avant la requête
-        if (!connectionManager.isConnected()) {
+        // ✅ FIX: Skip connection check on server-side (API routes)
+        if (typeof window !== 'undefined' && !connectionManager.isConnected()) {
           console.log("🔄 Connection lost, forcing reconnection...")
           connectionManager.forceReconnection()
           throw new Error("Connection not available")
@@ -2818,6 +2929,12 @@ export const teamService = {
   },
 
   async removeMember(teamId: string, userId: string) {
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-SERVICE] Cannot remove JWT-only user from team")
+      throw new Error("Operation not available for JWT-only users")
+    }
+
     const { error } = await (supabase as any)
       .from('team_members')
       .delete()
@@ -2829,6 +2946,12 @@ export const teamService = {
   },
 
   async updateMemberRole(teamId: string, userId: string, role: 'admin' | 'member') {
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-SERVICE] Cannot update role for JWT-only user")
+      throw new Error("Operation not available for JWT-only users")
+    }
+
     const { data, error } = await (supabase as any)
       .from('team_members')
       .update({ role })
@@ -2861,6 +2984,12 @@ export const teamService = {
   // Vérifier et créer une équipe personnelle si nécessaire (pour dashboard)
   async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; team?: any; error?: string }> {
     console.log("🔍 [TEAM-STATUS-NEW] Checking team status for user:", userId)
+    
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TEAM-STATUS-NEW] JWT-only user detected, returning hasTeam: false")
+      return { hasTeam: false, error: "Mode JWT-only: équipe temporairement non disponible" }
+    }
     
     try {
       // 1. Récupérer les informations de l'utilisateur (NOUVELLE ARCHITECTURE)
@@ -3838,12 +3967,36 @@ export const tenantService = {
     console.log("👤 getTenantData called for userId:", userId)
     
     try {
+      // ✅ CORRECTION: Gérer les IDs JWT-only
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        // Récupérer l'ID réel de l'utilisateur depuis la base de données
+        const authUserId = userId.replace('jwt_', '')
+        const userProfile = await userService.findByAuthUserId(authUserId)
+        if (userProfile) {
+          actualUserId = userProfile.id
+          console.log("🔄 [TENANT-SERVICE] Resolved JWT user ID:", {
+            original: userId,
+            authUserId,
+            actualUserId: actualUserId
+          })
+        } else {
+          console.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", userId)
+          return null
+        }
+      }
+      
       // Get lots linked directly to this user via lot_contacts (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select(`
           lot:lot_id(
-            *,
+            id,
+            reference,
+            floor,
+            apartment_number,
+            category,
+            building_id,
             building:building_id(
               id,
               name,
@@ -3857,7 +4010,7 @@ export const tenantService = {
           start_date,
           end_date
         `)
-        .eq('user_id', userId)
+        .eq('user_id', actualUserId)
         .is('end_date', null) // Only active relations
         .order('is_primary', { ascending: false }) // Primary contacts first
 
@@ -3876,6 +4029,38 @@ export const tenantService = {
       const lot = primaryLotContact.lot
 
       console.log("✅ Found tenant lot via lot_contacts:", lot)
+
+      // ✅ VALIDATION: Gestion des lots avec/sans bâtiment
+      if (!lot.building && lot.building_id) {
+        console.log("⚠️ [TENANT-DATA] Building relation not loaded, attempting separate fetch:", {
+          lotId: lot.id,
+          buildingId: lot.building_id,
+          userId: actualUserId
+        })
+
+        // Essayer de récupérer les données building séparément
+        const { data: buildingData, error: buildingError } = await supabase
+          .from('buildings')
+          .select('id, name, address, city, postal_code, description')
+          .eq('id', lot.building_id)
+          .single()
+
+        if (buildingError) {
+          console.error("❌ [TENANT-DATA] Building fetch failed:", buildingError)
+        } else if (buildingData) {
+          console.log("✅ [TENANT-DATA] Found building separately:", buildingData)
+          lot.building = buildingData
+        } else {
+          console.error("❌ [TENANT-DATA] Building not found in database:", lot.building_id)
+        }
+      } else if (!lot.building_id) {
+        console.log("ℹ️ [TENANT-DATA] Independent lot (no building_id):", {
+          lotId: lot.id,
+          reference: lot.reference,
+          category: lot.category
+        })
+      }
+
       return lot
     } catch (error) {
       console.error("❌ Error in getTenantData:", error)
@@ -3885,6 +4070,12 @@ export const tenantService = {
 
   async getAllTenantLots(userId: string) {
     console.log("🏠 getAllTenantLots called for userId:", userId)
+    
+    // ✅ Protection contre les IDs JWT-only
+    if (userId.startsWith('jwt_')) {
+      console.log("⚠️ [TENANT-LOTS] JWT-only user detected, returning empty lots list")
+      return []
+    }
     
     try {
       // Get all lots linked directly to this user via lot_contacts (pour les locataires)
@@ -3928,11 +4119,30 @@ export const tenantService = {
     console.log("🔧 getTenantInterventions called for userId:", userId)
     
     try {
+      // ✅ CORRECTION: Gérer les IDs JWT-only
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        // Récupérer l'ID réel de l'utilisateur depuis la base de données
+        const authUserId = userId.replace('jwt_', '')
+        const userProfile = await userService.findByAuthUserId(authUserId)
+        if (userProfile) {
+          actualUserId = userProfile.id
+          console.log("🔄 [TENANT-INTERVENTIONS] Resolved JWT user ID:", {
+            original: userId,
+            authUserId,
+            actualUserId: actualUserId
+          })
+        } else {
+          console.error("❌ [TENANT-INTERVENTIONS] Could not resolve JWT user ID:", userId)
+          return []
+        }
+      }
+      
       // Get all lot IDs where this user is assigned (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('user_id', userId)
+        .eq('user_id', actualUserId)
         .is('end_date', null) // Only active relations
 
       if (lotContactsError) {
@@ -3978,11 +4188,36 @@ export const tenantService = {
     console.log("📊 getTenantStats called for userId:", userId)
     
     try {
+      // ✅ CORRECTION: Gérer les IDs JWT-only
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        // Récupérer l'ID réel de l'utilisateur depuis la base de données
+        const authUserId = userId.replace('jwt_', '')
+        const userProfile = await userService.findByAuthUserId(authUserId)
+        if (userProfile) {
+          actualUserId = userProfile.id
+          console.log("🔄 [TENANT-STATS] Resolved JWT user ID:", {
+            original: userId,
+            authUserId,
+            actualUserId: actualUserId
+          })
+        } else {
+          console.error("❌ [TENANT-STATS] Could not resolve JWT user ID:", userId)
+          return {
+            openRequests: 0,
+            inProgress: 0,
+            thisMonthInterventions: 0,
+            documentsCount: 0,
+            nextPaymentDate: 15
+          }
+        }
+      }
+      
       // Get all lot IDs where this user is assigned (pour les locataires)
       const { data: lotContacts, error: lotContactsError } = await supabase
         .from('lot_contacts')
         .select('lot_id')
-        .eq('user_id', userId)
+        .eq('user_id', actualUserId)
         .is('end_date', null) // Only active relations
 
       if (lotContactsError) {
@@ -4019,7 +4254,7 @@ export const tenantService = {
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       
       const openRequests = interventions?.filter(i => 
-        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours', 'cloturee_par_prestataire'].includes(i.status)
       ).length || 0
 
       const inProgress = interventions?.filter(i => i.status === 'en_cours').length || 0

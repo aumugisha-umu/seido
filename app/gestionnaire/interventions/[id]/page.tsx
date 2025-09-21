@@ -33,11 +33,14 @@ import { useState, useEffect } from "react"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
+import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
 const getInterventionLocationText = (intervention: InterventionDetail): string => {
   if (intervention.lot) {
-    return `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
+    return intervention.lot.building
+      ? `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
+      : `Lot indépendant ${intervention.lot.reference}`
   } else if (intervention.building) {
     return `Bâtiment entier - ${intervention.building.name}`
   }
@@ -55,6 +58,15 @@ const getInterventionLocationShort = (intervention: InterventionDetail): string 
 
 const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
   return !!(intervention.building && !intervention.lot)
+}
+
+// Fonction utilitaire pour formater la taille des fichiers
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 // Types basés sur la structure de la base de données
@@ -152,6 +164,10 @@ interface InterventionDetail {
     name: string
     size: string
     type: string
+    id?: string
+    storagePath?: string
+    uploadedAt?: string
+    uploadedBy?: string
   }>
   availabilities: Array<{
     person: string
@@ -159,6 +175,26 @@ interface InterventionDetail {
     date: string
     startTime: string
     endTime: string
+    userId?: string
+  }>
+  quotes: Array<{
+    id: string
+    providerId: string
+    providerName: string
+    providerSpeciality?: string
+    totalAmount: number
+    laborCost: number
+    materialsCost: number
+    description: string
+    workDetails?: string
+    estimatedDurationHours?: number
+    estimatedStartDate?: string
+    status: string
+    submittedAt: string
+    reviewedAt?: string
+    reviewComments?: string
+    rejectionReason?: string
+    attachments: Array<any>
   }>
 }
 
@@ -262,13 +298,13 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         lot: interventionData.lot ? {
           id: interventionData.lot.id,
           reference: interventionData.lot.reference,
-          building: {
+          building: interventionData.lot.building ? {
             id: interventionData.lot.building.id,
             name: interventionData.lot.building.name,
             address: interventionData.lot.building.address,
             city: interventionData.lot.building.city,
             postal_code: interventionData.lot.building.postal_code
-          },
+          } : null,
           floor: interventionData.lot.floor,
           apartment_number: interventionData.lot.apartment_number
         } : undefined,
@@ -309,8 +345,57 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           type: "individual",
           individualMessages: [] // À implémenter selon les besoins
         },
-        attachments: [], // À implémenter selon les besoins
-        availabilities: [] // À implémenter selon les besoins
+        attachments: interventionData.intervention_documents?.map(doc => ({
+          name: doc.original_filename,
+          size: formatFileSize(doc.file_size),
+          type: doc.mime_type,
+          id: doc.id,
+          storagePath: doc.storage_path,
+          uploadedAt: doc.uploaded_at,
+          uploadedBy: doc.uploaded_by_user?.name || 'Utilisateur'
+        })) || [],
+        availabilities: interventionData.user_availabilities?.map(avail => ({
+          person: avail.user.name,
+          role: avail.user.role,
+          date: avail.date,
+          startTime: avail.start_time,
+          endTime: avail.end_time,
+          userId: avail.user.id
+        })) || [],
+        quotes: interventionData.intervention_quotes?.map(quote => {
+          console.log('🔄 [GESTIONNAIRE] Processing quote data:', {
+            id: quote.id,
+            status: quote.status,
+            provider: quote.provider.name
+          })
+
+          const transformedQuote = {
+            id: quote.id,
+            providerId: quote.provider_id,
+            providerName: quote.provider.name,
+            providerSpeciality: quote.provider.speciality,
+            totalAmount: quote.total_amount,
+            laborCost: quote.labor_cost,
+            materialsCost: quote.materials_cost,
+            description: quote.description,
+            workDetails: quote.work_details,
+            estimatedDurationHours: quote.estimated_duration_hours,
+            estimatedStartDate: quote.estimated_start_date,
+            status: quote.status,
+            submittedAt: quote.submitted_at,
+            reviewedAt: quote.reviewed_at,
+            reviewComments: quote.review_comments,
+            rejectionReason: quote.rejection_reason,
+            attachments: typeof quote.attachments === 'string' ? JSON.parse(quote.attachments) : quote.attachments || []
+          }
+
+          console.log('✅ [GESTIONNAIRE] Transformed quote:', {
+            id: transformedQuote.id,
+            status: transformedQuote.status
+          })
+
+          return transformedQuote
+        }) || []
       }
 
       console.log('✅ Transformed intervention data:', transformedIntervention)
@@ -533,9 +618,14 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   {intervention.lot ? (
                     <>
                       <p className="text-gray-600">
-                        {intervention.lot.building.address}, {intervention.lot.building.city} {intervention.lot.building.postal_code}
+                        {intervention.lot.building
+                          ? `${intervention.lot.building.address}, ${intervention.lot.building.city} ${intervention.lot.building.postal_code}`
+                          : "Lot indépendant"
+                        }
                       </p>
-                      <p className="text-sm text-gray-500">{intervention.lot.building.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {intervention.lot.building?.name || `Lot ${intervention.lot.reference}`}
+                      </p>
                       {intervention.lot.floor && (
                         <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
                       )}
@@ -966,109 +1056,17 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <Receipt className="h-5 w-5 text-green-600" />
-                <span>Devis (2)</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Devis 1 */}
-                <div className="border rounded-lg p-4 bg-green-50 border-green-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">Thomas Blanc</h4>
-                        <p className="text-sm text-gray-600">Prestataire • Plomberie</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Accepté
-                      </div>
-                      <p className="text-sm text-gray-500 mt-1">Il y a 2h</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Montant</p>
-                      <p className="font-semibold text-lg text-green-700">285,00 €</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Délai d'intervention</p>
-                      <p className="font-medium">24-48h</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-3">
-                    Réparation fuite robinet + remplacement joint défectueux. Matériel inclus.
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Eye className="h-4 w-4 mr-1" />
-                      Voir détails
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Download className="h-4 w-4 mr-1" />
-                      Télécharger
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Devis 2 */}
-                <div className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">Plomberie Express</h4>
-                        <p className="text-sm text-gray-600">Prestataire • Plomberie</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        En attente
-                      </div>
-                      <p className="text-sm text-gray-500 mt-1">Il y a 4h</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Montant</p>
-                      <p className="font-semibold text-lg text-gray-900">320,00 €</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Délai d'intervention</p>
-                      <p className="font-medium">48-72h</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-3">
-                    Diagnostic complet + réparation fuite + garantie 2 ans. Déplacement inclus.
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Eye className="h-4 w-4 mr-1" />
-                      Voir détails
-                    </Button>
-                    <Button size="sm" variant="default">
-                      <Check className="h-4 w-4 mr-1" />
-                      Accepter
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <X className="h-4 w-4 mr-1" />
-                      Refuser
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Devis - Composant intégré */}
+          <IntegratedQuotesSection
+            quotes={intervention.quotes}
+            userContext="gestionnaire"
+            onDataChange={fetchInterventionData}
+            onDownloadAttachment={(attachment) => {
+              console.log('Download attachment:', attachment)
+              // TODO: Implémenter le téléchargement des pièces jointes
+            }}
+            showActions={true}
+          />
         </div>
 
         {/* Colonne latérale */}
@@ -1370,17 +1368,38 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
               <CardContent>
                 <div className="space-y-2">
                   {intervention.attachments.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={file.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <FileText className="h-5 w-5 text-gray-500" />
                         <div>
                           <p className="font-medium text-gray-900">{file.name}</p>
-                          <p className="text-sm text-gray-500">{file.size}</p>
+                          <div className="flex items-center space-x-3 text-sm text-gray-500">
+                            <span>{file.size}</span>
+                            <span>•</span>
+                            <span>{file.type}</span>
+                            {file.uploadedBy && (
+                              <>
+                                <span>•</span>
+                                <span>par {file.uploadedBy}</span>
+                              </>
+                            )}
+                            {file.uploadedAt && (
+                              <>
+                                <span>•</span>
+                                <span>{new Date(file.uploadedAt).toLocaleDateString('fr-FR')}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="sm" title="Télécharger">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" title="Voir">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

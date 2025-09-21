@@ -33,13 +33,12 @@ export default function SignupPage() {
   const [signupSuccess, setSignupSuccess] = useState(false)
   const [successUserName, setSuccessUserName] = useState("")
 
-  // Middleware gère les redirections automatiques
+  // ✅ REFACTORISÉ: Plus de redirections automatiques
   useEffect(() => {
-    console.log('🔄 [SIGNUP-CLEAN] Signup page loaded, middleware will handle redirections')
+    console.log('🔄 [SIGNUP-REFACTORED] Signup page loaded - no auto-redirections')
   }, [])
 
-  // La redirection est maintenant gérée automatiquement par AuthProvider
-  // Plus besoin de logique de redirection ici !
+  // ✅ Supprimé: Plus besoin d'attendre useAuth grâce à l'auto-login
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -122,16 +121,49 @@ export default function SignupPage() {
         console.log("🏠 [SIGNUP-SIMPLE] Team ready:", result.team.name)
         console.log("⏳ [SIGNUP-SIMPLE] Showing success modal, waiting for useAuth to load user...")
         
-        // Activer la modale de succès
-        setSuccessUserName(result.user.name)
-        setSignupSuccess(true)
-        setIsLoading(false) // Arrêter le loader du formulaire
+        // ✅ NOUVEAU FLUX: Auto-login après signup réussi
+        console.log("✅ [SIGNUP-AUTO-LOGIN] Signup complete, performing auto-login...")
 
-        // 🔄 SOLUTION: Rafraîchir l'état utilisateur pour déclencher la redirection automatique
-        console.log("🔄 [SIGNUP-SIMPLE] Refreshing user state to trigger auto-redirect...")
-        setTimeout(() => {
-          refreshUser() // Ceci va mettre à jour le context et déclencher la redirection
-        }, 1500) // Laisser le temps à la modale de s'afficher
+        if (result.credentials) {
+          try {
+            // Auto-login avec les credentials retournés
+            console.log("🔐 [SIGNUP-AUTO-LOGIN] Performing automatic login...")
+            const loginResult = await signIn(result.credentials.email, result.credentials.password)
+
+            if (loginResult.user && !loginResult.error) {
+              console.log("✅ [SIGNUP-AUTO-LOGIN] Auto-login successful!")
+
+              // Marquer qu'un signup récent a eu lieu
+              sessionStorage.setItem('recent_signup', 'true')
+
+              // Rediriger vers le dashboard approprié
+              const dashboardPath = `/${loginResult.user.role}/dashboard`
+              console.log("🚀 [SIGNUP-AUTO-LOGIN] Redirecting to:", dashboardPath)
+              router.push(dashboardPath)
+            } else {
+              console.error("❌ [SIGNUP-AUTO-LOGIN] Auto-login failed:", loginResult.error)
+
+              // Fallback: afficher le succès et laisser l'utilisateur se connecter manuellement
+              setSuccessUserName(result.user.name)
+              setSignupSuccess(true)
+              setIsLoading(false)
+            }
+          } catch (loginError) {
+            console.error("❌ [SIGNUP-AUTO-LOGIN] Auto-login error:", loginError)
+
+            // Fallback: afficher le succès et laisser l'utilisateur se connecter manuellement
+            setSuccessUserName(result.user.name)
+            setSignupSuccess(true)
+            setIsLoading(false)
+          }
+        } else {
+          console.error("❌ [SIGNUP-AUTO-LOGIN] No credentials returned from signup")
+
+          // Fallback: afficher le succès et laisser l'utilisateur se connecter manuellement
+          setSuccessUserName(result.user.name)
+          setSignupSuccess(true)
+          setIsLoading(false)
+        }
       } else {
         setError("Erreur inattendue lors de la création du compte")
       }

@@ -65,9 +65,6 @@ supabase link --project-ref [your-project-id]
 ```bash
 # Déployer les migrations vers la production
 supabase db push
-
-# Ou déployer un fichier SQL spécifique
-supabase db push --include-seed
 ```
 
 ### **5. Vérification** ✅

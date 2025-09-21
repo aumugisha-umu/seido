@@ -160,7 +160,7 @@ export default function PropertySelector({
               className="w-full sm:w-auto"
             >
               <Building2 className="h-4 w-4 mr-2" />
-              Add building
+              Ajouter un immeuble
             </Button>
           </div>
         ) : (

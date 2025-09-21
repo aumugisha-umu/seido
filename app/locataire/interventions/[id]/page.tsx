@@ -294,9 +294,6 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
                           </div>
                         </div>
                         <p className="text-gray-700 text-sm mb-3">{quote.description}</p>
-                        <div className="text-xs text-gray-500">
-                          <span>Valide jusqu'au {new Date(quote.validUntil).toLocaleDateString("fr-FR")}</span>
-                        </div>
                       </div>
                     ))}
                   </div>

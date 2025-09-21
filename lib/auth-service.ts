@@ -1,6 +1,5 @@
-import { supabase, withRetry } from './supabase'
+import { supabase } from './supabase'
 import { userService, teamService } from './database-service'
-import { analyzeSessionError, shouldCleanupSession } from './session-cleanup'
 import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 import { activityLogger } from './activity-logger'
@@ -13,6 +12,7 @@ export interface AuthUser {
   last_name?: string
   display_name?: string
   role: Database['public']['Enums']['user_role']
+  team_id?: string // ✅ Ajout du team_id manquant
   phone?: string
   avatar_url?: string
   created_at?: string
@@ -40,19 +40,6 @@ export interface SignInData {
 }
 
 class AuthService {
-  // Vérifier si on est sur la page signup-success (protection contre cleanup)
-  private isOnSignupSuccessPage(): boolean {
-    if (typeof window === 'undefined') return false
-    
-    const pathname = window.location.pathname
-    const isSignupSuccess = pathname === '/auth/signup-success'
-    
-    if (isSignupSuccess) {
-      console.log('🛡️ [AUTH-PROTECTION] Detected signup-success page - preventing session cleanup')
-    }
-    
-    return isSignupSuccess
-  }
   // Inscription - Crée auth user + profil + équipe personnelle
   async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
@@ -222,6 +209,7 @@ class AuthService {
         last_name: userProfile.last_name || undefined,
         display_name: fullName,
         role: userProfile.role,
+        team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
         phone: userProfile.phone || undefined,
         avatar_url: userProfile.avatar_url || undefined,
         created_at: userProfile.created_at || undefined,
@@ -321,136 +309,86 @@ class AuthService {
     return { authUser, error: null }
   }
 
-  // ✅ AMÉLIORATION: Récupérer l'utilisateur actuel avec retry automatique et cleanup
-  async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null; requiresCleanup?: boolean }> {
+  // ✅ REFACTORISÉ: getCurrentUser simplifié
+  async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      // ✅ NOUVEAU: Utiliser withRetry pour la récupération de l'utilisateur
-      const result = await withRetry(async () => {
-        console.log('🔍 [getCurrentUser-RETRY] Attempting to get current user...')
-        
-        const { data: { user: authUser }, error } = await supabase.auth.getUser()
+      console.log('🔍 [AUTH-SERVICE-REFACTORED] Getting current user...')
 
-        if (error) {
-          console.log('❌ [getCurrentUser-RETRY] Auth error:', error.message)
-          
-          // ✅ NOUVEAU: Vérifier si l'erreur nécessite un nettoyage de session (avec contexte cookies)
-          const errorType = analyzeSessionError(error.message, true)
-          console.log('🔍 [getCurrentUser-RETRY] Error analysis:', {
-            errorMessage: error.message,
-            errorType,
-            needsCleanup: errorType !== 'recoverable'
-          })
-          
-          if (shouldCleanupSession(error.message, true)) {
-            // Créer une erreur spéciale qui indique qu'un nettoyage est nécessaire
-            const cleanupError = new Error(`Auth error: ${error.message}`)
-            cleanupError.name = 'SessionCleanupRequired'
-            throw cleanupError
-          }
-          
-          throw new Error(`Auth error: ${error.message}`)
-        }
+      // ✅ Récupération simple de l'utilisateur auth
+      const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
-        if (!authUser) {
-          console.log('ℹ️ [getCurrentUser-RETRY] No auth user found')
-          return { user: null, error: null }
-        }
-
-        // Si pas confirmé, pas d'accès
-        if (!authUser.email_confirmed_at) {
-          console.log('ℹ️ [getCurrentUser-RETRY] User email not confirmed')
-          return { user: null, error: null }
-        }
-
-        // ✅ NOUVELLE ARCHITECTURE: Chercher le user profile via auth_user_id avec retry
-        console.log('🔍 [getCurrentUser-RETRY] Looking up user profile for auth_user_id:', authUser.id)
-        console.log('🔍 [getCurrentUser-RETRY] Auth user email:', authUser.email)
-        console.log('🔍 [getCurrentUser-RETRY] Auth user confirmed:', authUser.email_confirmed_at)
-        
-        try {
-          // Chercher l'utilisateur par auth_user_id avec timeout approprié
-          const { data: userProfile, error: profileError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('auth_user_id', authUser.id)
-            .single()
-            
-          console.log('🔍 [getCurrentUser-RETRY] Profile query result:', {
-            userProfile: userProfile ? 'found' : 'not found',
-            error: profileError ? profileError.message : 'none',
-            authUserId: authUser.id
-          })
-
-          if (profileError && profileError.code !== 'PGRST116') {
-            // Erreur autre que "not found" - retry
-            throw new Error(`Profile query error: ${profileError.message}`)
-          }
-            
-          if (userProfile) {
-            const user: AuthUser = {
-              id: userProfile.id, // ✅ ID de la table users, pas auth.users
-              email: userProfile.email,
-              name: userProfile.name,
-              first_name: userProfile.first_name || undefined,
-              last_name: userProfile.last_name || undefined,
-              display_name: authUser.user_metadata?.display_name || userProfile.name,
-              role: userProfile.role,
-              phone: userProfile.phone || undefined,
-              avatar_url: userProfile.avatar_url || undefined,
-              created_at: userProfile.created_at || undefined,
-              updated_at: userProfile.updated_at || undefined,
-            }
-            console.log('✅ [getCurrentUser-RETRY] User profile found:', {
-              id: user.id,
-              auth_user_id: authUser.id,
-              email: user.email,
-              name: user.name,
-              linkStatus: 'LINKED'
-            })
-            return { user, error: null }
-          } else {
-            console.log('❌ [getCurrentUser-RETRY] No profile found for auth_user_id:', authUser.id)
-          }
-        } catch (profileError) {
-          console.error('❌ [getCurrentUser-RETRY] Error looking up profile:', profileError)
-          throw profileError // Re-throw pour déclencher retry
-        }
-        
-        // FALLBACK: Utiliser JWT metadata si pas de profil trouvé
-        if (authUser.email) {
-          console.log('⚠️ [getCurrentUser-RETRY] No profile found, using JWT fallback')
-          const user: AuthUser = {
-            id: authUser.id, // Fallback vers auth.users.id
-            email: authUser.email!,
-            name: authUser.user_metadata?.full_name || 'Utilisateur',
-            first_name: authUser.user_metadata?.first_name || undefined,
-            last_name: authUser.user_metadata?.last_name || undefined,
-            display_name: authUser.user_metadata?.display_name || undefined,
-            role: 'gestionnaire',
-            phone: undefined,
-            avatar_url: undefined,
-            created_at: undefined,
-            updated_at: undefined,
-          }
-          return { user, error: null }
-        }
-        
-        // Fallback si pas d'email
-        return { user: null, error: null }
-      })
-
-      return result
-    } catch (error) {
-      console.error('❌ [getCurrentUser-RETRY] All retries failed:', error)
-      
-      // ✅ NOUVEAU: Indiquer si un nettoyage de session est nécessaire
-      const requiresCleanup = error instanceof Error && error.name === 'SessionCleanupRequired'
-      
-      return { 
-        user: null, 
-        error: null,
-        requiresCleanup 
+      if (error) {
+        console.log('❌ [AUTH-SERVICE-REFACTORED] Auth error:', error.message)
+        throw new Error(`Auth error: ${error.message}`)
       }
+
+      if (!authUser || !authUser.email_confirmed_at) {
+        console.log('ℹ️ [AUTH-SERVICE-REFACTORED] No confirmed auth user')
+        return { user: null, error: null }
+      }
+
+      // ✅ Récupération du profil utilisateur
+      console.log('🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for:', authUser.id)
+
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('auth_user_id', authUser.id)
+        .single()
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw new Error(`Profile query error: ${profileError.message}`)
+      }
+
+      if (userProfile) {
+        const user: AuthUser = {
+          id: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.name,
+          first_name: userProfile.first_name || undefined,
+          last_name: userProfile.last_name || undefined,
+          display_name: authUser.user_metadata?.display_name || userProfile.name,
+          role: userProfile.role,
+          team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
+          phone: userProfile.phone || undefined,
+          avatar_url: userProfile.avatar_url || undefined,
+          created_at: userProfile.created_at || undefined,
+          updated_at: userProfile.updated_at || undefined,
+        }
+
+        console.log('✅ [AUTH-SERVICE-REFACTORED] User profile found:', {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        })
+
+        return { user, error: null }
+      }
+
+      // ✅ Fallback vers JWT metadata
+      console.log('⚠️ [AUTH-SERVICE-REFACTORED] No profile found, using JWT fallback')
+
+      const user: AuthUser = {
+        id: authUser.id,
+        email: authUser.email!,
+        name: authUser.user_metadata?.full_name || 'Utilisateur',
+        first_name: authUser.user_metadata?.first_name || undefined,
+        last_name: authUser.user_metadata?.last_name || undefined,
+        display_name: authUser.user_metadata?.display_name || undefined,
+        role: 'gestionnaire',
+        team_id: undefined, // ✅ Pas de team_id disponible dans JWT fallback
+        phone: undefined,
+        avatar_url: undefined,
+        created_at: undefined,
+        updated_at: undefined,
+      }
+
+      return { user, error: null }
+
+    } catch (error) {
+      console.error('❌ [AUTH-SERVICE-REFACTORED] getCurrentUser failed:', error)
+      return { user: null, error: null }
     }
   }
 
@@ -610,6 +548,7 @@ class AuthService {
         last_name: updatedProfile.last_name || undefined,
         display_name: updates.display_name || updatedProfile.name,
         role: updatedProfile.role,
+        team_id: updatedProfile.team_id, // ✅ Ajout du team_id manquant
         phone: updatedProfile.phone || undefined,
         avatar_url: updatedProfile.avatar_url || undefined,
         created_at: updatedProfile.created_at || undefined,
@@ -632,169 +571,154 @@ class AuthService {
     }
   }
 
-  // ✅ VERSION SIMPLIFIÉE de onAuthStateChange pour éviter les boucles
+  // ✅ REFACTORISÉ: onAuthStateChange simplifié
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
     return supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔍 [AUTH-STATE-CHANGE-SIMPLE] Event:', event, 'Valid session:', !!session?.user)
-      
+      console.log('🔍 [AUTH-STATE-CHANGE-REFACTORED] Event:', event, 'Has session:', !!session?.user)
+
       if (!session?.user || !session.user.email_confirmed_at) {
-        console.log('ℹ️ [AUTH-STATE-CHANGE-SIMPLE] No valid session or unconfirmed email')
+        console.log('ℹ️ [AUTH-STATE-CHANGE-REFACTORED] No valid session')
         callback(null)
         return
       }
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
         try {
-          console.log('🔍 [AUTH-STATE-CHANGE-SIMPLE] Looking up user profile...')
-          
-          // ✅ TIMEOUT AUGMENTÉ: 8s pour éviter les timeouts sur connexions lentes
-          const profilePromise = supabase
-            .from('users')
-            .select('*')
-            .eq('auth_user_id', session.user.id)
-            .single()
-          
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile lookup timeout')), 8000)
-          )
-          
-          const { data: userProfile, error: profileError } = await Promise.race([
-            profilePromise,
-            timeoutPromise
-          ]) as any
-          
-          // ✅ CORRIGÉ: Si profil pas trouvé, essayer de récupérer l'ID réel depuis la DB
-          if (profileError) {
-            console.log('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Profile lookup failed, trying to get user ID from DB:', profileError.message)
-            
-            try {
-              // Essayer de récupérer juste l'ID réel depuis la table users
-              const { data: userIdData, error: idError } = await supabase
+          console.log('🔍 [AUTH-STATE-CHANGE-REFACTORED] Processing auth state change...')
+
+          // ✅ Recherche du profil utilisateur avec timeout et fallback
+          let userProfile = null
+          let profileError = null
+
+          try {
+            console.log('🔍 [AUTH-STATE-CHANGE-TIMEOUT] Searching user profile with 6s timeout...')
+
+            // Promise.race pour timeout + fallback par email
+            const profileResult = await Promise.race([
+              // Requête principale par auth_user_id
+              supabase
                 .from('users')
-                .select('id')
+                .select('*')
                 .eq('auth_user_id', session.user.id)
-                .single()
-              
-              if (userIdData?.id) {
-                console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Found real user ID for fallback:', userIdData.id)
-                
-                // Fallback avec l'ID réel de la table users
-                const user: AuthUser = {
-                  id: userIdData.id, // ✅ CORRIGÉ: Utiliser l'ID réel de la table users
-                  email: session.user.email!,
-                  name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
-                  first_name: session.user.user_metadata?.first_name,
-                  last_name: session.user.user_metadata?.last_name,
-                  display_name: session.user.user_metadata?.display_name,
-                  role: session.user.user_metadata?.role || 'gestionnaire',
-                  phone: undefined,
-                  created_at: undefined,
-                  updated_at: undefined,
+                .single(),
+              // Timeout de 6 secondes (plus réaliste pour Supabase distant)
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Profile query timeout')), 6000)
+              )
+            ])
+
+            userProfile = profileResult.data
+            profileError = profileResult.error
+
+          } catch (timeoutError) {
+            console.warn('⏰ [AUTH-STATE-CHANGE-TIMEOUT] Profile query timed out, trying email fallback...')
+
+            // Fallback : chercher par email si timeout
+            if (session.user.email) {
+              try {
+                const emailResult = await Promise.race([
+                  supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', session.user.email)
+                    .single(),
+                  new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Email fallback timeout')), 4000)
+                  )
+                ])
+
+                userProfile = emailResult.data
+                profileError = emailResult.error
+
+                if (userProfile && !userProfile.auth_user_id) {
+                  // Lier le profil trouvé par email à l'auth_user_id
+                  console.log('🔗 [AUTH-STATE-CHANGE-LINK] Linking profile found by email to auth_user_id...')
+                  await supabase
+                    .from('users')
+                    .update({ auth_user_id: session.user.id })
+                    .eq('id', userProfile.id)
+
+                  console.log('✅ [AUTH-STATE-CHANGE-LINK] Profile linked successfully')
                 }
-                
-                console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using corrected fallback user:', user.email, user.role, 'ID:', user.id)
-                callback(user)
-                return
+              } catch (emailError) {
+                console.warn('⚠️ [AUTH-STATE-CHANGE-TIMEOUT] Email fallback also failed:', emailError)
+                profileError = emailError
               }
-            } catch (idLookupError) {
-              console.warn('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Could not get real user ID, using auth_user_id as last resort:', idLookupError)
             }
-            
-            // ❌ DERNIER RECOURS: Utiliser auth_user_id (peut causer des problèmes de relations)
+          }
+
+          if (userProfile) {
             const user: AuthUser = {
-              id: session.user.id, // ⚠️ ATTENTION: C'est l'auth_user_id, peut causer des problèmes
-              email: session.user.email!,
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
-              first_name: session.user.user_metadata?.first_name,
-              last_name: session.user.user_metadata?.last_name,
-              display_name: session.user.user_metadata?.display_name,
-              role: session.user.user_metadata?.role || 'gestionnaire',
-              phone: undefined,
-              created_at: undefined,
-              updated_at: undefined,
+              id: userProfile.id,
+              email: userProfile.email,
+              name: userProfile.name,
+              first_name: userProfile.first_name || undefined,
+              last_name: userProfile.last_name || undefined,
+              display_name: session.user.user_metadata?.display_name || userProfile.name,
+              role: userProfile.role,
+              team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
+              phone: userProfile.phone || undefined,
+              created_at: userProfile.created_at || undefined,
+              updated_at: userProfile.updated_at || undefined,
             }
-            
-            console.log('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Using auth_user_id as last resort:', user.email, user.role, 'ID:', user.id)
+
+            console.log('✅ [AUTH-STATE-CHANGE-REFACTORED] User profile found:', {
+              id: user.id,
+              email: user.email,
+              role: user.role
+            })
+
             callback(user)
             return
           }
-            
-          if (userProfile) {
+
+          // ✅ Fallback : tentative de requête directe (4s max)
+          console.log('⚠️ [AUTH-STATE-CHANGE-FALLBACK] No profile found via timeout, trying quick direct query...')
+
+          try {
+            // Requête directe avec timeout de 4s
+            const directResult = await Promise.race([
+              supabase
+                .from('users')
+                .select('*')
+                .eq('auth_user_id', session.user.id)
+                .single(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Direct query timeout')), 4000)
+              )
+            ])
+
+            if (directResult.data) {
+              console.log('✅ [AUTH-STATE-CHANGE-FALLBACK] Profile found via direct query!')
+
               const user: AuthUser = {
-                id: userProfile.id, // ✅ ID de la table users, pas auth.users
-                email: userProfile.email,
-                name: userProfile.name,
-                first_name: userProfile.first_name || undefined,
-                last_name: userProfile.last_name || undefined,
-                display_name: session.user.user_metadata?.display_name || userProfile.name,
-                role: userProfile.role,
-                phone: userProfile.phone || undefined,
-                created_at: userProfile.created_at || undefined,
-                updated_at: userProfile.updated_at || undefined,
+                id: directResult.data.id, // ✅ Utiliser le vrai ID du profil
+                email: directResult.data.email,
+                name: directResult.data.name,
+                first_name: directResult.data.first_name || undefined,
+                last_name: directResult.data.last_name || undefined,
+                display_name: session.user.user_metadata?.display_name || directResult.data.name,
+                role: directResult.data.role,
+                team_id: directResult.data.team_id, // ✅ Ajout du team_id manquant
+                phone: directResult.data.phone || undefined,
+                created_at: directResult.data.created_at || undefined,
+                updated_at: directResult.data.updated_at || undefined,
               }
-              console.log('✅ [AUTH-SERVICE-NEW] User profile found:', {
-                id: user.id,
-                auth_user_id: session.user.id,
-                email: user.email,
-                name: user.name
-              })
-              
-              // ✅ MARQUER L'INVITATION COMME ACCEPTÉE SI C'EST UNE PREMIÈRE CONNEXION
-              if (event === 'SIGNED_IN' && session.user.user_metadata?.invited) {
-                console.log('📧 [AUTH-SERVICE-NEW] User was invited, marking invitation as accepted...')
-                console.log('🔍 [AUTH-SERVICE-DEBUG] Invitation marking details:', {
-                  email: userProfile.email,
-                  authUserId: session.user.id,
-                  profileUserId: userProfile.id,
-                  invitationCode: session.user.id
-                })
-                try {
-                  await fetch('/api/mark-invitation-accepted', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      email: userProfile.email,
-                      invitationCode: session.user.id // ✅ Correct: auth.users.id
-                    })
-                  })
-                  console.log('✅ [AUTH-SERVICE-NEW] Invitation marked as accepted')
-                } catch (inviteError) {
-                  console.warn('⚠️ [AUTH-SERVICE-NEW] Failed to mark invitation as accepted:', inviteError)
-                  // Ne pas faire échouer la connexion pour cette erreur
-                }
-              }
-              
+
               callback(user)
               return
             }
-        } catch (error) {
-          console.error('❌ [AUTH-STATE-CHANGE-SIMPLE] Error processing profile:', error)
-          
-          // ✅ CORRIGÉ: Essayer de récupérer l'ID réel même en cas d'erreur
-          let fallbackUserId = session.user.id // Défaut à auth_user_id
-          
-          try {
-            // Essayer de récupérer l'ID réel de la table users
-            const { data: userIdData } = await supabase
-              .from('users')
-              .select('id')
-              .eq('auth_user_id', session.user.id)
-              .single()
-              
-            if (userIdData?.id) {
-              fallbackUserId = userIdData.id
-              console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Successfully retrieved real user ID for error fallback:', fallbackUserId)
-            }
-          } catch (idError) {
-            console.warn('⚠️ [AUTH-STATE-CHANGE-SIMPLE] Could not get real user ID for error fallback, using auth_user_id')
+          } catch (directError) {
+            console.warn('⚠️ [AUTH-STATE-CHANGE-FALLBACK] Direct query failed or timed out, proceeding with JWT-only:', directError.message)
           }
-          
+
+          // ✅ Fallback final : JWT metadata (mais sans ID de profil incorrect)
+          console.log('⚠️ [AUTH-STATE-CHANGE-JWT-ONLY] Using JWT-only fallback')
+
           const fallbackUser: AuthUser = {
-            id: fallbackUserId, // ✅ CORRIGÉ: Utiliser l'ID réel si disponible
+            id: `jwt_${session.user.id}`, // ✅ CORRECTION: Préfixe pour éviter confusion avec IDs profil
             email: session.user.email!,
-            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+            name: session.user.user_metadata?.full_name || 'Utilisateur',
             first_name: session.user.user_metadata?.first_name,
             last_name: session.user.user_metadata?.last_name,
             display_name: session.user.user_metadata?.display_name,
@@ -803,12 +727,15 @@ class AuthService {
             created_at: undefined,
             updated_at: undefined,
           }
-          
-          console.log('✅ [AUTH-STATE-CHANGE-SIMPLE] Using error fallback:', fallbackUser.email, fallbackUser.role, 'ID:', fallbackUser.id)
+
           callback(fallbackUser)
+
+        } catch (error) {
+          console.error('❌ [AUTH-STATE-CHANGE-REFACTORED] Error processing profile:', error)
+          callback(null)
         }
       } else {
-        console.log('ℹ️ [AUTH-STATE-CHANGE-SIMPLE] Event not handled:', event)
+        console.log('ℹ️ [AUTH-STATE-CHANGE-REFACTORED] Event not processed:', event)
         callback(null)
       }
     })

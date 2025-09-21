@@ -7,7 +7,6 @@ import {
   Home,
   Building2,
   CheckCircle,
-  Clock,
   AlertTriangle,
   Plus,
   X,
@@ -31,18 +30,12 @@ import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useTenantData } from "@/hooks/use-tenant-data"
 import { useAuth } from "@/hooks/use-auth"
 
-interface Disponibilite {
-  id: string
-  date: string
-  heureDebut: string
-  heureFin: string
-}
-
 interface UploadedFile {
   id: string
   name: string
   size: number
   type: string
+  file: File // Store the actual File object for upload
 }
 
 export default function NouvelleDemandePage() {
@@ -64,12 +57,6 @@ export default function NouvelleDemandePage() {
     type: "",
     urgence: "",
     description: "",
-  })
-  const [disponibilites, setDisponibilites] = useState<Disponibilite[]>([])
-  const [newDisponibilite, setNewDisponibilite] = useState({
-    date: "",
-    heureDebut: "09:00",
-    heureFin: "17:00",
   })
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isCreating, setIsCreating] = useState(false)
@@ -130,12 +117,14 @@ export default function NouvelleDemandePage() {
     return allTenantLots.map(lot => ({
       id: lot.id,
       name: lot.apartment_number || `Lot ${lot.reference}`,
-      address: `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}`,
+      address: lot.building ?
+        `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}` :
+        "Lot indépendant",
       surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
-      building: lot.building.name,
+      building: lot.building?.name || `Lot ${lot.reference}`,
       interventions: "Aucune intervention active", // Could be calculated if needed
       reference: lot.reference,
-      building_id: lot.building.id
+      building_id: lot.building?.id || null
     }))
   }, [allTenantLots])
 
@@ -201,24 +190,6 @@ export default function NouvelleDemandePage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const ajouterDisponibilite = () => {
-    if (newDisponibilite.date) {
-      const nouvelleDisponibilite: Disponibilite = {
-        id: generateId('disponibilite'),
-        ...newDisponibilite,
-      }
-      setDisponibilites((prev) => [...prev, nouvelleDisponibilite])
-      setNewDisponibilite({
-        date: "",
-        heureDebut: "09:00",
-        heureFin: "17:00",
-      })
-    }
-  }
-
-  const supprimerDisponibilite = (id: string) => {
-    setDisponibilites((prev) => prev.filter((d) => d.id !== id))
-  }
 
   const handleSubmit = () => {
     setCurrentStep(3)
@@ -244,19 +215,38 @@ export default function NouvelleDemandePage() {
         type: formData.type || null,
         urgency: formData.urgence || 'normale',
         lot_id: selectedLogement, // Use the selected lot ID
-        files: uploadedFiles, // For future file handling
-        availabilities: disponibilites // For future availability handling
       }
 
       console.log("🔧 Creating intervention with data:", interventionData)
 
+      // Create FormData to handle files
+      const formDataToSend = new FormData()
+
+      // Add intervention data as JSON
+      formDataToSend.append('interventionData', JSON.stringify(interventionData))
+
+      // Add files
+      uploadedFiles.forEach((uploadedFile, index) => {
+        formDataToSend.append(`file_${index}`, uploadedFile.file)
+        // Also send metadata for each file
+        formDataToSend.append(`file_${index}_metadata`, JSON.stringify({
+          id: uploadedFile.id,
+          name: uploadedFile.name,
+          size: uploadedFile.size,
+          type: uploadedFile.type
+        }))
+      })
+
+      // Add file count for easier processing on backend
+      formDataToSend.append('fileCount', uploadedFiles.length.toString())
+
+      console.log(`🔧 Sending intervention with ${uploadedFiles.length} files`)
+
       // Call the API to create the intervention
       const response = await fetch('/api/create-intervention', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(interventionData)
+        // Don't set Content-Type header - let browser set it with boundary for multipart/form-data
+        body: formDataToSend
       })
 
       const result = await response.json()
@@ -266,7 +256,7 @@ export default function NouvelleDemandePage() {
       }
 
       console.log("✅ Intervention created successfully:", result.intervention)
-      
+
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
       
@@ -307,6 +297,7 @@ export default function NouvelleDemandePage() {
         name: file.name,
         size: file.size,
         type: file.type,
+        file: file, // Store the actual File object
       }))
       setUploadedFiles((prev) => [...prev, ...newFiles])
     }
@@ -603,89 +594,6 @@ export default function NouvelleDemandePage() {
               </div>
             </div>
 
-            {/* Disponibilités */}
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Vos disponibilités (optionnel)</Label>
-              <div className="mt-2 space-y-4">
-
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div>
-                    <Label htmlFor="date" className="text-sm font-medium text-gray-700">
-                      Date
-                    </Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={newDisponibilite.date}
-                      onChange={(e) => setNewDisponibilite((prev) => ({ ...prev, date: e.target.value }))}
-                      className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="heureDebut" className="text-sm font-medium text-gray-700">
-                      Heure début
-                    </Label>
-                    <Input
-                      id="heureDebut"
-                      type="time"
-                      value={newDisponibilite.heureDebut}
-                      onChange={(e) => setNewDisponibilite((prev) => ({ ...prev, heureDebut: e.target.value }))}
-                      className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="heureFin" className="text-sm font-medium text-gray-700">
-                      Heure fin
-                    </Label>
-                    <Input
-                      id="heureFin"
-                      type="time"
-                      value={newDisponibilite.heureFin}
-                      onChange={(e) => setNewDisponibilite((prev) => ({ ...prev, heureFin: e.target.value }))}
-                      className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-                  <Button onClick={ajouterDisponibilite} className="bg-green-600 hover:bg-green-700">
-                    Ajouter cette disponibilité
-                  </Button>
-                </div>
-
-                {/* Liste des disponibilités */}
-                {disponibilites.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">Vos disponibilités ({disponibilites.length})</h4>
-                    <div className="space-y-2">
-                      {disponibilites.map((dispo) => (
-                        <div key={dispo.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">
-                              {new Date(dispo.date).toLocaleDateString("fr-FR", {
-                                weekday: "long",
-                                day: "numeric",
-                                month: "long",
-                              })}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {dispo.heureDebut} - {dispo.heureFin}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => supprimerDisponibilite(dispo.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Actions */}
@@ -798,29 +706,6 @@ export default function NouvelleDemandePage() {
             </CardContent>
           </Card>
 
-          {/* Disponibilités */}
-          {disponibilites.length > 0 && (
-            <Card className="border-l-4 border-l-green-500 lg:col-span-2">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2 mb-3">
-                  <Clock className="h-5 w-5 text-green-600" />
-                  <h3 className="font-semibold text-gray-900">Disponibilités proposées</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {disponibilites.map((dispo) => (
-                    <div key={dispo.id} className="text-sm bg-green-50 p-2 rounded">
-                      {new Date(dispo.date).toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                      })}{" "}
-                      de {dispo.heureDebut} à {dispo.heureFin}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* Error Message */}

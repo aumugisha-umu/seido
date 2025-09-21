@@ -12,14 +12,15 @@ interface TenantData {
   surface_area?: number
   rooms?: number
   charges_amount?: number
-  building: {
+  category?: string
+  building?: {
     id: string
     name: string
     address: string
     city: string
     postal_code: string
     description?: string
-  }
+  } | null
 }
 
 interface TenantStats {

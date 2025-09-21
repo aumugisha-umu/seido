@@ -19,6 +19,7 @@ import { useManagerStats, useContactStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
+import { InterventionsList } from "@/components/interventions/interventions-list"
 
 export default function DashboardGestionnaire() {
   const [notifications] = useState(3)
@@ -30,26 +31,6 @@ export default function DashboardGestionnaire() {
   
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
-
-  // Fonction pour obtenir le style et le libellé des statuts d'intervention
-  const getInterventionStatusInfo = (status: string) => {
-    switch (status) {
-      case 'nouvelle_demande':
-        return { label: 'Nouvelle demande', color: 'bg-blue-100 text-blue-800' }
-      case 'en_attente_validation':
-        return { label: 'En attente validation', color: 'bg-yellow-100 text-yellow-800' }
-      case 'validee':
-        return { label: 'Validée', color: 'bg-green-100 text-green-800' }
-      case 'en_cours':
-        return { label: 'En cours', color: 'bg-orange-100 text-orange-800' }
-      case 'terminee':
-        return { label: 'Terminée', color: 'bg-gray-100 text-gray-800' }
-      case 'annulee':
-        return { label: 'Annulée', color: 'bg-red-100 text-red-800' }
-      default:
-        return { label: status, color: 'bg-gray-100 text-gray-800' }
-    }
-  }
 
   const handleContactSubmit = async (contactData: any) => {
     try {
@@ -350,68 +331,28 @@ export default function DashboardGestionnaire() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center space-x-3 p-3 border rounded-lg">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </div>
-                      <Skeleton className="h-6 w-20 rounded-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : data?.interventions && data.interventions.length > 0 ? (
-                <div className="space-y-3">
-                  {/* Affichage des stats rapides */}
-                  <div className="text-sm text-gray-600 mb-4">
-                    <span className="font-medium">{stats.interventionsCount}</span> interventions au total
-                  </div>
-                  
-                  {/* Liste des interventions récentes (max 3) */}
-                  {data.interventions.slice(0, 3).map((intervention: any) => {
-                    const statusInfo = getInterventionStatusInfo(intervention.status)
-                    return (
-                      <div key={intervention.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/gestionnaire/interventions/${intervention.id}`)}>
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <Wrench className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {intervention.title}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {intervention.lot?.reference || 'N/A'} • {intervention.type}
-                          </p>
-                        </div>
-                        <Badge className={`text-xs ${statusInfo.color}`}>
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                    )
-                  })}
-                  
-                  {data.interventions.length > 3 && (
-                    <div className="text-center pt-2">
-                      <Button variant="outline" size="sm" onClick={() => router.push("/gestionnaire/interventions")}>
-                        Voir les {data.interventions.length - 3} autres →
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                  <p className="text-gray-600 mb-4">Les interventions apparaîtront ici une fois créées</p>
-                  <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter une intervention
-                  </Button>
+              {/* Affichage des stats rapides */}
+              {data?.interventions && data.interventions.length > 0 && !loading && (
+                <div className="text-sm text-gray-600 mb-4">
+                  <span className="font-medium">{stats.interventionsCount}</span> interventions au total
                 </div>
               )}
+
+              {/* Liste des interventions avec composant unifié */}
+              <InterventionsList
+                interventions={data?.interventions || []}
+                loading={loading}
+                compact={true}
+                maxItems={3}
+                emptyStateConfig={{
+                  title: "Aucune intervention",
+                  description: "Les interventions apparaîtront ici une fois créées",
+                  showCreateButton: true,
+                  createButtonText: "Ajouter une intervention",
+                  createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
+                }}
+                showStatusActions={true}
+              />
             </CardContent>
           </Card>
         </div>

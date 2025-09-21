@@ -3,9 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
-import { ENV_CONFIG, calculateTimeout } from '@/lib/environment'
 import { decideRedirectionStrategy, logRoutingDecision } from '@/lib/auth-router'
-import { cleanupCorruptedSession, analyzeSessionError, logSessionState, initializeSessionDetection } from '@/lib/session-cleanup'
 import type { AuthError } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -31,14 +29,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // ✅ SIMPLIFIÉ: Désactivation temporaire de la détection automatique
-    console.log('🚀 [AUTH-PROVIDER] Initializing authentication system (simplified)...')
-    
-    // Récupérer directement l'utilisateur sans détection automatique
+    console.log('🚀 [AUTH-PROVIDER-REFACTORED] Initializing simple auth system...')
+
+    // ✅ Récupération initiale de l'utilisateur
     getCurrentUser()
 
-    // Écouter les changements d'état d'authentification
+    // ✅ Écouter les changements d'état - version simplifiée
     const { data: { subscription } } = authService.onAuthStateChange((user) => {
+      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Auth state changed:', user ? `${user.name} (${user.role})` : 'null')
       setUser(user)
       setLoading(false)
     })
@@ -48,81 +46,171 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // ✅ NOUVEAU : Redirection intelligente avec système centralisé
+  // ✅ REFACTORISÉ: Redirection centralisée avec gestion callback
   useEffect(() => {
-    // Ne traiter que si loading terminé et pathname disponible  
+    // Seulement si chargement terminé et pathname disponible
     if (loading || !pathname) return
-    
-    // Décider de la stratégie de redirection avec le système centralisé
-    const decision = decideRedirectionStrategy(user, pathname, {
-      isAuthStateChange: true,
-      isLoginSubmit: false // Ce n'est pas une soumission de login
-    })
-    
-    logRoutingDecision(decision, user, { trigger: 'auth-provider-effect', pathname })
-    
-    // Exécuter selon la stratégie
-    if (decision.strategy === 'immediate' && decision.targetPath) {
-      console.log('🚀 [AUTH-PROVIDER] Executing immediate redirection to:', decision.targetPath)
-      router.push(decision.targetPath)
-    } else if (decision.strategy === 'middleware-only') {
-      console.log('🔄 [AUTH-PROVIDER] Deferring to middleware for redirection')
-      // Le middleware s'en charge - ne rien faire ici
-    } else {
-      console.log('🚫 [AUTH-PROVIDER] No redirection needed:', decision.reason)
+
+    // ✅ Détecter si on vient d'un callback invitation
+    const handleInvitationCallback = async () => {
+      if (user && pathname === '/auth/callback') {
+        try {
+          const callbackContext = sessionStorage.getItem('auth_callback_context')
+          if (callbackContext) {
+            const context = JSON.parse(callbackContext)
+            if (context.type === 'invitation') {
+              console.log('📧 [AUTH-PROVIDER-CALLBACK] Processing invitation callback for:', user.email)
+
+              // ✅ CORRECTION: Extraire le vrai auth_user_id si JWT-only
+              const authUserId = user.id.startsWith('jwt_')
+                ? user.id.replace('jwt_', '')
+                : user.id
+
+              console.log('🔍 [AUTH-PROVIDER-CALLBACK] Using auth_user_id for invitation:', {
+                originalId: user.id,
+                extractedAuthUserId: authUserId,
+                isJwtOnly: user.id.startsWith('jwt_')
+              })
+
+              // Traiter les invitations
+              try {
+                const response = await fetch('/api/mark-invitation-accepted', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    email: user.email,
+                    invitationCode: authUserId
+                  })
+                })
+
+                if (response.ok) {
+                  const result = await response.json()
+                  if (result.success && result.count > 0) {
+                    console.log(`✅ [AUTH-PROVIDER-CALLBACK] ${result.count} invitation(s) marked as accepted`)
+                  }
+                }
+              } catch (invitationError) {
+                console.warn('⚠️ [AUTH-PROVIDER-CALLBACK] Invitation processing failed:', invitationError)
+              }
+
+              // Nettoyer le contexte
+              sessionStorage.removeItem('auth_callback_context')
+
+              // ✅ NOUVEAU: Vérifier si l'utilisateur doit définir son mot de passe (via base de données)
+              // Pour les utilisateurs JWT-only, récupérer les vraies données depuis la DB
+              let needsPasswordSetup = user.password_set === false
+
+              if (user.id.startsWith('jwt_')) {
+                try {
+                  // Récupérer les vraies données utilisateur depuis la base de données
+                  const response = await fetch('/api/get-user-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ authUserId: authUserId })
+                  })
+
+                  if (response.ok) {
+                    const profileData = await response.json()
+                    if (profileData.success && profileData.user) {
+                      needsPasswordSetup = profileData.user.password_set === false
+                      console.log('🔍 [AUTH-PROVIDER-CALLBACK] Retrieved user profile from DB:', {
+                        password_set: profileData.user.password_set,
+                        needsPasswordSetup
+                      })
+                    }
+                  }
+                } catch (error) {
+                  console.warn('⚠️ [AUTH-PROVIDER-CALLBACK] Failed to get user profile, using default check:', error)
+                }
+              }
+
+              if (needsPasswordSetup) {
+                console.log('🔐 [AUTH-PROVIDER-CALLBACK] User needs password setup (password_set: false), redirecting to password setup')
+                router.push('/auth/set-password')
+              } else {
+                // Rediriger vers le dashboard approprié
+                const dashboardPath = `/${user.role}/dashboard`
+                console.log('🔄 [AUTH-PROVIDER-CALLBACK] User password already set, redirecting to dashboard:', dashboardPath)
+                router.push(dashboardPath)
+              }
+              return true
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ [AUTH-PROVIDER-CALLBACK] Error processing callback context:', error)
+        }
+      }
+      return false
     }
+
+    // Traiter callback d'abord, sinon logique normale
+    handleInvitationCallback().then(handled => {
+      if (!handled) {
+        // ✅ Système de routage centralisé normal
+        const decision = decideRedirectionStrategy(user, pathname, {
+          isAuthStateChange: true,
+          isLoginSubmit: false
+        })
+
+        logRoutingDecision(decision, user, {
+          trigger: 'auth-provider-effect',
+          pathname,
+          loading
+        })
+
+        if (decision.strategy === 'immediate' && decision.targetPath) {
+          console.log('🚀 [AUTH-PROVIDER-REFACTORED] Immediate redirect to:', decision.targetPath)
+          router.push(decision.targetPath)
+        } else {
+          console.log('🔄 [AUTH-PROVIDER-REFACTORED] No action needed:', decision.reason)
+        }
+      }
+    })
   }, [user, loading, pathname, router])
 
-  const getCurrentUser = async (retryCount = 0) => {
+  const getCurrentUser = async () => {
     try {
-      console.log(`🔍 [USE-AUTH-SIMPLE] Getting current user (attempt ${retryCount + 1})...`)
-      
-      // ✅ SIMPLIFIÉ: Appel direct sans timeout complexe
-      const result = await authService.getCurrentUser()
-      const { user } = result
-      
-      console.log('✅ [USE-AUTH-SIMPLE] Current user loaded:', user ? `${user.name} (${user.role})` : 'none')
+      console.log('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...')
+
+      // ✅ SIMPLIFIÉ: Appel direct sans timeouts ni retries
+      const { user } = await authService.getCurrentUser()
+
+      console.log('✅ [AUTH-PROVIDER-REFACTORED] User loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
-      
+
     } catch (error) {
-      console.error('❌ [USE-AUTH-SIMPLE] Error getting current user:', error)
-      
-      // ✅ SIMPLIFIÉ: Juste signaler null user, pas de nettoyage automatique 
-      console.log('🔄 [USE-AUTH-SIMPLE] Setting user to null after error')
+      console.error('❌ [AUTH-PROVIDER-REFACTORED] Error getting user:', error)
       setUser(null)
     } finally {
-      console.log('✅ [USE-AUTH-SIMPLE] Setting loading to false')
       setLoading(false)
     }
   }
 
   const signIn = async (email: string, password: string) => {
-    console.log('🚀 [AUTH-PROVIDER] signIn called - setting login context')
-    
+    console.log('🚀 [AUTH-PROVIDER-REFACTORED] SignIn called for:', email)
+
     const result = await authService.signIn({ email, password })
+
     if (result.user) {
-      console.log('✅ [AUTH-PROVIDER] signIn successful, updating user state')
+      console.log('✅ [AUTH-PROVIDER-REFACTORED] SignIn successful, updating state')
       setUser(result.user)
-      
-      // ✅ NOUVEAU : Décision de redirection après login submit
+
+      // ✅ REFACTORISÉ: Système de routage centralisé pour login
       const decision = decideRedirectionStrategy(result.user, pathname || '/auth/login', {
         isLoginSubmit: true,
         isAuthStateChange: false
       })
-      
-      logRoutingDecision(decision, result.user, { trigger: 'login-submit', pathname })
-      
-      // Stratégie middleware-only : on laisse le middleware + router.refresh() gérer
-      if (decision.strategy === 'middleware-only') {
-        console.log('🔄 [AUTH-PROVIDER] Login successful - deferring to middleware redirection')
-        // La page login va faire router.refresh() et le middleware redirigera
-      } else if (decision.strategy === 'immediate' && decision.targetPath) {
-        console.log('🚀 [AUTH-PROVIDER] Login successful - immediate redirection to:', decision.targetPath)
-        // Redirection immédiate (cas rare après login)
-        setTimeout(() => router.push(decision.targetPath!), decision.delayMs || 0)
-      }
+
+      logRoutingDecision(decision, result.user, {
+        trigger: 'login-submit',
+        pathname
+      })
+
+      // ✅ STRATÉGIE CLAIRE: AuthProvider ne fait plus de redirections après login
+      // Le système centralisé + pages gèrent automatiquement
+      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Login successful - letting auth system handle redirection')
     }
-    
+
     return result
   }
 
@@ -144,31 +232,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 [LOGOUT] Starting enhanced sign out process...')
-      
-      // ✅ NOUVEAU: Utiliser le système de nettoyage complet
-      await cleanupCorruptedSession({
-        redirectToLogin: false, // Pas de redirection automatique sur signOut volontaire
-        reason: 'User initiated sign out',
-        errorType: 'corrupted', // Peu importe le type pour un signOut volontaire
-        clearStorage: true
-      })
-      
-      // Nettoyer l'état utilisateur local
+      console.log('🚪 [AUTH-PROVIDER-REFACTORED] Starting simple sign out...')
+
+      // ✅ REFACTORISÉ: SignOut simple via authService
+      await authService.signOut()
+
+      // ✅ Nettoyer l'état local
       setUser(null)
-      console.log('✅ [LOGOUT] Complete sign out and cleanup finished')
-      
+      console.log('✅ [AUTH-PROVIDER-REFACTORED] Sign out completed')
+
     } catch (error) {
-      console.error('❌ [LOGOUT] Exception during enhanced sign out:', error)
-      
-      // Fallback : nettoyage minimal si l'enhanced signOut échoue
-      try {
-        await authService.signOut()
-      } catch (fallbackError) {
-        console.error('❌ [LOGOUT] Fallback signOut also failed:', fallbackError)
-      }
-      
-      // Toujours nettoyer l'état local
+      console.error('❌ [AUTH-PROVIDER-REFACTORED] Sign out error:', error)
+      // Toujours nettoyer l'état local même en cas d'erreur
       setUser(null)
     }
   }

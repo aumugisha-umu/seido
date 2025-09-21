@@ -29,21 +29,26 @@ export default function LoginPage() {
   const { signIn, user, loading, resendConfirmation } = useAuth()
 
   useEffect(() => {
-    // Vérifier si c'est une redirection après confirmation
+    // ✅ REFACTORISÉ: Uniquement gestion des messages de succès
     const confirmed = searchParams.get('confirmed')
     const message = searchParams.get('message')
-    
+
     if (confirmed === 'true') {
-      console.log('🎉 User confirmed email - showing success message')
+      console.log('🎉 [LOGIN-REFACTORED] User confirmed email - showing success message')
       setShowConfirmationSuccess(true)
     }
-    
+
     if (message === 'password-updated') {
-      console.log('🔑 User updated password - showing success message')
+      console.log('🔑 [LOGIN-REFACTORED] User updated password - showing success message')
       setShowConfirmationSuccess(true)
     }
-    
-    console.log('🔄 [LOGIN-CLEAN] Login page loaded, middleware will handle redirections')
+
+    if (message === 'session-required') {
+      console.log('🔐 [LOGIN-REFACTORED] Session required for password setup - showing info message')
+      setError("Vous devez être connecté pour accéder à la configuration du mot de passe")
+    }
+
+    console.log('🔄 [LOGIN-REFACTORED] Login page loaded - no auto-redirections')
   }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,17 +63,14 @@ export default function LoginPage() {
     }
 
     try {
-      console.log("🚀 [LOGIN-SUBMIT] Starting signIn process...")
+      console.log("🚀 [LOGIN-REFACTORED] Starting signIn process for:", email)
+
       const { user: authUser, error: authError } = await signIn(email, password)
-      console.log("📊 [LOGIN-SUBMIT] SignIn result:", { 
-        hasUser: !!authUser, 
-        hasError: !!authError,
-        errorMessage: authError?.message 
-      })
 
       if (authError) {
-        console.log("❌ [LOGIN-SUBMIT] Authentication error:", authError.message)
-        // Gérer spécifiquement l'erreur de confirmation d'email
+        console.log("❌ [LOGIN-REFACTORED] Authentication error:", authError.message)
+
+        // ✅ REFACTORISÉ: Gestion d'erreurs simplifiée
         if (authError.message.includes('Email not confirmed')) {
           setError("Votre email n'a pas encore été confirmé. Vérifiez votre boîte de réception et cliquez sur le lien de confirmation.")
           setShowResendConfirmation(true)
@@ -78,24 +80,23 @@ export default function LoginPage() {
           setError("Erreur de connexion : " + authError.message)
         }
       } else if (authUser) {
-        console.log("✅ [LOGIN-CLEAN] Connexion réussie pour:", authUser.email, "role:", authUser.role)
-        setError("") // Clear any previous errors
-        
-        // ✅ NOUVEAU : Le système de routage centralisé gère la redirection
-        console.log("🎯 [LOGIN-CLEAN] Authentication successful - centralized routing system will handle redirection")
-        
-        // Plus besoin de router.refresh() - évite les conflits avec Auth Provider
-        // Le middleware détectera automatiquement les nouveaux cookies lors de la prochaine navigation
-        
+        console.log("✅ [LOGIN-REFACTORED] Login successful for:", authUser.email, "role:", authUser.role)
+        setError("")
+
+        // ✅ REFACTORISÉ: Redirection immédiate via router
+        const dashboardPath = `/${authUser.role}/dashboard`
+        console.log("🔄 [LOGIN-REFACTORED] Redirecting immediately to:", dashboardPath)
+
+        router.push(dashboardPath)
+
       } else {
-        console.log("⚠️ [LOGIN-SUBMIT] No user and no error - unusual state")
+        console.log("⚠️ [LOGIN-REFACTORED] No user and no error - unusual state")
         setError("Erreur de connexion inattendue")
       }
     } catch (error) {
-      console.error("❌ [LOGIN-SUBMIT] Exception during login:", error)
+      console.error("❌ [LOGIN-REFACTORED] Exception during login:", error)
       setError("Une erreur est survenue lors de la connexion")
     } finally {
-      console.log("🏁 [LOGIN-SUBMIT] Login process finished, setting isLoading to false")
       setIsLoading(false)
     }
   }

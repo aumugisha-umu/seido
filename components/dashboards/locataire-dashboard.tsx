@@ -10,6 +10,7 @@ import { useTenantData } from "@/hooks/use-tenant-data"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { getStatusActionMessage } from "@/lib/intervention-utils"
 
 export default function LocataireDashboard() {
   const { user } = useAuth()
@@ -194,10 +195,13 @@ export default function LocataireDashboard() {
                     <div>
                       <p className="font-medium">{intervention.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {intervention.completed_date 
+                        {intervention.completed_date
                           ? `Terminé le ${new Date(intervention.completed_date).toLocaleDateString('fr-FR')}`
                           : `Demandé le ${new Date(intervention.created_at).toLocaleDateString('fr-FR')}`
                         }
+                      </p>
+                      <p className="text-xs text-blue-600 font-medium mt-1">
+                        {getStatusActionMessage(intervention.status, 'locataire')}
                       </p>
                     </div>
                   </div>
@@ -357,3 +361,4 @@ function getStatusLabel(status: string) {
       return status
   }
 }
+

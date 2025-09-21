@@ -4,6 +4,8 @@ import { Loader2, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { usePrestataireData } from "@/hooks/use-prestataire-data"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
+import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 
 
 export default function PrestatairInterventionsPage() {
@@ -47,32 +49,38 @@ export default function PrestatairInterventionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Page Header */}
-        <div className="mb-6 lg:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                Mes Interventions
-              </h1>
-              <p className="text-slate-600">
-                Gérez les interventions qui vous sont assignées
-              </p>
+    <InterventionCancellationProvider>
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+          {/* Page Header */}
+          <div className="mb-6 lg:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
+                  Mes Interventions
+                </h1>
+                <p className="text-slate-600">
+                  Gérez les interventions qui vous sont assignées
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Interventions Navigator */}
-        <InterventionsNavigator
-          interventions={interventions}
-          loading={loading}
-          emptyStateConfig={emptyStateConfig}
-          showStatusActions={false}
-          searchPlaceholder="Rechercher par titre, description, ou lot..."
-          showFilters={true}
-        />
-      </main>
-    </div>
+          {/* Interventions Navigator */}
+          <InterventionsNavigator
+            interventions={interventions}
+            loading={loading}
+            emptyStateConfig={emptyStateConfig}
+            showStatusActions={false}
+            searchPlaceholder="Rechercher par titre, description, ou lot..."
+            showFilters={true}
+            userContext="prestataire"
+          />
+        </main>
+      </div>
+
+      {/* Gestionnaire des modales d'annulation */}
+      <InterventionCancellationManager />
+    </InterventionCancellationProvider>
   )
 }

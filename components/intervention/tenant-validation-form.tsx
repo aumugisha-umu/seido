@@ -11,7 +11,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Clock,
-  Tool
+  Wrench
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -384,7 +384,7 @@ export function TenantValidationForm({
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {[
-                      { key: 'workCompleted', label: 'Tous les travaux demandés ont été réalisés', icon: Tool },
+                      { key: 'workCompleted', label: 'Tous les travaux demandés ont été réalisés', icon: Wrench },
                       { key: 'workQuality', label: 'La qualité des travaux est satisfaisante', icon: CheckCircle },
                       { key: 'areaClean', label: 'La zone de travail a été nettoyée', icon: CheckCircle },
                       { key: 'instructionsFollowed', label: 'Les instructions ont été respectées', icon: MessageSquare }

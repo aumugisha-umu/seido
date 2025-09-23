@@ -148,8 +148,8 @@ export const useAvailabilityManagement = (interventionId: string) => {
       setUserAvailabilities(result.userAvailabilities.map((avail: any) => ({
         id: avail.id,
         date: avail.date,
-        startTime: avail.start_time,
-        endTime: avail.end_time
+        startTime: avail.start_time ? avail.start_time.substring(0, 5) : avail.start_time, // Normalize HH:MM:SS → HH:MM
+        endTime: avail.end_time ? avail.end_time.substring(0, 5) : avail.end_time       // Normalize HH:MM:SS → HH:MM
       })))
 
     } catch (err) {
@@ -315,8 +315,8 @@ export const useAvailabilityManagement = (interventionId: string) => {
       setUserAvailabilities(data.userAvailabilities.map(avail => ({
         id: avail.id,
         date: avail.date,
-        startTime: avail.startTime,
-        endTime: avail.endTime
+        startTime: avail.startTime ? avail.startTime.substring(0, 5) : avail.startTime, // Normalize in case data contains HH:MM:SS
+        endTime: avail.endTime ? avail.endTime.substring(0, 5) : avail.endTime
       })))
     }
   }, [data])

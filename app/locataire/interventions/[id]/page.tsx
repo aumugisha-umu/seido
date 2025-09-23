@@ -7,11 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { InterventionLogementCard } from "@/components/intervention/intervention-logement-card"
 import { PlanningCard } from "@/components/intervention/planning-card"
 import { AssignedContactsCard } from "@/components/intervention/assigned-contacts-card"
 import { FilesCard } from "@/components/intervention/files-card"
 import { ChatsCard } from "@/components/intervention/chats-card"
+import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
+import { ProviderAvailabilitySelection } from "@/components/intervention/provider-availability-selection"
+import { TenantAvailabilityInput } from "@/components/intervention/tenant-availability-input"
+import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
+import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { interventionService } from "@/lib/database-service"
 
 interface InterventionDetailsProps {
@@ -23,58 +29,132 @@ interface InterventionDetailsProps {
 export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
+  const { user } = useAuth()
   const [intervention, setIntervention] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showModifyAvailabilities, setShowModifyAvailabilities] = useState(false)
+
+  const refreshIntervention = async () => {
+    if (!resolvedParams.id || !user?.id) return
+
+    try {
+      const data = await interventionService.getById(resolvedParams.id)
+
+      console.log('🔍 [TENANT-DEBUG] Raw intervention data received:', {
+        id: data.id,
+        status: data.status,
+        user_availabilities_count: data.user_availabilities?.length || 0
+      })
+
+      // Filtrer et compter les disponibilités prestataire pour debug
+      const providerAvails = data.user_availabilities?.filter(avail => avail.user?.role === 'prestataire') || []
+      console.log(`🔧 [TENANT-DEBUG] Provider availabilities found: ${providerAvails.length}`)
+
+      // Transform the data to match expected format for components
+      const transformedData = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        type: data.intervention_type || "Non spécifié",
+        urgency: data.priority || "Normale",
+        status: data.status,
+        createdAt: data.created_at,
+        location: data.location || "Non spécifié",
+        logement: {
+          name: data.lot?.reference || data.lot?.apartment_number || `Lot ${data.lot?.reference}`,
+          address: data.lot?.building ?
+            `${data.lot.building.address}, ${data.lot.building.postal_code} ${data.lot.building.city}` :
+            "Adresse non disponible",
+          building: data.lot?.building?.name || "Bâtiment non spécifié",
+          floor: data.lot?.floor ? `Étage ${data.lot.floor}` : "Étage non spécifié",
+          tenant: "Vous",
+        },
+        files: [],
+        assignedContacts: data.assigned_contact ? [{
+          id: data.assigned_contact.id,
+          name: data.assigned_contact.name,
+          role: "Prestataire",
+          email: data.assigned_contact.email,
+          phone: data.assigned_contact.phone,
+        }] : [],
+        quotes: [],
+        planning: {
+          type: data.scheduled_date ? "scheduled" : "pending",
+          scheduledDate: data.scheduled_date ? new Date(data.scheduled_date).toISOString().split('T')[0] : null,
+          scheduledTime: data.scheduled_date ? new Date(data.scheduled_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+        },
+        availabilities: data.user_availabilities?.map(avail => ({
+          person: avail.user.name,
+          role: avail.user.role,
+          date: avail.date,
+          startTime: avail.start_time,
+          endTime: avail.end_time,
+          userId: avail.user.id
+        })) || [],
+        prestataireAvailabilities: (() => {
+          const providerAvails = data.user_availabilities
+            ?.filter(avail => avail.user?.role === 'prestataire') || []
+          
+          // Grouper les disponibilités par prestataire
+          const groupedByProvider = providerAvails.reduce((acc, avail) => {
+            const providerName = avail.user?.name || 'Prestataire'
+            if (!acc[providerName]) {
+              acc[providerName] = []
+            }
+            acc[providerName].push({
+              date: avail.date,
+              startTime: avail.start_time,
+              endTime: avail.end_time
+            })
+            return acc
+          }, {} as Record<string, Array<{date: string, startTime: string, endTime: string}>>)
+          
+          // Transformer au format attendu par PlanningCard
+          return Object.entries(groupedByProvider).map(([person, slots]) => ({
+            person,
+            slots
+          }))
+        })(),
+        chats: [],
+      }
+
+      console.log('✅ [TENANT-DEBUG] Transformed intervention data:', {
+        id: transformedData.id,
+        status: transformedData.status,
+        provider_availabilities_count: transformedData.prestataireAvailabilities.length
+      })
+
+      setIntervention(transformedData)
+    } catch (err) {
+      console.error("Error refreshing intervention:", err)
+    }
+  }
+
+  const handleAvailabilityModificationSuccess = async () => {
+    // Rafraîchir les données de l'intervention
+    await refreshIntervention()
+    // Fermer le mode modification
+    setShowModifyAvailabilities(false)
+  }
+
+  const handleModifyAvailabilities = () => {
+    setShowModifyAvailabilities(true)
+  }
+
+  // Détermine si le locataire peut modifier ses disponibilités
+  const canModifyAvailabilities = () => {
+    // Permet la modification pour planification et planifiée (pour changer le créneau choisi)
+    const allowedStatuses = ['planification', 'planifiee', 'demande_de_devis', 'approuvee']
+    return allowedStatuses.includes(intervention?.status)
+  }
 
   useEffect(() => {
     const fetchIntervention = async () => {
       try {
         setLoading(true)
         setError(null)
-        
-        const data = await interventionService.getById(resolvedParams.id)
-        
-        // Transform the data to match expected format for components
-        const transformedData = {
-          id: data.id,
-          title: data.title,
-          description: data.description,
-          type: data.intervention_type || "Non spécifié",
-          urgency: data.priority || "Normale",
-          status: data.status,
-          createdAt: data.created_at,
-          location: data.location || "Non spécifié",
-          logement: {
-            name: data.lot?.reference || data.lot?.apartment_number || `Lot ${data.lot?.reference}`,
-            address: data.lot?.building ? 
-              `${data.lot.building.address}, ${data.lot.building.postal_code} ${data.lot.building.city}` : 
-              "Adresse non disponible",
-            building: data.lot?.building?.name || "Bâtiment non spécifié",
-            floor: data.lot?.floor ? `Étage ${data.lot.floor}` : "Étage non spécifié",
-            tenant: "Vous",
-          },
-          // Mock data for components that don't have real data yet
-          files: [],
-          availabilities: [],
-          assignedContacts: data.assigned_contact ? [{
-            id: data.assigned_contact.id,
-            name: data.assigned_contact.name,
-            role: "Prestataire",
-            email: data.assigned_contact.email,
-            phone: data.assigned_contact.phone,
-          }] : [],
-          quotes: [],
-          planning: {
-            type: "pending",
-            scheduledDate: null,
-            scheduledTime: null,
-          },
-          prestataireAvailabilities: [],
-          chats: [],
-        }
-        
-        setIntervention(transformedData)
+        await refreshIntervention()
       } catch (err) {
         console.error("Error fetching intervention:", err)
         setError("Erreur lors du chargement de l'intervention")
@@ -83,10 +163,10 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
       }
     }
 
-    if (resolvedParams.id) {
+    if (resolvedParams.id && user?.id) {
       fetchIntervention()
     }
-  }, [resolvedParams.id])
+  }, [resolvedParams.id, user?.id])
 
   if (loading) {
     return <LoadingSkeleton />
@@ -138,14 +218,21 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "demande":
       case "nouvelle_demande":
       case "en_attente_validation":
         return "bg-yellow-100 text-yellow-800"
+      case "approuvee":
+      case "demande_de_devis":
+        return "bg-orange-100 text-orange-800"
+      case "planification":
+        return "bg-blue-100 text-blue-800"
+      case "planifiee":
       case "validee":
       case "en_cours":
-        return "bg-blue-100 text-blue-800"
-      case "terminee":
         return "bg-green-100 text-green-800"
+      case "terminee":
+        return "bg-emerald-100 text-emerald-800"
       case "annulee":
         return "bg-red-100 text-red-800"
       default:
@@ -155,8 +242,17 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "demande":
       case "nouvelle_demande":
         return "Nouvelle demande"
+      case "approuvee":
+        return "Approuvée"
+      case "demande_de_devis":
+        return "En attente de devis"
+      case "planification":
+        return "Planification"
+      case "planifiee":
+        return "Planifiée"
       case "en_attente_validation":
         return "En attente"
       case "validee":
@@ -198,55 +294,60 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     }
   }
 
+  const handleBack = () => {
+    router.back()
+  }
+
+  const handleArchive = () => {
+    // Pas d'archivage pour les locataires
+    console.log('Archive not available for tenants')
+  }
+
+  const handleStatusAction = (action: string) => {
+    // Actions gérées par le panel d'actions
+    console.log('Status action:', action)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour aux interventions
-            </Button>
-            <div className="flex items-center space-x-2">
-              <Badge className={getStatusColor(intervention.status)}>{getStatusLabel(intervention.status)}</Badge>
-              <Badge className={getUrgencyColor(intervention.urgency)}>{getUrgencyLabel(intervention.urgency)}</Badge>
-              <Button variant="outline" size="sm">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Ouvrir le chat
-              </Button>
-            </div>
-          </div>
+      {/* Header unifié */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: `INT-${intervention.id.slice(-8)}`, // Générer une référence
+          status: getStatusLabel(intervention.status),
+          urgency: getUrgencyLabel(intervention.urgency),
+          createdAt: intervention.createdAt,
+          createdBy: "Vous",
+          lot: {
+            reference: intervention.logement.name,
+            building: {
+              name: intervention.logement.building
+            }
+          }
+        }}
+        onBack={handleBack}
+        onArchive={handleArchive}
+        onStatusAction={handleStatusAction}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: user?.id,
+              scheduled_date: intervention.planning?.scheduledDate
+            }}
+            userRole="locataire"
+            userId={user?.id || ''}
+            onActionComplete={refreshIntervention}
+          />
+        }
+      />
 
-          <div className="flex items-center space-x-3 mb-2">
-            <Building2 className="h-6 w-6 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">{intervention.title}</h1>
-          </div>
-
-          <p className="text-gray-600 mb-4">
-            {intervention.logement.building} • {intervention.logement.name}
-          </p>
-
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full">
-              <User className="h-4 w-4 text-gray-600" />
-              <span className="text-sm text-gray-700">Demandeur: Vous</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full">
-              <CalendarDays className="h-4 w-4 text-gray-600" />
-              <span className="text-sm text-gray-700">
-                Créée le:{" "}
-                {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
@@ -304,13 +405,69 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <PlanningCard
-              planning={intervention.planning}
-              userAvailabilities={intervention.availabilities}
-              otherAvailabilities={intervention.prestataireAvailabilities}
-              userRole="locataire"
-              onModifyAvailabilities={() => console.log("Modify availabilities")}
-            />
+            {/* Mode modification des disponibilités */}
+            {showModifyAvailabilities ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Modification des disponibilités</h3>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowModifyAvailabilities(false)}
+                    size="sm"
+                  >
+                    Annuler
+                  </Button>
+                </div>
+                <TenantAvailabilityInput
+                  interventionId={intervention.id}
+                  onSuccess={handleAvailabilityModificationSuccess}
+                  providerAvailabilities={intervention.availabilities
+                    .filter((avail: any) => avail.role === 'prestataire')
+                    .map((avail: any) => ({
+                      user_name: avail.person,
+                      date: avail.date,
+                      start_time: avail.startTime,
+                      end_time: avail.endTime
+                    }))
+                  }
+                />
+              </div>
+            ) : (
+              /* Workflow de planification selon le statut */
+              <>
+                {(intervention.status === "planification" || intervention.status === "planifiee") ? (
+                  /* Statuts planification/planifiee - sélection/modification du créneau */
+                  <ProviderAvailabilitySelection
+                    availabilities={intervention.availabilities}
+                    interventionId={intervention.id}
+                    onResponse={refreshIntervention}
+                    scheduledDate={intervention.planning.scheduledDate}
+                    scheduledTime={intervention.planning.scheduledTime}
+                    isScheduled={intervention.status === "planifiee" && intervention.planning.type === "scheduled"}
+                  />
+                ) : (
+                  /* Autres statuts - afficher le planning existant */
+                  <PlanningCard
+                    planning={intervention.planning}
+                    userAvailabilities={intervention.availabilities}
+                    otherAvailabilities={intervention.prestataireAvailabilities}
+                    userRole="locataire"
+                    onModifyAvailabilities={canModifyAvailabilities() ? handleModifyAvailabilities : undefined}
+                  />
+                )}
+              </>
+            )}
+
+            
+
+            {/* Afficher toutes les disponibilités si pas en planification/planifiee et qu'il y en a */}
+            {!showModifyAvailabilities && intervention.status !== "planification" && intervention.status !== "planifiee" && intervention.availabilities.length > 0 && (
+              <UserAvailabilitiesDisplay
+                availabilities={intervention.availabilities}
+                title="Disponibilités renseignées"
+                userRole="locataire"
+              />
+            )}
 
             <ChatsCard chats={intervention.chats} />
 

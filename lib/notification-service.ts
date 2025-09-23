@@ -2002,6 +2002,148 @@ class NotificationService {
       console.error('❌ Failed to notify quote request:', error)
     }
   }
+
+  /**
+   * Notifier la réponse du locataire aux disponibilités proposées
+   */
+  async notifyAvailabilityResponse({
+    interventionId,
+    interventionTitle,
+    responseType,
+    tenantName,
+    message = '',
+    teamId,
+    lotReference
+  }: {
+    interventionId: string
+    interventionTitle: string
+    responseType: 'accept' | 'reject' | 'counter'
+    tenantName: string
+    message?: string
+    teamId: string
+    lotReference?: string
+  }) {
+    try {
+      if (!teamId) return
+
+      console.log('📬 Notifying availability response:', {
+        interventionId,
+        responseType,
+        tenantName,
+        teamId
+      })
+
+      // Récupérer les gestionnaires et prestataires assignés à l'intervention
+      const { data: interventionContacts } = await supabase
+        .from('intervention_contacts')
+        .select(`
+          user_id,
+          role,
+          user:user_id(id, name, role)
+        `)
+        .eq('intervention_id', interventionId)
+
+      if (!interventionContacts || interventionContacts.length === 0) {
+        console.warn('No contacts found for intervention:', interventionId)
+        return
+      }
+
+      // Séparer gestionnaires et prestataires
+      const managers = interventionContacts.filter(ic => ic.role === 'gestionnaire')
+      const providers = interventionContacts.filter(ic => ic.role === 'prestataire')
+
+      // Préparer les titres et messages selon le type de réponse
+      let managerTitle: string, managerMessage: string, providerTitle: string, providerMessage: string
+      let priority: 'normal' | 'high' | 'urgent' = 'normal'
+
+      switch (responseType) {
+        case 'accept':
+          managerTitle = `Créneaux acceptés - ${interventionTitle}`
+          managerMessage = `${tenantName} a accepté les créneaux proposés pour l'intervention ${lotReference ? `(${lotReference})` : ''}.`
+          providerTitle = `Créneaux acceptés - ${interventionTitle}`
+          providerMessage = `Le locataire ${tenantName} a accepté vos créneaux proposés ${lotReference ? `(${lotReference})` : ''}.`
+          priority = 'high'
+          break
+
+        case 'reject':
+          managerTitle = `Créneaux rejetés - ${interventionTitle}`
+          managerMessage = `${tenantName} a rejeté tous les créneaux proposés pour l'intervention ${lotReference ? `(${lotReference})` : ''}.`
+          providerTitle = `Créneaux rejetés - ${interventionTitle}`
+          providerMessage = `Le locataire ${tenantName} a rejeté vos créneaux proposés ${lotReference ? `(${lotReference})` : ''}.`
+          priority = 'urgent'
+          break
+
+        case 'counter':
+          managerTitle = `Contre-propositions reçues - ${interventionTitle}`
+          managerMessage = `${tenantName} a proposé d'autres créneaux pour l'intervention ${lotReference ? `(${lotReference})` : ''}.`
+          providerTitle = `Contre-propositions reçues - ${interventionTitle}`
+          providerMessage = `Le locataire ${tenantName} a proposé d'autres créneaux ${lotReference ? `(${lotReference})` : ''}.`
+          priority = 'high'
+          break
+      }
+
+      // Ajouter le message du locataire s'il y en a un
+      if (message) {
+        managerMessage += ` Message: "${message}"`
+        providerMessage += ` Message: "${message}"`
+      }
+
+      // Créer les notifications pour les gestionnaires
+      const managerPromises = managers.map(manager =>
+        this.createNotification({
+          userId: manager.user_id,
+          teamId,
+          type: 'intervention',
+          priority,
+          title: managerTitle,
+          message: managerMessage,
+          isPersonal: true,
+          metadata: {
+            interventionId,
+            interventionTitle,
+            responseType,
+            tenantName,
+            tenantMessage: message,
+            actionRequired: responseType === 'accept' ? 'schedule_intervention' : 'review_availability_response'
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: interventionId
+        })
+      )
+
+      // Créer les notifications pour les prestataires
+      const providerPromises = providers.map(provider =>
+        this.createNotification({
+          userId: provider.user_id,
+          teamId,
+          type: 'intervention',
+          priority,
+          title: providerTitle,
+          message: providerMessage,
+          isPersonal: true,
+          metadata: {
+            interventionId,
+            interventionTitle,
+            responseType,
+            tenantName,
+            tenantMessage: message,
+            actionRequired: responseType === 'counter' ? 'review_counter_proposals' : 'prepare_for_intervention'
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: interventionId
+        })
+      )
+
+      // Envoyer toutes les notifications
+      await Promise.all([...managerPromises, ...providerPromises])
+
+      console.log(`📬 Availability response notifications sent: ${managers.length} managers, ${providers.length} providers`)
+
+    } catch (error) {
+      console.error('❌ Failed to notify availability response:', error)
+      throw error
+    }
+  }
 }
 
 // Instance singleton

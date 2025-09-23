@@ -235,7 +235,7 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
                     })}
                   </span>
                   <span className="text-sm text-gray-600">
-                    de {avail.startTime} à {avail.endTime}
+                    de {avail.startTime?.substring(0, 5) || avail.startTime} à {avail.endTime?.substring(0, 5) || avail.endTime}
                   </span>
                 </div>
               ))}
@@ -326,7 +326,7 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
                             day: 'numeric',
                             month: 'short'
                           })}
-                          {' '}de {avail.start_time} à {avail.end_time}
+                          {' '}de {avail.start_time?.substring(0, 5) || avail.start_time} à {avail.end_time?.substring(0, 5) || avail.end_time}
                         </span>
                       </div>
                     ))}

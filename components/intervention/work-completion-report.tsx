@@ -9,7 +9,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Clock,
-  Tool,
+  Wrench,
   Euro,
   User
 } from "lucide-react"
@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import type { WorkCompletionReportData } from "./closure/types"
 
 interface WorkCompletionReportProps {
   intervention: {
@@ -36,24 +37,6 @@ interface WorkCompletionReportProps {
   isLoading?: boolean
 }
 
-interface WorkCompletionReportData {
-  workSummary: string
-  workDetails: string
-  materialsUsed: string
-  actualDurationHours: number
-  actualCost?: number
-  issuesEncountered: string
-  recommendations: string
-  beforePhotos: File[]
-  afterPhotos: File[]
-  documents: File[]
-  qualityAssurance: {
-    workCompleted: boolean
-    areaClean: boolean
-    clientInformed: boolean
-    warrantyGiven: boolean
-  }
-}
 
 export function WorkCompletionReport({
   intervention,
@@ -170,7 +153,7 @@ export function WorkCompletionReport({
         isActive ? 'bg-blue-100 text-blue-600' :
         'bg-gray-100 text-gray-500'
       }`}>
-        {isCompleted ? <CheckCircle className="h-3 w-3" /> : section === 'details' ? '1' : section === 'photos' ? '2' : '3'}
+{isCompleted ? <CheckCircle className="h-3 w-3" /> : section === 'details' ? '1' : section === 'photos' ? '2' : '3'}
       </div>
       <span className="text-sm font-medium">{label}</span>
     </div>
@@ -185,7 +168,7 @@ export function WorkCompletionReport({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Tool className="h-5 w-5 text-blue-500" />
+            <Wrench className="h-5 w-5 text-blue-500" />
             <span>Rapport de fin de travaux</span>
           </DialogTitle>
           <p className="text-sm text-gray-600">{intervention.title}</p>
@@ -448,7 +431,7 @@ export function WorkCompletionReport({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {[
-                    { key: 'workCompleted', label: 'Tous les travaux demandés ont été réalisés', icon: Tool },
+                    { key: 'workCompleted', label: 'Tous les travaux demandés ont été réalisés', icon: Wrench },
                     { key: 'areaClean', label: 'La zone de travail a été nettoyée', icon: CheckCircle },
                     { key: 'clientInformed', label: 'Le client a été informé de la fin des travaux', icon: User },
                     { key: 'warrantyGiven', label: 'Les informations de garantie ont été communiquées', icon: FileText }

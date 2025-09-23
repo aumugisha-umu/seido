@@ -19,7 +19,6 @@ import {
   Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -30,11 +29,12 @@ import { TenantValidationForm } from "./tenant-validation-form"
 import { ManagerFinalizationForm } from "./manager-finalization-form"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
+import { QuoteRequestModal } from "./modals/quote-request-modal"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import type { WorkCompletionReportData, TenantValidationData, ManagerFinalizationData } from "./closure/types"
 
-interface InterventionActionPanelProps {
+interface InterventionActionPanelHeaderProps {
   intervention: {
     id: string
     title: string
@@ -65,14 +65,14 @@ interface ActionConfig {
   confirmationMessage?: string
 }
 
-export function InterventionActionPanel({
+export function InterventionActionPanelHeader({
   intervention,
   userRole,
   userId,
   onActionComplete,
   onOpenQuoteModal,
   onCancelQuote
-}: InterventionActionPanelProps) {
+}: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [selectedAction, setSelectedAction] = useState<ActionConfig | null>(null)
@@ -175,7 +175,6 @@ export function InterventionActionPanel({
             }
           )
         }
-        // Le locataire n'a aucune action au statut 'demande'
         break
 
       case 'approuvee':
@@ -219,24 +218,24 @@ export function InterventionActionPanel({
                   label: 'Modifier le devis',
                   icon: Edit3,
                   variant: 'default',
-                  description: 'Modifier votre devis en attente d\'évaluation. Vous pouvez ajuster les montants, la description des travaux et vos disponibilités.'
+                  description: 'Modifier votre devis en attente d\'évaluation'
                 },
                 {
                   key: 'cancel_quote',
                   label: 'Annuler le devis',
                   icon: Trash2,
                   variant: 'destructive',
-                  description: 'Annuler définitivement votre devis actuel. Cette action est irréversible.'
+                  description: 'Annuler votre devis actuel'
                 }
               )
             } else if (currentUserQuote.status === 'approved') {
               // Devis approuvé - actions limitées
               actions.push({
                 key: 'view_quote',
-                label: 'Consulter le devis approuvé',
+                label: 'Voir le devis',
                 icon: FileText,
                 variant: 'outline',
-                description: 'Voir les détails de votre devis accepté. L\'intervention peut maintenant être planifiée.'
+                description: 'Consulter votre devis approuvé'
               })
             }
           } else {
@@ -246,7 +245,7 @@ export function InterventionActionPanel({
               label: 'Soumettre un devis',
               icon: FileText,
               variant: 'default',
-              description: 'Proposer votre devis pour cette intervention avec vos tarifs et disponibilités.'
+              description: 'Proposer votre devis pour cette intervention'
             })
           }
         }
@@ -459,7 +458,6 @@ export function InterventionActionPanel({
           return
 
         case 'manage_quotes':
-          // Rediriger vers la gestion des devis pour voir les devis reçus
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=quotes`
           return
 
@@ -487,7 +485,6 @@ export function InterventionActionPanel({
           return
 
         case 'start_planning':
-          // Rediriger vers la page de planification ou ouvrir le composant
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=planning`
           return
 
@@ -500,12 +497,10 @@ export function InterventionActionPanel({
           break
 
         case 'modify_schedule':
-          // Rediriger vers la page de modification du planning
           window.location.href = `/locataire/interventions/${intervention.id}?action=modify-schedule`
           return
 
         case 'reject_schedule':
-          // Pour l'instant, utiliser un service générique ou créer un service spécifique
           result = await interventionActionsService.rejectIntervention({
             id: intervention.id,
             title: intervention.title,
@@ -514,18 +509,15 @@ export function InterventionActionPanel({
           break
 
         case 'complete_work':
-          // Open professional work completion modal
           setShowWorkCompletionModal(true)
           return
 
         case 'validate_work':
         case 'contest_work':
-          // Open tenant validation modal
           setShowTenantValidationModal(true)
           return
 
         case 'finalize':
-          // Open manager finalization modal
           setShowManagerFinalizationModal(true)
           return
 
@@ -562,7 +554,6 @@ export function InterventionActionPanel({
     try {
       setIsProcessing(true)
 
-      // Convert File objects to serializable objects
       const serializableData = {
         ...reportData,
         beforePhotos: reportData.beforePhotos.map(file => ({
@@ -613,7 +604,6 @@ export function InterventionActionPanel({
     try {
       setIsProcessing(true)
 
-      // TODO: Replace with actual API call
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -642,7 +632,6 @@ export function InterventionActionPanel({
     try {
       setIsProcessing(true)
 
-      // TODO: Replace with actual API call
       const response = await fetch(`/api/intervention/${intervention.id}/manager-finalization`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -669,116 +658,37 @@ export function InterventionActionPanel({
   const availableActions = getAvailableActions()
 
   if (availableActions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-center text-gray-500">
-            <Settings className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-            <p className="text-sm">Aucune action disponible pour le moment</p>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    return null // Ne rien afficher si pas d'actions disponibles
   }
 
-  const getStatusInfo = () => {
-    switch (intervention.status) {
-      case 'demande':
-        return {
-          color: 'bg-yellow-100 text-yellow-800',
-          message: 'En attente de validation par le gestionnaire'
-        }
-      case 'approuvee':
-        return {
-          color: 'bg-green-100 text-green-800',
-          message: 'Approuvée - Prête pour devis ou planification'
-        }
-      case 'demande_de_devis':
-        return {
-          color: 'bg-blue-100 text-blue-800',
-          message: 'Demande de devis en cours'
-        }
-      case 'planification':
-        return {
-          color: 'bg-blue-100 text-blue-800',
-          message: 'Recherche du créneau optimal'
-        }
-      case 'planifiee':
-        return {
-          color: 'bg-purple-100 text-purple-800',
-          message: `Planifiée ${intervention.scheduled_date ? 'pour le ' + new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : ''}`
-        }
-      case 'en_cours':
-        return {
-          color: 'bg-orange-100 text-orange-800',
-          message: 'Travaux en cours'
-        }
-      case 'cloturee_par_prestataire':
-        return {
-          color: 'bg-indigo-100 text-indigo-800',
-          message: 'En attente de validation du locataire'
-        }
-      case 'cloturee_par_locataire':
-        return {
-          color: 'bg-teal-100 text-teal-800',
-          message: 'En attente de finalisation par le gestionnaire'
-        }
-      default:
-        return {
-          color: 'bg-gray-100 text-gray-800',
-          message: intervention.status
-        }
-    }
-  }
-
-  const statusInfo = getStatusInfo()
-
+  // Affichage en boutons horizontaux pour le header
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Actions disponibles</span>
-            <Badge className={statusInfo.color}>
-              {intervention.status}
-            </Badge>
-          </CardTitle>
-          <p className="text-sm text-gray-600">{statusInfo.message}</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* Actions principales en boutons */}
+      <div className="flex flex-col items-end space-y-1">
+        <span className="text-xs text-slate-600 font-medium">Actions en attente</span>
+        <div className="flex items-center space-x-2">
+          {availableActions.map((action) => {
+            const IconComponent = action.icon
+            const styling = getActionStyling(action.key, userRole)
 
-          <div className="grid gap-2">
-            {availableActions.map((action) => {
-              const IconComponent = action.icon
-              const styling = getActionStyling(action.key, userRole)
-
-              return (
-                <Button
-                  key={action.key}
-                  variant={styling.variant}
-                  className={`justify-start h-auto p-3 ${styling.className}`}
-                  onClick={() => handleActionClick(action)}
-                  disabled={isProcessing}
-                >
-                  <div className="flex items-start space-x-3">
-                    <IconComponent className="h-4 w-4 mt-1 flex-shrink-0" />
-                    <div className="text-left">
-                      <div className="font-medium">{action.label}</div>
-                      <div className="text-xs opacity-80">{action.description}</div>
-                    </div>
-                  </div>
-                </Button>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+            return (
+              <Button
+                key={action.key}
+                variant={styling.variant}
+                size="sm"
+                onClick={() => handleActionClick(action)}
+                disabled={isProcessing}
+                className={`flex items-center space-x-2 min-h-[44px] ${styling.className}`}
+                title={action.description}
+              >
+                <IconComponent className="h-4 w-4" />
+                <span className="hidden sm:inline">{action.label}</span>
+              </Button>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Dialog de confirmation */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -816,6 +726,13 @@ export function InterventionActionPanel({
                   rows={4}
                 />
               </div>
+            )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
           </div>
 

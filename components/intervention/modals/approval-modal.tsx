@@ -143,10 +143,12 @@ export const ApprovalModal = ({
                   <span className="text-sm font-medium text-slate-700">Type d'intervention:</span>
                   <p className="text-base text-slate-900 leading-normal mt-1">{intervention.type}</p>
                 </div>
-                <div>
-                  <span className="text-sm font-medium text-slate-700">Localisation précise:</span>
-                  <p className="text-base text-slate-900 leading-normal mt-1">Salle de bain principale</p>
-                </div>
+                {intervention.precise_location && (
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">Localisation précise:</span>
+                    <p className="text-base text-slate-900 leading-normal mt-1">{intervention.precise_location}</p>
+                  </div>
+                )}
               </div>
               <div>
                 <span className="text-sm font-medium text-slate-700">Description détaillée:</span>
@@ -157,32 +159,9 @@ export const ApprovalModal = ({
             </div>
           </div>
 
-          {/* Disponibilités proposées */}
-          <div className="bg-white border border-slate-200 shadow-sm rounded-lg p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Calendar className="h-5 w-5 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-800 leading-snug">Disponibilités proposées par le locataire</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 text-base bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
-                <div className="p-1 bg-emerald-100 rounded">
-                  <Clock className="h-4 w-4 text-emerald-600" />
-                </div>
-                <span className="text-slate-900 font-medium">Vendredi 10 janvier de 08:00 à 18:00</span>
-              </div>
-              <div className="flex items-center space-x-3 text-base bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
-                <div className="p-1 bg-emerald-100 rounded">
-                  <Clock className="h-4 w-4 text-emerald-600" />
-                </div>
-                <span className="text-slate-900 font-medium">Samedi 11 janvier de 09:00 à 17:00</span>
-              </div>
-            </div>
-          </div>
 
           {/* Fichiers joints */}
-          {intervention.hasFiles && (
+          {intervention.files && intervention.files.length > 0 && (
             <div className="bg-white border border-slate-200 shadow-sm rounded-lg p-6">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="p-2 bg-slate-100 rounded-lg">
@@ -191,15 +170,20 @@ export const ApprovalModal = ({
                 <h3 className="text-lg font-medium text-slate-800 leading-snug">Fichiers joints</h3>
               </div>
               <div className="space-y-3">
-                <div className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
-                    <span className="text-sky-600 text-xs font-semibold">JPG</span>
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-base font-medium text-slate-900">fuite-robinet.jpg</span>
-                    <p className="text-sm text-slate-500">2.1 MB</p>
-                  </div>
-                </div>
+                {intervention.files.map((file, index) => {
+                  const extension = file.name?.split('.').pop()?.toUpperCase() || 'FILE'
+                  return (
+                    <div key={index} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                        <span className="text-sky-600 text-xs font-semibold">{extension}</span>
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-base font-medium text-slate-900">{file.name}</span>
+                        {file.size && <p className="text-sm text-slate-500">{(file.size / 1024 / 1024).toFixed(1)} MB</p>}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

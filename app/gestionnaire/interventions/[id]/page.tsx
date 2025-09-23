@@ -34,6 +34,8 @@ import { interventionService, contactService, determineAssignmentType } from "@/
 import { useAuth } from "@/hooks/use-auth"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
+import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
+import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
 const getInterventionLocationText = (intervention: InterventionDetail): string => {
@@ -230,6 +232,13 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       }
 
       console.log('✅ Intervention data loaded:', interventionData)
+
+      console.log('🔍 [MANAGER-DEBUG] Raw intervention data received:', {
+        id: interventionData.id,
+        status: interventionData.status,
+        user_availabilities_count: interventionData.user_availabilities?.length || 0,
+        user_availabilities_raw: interventionData.user_availabilities
+      })
 
       // 2. Récupérer tous les contacts selon le type d'intervention (lot ou bâtiment)
       let contacts = []
@@ -556,6 +565,21 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         onBack={handleBack}
         onArchive={handleArchive}
         onStatusAction={handleStatusAction}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: intervention.tenant?.id,
+              scheduled_date: intervention.scheduledDate
+            }}
+            userRole="gestionnaire"
+            userId={user?.id || ""}
+            onActionComplete={fetchInterventionData}
+          />
+        }
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1137,48 +1161,11 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                     </div>
                   </div>
 
-                  {intervention.availabilities.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Disponibilités par personne</h4>
-                      <div className="space-y-3">
-                        {Object.entries(
-                          intervention.availabilities.reduce((acc, availability) => {
-                            const key = `${availability.person}-${availability.role}`
-                            if (!acc[key]) {
-                              acc[key] = {
-                                person: availability.person,
-                                role: availability.role,
-                                slots: [],
-                              }
-                            }
-                            acc[key].slots.push(availability)
-                            return acc
-                          }, {}),
-                        ).map(([key, data]) => (
-                          <div key={key} className="border border-gray-200 rounded-lg p-3">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <User className="h-4 w-4 text-gray-600" />
-                              <span className="font-medium text-gray-900">{data.person}</span>
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                                {data.role}
-                              </span>
-                            </div>
-                            <div className="space-y-1">
-                              {data.slots.map((availability, index) => (
-                                <div key={index} className="p-2 bg-gray-50 rounded text-sm flex items-center space-x-2">
-                                  <Clock className="h-3 w-3 text-gray-600" />
-                                  <span className="text-gray-700">
-                                    {new Date(availability.date).toLocaleDateString("fr-FR")} de{" "}
-                                    {availability.startTime} à {availability.endTime}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <UserAvailabilitiesDisplay
+                    availabilities={intervention.availabilities}
+                    userRole="gestionnaire"
+                    showCard={false}
+                  />
                 </div>
               )}
 
@@ -1186,48 +1173,12 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 <div className="p-3 bg-yellow-50 rounded-lg">
                   <h4 className="font-medium text-yellow-900">Horaire à définir</h4>
                   <p className="text-sm text-yellow-800 mt-1">La planification sera définie ultérieurement</p>
-                  {intervention.availabilities.length > 0 && (
-                    <div className="mt-3">
-                      <h5 className="font-medium text-gray-900 mb-2">Disponibilités par personne</h5>
-                      <div className="space-y-3">
-                        {Object.entries(
-                          intervention.availabilities.reduce((acc, availability) => {
-                            const key = `${availability.person}-${availability.role}`
-                            if (!acc[key]) {
-                              acc[key] = {
-                                person: availability.person,
-                                role: availability.role,
-                                slots: [],
-                              }
-                            }
-                            acc[key].slots.push(availability)
-                            return acc
-                          }, {}),
-                        ).map(([key, data]) => (
-                          <div key={key} className="border border-gray-200 rounded-lg p-3">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <User className="h-4 w-4 text-gray-600" />
-                              <span className="font-medium text-gray-900">{data.person}</span>
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                                {data.role}
-                              </span>
-                            </div>
-                            <div className="space-y-1">
-                              {data.slots.map((availability, index) => (
-                                <div key={index} className="p-2 bg-gray-50 rounded text-sm flex items-center space-x-2">
-                                  <Clock className="h-3 w-3 text-gray-600" />
-                                  <span className="text-gray-700">
-                                    {new Date(availability.date).toLocaleDateString("fr-FR")} de{" "}
-                                    {availability.startTime} à {availability.endTime}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <UserAvailabilitiesDisplay
+                    availabilities={intervention.availabilities}
+                    userRole="gestionnaire"
+                    showCard={false}
+                    className="mt-3"
+                  />
                 </div>
               )}
             </CardContent>

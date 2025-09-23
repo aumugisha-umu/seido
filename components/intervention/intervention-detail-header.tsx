@@ -57,6 +57,8 @@ interface InterventionHeaderProps {
   onBack: () => void
   onArchive: () => void
   onStatusAction: (action: string) => void
+  displayMode?: "dropdown" | "buttons" | "custom"
+  actionPanel?: React.ReactNode
 }
 
 export const InterventionDetailHeader = ({
@@ -64,6 +66,8 @@ export const InterventionDetailHeader = ({
   onBack,
   onArchive,
   onStatusAction,
+  displayMode = "dropdown",
+  actionPanel,
 }: InterventionHeaderProps) => {
   const getUrgencyConfig = (urgency: string) => {
     switch (urgency.toLowerCase()) {
@@ -231,7 +235,13 @@ export const InterventionDetailHeader = ({
         )
         break
     }
-    
+
+    // Ajouter le bouton "Annuler" pour tous les statuts après "approuvée"
+    const canCancel = ["approuvée", "approuve", "demande de devis", "planification", "planifiée", "a venir", "en cours"].includes(statusLower)
+    if (canCancel) {
+      actions.push({ key: "cancel", label: "Annuler", icon: XCircle, variant: "destructive" })
+    }
+
     return actions
   }
 
@@ -329,62 +339,93 @@ export const InterventionDetailHeader = ({
 
             {/* Section Droite - Actions */}
             <div className="flex items-center space-x-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center space-x-2 text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 focus:ring-2 focus:ring-sky-500 focus:outline-none min-h-[44px]"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="hidden sm:inline">Actions</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {/* Actions principales selon le statut */}
-                  {availableActions.length > 0 && (
-                    <>
-                      {availableActions.map((action) => {
-                        const ActionIcon = action.icon
-                        return (
-                          <DropdownMenuItem
-                            key={action.key}
-                            onClick={() => onStatusAction(action.key)}
-                            className="flex items-center space-x-2"
-                          >
-                            <ActionIcon className="h-4 w-4" />
-                            <span>{action.label}</span>
-                          </DropdownMenuItem>
-                        )
-                      })}
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  
-                  {/* Actions secondaires */}
-                  <DropdownMenuItem className="flex items-center space-x-2">
-                    <Eye className="h-4 w-4" />
-                    <span>Voir l'historique</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem className="flex items-center space-x-2">
-                    <Send className="h-4 w-4" />
-                    <span>Partager</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuSeparator />
-                  
-                  {/* Action d'archivage */}
-                  <DropdownMenuItem
-                    onClick={onArchive}
-                    className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 focus:bg-slate-100 focus:text-slate-900"
-                  >
-                    <Archive className="h-4 w-4" />
-                    <span>Archiver</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {displayMode === "custom" && actionPanel ? (
+                // Affichage personnalisé avec le panel d'actions injecté
+                <div className="flex items-center space-x-2">
+                  {actionPanel}
+                </div>
+              ) : displayMode === "buttons" ? (
+                // Affichage en boutons directs pour gestionnaire
+                <>
+                  {availableActions.map((action) => {
+                    const ActionIcon = action.icon
+                    const isDestructive = action.variant === "destructive"
+                    const isSuccess = action.variant === "success"
+                    return (
+                      <Button
+                        key={action.key}
+                        variant={isDestructive ? "destructive" : isSuccess ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onStatusAction(action.key)}
+                        className={`flex items-center space-x-2 min-h-[44px] ${
+                          isSuccess ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""
+                        }`}
+                      >
+                        <ActionIcon className="h-4 w-4" />
+                        <span className="hidden sm:inline">{action.label}</span>
+                      </Button>
+                    )
+                  })}
+                </>
+              ) : (
+                // Affichage en dropdown menu (comportement par défaut)
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center space-x-2 text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 focus:ring-2 focus:ring-sky-500 focus:outline-none min-h-[44px]"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="hidden sm:inline">Actions</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {/* Actions principales selon le statut */}
+                    {availableActions.length > 0 && (
+                      <>
+                        {availableActions.map((action) => {
+                          const ActionIcon = action.icon
+                          return (
+                            <DropdownMenuItem
+                              key={action.key}
+                              onClick={() => onStatusAction(action.key)}
+                              className="flex items-center space-x-2"
+                            >
+                              <ActionIcon className="h-4 w-4" />
+                              <span>{action.label}</span>
+                            </DropdownMenuItem>
+                          )
+                        })}
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+
+                    {/* Actions secondaires */}
+                    <DropdownMenuItem className="flex items-center space-x-2">
+                      <Eye className="h-4 w-4" />
+                      <span>Voir l'historique</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem className="flex items-center space-x-2">
+                      <Send className="h-4 w-4" />
+                      <span>Partager</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    {/* Action d'archivage */}
+                    <DropdownMenuItem
+                      onClick={onArchive}
+                      className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 focus:bg-slate-100 focus:text-slate-900"
+                    >
+                      <Archive className="h-4 w-4" />
+                      <span>Archiver</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
         </div>

@@ -9,9 +9,15 @@ import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarCha
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { TeamCheckModal } from "@/components/team-check-modal"
+import { InterventionsList } from "@/components/interventions/interventions-list"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
+import { useInterventionApproval } from "@/hooks/use-intervention-approval"
+import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
+import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
+import { useInterventionExecution } from "@/hooks/use-intervention-execution"
+import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
 
 export default function GestionnaireDashboard() {
   const { user } = useAuth()
@@ -19,6 +25,22 @@ export default function GestionnaireDashboard() {
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData, loading: statsLoading, error: statsError, stats, refetch } = useManagerStats()
+
+  // Hooks pour les actions d'intervention
+  const approvalHook = useInterventionApproval()
+  const quotingHook = useInterventionQuoting()
+  const planningHook = useInterventionPlanning()
+  const executionHook = useInterventionExecution()
+  const finalizationHook = useInterventionFinalization()
+
+  // Configuration des hooks d'actions
+  const actionHooks = {
+    approvalHook,
+    quotingHook,
+    planningHook,
+    executionHook,
+    finalizationHook,
+  }
 
   // Afficher la vérification d'équipe en cours ou échoué
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -165,28 +187,41 @@ export default function GestionnaireDashboard() {
             </CardContent>
         </Card>
 
-        {/* Interventions */}
+        {/* Interventions Récentes */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Wrench className="h-5 w-5" />
-                <span>Interventions</span>
+                <span>Interventions récentes</span>
               </div>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/gestionnaire/interventions")}
+              >
                 Voir toutes →
               </Button>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center py-12">
-              <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Aucune intervention</h3>
-              <p className="text-muted-foreground mb-4">Les interventions apparaîtront ici une fois créées</p>
-              <Button onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}>
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter une intervention
-              </Button>
+          <CardContent className="p-0">
+            <div className="p-4">
+              <InterventionsList
+                interventions={managerData?.recentInterventions || []}
+                loading={statsLoading}
+                compact={true}
+                maxItems={3}
+                emptyStateConfig={{
+                  title: "Aucune intervention récente",
+                  description: "Les interventions récentes apparaîtront ici",
+                  showCreateButton: true,
+                  createButtonText: "Créer une intervention",
+                  createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
+                }}
+                showStatusActions={true}
+                userContext="gestionnaire"
+                actionHooks={actionHooks}
+              />
             </div>
           </CardContent>
         </Card>

@@ -7,9 +7,10 @@ import { notificationService } from '@/lib/notification-service'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log("📅 PUT select-slot API called for intervention:", params.id)
+  const { id } = await params
+  console.log("📅 PUT select-slot API called for intervention:", id)
 
   try {
     // Initialize Supabase client
@@ -53,13 +54,16 @@ export async function PUT(
       }, { status: 404 })
     }
 
-    const interventionId = params.id
+    const interventionId = id
 
     // Parse request body
     const body = await request.json()
+    console.log("📥 [SELECT-SLOT] Request body received:", body)
     const { selectedSlot, comment } = body
 
+    console.log("🔍 [SELECT-SLOT] Validating selectedSlot:", selectedSlot)
     if (!selectedSlot || !selectedSlot.date || !selectedSlot.startTime || !selectedSlot.endTime) {
+      console.error("❌ [SELECT-SLOT] Invalid selectedSlot:", { selectedSlot, hasDate: !!selectedSlot?.date, hasStartTime: !!selectedSlot?.startTime, hasEndTime: !!selectedSlot?.endTime })
       return NextResponse.json({
         success: false,
         error: 'Créneau sélectionné invalide (date, startTime, endTime requis)'
@@ -75,6 +79,10 @@ export async function PUT(
         status,
         tenant_id,
         team_id,
+        lot:lot_id(
+          id,
+          lot_contacts(user_id, is_primary)
+        ),
         intervention_contacts(
           user_id,
           role,
@@ -91,48 +99,69 @@ export async function PUT(
       }, { status: 404 })
     }
 
-    // Check if user has permission to select slot (gestionnaire or assigned participants)
+    // Check if user has permission to select slot (tenant, assigned participants, or gestionnaire)
+    const isUserTenant = intervention.lot?.lot_contacts?.some(
+      (contact: any) => contact.user_id === user.id
+    )
+    console.log("👤 [SELECT-SLOT] User access check:", { userId: user.id, userRole: user.role, isUserTenant })
+
     const hasAccess = (
-      intervention.tenant_id === user.id ||
+      isUserTenant ||
       intervention.intervention_contacts.some(ic => ic.user_id === user.id) ||
       user.role === 'gestionnaire'
     )
 
     if (!hasAccess) {
+      console.error("🚫 [SELECT-SLOT] Access denied:", { userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_contacts.map(ic => ic.user_id) })
       return NextResponse.json({
         success: false,
         error: 'Accès non autorisé à cette intervention'
       }, { status: 403 })
     }
+    console.log("✅ [SELECT-SLOT] User has access to intervention")
 
     // Check if intervention is in correct status for slot selection
-    if (!['planification', 'approuvee'].includes(intervention.status)) {
+    console.log("📊 [SELECT-SLOT] Current intervention status:", intervention.status)
+    if (!['planification', 'approuvee', 'planifiee'].includes(intervention.status)) {
+      console.error("❌ [SELECT-SLOT] Invalid status for slot selection:", { currentStatus: intervention.status, allowedStatuses: ['planification', 'approuvee', 'planifiee'] })
       return NextResponse.json({
         success: false,
         error: `Impossible de planifier: statut actuel "${intervention.status}"`
       }, { status: 400 })
+    }
+    console.log("✅ [SELECT-SLOT] Intervention status is valid for slot selection")
+
+    // Log if this is a re-scheduling
+    if (intervention.status === 'planifiee') {
+      console.log("🔄 [SELECT-SLOT] Re-scheduling an already planned intervention")
     }
 
     // Validate the selected slot
     const selectedDate = new Date(selectedSlot.date)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+    console.log("📅 [SELECT-SLOT] Date validation:", { selectedDate: selectedSlot.date, parsedDate: selectedDate, today })
 
     if (selectedDate < today) {
+      console.error("❌ [SELECT-SLOT] Cannot schedule in the past:", { selectedDate, today })
       return NextResponse.json({
         success: false,
         error: 'Impossible de planifier dans le passé'
       }, { status: 400 })
     }
+    console.log("✅ [SELECT-SLOT] Date is valid (not in the past)")
 
     // Validate time format
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
+    console.log("🕐 [SELECT-SLOT] Time format validation:", { startTime: selectedSlot.startTime, endTime: selectedSlot.endTime })
     if (!timeRegex.test(selectedSlot.startTime) || !timeRegex.test(selectedSlot.endTime)) {
+      console.error("❌ [SELECT-SLOT] Invalid time format:", { startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, regex: timeRegex.toString() })
       return NextResponse.json({
         success: false,
         error: 'Format d\'heure invalide (HH:MM attendu)'
       }, { status: 400 })
     }
+    console.log("✅ [SELECT-SLOT] Time format is valid")
 
     // Check if end time is after start time
     const [startHour, startMin] = selectedSlot.startTime.split(':').map(Number)
@@ -203,9 +232,11 @@ export async function PUT(
     }
 
     // Update intervention
+    console.log("💾 [SELECT-SLOT] Updating intervention with data:", updateData)
     const updatedIntervention = await interventionService.update(interventionId, updateData)
+    console.log("💾 [SELECT-SLOT] Intervention updated successfully:", { id: updatedIntervention.id, status: updatedIntervention.status, scheduled_date: updatedIntervention.scheduled_date })
 
-    console.log(`✅ Intervention ${interventionId} scheduled for ${scheduledDateTime}`)
+    console.log(`✅ [SELECT-SLOT] Intervention ${interventionId} scheduled for ${scheduledDateTime}`)
 
     // Clear any existing time slots and matches for this intervention
     await supabase.from('intervention_time_slots').delete().eq('intervention_id', interventionId)
@@ -214,11 +245,15 @@ export async function PUT(
     // Create notifications for all participants
     const notificationPromises = []
 
+    // Find tenant ID from lot_contacts for notifications
+    const tenantContact = intervention.lot?.lot_contacts?.find((contact: any) => contact.is_primary)
+    const tenantId = tenantContact?.user_id || intervention.tenant_id // fallback to old structure
+
     // Notify tenant if they're not the one who selected the slot
-    if (intervention.tenant_id && intervention.tenant_id !== user.id) {
+    if (tenantId && tenantId !== user.id) {
       notificationPromises.push(
         notificationService.createNotification({
-          userId: intervention.tenant_id,
+          userId: tenantId,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
@@ -293,10 +328,12 @@ export async function PUT(
     })
 
   } catch (error) {
-    console.error("❌ Error in select-slot API:", error)
+    console.error("💥 [SELECT-SLOT] Unexpected error in select-slot API:", error)
+    console.error("Stack trace:", error instanceof Error ? error.stack : 'No stack trace available')
     return NextResponse.json({
       success: false,
-      error: 'Erreur serveur lors de la sélection du créneau'
+      error: 'Erreur serveur lors de la sélection du créneau',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

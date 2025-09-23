@@ -13,6 +13,8 @@ import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-s
 import { QuoteSubmissionForm } from "@/components/intervention/quote-submission-form"
 import { QuoteCancellationModal } from "@/components/quotes/quote-cancellation-modal"
 import { useQuoteCancellation } from "@/hooks/use-quote-cancellation"
+import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
+import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 
 // Types pour les données d'intervention
 interface InterventionDetail {
@@ -24,6 +26,9 @@ interface InterventionDetail {
   status: string
   createdAt: string
   reference: string
+  // Planning
+  scheduledDate?: string
+  scheduledTime?: string
   // Données de localisation (lot ou bâtiment)
   lot?: {
     id: string
@@ -168,6 +173,9 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         status: interventionData.status,
         createdAt: interventionData.created_at,
         reference: interventionData.reference,
+        // Planning
+        scheduledDate: interventionData.scheduled_date ? new Date(interventionData.scheduled_date).toISOString().split('T')[0] : undefined,
+        scheduledTime: interventionData.scheduled_date ? new Date(interventionData.scheduled_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : undefined,
         // Support des interventions lot ET bâtiment
         lot: interventionData.lot ? {
           id: interventionData.lot.id,
@@ -243,6 +251,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           reviewComments: quote.review_comments,
           rejectionReason: quote.rejection_reason,
           attachments: typeof quote.attachments === 'string' ? JSON.parse(quote.attachments) : quote.attachments || [],
+          providerAvailabilities: typeof quote.provider_availabilities === 'string' ? JSON.parse(quote.provider_availabilities) : quote.provider_availabilities || [],
           isCurrentUserQuote: quote.provider_id === user.id
         })) || [],
         instructions: interventionData.instructions
@@ -342,57 +351,71 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     }
   }
 
+  const handleBack = () => {
+    router.back()
+  }
+
+  const handleArchive = () => {
+    // Pas d'archivage pour les prestataires
+    console.log('Archive not available for providers')
+  }
+
+  const handleStatusAction = (action: string) => {
+    // Actions gérées par le panel d'actions
+    console.log('Status action:', action)
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour aux interventions
-            </Button>
-            <div className="flex items-center space-x-2">
-              <Badge className={`border ${getStatusColor(intervention.status)}`}>{intervention.status}</Badge>
-              <Badge className={`border ${getUrgencyColor(intervention.urgency)}`}>{intervention.urgency}</Badge>
-              <Button variant="outline" size="sm">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Ouvrir le chat
-              </Button>
-            </div>
-          </div>
+      {/* Header unifié */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: intervention.reference,
+          status: intervention.status,
+          urgency: intervention.urgency,
+          createdAt: intervention.createdAt,
+          createdBy: intervention.tenant?.name || "Locataire",
+          lot: intervention.lot ? {
+            reference: intervention.lot.reference,
+            building: {
+              name: intervention.lot.building?.name || "Bâtiment"
+            }
+          } : undefined,
+          building: intervention.building ? {
+            name: intervention.building.name
+          } : undefined
+        }}
+        onBack={handleBack}
+        onArchive={handleArchive}
+        onStatusAction={handleStatusAction}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: intervention.tenant?.id,
+              scheduled_date: intervention.scheduledDate,
+              quotes: intervention.quotes.map(quote => ({
+                id: quote.id,
+                status: quote.status,
+                providerId: quote.providerId,
+                isCurrentUserQuote: quote.isCurrentUserQuote
+              }))
+            }}
+            userRole="prestataire"
+            userId={user?.id || ''}
+            onActionComplete={fetchInterventionData}
+            onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+            onCancelQuote={(quoteId) => quoteCancellation.handleCancelQuote(quoteId)}
+          />
+        }
+      />
 
-          <div className="flex items-center space-x-3 mb-2">
-            <Building2 className="h-6 w-6 text-sky-600" />
-            <h1 className="text-2xl font-bold text-slate-900">{intervention.title}</h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <div className="flex items-center space-x-2 px-3 py-1 bg-slate-100 rounded-full">
-              <span className="text-sm font-medium text-slate-700">Référence:</span>
-              <span className="text-sm text-slate-900">{intervention.reference}</span>
-            </div>
-            {intervention.tenant && (
-              <div className="flex items-center space-x-2 px-3 py-1 bg-slate-100 rounded-full">
-                <User className="h-4 w-4 text-slate-600" />
-                <span className="text-sm text-slate-700">Demandeur: {intervention.tenant.name}</span>
-              </div>
-            )}
-            <div className="flex items-center space-x-2 px-3 py-1 bg-slate-100 rounded-full">
-              <Calendar className="h-4 w-4 text-slate-600" />
-              <span className="text-sm text-slate-700">
-                Créée le:{" "}
-                {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
@@ -536,12 +559,16 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
               <DialogContent className="!max-w-7xl !w-[95vw] max-h-[95vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-slate-900">
-                    Soumettre un devis pour "{intervention?.title}"
+                    {intervention?.quotes.find(q => q.isCurrentUserQuote)
+                      ? `Modifier le devis pour "${intervention?.title}"`
+                      : `Soumettre un devis pour "${intervention?.title}"`
+                    }
                   </DialogTitle>
                 </DialogHeader>
                 {intervention && (
                   <QuoteSubmissionForm
                     intervention={intervention}
+                    existingQuote={intervention.quotes.find(q => q.isCurrentUserQuote)}
                     onSuccess={() => {
                       setIsQuoteModalOpen(false)
                       fetchInterventionData()
@@ -703,6 +730,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
                 </div>
               </CardContent>
             </Card>
+
           </div>
         </div>
       </main>

@@ -10,19 +10,35 @@ import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { usePrestataireData } from "@/hooks/use-prestataire-data"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
+import { useInterventionExecution } from "@/hooks/use-intervention-execution"
+import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
+import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
+import { PendingActionsCard } from "@/components/shared/pending-actions-card"
 
 export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { stats, interventions, urgentInterventions, loading, error } = usePrestataireData(user?.id || '')
-  
+
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
+
+  // Hooks pour les actions d'intervention (prestataire)
+  const executionHook = useInterventionExecution()
+  const quotingHook = useInterventionQuoting()
+  const planningHook = useInterventionPlanning()
+
+  // Configuration des hooks d'actions
+  const actionHooks = {
+    executionHook,
+    quotingHook,
+    planningHook,
+  }
 
   // Afficher la vérification d'équipe en cours ou échoué
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -103,13 +119,14 @@ export default function PrestataireDashboard() {
         loading={loading}
         emptyStateConfig={{
           title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention clôturée",
-          description: tabId === "en_cours" 
-            ? "Les interventions qui vous sont assignées apparaîtront ici" 
+          description: tabId === "en_cours"
+            ? "Les interventions qui vous sont assignées apparaîtront ici"
             : "Vos interventions terminées apparaîtront ici",
           showCreateButton: false
         }}
         showStatusActions={true}
         userContext="prestataire"
+        actionHooks={actionHooks}
       />
     )
   }
@@ -143,7 +160,36 @@ export default function PrestataireDashboard() {
     }
   ]
 
-  const pendingActionsCount = getPendingActionsCount()
+  // Convertir les interventions en format PendingAction pour le composant
+  const convertToPendingActions = () => {
+    return interventions
+      .filter((intervention) => [
+        "devis-a-fournir",
+        "demande_de_devis",
+        "planification",
+        "programmee",
+        "en_cours"
+      ].includes(intervention.status))
+      .map((intervention) => ({
+        id: intervention.id,
+        type: 'intervention',
+        title: intervention.title,
+        status: intervention.status,
+        reference: intervention.reference,
+        priority: intervention.priority,
+        location: {
+          building: intervention.building?.name,
+          lot: intervention.lot?.reference
+        },
+        contact: intervention.tenant ? {
+          name: intervention.tenant.name,
+          role: 'Locataire'
+        } : undefined,
+        actionUrl: `/prestataire/interventions/${intervention.id}`
+      }))
+  }
+
+  const pendingActions = convertToPendingActions()
 
   return (
     <InterventionCancellationProvider>
@@ -156,7 +202,7 @@ export default function PrestataireDashboard() {
               <p className="text-slate-600">Gérez vos interventions assignées</p>
             </div>
             <div className="flex justify-center lg:justify-end">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => router.push('/prestataire/interventions')}
               >
@@ -167,148 +213,13 @@ export default function PrestataireDashboard() {
           </div>
         </div>
 
-        {/* Section 1: Actions en attente */}
+        {/* Section 1: Actions en attente - Nouveau composant réutilisable */}
         <section>
-          <Card className="mb-8">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-slate-900">
-                <AlertCircle className="w-5 h-5 text-orange-500" />
-                Actions en attente
-              </CardTitle>
-              <CardDescription>
-                Interventions nécessitant votre attention
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {pendingActionsCount === 0 ? (
-                <div className="text-center py-6">
-                  <CheckCircle className="w-12 h-12 mx-auto mb-4 text-emerald-500" />
-                  <p className="text-slate-600 font-medium">Aucune action en attente</p>
-                  <p className="text-sm text-slate-500">Toutes vos interventions sont à jour</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Cards individuelles pour chaque intervention nécessitant une action */}
-                  {interventions
-                    .filter((intervention) => [
-                      "devis-a-fournir",
-                      "demande_de_devis",
-                      "planification",
-                      "programmee",
-                      "en_cours"
-                    ].includes(intervention.status))
-                    .map((intervention) => {
-                      const getActionConfig = (status: string) => {
-                        switch (status) {
-                          case "devis-a-fournir":
-                          case "demande_de_devis":
-                            return {
-                              bgColor: "bg-sky-50",
-                              borderColor: "border-sky-200",
-                              iconBg: "bg-sky-100",
-                              iconColor: "text-sky-600",
-                              textColor: "text-sky-900",
-                              subtextColor: "text-sky-700",
-                              icon: FileText,
-                              actionLabel: "Devis à fournir",
-                              buttonText: "Soumettre devis"
-                            }
-                          case "planification":
-                            return {
-                              bgColor: "bg-amber-50",
-                              borderColor: "border-amber-200",
-                              iconBg: "bg-amber-100",
-                              iconColor: "text-amber-600",
-                              textColor: "text-amber-900",
-                              subtextColor: "text-amber-700",
-                              icon: Calendar,
-                              actionLabel: "À planifier",
-                              buttonText: "Planifier"
-                            }
-                          case "programmee":
-                          case "en_cours":
-                            return {
-                              bgColor: "bg-emerald-50",
-                              borderColor: "border-emerald-200",
-                              iconBg: "bg-emerald-100",
-                              iconColor: "text-emerald-600",
-                              textColor: "text-emerald-900",
-                              subtextColor: "text-emerald-700",
-                              icon: Wrench,
-                              actionLabel: "À réaliser",
-                              buttonText: "Commencer"
-                            }
-                          default:
-                            return {
-                              bgColor: "bg-slate-50",
-                              borderColor: "border-slate-200",
-                              iconBg: "bg-slate-100",
-                              iconColor: "text-slate-600",
-                              textColor: "text-slate-900",
-                              subtextColor: "text-slate-700",
-                              icon: Clock,
-                              actionLabel: "En attente",
-                              buttonText: "Voir"
-                            }
-                        }
-                      }
-
-                      const config = getActionConfig(intervention.status)
-                      const IconComponent = config.icon
-
-                      return (
-                        <Card key={intervention.id} className={`${config.bgColor} ${config.borderColor} border`}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-start gap-3 flex-1">
-                                <div className={`w-8 h-8 ${config.iconBg} rounded-full flex items-center justify-center flex-shrink-0 mt-1`}>
-                                  <IconComponent className={`h-4 w-4 ${config.iconColor}`} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge className={`${config.bgColor} ${config.textColor} border-0 text-xs`}>
-                                      {config.actionLabel}
-                                    </Badge>
-                                  </div>
-                                  <h4 className={`font-medium ${config.textColor} mb-1 truncate`}>
-                                    {intervention.reference} - {intervention.title}
-                                  </h4>
-                                  <div className={`text-xs ${config.subtextColor} space-y-1`}>
-                                    <div className="flex items-center gap-1">
-                                      <MapPin className="h-3 w-3" />
-                                      <span>{intervention.building?.name} • {intervention.lot?.reference}</span>
-                                    </div>
-                                    {intervention.tenant && (
-                                      <p>Locataire: {intervention.tenant.name}</p>
-                                    )}
-                                    {intervention.priority === "urgent" && (
-                                      <Badge variant="destructive" className="text-xs">
-                                        Urgent
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col gap-2 ml-4">
-                                <Button
-                                  size="sm"
-                                  className="bg-sky-600 hover:bg-sky-700 text-white"
-                                  onClick={() => router.push(`/prestataire/interventions/${intervention.id}`)}
-                                >
-                                  {config.buttonText}
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })
-                  }
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <PendingActionsCard
+            actions={pendingActions}
+            userRole="prestataire"
+            loading={loading}
+          />
         </section>
 
         {/* Section 2: Interventions avec ContentNavigator */}

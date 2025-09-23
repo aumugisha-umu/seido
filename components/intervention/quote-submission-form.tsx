@@ -39,7 +39,12 @@ interface FormData {
   laborCost: string
   materialsCost: string
   workDetails: string
+  estimatedDurationHours: string
   attachments: File[]
+  providerAvailabilities: Array<{
+    date: string
+    startTime: string
+  }>
 }
 
 interface FieldValidation {
@@ -60,11 +65,28 @@ export function QuoteSubmissionForm({
   const quoteToast = useQuoteToast()
 
   const [formData, setFormData] = useState<FormData>({
-    laborCost: existingQuote?.labor_cost?.toString() || '',
-    materialsCost: existingQuote?.materials_cost?.toString() || '0',
-    workDetails: existingQuote?.work_details || '',
-    attachments: []
+    laborCost: existingQuote?.laborCost?.toString() || '',
+    materialsCost: existingQuote?.materialsCost?.toString() || '0',
+    workDetails: existingQuote?.workDetails || '',
+    estimatedDurationHours: existingQuote?.estimatedDurationHours?.toString() || '1',
+    attachments: existingQuote?.attachments || [],
+    providerAvailabilities: existingQuote?.providerAvailabilities || []
   })
+
+  // Mettre à jour le formulaire quand existingQuote change
+  useEffect(() => {
+    if (existingQuote) {
+      console.log('📝 [QuoteForm] Pré-remplissage avec devis existant:', existingQuote)
+      setFormData({
+        laborCost: existingQuote.laborCost?.toString() || '',
+        materialsCost: existingQuote.materialsCost?.toString() || '0',
+        workDetails: existingQuote.workDetails || '',
+        estimatedDurationHours: existingQuote.estimatedDurationHours?.toString() || '1',
+        attachments: existingQuote.attachments || [],
+        providerAvailabilities: existingQuote.providerAvailabilities || []
+      })
+    }
+  }, [existingQuote])
 
 
   // Validation individuelle des champs selon Design System
@@ -82,6 +104,13 @@ export function QuoteSubmissionForm({
 
       case 'workDetails':
         if (!value.trim()) return { isValid: false, error: 'La description des travaux est requise' }
+        return { isValid: true }
+
+      case 'estimatedDurationHours':
+        if (!value) return { isValid: false, error: 'La durée estimée est requise' }
+        const hours = parseFloat(value)
+        if (isNaN(hours) || hours <= 0) return { isValid: false, error: 'La durée doit être un nombre positif' }
+        if (hours > 168) return { isValid: false, error: 'La durée ne peut pas excéder 168 heures (1 semaine)' }
         return { isValid: true }
 
       default:
@@ -111,10 +140,60 @@ export function QuoteSubmissionForm({
     }))
   }
 
+  // Gestion des disponibilités prestataire
+  const addAvailability = () => {
+    const newAvailability = {
+      date: '',
+      startTime: ''
+    }
+    setFormData(prev => ({
+      ...prev,
+      providerAvailabilities: [...prev.providerAvailabilities, newAvailability]
+    }))
+  }
+
+  const removeAvailability = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      providerAvailabilities: prev.providerAvailabilities.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateAvailability = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      providerAvailabilities: prev.providerAvailabilities.map((avail, i) =>
+        i === index ? { ...avail, [field]: value } : avail
+      )
+    }))
+  }
+
   const calculateTotal = () => {
     const labor = parseFloat(formData.laborCost) || 0
     const materials = parseFloat(formData.materialsCost) || 0
     return labor + materials
+  }
+
+  // Calcule l'heure de fin basée sur l'heure de début et la durée estimée
+  const calculateEndTime = (startTime: string): string => {
+    if (!startTime || !formData.estimatedDurationHours) return ''
+
+    const duration = parseFloat(formData.estimatedDurationHours)
+    if (isNaN(duration) || duration <= 0) return ''
+
+    // Parse l'heure de début
+    const [hours, minutes] = startTime.split(':').map(Number)
+    if (isNaN(hours) || isNaN(minutes)) return ''
+
+    // Crée un objet Date pour aujourd'hui avec l'heure de début
+    const startDate = new Date()
+    startDate.setHours(hours, minutes, 0, 0)
+
+    // Ajoute la durée en heures
+    const endDate = new Date(startDate.getTime() + duration * 60 * 60 * 1000)
+
+    // Retourne l'heure au format HH:MM
+    return endDate.toTimeString().slice(0, 5)
   }
 
   // Helper pour les classes d'input selon validation (Design System)
@@ -205,9 +284,16 @@ export function QuoteSubmissionForm({
           interventionId: intervention.id,
           laborCost: parseFloat(formData.laborCost),
           materialsCost: parseFloat(formData.materialsCost),
+          estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
           description: formData.workDetails.trim(),
           workDetails: formData.workDetails.trim() || null,
-          attachments: attachmentUrls
+          attachments: attachmentUrls,
+          providerAvailabilities: formData.providerAvailabilities
+            .filter(avail => avail.date && avail.startTime)
+            .map(avail => ({
+              ...avail,
+              endTime: calculateEndTime(avail.startTime)
+            }))
         })
       })
 
@@ -361,6 +447,30 @@ export function QuoteSubmissionForm({
                     {renderFieldFeedback('materialsCost')}
                   </div>
 
+                  {/* Durée estimée */}
+                  <div className="space-y-2">
+                    <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Durée estimée (heures) *
+                    </Label>
+                    <Input
+                      id="estimatedDurationHours"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="168"
+                      value={formData.estimatedDurationHours}
+                      onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
+                      placeholder="1"
+                      required
+                      className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
+                    />
+                    {renderFieldFeedback('estimatedDurationHours')}
+                    <p className="text-xs text-slate-500">
+                      Estimation du temps nécessaire pour réaliser l'intervention
+                    </p>
+                  </div>
+
                 </div>
 
               </div>
@@ -486,6 +596,106 @@ export function QuoteSubmissionForm({
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Section Disponibilités Prestataire en pleine largeur */}
+        <div className="lg:col-span-2">
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                </div>
+                Mes disponibilités
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Renseignez vos créneaux de disponibilité pour faciliter la planification de l'intervention
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {formData.providerAvailabilities.length === 0 ? (
+                <div className="text-center py-6 bg-slate-50 rounded-lg">
+                  <Clock className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-600 text-sm">Aucune disponibilité renseignée</p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Ajoutez vos créneaux disponibles pour faciliter la planification
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formData.providerAvailabilities.map((avail, index) => (
+                    <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div>
+                          <Label className="text-sm font-medium text-slate-700">Date</Label>
+                          <Input
+                            type="date"
+                            value={avail.date}
+                            onChange={(e) => updateAvailability(index, 'date', e.target.value)}
+                            className="mt-1"
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-slate-700">Heure début</Label>
+                          <Input
+                            type="time"
+                            value={avail.startTime}
+                            onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                            className="mt-1"
+                          />
+                          {avail.startTime && formData.estimatedDurationHours && (
+                            <div className="mt-2 text-xs text-slate-600 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              Fin estimée: {calculateEndTime(avail.startTime)}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAvailability(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addAvailability}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Ajouter une disponibilité
+                </Button>
+              </div>
+
+              {formData.providerAvailabilities.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Information importante</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Ces disponibilités seront utilisées pour planifier l'intervention avec le locataire une fois votre devis validé.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

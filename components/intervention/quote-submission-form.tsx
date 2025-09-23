@@ -40,6 +40,11 @@ interface FormData {
   materialsCost: string
   workDetails: string
   attachments: File[]
+  providerAvailabilities: Array<{
+    date: string
+    startTime: string
+    endTime: string
+  }>
 }
 
 interface FieldValidation {
@@ -63,7 +68,8 @@ export function QuoteSubmissionForm({
     laborCost: existingQuote?.labor_cost?.toString() || '',
     materialsCost: existingQuote?.materials_cost?.toString() || '0',
     workDetails: existingQuote?.work_details || '',
-    attachments: []
+    attachments: [],
+    providerAvailabilities: []
   })
 
 
@@ -108,6 +114,35 @@ export function QuoteSubmissionForm({
     setFormData(prev => ({
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Gestion des disponibilités prestataire
+  const addAvailability = () => {
+    const newAvailability = {
+      date: '',
+      startTime: '',
+      endTime: ''
+    }
+    setFormData(prev => ({
+      ...prev,
+      providerAvailabilities: [...prev.providerAvailabilities, newAvailability]
+    }))
+  }
+
+  const removeAvailability = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      providerAvailabilities: prev.providerAvailabilities.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateAvailability = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      providerAvailabilities: prev.providerAvailabilities.map((avail, i) =>
+        i === index ? { ...avail, [field]: value } : avail
+      )
     }))
   }
 
@@ -207,7 +242,10 @@ export function QuoteSubmissionForm({
           materialsCost: parseFloat(formData.materialsCost),
           description: formData.workDetails.trim(),
           workDetails: formData.workDetails.trim() || null,
-          attachments: attachmentUrls
+          attachments: attachmentUrls,
+          providerAvailabilities: formData.providerAvailabilities.filter(avail =>
+            avail.date && avail.startTime && avail.endTime
+          )
         })
       })
 
@@ -486,6 +524,109 @@ export function QuoteSubmissionForm({
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Section Disponibilités Prestataire en pleine largeur */}
+        <div className="lg:col-span-2">
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                </div>
+                Mes disponibilités
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Renseignez vos créneaux de disponibilité pour faciliter la planification de l'intervention
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {formData.providerAvailabilities.length === 0 ? (
+                <div className="text-center py-6 bg-slate-50 rounded-lg">
+                  <Clock className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-600 text-sm">Aucune disponibilité renseignée</p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Ajoutez vos créneaux disponibles pour faciliter la planification
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formData.providerAvailabilities.map((avail, index) => (
+                    <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div>
+                          <Label className="text-sm font-medium text-slate-700">Date</Label>
+                          <Input
+                            type="date"
+                            value={avail.date}
+                            onChange={(e) => updateAvailability(index, 'date', e.target.value)}
+                            className="mt-1"
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-slate-700">Heure début</Label>
+                          <Input
+                            type="time"
+                            value={avail.startTime}
+                            onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-slate-700">Heure fin</Label>
+                          <Input
+                            type="time"
+                            value={avail.endTime}
+                            onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAvailability(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addAvailability}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Ajouter une disponibilité
+                </Button>
+              </div>
+
+              {formData.providerAvailabilities.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Information importante</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Ces disponibilités seront utilisées pour planifier l'intervention avec le locataire une fois votre devis validé.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -407,11 +407,33 @@ export function InterventionActionPanel({
     try {
       setIsProcessing(true)
 
-      // TODO: Replace with actual API call
+      // Convert File objects to serializable objects
+      const serializableData = {
+        ...reportData,
+        beforePhotos: reportData.beforePhotos.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        })),
+        afterPhotos: reportData.afterPhotos.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        })),
+        documents: reportData.documents.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }))
+      }
+
       const response = await fetch(`/api/intervention/${intervention.id}/work-completion`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reportData)
+        body: JSON.stringify(serializableData)
       })
 
       if (response.ok) {

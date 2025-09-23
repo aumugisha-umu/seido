@@ -13,6 +13,7 @@ import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-s
 import { QuoteSubmissionForm } from "@/components/intervention/quote-submission-form"
 import { QuoteCancellationModal } from "@/components/quotes/quote-cancellation-modal"
 import { useQuoteCancellation } from "@/hooks/use-quote-cancellation"
+import { InterventionActionPanel } from "@/components/intervention/intervention-action-panel"
 
 // Types pour les données d'intervention
 interface InterventionDetail {
@@ -24,6 +25,9 @@ interface InterventionDetail {
   status: string
   createdAt: string
   reference: string
+  // Planning
+  scheduledDate?: string
+  scheduledTime?: string
   // Données de localisation (lot ou bâtiment)
   lot?: {
     id: string
@@ -168,6 +172,9 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         status: interventionData.status,
         createdAt: interventionData.created_at,
         reference: interventionData.reference,
+        // Planning
+        scheduledDate: interventionData.scheduled_date ? new Date(interventionData.scheduled_date).toISOString().split('T')[0] : undefined,
+        scheduledTime: interventionData.scheduled_date ? new Date(interventionData.scheduled_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : undefined,
         // Support des interventions lot ET bâtiment
         lot: interventionData.lot ? {
           id: interventionData.lot.id,
@@ -391,6 +398,20 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
                 })}
               </span>
             </div>
+            {intervention.scheduledDate && intervention.scheduledTime && (
+              <div className="flex items-center space-x-2 px-3 py-1 bg-green-100 rounded-full">
+                <Clock className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-700">
+                  Programmée le:{" "}
+                  {new Date(intervention.scheduledDate).toLocaleDateString("fr-FR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })} à {intervention.scheduledTime}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -703,6 +724,21 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
                 </div>
               </CardContent>
             </Card>
+
+            {/* Panel d'actions pour le prestataire */}
+            <InterventionActionPanel
+              intervention={{
+                id: intervention.id,
+                title: intervention.title,
+                description: intervention.description,
+                status: intervention.status,
+                tenant_id: intervention.tenant?.id,
+                scheduled_date: intervention.scheduledDate
+              }}
+              userRole="prestataire"
+              userId={user?.id || ''}
+              onActionComplete={fetchInterventionData}
+            />
           </div>
         </div>
       </main>

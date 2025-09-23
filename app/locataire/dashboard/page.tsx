@@ -30,9 +30,12 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTenantData } from "@/hooks/use-tenant-data"
+import { useTenantPendingActions } from "@/hooks/use-tenant-pending-actions"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import { useRouter } from "next/navigation"
 import ContentNavigator from "@/components/content-navigator"
+import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { InterventionsList } from "@/components/interventions/interventions-list"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -46,8 +49,9 @@ import {
 export default function LocataireDashboard() {
   const { user } = useAuth()
   const { tenantData, tenantStats, tenantInterventions, loading, error } = useTenantData()
+  const { pendingActions, loading: pendingActionsLoading, error: pendingActionsError, refresh: refreshPendingActions } = useTenantPendingActions(user?.id || '')
   const router = useRouter()
-  
+
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
 
@@ -111,23 +115,6 @@ export default function LocataireDashboard() {
     router.push('/locataire/dashboard')
   }
 
-  // Get intervention type icon and color (comme dans gestionnaire)
-  const getInterventionTypeIcon = (type: string) => {
-    const typeConfig = {
-      plomberie: { icon: Droplets, color: "bg-blue-100", iconColor: "text-blue-600" },
-      electricite: { icon: Zap, color: "bg-yellow-100", iconColor: "text-yellow-600" },
-      chauffage: { icon: Flame, color: "bg-red-100", iconColor: "text-red-600" },
-      serrurerie: { icon: Key, color: "bg-gray-100", iconColor: "text-gray-600" },
-      peinture: { icon: Paintbrush, color: "bg-purple-100", iconColor: "text-purple-600" },
-      maintenance: { icon: Hammer, color: "bg-orange-100", iconColor: "text-orange-600" },
-    }
-    
-    return typeConfig[type?.toLowerCase() as keyof typeof typeConfig] || {
-      icon: Wrench,
-      color: "bg-amber-100",
-      iconColor: "text-amber-600"
-    }
-  }
 
   // Filter function for interventions based on tab (pour locataires)
   // ✅ COUVERTURE COMPLÈTE : Tous les statuts sont mappés pour garantir qu'aucune intervention ne disparaisse
@@ -155,165 +142,26 @@ export default function LocataireDashboard() {
     return tenantInterventions
   }
 
-  // Function to render interventions list (même rendu que gestionnaire)
+  // Function to render interventions list (utilise maintenant le composant standardisé)
   const renderInterventionsList = (tabId: string) => {
     const filteredInterventions = getFilteredInterventions(tabId)
-    
-    if (filteredInterventions.length === 0) {
-      return (
-        <div className="text-center py-8 sm:py-12 px-4">
-          <div className="max-w-sm mx-auto">
-            <Wrench className="h-10 w-10 sm:h-12 sm:w-12 text-slate-400 mx-auto mb-3 sm:mb-4" />
-            <h3 className="text-base sm:text-lg font-medium text-slate-900 mb-2">
-              {tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention clôturée"}
-            </h3>
-            <p className="text-sm sm:text-base text-slate-500 mb-4 sm:mb-6 leading-relaxed">
-              {tabId === "en_cours" 
-                ? "Vos demandes d'intervention apparaîtront ici"
-                : "L'historique de vos interventions clôturées apparaîtra ici"}
-            </p>
-            {tabId === "en_cours" && (
-              <Button 
-                onClick={handleNewIntervention}
-                className="w-full sm:w-auto"
-                size="default"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Créer une nouvelle demande
-              </Button>
-            )}
-          </div>
-        </div>
-      )
-    }
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-        {filteredInterventions.map((intervention) => (
-          <Card key={intervention.id} className="group hover:shadow-sm transition-all duration-200 flex flex-col h-full hover:bg-slate-50/50 cursor-pointer"
-                onClick={() => handleInterventionClick(intervention.id)}>
-            <CardContent className="p-0 flex flex-col flex-1">
-              <div className="p-3 sm:p-4 lg:p-5 flex flex-col flex-1">
-                <div className="space-y-2.5 sm:space-y-3 flex-1">
-                  {/* Header Row - Mobile Optimized */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                      {/* Type Icon */}
-                      {(() => {
-                        const typeConfig = getInterventionTypeIcon(intervention.type || "")
-                        const IconComponent = typeConfig.icon
-                        return (
-                          <div className={`w-8 h-8 sm:w-10 sm:h-10 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                            <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${typeConfig.iconColor}`} />
-                          </div>
-                        )
-                      })()}
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate leading-tight">
-                          {intervention.title}
-                        </h3>
-                        <div className="flex items-center text-xs text-slate-600 mt-0.5 sm:mt-1 min-w-0">
-                          {getInterventionLocationIcon(intervention) === "building" ? (
-                            <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
-                          ) : (
-                            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                          )}
-                          <span className="truncate">{getInterventionLocationText(intervention)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Mobile Action Button */}
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="h-8 w-8 sm:h-8 sm:w-auto sm:px-3 p-0 sm:p-2 flex-shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleInterventionClick(intervention.id)
-                      }}
-                    >
-                      <Eye className="h-3 w-3" />
-                      <span className="hidden sm:inline ml-1">Détails</span>
-                    </Button>
-                  </div>
-
-                  {/* Status & Priority Badges - Mobile Optimized */}
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
-                      {getStatusLabel(intervention.status)}
-                    </Badge>
-                    {intervention.urgency && (
-                      <Badge className={`${getPriorityColor(intervention.urgency)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
-                        {getPriorityLabel(intervention.urgency)}
-                      </Badge>
-                    )}
-                    {isBuildingWideIntervention(intervention) && (
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                        Bâtiment entier
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Description - Mobile Friendly */}
-                  {intervention.description && (
-                    <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">
-                      {intervention.description}
-                    </p>
-                  )}
-
-                  {/* Footer Info - Simplified for Mobile */}
-                  <div className="pt-2 border-t border-slate-100 mt-auto">
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <div className="flex items-center gap-1">
-                        {(() => {
-                          const typeConfig = getInterventionTypeIcon(intervention.type || "")
-                          const IconComponent = typeConfig.icon
-                          return (
-                            <>
-                              <div className={`w-4 h-4 ${typeConfig.color} rounded flex items-center justify-center`}>
-                                <IconComponent className={`h-2.5 w-2.5 ${typeConfig.iconColor}`} />
-                              </div>
-                              <span className="text-xs text-slate-600 truncate">
-                                {intervention.type || "Non spécifié"}
-                              </span>
-                            </>
-                          )
-                        })()}
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span className="text-xs">
-                          {intervention.created_at
-                            ? new Date(intervention.created_at).toLocaleDateString("fr-FR", {
-                                day: '2-digit',
-                                month: '2-digit'
-                              })
-                            : "N/A"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Schedule info - Only show if available and on mobile */}
-                    {("scheduled_date" in intervention && intervention.scheduled_date && typeof intervention.scheduled_date === 'string') ? (
-                      <div className="flex items-center gap-1 mt-1.5 sm:hidden">
-                        <Calendar className="h-3 w-3 text-emerald-600" />
-                        <span className="text-xs text-emerald-600">
-                          Programmé: {new Date(intervention.scheduled_date).toLocaleDateString("fr-FR", {
-                            day: '2-digit',
-                            month: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <InterventionsList
+        interventions={filteredInterventions}
+        loading={loading}
+        emptyStateConfig={{
+          title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention clôturée",
+          description: tabId === "en_cours"
+            ? "Vos demandes d'intervention apparaîtront ici"
+            : "L'historique de vos interventions clôturées apparaîtra ici",
+          showCreateButton: tabId === "en_cours",
+          createButtonText: "Créer une nouvelle demande",
+          createButtonAction: handleNewIntervention
+        }}
+        showStatusActions={true}
+        userContext="locataire"
+      />
     )
   }
 
@@ -353,7 +201,42 @@ export default function LocataireDashboard() {
         </div>
       </div>
 
-      {/* Section 1: Informations du logement */}
+      {/* Section 1: Actions en attente */}
+      <section>
+        <PendingActionsCard
+          actions={pendingActions}
+          userRole="locataire"
+          loading={pendingActionsLoading}
+        />
+      </section>
+
+      {/* Section 3: Interventions avec ContentNavigator */}
+      <section>
+        <div className="mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-slate-900" />
+              <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
+            </div>
+            <Button 
+              className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start" 
+              onClick={handleNewIntervention}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Créer une nouvelle demande</span>
+            </Button>
+          </div>
+        </div>
+
+        <ContentNavigator
+          tabs={interventionsTabsConfig}
+          defaultTab="en_cours"
+          searchPlaceholder="Rechercher par titre ou description..."
+          onSearch={(value) => console.log("Recherche:", value)}
+        />
+      </section>
+
+      {/* Section 2: Informations du logement */}
       <section>
         <Card className="mb-8">
           <CardHeader className="pb-4">
@@ -450,31 +333,7 @@ export default function LocataireDashboard() {
         </Card>
       </section>
 
-      {/* Section 2: Interventions avec ContentNavigator */}
-      <section>
-        <div className="mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
-            <div className="flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-slate-900" />
-              <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
-            </div>
-            <Button 
-              className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start" 
-              onClick={handleNewIntervention}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Créer une nouvelle demande</span>
-            </Button>
-          </div>
-        </div>
-
-        <ContentNavigator
-          tabs={interventionsTabsConfig}
-          defaultTab="en_cours"
-          searchPlaceholder="Rechercher par titre ou description..."
-          onSearch={(value) => console.log("Recherche:", value)}
-        />
-      </section>
+      
     </div>
   )
 }

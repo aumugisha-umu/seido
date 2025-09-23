@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
       estimatedDurationHours,
       estimatedStartDate,
       termsAndConditions,
-      attachments = []
+      attachments = [],
+      providerAvailabilities = [] // Nouvelles disponibilités prestataire
     } = body
 
     if (!interventionId || !laborCost || !description) {
@@ -187,6 +188,43 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("✅ Quote submitted successfully:", quote.id)
+
+    // Save provider availabilities if provided
+    if (providerAvailabilities && providerAvailabilities.length > 0) {
+      console.log("📅 Saving provider availabilities:", providerAvailabilities.length)
+
+      // First, remove any existing availabilities for this provider on this intervention
+      const { error: deleteError } = await supabase
+        .from('user_availabilities')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('intervention_id', interventionId)
+
+      if (deleteError) {
+        console.warn("⚠️ Could not delete existing provider availabilities:", deleteError)
+        // Don't fail the quote submission for this
+      }
+
+      // Insert new availabilities
+      const availabilityData = providerAvailabilities.map((avail: any) => ({
+        user_id: user.id,
+        intervention_id: interventionId,
+        date: avail.date,
+        start_time: avail.startTime,
+        end_time: avail.endTime
+      }))
+
+      const { error: availError } = await supabase
+        .from('user_availabilities')
+        .insert(availabilityData)
+
+      if (availError) {
+        console.warn("⚠️ Could not save provider availabilities:", availError)
+        // Don't fail the quote submission for this
+      } else {
+        console.log("✅ Provider availabilities saved successfully")
+      }
+    }
 
     // Send notification to gestionnaires responsible for this intervention
     try {

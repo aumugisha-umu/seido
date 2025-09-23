@@ -57,7 +57,8 @@ interface InterventionHeaderProps {
   onBack: () => void
   onArchive: () => void
   onStatusAction: (action: string) => void
-  displayMode?: "dropdown" | "buttons"
+  displayMode?: "dropdown" | "buttons" | "custom"
+  actionPanel?: React.ReactNode
 }
 
 export const InterventionDetailHeader = ({
@@ -66,6 +67,7 @@ export const InterventionDetailHeader = ({
   onArchive,
   onStatusAction,
   displayMode = "dropdown",
+  actionPanel,
 }: InterventionHeaderProps) => {
   const getUrgencyConfig = (urgency: string) => {
     switch (urgency.toLowerCase()) {
@@ -337,7 +339,12 @@ export const InterventionDetailHeader = ({
 
             {/* Section Droite - Actions */}
             <div className="flex items-center space-x-2">
-              {displayMode === "buttons" ? (
+              {displayMode === "custom" && actionPanel ? (
+                // Affichage personnalisé avec le panel d'actions injecté
+                <div className="flex items-center space-x-2">
+                  {actionPanel}
+                </div>
+              ) : displayMode === "buttons" ? (
                 // Affichage en boutons directs pour gestionnaire
                 <>
                   {availableActions.map((action) => {

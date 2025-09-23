@@ -239,10 +239,15 @@ export const useInterventionQuoting = () => {
     setError(null)
 
     try {
+      // Calculer automatiquement la deadline : J+30 jours
+      const deadlineDate = new Date()
+      deadlineDate.setDate(deadlineDate.getDate() + 30)
+      const autoDeadline = deadlineDate.toISOString().split('T')[0] // Format YYYY-MM-DD
+
       console.log('📤 [QUOTE-REQUEST] Submitting quote request:', {
         interventionId: quoteRequestModal.intervention.id,
         providerIds: formData.providerIds,
-        deadline: formData.deadline,
+        deadline: autoDeadline,
         additionalNotes: formData.additionalNotes,
         individualMessages: formData.individualMessages
       })
@@ -255,7 +260,7 @@ export const useInterventionQuoting = () => {
         body: JSON.stringify({
           interventionId: quoteRequestModal.intervention.id,
           providerIds: formData.providerIds,
-          deadline: formData.deadline || null,
+          deadline: autoDeadline,
           additionalNotes: formData.additionalNotes || null,
           individualMessages: formData.individualMessages,
         }),

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import ContactSelector from "@/components/ui/contact-selector"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -31,40 +32,53 @@ interface MultiQuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
   intervention: any | null
-  deadline: string
   additionalNotes: string
   selectedProviderIds: string[]
   selectedProviders: Provider[]
   individualMessages: Record<string, string>
   providers: Provider[]
-  onDeadlineChange: (deadline: string) => void
   onNotesChange: (notes: string) => void
   onProviderToggle: (provider: Provider) => void
   onIndividualMessageChange: (providerId: string, message: string) => void
   onSubmit: () => void
   isLoading: boolean
   error: string | null
+  teamId: string
 }
 
 export const MultiQuoteRequestModal = ({
   isOpen,
   onClose,
   intervention,
-  deadline,
   additionalNotes,
   selectedProviderIds,
   selectedProviders,
   individualMessages,
   providers,
-  onDeadlineChange,
   onNotesChange,
   onProviderToggle,
   onIndividualMessageChange,
   onSubmit,
   isLoading,
-  error
+  error,
+  teamId
 }: MultiQuoteRequestModalProps) => {
   const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
+
+  // Callback pour la sélection de contact via le ContactSelector
+  const handleContactSelect = (contactId: string) => {
+    const provider = providers.find(p => p.id === contactId)
+    if (provider) {
+      onProviderToggle(provider)
+    }
+  }
+
+  // Callback pour la création d'un nouveau contact
+  const handleContactCreated = (contact: any) => {
+    // Pour l'instant, nous ne gérons pas la création depuis la modale de devis
+    console.log('Nouveau contact créé:', contact)
+    // TODO: Ajouter le nouveau prestataire à la liste des providers
+  }
 
   useEffect(() => {
     if (!intervention || !providers) {
@@ -166,101 +180,47 @@ export const MultiQuoteRequestModal = ({
             )}
           </div>
 
-          {/* Configuration générale */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Date limite */}
-            <div className="space-y-3">
-              <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
-                Date limite pour le devis
-              </Label>
-              <Input
-                id="deadline"
-                type="date"
-                value={deadline}
-                onChange={(e) => onDeadlineChange(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full"
-              />
-              <p className="text-xs text-slate-500">
-                Tous les prestataires seront notifiés de cette échéance
-              </p>
-            </div>
-
-            {/* Notes générales */}
-            <div className="space-y-3">
-              <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
-                Instructions générales
-              </Label>
-              <Textarea
-                id="notes"
-                placeholder="Instructions communes à tous les prestataires..."
-                value={additionalNotes}
-                onChange={(e) => onNotesChange(e.target.value)}
-                rows={3}
-                className="resize-none"
-              />
-              <p className="text-xs text-slate-500">
-                Ces informations seront envoyées à tous les prestataires sélectionnés
-              </p>
-            </div>
+          {/* Instructions générales */}
+          <div className="space-y-3">
+            <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
+              Instructions générales
+            </Label>
+            <Textarea
+              id="notes"
+              placeholder="Instructions communes à tous les prestataires..."
+              value={additionalNotes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+            <p className="text-xs text-slate-500">
+              Ces informations seront envoyées à tous les prestataires sélectionnés
+            </p>
+            <p className="text-xs text-slate-500 font-medium">
+              📅 Date limite automatique : 30 jours à partir d'aujourd'hui
+            </p>
           </div>
 
-          {/* Sélection des prestataires */}
+          {/* Sélection des prestataires avec ContactSelector */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-slate-900">
-                Prestataires disponibles ({filteredProviders.length})
-              </Label>
-              <Badge variant="outline" className="text-xs">
-                {selectedProviderIds.length} sélectionné{selectedProviderIds.length > 1 ? 's' : ''}
-              </Badge>
-            </div>
-
-            {filteredProviders.length === 0 ? (
-              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Aucun prestataire disponible pour ce type d'intervention</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredProviders.map((provider) => {
-                  const isSelected = selectedProviderIds.includes(provider.id)
-                  return (
-                    <Card
-                      key={provider.id}
-                      className={`cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                      onClick={() => onProviderToggle(provider)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="mt-1"
-                          />
-                          <div className="flex-1 space-y-1">
-                            <p className="font-medium text-slate-900">{provider.name}</p>
-                            <p className="text-sm text-slate-600">{provider.email}</p>
-                            {provider.phone && (
-                              <p className="text-sm text-slate-600">{provider.phone}</p>
-                            )}
-                            {provider.provider_category && (
-                              <Badge variant="outline" className="text-xs">
-                                {provider.provider_category}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
+            <Label className="text-sm font-medium text-slate-900">
+              Sélection des prestataires
+            </Label>
+            <ContactSelector
+              contacts={providers.map(p => ({
+                id: p.id,
+                name: p.name,
+                email: p.email,
+                phone: p.phone,
+                speciality: p.provider_category
+              }))}
+              selectedContactIds={selectedProviderIds}
+              onContactSelect={handleContactSelect}
+              onContactCreated={handleContactCreated}
+              contactType="prestataire"
+              placeholder="Sélectionnez les prestataires pour cette intervention"
+              teamId={teamId}
+            />
           </div>
 
           {/* Messages individualisés */}

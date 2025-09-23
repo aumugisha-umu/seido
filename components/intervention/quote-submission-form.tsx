@@ -39,11 +39,11 @@ interface FormData {
   laborCost: string
   materialsCost: string
   workDetails: string
+  estimatedDurationHours: string
   attachments: File[]
   providerAvailabilities: Array<{
     date: string
     startTime: string
-    endTime: string
   }>
 }
 
@@ -65,12 +65,28 @@ export function QuoteSubmissionForm({
   const quoteToast = useQuoteToast()
 
   const [formData, setFormData] = useState<FormData>({
-    laborCost: existingQuote?.labor_cost?.toString() || '',
-    materialsCost: existingQuote?.materials_cost?.toString() || '0',
-    workDetails: existingQuote?.work_details || '',
-    attachments: [],
-    providerAvailabilities: []
+    laborCost: existingQuote?.laborCost?.toString() || '',
+    materialsCost: existingQuote?.materialsCost?.toString() || '0',
+    workDetails: existingQuote?.workDetails || '',
+    estimatedDurationHours: existingQuote?.estimatedDurationHours?.toString() || '1',
+    attachments: existingQuote?.attachments || [],
+    providerAvailabilities: existingQuote?.providerAvailabilities || []
   })
+
+  // Mettre à jour le formulaire quand existingQuote change
+  useEffect(() => {
+    if (existingQuote) {
+      console.log('📝 [QuoteForm] Pré-remplissage avec devis existant:', existingQuote)
+      setFormData({
+        laborCost: existingQuote.laborCost?.toString() || '',
+        materialsCost: existingQuote.materialsCost?.toString() || '0',
+        workDetails: existingQuote.workDetails || '',
+        estimatedDurationHours: existingQuote.estimatedDurationHours?.toString() || '1',
+        attachments: existingQuote.attachments || [],
+        providerAvailabilities: existingQuote.providerAvailabilities || []
+      })
+    }
+  }, [existingQuote])
 
 
   // Validation individuelle des champs selon Design System
@@ -88,6 +104,13 @@ export function QuoteSubmissionForm({
 
       case 'workDetails':
         if (!value.trim()) return { isValid: false, error: 'La description des travaux est requise' }
+        return { isValid: true }
+
+      case 'estimatedDurationHours':
+        if (!value) return { isValid: false, error: 'La durée estimée est requise' }
+        const hours = parseFloat(value)
+        if (isNaN(hours) || hours <= 0) return { isValid: false, error: 'La durée doit être un nombre positif' }
+        if (hours > 168) return { isValid: false, error: 'La durée ne peut pas excéder 168 heures (1 semaine)' }
         return { isValid: true }
 
       default:
@@ -121,8 +144,7 @@ export function QuoteSubmissionForm({
   const addAvailability = () => {
     const newAvailability = {
       date: '',
-      startTime: '',
-      endTime: ''
+      startTime: ''
     }
     setFormData(prev => ({
       ...prev,
@@ -150,6 +172,28 @@ export function QuoteSubmissionForm({
     const labor = parseFloat(formData.laborCost) || 0
     const materials = parseFloat(formData.materialsCost) || 0
     return labor + materials
+  }
+
+  // Calcule l'heure de fin basée sur l'heure de début et la durée estimée
+  const calculateEndTime = (startTime: string): string => {
+    if (!startTime || !formData.estimatedDurationHours) return ''
+
+    const duration = parseFloat(formData.estimatedDurationHours)
+    if (isNaN(duration) || duration <= 0) return ''
+
+    // Parse l'heure de début
+    const [hours, minutes] = startTime.split(':').map(Number)
+    if (isNaN(hours) || isNaN(minutes)) return ''
+
+    // Crée un objet Date pour aujourd'hui avec l'heure de début
+    const startDate = new Date()
+    startDate.setHours(hours, minutes, 0, 0)
+
+    // Ajoute la durée en heures
+    const endDate = new Date(startDate.getTime() + duration * 60 * 60 * 1000)
+
+    // Retourne l'heure au format HH:MM
+    return endDate.toTimeString().slice(0, 5)
   }
 
   // Helper pour les classes d'input selon validation (Design System)
@@ -240,12 +284,16 @@ export function QuoteSubmissionForm({
           interventionId: intervention.id,
           laborCost: parseFloat(formData.laborCost),
           materialsCost: parseFloat(formData.materialsCost),
+          estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
           description: formData.workDetails.trim(),
           workDetails: formData.workDetails.trim() || null,
           attachments: attachmentUrls,
-          providerAvailabilities: formData.providerAvailabilities.filter(avail =>
-            avail.date && avail.startTime && avail.endTime
-          )
+          providerAvailabilities: formData.providerAvailabilities
+            .filter(avail => avail.date && avail.startTime)
+            .map(avail => ({
+              ...avail,
+              endTime: calculateEndTime(avail.startTime)
+            }))
         })
       })
 
@@ -397,6 +445,30 @@ export function QuoteSubmissionForm({
                       className={`h-11 ${getInputClasses('materialsCost')}`}
                     />
                     {renderFieldFeedback('materialsCost')}
+                  </div>
+
+                  {/* Durée estimée */}
+                  <div className="space-y-2">
+                    <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Durée estimée (heures) *
+                    </Label>
+                    <Input
+                      id="estimatedDurationHours"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="168"
+                      value={formData.estimatedDurationHours}
+                      onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
+                      placeholder="1"
+                      required
+                      className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
+                    />
+                    {renderFieldFeedback('estimatedDurationHours')}
+                    <p className="text-xs text-slate-500">
+                      Estimation du temps nécessaire pour réaliser l'intervention
+                    </p>
                   </div>
 
                 </div>
@@ -555,7 +627,7 @@ export function QuoteSubmissionForm({
                 <div className="space-y-3">
                   {formData.providerAvailabilities.map((avail, index) => (
                     <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <div>
                           <Label className="text-sm font-medium text-slate-700">Date</Label>
                           <Input
@@ -574,15 +646,12 @@ export function QuoteSubmissionForm({
                             onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
                             className="mt-1"
                           />
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-slate-700">Heure fin</Label>
-                          <Input
-                            type="time"
-                            value={avail.endTime}
-                            onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
-                            className="mt-1"
-                          />
+                          {avail.startTime && formData.estimatedDurationHours && (
+                            <div className="mt-2 text-xs text-slate-600 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              Fin estimée: {calculateEndTime(avail.startTime)}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <Button

@@ -16,7 +16,8 @@ import { ChatsCard } from "@/components/intervention/chats-card"
 import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
 import { ProviderAvailabilitySelection } from "@/components/intervention/provider-availability-selection"
 import { TenantAvailabilityInput } from "@/components/intervention/tenant-availability-input"
-import { InterventionActionPanel } from "@/components/intervention/intervention-action-panel"
+import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
+import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { interventionService } from "@/lib/database-service"
 
 interface InterventionDetailsProps {
@@ -293,55 +294,60 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     }
   }
 
+  const handleBack = () => {
+    router.back()
+  }
+
+  const handleArchive = () => {
+    // Pas d'archivage pour les locataires
+    console.log('Archive not available for tenants')
+  }
+
+  const handleStatusAction = (action: string) => {
+    // Actions gérées par le panel d'actions
+    console.log('Status action:', action)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour aux interventions
-            </Button>
-            <div className="flex items-center space-x-2">
-              <Badge className={getStatusColor(intervention.status)}>{getStatusLabel(intervention.status)}</Badge>
-              <Badge className={getUrgencyColor(intervention.urgency)}>{getUrgencyLabel(intervention.urgency)}</Badge>
-              <Button variant="outline" size="sm">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Ouvrir le chat
-              </Button>
-            </div>
-          </div>
+      {/* Header unifié */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: `INT-${intervention.id.slice(-8)}`, // Générer une référence
+          status: getStatusLabel(intervention.status),
+          urgency: getUrgencyLabel(intervention.urgency),
+          createdAt: intervention.createdAt,
+          createdBy: "Vous",
+          lot: {
+            reference: intervention.logement.name,
+            building: {
+              name: intervention.logement.building
+            }
+          }
+        }}
+        onBack={handleBack}
+        onArchive={handleArchive}
+        onStatusAction={handleStatusAction}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: user?.id,
+              scheduled_date: intervention.planning?.scheduledDate
+            }}
+            userRole="locataire"
+            userId={user?.id || ''}
+            onActionComplete={refreshIntervention}
+          />
+        }
+      />
 
-          <div className="flex items-center space-x-3 mb-2">
-            <Building2 className="h-6 w-6 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">{intervention.title}</h1>
-          </div>
-
-          <p className="text-gray-600 mb-4">
-            {intervention.logement.building} • {intervention.logement.name}
-          </p>
-
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full">
-              <User className="h-4 w-4 text-gray-600" />
-              <span className="text-sm text-gray-700">Demandeur: Vous</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full">
-              <CalendarDays className="h-4 w-4 text-gray-600" />
-              <span className="text-sm text-gray-700">
-                Créée le:{" "}
-                {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
@@ -452,19 +458,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
               </>
             )}
 
-            {/* Panel d'actions pour le locataire */}
-            <InterventionActionPanel
-              intervention={{
-                id: intervention.id,
-                title: intervention.title,
-                status: intervention.status,
-                tenant_id: user?.id,
-                scheduled_date: intervention.planning?.scheduledDate
-              }}
-              userRole="locataire"
-              userId={user?.id || ''}
-              onActionComplete={refreshIntervention}
-            />
+            
 
             {/* Afficher toutes les disponibilités si pas en planification/planifiee et qu'il y en a */}
             {!showModifyAvailabilities && intervention.status !== "planification" && intervention.status !== "planifiee" && intervention.availabilities.length > 0 && (

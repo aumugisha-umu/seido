@@ -35,7 +35,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
 import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
-import { InterventionActionPanel } from "@/components/intervention/intervention-action-panel"
+import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 
 // Fonctions utilitaires pour gérer les interventions lot vs bâtiment
 const getInterventionLocationText = (intervention: InterventionDetail): string => {
@@ -565,7 +565,21 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         onBack={handleBack}
         onArchive={handleArchive}
         onStatusAction={handleStatusAction}
-        displayMode="buttons"
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: intervention.tenant?.id,
+              scheduled_date: intervention.scheduledDate
+            }}
+            userRole="gestionnaire"
+            userId={user?.id || ""}
+            onActionComplete={fetchInterventionData}
+          />
+        }
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1081,20 +1095,6 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
         {/* Colonne latérale */}
         <div className="space-y-6">
-          {/* Panel d'actions */}
-          <InterventionActionPanel
-            intervention={{
-              id: intervention.id,
-              title: intervention.title,
-              status: intervention.status,
-              tenant_id: intervention.tenant?.id,
-              scheduled_date: intervention.scheduledDate
-            }}
-            userRole="gestionnaire"
-            userId={user?.id || ""}
-            onActionComplete={fetchInterventionData}
-          />
-
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">

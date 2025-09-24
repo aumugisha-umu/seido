@@ -5,7 +5,7 @@ import { ArrowLeft, Building2, User, MessageSquare, Calendar, FileText, Euro, Pl
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"

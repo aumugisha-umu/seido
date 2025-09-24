@@ -94,6 +94,15 @@ export function filterAvailabilitiesByQuoteStatus(
     providerQuoteStatus.get(quote.providerId)!.add(quote.status)
   })
 
+  // Debug log pour tracer les statuts des prestataires
+  console.log('🔧 [FILTER-DEBUG] Provider quote statuses:', {
+    totalProviders: providerQuoteStatus.size,
+    providerStatuses: Array.from(providerQuoteStatus.entries()).map(([providerId, statuses]) => ({
+      providerId,
+      statuses: Array.from(statuses)
+    }))
+  })
+
   // Filtrer les disponibilités
   return availabilities.filter(availability => {
     // Inclure toujours les disponibilités des non-prestataires
@@ -110,11 +119,14 @@ export function filterAvailabilitiesByQuoteStatus(
 
     // Si le prestataire n'a pas de devis, inclure ses disponibilités
     if (!providerStatuses || providerStatuses.size === 0) {
+      console.log(`⚠️ [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no quotes but has availabilities - INCLUDED`)
       return true
     }
 
     // Inclure si le prestataire a au moins un devis non-rejeté
-    return providerStatuses.has('pending') || providerStatuses.has('approved')
+    const shouldInclude = providerStatuses.has('pending') || providerStatuses.has('approved')
+    console.log(`🔍 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) - Statuses: [${Array.from(providerStatuses).join(', ')}] - ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`)
+    return shouldInclude
   })
 }
 

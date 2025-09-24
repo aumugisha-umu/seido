@@ -76,6 +76,19 @@ export function UserAvailabilitiesDisplay({
     return baseFiltered
   }, [filteredByQuotes, filterRole])
 
+  // Debug log pour tracer le filtrage des disponibilités
+  console.log('🔍 [AVAILABILITY-DEBUG] Filtering results:', {
+    original: availabilities.length,
+    filteredByQuotes: filteredByQuotes.length,
+    finalFiltered: filteredAvailabilities.length,
+    filterRole: filterRole || 'none',
+    excludedProviders: filterState?.excludedProviders || [],
+    details: {
+      original: availabilities.map(a => ({ userId: a.userId, person: a.person, role: a.role })),
+      finalFiltered: filteredAvailabilities.map(a => ({ userId: a.userId, person: a.person, role: a.role }))
+    }
+  })
+
   // Calculer si toutes les disponibilités ont été filtrées
   const allFilteredOut = availabilities.length > 0 && filteredAvailabilities.length === 0
   const someFilteredByQuotes = filterState && filterState.excludedAvailabilities > 0
@@ -85,10 +98,10 @@ export function UserAvailabilitiesDisplay({
     return null
   }
 
-  // Grouper les disponibilités par personne et rôle
+  // Grouper les disponibilités par personne et rôle (en utilisant userId pour éviter les collisions)
   const groupedAvailabilities = useMemo(() => {
     return filteredAvailabilities.reduce((acc, availability) => {
-      const key = `${availability.person}-${availability.role}`
+      const key = availability.userId ? `${availability.userId}-${availability.role}` : `${availability.person}-${availability.role}`
       if (!acc[key]) {
         acc[key] = {
           person: availability.person,
@@ -106,6 +119,18 @@ export function UserAvailabilitiesDisplay({
       slots: UserAvailability[]
     }>)
   }, [filteredAvailabilities])
+
+  // Debug log pour tracer le groupement des disponibilités
+  console.log('👥 [GROUPING-DEBUG] Grouped availabilities:', {
+    totalGroups: Object.keys(groupedAvailabilities).length,
+    groups: Object.entries(groupedAvailabilities).map(([key, group]) => ({
+      key,
+      userId: group.userId,
+      person: group.person,
+      role: group.role,
+      slotCount: group.slots.length
+    }))
+  })
 
   // Déterminer le titre par défaut selon le contexte
   const defaultTitle = filterRole

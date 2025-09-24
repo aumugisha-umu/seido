@@ -242,18 +242,21 @@ export async function POST(request: NextRequest) {
     if (providerAvailabilities && providerAvailabilities.length > 0) {
       console.log("📅 Saving provider availabilities:", providerAvailabilities.length)
 
-      // Remove existing availabilities for this provider/quote combination
-      // This preserves other availabilities but removes ones for this specific quote
+      // Strategy: Remove existing availabilities for this provider/quote_request combination
+      // This way we preserve availabilities from other quote requests by the same provider
+      // but ensure we don't duplicate availabilities for the same quote submission
       const { error: deleteError } = await supabase
         .from('user_availabilities')
         .delete()
         .eq('user_id', user.id)
         .eq('intervention_id', interventionId)
-        .eq('quote_request_id', quoteRequest.id)
+        .or(`quote_id.eq.${quote.id},and(quote_request_id.eq.${quoteRequest.id},quote_id.is.null)`)
 
       if (deleteError) {
-        console.warn("⚠️ Could not delete existing provider availabilities:", deleteError)
+        console.warn("⚠️ Could not delete existing provider availabilities for this quote submission:", deleteError)
         // Don't fail the quote submission for this
+      } else {
+        console.log("✅ Cleaned up existing availabilities for this provider/quote combination")
       }
 
       // Insert new availabilities linked to both quote and quote request
@@ -273,9 +276,10 @@ export async function POST(request: NextRequest) {
 
       if (availError) {
         console.warn("⚠️ Could not save provider availabilities:", availError)
+        console.warn("⚠️ Availability data that failed to insert:", availabilityData)
         // Don't fail the quote submission for this
       } else {
-        console.log("✅ Provider availabilities saved successfully and linked to quote:", quote.id)
+        console.log(`✅ ${availabilityData.length} provider availabilities saved successfully for quote:`, quote.id)
       }
     } else {
       console.log("ℹ️ No provider availabilities provided with quote submission")

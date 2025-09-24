@@ -459,6 +459,23 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       console.log('✅ Quote requests created:', requests.length)
       setQuoteRequests(requests)
 
+      // Debug log pour tracer les disponibilités récupérées
+      console.log('📊 [MANAGER-DEBUG] Total availabilities mapped:', {
+        count: interventionData.user_availabilities?.length || 0,
+        byUser: interventionData.user_availabilities?.reduce((acc, avail) => {
+          const key = `${avail.user.name} (${avail.user.id})`
+          acc[key] = (acc[key] || 0) + 1
+          return acc
+        }, {}) || {},
+        details: interventionData.user_availabilities?.map(avail => ({
+          userId: avail.user.id,
+          userName: avail.user.name,
+          role: avail.user.role,
+          date: avail.date,
+          time: `${avail.start_time}-${avail.end_time}`
+        })) || []
+      })
+
       console.log('✅ Transformed intervention data:', transformedIntervention)
       setIntervention(transformedIntervention)
 

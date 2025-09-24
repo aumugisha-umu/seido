@@ -542,7 +542,6 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
               quotes={intervention.quotes}
               userContext="prestataire"
               onCancel={quoteCancellation.handleCancelRequest}
-              onSubmitQuote={() => setIsQuoteModalOpen(true)}
               onDownloadAttachment={(attachment) => {
                 console.log('Download attachment:', attachment)
                 // TODO: Implémenter le téléchargement des pièces jointes

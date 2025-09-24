@@ -53,6 +53,7 @@ interface InterventionActionPanelHeaderProps {
   onActionComplete?: () => void
   onOpenQuoteModal?: () => void
   onCancelQuote?: (quoteId: string) => void
+  onCancelIntervention?: () => void
 }
 
 interface ActionConfig {
@@ -71,7 +72,8 @@ export function InterventionActionPanelHeader({
   userId,
   onActionComplete,
   onOpenQuoteModal,
-  onCancelQuote
+  onCancelQuote,
+  onCancelIntervention
 }: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -397,7 +399,7 @@ export function InterventionActionPanelHeader({
     }
 
     // Actions communes disponibles selon le contexte
-    if (['approuvee', 'planification', 'planifiee', 'en_cours'].includes(intervention.status)) {
+    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(intervention.status)) {
       if (userRole === 'gestionnaire') {
         actions.push({
           key: 'cancel',
@@ -418,6 +420,12 @@ export function InterventionActionPanelHeader({
     setSelectedAction(action)
     setComment('')
     setError(null)
+
+    // Cas spécial pour l'annulation avec callback personnalisé
+    if (action.key === 'cancel' && onCancelIntervention) {
+      executeAction(action.key)
+      return
+    }
 
     if (action.requiresComment || action.confirmationMessage) {
       setShowConfirmDialog(true)
@@ -449,7 +457,10 @@ export function InterventionActionPanelHeader({
             id: intervention.id,
             title: intervention.title,
             status: intervention.status
-          }, comment)
+          }, {
+            action: "reject",
+            rejectionReason: comment
+          })
           break
 
         case 'request_quotes':
@@ -522,11 +533,18 @@ export function InterventionActionPanelHeader({
           return
 
         case 'cancel':
-          result = await interventionActionsService.cancelIntervention({
-            id: intervention.id,
-            title: intervention.title,
-            status: intervention.status
-          }, comment)
+          // Utiliser le callback personnalisé si fourni, sinon utiliser l'ancien système
+          if (onCancelIntervention) {
+            onCancelIntervention()
+            return
+          } else {
+            // Fallback vers l'ancien système
+            result = await interventionActionsService.cancelIntervention({
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status
+            }, { cancellationReason: comment })
+          }
           break
 
         default:

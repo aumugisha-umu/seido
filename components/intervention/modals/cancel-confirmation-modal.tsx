@@ -37,6 +37,14 @@ export const CancelConfirmationModal = ({
   const handleConfirm = () => {
     if (isFormValid) {
       onConfirm()
+    } else {
+      // Forcer l'affichage de l'erreur si le formulaire n'est pas valide
+      console.log('Form validation failed:', { 
+        cancellationReason, 
+        trimmed: cancellationReason.trim(), 
+        length: cancellationReason.trim().length,
+        isFormValid 
+      })
     }
   }
 
@@ -47,7 +55,6 @@ export const CancelConfirmationModal = ({
       onConfirm={handleConfirm}
       intervention={intervention}
       title="Confirmer l'annulation"
-      message="Pourquoi annulez-vous cette intervention ? Cette raison sera communiquée au locataire et au prestataire si déjà assigné."
       confirmText="Confirmer l'annulation"
       confirmVariant="reject"
       isLoading={isLoading}
@@ -124,6 +131,7 @@ export const CancelConfirmationModal = ({
             </div>
           </div>
         )}
+
       </div>
     </BaseConfirmationModal>
   )

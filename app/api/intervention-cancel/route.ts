@@ -17,8 +17,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`🚫 API: Cancelling intervention ${interventionId}`)
 
-    // Validation des données
+    // Validation des données avec logs de debug
+    console.log('🔍 [API-CANCEL] Validation check:', {
+      interventionId,
+      cancellationReason,
+      trimmed: cancellationReason?.trim(),
+      length: cancellationReason?.trim()?.length
+    })
+    
     if (!interventionId || !cancellationReason?.trim()) {
+      console.log('❌ [API-CANCEL] Validation failed:', {
+        hasInterventionId: !!interventionId,
+        hasCancellationReason: !!cancellationReason,
+        trimmedLength: cancellationReason?.trim()?.length || 0
+      })
       return NextResponse.json(
         { success: false, error: "ID d'intervention et motif d'annulation requis" },
         { status: 400 }

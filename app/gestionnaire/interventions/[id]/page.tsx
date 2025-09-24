@@ -14,62 +14,29 @@ import {
   Mail,
   Eye,
   Download,
-  Edit,
   User,
-  CalendarDays,
   UserPlus,
   UserMinus,
   ChevronDown,
   ChevronRight,
   Receipt,
-  Check,
-  X,
+  Settings,
+  PlayCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
+import { useInterventionCancellation } from "@/hooks/use-intervention-cancellation"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
 import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
-
-// Fonctions utilitaires pour gérer les interventions lot vs bâtiment
-const getInterventionLocationText = (intervention: InterventionDetail): string => {
-  if (intervention.lot) {
-    return intervention.lot.building
-      ? `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
-      : `Lot indépendant ${intervention.lot.reference}`
-  } else if (intervention.building) {
-    return `Bâtiment entier - ${intervention.building.name}`
-  }
-  return "Localisation non spécifiée"
-}
-
-const getInterventionLocationShort = (intervention: InterventionDetail): string => {
-  if (intervention.lot) {
-    return `Lot ${intervention.lot.reference}`
-  } else if (intervention.building) {
-    return "Bâtiment entier"
-  }
-  return "Non spécifié"
-}
-
-const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
-  return !!(intervention.building && !intervention.lot)
-}
-
-// Fonction utilitaire pour formater la taille des fichiers
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
+import { CancelConfirmationModal } from "@/components/intervention/modals/cancel-confirmation-modal"
 
 // Types basés sur la structure de la base de données
 interface DatabaseContact {
@@ -77,11 +44,11 @@ interface DatabaseContact {
   name: string
   email: string
   phone: string | null
-  role: string // ✅ Champ principal 
-  provider_category?: string // ✅ Champ secondaire
+  role: string
+  provider_category?: string
   company?: string | null
   speciality?: string | null
-  inChat?: boolean // Ajouté pour la fonctionnalité chat
+  inChat?: boolean
 }
 
 interface InterventionDetail {
@@ -98,7 +65,6 @@ interface InterventionDetail {
   scheduledDate?: string
   estimatedCost?: number
   finalCost?: number
-  // Support des interventions lot ET bâtiment
   lot?: {
     id: string
     reference: string
@@ -143,7 +109,6 @@ interface InterventionDetail {
     syndics: DatabaseContact[]
     autres: DatabaseContact[]
   }
-  // Données statiques pour maintenir la compatibilité avec l'UI existante
   scheduling: {
     type: "fixed" | "slots" | "tbd"
     fixedDate?: string
@@ -200,6 +165,28 @@ interface InterventionDetail {
   }>
 }
 
+// Fonctions utilitaires
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+const getInterventionLocationShort = (intervention: InterventionDetail): string => {
+  if (intervention.lot) {
+    return `Lot ${intervention.lot.reference}`
+  } else if (intervention.building) {
+    return "Bâtiment entier"
+  }
+  return "Non spécifié"
+}
+
+const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
+  return !!(intervention.building && !intervention.lot)
+}
+
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
@@ -207,12 +194,36 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("general")
 
-  const [expandedCategories, setExpandedCategories] = useState({
-    locataires: true, // Locataires visible par défaut
-    syndics: false, // Autres catégories cachées par défaut
-    autres: false,
-  })
+  // Hook pour la gestion de l'annulation
+  const cancellation = useInterventionCancellation()
+
+  // Fonctions de gestion pour le header
+  const handleBack = () => {
+    router.push('/gestionnaire/interventions')
+  }
+
+  const handleArchive = () => {
+    console.log('Archive intervention:', intervention?.id)
+    // TODO: Implémenter la logique d'archivage
+  }
+
+  const handleStatusAction = (action: string) => {
+    console.log('Status action:', action, 'for intervention:', intervention?.id)
+    // TODO: Implémenter les actions selon le statut
+  }
+
+  const handleCancelIntervention = () => {
+    if (intervention) {
+      cancellation.handleCancellationAction({
+        id: intervention.id,
+        title: intervention.title,
+        status: intervention.status,
+        type: intervention.type
+      })
+    }
+  }
 
   // Fonction pour récupérer les données réelles depuis la DB
   const fetchInterventionData = async () => {
@@ -444,7 +455,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur de chargement</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => fetchInterventionData()} variant="outline">
+          <Button onClick={() => window.location.reload()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Réessayer
           </Button>
@@ -462,94 +473,16 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour
           </Button>
         </div>
       </div>
     )
   }
 
-
-  const findCommonSlots = () => {
-    if (intervention.scheduling.type !== "slots" || !intervention.availabilities.length) {
-      return []
-    }
-
-    const commonSlots = []
-    for (const slot of intervention.scheduling.slots || []) {
-      const availablePeople = []
-
-      for (const availability of intervention.availabilities) {
-        if (slot.date === availability.date) {
-          const slotStart = new Date(`${slot.date}T${slot.startTime}:00`)
-          const slotEnd = new Date(`${slot.date}T${slot.endTime}:00`)
-          const availStart = new Date(`${availability.date}T${availability.startTime}:00`)
-          const availEnd = new Date(`${availability.date}T${availability.endTime}:00`)
-
-          if (availStart <= slotStart && availEnd >= slotEnd) {
-            availablePeople.push({
-              name: availability.person,
-              role: availability.role,
-            })
-          }
-        }
-      }
-
-      if (availablePeople.length > 1) {
-        commonSlots.push({
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          availablePeople,
-        })
-      }
-    }
-    return commonSlots
-  }
-
-  const commonSlots = findCommonSlots()
-
-  const toggleContactInChat = (category: keyof typeof intervention.contacts, contactId: string) => {
-    if (!intervention) return
-
-    setIntervention((prev) => {
-      if (!prev) return prev
-
-      const updatedContacts = { ...prev.contacts }
-      updatedContacts[category] = updatedContacts[category].map((contact) =>
-        contact.id === contactId ? { ...contact, inChat: !contact.inChat } : contact,
-      )
-
-      return {
-        ...prev,
-        contacts: updatedContacts,
-      }
-    })
-  }
-
-  const toggleCategory = (category: keyof typeof expandedCategories) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }))
-  }
-
-  const handleBack = () => {
-    router.push('/gestionnaire/interventions')
-  }
-
-  const handleArchive = () => {
-    console.log('Archive intervention:', intervention.id)
-    // TODO: Implémenter la logique d'archivage
-  }
-
-  const handleStatusAction = (action: string) => {
-    console.log('Status action:', action, 'for intervention:', intervention.id)
-    // TODO: Implémenter les actions selon le statut
-  }
-
   return (
-    <div>
-      {/* Header amélioré */}
+    <>
+      {/* Header amélioré avec InterventionDetailHeader */}
       <InterventionDetailHeader
         intervention={{
           id: intervention.id,
@@ -578,15 +511,70 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             userRole="gestionnaire"
             userId={user?.id || ""}
             onActionComplete={fetchInterventionData}
+            onCancelIntervention={handleCancelIntervention}
           />
         }
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-100">
+            <TabsTrigger
+              value="general"
+              className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Général</span>
+              <span className="sm:hidden">Général</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="devis"
+              className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
+            >
+              <Receipt className="h-4 w-4" />
+              <span className="hidden sm:inline">Devis</span>
+              <span className="sm:hidden">Devis</span>
+              {intervention.quotes && intervention.quotes.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
+                  {intervention.quotes.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="execution"
+              className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
+            >
+              <PlayCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Exécution</span>
+              <span className="sm:hidden">Exécution</span>
+              {intervention.attachments && intervention.attachments.length > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
+                  {intervention.attachments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="conversations"
+              className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Conversations</span>
+              <span className="sm:hidden">Messages</span>
+              {(intervention.contacts.locataires.length + intervention.contacts.syndics.length + intervention.contacts.autres.length) > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
+                  {intervention.contacts.locataires.length + intervention.contacts.syndics.length + intervention.contacts.autres.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="py-8">
+            {/* Tab Content: Général */}
+            <TabsContent value="general" className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Colonne principale */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Détails de l'intervention */}
+                {/* Colonne principale - Détails de l'intervention */}
+                <div className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">
@@ -594,493 +582,109 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 <span>Détails de l'intervention</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                <p className="text-gray-700">{intervention.description}</p>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-gray-900 text-sm">Description</h4>
+                        <p className="text-gray-700 text-base leading-relaxed">{intervention.description}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Type</h4>
-                  <p className="text-gray-700">{intervention.type}</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <h4 className="font-medium text-gray-900 text-sm">Type d'intervention</h4>
+                          <p className="text-gray-700 text-base">{intervention.type}</p>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Priorité</h4>
-                  <span className="text-gray-700">{intervention.urgency}</span>
+                        <div className="space-y-1">
+                          <h4 className="font-medium text-gray-900 text-sm">Priorité</h4>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              intervention.urgency === 'haute' ? 'bg-red-500' : 
+                              intervention.urgency === 'moyenne' ? 'bg-yellow-500' : 'bg-green-500'
+                            }`}></div>
+                            <span className="text-gray-700 text-base capitalize">{intervention.urgency}</span>
+                          </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+                </div>
 
-          {/* Logement concerné */}
+                {/* Colonne latérale - Contacts */}
+                <div className="space-y-6">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">
-                <MapPin className="h-5 w-5 text-green-600" />
-                <span>Localisation</span>
+                        <Users className="h-5 w-5 text-purple-600" />
+                        <span>Contacts</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    {isBuildingWideIntervention(intervention) ? (
-                      <Building2 className="h-4 w-4 text-blue-600" />
-                    ) : (
-                      <MapPin className="h-4 w-4 text-blue-600" />
-                    )}
-                    <h4 className="font-medium text-gray-900">
-                      {getInterventionLocationShort(intervention)}
-                    </h4>
-                    {isBuildingWideIntervention(intervention) && (
-                      <Badge variant="secondary" className="text-xs">
-                        Bâtiment entier
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {intervention.lot ? (
-                    <>
-                      <p className="text-gray-600">
-                        {intervention.lot.building
-                          ? `${intervention.lot.building.address}, ${intervention.lot.building.city} ${intervention.lot.building.postal_code}`
-                          : "Lot indépendant"
-                        }
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {intervention.lot.building?.name || `Lot ${intervention.lot.reference}`}
-                      </p>
-                      {intervention.lot.floor && (
-                        <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
-                      )}
-                      {intervention.lot.apartment_number && (
-                        <p className="text-sm text-gray-500">Appartement {intervention.lot.apartment_number}</p>
-                      )}
-                    </>
-                  ) : intervention.building ? (
-                    <>
-                      <p className="text-gray-600">
-                        {intervention.building.address}, {intervention.building.city} {intervention.building.postal_code}
-                      </p>
-                      <p className="text-sm text-gray-500">{intervention.building.name}</p>
-                      <p className="text-sm text-yellow-600 font-medium">
-                        Intervention sur l'ensemble du bâtiment
-                      </p>
-                    </>
-                  ) : null}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (intervention.lot) {
-                      router.push(`/gestionnaire/biens/lots/${intervention.lot.id}`)
-                    } else if (intervention.building) {
-                      router.push(`/gestionnaire/biens/immeubles/${intervention.building.id}`)
-                    }
-                  }}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {isBuildingWideIntervention(intervention) ? "Voir le bâtiment" : "Voir le lot"}
-                </Button>
-              </div>
-
-              {intervention.contacts.locataires.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("locataires")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      <span>Locataires ({intervention.contacts.locataires.length})</span>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                        Participants par défaut
-                      </Badge>
-                    </h5>
-                    {expandedCategories.locataires ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.locataires && (
-                    <div className="space-y-2">
+                    <CardContent>
+                      <div className="space-y-3">
+                        {/* Locataires */}
                       {intervention.contacts.locataires.map((contact) => (
-                        <div
-                          key={contact.id}
-                          className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
-                        >
-                          {/* ... existing contact content ... */}
+                          <div key={contact.id} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                               <User className="h-4 w-4 text-blue-600" />
                             </div>
-                            <div>
-                              <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("locataires", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{contact.name}</p>
+                                <p className="text-xs text-blue-600">Locataire</p>
+                                <p className="text-xs text-gray-500 truncate">{contact.email}</p>
                             </div>
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
-
-              {intervention.contacts.syndics.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("syndics")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <Users className="h-4 w-4 text-orange-600" />
-                      <span>Syndics ({intervention.contacts.syndics.length})</span>
-                    </h5>
-                    {expandedCategories.syndics ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.syndics && (
-                    <div className="space-y-2">
+                        {/* Syndics */}
                       {intervention.contacts.syndics.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          {/* ... existing contact content ... */}
+                          <div key={contact.id} className="p-3 bg-orange-50 rounded-lg border border-orange-200">
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                               <Users className="h-4 w-4 text-orange-600" />
                             </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                                {contact.company && (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-orange-50 text-orange-700 border-orange-200 text-xs"
-                                  >
-                                    {contact.company}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("syndics", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{contact.name}</p>
+                                <p className="text-xs text-orange-600">Syndic</p>
+                                <p className="text-xs text-gray-500 truncate">{contact.email}</p>
                             </div>
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {intervention.contacts.autres.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("autres")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-600" />
-                      <span>Autres contacts ({intervention.contacts.autres.length})</span>
-                    </h5>
-                    {expandedCategories.autres ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.autres && (
-                    <div className="space-y-2">
+                        {/* Autres contacts */}
                       {intervention.contacts.autres.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          {/* ... existing contact content ... */}
+                          <div key={contact.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                               <User className="h-4 w-4 text-gray-600" />
                             </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                                <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  {contact.role && contact.provider_category !== undefined ? 
-                                    (() => {
-                                      const type = determineAssignmentType({
-                                        id: contact.id,
-                                        role: contact.role,
-                                        provider_category: contact.provider_category
-                                      })
-                                      const labels: Record<string, string> = {
-                                        tenant: 'Locataire',
-                                        manager: 'Gestionnaire',
-                                        provider: 'Prestataire',
-                                        syndic: 'Syndic',
-                                        notary: 'Notaire',
-                                        insurance: 'Assurance',
-                                        other: 'Autre'
-                                      }
-                                      return labels[type] || type
-                                    })() 
-                                    : 'N/A' // ✅ Plus besoin de contact_type
-                                  }
-                                </Badge>
-                              </div>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("autres", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{contact.name}</p>
+                                <p className="text-xs text-gray-600">{contact.role}</p>
+                                <p className="text-xs text-gray-500 truncate">{contact.email}</p>
                             </div>
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Personnes assignées */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="h-5 w-5 text-purple-600" />
-                <span>Personnes assignées</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Gestionnaire assigné */}
-                {intervention.manager && (
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-gray-900">{intervention.manager.name}</h4>
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            Gestionnaire
-                          </Badge>
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3" />
-                            <span>{intervention.manager.email}</span>
-                          </span>
-                          {intervention.manager.phone && (
-                            <span className="flex items-center space-x-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{intervention.manager.phone}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Prestataire assigné */}
-                {intervention.assignedContact && (
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <Users className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-gray-900">{intervention.assignedContact.name}</h4>
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            Prestataire
-                          </Badge>
-                          {intervention.assignedContact.speciality && (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-600">
-                              {intervention.assignedContact.speciality}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3" />
-                            <span>{intervention.assignedContact.email}</span>
-                          </span>
-                          {intervention.assignedContact.phone && (
-                            <span className="flex items-center space-x-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{intervention.assignedContact.phone}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!intervention.manager && !intervention.assignedContact && (
-                  <div className="text-center py-4 text-gray-500">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p>Aucune personne assignée pour le moment</p>
+                        {/* Message si aucun contact */}
+                        {intervention.contacts.locataires.length === 0 && 
+                         intervention.contacts.syndics.length === 0 && 
+                         intervention.contacts.autres.length === 0 && (
+                          <div className="text-center py-6 text-gray-500">
+                            <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">Aucun contact assigné</p>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
-
-          {/* Instructions */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5 text-orange-600" />
-                <span>Instructions communiquées</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {intervention.instructions.type === "group" ? (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Message au groupe</h4>
-                  <p className="text-blue-800">{intervention.instructions.groupMessage}</p>
-                  <p className="text-xs text-blue-600 mt-2">Ces instructions ne sont pas vues par le locataire</p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900">Messages individuels</h4>
-                  {intervention.instructions.individualMessages?.map((msg, index) => {
-                    // Rechercher le contact dans les assignés (manager ou prestataire)
-                    let contact = null
-                    if (intervention.manager && intervention.manager.id === msg.contactId) {
-                      contact = intervention.manager
-                    } else if (intervention.assignedContact && intervention.assignedContact.id === msg.contactId) {
-                      contact = intervention.assignedContact
-                    }
-                    
-                    return (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                        <h5 className="font-medium text-gray-900 mb-1">Pour {contact?.name || 'Contact non trouvé'}</h5>
-                        <p className="text-gray-700">{msg.message}</p>
                       </div>
-                    )
-                  })}
-                  <p className="text-xs text-gray-500">Seule la personne concernée peut voir ses instructions</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </TabsContent>
 
-          {/* Devis - Composant intégré */}
+            {/* Tab Content: Devis */}
+            <TabsContent value="devis" className="space-y-6">
           <IntegratedQuotesSection
             quotes={intervention.quotes}
             userContext="gestionnaire"
@@ -1091,10 +695,12 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             }}
             showActions={true}
           />
-        </div>
+            </TabsContent>
 
-        {/* Colonne latérale */}
-        <div className="space-y-6">
+            {/* Tab Content: Exécution */}
+            <TabsContent value="execution" className="space-y-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* Planification & Disponibilités */}
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">
@@ -1115,60 +721,6 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              {intervention.scheduling.type === "slots" && (
-                <div className="space-y-4">
-                  {/* Common slots highlighted */}
-                  {commonSlots.length > 0 && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-medium text-green-900 mb-2 flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <span>Créneaux en commun</span>
-                      </h4>
-                      <div className="space-y-2">
-                        {commonSlots.map((slot, index) => (
-                          <div key={index} className="space-y-1">
-                            <div className="text-sm text-green-800 font-medium">
-                              {new Date(slot.date).toLocaleDateString("fr-FR")} de {slot.startTime} à {slot.endTime}
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {slot.availablePeople.map((person, personIndex) => (
-                                <span
-                                  key={personIndex}
-                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800"
-                                >
-                                  {person.name} ({person.role})
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Proposed slots */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Créneaux proposés</h4>
-                    <div className="space-y-1">
-                      {intervention.scheduling.slots?.map((slot, index) => (
-                        <div key={index} className="p-2 bg-blue-50 rounded text-sm flex items-center space-x-2">
-                          <Calendar className="h-3 w-3 text-blue-600" />
-                          <span className="text-blue-800">
-                            {new Date(slot.date).toLocaleDateString("fr-FR")} de {slot.startTime} à {slot.endTime}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <UserAvailabilitiesDisplay
-                    availabilities={intervention.availabilities}
-                    userRole="gestionnaire"
-                    showCard={false}
-                  />
-                </div>
-              )}
-
               {intervention.scheduling.type === "tbd" && (
                 <div className="p-3 bg-yellow-50 rounded-lg">
                   <h4 className="font-medium text-yellow-900">Horaire à définir</h4>
@@ -1181,134 +733,18 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                   />
                 </div>
               )}
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5 text-green-600" />
-                <span>Chats en cours</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Conversation de groupe */}
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-green-900 flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span>Conversation de groupe</span>
-                  </h4>
-                  <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs">
-                    3 participants
-                  </Badge>
+                    {intervention.availabilities.length === 0 && intervention.scheduling.type === "tbd" && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg font-medium mb-2">Aucune disponibilité renseignée</p>
+                        <p className="text-sm">Les disponibilités apparaîtront ici une fois communiquées</p>
                 </div>
-                <p className="text-sm text-green-800 mb-2">
-                  Dernier message: "J'arrive dans 10 minutes" - Thomas Blanc
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-green-600">Il y a 5 minutes</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-green-700 border-green-300 hover:bg-green-100 bg-transparent"
-                  >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Ouvrir
-                  </Button>
-                </div>
-              </div>
-
-              {/* Conversations individuelles */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900 text-sm">Conversations individuelles</h4>
-
-                {/* Chat avec Jean Martin */}
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-blue-600" />
-                      </div>
-                      <span className="font-medium text-blue-900 text-sm">Jean Martin</span>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                        Locataire
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-blue-800 mb-2">"Merci pour l'intervention rapide !"</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-blue-600">Il y a 2 heures</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-blue-700 border-blue-300 hover:bg-blue-100 bg-transparent"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Répondre
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Chat avec Thomas Blanc */}
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-purple-600" />
-                      </div>
-                      <span className="font-medium text-purple-900 text-sm">Thomas Blanc</span>
-                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs">
-                        Prestataire
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-purple-800 mb-2">"Intervention terminée, tout est réparé"</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-purple-600">Il y a 1 heure</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-purple-700 border-purple-300 hover:bg-purple-100 bg-transparent"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Répondre
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Chat avec Marie Dubois */}
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-gray-600" />
-                      </div>
-                      <span className="font-medium text-gray-900 text-sm">Marie Dubois</span>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                        Gestionnaire
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-800 mb-2">"Notes internes: Vérifier la facture"</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">Il y a 30 minutes</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-gray-700 border-gray-300 hover:bg-gray-100 bg-transparent"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Répondre
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                    )}
             </CardContent>
           </Card>
 
           {/* Fichiers joints */}
-          {intervention.attachments.length > 0 && (
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center space-x-2">
@@ -1317,6 +753,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                    {intervention.attachments.length > 0 ? (
                 <div className="space-y-2">
                   {intervention.attachments.map((file, index) => (
                     <div key={file.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -1354,13 +791,74 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
                     </div>
                   ))}
                 </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg font-medium mb-2">Aucun fichier joint</p>
+                        <p className="text-sm">Les documents liés à l'intervention apparaîtront ici</p>
+                      </div>
+                    )}
               </CardContent>
             </Card>
-          )}
-        </div>
-        </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab Content: Conversations */}
+            <TabsContent value="conversations" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Conversation de groupe */}
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center space-x-2">
+                      <Users className="h-5 w-5 text-green-600" />
+                      <span>Conversation de groupe</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8 text-gray-500">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium mb-2">Fonctionnalité à venir</p>
+                      <p className="text-sm">La messagerie de groupe sera disponible prochainement</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Conversations individuelles */}
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center space-x-2">
+                      <MessageSquare className="h-5 w-5 text-blue-600" />
+                      <span>Conversations individuelles</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8 text-gray-500">
+                      <User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium mb-2">Fonctionnalité à venir</p>
+                      <p className="text-sm">La messagerie individuelle sera disponible prochainement</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+            </TabsContent>
+          </div>
+        </Tabs>
       </div>
-    </div>
+
+      {/* Modale d'annulation d'intervention */}
+      <CancelConfirmationModal
+        isOpen={cancellation.cancellationModal.isOpen}
+        onClose={cancellation.closeCancellationModal}
+        onConfirm={cancellation.handleConfirmCancellation}
+        intervention={cancellation.cancellationModal.intervention}
+        cancellationReason={cancellation.cancellationReason}
+        onCancellationReasonChange={cancellation.setCancellationReason}
+        internalComment={cancellation.internalComment}
+        onInternalCommentChange={cancellation.setInternalComment}
+        isLoading={cancellation.isLoading}
+        error={cancellation.error}
+      />
+    </>
   )
 }
-

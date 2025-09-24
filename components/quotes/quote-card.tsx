@@ -300,7 +300,7 @@ export function QuoteCard({
           <div className="flex flex-wrap gap-2">
             {quote.attachments.map((attachment, index) => (
               <Button
-                key={index}
+                key={attachment.id ? attachment.id : `${quote.id}-attachment-${index}`}
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs"

@@ -62,6 +62,7 @@ export const useInterventionQuoting = () => {
 
   // État des prestataires
   const [providers, setProviders] = useState<Provider[]>([])
+  const [eligibleProviders, setEligibleProviders] = useState<Provider[]>([])
   const [providersLoading, setProvidersLoading] = useState(false)
 
   // Récupérer les prestataires disponibles
@@ -99,10 +100,63 @@ export const useInterventionQuoting = () => {
     fetchProviders()
   }, [user?.team_id])
 
+  // Récupérer les prestataires éligibles pour une intervention
+  const fetchEligibleProviders = async (interventionId: string) => {
+    if (!user?.team_id) {
+      console.warn('🚨 [ELIGIBLE-PROVIDERS] No team_id available')
+      return
+    }
+
+    console.log('🔍 [ELIGIBLE-PROVIDERS] Fetching eligible providers for intervention:', interventionId)
+    setProvidersLoading(true)
+    try {
+      // D'abord récupérer tous les prestataires
+      const allProvidersResponse = await fetch(`/api/team-contacts?teamId=${user.team_id}&type=prestataire`)
+      if (!allProvidersResponse.ok) {
+        throw new Error('Erreur lors de la récupération des prestataires')
+      }
+
+      const allProvidersData = await allProvidersResponse.json()
+      const allProviders = allProvidersData.contacts || []
+
+      // Ensuite récupérer les devis existants pour cette intervention
+      const quotesResponse = await fetch(`/api/intervention/${interventionId}/quotes`)
+      let existingQuotes = []
+
+      if (quotesResponse.ok) {
+        const quotesData = await quotesResponse.json()
+        existingQuotes = quotesData.quotes || []
+      }
+
+      // Filtrer les prestataires éligibles (exclure ceux avec devis pending/approved)
+      const ineligibleProviderIds = existingQuotes
+        .filter(quote => quote.status === 'pending' || quote.status === 'approved')
+        .map(quote => quote.provider_id)
+
+      const eligible = allProviders.filter(provider =>
+        !ineligibleProviderIds.includes(provider.id)
+      )
+
+      console.log('📊 [ELIGIBLE-PROVIDERS] Eligible providers:', {
+        total: allProviders.length,
+        eligible: eligible.length,
+        ineligible: ineligibleProviderIds.length
+      })
+
+      setProviders(allProviders)
+      setEligibleProviders(eligible)
+    } catch (err) {
+      console.error('❌ [ELIGIBLE-PROVIDERS] Error:', err)
+      setError('Erreur lors de la récupération des prestataires éligibles')
+    } finally {
+      setProvidersLoading(false)
+    }
+  }
+
   /**
    * Ouvrir la modal de demande de devis
    */
-  const handleQuoteRequest = (intervention: any) => {
+  const handleQuoteRequest = async (intervention: any) => {
     console.log('🎯 [QUOTE-REQUEST] Opening quote request modal for intervention:', intervention.id)
 
     setQuoteRequestModal({
@@ -124,6 +178,9 @@ export const useInterventionQuoting = () => {
     })
 
     setError(null)
+
+    // Récupérer les prestataires éligibles pour cette intervention
+    await fetchEligibleProviders(intervention.id)
   }
 
   /**
@@ -159,7 +216,7 @@ export const useInterventionQuoting = () => {
    * Sélectionner un prestataire unique (pour compatibilité avec QuoteRequestModal)
    */
   const selectProvider = (providerId: string, providerName: string) => {
-    const provider = providers.find(p => p.id === providerId)
+    const provider = eligibleProviders.find(p => p.id === providerId) || providers.find(p => p.id === providerId)
     if (!provider) return
 
     setFormData(prev => ({
@@ -316,6 +373,7 @@ export const useInterventionQuoting = () => {
     // Données du formulaire
     formData,
     providers,
+    eligibleProviders,
     providersLoading,
 
     // États UI

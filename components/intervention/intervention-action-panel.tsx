@@ -32,6 +32,7 @@ import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
+import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
 import type { WorkCompletionReportData, TenantValidationData, ManagerFinalizationData } from "./closure/types"
 
 interface InterventionActionPanelProps {
@@ -201,13 +202,33 @@ export function InterventionActionPanel({
 
       case 'demande_de_devis':
         if (userRole === 'gestionnaire') {
+          // Action principale : nouvelle demande de devis
+          const quoteConfig = getQuoteManagementActionConfig(intervention.quotes || [])
           actions.push({
-            key: 'manage_quotes',
-            label: 'Gérer les devis',
-            icon: Euro,
-            variant: 'default',
-            description: 'Consulter et valider les devis reçus'
+            key: quoteConfig.key,
+            label: quoteConfig.label,
+            icon: FileText,
+            variant: quoteConfig.variant,
+            description: quoteConfig.description,
+            isDisabled: quoteConfig.isDisabled,
+            badge: quoteConfig.badge,
+            tooltip: quoteConfig.tooltip
           })
+
+          // Action secondaire : gérer les devis existants (si il y en a)
+          const existingQuotesConfig = getExistingQuotesManagementConfig(intervention.quotes || [])
+          if (existingQuotesConfig) {
+            actions.push({
+              key: existingQuotesConfig.key,
+              label: existingQuotesConfig.label,
+              icon: Euro,
+              variant: existingQuotesConfig.variant,
+              description: existingQuotesConfig.description,
+              isDisabled: existingQuotesConfig.isDisabled,
+              badge: existingQuotesConfig.badge,
+              tooltip: existingQuotesConfig.tooltip
+            })
+          }
         }
         if (userRole === 'prestataire') {
           if (currentUserQuote) {

@@ -8,17 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { InterventionLogementCard } from "@/components/intervention/intervention-logement-card"
-import { PlanningCard } from "@/components/intervention/planning-card"
-import { AssignedContactsCard } from "@/components/intervention/assigned-contacts-card"
-import { FilesCard } from "@/components/intervention/files-card"
-import { ChatsCard } from "@/components/intervention/chats-card"
-import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
-import { ProviderAvailabilitySelection } from "@/components/intervention/provider-availability-selection"
-import { TenantAvailabilityInput } from "@/components/intervention/tenant-availability-input"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
-import { interventionService } from "@/lib/database-service"
+import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
+import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 
 interface InterventionDetailsProps {
   params: {
@@ -33,7 +26,15 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
   const [intervention, setIntervention] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showModifyAvailabilities, setShowModifyAvailabilities] = useState(false)
+
+  // Fonction utilitaire pour formater la taille des fichiers
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  }
 
   const refreshIntervention = async () => {
     if (!resolvedParams.id || !user?.id) return
@@ -51,7 +52,88 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
       const providerAvails = data.user_availabilities?.filter(avail => avail.user?.role === 'prestataire') || []
       console.log(`🔧 [TENANT-DEBUG] Provider availabilities found: ${providerAvails.length}`)
 
-      // Transform the data to match expected format for components
+      // Fonction helper pour déterminer si on doit récupérer les contacts complets
+      const shouldFetchFullContacts = (): boolean => {
+        const planificationStatuses = [
+          'planification',
+          'planifiee',
+          'en_cours',
+          'terminee',
+          'validee',
+          'cloturee'
+        ]
+        return planificationStatuses.includes(data.status?.toLowerCase())
+      }
+
+      // Récupérer les contacts du lot/bâtiment si les conditions sont remplies
+      let organizedContacts = {
+        locataires: [],
+        syndics: [],
+        autres: []
+      }
+
+      if (shouldFetchFullContacts()) {
+        console.log('🔍 [TENANT-DEBUG] Fetching full contacts for tenant view')
+
+        let contacts = []
+        if (data.lot_id) {
+          // Intervention sur lot spécifique
+          contacts = await contactService.getLotContacts(data.lot_id)
+          console.log('✅ [TENANT-DEBUG] Lot contacts loaded:', contacts.length)
+        } else if (data.building_id) {
+          // Intervention sur bâtiment entier
+          contacts = await contactService.getBuildingContacts(data.building_id)
+          console.log('✅ [TENANT-DEBUG] Building contacts loaded:', contacts.length)
+        }
+
+        // Organiser les contacts et filtrer le locataire connecté
+        const getContactAssignmentType = (contact: any) => {
+          if (contact.role && contact.provider_category !== undefined) {
+            return determineAssignmentType({
+              id: contact.id,
+              role: contact.role,
+              provider_category: contact.provider_category
+            })
+          }
+          return 'other'
+        }
+
+        organizedContacts = {
+          // Autres locataires du bien (exclure l'utilisateur connecté)
+          locataires: contacts
+            .filter((contact: any) =>
+              getContactAssignmentType(contact) === 'tenant' &&
+              contact.id !== user.id
+            )
+            .map((contact: any) => ({
+              ...contact,
+              inChat: false
+            })),
+          // Pas de syndics dans la vue locataire selon les nouvelles règles
+          syndics: [],
+          // Seulement les gestionnaires, pas les prestataires du bien
+          autres: contacts
+            .filter((contact: any) => {
+              const type = getContactAssignmentType(contact)
+              // Garder seulement les gestionnaires, exclure prestataires et syndics
+              return type === 'manager'
+            })
+            .map((contact: any) => ({
+              ...contact,
+              inChat: false
+            }))
+        }
+
+        console.log('✅ [TENANT-DEBUG] Organized contacts:', {
+          locataires: organizedContacts.locataires.length,
+          syndics: organizedContacts.syndics.length,
+          autres: organizedContacts.autres.length
+        })
+      } else {
+        console.log('🔒 [TENANT-DEBUG] Intervention status not in planification phase, using empty contacts')
+      }
+
+      // Transform the data to match expected format for InterventionDetailTabs
       const transformedData = {
         id: data.id,
         title: data.title,
@@ -60,30 +142,74 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         urgency: data.priority || "Normale",
         status: data.status,
         createdAt: data.created_at,
-        location: data.location || "Non spécifié",
-        logement: {
-          name: data.lot?.reference || data.lot?.apartment_number || `Lot ${data.lot?.reference}`,
-          address: data.lot?.building ?
-            `${data.lot.building.address}, ${data.lot.building.postal_code} ${data.lot.building.city}` :
-            "Adresse non disponible",
-          building: data.lot?.building?.name || "Bâtiment non spécifié",
-          floor: data.lot?.floor ? `Étage ${data.lot.floor}` : "Étage non spécifié",
-          tenant: "Vous",
-        },
-        files: [],
-        assignedContacts: data.assigned_contact ? [{
+        createdBy: "Vous",
+        reference: `INT-${data.id.slice(-8)}`,
+        requestedDate: data.requested_date,
+        scheduledDate: data.scheduled_date,
+        estimatedCost: data.estimated_cost,
+        finalCost: data.final_cost,
+        // Support des interventions lot ET bâtiment
+        lot: data.lot ? {
+          id: data.lot.id,
+          reference: data.lot.reference,
+          building: data.lot.building ? {
+            id: data.lot.building.id,
+            name: data.lot.building.name,
+            address: data.lot.building.address,
+            city: data.lot.building.city,
+            postal_code: data.lot.building.postal_code
+          } : null,
+          floor: data.lot.floor,
+          apartment_number: data.lot.apartment_number
+        } : undefined,
+        building: data.building ? {
+          id: data.building.id,
+          name: data.building.name,
+          address: data.building.address,
+          city: data.building.city,
+          postal_code: data.building.postal_code
+        } : undefined,
+        tenant: data.tenant ? {
+          id: data.tenant_id,
+          name: data.tenant.name,
+          email: data.tenant.email,
+          phone: data.tenant.phone
+        } : undefined,
+        manager: data.manager ? {
+          id: data.manager.id,
+          name: data.manager.name,
+          email: data.manager.email,
+          phone: data.manager.phone
+        } : undefined,
+        assignedContact: data.assigned_contact ? {
           id: data.assigned_contact.id,
           name: data.assigned_contact.name,
-          role: "Prestataire",
           email: data.assigned_contact.email,
           phone: data.assigned_contact.phone,
-        }] : [],
-        quotes: [],
-        planning: {
-          type: data.scheduled_date ? "scheduled" : "pending",
-          scheduledDate: data.scheduled_date ? new Date(data.scheduled_date).toISOString().split('T')[0] : null,
-          scheduledTime: data.scheduled_date ? new Date(data.scheduled_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+          speciality: data.assigned_contact.speciality
+        } : undefined,
+        // Contacts selon les conditions de visibilité
+        contacts: organizedContacts,
+        // Scheduling
+        scheduling: {
+          type: data.scheduled_date ? "fixed" : "tbd",
+          fixedDate: data.scheduled_date ? new Date(data.scheduled_date).toISOString().split('T')[0] : undefined,
+          fixedTime: data.scheduled_date ? new Date(data.scheduled_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : undefined
         },
+        // Instructions
+        instructions: {
+          type: "individual",
+          groupMessage: data.instructions
+        },
+        attachments: data.intervention_documents?.map(doc => ({
+          name: doc.original_filename,
+          size: formatFileSize(doc.file_size),
+          type: doc.mime_type,
+          id: doc.id,
+          storagePath: doc.storage_path,
+          uploadedAt: doc.uploaded_at,
+          uploadedBy: doc.uploaded_by_user?.name || 'Utilisateur'
+        })) || [],
         availabilities: data.user_availabilities?.map(avail => ({
           person: avail.user.name,
           role: avail.user.role,
@@ -92,37 +218,13 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
           endTime: avail.end_time,
           userId: avail.user.id
         })) || [],
-        prestataireAvailabilities: (() => {
-          const providerAvails = data.user_availabilities
-            ?.filter(avail => avail.user?.role === 'prestataire') || []
-          
-          // Grouper les disponibilités par prestataire
-          const groupedByProvider = providerAvails.reduce((acc, avail) => {
-            const providerName = avail.user?.name || 'Prestataire'
-            if (!acc[providerName]) {
-              acc[providerName] = []
-            }
-            acc[providerName].push({
-              date: avail.date,
-              startTime: avail.start_time,
-              endTime: avail.end_time
-            })
-            return acc
-          }, {} as Record<string, Array<{date: string, startTime: string, endTime: string}>>)
-          
-          // Transformer au format attendu par PlanningCard
-          return Object.entries(groupedByProvider).map(([person, slots]) => ({
-            person,
-            slots
-          }))
-        })(),
-        chats: [],
+        quotes: [], // Les locataires n'ont pas accès aux devis selon les spécifications
       }
 
       console.log('✅ [TENANT-DEBUG] Transformed intervention data:', {
         id: transformedData.id,
         status: transformedData.status,
-        provider_availabilities_count: transformedData.prestataireAvailabilities.length
+        availabilities_count: transformedData.availabilities.length
       })
 
       setIntervention(transformedData)
@@ -131,23 +233,6 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     }
   }
 
-  const handleAvailabilityModificationSuccess = async () => {
-    // Rafraîchir les données de l'intervention
-    await refreshIntervention()
-    // Fermer le mode modification
-    setShowModifyAvailabilities(false)
-  }
-
-  const handleModifyAvailabilities = () => {
-    setShowModifyAvailabilities(true)
-  }
-
-  // Détermine si le locataire peut modifier ses disponibilités
-  const canModifyAvailabilities = () => {
-    // Permet la modification pour planification et planifiée (pour changer le créneau choisi)
-    const allowedStatuses = ['planification', 'planifiee', 'demande_de_devis', 'approuvee']
-    return allowedStatuses.includes(intervention?.status)
-  }
 
   useEffect(() => {
     const fetchIntervention = async () => {
@@ -216,83 +301,6 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     )
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "demande":
-      case "nouvelle_demande":
-      case "en_attente_validation":
-        return "bg-yellow-100 text-yellow-800"
-      case "approuvee":
-      case "demande_de_devis":
-        return "bg-orange-100 text-orange-800"
-      case "planification":
-        return "bg-blue-100 text-blue-800"
-      case "planifiee":
-      case "validee":
-      case "en_cours":
-        return "bg-green-100 text-green-800"
-      case "terminee":
-        return "bg-emerald-100 text-emerald-800"
-      case "annulee":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "demande":
-      case "nouvelle_demande":
-        return "Nouvelle demande"
-      case "approuvee":
-        return "Approuvée"
-      case "demande_de_devis":
-        return "En attente de devis"
-      case "planification":
-        return "Planification"
-      case "planifiee":
-        return "Planifiée"
-      case "en_attente_validation":
-        return "En attente"
-      case "validee":
-        return "Validé"
-      case "en_cours":
-        return "En cours"
-      case "terminee":
-        return "Terminé"
-      case "annulee":
-        return "Annulé"
-      default:
-        return status
-    }
-  }
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case "critique":
-        return "bg-red-100 text-red-800"
-      case "urgent":
-        return "bg-orange-100 text-orange-800"
-      case "normale":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getUrgencyLabel = (urgency: string) => {
-    switch (urgency) {
-      case "critique":
-        return "Critique"
-      case "urgent":
-        return "Urgent"
-      case "normale":
-        return "Normale"
-      default:
-        return urgency
-    }
-  }
 
   const handleBack = () => {
     router.back()
@@ -315,17 +323,13 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         intervention={{
           id: intervention.id,
           title: intervention.title,
-          reference: `INT-${intervention.id.slice(-8)}`, // Générer une référence
-          status: getStatusLabel(intervention.status),
-          urgency: getUrgencyLabel(intervention.urgency),
+          reference: intervention.reference,
+          status: intervention.status,
+          urgency: intervention.urgency,
           createdAt: intervention.createdAt,
-          createdBy: "Vous",
-          lot: {
-            reference: intervention.logement.name,
-            building: {
-              name: intervention.logement.building
-            }
-          }
+          createdBy: intervention.createdBy,
+          lot: intervention.lot,
+          building: intervention.building
         }}
         onBack={handleBack}
         onArchive={handleArchive}
@@ -338,7 +342,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
               title: intervention.title,
               status: intervention.status,
               tenant_id: user?.id,
-              scheduled_date: intervention.planning?.scheduledDate
+              scheduled_date: intervention.scheduledDate
             }}
             userRole="locataire"
             userId={user?.id || ''}
@@ -347,134 +351,16 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         }
       />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            <InterventionLogementCard
-              intervention={intervention}
-              logement={intervention.logement}
-              getUrgencyColor={getUrgencyColor}
-            />
-
-            <AssignedContactsCard contacts={intervention.assignedContacts} />
-
-            {/* Devis - Keep custom for locataire with accept/refuse buttons */}
-            {intervention.quotes && intervention.quotes.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Euro className="h-5 w-5 text-green-600" />
-                    <span>Devis</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {intervention.quotes.map((quote) => (
-                      <div key={quote.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900">{quote.amount}€</span>
-                            <span className="text-sm text-gray-600">par {quote.provider}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {quote.status === "En attente" && (
-                              <>
-                                <Badge className="bg-yellow-100 text-yellow-800">En attente</Badge>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Accepter
-                                </Button>
-                                <Button size="sm" variant="outline" className="text-red-600 bg-transparent">
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Refuser
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-gray-700 text-sm mb-3">{quote.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Mode modification des disponibilités */}
-            {showModifyAvailabilities ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Modification des disponibilités</h3>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowModifyAvailabilities(false)}
-                    size="sm"
-                  >
-                    Annuler
-                  </Button>
-                </div>
-                <TenantAvailabilityInput
-                  interventionId={intervention.id}
-                  onSuccess={handleAvailabilityModificationSuccess}
-                  providerAvailabilities={intervention.availabilities
-                    .filter((avail: any) => avail.role === 'prestataire')
-                    .map((avail: any) => ({
-                      user_name: avail.person,
-                      date: avail.date,
-                      start_time: avail.startTime,
-                      end_time: avail.endTime
-                    }))
-                  }
-                />
-              </div>
-            ) : (
-              /* Workflow de planification selon le statut */
-              <>
-                {(intervention.status === "planification" || intervention.status === "planifiee") ? (
-                  /* Statuts planification/planifiee - sélection/modification du créneau */
-                  <ProviderAvailabilitySelection
-                    availabilities={intervention.availabilities}
-                    interventionId={intervention.id}
-                    onResponse={refreshIntervention}
-                    scheduledDate={intervention.planning.scheduledDate}
-                    scheduledTime={intervention.planning.scheduledTime}
-                    isScheduled={intervention.status === "planifiee" && intervention.planning.type === "scheduled"}
-                  />
-                ) : (
-                  /* Autres statuts - afficher le planning existant */
-                  <PlanningCard
-                    planning={intervention.planning}
-                    userAvailabilities={intervention.availabilities}
-                    otherAvailabilities={intervention.prestataireAvailabilities}
-                    userRole="locataire"
-                    onModifyAvailabilities={canModifyAvailabilities() ? handleModifyAvailabilities : undefined}
-                  />
-                )}
-              </>
-            )}
-
-            
-
-            {/* Afficher toutes les disponibilités si pas en planification/planifiee et qu'il y en a */}
-            {!showModifyAvailabilities && intervention.status !== "planification" && intervention.status !== "planifiee" && intervention.availabilities.length > 0 && (
-              <UserAvailabilitiesDisplay
-                availabilities={intervention.availabilities}
-                title="Disponibilités renseignées"
-                userRole="locataire"
-              />
-            )}
-
-            <ChatsCard chats={intervention.chats} />
-
-            <FilesCard files={intervention.files} />
-          </div>
-        </div>
-      </main>
+      <InterventionDetailTabs
+        intervention={intervention}
+        userRole="locataire"
+        userId={user?.id || ""}
+        onDataChange={refreshIntervention}
+        onDownloadAttachment={(attachment) => {
+          console.log('Download attachment:', attachment)
+          // TODO: Implémenter le téléchargement des pièces jointes
+        }}
+      />
     </div>
   )
 }

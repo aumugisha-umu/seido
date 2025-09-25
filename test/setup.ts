@@ -20,8 +20,14 @@ vi.mock('next/navigation', () => ({
 // Mock Next.js image component
 vi.mock('next/image', () => ({
   default: ({ src, alt, ...props }: any) => {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} {...props} />
+    // Use React.createElement to avoid JSX in .ts file
+    return {
+      type: 'img',
+      props: { src, alt, ...props },
+      key: null,
+      ref: null,
+      $$typeof: Symbol.for('react.element')
+    }
   },
 }))
 

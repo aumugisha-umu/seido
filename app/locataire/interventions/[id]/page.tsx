@@ -218,13 +218,34 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
           endTime: avail.end_time,
           userId: avail.user.id
         })) || [],
-        quotes: [], // Les locataires n'ont pas accès aux devis selon les spécifications
+        quotes: data.intervention_quotes?.filter(quote => quote.status === 'approved').map(quote => ({
+          id: quote.id,
+          providerId: quote.provider_id,
+          providerName: quote.provider.name,
+          providerSpeciality: quote.provider.speciality,
+          totalAmount: quote.total_amount,
+          laborCost: quote.labor_cost,
+          materialsCost: quote.materials_cost,
+          description: quote.description,
+          workDetails: quote.work_details,
+          estimatedDurationHours: quote.estimated_duration_hours,
+          estimatedStartDate: quote.estimated_start_date,
+          status: quote.status,
+          submittedAt: quote.submitted_at,
+          reviewedAt: quote.reviewed_at,
+          reviewComments: quote.review_comments,
+          rejectionReason: quote.rejection_reason,
+          attachments: quote.attachments || [],
+          isCurrentUserQuote: false
+        })) || [], // Locataires voient seulement les devis approuvés pour identifier les prestataires sélectionnés
       }
 
       console.log('✅ [TENANT-DEBUG] Transformed intervention data:', {
         id: transformedData.id,
         status: transformedData.status,
-        availabilities_count: transformedData.availabilities.length
+        availabilities_count: transformedData.availabilities.length,
+        approved_quotes_count: transformedData.quotes.length,
+        approved_providers: transformedData.quotes.map(q => ({ id: q.providerId, name: q.providerName }))
       })
 
       setIntervention(transformedData)

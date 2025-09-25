@@ -507,9 +507,9 @@ export function InterventionDetailTabs({
                       </div>
                     ))}
 
-                    {/* Prestataires avec devis accepté - Visibles pour gestionnaires et autres prestataires */}
+                    {/* Prestataires avec devis accepté - Visibles pour gestionnaires, locataires et autres prestataires */}
                     {getApprovedProviders()
-                      .filter(provider => userRole === 'gestionnaire' || provider.id !== userId)
+                      .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== userId)
                       .map((provider) => (
                       <div key={provider.id} className="flex items-center space-x-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">

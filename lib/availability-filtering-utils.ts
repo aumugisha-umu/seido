@@ -64,16 +64,18 @@ export function analyzeAvailabilityFilterState(
 }
 
 /**
- * Filtre les disponibilités selon les statuts des devis
+ * Filtre les disponibilités selon les statuts des devis et le rôle utilisateur
  * Inclut :
  * - Toutes les disponibilités des locataires et gestionnaires
- * - Les disponibilités des prestataires avec des devis en attente ou approuvés
+ * - Pour les locataires : uniquement les prestataires avec devis approuvés
+ * - Pour les gestionnaires/prestataires : prestataires avec devis en attente ou approuvés
  * Exclut :
  * - Les disponibilités des prestataires n'ayant que des devis rejetés
  */
 export function filterAvailabilitiesByQuoteStatus(
   availabilities: UserAvailability[],
-  quotes: Quote[]
+  quotes: Quote[],
+  userRole?: 'locataire' | 'gestionnaire' | 'prestataire'
 ): UserAvailability[] {
   if (!availabilities?.length) {
     return []
@@ -117,15 +119,31 @@ export function filterAvailabilitiesByQuoteStatus(
 
     const providerStatuses = providerQuoteStatus.get(availability.userId)
 
-    // Si le prestataire n'a pas de devis, inclure ses disponibilités
+    // Gestion des prestataires sans devis selon le rôle utilisateur
     if (!providerStatuses || providerStatuses.size === 0) {
-      console.log(`⚠️ [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no quotes but has availabilities - INCLUDED`)
-      return true
+      if (userRole === 'locataire') {
+        // Pour les locataires : pas de quote approuvé dans leur liste filtrée = exclusion
+        console.log(`🚫 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no approved quotes - EXCLUDED for tenant`)
+        return false
+      } else {
+        // Pour gestionnaires/prestataires : inclure les prestataires sans devis (logique existante)
+        console.log(`⚠️ [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no quotes but has availabilities - INCLUDED`)
+        return true
+      }
     }
 
-    // Inclure si le prestataire a au moins un devis non-rejeté
-    const shouldInclude = providerStatuses.has('pending') || providerStatuses.has('approved')
-    console.log(`🔍 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) - Statuses: [${Array.from(providerStatuses).join(', ')}] - ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`)
+    // Logique de filtrage adaptée selon le rôle utilisateur
+    let shouldInclude: boolean
+
+    if (userRole === 'locataire') {
+      // Pour les locataires : inclure uniquement les prestataires avec devis approuvés
+      shouldInclude = providerStatuses.has('approved')
+    } else {
+      // Pour gestionnaires et prestataires : inclure les devis en attente ou approuvés (logique existante)
+      shouldInclude = providerStatuses.has('pending') || providerStatuses.has('approved')
+    }
+
+    console.log(`🔍 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) - Role: ${userRole} - Statuses: [${Array.from(providerStatuses).join(', ')}] - ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`)
     return shouldInclude
   })
 }
@@ -175,13 +193,14 @@ export function getAvailabilityFilterMessage(
  */
 export function getValidAvailabilities(
   availabilities: UserAvailability[],
-  quotes: Quote[]
+  quotes: Quote[],
+  userRole?: 'locataire' | 'gestionnaire' | 'prestataire'
 ): {
   filteredAvailabilities: UserAvailability[]
   filterState: AvailabilityFilterState
   filterMessage: ReturnType<typeof getAvailabilityFilterMessage>
 } {
-  const filteredAvailabilities = filterAvailabilitiesByQuoteStatus(availabilities, quotes)
+  const filteredAvailabilities = filterAvailabilitiesByQuoteStatus(availabilities, quotes, userRole)
   const filterState = analyzeAvailabilityFilterState(availabilities, filteredAvailabilities)
   const filterMessage = getAvailabilityFilterMessage(filterState)
 

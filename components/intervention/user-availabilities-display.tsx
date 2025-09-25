@@ -60,13 +60,13 @@ export function UserAvailabilitiesDisplay({
       }
     }
 
-    const result = getValidAvailabilities(availabilities, quotes)
+    const result = getValidAvailabilities(availabilities, quotes, userRole)
     return {
       filteredByQuotes: result.filteredAvailabilities,
       filterState: result.filterState,
       filterMessage: result.filterMessage
     }
-  }, [availabilities, quotes])
+  }, [availabilities, quotes, userRole])
 
   // Appliquer ensuite le filtrage par rôle si spécifié
   const filteredAvailabilities = useMemo(() => {
@@ -162,7 +162,7 @@ export function UserAvailabilitiesDisplay({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-medium text-gray-900">{displayTitle}</h4>
-            {someFilteredByQuotes && (
+            {someFilteredByQuotes && userRole === 'gestionnaire' && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -192,8 +192,8 @@ export function UserAvailabilitiesDisplay({
             )}
           </div>
 
-          {/* Message d'information sur le filtrage */}
-          {someFilteredByQuotes && filterMessage?.show && (
+          {/* Message d'information sur le filtrage - Visible uniquement pour les gestionnaires */}
+          {someFilteredByQuotes && filterMessage?.show && userRole === 'gestionnaire' && (
             <Alert className="mt-2 mb-3 bg-blue-50 border-blue-200">
               <Info className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-700">

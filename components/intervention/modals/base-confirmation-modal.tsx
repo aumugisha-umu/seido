@@ -11,7 +11,6 @@ interface BaseConfirmationModalProps {
   onConfirm: () => void
   intervention: InterventionAction | null
   title: string
-  message: string
   confirmText: string
   confirmVariant?: "approve" | "reject" | "default"
   isLoading?: boolean
@@ -82,7 +81,6 @@ export const BaseConfirmationModal = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            {getIcon()}
             <span>{title}</span>
           </DialogTitle>
         </DialogHeader>

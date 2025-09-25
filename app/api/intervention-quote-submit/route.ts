@@ -109,21 +109,52 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if user is assigned to this intervention
-    const { data: assignment, error: assignmentError } = await supabase
+    // Check if user has a quote request for this intervention
+    const { data: quoteRequest, error: quoteRequestError } = await supabase
+      .from('quote_requests')
+      .select('*')
+      .eq('intervention_id', interventionId)
+      .eq('provider_id', user.id)
+      .single()
+
+    if (quoteRequestError || !quoteRequest) {
+      return NextResponse.json({
+        success: false,
+        error: 'Vous n\'avez pas de demande de devis pour cette intervention'
+      }, { status: 403 })
+    }
+
+    // Check if quote request is still active (not expired or cancelled)
+    if (!['sent', 'viewed'].includes(quoteRequest.status)) {
+      return NextResponse.json({
+        success: false,
+        error: `Cette demande de devis n'est plus active (statut: ${quoteRequest.status})`
+      }, { status: 400 })
+    }
+
+    // Check if deadline has passed
+    if (quoteRequest.deadline && new Date(quoteRequest.deadline) < new Date()) {
+      return NextResponse.json({
+        success: false,
+        error: 'La deadline pour cette demande de devis est dépassée'
+      }, { status: 400 })
+    }
+
+    // Also check legacy assignment for compatibility
+    const { data: assignment } = await supabase
       .from('intervention_contacts')
       .select('*')
       .eq('intervention_id', interventionId)
       .eq('user_id', user.id)
       .eq('role', 'prestataire')
-      .single()
+      .maybeSingle()
 
-    if (assignmentError || !assignment) {
-      return NextResponse.json({
-        success: false,
-        error: 'Vous n\'êtes pas assigné à cette intervention'
-      }, { status: 403 })
-    }
+    console.log("✅ Quote request found:", {
+      id: quoteRequest.id,
+      status: quoteRequest.status,
+      deadline: quoteRequest.deadline,
+      hasLegacyAssignment: !!assignment
+    })
 
     // Validate costs
     const laborCostNum = parseFloat(laborCost)
@@ -163,7 +194,8 @@ export async function POST(request: NextRequest) {
       attachments: JSON.stringify(attachments || []),
       status: 'pending' as const,
       submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      quote_request_id: quoteRequest.id // Link to the quote request
     }
 
     // Insert or update quote
@@ -189,29 +221,53 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Quote submitted successfully:", quote.id)
 
-    // Save provider availabilities if provided
+    // Update quote request status to "responded" (this is also handled by the database trigger)
+    const { error: updateRequestError } = await supabase
+      .from('quote_requests')
+      .update({
+        status: 'responded',
+        responded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', quoteRequest.id)
+
+    if (updateRequestError) {
+      console.warn("⚠️ Could not update quote request status:", updateRequestError)
+      // Don't fail the quote submission for this
+    } else {
+      console.log("✅ Quote request status updated to 'responded'")
+    }
+
+    // Save provider availabilities linked to the quote and quote request
     if (providerAvailabilities && providerAvailabilities.length > 0) {
       console.log("📅 Saving provider availabilities:", providerAvailabilities.length)
 
-      // First, remove any existing availabilities for this provider on this intervention
+      // Strategy: Remove existing availabilities for this provider/quote_request combination
+      // This way we preserve availabilities from other quote requests by the same provider
+      // but ensure we don't duplicate availabilities for the same quote submission
       const { error: deleteError } = await supabase
         .from('user_availabilities')
         .delete()
         .eq('user_id', user.id)
         .eq('intervention_id', interventionId)
+        .or(`quote_id.eq.${quote.id},and(quote_request_id.eq.${quoteRequest.id},quote_id.is.null)`)
 
       if (deleteError) {
-        console.warn("⚠️ Could not delete existing provider availabilities:", deleteError)
+        console.warn("⚠️ Could not delete existing provider availabilities for this quote submission:", deleteError)
         // Don't fail the quote submission for this
+      } else {
+        console.log("✅ Cleaned up existing availabilities for this provider/quote combination")
       }
 
-      // Insert new availabilities
+      // Insert new availabilities linked to both quote and quote request
       const availabilityData = providerAvailabilities.map((avail: any) => ({
         user_id: user.id,
         intervention_id: interventionId,
         date: avail.date,
         start_time: avail.startTime,
-        end_time: avail.endTime
+        end_time: avail.endTime,
+        quote_id: quote.id, // Link to the specific quote
+        quote_request_id: quoteRequest.id // Link to the quote request
       }))
 
       const { error: availError } = await supabase
@@ -220,10 +276,13 @@ export async function POST(request: NextRequest) {
 
       if (availError) {
         console.warn("⚠️ Could not save provider availabilities:", availError)
+        console.warn("⚠️ Availability data that failed to insert:", availabilityData)
         // Don't fail the quote submission for this
       } else {
-        console.log("✅ Provider availabilities saved successfully")
+        console.log(`✅ ${availabilityData.length} provider availabilities saved successfully for quote:`, quote.id)
       }
+    } else {
+      console.log("ℹ️ No provider availabilities provided with quote submission")
     }
 
     // Send notification to gestionnaires responsible for this intervention

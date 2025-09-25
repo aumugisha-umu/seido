@@ -50,7 +50,16 @@ export const useInterventionCancellation = () => {
       return
     }
     
-    if (!cancellationReason.trim()) {
+    // Validation renforcée avec logs de debug
+    const trimmedReason = cancellationReason.trim()
+    console.log('🔍 [CANCELLATION] Validation check:', {
+      original: cancellationReason,
+      trimmed: trimmedReason,
+      length: trimmedReason.length,
+      isEmpty: !trimmedReason
+    })
+    
+    if (!trimmedReason) {
       setError("Le motif d'annulation est requis")
       return
     }
@@ -62,7 +71,7 @@ export const useInterventionCancellation = () => {
     }
 
     const cancellationData: CancellationData = {
-      cancellationReason: cancellationReason.trim(),
+      cancellationReason: trimmedReason,
       ...(internalComment.trim() && { internalComment: internalComment.trim() })
     }
 

@@ -14,62 +14,30 @@ import {
   Mail,
   Eye,
   Download,
-  Edit,
   User,
-  CalendarDays,
   UserPlus,
   UserMinus,
   ChevronDown,
   ChevronRight,
   Receipt,
-  Check,
-  X,
+  Settings,
+  PlayCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 import { useAuth } from "@/hooks/use-auth"
+import { useInterventionCancellation } from "@/hooks/use-intervention-cancellation"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
 import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
-
-// Fonctions utilitaires pour gérer les interventions lot vs bâtiment
-const getInterventionLocationText = (intervention: InterventionDetail): string => {
-  if (intervention.lot) {
-    return intervention.lot.building
-      ? `Lot ${intervention.lot.reference} - ${intervention.lot.building.name}`
-      : `Lot indépendant ${intervention.lot.reference}`
-  } else if (intervention.building) {
-    return `Bâtiment entier - ${intervention.building.name}`
-  }
-  return "Localisation non spécifiée"
-}
-
-const getInterventionLocationShort = (intervention: InterventionDetail): string => {
-  if (intervention.lot) {
-    return `Lot ${intervention.lot.reference}`
-  } else if (intervention.building) {
-    return "Bâtiment entier"
-  }
-  return "Non spécifié"
-}
-
-const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
-  return !!(intervention.building && !intervention.lot)
-}
-
-// Fonction utilitaire pour formater la taille des fichiers
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
+import { CancelConfirmationModal } from "@/components/intervention/modals/cancel-confirmation-modal"
+import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
 
 // Types basés sur la structure de la base de données
 interface DatabaseContact {
@@ -77,11 +45,11 @@ interface DatabaseContact {
   name: string
   email: string
   phone: string | null
-  role: string // ✅ Champ principal 
-  provider_category?: string // ✅ Champ secondaire
+  role: string
+  provider_category?: string
   company?: string | null
   speciality?: string | null
-  inChat?: boolean // Ajouté pour la fonctionnalité chat
+  inChat?: boolean
 }
 
 interface InterventionDetail {
@@ -98,7 +66,6 @@ interface InterventionDetail {
   scheduledDate?: string
   estimatedCost?: number
   finalCost?: number
-  // Support des interventions lot ET bâtiment
   lot?: {
     id: string
     reference: string
@@ -143,7 +110,6 @@ interface InterventionDetail {
     syndics: DatabaseContact[]
     autres: DatabaseContact[]
   }
-  // Données statiques pour maintenir la compatibilité avec l'UI existante
   scheduling: {
     type: "fixed" | "slots" | "tbd"
     fixedDate?: string
@@ -200,6 +166,28 @@ interface InterventionDetail {
   }>
 }
 
+// Fonctions utilitaires
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+const getInterventionLocationShort = (intervention: InterventionDetail): string => {
+  if (intervention.lot) {
+    return `Lot ${intervention.lot.reference}`
+  } else if (intervention.building) {
+    return "Bâtiment entier"
+  }
+  return "Non spécifié"
+}
+
+const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
+  return !!(intervention.building && !intervention.lot)
+}
+
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
@@ -207,12 +195,36 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [quoteRequests, setQuoteRequests] = useState<any[]>([])
 
-  const [expandedCategories, setExpandedCategories] = useState({
-    locataires: true, // Locataires visible par défaut
-    syndics: false, // Autres catégories cachées par défaut
-    autres: false,
-  })
+  // Hook pour la gestion de l'annulation
+  const cancellation = useInterventionCancellation()
+
+  // Fonctions de gestion pour le header
+  const handleBack = () => {
+    router.push('/gestionnaire/interventions')
+  }
+
+  const handleArchive = () => {
+    console.log('Archive intervention:', intervention?.id)
+    // TODO: Implémenter la logique d'archivage
+  }
+
+  const handleStatusAction = (action: string) => {
+    console.log('Status action:', action, 'for intervention:', intervention?.id)
+    // TODO: Implémenter les actions selon le statut
+  }
+
+  const handleCancelIntervention = () => {
+    if (intervention) {
+      cancellation.handleCancellationAction({
+        id: intervention.id,
+        title: intervention.title,
+        status: intervention.status,
+        type: intervention.type
+      })
+    }
+  }
 
   // Fonction pour récupérer les données réelles depuis la DB
   const fetchInterventionData = async () => {
@@ -381,16 +393,16 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           const transformedQuote = {
             id: quote.id,
             providerId: quote.provider_id,
-            providerName: quote.provider.name,
+            providerName: quote.provider.name || 'Prestataire inconnu',
             providerSpeciality: quote.provider.speciality,
-            totalAmount: quote.total_amount,
+            totalAmount: quote.total_amount || 0,
             laborCost: quote.labor_cost,
-            materialsCost: quote.materials_cost,
+            materialsCost: quote.materials_cost || 0,
             description: quote.description,
             workDetails: quote.work_details,
             estimatedDurationHours: quote.estimated_duration_hours,
             estimatedStartDate: quote.estimated_start_date,
-            status: quote.status,
+            status: quote.status as 'pending' | 'approved' | 'rejected',
             submittedAt: quote.submitted_at,
             reviewedAt: quote.reviewed_at,
             reviewComments: quote.review_comments,
@@ -406,6 +418,63 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           return transformedQuote
         }) || []
       }
+
+        // 5. Créer les demandes de devis à partir des prestataires assignés
+        const requests = interventionData.intervention_contacts
+          ?.filter((contact: any) => contact.role === 'prestataire')
+          ?.map((contact: any) => {
+            // Vérifier si ce prestataire a déjà soumis un devis et récupérer son statut
+            const providerQuote = transformedIntervention.quotes.find((quote: any) => quote.providerId === contact.user.id)
+            const hasQuote = !!providerQuote
+            
+            // Déterminer le statut basé sur le devis reçu
+            let status: 'pending' | 'responded' | 'expired' = 'pending'
+            if (hasQuote && providerQuote) {
+              if (providerQuote.status === 'approved') {
+                status = 'responded'
+              } else if (providerQuote.status === 'rejected') {
+                status = 'responded' // Le prestataire a répondu mais le devis a été rejeté
+              } else if (providerQuote.status === 'pending') {
+                status = 'responded' // Le prestataire a soumis un devis en attente
+              }
+            }
+            
+            return {
+              id: contact.id || `contact-${contact.user.id}-${Date.now()}`,
+              provider: {
+                id: contact.user.id,
+                name: contact.user.name || 'Prestataire inconnu',
+                email: contact.user.email || '',
+                avatar: undefined // Pas d'avatar pour l'instant
+              },
+              assigned_at: contact.assigned_at || interventionData.created_at || new Date().toISOString(),
+              individual_message: contact.individual_message,
+              deadline: interventionData.quote_deadline,
+              status: status,
+              has_quote: hasQuote,
+              quote_status: providerQuote?.status // Ajouter le statut du devis pour référence
+            }
+          }) || []
+
+      console.log('✅ Quote requests created:', requests.length)
+      setQuoteRequests(requests)
+
+      // Debug log pour tracer les disponibilités récupérées
+      console.log('📊 [MANAGER-DEBUG] Total availabilities mapped:', {
+        count: interventionData.user_availabilities?.length || 0,
+        byUser: interventionData.user_availabilities?.reduce((acc, avail) => {
+          const key = `${avail.user.name} (${avail.user.id})`
+          acc[key] = (acc[key] || 0) + 1
+          return acc
+        }, {}) || {},
+        details: interventionData.user_availabilities?.map(avail => ({
+          userId: avail.user.id,
+          userName: avail.user.name,
+          role: avail.user.role,
+          date: avail.date,
+          time: `${avail.start_time}-${avail.end_time}`
+        })) || []
+      })
 
       console.log('✅ Transformed intervention data:', transformedIntervention)
       setIntervention(transformedIntervention)
@@ -444,7 +513,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur de chargement</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => fetchInterventionData()} variant="outline">
+          <Button onClick={() => window.location.reload()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Réessayer
           </Button>
@@ -462,94 +531,16 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour
           </Button>
         </div>
       </div>
     )
   }
 
-
-  const findCommonSlots = () => {
-    if (intervention.scheduling.type !== "slots" || !intervention.availabilities.length) {
-      return []
-    }
-
-    const commonSlots = []
-    for (const slot of intervention.scheduling.slots || []) {
-      const availablePeople = []
-
-      for (const availability of intervention.availabilities) {
-        if (slot.date === availability.date) {
-          const slotStart = new Date(`${slot.date}T${slot.startTime}:00`)
-          const slotEnd = new Date(`${slot.date}T${slot.endTime}:00`)
-          const availStart = new Date(`${availability.date}T${availability.startTime}:00`)
-          const availEnd = new Date(`${availability.date}T${availability.endTime}:00`)
-
-          if (availStart <= slotStart && availEnd >= slotEnd) {
-            availablePeople.push({
-              name: availability.person,
-              role: availability.role,
-            })
-          }
-        }
-      }
-
-      if (availablePeople.length > 1) {
-        commonSlots.push({
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          availablePeople,
-        })
-      }
-    }
-    return commonSlots
-  }
-
-  const commonSlots = findCommonSlots()
-
-  const toggleContactInChat = (category: keyof typeof intervention.contacts, contactId: string) => {
-    if (!intervention) return
-
-    setIntervention((prev) => {
-      if (!prev) return prev
-
-      const updatedContacts = { ...prev.contacts }
-      updatedContacts[category] = updatedContacts[category].map((contact) =>
-        contact.id === contactId ? { ...contact, inChat: !contact.inChat } : contact,
-      )
-
-      return {
-        ...prev,
-        contacts: updatedContacts,
-      }
-    })
-  }
-
-  const toggleCategory = (category: keyof typeof expandedCategories) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }))
-  }
-
-  const handleBack = () => {
-    router.push('/gestionnaire/interventions')
-  }
-
-  const handleArchive = () => {
-    console.log('Archive intervention:', intervention.id)
-    // TODO: Implémenter la logique d'archivage
-  }
-
-  const handleStatusAction = (action: string) => {
-    console.log('Status action:', action, 'for intervention:', intervention.id)
-    // TODO: Implémenter les actions selon le statut
-  }
-
   return (
-    <div>
-      {/* Header amélioré */}
+    <>
+      {/* Header amélioré avec InterventionDetailHeader */}
       <InterventionDetailHeader
         intervention={{
           id: intervention.id,
@@ -578,789 +569,52 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             userRole="gestionnaire"
             userId={user?.id || ""}
             onActionComplete={fetchInterventionData}
+            onCancelIntervention={handleCancelIntervention}
           />
         }
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Colonne principale */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Détails de l'intervention */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-blue-600" />
-                <span>Détails de l'intervention</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                <p className="text-gray-700">{intervention.description}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Type</h4>
-                  <p className="text-gray-700">{intervention.type}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Priorité</h4>
-                  <span className="text-gray-700">{intervention.urgency}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <InterventionDetailTabs
+        intervention={intervention}
+        quoteRequests={quoteRequests}
+        userRole="gestionnaire"
+        userId={user?.id || ""}
+        onDataChange={fetchInterventionData}
+        onDownloadAttachment={(attachment) => {
+          console.log('Download attachment:', attachment)
+          // TODO: Implémenter le téléchargement des pièces jointes
+        }}
+        onResendRequest={(requestId) => {
+          console.log('Resend request:', requestId)
+          // TODO: Implémenter la relance de demande
+        }}
+        onCancelRequest={(requestId) => {
+          console.log('Cancel request:', requestId)
+          // TODO: Implémenter l'annulation de demande
+        }}
+        onNewRequest={(requestId) => {
+          console.log('New request:', requestId)
+          // TODO: Implémenter la nouvelle demande de devis
+        }}
+        onViewProvider={(providerId) => {
+          console.log('View provider:', providerId)
+          // TODO: Implémenter la navigation vers le profil du prestataire
+        }}
+      />
 
-          {/* Logement concerné */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <MapPin className="h-5 w-5 text-green-600" />
-                <span>Localisation</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    {isBuildingWideIntervention(intervention) ? (
-                      <Building2 className="h-4 w-4 text-blue-600" />
-                    ) : (
-                      <MapPin className="h-4 w-4 text-blue-600" />
-                    )}
-                    <h4 className="font-medium text-gray-900">
-                      {getInterventionLocationShort(intervention)}
-                    </h4>
-                    {isBuildingWideIntervention(intervention) && (
-                      <Badge variant="secondary" className="text-xs">
-                        Bâtiment entier
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {intervention.lot ? (
-                    <>
-                      <p className="text-gray-600">
-                        {intervention.lot.building
-                          ? `${intervention.lot.building.address}, ${intervention.lot.building.city} ${intervention.lot.building.postal_code}`
-                          : "Lot indépendant"
-                        }
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {intervention.lot.building?.name || `Lot ${intervention.lot.reference}`}
-                      </p>
-                      {intervention.lot.floor && (
-                        <p className="text-sm text-gray-500">Étage {intervention.lot.floor}</p>
-                      )}
-                      {intervention.lot.apartment_number && (
-                        <p className="text-sm text-gray-500">Appartement {intervention.lot.apartment_number}</p>
-                      )}
-                    </>
-                  ) : intervention.building ? (
-                    <>
-                      <p className="text-gray-600">
-                        {intervention.building.address}, {intervention.building.city} {intervention.building.postal_code}
-                      </p>
-                      <p className="text-sm text-gray-500">{intervention.building.name}</p>
-                      <p className="text-sm text-yellow-600 font-medium">
-                        Intervention sur l'ensemble du bâtiment
-                      </p>
-                    </>
-                  ) : null}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (intervention.lot) {
-                      router.push(`/gestionnaire/biens/lots/${intervention.lot.id}`)
-                    } else if (intervention.building) {
-                      router.push(`/gestionnaire/biens/immeubles/${intervention.building.id}`)
-                    }
-                  }}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {isBuildingWideIntervention(intervention) ? "Voir le bâtiment" : "Voir le lot"}
-                </Button>
-              </div>
-
-              {intervention.contacts.locataires.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("locataires")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      <span>Locataires ({intervention.contacts.locataires.length})</span>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                        Participants par défaut
-                      </Badge>
-                    </h5>
-                    {expandedCategories.locataires ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.locataires && (
-                    <div className="space-y-2">
-                      {intervention.contacts.locataires.map((contact) => (
-                        <div
-                          key={contact.id}
-                          className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
-                        >
-                          {/* ... existing contact content ... */}
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("locataires", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-
-              {intervention.contacts.syndics.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("syndics")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <Users className="h-4 w-4 text-orange-600" />
-                      <span>Syndics ({intervention.contacts.syndics.length})</span>
-                    </h5>
-                    {expandedCategories.syndics ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.syndics && (
-                    <div className="space-y-2">
-                      {intervention.contacts.syndics.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          {/* ... existing contact content ... */}
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                              <Users className="h-4 w-4 text-orange-600" />
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                                {contact.company && (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-orange-50 text-orange-700 border-orange-200 text-xs"
-                                  >
-                                    {contact.company}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("syndics", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {intervention.contacts.autres.length > 0 && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => toggleCategory("autres")}
-                    className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                  >
-                    <h5 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-600" />
-                      <span>Autres contacts ({intervention.contacts.autres.length})</span>
-                    </h5>
-                    {expandedCategories.autres ? (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedCategories.autres && (
-                    <div className="space-y-2">
-                      {intervention.contacts.autres.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          {/* ... existing contact content ... */}
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                              <User className="h-4 w-4 text-gray-600" />
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <h6 className="font-medium text-gray-900">{contact.name}</h6>
-                                <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  {contact.role && contact.provider_category !== undefined ? 
-                                    (() => {
-                                      const type = determineAssignmentType({
-                                        id: contact.id,
-                                        role: contact.role,
-                                        provider_category: contact.provider_category
-                                      })
-                                      const labels: Record<string, string> = {
-                                        tenant: 'Locataire',
-                                        manager: 'Gestionnaire',
-                                        provider: 'Prestataire',
-                                        syndic: 'Syndic',
-                                        notary: 'Notaire',
-                                        insurance: 'Assurance',
-                                        other: 'Autre'
-                                      }
-                                      return labels[type] || type
-                                    })() 
-                                    : 'N/A' // ✅ Plus besoin de contact_type
-                                  }
-                                </Badge>
-                              </div>
-                              <div className="flex items-center space-x-3 text-xs text-gray-600">
-                                <span className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{contact.phone}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {contact.inChat && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                Dans la conversation de groupe
-                              </Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Chat individuel"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleContactInChat("autres", contact.id)}
-                                className={
-                                  contact.inChat
-                                    ? "text-red-600 hover:text-red-700"
-                                    : "text-green-600 hover:text-green-700"
-                                }
-                              >
-                                {contact.inChat ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Personnes assignées */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="h-5 w-5 text-purple-600" />
-                <span>Personnes assignées</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Gestionnaire assigné */}
-                {intervention.manager && (
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-gray-900">{intervention.manager.name}</h4>
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            Gestionnaire
-                          </Badge>
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3" />
-                            <span>{intervention.manager.email}</span>
-                          </span>
-                          {intervention.manager.phone && (
-                            <span className="flex items-center space-x-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{intervention.manager.phone}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Prestataire assigné */}
-                {intervention.assignedContact && (
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <Users className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-gray-900">{intervention.assignedContact.name}</h4>
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            Prestataire
-                          </Badge>
-                          {intervention.assignedContact.speciality && (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-600">
-                              {intervention.assignedContact.speciality}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3" />
-                            <span>{intervention.assignedContact.email}</span>
-                          </span>
-                          {intervention.assignedContact.phone && (
-                            <span className="flex items-center space-x-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{intervention.assignedContact.phone}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!intervention.manager && !intervention.assignedContact && (
-                  <div className="text-center py-4 text-gray-500">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p>Aucune personne assignée pour le moment</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Instructions */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5 text-orange-600" />
-                <span>Instructions communiquées</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {intervention.instructions.type === "group" ? (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Message au groupe</h4>
-                  <p className="text-blue-800">{intervention.instructions.groupMessage}</p>
-                  <p className="text-xs text-blue-600 mt-2">Ces instructions ne sont pas vues par le locataire</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900">Messages individuels</h4>
-                  {intervention.instructions.individualMessages?.map((msg, index) => {
-                    // Rechercher le contact dans les assignés (manager ou prestataire)
-                    let contact = null
-                    if (intervention.manager && intervention.manager.id === msg.contactId) {
-                      contact = intervention.manager
-                    } else if (intervention.assignedContact && intervention.assignedContact.id === msg.contactId) {
-                      contact = intervention.assignedContact
-                    }
-                    
-                    return (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                        <h5 className="font-medium text-gray-900 mb-1">Pour {contact?.name || 'Contact non trouvé'}</h5>
-                        <p className="text-gray-700">{msg.message}</p>
-                      </div>
-                    )
-                  })}
-                  <p className="text-xs text-gray-500">Seule la personne concernée peut voir ses instructions</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Devis - Composant intégré */}
-          <IntegratedQuotesSection
-            quotes={intervention.quotes}
-            userContext="gestionnaire"
-            onDataChange={fetchInterventionData}
-            onDownloadAttachment={(attachment) => {
-              console.log('Download attachment:', attachment)
-              // TODO: Implémenter le téléchargement des pièces jointes
-            }}
-            showActions={true}
-          />
-        </div>
-
-        {/* Colonne latérale */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="h-5 w-5 text-blue-600" />
-                <span>Planification & Disponibilités</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {intervention.scheduling.type === "fixed" && (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Date et heure fixe</h4>
-                  <div className="flex items-center space-x-2 text-blue-800">
-                    <Calendar className="h-4 w-4" />
-                    <span>{intervention.scheduling.fixedDate}</span>
-                    <Clock className="h-4 w-4 ml-2" />
-                    <span>{intervention.scheduling.fixedTime}</span>
-                  </div>
-                </div>
-              )}
-
-              {intervention.scheduling.type === "slots" && (
-                <div className="space-y-4">
-                  {/* Common slots highlighted */}
-                  {commonSlots.length > 0 && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-medium text-green-900 mb-2 flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <span>Créneaux en commun</span>
-                      </h4>
-                      <div className="space-y-2">
-                        {commonSlots.map((slot, index) => (
-                          <div key={index} className="space-y-1">
-                            <div className="text-sm text-green-800 font-medium">
-                              {new Date(slot.date).toLocaleDateString("fr-FR")} de {slot.startTime} à {slot.endTime}
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {slot.availablePeople.map((person, personIndex) => (
-                                <span
-                                  key={personIndex}
-                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800"
-                                >
-                                  {person.name} ({person.role})
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Proposed slots */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Créneaux proposés</h4>
-                    <div className="space-y-1">
-                      {intervention.scheduling.slots?.map((slot, index) => (
-                        <div key={index} className="p-2 bg-blue-50 rounded text-sm flex items-center space-x-2">
-                          <Calendar className="h-3 w-3 text-blue-600" />
-                          <span className="text-blue-800">
-                            {new Date(slot.date).toLocaleDateString("fr-FR")} de {slot.startTime} à {slot.endTime}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <UserAvailabilitiesDisplay
-                    availabilities={intervention.availabilities}
-                    userRole="gestionnaire"
-                    showCard={false}
-                  />
-                </div>
-              )}
-
-              {intervention.scheduling.type === "tbd" && (
-                <div className="p-3 bg-yellow-50 rounded-lg">
-                  <h4 className="font-medium text-yellow-900">Horaire à définir</h4>
-                  <p className="text-sm text-yellow-800 mt-1">La planification sera définie ultérieurement</p>
-                  <UserAvailabilitiesDisplay
-                    availabilities={intervention.availabilities}
-                    userRole="gestionnaire"
-                    showCard={false}
-                    className="mt-3"
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5 text-green-600" />
-                <span>Chats en cours</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Conversation de groupe */}
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-green-900 flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span>Conversation de groupe</span>
-                  </h4>
-                  <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs">
-                    3 participants
-                  </Badge>
-                </div>
-                <p className="text-sm text-green-800 mb-2">
-                  Dernier message: "J'arrive dans 10 minutes" - Thomas Blanc
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-green-600">Il y a 5 minutes</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-green-700 border-green-300 hover:bg-green-100 bg-transparent"
-                  >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Ouvrir
-                  </Button>
-                </div>
-              </div>
-
-              {/* Conversations individuelles */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900 text-sm">Conversations individuelles</h4>
-
-                {/* Chat avec Jean Martin */}
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-blue-600" />
-                      </div>
-                      <span className="font-medium text-blue-900 text-sm">Jean Martin</span>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                        Locataire
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-blue-800 mb-2">"Merci pour l'intervention rapide !"</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-blue-600">Il y a 2 heures</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-blue-700 border-blue-300 hover:bg-blue-100 bg-transparent"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Répondre
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Chat avec Thomas Blanc */}
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-purple-600" />
-                      </div>
-                      <span className="font-medium text-purple-900 text-sm">Thomas Blanc</span>
-                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs">
-                        Prestataire
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-purple-800 mb-2">"Intervention terminée, tout est réparé"</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-purple-600">Il y a 1 heure</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-purple-700 border-purple-300 hover:bg-purple-100 bg-transparent"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Répondre
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Chat avec Marie Dubois */}
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-gray-600" />
-                      </div>
-                      <span className="font-medium text-gray-900 text-sm">Marie Dubois</span>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
-                        Gestionnaire
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-800 mb-2">"Notes internes: Vérifier la facture"</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">Il y a 30 minutes</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-gray-700 border-gray-300 hover:bg-gray-100 bg-transparent"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Répondre
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Fichiers joints */}
-          {intervention.attachments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="h-5 w-5 text-gray-600" />
-                  <span>Fichiers joints ({intervention.attachments.length})</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {intervention.attachments.map((file, index) => (
-                    <div key={file.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="font-medium text-gray-900">{file.name}</p>
-                          <div className="flex items-center space-x-3 text-sm text-gray-500">
-                            <span>{file.size}</span>
-                            <span>•</span>
-                            <span>{file.type}</span>
-                            {file.uploadedBy && (
-                              <>
-                                <span>•</span>
-                                <span>par {file.uploadedBy}</span>
-                              </>
-                            )}
-                            {file.uploadedAt && (
-                              <>
-                                <span>•</span>
-                                <span>{new Date(file.uploadedAt).toLocaleDateString('fr-FR')}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm" title="Télécharger">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" title="Voir">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-        </div>
-      </div>
-    </div>
+      {/* Modale d'annulation d'intervention */}
+      <CancelConfirmationModal
+        isOpen={cancellation.cancellationModal.isOpen}
+        onClose={cancellation.closeCancellationModal}
+        onConfirm={cancellation.handleConfirmCancellation}
+        intervention={cancellation.cancellationModal.intervention}
+        cancellationReason={cancellation.cancellationReason}
+        onCancellationReasonChange={cancellation.setCancellationReason}
+        internalComment={cancellation.internalComment}
+        onInternalCommentChange={cancellation.setInternalComment}
+        isLoading={cancellation.isLoading}
+        error={cancellation.error}
+      />
+    </>
   )
 }
-

@@ -32,6 +32,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { QuoteRequestModal } from "./modals/quote-request-modal"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
+import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { WorkCompletionReportData, TenantValidationData, ManagerFinalizationData } from "./closure/types"
 
 interface InterventionActionPanelHeaderProps {
@@ -41,28 +43,31 @@ interface InterventionActionPanelHeaderProps {
     status: string
     tenant_id?: string
     scheduled_date?: string
-    quotes?: Array<{
-      id: string
-      status: string
-      providerId: string
-      isCurrentUserQuote?: boolean
-    }>
+    quotes?: Quote[]
   }
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
   userId: string
   onActionComplete?: () => void
   onOpenQuoteModal?: () => void
   onCancelQuote?: (quoteId: string) => void
+  onCancelIntervention?: () => void
 }
 
 interface ActionConfig {
   key: string
   label: string
   icon: React.ComponentType<any>
-  variant: 'default' | 'destructive' | 'outline' | 'secondary'
+  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'
   description: string
   requiresComment?: boolean
   confirmationMessage?: string
+  isDisabled?: boolean
+  badge?: {
+    show: boolean
+    value: number | string
+    variant: 'default' | 'warning' | 'success' | 'destructive'
+  }
+  tooltip?: string
 }
 
 export function InterventionActionPanelHeader({
@@ -71,7 +76,8 @@ export function InterventionActionPanelHeader({
   userId,
   onActionComplete,
   onOpenQuoteModal,
-  onCancelQuote
+  onCancelQuote,
+  onCancelIntervention
 }: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -200,13 +206,33 @@ export function InterventionActionPanelHeader({
 
       case 'demande_de_devis':
         if (userRole === 'gestionnaire') {
+          // Action principale : nouvelle demande de devis
+          const quoteConfig = getQuoteManagementActionConfig(intervention.quotes || [])
           actions.push({
-            key: 'manage_quotes',
-            label: 'Gérer les devis',
-            icon: Euro,
-            variant: 'default',
-            description: 'Consulter et valider les devis reçus'
+            key: quoteConfig.key,
+            label: quoteConfig.label,
+            icon: FileText,
+            variant: quoteConfig.variant,
+            description: quoteConfig.description,
+            isDisabled: quoteConfig.isDisabled,
+            badge: quoteConfig.badge,
+            tooltip: quoteConfig.tooltip
           })
+
+          // Action secondaire : gérer les devis existants (si il y en a)
+          const existingQuotesConfig = getExistingQuotesManagementConfig(intervention.quotes || [])
+          if (existingQuotesConfig) {
+            actions.push({
+              key: existingQuotesConfig.key,
+              label: existingQuotesConfig.label,
+              icon: Euro,
+              variant: existingQuotesConfig.variant,
+              description: existingQuotesConfig.description,
+              isDisabled: existingQuotesConfig.isDisabled,
+              badge: existingQuotesConfig.badge,
+              tooltip: existingQuotesConfig.tooltip
+            })
+          }
         }
         if (userRole === 'prestataire') {
           if (currentUserQuote) {
@@ -397,7 +423,7 @@ export function InterventionActionPanelHeader({
     }
 
     // Actions communes disponibles selon le contexte
-    if (['approuvee', 'planification', 'planifiee', 'en_cours'].includes(intervention.status)) {
+    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(intervention.status)) {
       if (userRole === 'gestionnaire') {
         actions.push({
           key: 'cancel',
@@ -415,9 +441,20 @@ export function InterventionActionPanelHeader({
   }
 
   const handleActionClick = (action: ActionConfig) => {
+    // Ne pas traiter les clics sur les actions désactivées ou informatives
+    if (action.isDisabled || ['waiting_quotes', 'rejected_quotes_info'].includes(action.key)) {
+      return
+    }
+
     setSelectedAction(action)
     setComment('')
     setError(null)
+
+    // Cas spécial pour l'annulation avec callback personnalisé
+    if (action.key === 'cancel' && onCancelIntervention) {
+      executeAction(action.key)
+      return
+    }
 
     if (action.requiresComment || action.confirmationMessage) {
       setShowConfirmDialog(true)
@@ -449,7 +486,10 @@ export function InterventionActionPanelHeader({
             id: intervention.id,
             title: intervention.title,
             status: intervention.status
-          }, comment)
+          }, {
+            action: "reject",
+            rejectionReason: comment
+          })
           break
 
         case 'request_quotes':
@@ -458,7 +498,15 @@ export function InterventionActionPanelHeader({
           return
 
         case 'manage_quotes':
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=quotes`
+          // Vérifier si on a des devis à gérer avant de naviguer
+          if (shouldNavigateToQuotes(intervention.quotes || [])) {
+            window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          }
+          return
+
+        case 'waiting_quotes':
+        case 'rejected_quotes_info':
+          // Actions informatives - pas de navigation
           return
 
         case 'submit_quote':
@@ -522,11 +570,18 @@ export function InterventionActionPanelHeader({
           return
 
         case 'cancel':
-          result = await interventionActionsService.cancelIntervention({
-            id: intervention.id,
-            title: intervention.title,
-            status: intervention.status
-          }, comment)
+          // Utiliser le callback personnalisé si fourni, sinon utiliser l'ancien système
+          if (onCancelIntervention) {
+            onCancelIntervention()
+            return
+          } else {
+            // Fallback vers l'ancien système
+            result = await interventionActionsService.cancelIntervention({
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status
+            }, { cancellationReason: comment })
+          }
           break
 
         default:
@@ -672,20 +727,52 @@ export function InterventionActionPanelHeader({
             const IconComponent = action.icon
             const styling = getActionStyling(action.key, userRole)
 
-            return (
+            const buttonContent = (
               <Button
                 key={action.key}
                 variant={styling.variant}
                 size="sm"
                 onClick={() => handleActionClick(action)}
-                disabled={isProcessing}
-                className={`flex items-center space-x-2 min-h-[44px] ${styling.className}`}
-                title={action.description}
+                disabled={isProcessing || action.isDisabled}
+                className={`flex items-center space-x-2 min-h-[44px] ${styling.className} ${action.isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                title={action.tooltip || action.description}
               >
                 <IconComponent className="h-4 w-4" />
                 <span className="hidden sm:inline">{action.label}</span>
+                {action.badge?.show && (
+                  <Badge
+                    variant={action.badge.variant === 'default' ? 'secondary' :
+                             action.badge.variant === 'warning' ? 'outline' :
+                             action.badge.variant}
+                    className={`ml-1 text-xs ${
+                      action.badge.variant === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                      action.badge.variant === 'success' ? 'bg-green-100 text-green-800' :
+                      'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {action.badge.value}
+                  </Badge>
+                )}
               </Button>
             )
+
+            // Si l'action a un tooltip détaillé, l'encapsuler dans TooltipProvider
+            if (action.tooltip && action.tooltip !== action.description) {
+              return (
+                <TooltipProvider key={action.key}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {buttonContent}
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-sm">{action.tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )
+            }
+
+            return buttonContent
           })}
         </div>
       </div>

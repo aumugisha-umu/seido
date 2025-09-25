@@ -32,6 +32,7 @@ import {
 interface QuoteSubmissionFormProps {
   intervention: any
   existingQuote?: any // Si le prestataire a déjà soumis un devis
+  quoteRequest?: any // La demande de devis correspondante
   onSuccess: () => void
 }
 
@@ -55,6 +56,7 @@ interface FieldValidation {
 export function QuoteSubmissionForm({
   intervention,
   existingQuote,
+  quoteRequest,
   onSuccess
 }: QuoteSubmissionFormProps) {
   const router = useRouter()
@@ -87,6 +89,27 @@ export function QuoteSubmissionForm({
       })
     }
   }, [existingQuote])
+
+  // Marquer la quote_request comme consultée lors du chargement du formulaire
+  useEffect(() => {
+    if (quoteRequest && quoteRequest.status === 'sent') {
+      console.log('👁️ [QuoteForm] Marquage de la demande comme consultée:', quoteRequest.id)
+
+      // Marquer comme vue via l'API
+      fetch(`/api/quote-requests/${quoteRequest.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'view'
+        })
+      }).catch(error => {
+        console.warn('⚠️ [QuoteForm] Impossible de marquer la demande comme consultée:', error)
+        // Ne pas bloquer l'utilisateur si cette action échoue
+      })
+    }
+  }, [quoteRequest])
 
 
   // Validation individuelle des champs selon Design System
@@ -368,12 +391,25 @@ export function QuoteSubmissionForm({
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-slate-900 mb-2">{intervention.title}</h2>
               <p className="text-slate-700 text-base leading-relaxed">{intervention.description}</p>
+
+              {/* Message personnalisé de la demande de devis */}
+              {quoteRequest?.individual_message && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 mb-1">Message du gestionnaire :</p>
+                      <p className="text-sm text-blue-800">{quoteRequest.individual_message}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <Badge className={`ml-4 ${getPriorityColor(intervention.urgency)}`}>
               {getPriorityLabel(intervention.urgency)}
             </Badge>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-6 text-sm">
             <div className="flex items-center gap-2 text-slate-600">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -381,11 +417,23 @@ export function QuoteSubmissionForm({
               </svg>
               <span>{getInterventionLocationText(intervention)}</span>
             </div>
-            {intervention.quote_deadline && (
+
+            {/* Deadline de la demande de devis (prioritaire) ou de l'intervention */}
+            {(quoteRequest?.deadline || intervention.quote_deadline) && (
               <div className="flex items-center gap-2 text-amber-700 bg-amber-100 px-3 py-1 rounded-full">
                 <Clock className="w-4 h-4" />
                 <span className="font-medium">
-                  Deadline: {new Date(intervention.quote_deadline).toLocaleDateString('fr-FR')}
+                  Deadline: {new Date(quoteRequest?.deadline || intervention.quote_deadline).toLocaleDateString('fr-FR')}
+                </span>
+              </div>
+            )}
+
+            {/* Informations sur la demande de devis */}
+            {quoteRequest && (
+              <div className="flex items-center gap-2 text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
+                <Calendar className="w-4 h-4" />
+                <span className="font-medium">
+                  Demande reçue le {new Date(quoteRequest.sent_at).toLocaleDateString('fr-FR')}
                 </span>
               </div>
             )}
@@ -627,8 +675,8 @@ export function QuoteSubmissionForm({
                 <div className="space-y-3">
                   {formData.providerAvailabilities.map((avail, index) => (
                     <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div className="md:col-span-1">
                           <Label className="text-sm font-medium text-slate-700">Date</Label>
                           <Input
                             type="date"
@@ -638,7 +686,7 @@ export function QuoteSubmissionForm({
                             min={new Date().toISOString().split('T')[0]}
                           />
                         </div>
-                        <div>
+                        <div className="md:col-span-1">
                           <Label className="text-sm font-medium text-slate-700">Heure début</Label>
                           <Input
                             type="time"
@@ -646,14 +694,15 @@ export function QuoteSubmissionForm({
                             onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
                             className="mt-1"
                           />
-                          {avail.startTime && formData.estimatedDurationHours && (
-                            <div className="mt-2 text-xs text-slate-600 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              Fin estimée: {calculateEndTime(avail.startTime)}
-                            </div>
-                          )}
                         </div>
-                        <div>
+                        <div className="md:col-span-1">
+                          <Label className="text-sm font-medium text-slate-700">Fin estimée</Label>
+                          <div className="mt-1 p-2 text-sm text-slate-600 flex items-center gap-1 min-h-[40px]">
+                            <Clock className="h-3 w-3" />
+                            {avail.startTime && formData.estimatedDurationHours ? calculateEndTime(avail.startTime) : '--:--'}
+                          </div>
+                        </div>
+                        <div className="md:col-span-1">
                           <Button
                             type="button"
                             variant="ghost"

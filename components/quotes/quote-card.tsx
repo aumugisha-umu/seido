@@ -280,11 +280,6 @@ export function QuoteCard({
 
       <p className="text-sm text-gray-700 mb-3">{quote.description}</p>
 
-      {quote.workDetails && (
-        <div className="mb-3 p-2 bg-gray-50 rounded text-xs text-gray-600">
-          <strong>Détails techniques:</strong> {quote.workDetails}
-        </div>
-      )}
 
       {quote.status === 'rejected' && quote.rejectionReason && (
         <div className="mb-3 p-2 bg-red-50 rounded text-xs text-red-700">
@@ -305,7 +300,7 @@ export function QuoteCard({
           <div className="flex flex-wrap gap-2">
             {quote.attachments.map((attachment, index) => (
               <Button
-                key={index}
+                key={attachment.id ? attachment.id : `${quote.id}-attachment-${index}`}
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs"

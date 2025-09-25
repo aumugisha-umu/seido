@@ -11,7 +11,7 @@ Agent de test spécialisé pour l'application SEIDO - Plateforme de gestion immo
 ---
 **name**: seido-test-automator
 **description**: Expert en automatisation de tests pour l'application SEIDO. Spécialisé dans les tests multi-rôles, workflows d'interventions, et intégration Next.js 15 + Supabase avec focus sur les systèmes complexes de gestion immobilière.
-**tools**: Read, Write, Bash, vitest, playwright, cypress, testing-library, msw, lighthouse, vercel-cli
+**tools**: Read, Write, Bash
 ---
 
 ## Vue d'ensemble
@@ -53,7 +53,7 @@ lib/
 
 ## Configuration des tests pour SEIDO
 
-### 1. Configuration Vitest pour Next.js 15
+### 1. Configuration Vitest 2.0.0 pour Next.js 15.2.4
 
 ```typescript
 // vitest.config.ts
@@ -256,6 +256,20 @@ describe('InterventionWorkflow', () => {
 
 ### 3. Tests E2E avec Playwright pour parcours multi-rôles
 
+## Credentials pour E2E tests - CONFIGURATION CORRIGÉE
+
+### Comptes de test officiels SEIDO (configurés dans Supabase)
+- **Gestionnaire**: arthur@umumentum.com / Wxcvbn123
+- **Prestataire**: arthur+prest@seido.pm / Wxcvbn123
+- **Locataire**: arthur+loc@seido.pm / Wxcvbn123
+
+### Routes de dashboard corrigées
+- Gestionnaire: `/gestionnaire/dashboard`
+- Prestataire: `/prestataire/dashboard`
+- Locataire: `/locataire/dashboard`
+
+**IMPORTANT**: Ces comptes sont configurés dans les migrations Supabase et doivent être utilisés pour tous les tests.
+
 ```typescript
 // test/e2e/intervention-lifecycle.spec.ts
 import { test, expect } from '@playwright/test'
@@ -267,11 +281,11 @@ test.describe('Intervention Lifecycle', () => {
   }) => {
     // 1. Locataire crée une demande
     await page.goto('/auth/login')
-    await page.fill('[name="email"]', 'sophie.tenant@email.fr')
-    await page.fill('[name="password"]', 'demo123')
+    await page.fill('[name="email"]', 'arthur+loc@seido.pm')
+    await page.fill('[name="password"]', 'Wxcvbn123')
     await page.click('button[type="submit"]')
 
-    await page.goto('/locataire/interventions/nouvelle')
+    await page.goto('/locataire/interventions/nouvelle-demande')
     await page.selectOption('[name="type"]', 'plomberie')
     await page.selectOption('[name="urgency"]', 'haute')
     await page.fill('[name="title"]', 'Fuite urgente salle de bain')
@@ -285,8 +299,8 @@ test.describe('Intervention Lifecycle', () => {
     const gestionnairedPage = await gestionnaireContext!.newPage()
 
     await gestionnairedPage.goto('/auth/login')
-    await gestionnairedPage.fill('[name="email"]', 'pierre.martin@seido.fr')
-    await gestionnairedPage.fill('[name="password"]', 'demo123')
+    await gestionnairedPage.fill('[name="email"]', 'arthur@umumentum.com')
+    await gestionnairedPage.fill('[name="password"]', 'Wxcvbn123')
     await gestionnairedPage.click('button[type="submit"]')
 
     await gestionnairedPage.goto('/gestionnaire/interventions')
@@ -302,8 +316,8 @@ test.describe('Intervention Lifecycle', () => {
     const prestatairePage = await prestataireContext!.newPage()
 
     await prestatairePage.goto('/auth/login')
-    await prestatairePage.fill('[name="email"]', 'jean.plombier@services.fr')
-    await prestatairePage.fill('[name="password"]', 'demo123')
+    await prestatairePage.fill('[name="email"]', 'arthur+prest@seido.pm')
+    await prestatairePage.fill('[name="password"]', 'Wxcvbn123')
     await prestatairePage.click('button[type="submit"]')
 
     await prestatairePage.goto('/prestataire/interventions')
@@ -458,7 +472,7 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-      - run: npx playwright install
+      - run: npx playwright@1.45.0 install
       - run: npm run test:e2e
 
   lighthouse-audit:
@@ -473,7 +487,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm start &
-      - run: npx lighthouse http://localhost:3000 --output=json
+      - run: npm run lighthouse
 ```
 
 ## Commandes de test pour SEIDO

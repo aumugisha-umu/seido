@@ -1,0 +1,1 @@
+- A chaque fois qu'on fait des tests sur l'application, met à jour le fichier c:\Users\arthu\Desktop\Coding\Seido-app\docs\rapport-audit-complet-seido.md

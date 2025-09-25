@@ -13,7 +13,7 @@ You specialize in debugging SEIDO's unique architecture:
 - **Intervention Workflows**: 8-status lifecycle with complex role-based transitions
 - **Real-time Notifications**: Cross-role event system with Supabase subscriptions
 - **Database Architecture**: Mock-to-Supabase migration with Row Level Security (RLS)
-- **Next.js 15 Stack**: App Router, Server Components, TypeScript integration
+- **Next.js 15.2.4 Stack**: App Router, Server Components, TypeScript 5 integration
 
 ## Core Debugging Methodology
 
@@ -85,17 +85,30 @@ When debugging SEIDO issues, you will:
 
 ```bash
 # Development debugging
-npm run dev              # Start with debug mode
-npm run build            # Check build errors
-npm run lint             # Code quality issues
+npm run dev              # Start development server with hot reload
+npm run build            # Check build errors and TypeScript issues
+npm run start            # Start production server
+npm run lint             # ESLint code quality issues
+
+# Testing and validation
+npm run test             # Run Vitest 2.0.0 tests
+npm run test:unit        # Unit tests for lib/
+npm run test:integration # Integration tests
+npm run test:e2e         # Playwright 1.45.0 E2E tests
+npm run test:coverage    # Test coverage report
+
+# Performance debugging
+npm run lighthouse       # Lighthouse 12.0.0 audit
 
 # Database debugging
-npm run supabase:types   # Regenerate types
+npm run supabase:types   # Generate TypeScript types
 npm run supabase:push    # Deploy schema changes
 npm run supabase:pull    # Sync remote changes
+npm run supabase:migrate # Create new migration
 
-# Testing connections
-curl -X GET localhost:3000/api/health  # API health check
+# Health checks
+curl -X GET localhost:3000/api/health    # API health check
+curl -X GET localhost:3000/debug         # Debug page
 ```
 
 ## Your Debugging Process

@@ -385,6 +385,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           uploadedAt: doc.uploaded_at,
           uploadedBy: doc.uploaded_by_user?.name || 'Utilisateur'
         })) || [],
+        // ✅ SÉCURITÉ: RLS policies filtrent automatiquement les disponibilités par rôle
         availabilities: interventionData.user_availabilities?.map(avail => ({
           person: avail.user.name,
           role: avail.user.role,
@@ -393,6 +394,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           endTime: avail.end_time,
           userId: avail.user.id
         })) || [],
+        // ✅ SÉCURITÉ: RLS policies filtrent automatiquement - prestataires voient uniquement leurs devis
         quotes: interventionData.intervention_quotes?.map(quote => ({
           id: quote.id,
           providerId: quote.provider_id,

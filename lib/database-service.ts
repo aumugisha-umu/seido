@@ -1257,6 +1257,9 @@ export const interventionService = {
     }
   },
 
+  // ✅ SÉCURITÉ: Les RLS policies filtrent automatiquement:
+  // - intervention_quotes: prestataires voient uniquement leurs devis
+  // - user_availabilities: isolation entre prestataires selon leur rôle
   async getById(id: string) {
     const { data, error } = await supabase
       .from('interventions')

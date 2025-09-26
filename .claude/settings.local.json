@@ -14,7 +14,9 @@
       "Bash(npm run test:coverage:*)",
       "Bash(node:*)",
       "Bash(taskkill:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx tsx:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

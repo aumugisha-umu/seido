@@ -281,7 +281,7 @@ export function InterventionCard({
       case 'cloturee_par_locataire':
         if (userContext === 'gestionnaire') {
           actions.push({
-            label: "Finaliser définitivement",
+            label: "Finaliser",
             icon: UserCheck,
             onClick: () => handleAction('finalize'),
           })

@@ -15,7 +15,7 @@ Le SEIDO Refactoring Specialist est un agent intelligent conçu spécifiquement 
 ### ✨ Caractéristiques principales
 
 - **🧠 Intelligence Adaptive**: Propose le remplacement de composants custom seulement quand c'est bénéfique
-- **🤝 Collaboration Multi-Agents**: Intégration avec les agents spécialisés SEIDO (API-designer, backend-developer, frontend-developer, ui-designer)
+- **🤝 Collaboration Multi-Agents**: Intégration avec les agents spécialisés SEIDO (API-designer, backend-developer, frontend-developer, ui-designer, tester)
 - **🎨 Design System Intelligent**: Analyse contextuelle pour shadcn/ui (45+ composants)
 - **♿ Accessibilité**: Conformité WCAG 2.1 AA automatique
 - **📱 Responsive**: Design mobile-first (320px→1400px+)

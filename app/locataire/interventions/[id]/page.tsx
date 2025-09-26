@@ -363,7 +363,9 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
               title: intervention.title,
               status: intervention.status,
               tenant_id: user?.id,
-              scheduled_date: intervention.scheduledDate
+              scheduled_date: intervention.scheduledDate,
+              availabilities: intervention.availabilities,
+              quotes: intervention.quotes
             }}
             userRole="locataire"
             userId={user?.id || ''}

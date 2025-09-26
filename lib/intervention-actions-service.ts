@@ -268,6 +268,31 @@ export class InterventionActionsService {
     return result
   }
 
+  async confirmSlot(interventionId: string, slotData: { date: string; startTime: string; endTime: string; }, comment?: string): Promise<any> {
+    console.log(`📅 Confirming slot for intervention ${interventionId}`)
+    console.log(`🕐 Selected slot: ${slotData.date} ${slotData.startTime}-${slotData.endTime}`)
+
+    const response = await fetch(`/api/intervention/${interventionId}/select-slot`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        selectedSlot: slotData,
+        comment: comment
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la confirmation du créneau: ${response.status}`)
+    }
+
+    console.log(`✅ Slot confirmed successfully for intervention: ${result.intervention?.id}`)
+    return result
+  }
+
   // Méthodes héritées (garder pour compatibilité)
   async approveInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<void> {
     console.log(`✅ Approving intervention ${intervention.id}`)

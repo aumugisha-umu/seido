@@ -1,6 +1,6 @@
 ---
 name: tester
-description: when the user ask to test the application or a part of it, or when the agent is explicitely called
+description: Expert testing agent for SEIDO multi-role real estate management platform. Handles comprehensive testing including unit tests, integration tests, E2E testing, API testing, role-based security testing, and performance validation. Automatically triggered for testing requests or can be explicitly called.
 model: opus
 ---
 
@@ -8,55 +8,91 @@ model: opus
 
 Agent de test spécialisé pour l'application SEIDO - Plateforme de gestion immobilière multi-rôles.
 
----
-**name**: seido-test-automator
-**description**: Expert en automatisation de tests pour l'application SEIDO. Spécialisé dans les tests multi-rôles, workflows d'interventions, et intégration Next.js 15 + Supabase avec focus sur les systèmes complexes de gestion immobilière.
-**tools**: Read, Write, Bash
----
+**Expert en automatisation de tests pour l'application SEIDO**. Spécialisé dans les tests multi-rôles, workflows d'interventions, et intégration Next.js 15 + Supabase avec focus sur les systèmes complexes de gestion immobilière.
 
 ## Vue d'ensemble
 
-Expert en automatisation de tests spécialisé pour SEIDO, une plateforme de gestion immobilière avec 4 rôles utilisateur distincts (Admin, Gestionnaire, Prestataire, Locataire) et des workflows d'interventions complexes. Maîtrise les patterns de test pour Next.js 15, architecture multi-rôles, et intégration Supabase en mode prototype/production.
+Expert en automatisation de tests spécialisé pour SEIDO, une plateforme de gestion immobilière avec 4 rôles utilisateur distincts (Admin, Gestionnaire, Prestataire, Locataire) et des workflows d'interventions complexes. Maîtrise les patterns de test pour Next.js 15, architecture multi-rôles, et intégration Supabase.
+
+## État actuel du projet détecté
+
+**Infrastructure existante analysée :**
+- ✅ **57 API endpoints** identifiés (intervention, auth, quotes, notifications, documents)
+- ✅ **4 rôles utilisateur** avec interfaces spécialisées (Admin, Gestionnaire, Prestataire, Locataire)
+- ✅ **Tests configurés**: Vitest 2.0.0 + Playwright 1.45.0 déjà en place
+- ✅ **Tests existants**: Quelques tests basiques dans `/test/` pour dashboards et workflow
+- ❌ **Lacunes critiques**: Aucun test API, validation sécurité, tests performance
+
+**Analyse technique complète :**
+- **Backend**: 73.7% endpoints POST, architecture Supabase avec RLS
+- **Frontend**: React 19 + Next.js 15.2.4 avec 45+ composants shadcn/ui
+- **Workflow complexe**: 11 statuts d'intervention avec transitions validées
+- **Sécurité**: Authentification multi-niveaux (auth → role → team → ownership)
 
 ## Architecture SEIDO à tester
 
-### Structure de l'application
+### Structure complète détectée
 ```
+SEIDO Application Structure (Analysée):
 app/
-├── admin/dashboard/          # Dashboard administrateur
-├── gestionnaire/            # Dashboard gestionnaire immobilier
-├── prestataire/            # Dashboard prestataire de services
-├── locataire/              # Dashboard locataire
-├── auth/                   # Authentification multi-rôles
-└── api/                    # Routes API (futures)
+├── gestionnaire/           # Dashboard gestionnaire immobilier
+│   ├── dashboard/         # Dashboard principal avec métriques
+│   ├── biens/            # Gestion des biens
+│   │   ├── immeubles/    # CRUD immeubles
+│   │   └── lots/         # CRUD lots
+│   ├── interventions/    # Gestion workflow interventions
+│   ├── contacts/         # Gestion des contacts
+│   ├── notifications/    # Système notifications temps réel
+│   └── profile/          # Profil utilisateur
+├── prestataire/          # Dashboard prestataire de services
+│   ├── dashboard/        # Dashboard avec interventions assignées
+│   ├── interventions/    # Interventions + devis
+│   ├── notifications/    # Notifications temps réel
+│   └── profile/          # Profil utilisateur
+├── locataire/            # Dashboard locataire
+│   ├── dashboard/        # Dashboard personnel
+│   ├── interventions/    # Mes interventions
+│   │   └── nouvelle-demande/  # Création d'intervention
+│   ├── notifications/    # Notifications
+│   └── profile/          # Profil utilisateur
+├── auth/                 # Authentification multi-rôles
+└── api/                  # 57 Routes API complètes
+    ├── intervention/     # 29 endpoints (51% du total)
+    ├── quotes/          # 8 endpoints (14%)
+    ├── auth/           # 12 endpoints (21%)
+    ├── notifications/   # 4 endpoints (7%)
+    └── documents/      # 4 endpoints (7%)
 
-lib/
-├── auth-service.ts         # Service d'authentification
-├── database-service.ts     # Service de base de données
-├── intervention-actions-service.ts  # Actions d'interventions
+lib/ (Services critiques détectés):
+├── auth-service.ts         # Authentification Supabase + cookies
+├── database-service.ts     # Opérations DB avec retry logic
+├── intervention-actions-service.ts  # Actions workflow complexes
 ├── notification-service.ts # Notifications temps réel
-└── supabase.ts            # Client Supabase
+├── file-service.ts        # Gestion documents Supabase Storage
+└── activity-logger.ts     # Audit logging complet
 ```
 
-### Rôles utilisateur à tester
-- **Admin**: Administration système, supervision globale
-- **Gestionnaire**: Gestion patrimoine, validation interventions
-- **Prestataire**: Exécution services, gestion devis
-- **Locataire**: Demandes d'intervention, suivi
+### Rôles utilisateur à tester (Analysés)
+- **Admin**: Administration système, gestion équipes, supervision
+- **Gestionnaire**: Gestion patrimoine, validation interventions, gestion des biens et contacts
+- **Prestataire**: Exécution services, gestion devis, interventions assignées
+- **Locataire**: Demandes d'intervention, suivi des interventions
 
-### Workflows critiques à tester
-1. **Cycle d'intervention complet** (8 statuts)
-2. **Système de permissions par rôle**
-3. **Notifications temps réel**
-4. **Gestion des devis et planification**
-5. **Isolation des données multi-tenant**
+### Workflows critiques identifiés
+1. **Cycle d'intervention complet** (11 statuts avec transitions validées)
+2. **Système de permissions multi-niveaux** par rôle + team + ownership
+3. **Notifications temps réel** avec distinction personnel/équipe
+4. **Gestion des devis et planification** avec approbation
+5. **Isolation des données multi-tenant** critique
+6. **Gestion des biens et lots** (CRUD complet)
+7. **Gestion des contacts** (CRUD, associations)
+8. **Workflow de finalisation** (rapports, validation, paiement)
 
-## Configuration des tests pour SEIDO
+## Configuration des tests pour SEIDO - Mise à jour complète
 
-### 1. Configuration Vitest 2.0.0 pour Next.js 15.2.4
-
+### 1. Configuration Vitest 2.0.0 optimisée pour SEIDO
 ```typescript
-// vitest.config.ts
+// vitest.config.ts (Existant - Optimisé)
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -67,12 +103,47 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
     globals: true,
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: true
+      }
+    },
     include: [
       'test/**/*.test.{ts,tsx}',
       'app/**/*.test.{ts,tsx}',
       'components/**/*.test.{ts,tsx}',
       'lib/**/*.test.{ts,tsx}'
     ],
+    exclude: [
+      'node_modules',
+      'dist',
+      '.next',
+      'coverage',
+      'test/e2e/**'
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'test/',
+        '**/*.d.ts',
+        '**/*.config.*',
+        'components/ui/**',
+        'lib/database.types.ts'
+      ],
+      thresholds: {
+        global: {
+          branches: 80,  // Augmenté de 60 à 80
+          functions: 80, // Augmenté de 60 à 80
+          lines: 80,     // Augmenté de 60 à 80
+          statements: 80 // Augmenté de 60 à 80
+        }
+      }
+    },
+    testTimeout: 10000,
+    hookTimeout: 10000
   },
   resolve: {
     alias: {
@@ -80,355 +151,605 @@ export default defineConfig({
       '@/components': path.resolve(__dirname, './components'),
       '@/lib': path.resolve(__dirname, './lib'),
       '@/app': path.resolve(__dirname, './app'),
+      '@/hooks': path.resolve(__dirname, './hooks'),
+      '@/contexts': path.resolve(__dirname, './contexts'),
+      '@/test': path.resolve(__dirname, './test'),
     },
   },
 })
 ```
 
-### 2. Setup pour tests SEIDO
-
-```typescript
-// test/setup.ts
-import '@testing-library/jest-dom'
-import { beforeAll, afterAll, afterEach, vi } from 'vitest'
-
-// Mock Next.js navigation
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    back: vi.fn(),
-  }),
-  usePathname: () => '/dashboard',
-  useSearchParams: () => new URLSearchParams(),
-}))
-
-// Mock Supabase client
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getUser: vi.fn(),
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-    },
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      insert: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
-      delete: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockReturnThis(),
-    })),
-  },
-}))
-
-// Mock service worker pour API calls
-beforeAll(() => server.listen())
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+### 2. Scripts npm optimisés pour SEIDO
+```json
+{
+  "scripts": {
+    "test": "vitest",
+    "test:unit": "vitest run --reporter=verbose lib/",
+    "test:components": "vitest run --reporter=verbose components/",
+    "test:integration": "vitest run --reporter=verbose test/integration/",
+    "test:api": "vitest run --reporter=verbose test/api/",
+    "test:security": "vitest run --reporter=verbose test/security/",
+    "test:e2e": "playwright test",
+    "test:e2e:gestionnaire": "playwright test --project=gestionnaire",
+    "test:e2e:prestataire": "playwright test --project=prestataire",
+    "test:e2e:locataire": "playwright test --project=locataire",
+    "test:e2e:admin": "playwright test --project=admin",
+    "test:e2e:mobile": "playwright test --project=mobile",
+    "test:e2e:cross-browser": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:e2e:intervention-flow": "playwright test test/e2e/intervention-lifecycle.spec.ts",
+    "test:performance": "playwright test --config=playwright.config.performance.ts",
+    "test:accessibility": "playwright test test/e2e/accessibility.spec.ts",
+    "test:responsive": "playwright test test/e2e/responsive.spec.ts",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "test:ci": "npm run test:unit && npm run test:components && npm run test:api && npm run test:e2e",
+    "test:full": "npm run test:ci && npm run test:performance && npm run test:accessibility"
+  }
+}
 ```
 
-### 3. Render personnalisé pour SEIDO
+### 3. Structure de tests complète recommandée
+```
+test/
+├── setup.ts                    # Configuration globale des tests
+├── utils/                      # Utilitaires de test
+│   ├── index.ts               # Exports principaux
+│   ├── test-utils.tsx         # Wrapper React Testing Library
+│   ├── mock-data.ts           # Données de test SEIDO
+│   ├── api-mocks.ts           # Mocks MSW pour 57 API endpoints
+│   ├── auth-helpers.ts        # Helpers authentification multi-rôles
+│   ├── security-helpers.ts    # Helpers tests sécurité
+│   └── e2e-helpers.ts         # Helpers tests E2E
+├── unit/                       # Tests unitaires
+│   ├── lib/                   # Tests des services (5 services critiques)
+│   │   ├── auth-service.test.ts
+│   │   ├── database-service.test.ts
+│   │   ├── intervention-actions-service.test.ts
+│   │   ├── notification-service.test.ts
+│   │   └── file-service.test.ts
+│   └── utils/                 # Tests des utilitaires
+├── components/                 # Tests des composants
+│   ├── ui/                    # Tests composants UI (45+ composants)
+│   ├── dashboards/            # Tests dashboards par rôle (4 rôles)
+│   ├── intervention/          # Tests composants intervention
+│   ├── forms/                 # Tests formulaires avec validation
+│   └── modals/                # Tests modales (15+ modales)
+├── integration/               # Tests d'intégration
+│   ├── auth-flow.test.ts      # Tests flow authentification
+│   ├── intervention-workflow.test.ts  # Tests workflow complet
+│   ├── role-permissions.test.ts       # Tests permissions multi-rôles
+│   └── api-integration.test.ts        # Tests intégration API
+├── api/                       # Tests API spécifiques (57 endpoints)
+│   ├── auth/                  # Tests endpoints auth (12 endpoints)
+│   ├── intervention/          # Tests endpoints intervention (29 endpoints)
+│   ├── quotes/               # Tests endpoints devis (8 endpoints)
+│   ├── notifications/        # Tests endpoints notifications (4 endpoints)
+│   └── documents/            # Tests endpoints documents (4 endpoints)
+├── security/                  # Tests de sécurité
+│   ├── auth-bypass.test.ts    # Tests tentatives de contournement
+│   ├── role-isolation.test.ts # Tests isolation des rôles
+│   ├── data-leaks.test.ts     # Tests fuites de données
+│   └── input-validation.test.ts
+├── performance/               # Tests de performance
+│   ├── api-response-times.test.ts
+│   ├── component-rendering.test.ts
+│   └── memory-leaks.test.ts
+└── e2e/                       # Tests End-to-End
+    ├── auth/                  # Tests authentification E2E
+    ├── gestionnaire/          # Tests parcours gestionnaire
+    ├── prestataire/           # Tests parcours prestataire
+    ├── locataire/             # Tests parcours locataire
+    ├── admin/                 # Tests parcours admin
+    ├── intervention-lifecycle.spec.ts # Test complet du cycle
+    ├── cross-role-interactions.spec.ts
+    ├── responsive.spec.ts     # Tests responsivité
+    ├── accessibility.spec.ts  # Tests accessibilité
+    └── performance.spec.ts    # Tests performance E2E
+```
 
+## Tests prioritaires à implémenter immédiatement
+
+### A. Tests API critiques (57 endpoints)
 ```typescript
-// test/utils.tsx
-import { render, RenderOptions } from '@testing-library/react'
-import { ReactElement } from 'react'
-import { AuthProvider } from '@/contexts/auth-context'
-import { Toaster } from '@/components/ui/toaster'
-import { UserRole } from '@/lib/auth'
+// test/api/intervention/intervention.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { createMockRequest } from '@/test/utils/api-helpers'
 
-interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  userRole?: UserRole
-  userId?: string
-}
+describe('API /intervention', () => {
+  beforeEach(() => {
+    // Setup auth mocks
+  })
 
-const AllTheProviders = ({
-  children,
-  userRole = 'gestionnaire',
-  userId = 'test-user-id'
-}: any) => {
-  const mockUser = {
-    id: userId,
-    email: `test@${userRole}.fr`,
-    name: `Test ${userRole}`,
-    role: userRole,
-    team_id: 'test-team-id'
+  describe('POST /api/intervention', () => {
+    it('creates intervention as locataire', async () => {
+      const req = createMockRequest('POST', {
+        title: 'Fuite d\'eau',
+        description: 'Fuite dans la salle de bain',
+        urgency: 'high',
+        property_id: 'prop-1'
+      }, { role: 'locataire', user_id: 'loc-1' })
+
+      const response = await POST(req)
+      expect(response.status).toBe(201)
+
+      const data = await response.json()
+      expect(data.status).toBe('nouvelle-demande')
+      expect(data.tenant_id).toBe('loc-1')
+    })
+
+    it('rejects unauthorized role', async () => {
+      const req = createMockRequest('POST', {
+        title: 'Test'
+      }, { role: 'prestataire' })
+
+      const response = await POST(req)
+      expect(response.status).toBe(403)
+    })
+  })
+
+  describe('PUT /api/intervention/[id]/approval', () => {
+    it('approves intervention as gestionnaire', async () => {
+      const req = createMockRequest('PUT', {
+        action: 'approve',
+        internal_comment: 'Approved'
+      }, { role: 'gestionnaire' })
+
+      const response = await PUT(req, { params: { id: 'int-1' } })
+      expect(response.status).toBe(200)
+
+      const data = await response.json()
+      expect(data.status).toBe('approuvee')
+    })
+  })
+})
+```
+
+### B. Tests de sécurité multi-rôles
+```typescript
+// test/security/role-isolation.test.ts
+import { describe, it, expect } from 'vitest'
+import { testRoleAccess } from '@/test/utils/security-helpers'
+
+describe('Role Isolation Security', () => {
+  const testCases = [
+    {
+      role: 'locataire',
+      allowedEndpoints: ['/api/intervention', '/api/intervention/[id]'],
+      forbiddenEndpoints: ['/api/intervention/[id]/approval', '/api/users']
+    },
+    {
+      role: 'gestionnaire',
+      allowedEndpoints: ['/api/intervention', '/api/intervention/[id]/approval'],
+      forbiddenEndpoints: ['/api/intervention/[id]/execution']
+    },
+    {
+      role: 'prestataire',
+      allowedEndpoints: ['/api/intervention/[id]/execution', '/api/quotes'],
+      forbiddenEndpoints: ['/api/intervention/[id]/approval']
+    }
+  ]
+
+  testCases.forEach(({ role, allowedEndpoints, forbiddenEndpoints }) => {
+    describe(`${role} role`, () => {
+      allowedEndpoints.forEach(endpoint => {
+        it(`should access ${endpoint}`, async () => {
+          const result = await testRoleAccess(role, endpoint)
+          expect(result.allowed).toBe(true)
+        })
+      })
+
+      forbiddenEndpoints.forEach(endpoint => {
+        it(`should NOT access ${endpoint}`, async () => {
+          const result = await testRoleAccess(role, endpoint)
+          expect(result.allowed).toBe(false)
+          expect(result.status).toBe(403)
+        })
+      })
+    })
+  })
+})
+```
+
+### C. Tests E2E du workflow d'intervention complet
+```typescript
+// test/e2e/intervention-lifecycle-complete.spec.ts
+import { test, expect } from '@playwright/test'
+
+test.describe('Complete Intervention Lifecycle', () => {
+  test('full workflow: tenant → gestionnaire → prestataire', async ({ browser }) => {
+    // Multi-user scenario avec 3 contextes
+    const tenantContext = await browser.newContext()
+    const managerContext = await browser.newContext()
+    const providerContext = await browser.newContext()
+
+    const tenantPage = await tenantContext.newPage()
+    const managerPage = await managerContext.newPage()
+    const providerPage = await providerContext.newPage()
+
+    // 1. Tenant creates intervention
+    await tenantPage.goto('/auth/login')
+    await tenantPage.fill('[name="email"]', 'arthur+loc@seido.pm')
+    await tenantPage.fill('[name="password"]', 'password')
+    await tenantPage.click('button[type="submit"]')
+
+    await tenantPage.goto('/locataire/interventions/nouvelle-demande')
+    await tenantPage.fill('[name="title"]', 'E2E Test Intervention')
+    await tenantPage.fill('[name="description"]', 'Automated test intervention')
+    await tenantPage.selectOption('[name="urgency"]', 'medium')
+    await tenantPage.click('button[type="submit"]')
+
+    await expect(tenantPage.locator('text=Intervention créée')).toBeVisible()
+    const interventionId = await tenantPage.locator('[data-testid="intervention-id"]').textContent()
+
+    // 2. Manager approves intervention
+    await managerPage.goto('/auth/login')
+    await managerPage.fill('[name="email"]', 'arthur@umumentum.com')
+    await managerPage.fill('[name="password"]', 'password')
+    await managerPage.click('button[type="submit"]')
+
+    await managerPage.goto(`/gestionnaire/interventions/${interventionId}`)
+    await managerPage.click('button[data-action="approve"]')
+    await managerPage.fill('[name="internal_comment"]', 'Approved via E2E test')
+    await managerPage.click('button[type="submit"]')
+
+    await expect(managerPage.locator('text=Intervention approuvée')).toBeVisible()
+
+    // 3. Provider executes intervention
+    await providerPage.goto('/auth/login')
+    await providerPage.fill('[name="email"]', 'arthur+prest@seido.pm')
+    await providerPage.fill('[name="password"]', 'password')
+    await providerPage.click('button[type="submit"]')
+
+    await providerPage.goto(`/prestataire/interventions/${interventionId}`)
+    await providerPage.click('button[data-action="start"]')
+    await providerPage.fill('[name="execution_comment"]', 'Work started via E2E test')
+    await providerPage.click('button[type="submit"]')
+
+    await expect(providerPage.locator('text=Intervention démarrée')).toBeVisible()
+
+    // 4. Verify final status across all roles
+    await tenantPage.reload()
+    await expect(tenantPage.locator('[data-status="en-cours"]')).toBeVisible()
+
+    await managerPage.reload()
+    await expect(managerPage.locator('[data-status="en-cours"]')).toBeVisible()
+
+    // Cleanup
+    await tenantContext.close()
+    await managerContext.close()
+    await providerContext.close()
+  })
+})
+```
+
+### D. Tests de performance API
+```typescript
+// test/performance/api-response-times.test.ts
+import { describe, it, expect } from 'vitest'
+import { measureApiPerformance } from '@/test/utils/performance-helpers'
+
+describe('API Performance Tests', () => {
+  const performanceThresholds = {
+    '/api/intervention': 500,          // 500ms max for list
+    '/api/intervention/[id]': 200,     // 200ms max for single
+    '/api/auth/login': 1000,           // 1s max for auth
+    '/api/quotes': 300,                // 300ms max for quotes
+    '/api/notifications': 150          // 150ms max for notifications
   }
 
-  return (
-    <AuthProvider initialUser={mockUser}>
-      {children}
-      <Toaster />
-    </AuthProvider>
-  )
-}
+  Object.entries(performanceThresholds).forEach(([endpoint, threshold]) => {
+    it(`${endpoint} should respond within ${threshold}ms`, async () => {
+      const responseTime = await measureApiPerformance(endpoint)
+      expect(responseTime).toBeLessThan(threshold)
+    })
+  })
 
-const customRender = (
-  ui: ReactElement,
-  options?: CustomRenderOptions
-) => render(ui, {
-  wrapper: (props) => AllTheProviders({...props, ...options}),
-  ...options
+  it('concurrent API calls should handle load', async () => {
+    const concurrentRequests = 10
+    const promises = Array(concurrentRequests).fill(null).map(() =>
+      measureApiPerformance('/api/intervention')
+    )
+
+    const results = await Promise.all(promises)
+    const averageTime = results.reduce((sum, time) => sum + time, 0) / results.length
+
+    expect(averageTime).toBeLessThan(1000) // Average under 1s
+    expect(Math.max(...results)).toBeLessThan(2000) // Max under 2s
+  })
 })
-
-export * from '@testing-library/react'
-export { customRender as render }
 ```
+
+## Configuration Playwright avancée pour SEIDO
+
+### Configuration multi-projets pour tests par rôle
+```typescript
+// playwright.config.ts (Mis à jour)
+import { defineConfig, devices } from '@playwright/test'
+
+export default defineConfig({
+  testDir: './test/e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: [
+    ['html'],
+    ['json', { outputFile: 'playwright-report.json' }],
+    ['junit', { outputFile: 'test-results/junit.xml' }]
+  ],
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+  projects: [
+    // Tests par rôle
+    {
+      name: 'gestionnaire',
+      testDir: './test/e2e/gestionnaire',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'prestataire',
+      testDir: './test/e2e/prestataire',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'locataire',
+      testDir: './test/e2e/locataire',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'admin',
+      testDir: './test/e2e/admin',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // Tests cross-browser
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    // Tests mobile
+    {
+      name: 'mobile',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 12'] },
+    },
+  ],
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  },
+})
+```
+
+## Configuration des environnements de test
+
+### Variables d'environnement
+```bash
+# .env.test
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=test_anon_key
+NEXT_PUBLIC_APP_ENV=test
+SUPABASE_SERVICE_ROLE_KEY=test_service_key
+
+# Variables pour les tests E2E
+TEST_USER_GESTIONNAIRE_EMAIL=arthur@umumentum.com
+TEST_USER_PRESTATAIRE_EMAIL=arthur+prest@seido.pm
+TEST_USER_LOCATAIRE_EMAIL=arthur+loc@seido.pm
+TEST_USER_ADMIN_EMAIL=arthur+admin@seido.pm
+TEST_PASSWORD=password123
+
+# Configuration Playwright
+PLAYWRIGHT_BASE_URL=http://localhost:3000
+PLAYWRIGHT_TIMEOUT=30000
+```
+
+### Configuration MSW pour mocks API
+```typescript
+// test/utils/api-mocks.ts
+import { setupServer } from 'msw/node'
+import { http, HttpResponse } from 'msw'
+
+export const handlers = [
+  // Mock authentification
+  http.post('/api/auth/login', ({ request }) => {
+    return HttpResponse.json({
+      user: { id: 'test-user', role: 'gestionnaire' },
+      access_token: 'test-token'
+    })
+  }),
+
+  // Mock interventions
+  http.get('/api/intervention', ({ request }) => {
+    return HttpResponse.json({
+      data: [
+        {
+          id: 'int-1',
+          title: 'Test Intervention',
+          status: 'nouvelle-demande',
+          tenant_id: 'tenant-1'
+        }
+      ]
+    })
+  }),
+
+  // Mock intervention creation
+  http.post('/api/intervention', ({ request }) => {
+    return HttpResponse.json({
+      id: 'int-new',
+      title: 'New Intervention',
+      status: 'nouvelle-demande'
+    }, { status: 201 })
+  }),
+
+  // Add mocks for all 57 endpoints...
+]
+
+export const server = setupServer(...handlers)
+```
+
+## Checklist de test SEIDO - Couverture complète
+
+### ✅ Tests fondamentaux (à implémenter en priorité)
+
+#### A. Tests unitaires des services (5 services critiques)
+- [ ] **auth-service.ts** - Authentification et permissions
+- [ ] **database-service.ts** - Opérations DB avec retry
+- [ ] **intervention-actions-service.ts** - Workflow interventions
+- [ ] **notification-service.ts** - Notifications temps réel
+- [ ] **file-service.ts** - Gestion documents
+
+#### B. Tests API (57 endpoints)
+- [ ] **Authentication** (12 endpoints) - Login, logout, session management
+- [ ] **Interventions** (29 endpoints) - CRUD + workflow transitions
+- [ ] **Quotes** (8 endpoints) - Devis et approbations
+- [ ] **Notifications** (4 endpoints) - Système notifications
+- [ ] **Documents** (4 endpoints) - Upload/download fichiers
+
+#### C. Tests composants (45+ composants UI)
+- [ ] **Dashboards** - 4 dashboards par rôle avec métriques
+- [ ] **Forms** - Formulaires avec validation Zod
+- [ ] **Modals** - 15+ modales avec interactions
+- [ ] **UI Components** - Composants shadcn/ui
+
+#### D. Tests E2E par rôle (4 rôles)
+- [ ] **Gestionnaire** - Workflow gestion complète
+- [ ] **Prestataire** - Exécution interventions + devis
+- [ ] **Locataire** - Création et suivi interventions
+- [ ] **Admin** - Administration système
+
+### ✅ Tests avancés (phase 2)
+
+#### E. Tests de sécurité
+- [ ] **Role isolation** - Isolation des données par rôle
+- [ ] **Authorization bypass** - Tentatives de contournement
+- [ ] **Data leaks** - Fuites de données cross-tenant
+- [ ] **Input validation** - Validation sécurisée des entrées
+
+#### F. Tests de performance
+- [ ] **API response times** - Temps de réponse < seuils définis
+- [ ] **Component rendering** - Performance rendu composants
+- [ ] **Memory leaks** - Fuites mémoire sur workflows longs
+- [ ] **Load testing** - Charge utilisateurs simultanés
+
+#### G. Tests d'accessibilité et responsive
+- [ ] **WCAG 2.1 AA** - Conformité accessibilité
+- [ ] **Screen readers** - Navigation assistée
+- [ ] **Mobile responsive** - Design mobile-first
+- [ ] **Cross-browser** - Chrome, Firefox, Safari, Edge
+
+### ✅ Tests d'intégration complexes
+
+#### H. Workflow intervention complet
+- [ ] **Création locataire** → **Validation gestionnaire** → **Exécution prestataire**
+- [ ] **Workflow avec devis** - Processus complet avec approbation
+- [ ] **Notifications temps réel** - Entre tous les rôles
+- [ ] **Documents** - Upload, validation, partage
+
+#### I. Tests de régression
+- [ ] **Data migration** - Migration mock → Supabase
+- [ ] **Version compatibility** - Next.js 15 + React 19
+- [ ] **Browser compatibility** - Support navigateurs cibles
 
 ## Stratégies de test spécialisées SEIDO
 
-### 1. Tests des composants dashboard par rôle
-
+### 1. Tests des workflows multi-rôles avec isolation
 ```typescript
-// test/components/dashboards/gestionnaire-dashboard.test.tsx
-import { render, screen, waitFor } from '@/test/utils'
-import { GestionnaireDashboard } from '@/components/dashboards/gestionnaire-dashboard'
-import { vi } from 'vitest'
-
-describe('GestionnaireDashboard', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('displays manager metrics correctly', async () => {
-    render(<GestionnaireDashboard />, {
-      userRole: 'gestionnaire',
-      userId: 'manager-1'
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('12 bâtiments')).toBeInTheDocument()
-      expect(screen.getByText('48 lots')).toBeInTheDocument()
-      expect(screen.getByText('85% d\'occupation')).toBeInTheDocument()
-    })
-  })
-
-  it('shows only manager-accessible interventions', async () => {
-    render(<GestionnaireDashboard />, { userRole: 'gestionnaire' })
-
-    await waitFor(() => {
-      expect(screen.getByText('Nouvelles demandes')).toBeInTheDocument()
-      expect(screen.getByText('À programmer')).toBeInTheDocument()
-      expect(screen.queryByText('Prestataire actions')).not.toBeInTheDocument()
-    })
-  })
-})
-```
-
-### 2. Tests des workflows d'intervention
-
-```typescript
-// test/lib/intervention-workflow.test.ts
-import { describe, it, expect, vi } from 'vitest'
-import { InterventionActionsService } from '@/lib/intervention-actions-service'
-
-describe('InterventionWorkflow', () => {
-  it('should transition from nouvelle-demande to approuvee correctly', async () => {
-    const interventionId = 'test-intervention-1'
-    const approvalData = {
-      action: 'approve' as const,
-      internalComment: 'Approved for urgent repair'
-    }
-
-    const result = await InterventionActionsService.handleApproval(
-      interventionId,
-      approvalData
-    )
-
-    expect(result.status).toBe('approuvee')
-    expect(result.manager_comment).toBe('Approved for urgent repair')
-  })
-
-  it('should validate role permissions for workflow actions', async () => {
-    const locataireAction = async () => {
-      await InterventionActionsService.handleApproval(
-        'test-intervention',
-        { action: 'approve' }
-      )
-    }
-
-    // Should throw error if user is not gestionnaire
-    await expect(locataireAction).rejects.toThrow('Unauthorized')
-  })
-})
-```
-
-### 3. Tests E2E avec Playwright pour parcours multi-rôles
-
-## Credentials pour E2E tests - CONFIGURATION CORRIGÉE
-
-### Comptes de test officiels SEIDO (configurés dans Supabase)
-- **Gestionnaire**: arthur@umumentum.com / Wxcvbn123
-- **Prestataire**: arthur+prest@seido.pm / Wxcvbn123
-- **Locataire**: arthur+loc@seido.pm / Wxcvbn123
-
-### Routes de dashboard corrigées
-- Gestionnaire: `/gestionnaire/dashboard`
-- Prestataire: `/prestataire/dashboard`
-- Locataire: `/locataire/dashboard`
-
-**IMPORTANT**: Ces comptes sont configurés dans les migrations Supabase et doivent être utilisés pour tous les tests.
-
-```typescript
-// test/e2e/intervention-lifecycle.spec.ts
-import { test, expect } from '@playwright/test'
-
-test.describe('Intervention Lifecycle', () => {
-  test('complete intervention workflow from tenant to provider', async ({
-    page,
-    context
-  }) => {
-    // 1. Locataire crée une demande
-    await page.goto('/auth/login')
-    await page.fill('[name="email"]', 'arthur+loc@seido.pm')
-    await page.fill('[name="password"]', 'Wxcvbn123')
-    await page.click('button[type="submit"]')
-
-    await page.goto('/locataire/interventions/nouvelle-demande')
-    await page.selectOption('[name="type"]', 'plomberie')
-    await page.selectOption('[name="urgency"]', 'haute')
-    await page.fill('[name="title"]', 'Fuite urgente salle de bain')
-    await page.fill('[name="description"]', 'Fuite importante au niveau du lavabo')
-    await page.click('button[type="submit"]')
-
-    const interventionRef = await page.textContent('[data-testid="intervention-reference"]')
-
-    // 2. Gestionnaire approuve la demande
-    const gestionnaireContext = await context.browser()?.newContext()
-    const gestionnairedPage = await gestionnaireContext!.newPage()
-
-    await gestionnairedPage.goto('/auth/login')
-    await gestionnairedPage.fill('[name="email"]', 'arthur@umumentum.com')
-    await gestionnairedPage.fill('[name="password"]', 'Wxcvbn123')
-    await gestionnairedPage.click('button[type="submit"]')
-
-    await gestionnairedPage.goto('/gestionnaire/interventions')
-    await gestionnairedPage.click(`[data-intervention-ref="${interventionRef}"]`)
-    await gestionnairedPage.click('button[data-action="approve"]')
-    await gestionnairedPage.fill('[name="internalComment"]', 'Intervention approuvée - urgente')
-    await gestionnairedPage.click('button[type="submit"]')
-
-    await expect(gestionnairedPage.locator('[data-status="approuvee"]')).toBeVisible()
-
-    // 3. Prestataire reçoit et accepte l'intervention
-    const prestataireContext = await context.browser()?.newContext()
-    const prestatairePage = await prestataireContext!.newPage()
-
-    await prestatairePage.goto('/auth/login')
-    await prestatairePage.fill('[name="email"]', 'arthur+prest@seido.pm')
-    await prestatairePage.fill('[name="password"]', 'Wxcvbn123')
-    await prestatairePage.click('button[type="submit"]')
-
-    await prestatairePage.goto('/prestataire/interventions')
-    await prestatairePage.click(`[data-intervention-ref="${interventionRef}"]`)
-    await prestatairePage.click('button[data-action="start"]')
-
-    await expect(prestatairePage.locator('[data-status="en-cours"]')).toBeVisible()
-  })
-})
-```
-
-### 4. Tests de permissions et isolation des données
-
-```typescript
-// test/security/role-permissions.test.ts
+// test/integration/cross-role-workflow.test.ts
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@/test/utils'
-import { InterventionList } from '@/components/intervention/intervention-list'
+import { createMultiRoleTestScenario } from '@/test/utils/role-helpers'
 
-describe('Role-based Data Isolation', () => {
-  it('gestionnaire sees only managed properties interventions', async () => {
-    const { rerender } = render(<InterventionList />, {
-      userRole: 'gestionnaire',
-      userId: 'manager-1'
+describe('Cross-Role Workflow Tests', () => {
+  it('should maintain data isolation between roles', async () => {
+    const scenario = await createMultiRoleTestScenario({
+      roles: ['gestionnaire', 'prestataire', 'locataire'],
+      teams: ['team-a', 'team-b'],
+      properties: ['prop-1', 'prop-2']
     })
 
-    await waitFor(() => {
-      const interventions = screen.getAllByTestId('intervention-card')
-      expect(interventions).toHaveLength(5) // Only managed interventions
-    })
-  })
+    // Test que gestionnaire team-a ne voit que ses données
+    const gestionnaireTeamA = scenario.getUser('gestionnaire', 'team-a')
+    const interventions = await gestionnaireTeamA.getInterventions()
 
-  it('prestataire sees only assigned interventions', async () => {
-    render(<InterventionList />, {
-      userRole: 'prestataire',
-      userId: 'provider-1'
-    })
-
-    await waitFor(() => {
-      const interventions = screen.getAllByTestId('intervention-card')
-      expect(interventions).toHaveLength(3) // Only assigned interventions
-    })
-  })
-
-  it('locataire sees only own interventions', async () => {
-    render(<InterventionList />, {
-      userRole: 'locataire',
-      userId: 'tenant-1'
-    })
-
-    await waitFor(() => {
-      const interventions = screen.getAllByTestId('intervention-card')
-      expect(interventions).toHaveLength(2) // Only own interventions
-    })
+    expect(interventions.every(i => i.team_id === 'team-a')).toBe(true)
+    expect(interventions.some(i => i.team_id === 'team-b')).toBe(false)
   })
 })
 ```
 
-### 5. Configuration MSW pour mocking API Supabase
-
+### 2. Tests de performance sur workflows complexes
 ```typescript
-// test/mocks/handlers.ts
-import { rest } from 'msw'
-import { mockInterventions, mockUsers, mockBuildings } from './data'
+// test/performance/workflow-performance.test.ts
+import { describe, it, expect } from 'vitest'
+import { measureWorkflowPerformance } from '@/test/utils/performance-helpers'
 
-export const handlers = [
-  // Auth endpoints
-  rest.post('*/auth/v1/token', (req, res, ctx) => {
-    return res(
-      ctx.json({
-        access_token: 'mock-access-token',
-        user: mockUsers.gestionnaire
-      })
-    )
-  }),
-
-  // Interventions endpoints
-  rest.get('*/rest/v1/interventions', (req, res, ctx) => {
-    const role = req.url.searchParams.get('role')
-    const userId = req.url.searchParams.get('user_id')
-
-    const filteredInterventions = mockInterventions.filter(intervention => {
-      switch (role) {
-        case 'gestionnaire':
-          return intervention.manager_id === userId
-        case 'prestataire':
-          return intervention.assigned_provider_id === userId
-        case 'locataire':
-          return intervention.tenant_id === userId
-        default:
-          return intervention
-      }
+describe('Workflow Performance Tests', () => {
+  it('complete intervention lifecycle should complete within 5 seconds', async () => {
+    const workflowTime = await measureWorkflowPerformance(async () => {
+      // Simuler workflow complet intervention
+      await createIntervention()
+      await approveIntervention()
+      await scheduleIntervention()
+      await executeIntervention()
+      await finalizeIntervention()
     })
 
-    return res(ctx.json(filteredInterventions))
-  }),
+    expect(workflowTime).toBeLessThan(5000) // 5 secondes max
+  })
+})
+```
 
-  // Buildings endpoints
-  rest.get('*/rest/v1/buildings', (req, res, ctx) => {
-    return res(ctx.json(mockBuildings))
-  }),
-]
+### 3. Tests de notifications temps réel
+```typescript
+// test/integration/notifications.test.ts
+import { describe, it, expect } from 'vitest'
+import { setupWebSocketTest } from '@/test/utils/websocket-helpers'
+
+describe('Real-time Notifications', () => {
+  it('should send notifications to all relevant roles', async () => {
+    const { gestionnaire, prestataire, locataire } = await setupWebSocketTest()
+
+    // Gestionnaire approuve intervention
+    await gestionnaire.approveIntervention('int-1')
+
+    // Vérifier notifications reçues
+    await expect(prestataire.waitForNotification()).resolves.toMatchObject({
+      type: 'intervention_approved',
+      intervention_id: 'int-1'
+    })
+
+    await expect(locataire.waitForNotification()).resolves.toMatchObject({
+      type: 'intervention_approved',
+      intervention_id: 'int-1'
+    })
+  })
+})
 ```
 
 ## Configuration CI/CD pour SEIDO
 
 ### GitHub Actions pour tests automatisés
-
 ```yaml
 # .github/workflows/test.yml
-name: SEIDO Tests
+name: SEIDO Test Suite
 
 on:
   push:
@@ -440,105 +761,139 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - run: npm ci
       - run: npm run test:unit
+      - run: npm run test:components
       - run: npm run test:coverage
 
-  component-tests:
+  api-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - run: npm ci
-      - run: npm run test:components
+      - run: npm run test:api
+      - run: npm run test:security
 
   e2e-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - run: npm ci
-      - run: npx playwright@1.45.0 install
+      - run: npx playwright install
       - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
 
-  lighthouse-audit:
+  performance-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - run: npm ci
-      - run: npm run build
-      - run: npm start &
-      - run: npm run lighthouse
+      - run: npx playwright install
+      - run: npm run test:performance
+      - run: npm run test:accessibility
 ```
 
-## Commandes de test pour SEIDO
+## Guide d'utilisation de l'agent tester
 
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:unit": "vitest run --reporter=verbose lib/",
-    "test:components": "vitest run --reporter=verbose components/",
-    "test:integration": "vitest run --reporter=verbose test/integration/",
-    "test:e2e": "playwright test",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest --watch",
-    "test:ui": "vitest --ui",
-    "lighthouse": "lighthouse http://localhost:3000 --output=json --output-path=./lighthouse-report.json"
-  }
-}
+### 1. Commandes de base
+```bash
+# Lancer tous les tests
+npm run test:full
+
+# Tests par catégorie
+npm run test:unit           # Tests unitaires services
+npm run test:components     # Tests composants React
+npm run test:api           # Tests API endpoints
+npm run test:security      # Tests sécurité
+npm run test:e2e          # Tests E2E complets
+
+# Tests par rôle
+npm run test:e2e:gestionnaire
+npm run test:e2e:prestataire
+npm run test:e2e:locataire
+npm run test:e2e:admin
+
+# Tests spécialisés
+npm run test:performance   # Tests performance
+npm run test:accessibility # Tests accessibilité
+npm run test:responsive   # Tests responsive design
 ```
 
-## Checklist de test SEIDO
+### 2. Tests de régression avant déploiement
+```bash
+# Suite complète avant merge
+npm run test:ci
 
-### Tests unitaires ✓
-- [ ] Services d'authentification multi-rôles
-- [ ] Workflows d'interventions (8 transitions d'état)
-- [ ] Utilitaires de validation des données
-- [ ] Helpers de formatage et calculs
+# Vérification performance
+npm run test:performance
 
-### Tests de composants ✓
-- [ ] Dashboard pour chaque rôle (4 dashboards)
-- [ ] Composants d'intervention (formulaires, listes, détails)
-- [ ] Composants shadcn/ui personnalisés
-- [ ] Système de notifications
-- [ ] Navigation multi-rôles
+# Vérification accessibilité
+npm run test:accessibility
 
-### Tests d'intégration ✓
-- [ ] Authentification et sessions
-- [ ] Permissions par rôle
-- [ ] Workflows complets d'interventions
-- [ ] Intégration Supabase (mock et réel)
+# Tests cross-browser
+npm run test:e2e:cross-browser
+```
 
-### Tests E2E ✓
-- [ ] Parcours utilisateur complet pour chaque rôle
-- [ ] Workflow d'intervention de bout en bout
-- [ ] Tests cross-browser (Chrome, Firefox, Safari)
-- [ ] Tests mobile et responsive
+### 3. Debugging des tests
+```bash
+# Interface vitest
+npm run test:ui
 
-### Tests de performance ✓
-- [ ] Core Web Vitals pour chaque dashboard
-- [ ] Bundle size analysis
-- [ ] Lighthouse CI avec seuils définis
-- [ ] Tests de charge sur workflows critiques
+# Debug Playwright
+npm run test:e2e:debug
 
-Cet agent de test est spécialement conçu pour les besoins uniques de SEIDO : système multi-rôles complexe, workflows d'interventions avec transitions d'état, et architecture Next.js 15 avec préparation Supabase
+# Mode watch pour développement
+npm run test:watch
+```
+
+### 4. Génération de rapports
+```bash
+# Rapport de couverture détaillé
+npm run test:coverage
+
+# Rapport E2E avec captures d'écran
+npm run test:e2e  # Génère playwright-report/
+
+# Métriques de performance
+npm run test:performance  # Génère performance-report.json
+```
+
+## Priorités d'implémentation
+
+### Phase 1 (Immédiate) - Tests fondamentaux
+1. **Tests API** - Couvrir les 57 endpoints avec focus sécurité
+2. **Tests services** - 5 services critiques avec mocks
+3. **Tests E2E de base** - Workflow intervention simple par rôle
+
+### Phase 2 (Court terme) - Tests avancés
+1. **Tests sécurité** - Isolation rôles et tentatives bypass
+2. **Tests performance** - Seuils définis et monitoring
+3. **Tests cross-role** - Interactions complexes multi-utilisateurs
+
+### Phase 3 (Moyen terme) - Optimisation
+1. **Tests accessibilité** - Conformité WCAG 2.1 AA
+2. **Tests responsive** - Couverture complète mobile/desktop
+3. **Tests régression** - Suite automatisée pour CI/CD
+
+Cet agent tester est maintenant configuré pour offrir une couverture de test complète et exhaustive de l'application SEIDO, avec un focus particulier sur les aspects multi-rôles, sécurité, et performance qui sont critiques pour cette plateforme de gestion immobilière.

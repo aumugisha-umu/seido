@@ -26,14 +26,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea"
 import { interventionActionsService } from "@/lib/intervention-actions-service"
 import { WorkCompletionReport } from "./work-completion-report"
+import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
 import { TenantValidationForm } from "./tenant-validation-form"
-import { ManagerFinalizationForm } from "./manager-finalization-form"
+import { SimplifiedFinalizationModal } from "./simplified-finalization-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
-import type { WorkCompletionReportData, TenantValidationData, ManagerFinalizationData } from "./closure/types"
+import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
+import type { SimpleWorkCompletionData } from "./closure/simple-types"
 
 interface InterventionActionPanelProps {
   intervention: {
@@ -82,8 +84,9 @@ export function InterventionActionPanel({
 
   // States for closure modals
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
+  const [showSimpleWorkCompletionModal, setShowSimpleWorkCompletionModal] = useState(false)
   const [showTenantValidationModal, setShowTenantValidationModal] = useState(false)
-  const [showManagerFinalizationModal, setShowManagerFinalizationModal] = useState(false)
+  const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
 
   // Hook for quote management
   const quoting = useInterventionQuoting()
@@ -361,19 +364,16 @@ export function InterventionActionPanel({
             label: 'Marquer comme terminé',
             icon: CheckCircle,
             variant: 'default',
-            description: 'Signaler la fin des travaux',
-            requiresComment: true,
-            confirmationMessage: 'Confirmer la fin des travaux ?'
+            description: 'Signaler la fin des travaux'
           })
         }
         if (userRole === 'gestionnaire') {
           actions.push({
-            key: 'pause_work',
-            label: 'Suspendre',
-            icon: Pause,
-            variant: 'outline',
-            description: 'Suspendre temporairement l\'intervention',
-            requiresComment: true
+            key: 'complete_work',
+            label: 'Marquer comme terminé',
+            icon: CheckCircle,
+            variant: 'default',
+            description: 'Marquer l\'intervention comme terminée'
           })
         }
         break
@@ -401,18 +401,27 @@ export function InterventionActionPanel({
             }
           )
         }
+        if (userRole === 'gestionnaire') {
+          actions.push({
+            key: 'finalize',
+            label: 'Finaliser',
+            icon: UserCheck,
+            variant: 'default',
+            description: 'Clôturer définitivement l\'intervention',
+            requiresComment: false
+          })
+        }
         break
 
       case 'cloturee_par_locataire':
         if (userRole === 'gestionnaire') {
           actions.push({
             key: 'finalize',
-            label: 'Finaliser définitivement',
+            label: 'Finaliser',
             icon: UserCheck,
             variant: 'default',
             description: 'Clôturer définitivement l\'intervention',
-            requiresComment: false,
-            confirmationMessage: 'Cette action finalisera définitivement l\'intervention.'
+            requiresComment: false
           })
         }
         break
@@ -535,8 +544,8 @@ export function InterventionActionPanel({
           break
 
         case 'complete_work':
-          // Open professional work completion modal
-          setShowWorkCompletionModal(true)
+          // Open simple work completion modal
+          setShowSimpleWorkCompletionModal(true)
           return
 
         case 'validate_work':
@@ -546,8 +555,7 @@ export function InterventionActionPanel({
           return
 
         case 'finalize':
-          // Open manager finalization modal
-          setShowManagerFinalizationModal(true)
+          setShowSimplifiedFinalizationModal(true)
           return
 
         case 'cancel':
@@ -629,6 +637,45 @@ export function InterventionActionPanel({
     }
   }
 
+  // Handler for simple work completion
+  const handleSimpleWorkCompletion = async (data: SimpleWorkCompletionData): Promise<boolean> => {
+    try {
+      setIsProcessing(true)
+
+      // Convert files to serializable format
+      const serializableData = {
+        workReport: data.workReport,
+        mediaFiles: data.mediaFiles.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }))
+      }
+
+      const response = await fetch(`/api/intervention/${intervention.id}/simple-work-completion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(serializableData)
+      })
+
+      if (response.ok) {
+        setShowSimpleWorkCompletionModal(false)
+        onActionComplete?.()
+        return true
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Erreur lors de la soumission du rapport')
+        return false
+      }
+    } catch (error) {
+      setError('Erreur lors de la soumission du rapport')
+      return false
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   // Handler for tenant validation
   const handleTenantValidation = async (validationData: TenantValidationData): Promise<boolean> => {
     try {
@@ -658,34 +705,6 @@ export function InterventionActionPanel({
     }
   }
 
-  // Handler for manager finalization
-  const handleManagerFinalization = async (finalizationData: ManagerFinalizationData): Promise<boolean> => {
-    try {
-      setIsProcessing(true)
-
-      // TODO: Replace with actual API call
-      const response = await fetch(`/api/intervention/${intervention.id}/manager-finalization`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalizationData)
-      })
-
-      if (response.ok) {
-        setShowManagerFinalizationModal(false)
-        onActionComplete?.()
-        return true
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'Erreur lors de la finalisation')
-        return false
-      }
-    } catch (error) {
-      setError('Erreur lors de la finalisation')
-      return false
-    } finally {
-      setIsProcessing(false)
-    }
-  }
 
   const availableActions = getAvailableActions()
 
@@ -869,6 +888,15 @@ export function InterventionActionPanel({
         isLoading={isProcessing}
       />
 
+      {/* Simple Work Completion Modal */}
+      <SimpleWorkCompletionModal
+        intervention={intervention}
+        isOpen={showSimpleWorkCompletionModal}
+        onClose={() => setShowSimpleWorkCompletionModal(false)}
+        onSubmit={handleSimpleWorkCompletion}
+        isLoading={isProcessing}
+      />
+
       {/* Tenant Validation Modal */}
       <TenantValidationForm
         intervention={intervention}
@@ -878,12 +906,12 @@ export function InterventionActionPanel({
         isLoading={isProcessing}
       />
 
-      {/* Manager Finalization Modal */}
-      <ManagerFinalizationForm
-        intervention={intervention}
-        isOpen={showManagerFinalizationModal}
-        onClose={() => setShowManagerFinalizationModal(false)}
-        onSubmit={handleManagerFinalization}
+      {/* Simplified Finalization Modal */}
+      <SimplifiedFinalizationModal
+        interventionId={intervention.id}
+        isOpen={showSimplifiedFinalizationModal}
+        onClose={() => setShowSimplifiedFinalizationModal(false)}
+        onComplete={onActionComplete}
         isLoading={isProcessing}
       />
 

@@ -1,17 +1,72 @@
-"use client"
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
+import { requireRole } from "@/lib/dal"
+import { userService, interventionService, buildingService } from "@/lib/database-service"
+import { AdminDashboardClient } from "./admin-dashboard-client"
 
-export default function AdminDashboard() {
-  const { user } = useAuth()
-  
-  // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
-  useDashboardSessionTimeout()
+/**
+ * 🔐 DASHBOARD ADMIN - SERVER COMPONENT (Migration Server Components)
+ *
+ * Multi-layer security implementation:
+ * 1. Route level: requireRole() vérification
+ * 2. Data layer: DAL avec authentification
+ * 3. UI level: Masquage conditionnel
+ * 4. Server actions: Validation dans actions
+ */
+
+export default async function AdminDashboard() {
+  // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
+  const user = await requireRole('admin')
+
+  // ✅ LAYER 2: Data Layer Security - Récupération données système
+  let systemStats = {
+    totalUsers: 0,
+    totalBuildings: 0,
+    totalInterventions: 0,
+    totalRevenue: 0,
+    usersGrowth: 0,
+    buildingsGrowth: 0,
+    interventionsGrowth: 0,
+    revenueGrowth: 0
+  }
+
+  try {
+    // Récupérer les statistiques globales du système
+    console.log('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
+
+    // Statistiques utilisateurs
+    const allUsers = await userService.getAllUsers()
+    const totalUsers = allUsers?.length || 0
+
+    // Statistiques immeubles (toutes les équipes)
+    const allBuildings = await buildingService.getAllBuildings()
+    const totalBuildings = allBuildings?.length || 0
+
+    // Statistiques interventions (toutes les équipes)
+    const allInterventions = await interventionService.getAllInterventions()
+    const totalInterventions = allInterventions?.length || 0
+
+    // Calcul du chiffre d'affaires simulé (basé sur les interventions)
+    const completedInterventions = allInterventions?.filter(i => i.status === 'completed') || []
+    const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
+
+    systemStats = {
+      totalUsers,
+      totalBuildings,
+      totalInterventions,
+      totalRevenue,
+      usersGrowth: 12, // Simulation de croissance
+      buildingsGrowth: 8,
+      interventionsGrowth: 15,
+      revenueGrowth: 20
+    }
+
+    console.log('✅ [ADMIN-DASHBOARD] System stats loaded:', systemStats)
+  } catch (error) {
+    console.error('❌ [ADMIN-DASHBOARD] Error loading system stats:', error)
+    // Les stats par défaut restent (valeurs 0)
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -26,8 +81,10 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3">
               <Badge variant="secondary" className="bg-red-100 text-red-800">
                 <Shield className="w-3 h-3 mr-1" />
-                {user.name}
+                {user.display_name || user.name}
               </Badge>
+              {/* Actions rapides - Composant client sécurisé */}
+              <AdminDashboardClient userId={user.id} />
             </div>
           </div>
         </div>
@@ -42,8 +99,8 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,847</div>
-            <p className="text-xs text-muted-foreground">+12% ce mois</p>
+            <div className="text-2xl font-bold">{systemStats.totalUsers.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+{systemStats.usersGrowth}% ce mois</p>
           </CardContent>
         </Card>
 
@@ -53,8 +110,8 @@ export default function AdminDashboard() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground">+8% ce mois</p>
+            <div className="text-2xl font-bold">{systemStats.totalBuildings.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+{systemStats.buildingsGrowth}% ce mois</p>
           </CardContent>
         </Card>
 
@@ -64,8 +121,8 @@ export default function AdminDashboard() {
             <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5,678</div>
-            <p className="text-xs text-muted-foreground">+15% ce mois</p>
+            <div className="text-2xl font-bold">{systemStats.totalInterventions.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+{systemStats.interventionsGrowth}% ce mois</p>
           </CardContent>
         </Card>
 
@@ -75,8 +132,8 @@ export default function AdminDashboard() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€45,231</div>
-            <p className="text-xs text-muted-foreground">+20% ce mois</p>
+            <div className="text-2xl font-bold">€{systemStats.totalRevenue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+{systemStats.revenueGrowth}% ce mois</p>
           </CardContent>
         </Card>
       </div>
@@ -84,23 +141,23 @@ export default function AdminDashboard() {
       {/* Actions rapides */}
       <Card>
         <CardHeader>
-          <CardTitle>Actions d'administration</CardTitle>
+          <CardTitle>Actions d&apos;administration</CardTitle>
           <CardDescription>Gestion globale de la plateforme</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button className="h-20 flex-col gap-2">
+            <div className="h-20 flex-col gap-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-center text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors">
               <Database className="w-6 h-6" />
-              Gestion des données
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
+              <span className="text-sm font-medium">Gestion des données</span>
+            </div>
+            <div className="h-20 flex-col gap-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center text-green-800 cursor-pointer hover:bg-green-100 transition-colors">
               <Users className="w-6 h-6" />
-              Gestion utilisateurs
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
+              <span className="text-sm font-medium">Gestion utilisateurs</span>
+            </div>
+            <div className="h-20 flex-col gap-2 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-center text-purple-800 cursor-pointer hover:bg-purple-100 transition-colors">
               <Settings className="w-6 h-6" />
-              Configuration système
-            </Button>
+              <span className="text-sm font-medium">Configuration système</span>
+            </div>
           </div>
         </CardContent>
       </Card>

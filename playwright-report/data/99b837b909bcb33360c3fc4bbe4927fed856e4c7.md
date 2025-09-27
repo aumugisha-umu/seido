@@ -1,0 +1,109 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - heading "SEIDO" [level=1] [ref=e15]
+        - generic [ref=e16]:
+          - link "Se connecter" [ref=e17] [cursor=pointer]:
+            - /url: /auth/login
+            - button "Se connecter" [ref=e18]
+          - link "Créer un compte" [ref=e19] [cursor=pointer]:
+            - /url: /auth/signup
+            - button "Créer un compte" [ref=e20]
+    - generic [ref=e22]:
+      - heading "Gestion immobilière simplifiée" [level=1] [ref=e23]
+      - paragraph [ref=e24]: SEIDO centralise la gestion de vos propriétés, interventions et relations locatives dans une plateforme unique et intuitive.
+      - generic [ref=e25]:
+        - link "Commencer gratuitement" [ref=e26] [cursor=pointer]:
+          - /url: /auth/signup
+          - button "Commencer gratuitement" [ref=e27]
+        - link "Se connecter" [ref=e28] [cursor=pointer]:
+          - /url: /auth/login
+          - button "Se connecter" [ref=e29]
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - heading "Une solution pour chaque rôle" [level=2] [ref=e32]
+        - paragraph [ref=e33]: SEIDO s'adapte à vos besoins, que vous soyez gestionnaire, locataire ou prestataire
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36]:
+            - img [ref=e38]
+            - generic [ref=e43]: 👑 Admin
+            - generic [ref=e44]: Administration système
+          - generic [ref=e45]:
+            - list [ref=e46]:
+              - listitem [ref=e47]: • Gestion des utilisateurs
+              - listitem [ref=e48]: • Supervision globale
+              - listitem [ref=e49]: • Rapports et analytics
+              - listitem [ref=e50]: • Support technique
+            - link "Voir la démo" [ref=e51] [cursor=pointer]:
+              - /url: /admin/dashboard
+              - button "Voir la démo" [ref=e52]
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - img [ref=e56]
+            - generic [ref=e64]: 🏠 Gestionnaire
+            - generic [ref=e65]: Gestion de patrimoine
+          - generic [ref=e66]:
+            - list [ref=e67]:
+              - listitem [ref=e68]: • Portfolio immobilier
+              - listitem [ref=e69]: • Suivi des interventions
+              - listitem [ref=e70]: • Gestion des locataires
+              - listitem [ref=e71]: • Rapports financiers
+            - link "Voir la démo" [ref=e72] [cursor=pointer]:
+              - /url: /gestionnaire/dashboard
+              - button "Voir la démo" [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - img [ref=e77]
+            - generic [ref=e79]: 🔧 Prestataire
+            - generic [ref=e80]: Services et maintenance
+          - generic [ref=e81]:
+            - list [ref=e82]:
+              - listitem [ref=e83]: • Gestion des interventions
+              - listitem [ref=e84]: • Devis et facturation
+              - listitem [ref=e85]: • Planning optimisé
+              - listitem [ref=e86]: • Suivi des travaux
+            - link "Voir la démo" [ref=e87] [cursor=pointer]:
+              - /url: /prestataire/dashboard
+              - button "Voir la démo" [ref=e88]
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - img [ref=e92]
+            - generic [ref=e95]: 🏃 Locataire
+            - generic [ref=e96]: Vie quotidienne
+          - generic [ref=e97]:
+            - list [ref=e98]:
+              - listitem [ref=e99]: • Demandes d'intervention
+              - listitem [ref=e100]: • Suivi des réparations
+              - listitem [ref=e101]: • Communication directe
+              - listitem [ref=e102]: • Historique des actions
+            - link "Voir la démo" [ref=e103] [cursor=pointer]:
+              - /url: /locataire/dashboard
+              - button "Voir la démo" [ref=e104]
+    - contentinfo [ref=e105]:
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - img [ref=e109]
+          - generic [ref=e117]: SEIDO
+        - paragraph [ref=e118]: © 2024 SEIDO. Plateforme de gestion immobilière moderne.
+  - region "Notifications (F8)":
+    - list
+  - generic [ref=e123] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e124] [cursor=pointer]:
+      - img [ref=e125] [cursor=pointer]
+    - generic [ref=e129] [cursor=pointer]:
+      - button "Open issues overlay" [ref=e130] [cursor=pointer]:
+        - generic [ref=e131] [cursor=pointer]:
+          - generic [ref=e132] [cursor=pointer]: "0"
+          - generic [ref=e133] [cursor=pointer]: "1"
+        - generic [ref=e134] [cursor=pointer]: Issue
+      - button "Collapse issues badge" [ref=e135] [cursor=pointer]:
+        - img [ref=e136] [cursor=pointer]
+  - alert [ref=e138]
+```

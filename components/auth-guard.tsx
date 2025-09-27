@@ -47,18 +47,34 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
       // Si on vient de charger une page dashboard et qu'il n'y a pas encore d'user,
       // c'est probablement qu'on vient d'une redirection callback ou d'un signup récent
       if (!user && !loading && (pathname?.includes('/dashboard'))) {
-        // ✅ NOUVEAU: Grace period étendue pour signup récent
+        // ✅ NOUVEAU: Grace period étendue pour signup récent ET pour redirections Server Action
         const isRecentSignup = sessionStorage.getItem('recent_signup') === 'true'
-        const dashboardGracePeriod = isRecentSignup ? 10000 : ENV_CONFIG.gracePeriod.dashboard // 10s pour signup, normal sinon
+        const isRecentLogin = sessionStorage.getItem('recent_login') === 'true'
+        const isServerRedirect = !document.referrer.includes('/auth/') // Pas de referrer auth = redirection serveur
 
-        console.log(`⏳ [AUTH-GUARD] Dashboard page without user - starting ${dashboardGracePeriod}ms grace period for post-redirect auth (${isRecentSignup ? 'RECENT SIGNUP' : 'NORMAL'}) (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
+        // ✅ Grace period plus longue pour les authentifications Server Action
+        let dashboardGracePeriod = ENV_CONFIG.gracePeriod.dashboard
+        if (isRecentSignup) {
+          dashboardGracePeriod = 10000 // 10s pour signup
+        } else if (isRecentLogin || isServerRedirect) {
+          dashboardGracePeriod = 5000 // 5s pour login Server Action
+        }
+
+        const gracePeriodType = isRecentSignup ? 'RECENT SIGNUP' :
+                               isRecentLogin ? 'RECENT LOGIN' :
+                               isServerRedirect ? 'SERVER REDIRECT' : 'NORMAL'
+
+        console.log(`⏳ [AUTH-GUARD] Dashboard page without user - starting ${dashboardGracePeriod}ms grace period for post-redirect auth (${gracePeriodType}) (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
         setCallbackGracePeriod(true)
         const timer = setTimeout(() => {
           console.log('✅ [AUTH-GUARD] Post-redirect grace period ended')
           setCallbackGracePeriod(false)
-          // Nettoyer le flag si toujours présent après timeout
+          // Nettoyer les flags si toujours présents après timeout
           if (isRecentSignup) {
             sessionStorage.removeItem('recent_signup')
+          }
+          if (isRecentLogin) {
+            sessionStorage.removeItem('recent_login')
           }
         }, dashboardGracePeriod)
         return () => clearTimeout(timer)

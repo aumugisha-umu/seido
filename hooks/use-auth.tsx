@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
+import { createClient } from '@/utils/supabase/client'
 // Fonction simplifiée pour routing côté client (sans import DAL)
 function getSimpleRedirectPath(userRole: string): string {
   const routes = {
@@ -38,16 +39,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('🚀 [AUTH-PROVIDER-REFACTORED] Initializing simple auth system...')
+    console.log('🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...')
 
-    // ✅ Récupération initiale de l'utilisateur
-    getCurrentUser()
+    // ✅ PATTERN OFFICIEL SUPABASE: Utiliser onAuthStateChange pour tous les événements
+    const supabase = createClient()
 
-    // ✅ Écouter les changements d'état - version simplifiée
-    const { data: { subscription } } = authService.onAuthStateChange((user) => {
-      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Auth state changed:', user ? `${user.name} (${user.role})` : 'null')
-      setUser(user)
-      setLoading(false)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 [AUTH-STATE-CHANGE] Event:', event, 'Has session:', !!session)
+
+      switch (event) {
+        case 'INITIAL_SESSION':
+          // Session initiale - récupérer le profil utilisateur si session exists
+          if (session?.user) {
+            console.log('🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...')
+            try {
+              const { user } = await authService.getCurrentUser()
+              setUser(user)
+            } catch (error) {
+              console.error('❌ [AUTH-STATE-CHANGE] Error loading initial user:', error)
+              setUser(null)
+            }
+          } else {
+            console.log('🔍 [AUTH-STATE-CHANGE] No initial session')
+            setUser(null)
+          }
+          setLoading(false)
+          break
+
+        case 'SIGNED_IN':
+          // Utilisateur vient de se connecter - récupérer le profil
+          console.log('✅ [AUTH-STATE-CHANGE] User signed in, loading profile...')
+          try {
+            const { user } = await authService.getCurrentUser()
+            setUser(user)
+            console.log('✅ [AUTH-STATE-CHANGE] Profile loaded:', user?.name)
+          } catch (error) {
+            console.error('❌ [AUTH-STATE-CHANGE] Error loading signed-in user:', error)
+            // Retry une fois après un délai court
+            setTimeout(async () => {
+              try {
+                const { user } = await authService.getCurrentUser()
+                setUser(user)
+                console.log('✅ [AUTH-STATE-CHANGE] Profile loaded on retry:', user?.name)
+              } catch (retryError) {
+                console.error('❌ [AUTH-STATE-CHANGE] Retry also failed:', retryError)
+                setUser(null)
+              }
+            }, 500)
+          }
+          break
+
+        case 'SIGNED_OUT':
+          // Utilisateur déconnecté
+          console.log('🚪 [AUTH-STATE-CHANGE] User signed out')
+          setUser(null)
+          break
+
+        case 'TOKEN_REFRESHED':
+          // Token rafraîchi - optionnellement recharger le profil
+          console.log('🔄 [AUTH-STATE-CHANGE] Token refreshed')
+          break
+
+        default:
+          console.log('🔍 [AUTH-STATE-CHANGE] Other event:', event)
+      }
     })
 
     return () => {
@@ -167,32 +222,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handleInvitationCallback().then(handled => {
       if (!handled) {
         // ✅ Système de routage simplifié côté client
+        // ✅ CORRECTION: Rediriger immédiatement si déjà authentifié sur page auth
         if (user && pathname.startsWith('/auth/') &&
             !pathname.includes('/callback') &&
             !pathname.includes('/reset-password')) {
 
-          // ✅ NOUVEAU: Ne pas rediriger si c'est une redirection serveur
-          if (pathname === '/auth/login' && typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search)
-            if (urlParams.get('reason') === 'session_invalid') {
-              console.log('🚫 [AUTH-PROVIDER] Server-initiated redirect, not overriding with client redirect')
-              return
-            }
-          }
-
           const redirectPath = getSimpleRedirectPath(user.role)
-          console.log('🚀 [AUTH-PROVIDER] Redirecting authenticated user from auth page to:', redirectPath)
+          console.log('🚀 [AUTH-PROVIDER] User already authenticated, redirecting immediately to:', redirectPath)
           router.push(redirectPath)
+          return
         }
       }
     })
   }, [user, loading, pathname, router])
 
-  const getCurrentUser = async () => {
+  const getCurrentUser = async (retryCount = 0) => {
     try {
-      console.log('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...')
+      console.log('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...', retryCount > 0 ? `(retry ${retryCount})` : '')
 
-      // ✅ SIMPLIFIÉ: Appel direct sans timeouts ni retries
+      // ✅ AMÉLIORATION: Retry logic pour détecter les sessions récentes
       const { user } = await authService.getCurrentUser()
 
       console.log('✅ [AUTH-PROVIDER-REFACTORED] User loaded:', user ? `${user.name} (${user.role})` : 'none')
@@ -200,9 +248,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     } catch (error) {
       console.error('❌ [AUTH-PROVIDER-REFACTORED] Error getting user:', error)
+
+      // ✅ RETRY: Si erreur session missing et qu'on est sur une page auth, retry une fois
+      if (retryCount === 0 && error.message?.includes('session missing') && window.location.pathname.startsWith('/auth/')) {
+        console.log('🔄 [AUTH-PROVIDER-REFACTORED] Session may be syncing, retrying in 200ms...')
+        setTimeout(() => getCurrentUser(1), 200)
+        return
+      }
+
       setUser(null)
     } finally {
-      setLoading(false)
+      if (retryCount === 0) {
+        setLoading(false)
+      }
     }
   }
 

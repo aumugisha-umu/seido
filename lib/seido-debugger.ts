@@ -299,14 +299,15 @@ export function useSEIDODebug(
   props?: any,
   dependencies: any[] = []
 ) {
-  if (typeof window === 'undefined') return // Server-side
-
+  // Hook utilisable seulement côté client - pas de conditional hooks
   React.useEffect(() => {
-    SEIDODebugger.log('DEBUG', 'info', `Component ${componentName} rendered`,
-      { component: componentName },
-      { props }
-    )
-  }, dependencies)
+    if (typeof window !== 'undefined') {
+      SEIDODebugger.log('DEBUG', 'info', `Component ${componentName} rendered`,
+        { component: componentName },
+        { props }
+      )
+    }
+  }, [componentName, props, ...dependencies])
 
   React.useDebugValue({ componentName, props })
 }

@@ -3,7 +3,16 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
-import { decideRedirectionStrategy, logRoutingDecision } from '@/lib/auth-router'
+// Fonction simplifiée pour routing côté client (sans import DAL)
+function getSimpleRedirectPath(userRole: string): string {
+  const routes = {
+    admin: '/admin',
+    gestionnaire: '/gestionnaire/dashboard',
+    prestataire: '/prestataire/dashboard',
+    locataire: '/locataire/dashboard'
+  }
+  return routes[userRole as keyof typeof routes] || '/gestionnaire/dashboard'
+}
 import type { AuthError } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -50,6 +59,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Seulement si chargement terminé et pathname disponible
     if (loading || !pathname) return
+
+    // ✅ NOUVEAU: Détecter redirection serveur et forcer refresh session
+    if (pathname === '/auth/login' && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('reason') === 'session_invalid') {
+        console.log('🔄 [AUTH-PROVIDER] Server-initiated redirect detected, forcing session refresh...')
+        // Forcer un refresh de la session côté client
+        getCurrentUser()
+        return
+      }
+    }
 
     // ✅ Détecter si on vient d'un callback invitation
     const handleInvitationCallback = async () => {
@@ -146,23 +166,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Traiter callback d'abord, sinon logique normale
     handleInvitationCallback().then(handled => {
       if (!handled) {
-        // ✅ Système de routage centralisé normal
-        const decision = decideRedirectionStrategy(user, pathname, {
-          isAuthStateChange: true,
-          isLoginSubmit: false
-        })
+        // ✅ Système de routage simplifié côté client
+        if (user && pathname.startsWith('/auth/') &&
+            !pathname.includes('/callback') &&
+            !pathname.includes('/reset-password')) {
 
-        logRoutingDecision(decision, user, {
-          trigger: 'auth-provider-effect',
-          pathname,
-          loading
-        })
+          // ✅ NOUVEAU: Ne pas rediriger si c'est une redirection serveur
+          if (pathname === '/auth/login' && typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search)
+            if (urlParams.get('reason') === 'session_invalid') {
+              console.log('🚫 [AUTH-PROVIDER] Server-initiated redirect, not overriding with client redirect')
+              return
+            }
+          }
 
-        if (decision.strategy === 'immediate' && decision.targetPath) {
-          console.log('🚀 [AUTH-PROVIDER-REFACTORED] Immediate redirect to:', decision.targetPath)
-          router.push(decision.targetPath)
-        } else {
-          console.log('🔄 [AUTH-PROVIDER-REFACTORED] No action needed:', decision.reason)
+          const redirectPath = getSimpleRedirectPath(user.role)
+          console.log('🚀 [AUTH-PROVIDER] Redirecting authenticated user from auth page to:', redirectPath)
+          router.push(redirectPath)
         }
       }
     })
@@ -195,20 +215,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('✅ [AUTH-PROVIDER-REFACTORED] SignIn successful, updating state')
       setUser(result.user)
 
-      // ✅ REFACTORISÉ: Système de routage centralisé pour login
-      const decision = decideRedirectionStrategy(result.user, pathname || '/auth/login', {
-        isLoginSubmit: true,
-        isAuthStateChange: false
-      })
-
-      logRoutingDecision(decision, result.user, {
-        trigger: 'login-submit',
-        pathname
-      })
-
-      // ✅ STRATÉGIE CLAIRE: AuthProvider ne fait plus de redirections après login
-      // Le système centralisé + pages gèrent automatiquement
-      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Login successful - letting auth system handle redirection')
+      // ✅ Login successful - let server-side routing handle redirection
+      console.log('🔄 [AUTH-PROVIDER] Login successful - letting server routing handle redirection')
     }
 
     return result

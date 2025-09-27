@@ -21,7 +21,7 @@ Le SEIDO Refactoring Specialist est un agent intelligent conçu spécifiquement 
 - **📱 Responsive**: Design mobile-first (320px→1400px+)
 - **🎭 Material Design**: Adhérence aux principes Google Material Design
 - **👥 Multi-rôles**: Optimisations UX spécifiques par rôle
-- **⚡ Performance**: Intégration Next.js 15 + React 19
+- **⚡ Performance**: Intégration Next.js 15 + React 19, base de donnée Supabase (tpujours se référer à la documentation officielle pour l'implémentation optimale du backend)
 - **🧪 Sécurité**: Refactoring sûr avec validation continue
 
 ## 🏗️ Architecture

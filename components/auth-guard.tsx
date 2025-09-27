@@ -5,7 +5,16 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useAuthLoading } from "@/hooks/use-auth-loading"
 import { ENV_CONFIG } from "@/lib/environment"
-import { decideRedirectionStrategy, logRoutingDecision } from "@/lib/auth-router"
+// Fonction simplifiée pour routing côté client (sans import DAL)
+function getSimpleRedirectPath(userRole: string): string {
+  const routes = {
+    admin: '/admin',
+    gestionnaire: '/gestionnaire/dashboard',
+    prestataire: '/prestataire/dashboard',
+    locataire: '/locataire/dashboard'
+  }
+  return routes[userRole as keyof typeof routes] || '/gestionnaire/dashboard'
+}
 import AuthLoading, { AUTH_LOADING_MESSAGES } from "./auth-loading"
 
 interface AuthGuardProps {
@@ -84,25 +93,10 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
     if (user && requiredRole && user.role !== requiredRole) {
       console.log(`🚫 [AUTH-GUARD] User role '${user.role}' does not match required role '${requiredRole}'`)
       
-      // ✅ NOUVEAU : Utiliser le système de redirection centralisé
-      const decision = decideRedirectionStrategy(user, pathname || '', {
-        isAuthStateChange: false,
-        isMiddlewareEval: false
-      })
-      
-      logRoutingDecision(decision, user, { 
-        trigger: 'auth-guard-role-mismatch', 
-        requiredRole, 
-        userRole: user.role,
-        pathname 
-      })
-      
-      if (decision.strategy === 'immediate') {
-        console.log('🔄 [AUTH-GUARD] Using centralized routing for role mismatch redirect')
-        router.push(`/${user.role}/dashboard`)
-      } else {
-        console.log('🔄 [AUTH-GUARD] Role mismatch redirect deferred to system coordination')
-      }
+      // ✅ Redirection simple vers dashboard du rôle utilisateur
+      const redirectPath = getSimpleRedirectPath(user.role)
+      console.log(`🔄 [AUTH-GUARD] Role mismatch - redirecting ${user.role} to: ${redirectPath}`)
+      router.push(redirectPath)
       
       return
     }

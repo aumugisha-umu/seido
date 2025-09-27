@@ -1,13 +1,73 @@
 /**
- * 🎯 AUTH ROUTER - POINT CENTRAL DE ROUTAGE D'AUTHENTIFICATION
- * 
- * Architecture SaaS robuste pour NextJS :
- * - Un seul point de vérité pour les redirections auth
- * - Coordination entre client/serveur
- * - Évite les race conditions et boucles
+ * 🔐 AUTH ROUTER - ROUTING INTELLIGENT PAR RÔLE (Bonnes Pratiques 2025)
+ *
+ * Système de routing sécurisé avec redirection automatique basée sur :
+ * - Rôle utilisateur
+ * - Permissions
+ * - État de session
+ * - Pages de destination appropriées
+ * - Data Access Layer (DAL) integration
  */
 
+import type { Database } from './database.types'
 import type { AuthUser } from './auth-service'
+
+// Import conditionnel pour éviter les erreurs côté client
+let dalFunctions: any = null
+if (typeof window === 'undefined') {
+  // Côté serveur uniquement
+  try {
+    dalFunctions = require('./dal')
+  } catch (error) {
+    console.warn('DAL server functions not available')
+  }
+}
+
+export type UserRole = Database['public']['Enums']['user_role']
+
+// Configuration des routes par rôle (Bonnes Pratiques 2025)
+export const ROLE_ROUTES = {
+  admin: {
+    dashboard: '/admin',
+    default: '/admin',
+    allowed: ['/admin', '/gestionnaire', '/prestataire', '/locataire'] // Admin peut tout voir
+  },
+  gestionnaire: {
+    dashboard: '/gestionnaire',
+    default: '/gestionnaire/dashboard',
+    allowed: ['/gestionnaire']
+  },
+  prestataire: {
+    dashboard: '/prestataire',
+    default: '/prestataire/dashboard',
+    allowed: ['/prestataire']
+  },
+  locataire: {
+    dashboard: '/locataire',
+    default: '/locataire/dashboard',
+    allowed: ['/locataire']
+  }
+} as const
+
+// Routes publiques (accessibles sans authentification)
+export const PUBLIC_ROUTES = [
+  '/',
+  '/auth/login',
+  '/auth/signup',
+  '/auth/signup-success',
+  '/auth/reset-password',
+  '/auth/update-password',
+  '/auth/callback',
+  '/auth/unauthorized'
+] as const
+
+// Routes système (toujours accessibles)
+export const SYSTEM_ROUTES = [
+  '/api',
+  '/debug',
+  '/_next',
+  '/favicon.ico'
+] as const
 
 export interface AuthRoutingConfig {
   bypassRedirections: boolean
@@ -18,17 +78,11 @@ export interface AuthRoutingConfig {
 }
 
 /**
- * Détermine le dashboard approprié selon le rôle utilisateur
+ * Détermine le dashboard approprié selon le rôle utilisateur (Compatible 2025)
  */
 export const getDashboardPath = (userRole: string): string => {
-  const roleMapping: Record<string, string> = {
-    'gestionnaire': '/gestionnaire/dashboard',
-    'locataire': '/locataire/dashboard', 
-    'prestataire': '/prestataire/dashboard',
-    'admin': '/admin/dashboard'
-  }
-  
-  return roleMapping[userRole] || '/gestionnaire/dashboard'
+  const roleConfig = ROLE_ROUTES[userRole as UserRole]
+  return roleConfig?.default || '/gestionnaire/dashboard'
 }
 
 /**
@@ -188,7 +242,7 @@ export const isInAuthTransition = (pathname: string): boolean => {
  * Logger pour debug des décisions de routage
  */
 export const logRoutingDecision = (
-  decision: RedirectionDecision, 
+  decision: RedirectionDecision,
   user: AuthUser | null,
   context: any
 ) => {
@@ -199,4 +253,122 @@ export const logRoutingDecision = (
     user: user ? `${user.name} (${user.role})` : null,
     context
   })
+}
+
+// ✅ NOUVELLES FONCTIONS BONNES PRATIQUES 2025
+
+/**
+ * Vérifie si l'utilisateur peut accéder à une route donnée (DAL Integration - Server Only)
+ */
+export async function canAccessRoute(pathname: string): Promise<{ canAccess: boolean; redirectTo?: string; user?: any }> {
+  try {
+    // Routes publiques → toujours autorisées
+    if (PUBLIC_ROUTES.some(route => pathname === route)) {
+      return { canAccess: true }
+    }
+
+    // Routes système → toujours autorisées
+    if (SYSTEM_ROUTES.some(route => pathname.startsWith(route))) {
+      return { canAccess: true }
+    }
+
+    // Vérification côté serveur uniquement
+    if (typeof window !== 'undefined' || !dalFunctions) {
+      console.log('🚫 [AUTH-ROUTER] Client-side access check not supported')
+      return { canAccess: false, redirectTo: '/auth/login' }
+    }
+
+    // Vérifier la session avec DAL (côté serveur)
+    const { isValid, user } = await dalFunctions.verifySession()
+
+    if (!isValid || !user) {
+      console.log(`🚫 [AUTH-ROUTER] No valid session for ${pathname}`)
+      return { canAccess: false, redirectTo: '/auth/login' }
+    }
+
+    // Vérifier les permissions pour la route
+    const userRoleConfig = ROLE_ROUTES[user.role]
+    if (!userRoleConfig) {
+      console.log(`🚫 [AUTH-ROUTER] Unknown role ${user.role} for ${pathname}`)
+      return { canAccess: false, redirectTo: '/auth/unauthorized' }
+    }
+
+    // Vérifier si l'utilisateur peut accéder à cette route
+    const hasAccess = userRoleConfig.allowed.some(allowedRoute =>
+      pathname.startsWith(allowedRoute)
+    )
+
+    if (!hasAccess) {
+      console.log(`🚫 [AUTH-ROUTER] User ${user.role} cannot access ${pathname}`)
+      const redirectTo = userRoleConfig.default
+      return { canAccess: false, redirectTo, user }
+    }
+
+    console.log(`✅ [AUTH-ROUTER] User ${user.role} can access ${pathname}`)
+    return { canAccess: true, user }
+  } catch (error) {
+    console.error('❌ [AUTH-ROUTER] Route access check failed:', error)
+    return { canAccess: false, redirectTo: '/auth/login' }
+  }
+}
+
+/**
+ * Protection de route côté serveur - à utiliser dans les layouts
+ */
+export async function protectRoute(pathname: string): Promise<{ user: any }> {
+  if (typeof window !== 'undefined') {
+    throw new Error('protectRoute can only be used server-side')
+  }
+
+  const { canAccess, redirectTo, user } = await canAccessRoute(pathname)
+
+  if (!canAccess && redirectTo && dalFunctions) {
+    console.log(`🔄 [AUTH-ROUTER] Redirecting ${pathname} → ${redirectTo}`)
+    dalFunctions.redirect(redirectTo)
+  }
+
+  return { user }
+}
+
+/**
+ * Gestion des redirections post-authentification (Mise à jour 2025)
+ */
+export function getPostAuthRedirect(role: UserRole, intendedPath?: string): string {
+  const roleConfig = ROLE_ROUTES[role]
+
+  if (!roleConfig) {
+    console.warn(`⚠️ [AUTH-ROUTER] Unknown role ${role}, using default`)
+    return '/auth/login'
+  }
+
+  // Si l'utilisateur avait une destination prévue ET qu'il peut y accéder
+  if (intendedPath && roleConfig.allowed.some(allowed => intendedPath.startsWith(allowed))) {
+    console.log(`📍 [AUTH-ROUTER] Redirecting ${role} to intended path: ${intendedPath}`)
+    return intendedPath
+  }
+
+  // Sinon, redirection vers dashboard par défaut
+  console.log(`📍 [AUTH-ROUTER] Redirecting ${role} to default dashboard: ${roleConfig.default}`)
+  return roleConfig.default
+}
+
+/**
+ * Middleware helper pour vérification rapide (Optimisation 2025)
+ */
+export function shouldRedirectToLogin(pathname: string, hasAuthCookie: boolean): boolean {
+  // Routes publiques → pas de redirection
+  if (PUBLIC_ROUTES.some(route => pathname === route)) {
+    return false
+  }
+
+  // Routes système → pas de redirection
+  if (SYSTEM_ROUTES.some(route => pathname.startsWith(route))) {
+    return false
+  }
+
+  // Routes protégées sans cookie → redirection
+  const isProtectedRoute = Object.values(ROLE_ROUTES)
+    .some(config => config.allowed.some(allowed => pathname.startsWith(allowed)))
+
+  return isProtectedRoute && !hasAuthCookie
 }

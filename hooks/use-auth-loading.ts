@@ -7,7 +7,12 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { isInAuthTransition } from '@/lib/auth-router'
+// Fonction simplifiée pour détecter les transitions d'auth (sans import DAL)
+function isInAuthTransition(pathname: string): boolean {
+  return pathname.includes('/auth/callback') ||
+         pathname.includes('/auth/signup-success') ||
+         pathname.includes('/auth/reset-password')
+}
 
 export interface AuthLoadingState {
   isAuthLoading: boolean

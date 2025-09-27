@@ -251,6 +251,23 @@ export const userService = {
     
     console.log('✅ [USER-SERVICE] User found by auth_user_id:', data ? 'yes' : 'no')
     return data
+  },
+
+  async getTeamUsers(teamId: string) {
+    console.log('🔍 [USER-SERVICE] Getting users for team:', teamId)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('team_id', teamId)
+      .order('name')
+
+    if (error) {
+      console.error('❌ [USER-SERVICE] Error getting team users:', error)
+      throw error
+    }
+
+    console.log('✅ [USER-SERVICE] Team users found:', data?.length || 0)
+    return data || []
   }
 }
 
@@ -291,15 +308,32 @@ export const buildingService = {
   },
 
   async getTeamBuildings(teamId: string) {
+    console.log('🏢 [BUILDING-SERVICE] Getting buildings for team:', teamId)
+
+    // Diagnostic: Vérifier d'abord s'il y a des buildings dans la base
+    const { data: allBuildings, error: allError } = await supabase
+      .from('buildings')
+      .select('id, name, team_id')
+      .limit(10)
+
+    console.log('🔍 [BUILDING-SERVICE] Total buildings in database:', allBuildings?.length || 0)
+    if (allBuildings && allBuildings.length > 0) {
+      console.log('📋 [BUILDING-SERVICE] Sample buildings:', allBuildings.map(b => ({
+        id: b.id,
+        name: b.name,
+        team_id: b.team_id
+      })))
+    }
+
     const { data, error } = await supabase
       .from('buildings')
       .select(`
         *,
         team:team_id(id, name, description),
         lots(
-          id, 
-          reference, 
-          is_occupied, 
+          id,
+          reference,
+          is_occupied,
           category,
           lot_contacts(
             is_primary,
@@ -313,16 +347,39 @@ export const buildingService = {
       `)
       .eq('team_id', teamId)
       .order('name')
-    
-    if (error) throw error
-    
+
+    if (error) {
+      console.error('❌ [BUILDING-SERVICE] Error getting team buildings:', error)
+      console.error('🔍 [BUILDING-SERVICE] Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      throw error
+    }
+
+    console.log('✅ [BUILDING-SERVICE] Raw buildings data:', data?.length || 0, 'buildings found')
+    console.log('🔍 [BUILDING-SERVICE] Query result for team', teamId, ':', {
+      dataLength: data?.length || 0,
+      hasData: !!data,
+      firstBuilding: data?.[0] ? {
+        id: data[0].id,
+        name: data[0].name,
+        team_id: data[0].team_id
+      } : null
+    })
+
     // Post-traitement pour extraire les gestionnaires principaux
-    return data?.map(building => ({
+    const processedBuildings = data?.map(building => ({
       ...building,
-      manager: building.building_contacts?.find(bc => 
+      manager: building.building_contacts?.find(bc =>
         determineAssignmentType(bc.user) === 'manager' && bc.is_primary
       )?.user || null
-    }))
+    })) || []
+
+    console.log('🏗️ [BUILDING-SERVICE] Processed buildings:', processedBuildings.length, 'buildings with managers assigned')
+    return processedBuildings
   },
 
   async getUserBuildings(userId: string) {
@@ -1787,6 +1844,29 @@ export const interventionService = {
       console.error("❌ Error in autoAssignIntervention:", error)
       throw error
     }
+  },
+
+  async getTeamInterventions(teamId: string) {
+    console.log('🔍 [INTERVENTION-SERVICE] Getting interventions for team:', teamId)
+    const { data, error } = await supabase
+      .from('interventions')
+      .select(`
+        *,
+        lot:lot_id(
+          reference,
+          building:building_id(name, address, team_id)
+        )
+      `)
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('❌ [INTERVENTION-SERVICE] Error getting team interventions:', error)
+      throw error
+    }
+
+    console.log('✅ [INTERVENTION-SERVICE] Team interventions found:', data?.length || 0)
+    return data || []
   }
 }
 

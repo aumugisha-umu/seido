@@ -16,7 +16,11 @@
       "Bash(taskkill:*)",
       "Bash(npm run dev:*)",
       "Bash(npx tsx:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(dir:*)",
+      "WebSearch",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

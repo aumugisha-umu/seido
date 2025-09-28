@@ -22,7 +22,8 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "WebFetch(domain:supabase.com)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []

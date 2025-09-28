@@ -93,11 +93,6 @@ export function UserAvailabilitiesDisplay({
   const allFilteredOut = availabilities.length > 0 && filteredAvailabilities.length === 0
   const someFilteredByQuotes = filterState && filterState.excludedAvailabilities > 0
 
-  // Si aucune disponibilité initiale, ne rien afficher
-  if (availabilities.length === 0) {
-    return null
-  }
-
   // Grouper les disponibilités par personne et rôle (en utilisant userId pour éviter les collisions)
   const groupedAvailabilities = useMemo(() => {
     return filteredAvailabilities.reduce((acc, availability) => {
@@ -119,6 +114,11 @@ export function UserAvailabilitiesDisplay({
       slots: UserAvailability[]
     }>)
   }, [filteredAvailabilities])
+
+  // Si aucune disponibilité initiale, ne rien afficher
+  if (availabilities.length === 0) {
+    return null
+  }
 
   // Debug log pour tracer le groupement des disponibilités
   console.log('👥 [GROUPING-DEBUG] Grouped availabilities:', {

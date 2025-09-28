@@ -16,12 +16,17 @@ import { LRUCache } from 'lru-cache'
 
 // Conditional Redis import for server-side only
 let Redis: any = null
-if (typeof window === 'undefined') {
-  try {
-    Redis = require('ioredis').default
-  } catch (error) {
-    console.warn('[CACHE-MANAGER] Redis not available, using L1 cache only')
+
+async function loadRedis() {
+  if (typeof window === 'undefined' && !Redis) {
+    try {
+      const ioredis = await import('ioredis')
+      Redis = ioredis.default
+    } catch (error) {
+      console.warn('[CACHE-MANAGER] Redis not available, using L1 cache only')
+    }
   }
+  return Redis
 }
 
 export interface CacheConfig {

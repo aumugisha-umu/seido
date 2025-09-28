@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { requireRole } from "@/lib/dal"
 import { teamService, buildingService, userService, interventionService } from "@/lib/database-service"
 import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-sample-data"
@@ -176,9 +177,9 @@ export default async function DebugDataPage() {
                 </form>
 
                 <Button variant="outline" asChild>
-                  <a href="/gestionnaire/biens/immeubles/nouveau">
+                  <Link href="/gestionnaire/biens/immeubles/nouveau">
                     ➕ Créer un Immeuble Manuellement
-                  </a>
+                  </Link>
                 </Button>
               </div>
 

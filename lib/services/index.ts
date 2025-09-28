@@ -119,6 +119,46 @@ export {
 // Base repository export
 export { BaseRepository } from './core/base-repository'
 
+// Phase 2: Core Services Exports
+// User Service
+export {
+  UserRepository,
+  createUserRepository,
+  createServerUserRepository
+} from './repositories/user.repository'
+
+export {
+  UserService,
+  createUserService,
+  createServerUserService
+} from './domain/user.service'
+
+// Building Service
+export {
+  BuildingRepository,
+  createBuildingRepository,
+  createServerBuildingRepository
+} from './repositories/building.repository'
+
+export {
+  BuildingService,
+  createBuildingService,
+  createServerBuildingService
+} from './domain/building.service'
+
+// Lot Service
+export {
+  LotRepository,
+  createLotRepository,
+  createServerLotRepository
+} from './repositories/lot.repository'
+
+export {
+  LotService,
+  createLotService,
+  createServerLotService
+} from './domain/lot.service'
+
 // Test utilities (for development and testing)
 export {
   // Mock utilities
@@ -179,9 +219,9 @@ export const SERVICE_CONFIG = {
   },
   repositories: {
     // Will be populated as repositories are implemented
-    user: false,
-    building: false,
-    lot: false,
+    user: true, // ✅ Phase 2.1 completed
+    building: true, // ✅ Phase 2.2 completed
+    lot: true, // ✅ Phase 2.3 completed
     intervention: false,
     contact: false,
     team: false,

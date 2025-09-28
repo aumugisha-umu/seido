@@ -14,13 +14,17 @@ import type { AuthUser } from './auth-service'
 
 // Import conditionnel pour éviter les erreurs côté client
 let dalFunctions: any = null
-if (typeof window === 'undefined') {
-  // Côté serveur uniquement
-  try {
-    dalFunctions = require('./dal')
-  } catch (error) {
-    console.warn('DAL server functions not available')
+
+async function loadDalFunctions() {
+  if (typeof window === 'undefined' && !dalFunctions) {
+    // Côté serveur uniquement
+    try {
+      dalFunctions = await import('./dal')
+    } catch (error) {
+      console.warn('DAL server functions not available')
+    }
   }
+  return dalFunctions
 }
 
 export type UserRole = Database['public']['Enums']['user_role']

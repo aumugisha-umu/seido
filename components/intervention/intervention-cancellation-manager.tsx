@@ -4,10 +4,7 @@ import { Fragment } from "react"
 import { useInterventionCancellationContext } from "@/contexts/intervention-cancellation-context"
 import { CancelConfirmationModal } from "./modals/cancel-confirmation-modal"
 
-interface InterventionCancellationManagerProps {
-  // Ce composant gère toutes les modales d'annulation de la page
-  // Il est placé au niveau de la page pour éviter les conflits avec les dropdown menus
-}
+type InterventionCancellationManagerProps = Record<string, never>
 
 /**
  * Composant global pour gérer les modales d'annulation d'intervention

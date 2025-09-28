@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 /**
- * 🛡️ MIDDLEWARE OPTIMISTE - SEIDO APP (Bonnes Pratiques 2025)
+ * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
  *
- * Conformément aux bonnes pratiques Next.js 15 :
- * - Vérifications optimistes UNIQUEMENT (pas d'authentification réelle)
- * - Pas d'appels DB/API (performances)
- * - Redirection basée sur présence cookies seulement
- * - Authentification réelle déplacée vers DAL
+ * Conformément aux recommandations officielles Next.js/Supabase :
+ * - Authentification réelle avec supabase.auth.getUser()
+ * - Rafraîchissement automatique des tokens
+ * - Redirections serveur pour sécurité optimale
+ * - Centralisé pour éviter conflits avec AuthGuard client
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -25,32 +26,68 @@ export async function middleware(request: NextRequest) {
     '/'
   ]
 
-  // Si route publique, laisser passer
+  // Si route publique, laisser passer directement
   if (publicRoutes.includes(pathname)) {
     return NextResponse.next()
   }
 
-  // Routes protégées - vérification optimiste uniquement
+  // Routes protégées - authentification réelle requise
   const protectedPrefixes = ['/admin', '/gestionnaire', '/locataire', '/prestataire']
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
 
   if (isProtectedRoute) {
-    // ✅ BONNE PRATIQUE 2025: Vérification optimiste seulement
-    // Pas d'appel à supabase.auth.getUser() dans middleware (performance)
-    const cookies = request.cookies.getAll()
-    const hasAuthCookie = cookies.some(cookie =>
-      cookie.name.startsWith('sb-') &&
-      cookie.value &&
-      cookie.value.length > 20 // Plus strict pour éviter faux positifs
+    let response = NextResponse.next()
+
+    // ✅ PATTERN OFFICIEL SUPABASE: Créer client serveur pour middleware
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              request.cookies.set(name, value)
+            )
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
     )
 
-    if (!hasAuthCookie) {
-      // Redirection optimiste - l'authentification réelle se fait dans DAL
-      return NextResponse.redirect(new URL('/auth/login', request.url))
-    }
+    try {
+      // ✅ AUTHENTIFICATION RÉELLE: Vérifier et rafraîchir la session
+      const { data: { user }, error } = await supabase.auth.getUser()
 
-    // Laisser passer - la vérification réelle se fait dans le DAL
-    return NextResponse.next()
+      if (error || !user || !user.email_confirmed_at) {
+        console.log('🚫 [MIDDLEWARE] Authentication failed:', error?.message || 'No confirmed user')
+        return NextResponse.redirect(new URL('/auth/login?reason=session_expired', request.url))
+      }
+
+      console.log('✅ [MIDDLEWARE] User authenticated:', user.id)
+
+      // Optionnel: Vérification basique des rôles par URL
+      const roleFromPath = pathname.split('/')[1] // admin, gestionnaire, etc.
+      if (roleFromPath && ['admin', 'gestionnaire', 'locataire', 'prestataire'].includes(roleFromPath)) {
+        // La vérification détaillée des rôles se fera dans les Server Components avec DAL
+        console.log(`🔍 [MIDDLEWARE] Access to ${roleFromPath} section - detailed role check in Server Component`)
+      }
+
+      return response
+
+    } catch (middlewareError) {
+      console.error('❌ [MIDDLEWARE] Authentication error:', middlewareError)
+      return NextResponse.redirect(new URL('/auth/login?reason=auth_error', request.url))
+    }
   }
 
   // Routes système/API → laisser passer

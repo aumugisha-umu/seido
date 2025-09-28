@@ -1,27 +1,38 @@
-"use client"
-
 import type React from "react"
+import { requireRole } from "@/lib/dal"
 import TenantHeader from "@/components/tenant-header"
-import AuthGuard from "@/components/auth-guard"
-import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
+import { LocataireLayoutClient } from "./layout-client"
 
-export default function LocataireLayout({
+/**
+ * 🔐 LOCATAIRE LAYOUT - SERVER COMPONENT (Architecture 2025)
+ *
+ * Nouvelle architecture conforme aux best practices Next.js/Supabase :
+ * - Authentification gérée par middleware + Server Component
+ * - Plus d'AuthGuard client (redondant et source de conflits)
+ * - Protection native avec requireRole() du DAL
+ */
+
+export default async function LocataireLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // ✅ NOUVEAU: Initialiser le système de refresh automatique lors de la navigation
-  useNavigationRefresh()
+  // ✅ AUTHENTIFICATION SERVEUR: Le middleware a déjà vérifié l'auth
+  // requireRole() valide en plus le rôle spécifique côté serveur
+  await requireRole('locataire')
 
   return (
-    <AuthGuard requiredRole="locataire">
-      <div className="min-h-screen bg-slate-50">
-        {/* Header spécialisé pour les locataires */}
-        <TenantHeader />
-        
-        {/* Contenu principal */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
-      </div>
-    </AuthGuard>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header spécialisé pour les locataires */}
+      <TenantHeader />
+
+      {/* Contenu principal */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {children}
+      </main>
+
+      {/* Client components pour interactivité */}
+      <LocataireLayoutClient />
+    </div>
   )
 }

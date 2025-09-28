@@ -19,21 +19,21 @@ export interface CacheInvalidationConfig {
   forceRefresh?: boolean
 }
 
-// Gestionnaire de cache global
-class CacheManager {
-  private static instance: CacheManager
-  private cache: Map<string, CacheEntry> = new Map()
+// Enhanced Cache Manager with Phase 3 architecture
+class EnhancedCacheManager {
+  private static instance: EnhancedCacheManager
+  private localCache: Map<string, CacheEntry> = new Map()
   private invalidationConfigs: CacheInvalidationConfig[] = []
   private refreshCallbacks: Map<string, () => void> = new Map()
   // ✅ FIX BOUCLE INFINIE: Ajout des propriétés pour éviter les appels redondants
   private lastProcessedRoute: string | null = null
   private routeChangeTimeout: NodeJS.Timeout | null = null
 
-  static getInstance(): CacheManager {
-    if (!CacheManager.instance) {
-      CacheManager.instance = new CacheManager()
+  static getInstance(): EnhancedCacheManager {
+    if (!EnhancedCacheManager.instance) {
+      EnhancedCacheManager.instance = new EnhancedCacheManager()
     }
-    return CacheManager.instance
+    return EnhancedCacheManager.instance
   }
 
   // Enregistrer un callback de refresh pour un composant/hook
@@ -50,7 +50,7 @@ class CacheManager {
 
   // Marquer une entrée de cache comme valide
   setCacheEntry(key: string, ttl?: number) {
-    this.cache.set(key, {
+    this.localCache.set(key, {
       key,
       lastFetched: Date.now(),
       ttl
@@ -60,14 +60,14 @@ class CacheManager {
 
   // Vérifier si une entrée de cache est valide
   isCacheValid(key: string): boolean {
-    const entry = this.cache.get(key)
+    const entry = this.localCache.get(key)
     if (!entry) return false
 
     // Vérifier la TTL si définie
     if (entry.ttl) {
       const isExpired = Date.now() - entry.lastFetched > entry.ttl
       if (isExpired) {
-        this.cache.delete(key)
+        this.localCache.delete(key)
         console.log(`⏰ [CACHE] Cache expired for: ${key}`)
         return false
       }
@@ -77,37 +77,152 @@ class CacheManager {
   }
 
   // Invalider le cache pour des clés spécifiques
-  invalidateCache(keys: string[]) {
+  async invalidateCache(keys: string[]) {
     keys.forEach(key => {
-      this.cache.delete(key)
-      console.log(`🗑️ [CACHE] Cache invalidated for: ${key}`)
+      this.localCache.delete(key)
+      console.log(`🗑️ [CACHE-LOCAL] Cache invalidated for: ${key}`)
     })
+
+    // Invalider aussi dans le cache L1/L2
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      for (const key of keys) {
+        await cache.invalidate(key)
+      }
+    } catch (error) {
+      console.warn('[CACHE] Failed to invalidate cache:', error)
+    }
   }
 
   // Invalider tout le cache
-  invalidateAllCache() {
-    this.cache.clear()
-    console.log(`🧹 [CACHE] All cache invalidated`)
+  async invalidateAllCache() {
+    this.localCache.clear()
+    console.log(`🧹 [CACHE-LOCAL] All local cache invalidated`)
+
+    // Invalider aussi dans le cache L1/L2
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      await cache.invalidate('*')
+    } catch (error) {
+      console.warn('[CACHE] Failed to invalidate all cache:', error)
+    }
   }
 
   // Déclencher un refresh pour des callbacks spécifiques
-  triggerRefresh(keys: string[]) {
-    keys.forEach(key => {
-      const callback = this.refreshCallbacks.get(key)
-      if (callback) {
-        console.log(`🔄 [CACHE] Triggering refresh for: ${key}`)
-        callback()
+  async triggerRefresh(keys: string[]) {
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      for (const key of keys) {
+        const callback = this.refreshCallbacks.get(key)
+        if (callback) {
+          console.log(`🔄 [CACHE] Triggering refresh for: ${key}`)
+          callback()
+          // Invalider aussi dans le cache L1/L2
+          await cache.invalidate(key)
+        }
       }
-    })
+    } catch (error) {
+      console.warn('[CACHE] Failed to trigger refresh:', error)
+      // Fallback: trigger callbacks without cache invalidation
+      for (const key of keys) {
+        const callback = this.refreshCallbacks.get(key)
+        if (callback) {
+          console.log(`🔄 [CACHE] Triggering refresh for: ${key} (fallback)`)
+          callback()
+        }
+      }
+    }
   }
 
   // Déclencher un refresh global
-  triggerGlobalRefresh() {
+  async triggerGlobalRefresh() {
     console.log(`🔄 [CACHE] Triggering global refresh for ${this.refreshCallbacks.size} callbacks`)
     this.refreshCallbacks.forEach((callback, key) => {
       console.log(`🔄 [CACHE] Global refresh for: ${key}`)
       callback()
     })
+
+    // Invalider tout le cache L1/L2
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      await cache.invalidate('*')
+    } catch (error) {
+      console.warn('[CACHE] Failed to invalidate cache during global refresh:', error)
+    }
+  }
+
+  // ✅ PHASE 3: Utiliser cache L1/L2 pour les données
+  async getCachedData<T>(key: string): Promise<T | null> {
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      return await cache.get<T>(key)
+    } catch (error) {
+      console.warn('[CACHE] Failed to get cached data:', error)
+      return null
+    }
+  }
+
+  async setCachedData(key: string, data: any, ttl = 300): Promise<void> {
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      await cache.set(key, data, ttl)
+      // Mettre à jour le cache local pour tracking
+      this.localCache.set(key, {
+        key,
+        lastFetched: Date.now(),
+        ttl: ttl * 1000
+      })
+    } catch (error) {
+      console.warn('[CACHE] Failed to set cached data:', error)
+    }
+  }
+
+  // ✅ PHASE 3: Hook avec cache automatique
+  async getOrFetch<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    ttl = 300
+  ): Promise<T> {
+    try {
+      const { cache } = await import('../lib/cache/cache-manager')
+      return await cache.getOrSet(key, fetcher, ttl)
+    } catch (error) {
+      console.warn('[CACHE] Failed to use getOrSet, fallback to direct fetch:', error)
+      return await fetcher()
+    }
+  }
+
+  // ✅ PHASE 3: Métriques de cache
+  getCacheMetrics() {
+    try {
+      const { cache } = require('../lib/cache/cache-manager')
+      return cache.getMetrics()
+    } catch (error) {
+      console.warn('[CACHE] Failed to get metrics:', error)
+      return {
+        l1Hits: 0,
+        l1Misses: 0,
+        l2Hits: 0,
+        l2Misses: 0,
+        totalRequests: 0,
+        averageResponseTime: 0
+      }
+    }
+  }
+
+  getCacheStatus() {
+    try {
+      const { cache } = require('../lib/cache/cache-manager')
+      return cache.getStatus()
+    } catch (error) {
+      console.warn('[CACHE] Failed to get status:', error)
+      return {
+        l1Size: 0,
+        l1MaxSize: 500,
+        l2Available: false,
+        metrics: this.getCacheMetrics()
+      }
+    }
   }
 
   // Gérer l'invalidation basée sur les routes
@@ -163,7 +278,7 @@ class CacheManager {
 // Hook pour la gestion automatique du cache lors de la navigation
 export function useCacheManagement() {
   const pathname = usePathname()
-  const cacheManager = CacheManager.getInstance()
+  const cacheManager = EnhancedCacheManager.getInstance()
 
   useEffect(() => {
     // ✅ FIX BOUCLE INFINIE: Simplifier les configurations d'invalidation pour éviter les conflits
@@ -195,7 +310,7 @@ export function useCacheManagement() {
 
 // Hook pour enregistrer un composant/hook avec le système de cache
 export function useDataRefresh(key: string, refreshCallback: () => void) {
-  const cacheManager = CacheManager.getInstance()
+  const cacheManager = EnhancedCacheManager.getInstance()
 
   const memoizedCallback = useCallback(refreshCallback, [refreshCallback])
 
@@ -230,4 +345,4 @@ export function useDataRefresh(key: string, refreshCallback: () => void) {
   }
 }
 
-export default CacheManager
+export default EnhancedCacheManager

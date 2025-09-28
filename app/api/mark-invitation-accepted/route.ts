@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       })
       
       // D'abord, regarder TOUTES les invitations pour ce code pour diagnostic
-      const { data: allInvitationsForCode, error: debugError } = await supabaseAdmin
+      const { data: allInvitationsForCode } = await supabaseAdmin
         .from('user_invitations')
         .select('*')
         .eq('invitation_code', invitationCode)
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
       // Marquer par email (fallback)
       console.log('📧 [MARK-INVITATION-API] Marking invitation by email:', email)
       
-      const { data: existingInvitations, error: checkError } = await supabaseAdmin
+      const { data: existingInvitations } = await supabaseAdmin
         .from('user_invitations')
         .select('*')
         .eq('email', email)

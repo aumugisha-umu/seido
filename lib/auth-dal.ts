@@ -10,9 +10,9 @@
 
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
-import { createClient } from '@/utils/supabase/server'
-import { userService } from '@/lib/database-service'
-import type { Database } from '@/lib/database.types'
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
+import { createServerUserService } from '@/lib/services'
+import type { User } from '@supabase/supabase-js'
 
 /**
  * ✅ PATTERN 2025: getUser() avec cache React et retry logic
@@ -20,7 +20,7 @@ import type { Database } from '@/lib/database.types'
  * Cache automatique pendant le cycle de rendu
  */
 export const getUser = cache(async () => {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   // ✅ NOUVEAU: Retry logic pour éviter les race conditions après login
   let retryCount = 0
@@ -74,7 +74,7 @@ export const getUser = cache(async () => {
  * Pour les cas où on a besoin de la session complète
  */
 export const getSession = cache(async () => {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     const { data: { session }, error } = await supabase.auth.getSession()
@@ -163,12 +163,15 @@ export const getUserProfile = cache(async () => {
 
   try {
     // ✅ Récupérer le profil complet depuis la table users
-    const userProfile = await userService.findByAuthUserId(supabaseUser.id)
+    const userService = await createServerUserService()
+    const userResult = await userService.getByAuthUserId(supabaseUser.id)
 
-    if (!userProfile) {
+    if (!userResult.success || !userResult.data) {
       console.log('⚠️ [AUTH-DAL] Supabase user exists but no profile found in users table:', supabaseUser.email)
       return null
     }
+
+    const userProfile = userResult.data
 
     console.log('✅ [AUTH-DAL] Complete user profile loaded:', {
       email: userProfile.email,
@@ -224,7 +227,7 @@ export async function checkAuth() {
  * Peut être utilisé dans les Server Actions de déconnexion
  */
 export async function invalidateAuth() {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     await supabase.auth.signOut()
@@ -240,8 +243,8 @@ export async function invalidateAuth() {
  */
 export type AuthState = {
   isAuthenticated: boolean
-  user: any | null // TODO: Typer selon votre User model
-  session: any | null
+  user: User | null
+  session: unknown | null
 }
 
 /**

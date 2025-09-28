@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis
@@ -324,7 +329,7 @@ export async function POST(request: NextRequest) {
       return { provider, quoteRequest, error: null }
     })
 
-    let createdQuoteRequests: any[] = []
+    let createdQuoteRequests = []
 
     try {
       const quoteRequestResults = await Promise.all(quoteRequestPromises)

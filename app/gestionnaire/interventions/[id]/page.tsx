@@ -3,38 +3,17 @@
 import { use } from "react"
 import {
   ArrowLeft,
-  Building2,
-  Calendar,
-  Clock,
   FileText,
-  Users,
-  MapPin,
-  MessageSquare,
-  Phone,
-  Mail,
-  Eye,
-  Download,
-  User,
-  UserPlus,
-  UserMinus,
-  ChevronDown,
-  ChevronRight,
-  Receipt,
-  Settings,
-  PlayCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
+import { useState, useEffect, useCallback } from "react"
+
+
+import { determineAssignmentType } from '@/lib/services'
 import { useAuth } from "@/hooks/use-auth"
 import { useInterventionCancellation } from "@/hooks/use-intervention-cancellation"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
-import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
-import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { CancelConfirmationModal } from "@/components/intervention/modals/cancel-confirmation-modal"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
@@ -50,6 +29,16 @@ interface DatabaseContact {
   company?: string | null
   speciality?: string | null
   inChat?: boolean
+}
+
+interface InterventionContact {
+  id: string
+  role: string
+  user: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 interface InterventionDetail {
@@ -175,18 +164,6 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-const getInterventionLocationShort = (intervention: InterventionDetail): string => {
-  if (intervention.lot) {
-    return `Lot ${intervention.lot.reference}`
-  } else if (intervention.building) {
-    return "Bâtiment entier"
-  }
-  return "Non spécifié"
-}
-
-const isBuildingWideIntervention = (intervention: InterventionDetail): boolean => {
-  return !!(intervention.building && !intervention.lot)
-}
 
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -227,7 +204,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
   }
 
   // Fonction pour récupérer les données réelles depuis la DB
-  const fetchInterventionData = async () => {
+  const fetchInterventionData = useCallback(async () => {
     if (!resolvedParams.id) return
 
     setLoading(true)
@@ -267,7 +244,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       console.log('✅ Contacts loaded:', contacts.length)
 
       // 3. Organiser les contacts par type (nouvelle architecture)
-      const getContactAssignmentType = (contact: any) => {
+      const getContactAssignmentType = (contact: DatabaseContact) => {
         if (contact.role && contact.provider_category !== undefined) {
           return determineAssignmentType({
             id: contact.id,
@@ -280,21 +257,21 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       }
       
       const organizedContacts = {
-        locataires: contacts.filter((contact: any) => 
+        locataires: contacts.filter((contact: DatabaseContact) =>
           getContactAssignmentType(contact) === 'tenant'
-        ).map((contact: any) => ({
+        ).map((contact: DatabaseContact) => ({
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
-        syndics: contacts.filter((contact: any) => 
+        syndics: contacts.filter((contact: DatabaseContact) =>
           getContactAssignmentType(contact) === 'syndic'
-        ).map((contact: any) => ({
+        ).map((contact: DatabaseContact) => ({
           ...contact,
           inChat: false
         })),
-        autres: contacts.filter((contact: any) => 
+        autres: contacts.filter((contact: DatabaseContact) =>
           !['tenant', 'syndic'].includes(getContactAssignmentType(contact))
-        ).map((contact: any) => ({
+        ).map((contact: DatabaseContact) => ({
           ...contact,
           inChat: false
         }))
@@ -421,10 +398,10 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
         // 5. Créer les demandes de devis à partir des prestataires assignés
         const requests = interventionData.intervention_contacts
-          ?.filter((contact: any) => contact.role === 'prestataire')
-          ?.map((contact: any) => {
+          ?.filter((contact: InterventionContact) => contact.role === 'prestataire')
+          ?.map((contact: InterventionContact) => {
             // Vérifier si ce prestataire a déjà soumis un devis et récupérer son statut
-            const providerQuote = transformedIntervention.quotes.find((quote: any) => quote.providerId === contact.user.id)
+            const providerQuote = transformedIntervention.quotes.find(quote => quote.providerId === contact.user.id)
             const hasQuote = !!providerQuote
             
             // Déterminer le statut basé sur le devis reçu
@@ -481,16 +458,16 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
     } catch (error) {
       console.error('❌ Error fetching intervention data:', error)
-      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l\'intervention')
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l&apos;intervention')
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams.id])
 
   // Charger les données réelles au montage du composant
   useEffect(() => {
     fetchInterventionData()
-  }, [resolvedParams.id])
+  }, [fetchInterventionData])
 
   // États de chargement et d'erreur
   if (loading) {
@@ -498,7 +475,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des détails de l'intervention...</p>
+          <p className="text-gray-600">Chargement des détails de l&apos;intervention...</p>
         </div>
       </div>
     )
@@ -528,7 +505,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         <div className="text-center">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Intervention non trouvée</h2>
-          <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
+          <p className="text-gray-600 mb-4">L&apos;intervention demandée n&apos;existe pas ou n&apos;est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour

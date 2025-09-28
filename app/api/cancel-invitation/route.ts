@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getServerSession } from '@/lib/supabase-server'
-import { userService } from '@/lib/database-service'
+import { createServerUserService } from '@/lib/services'
 
 // Client admin Supabase pour les opérations privilégiées
 const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(
@@ -17,6 +17,9 @@ const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(
 
 export async function POST(request: Request) {
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+
     // Vérifier l'authentification
     const session = await getServerSession()
     if (!session) {
@@ -47,7 +50,8 @@ export async function POST(request: Request) {
     console.log('🚫 [CANCEL-INVITATION-API] Processing cancellation for invitation:', invitationId)
 
     // Récupérer le profil utilisateur courant
-    const currentUserProfile = await userService.findByAuthUserId(session.user.id)
+    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
+    const currentUserProfile = currentUserProfileResult.success ? currentUserProfileResult.data : null
     if (!currentUserProfile) {
       console.error('❌ [CANCEL-INVITATION-API] User profile not found for auth user:', session.user.id)
       return NextResponse.json(

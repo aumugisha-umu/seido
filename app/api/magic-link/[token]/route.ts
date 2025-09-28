@@ -5,10 +5,11 @@ import { Database } from '@/lib/database.types'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const token = params.token
+    const resolvedParams = await params
+    const token = resolvedParams.token
 
     if (!token) {
       return NextResponse.json({

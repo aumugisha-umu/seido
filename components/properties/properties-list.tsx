@@ -20,12 +20,20 @@ import {
   MapPin,
   Users,
   Calendar,
-  Euro,
   Plus,
 } from "lucide-react"
 
+interface Property {
+  id: string
+  type: 'building' | 'lot'
+  name?: string
+  reference?: string
+  address?: string
+  [key: string]: unknown
+}
+
 interface PropertiesListProps {
-  properties: any[]
+  properties: Property[]
   loading?: boolean
   emptyStateConfig?: {
     title: string
@@ -85,7 +93,7 @@ export function PropertiesList({
   }
 
   // Get occupancy status for lots
-  const getOccupancyStatus = (property: any) => {
+  const getOccupancyStatus = (property: Property) => {
     if (property.type !== 'lot') return null
     
     return property.is_occupied ? {
@@ -98,7 +106,7 @@ export function PropertiesList({
   }
 
   // Get property actions
-  const getPropertyActions = (property: any) => {
+  const getPropertyActions = (property: Property) => {
     return [
       {
         label: "Voir détails",

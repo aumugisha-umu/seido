@@ -154,7 +154,7 @@ export function QuoteWorkflowDemo() {
 
         {/* Steps du workflow */}
         <div className="space-y-4">
-          {steps.map((step, index) => (
+          {steps.map((step) => (
             <Card
               key={step.id}
               className={`transition-all duration-300 ${getStepColor(

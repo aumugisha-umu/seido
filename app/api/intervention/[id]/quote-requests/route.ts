@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
+
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  console.log("✅ intervention/[id]/quote-requests GET API route called for intervention:", params.id)
+  const resolvedParams = await params
+  console.log("✅ intervention/[id]/quote-requests GET API route called for intervention:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -132,7 +137,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           *,
           provider:provider_id(id, name, email, provider_category)
         `)
-        .eq('intervention_id', params.id)
+        .eq('intervention_id', resolvedParams.id)
         .in('provider_id', quoteRequests.map(qr => qr.provider_id))
 
       if (!quotesError) {
@@ -148,7 +153,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           *,
           user:user_id(id, name)
         `)
-        .eq('intervention_id', params.id)
+        .eq('intervention_id', resolvedParams.id)
         .in('user_id', quoteRequests.map(qr => qr.provider_id))
         .not('quote_request_id', 'is', null) // Only availabilities linked to quote requests
 

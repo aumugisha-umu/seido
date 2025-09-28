@@ -2,14 +2,13 @@
 
 import { useState, useMemo } from "react"
 import { User, Clock, Info, Filter, AlertCircle } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import {
-  getValidAvailabilities,
-  type AvailabilityFilterState
+  getValidAvailabilities
 } from "@/lib/availability-filtering-utils"
 
 interface UserAvailability {
@@ -25,7 +24,6 @@ interface Quote {
   id: string
   providerId: string
   status: 'pending' | 'approved' | 'rejected'
-  [key: string]: any
 }
 
 interface UserAvailabilitiesDisplayProps {
@@ -47,7 +45,7 @@ export function UserAvailabilitiesDisplay({
   showCard = true,
   quotes
 }: UserAvailabilitiesDisplayProps) {
-  const [showFilterDetails, setShowFilterDetails] = useState(false)
+  const [_showFilterDetails, _setShowFilterDetails] = useState(false)
 
   // Calculer les disponibilités filtrées et l'état du filtrage
   const { filteredByQuotes, filterState, filterMessage } = useMemo(() => {

@@ -16,8 +16,8 @@ interface DebugLog {
   component: string
   level: 'info' | 'warn' | 'error' | 'debug'
   message: string
-  context?: any
-  data?: any
+  context?: unknown
+  data?: unknown
 }
 
 interface DebugPanelProps {
@@ -43,7 +43,7 @@ export function SEIDODebugPanel({ userRole, userId, isVisible = false }: DebugPa
       info: console.info
     }
 
-    const captureLog = (level: DebugLog['level']) => (...args: any[]) => {
+    const captureLog = (level: DebugLog['level']) => (...args: unknown[]) => {
       // Appeler la méthode console originale
       originalConsole[level](...args)
 

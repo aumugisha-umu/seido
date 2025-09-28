@@ -17,25 +17,21 @@ import {
   PermissionException
 } from './error-handler'
 import type {
-  User,
-  Building,
-  Lot,
-  Intervention,
-  Contact,
-  RepositoryResponse,
-  RepositoryListResponse,
-  PaginatedResponse
+  User
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 } from './service-types'
 
 // Test that we can create clients
 const browserClient = createBrowserSupabaseClient()
 
 // Test that we can create a basic repository
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 class TestUserRepository extends BaseRepository<User, any, any> {
   constructor() {
     super(browserClient, 'users')
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected async validate(data: any): Promise<void> {
     validateRequired(data, ['email', 'name', 'role'])
     validateEmail(data.email)
@@ -47,7 +43,9 @@ const userRepo = new TestUserRepository()
 
 // Test error handling
 const testError = new RepositoryException('TEST_ERROR', 'Test error message')
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const validationError = new ValidationException('Test validation error', 'email', 'invalid-email')
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const permissionError = new PermissionException('No permission', 'users', 'read', 'user-123')
 
 // Test response creators
@@ -57,18 +55,21 @@ const errorResponse = createErrorResponse(handleError(testError))
 // Test validation functions
 try {
   validateRequired({ name: 'Test' }, ['name', 'email']) // Should throw
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 } catch (error) {
   // Expected
 }
 
 try {
   validateEmail('invalid-email') // Should throw
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 } catch (error) {
   // Expected
 }
 
 try {
   validateUUID('invalid-uuid') // Should throw
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 } catch (error) {
   // Expected
 }

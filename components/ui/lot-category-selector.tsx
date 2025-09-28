@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -14,7 +13,7 @@ import {
   MoreHorizontal,
   Check
 } from "lucide-react"
-import { LotCategory, getAllLotCategories, getLotCategoryConfig } from "@/lib/lot-types"
+import { LotCategory, getAllLotCategories} from "@/lib/lot-types"
 
 interface LotCategorySelectorProps {
   value: LotCategory

@@ -11,9 +11,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Building2, Home, UserPlus, Plus, ChevronDown, Wrench } from 'lucide-react'
 import { ContactFormModal } from '@/components/contact-form-modal'
+import type { CreateContactData } from './actions'
 
 interface DashboardClientProps {
-  userId: string
   teamId: string
 }
 
@@ -25,11 +25,11 @@ interface DashboardClientProps {
  * - Server Actions pour mutations
  * - Pas de logique métier côté client
  */
-export function DashboardClient({ userId, teamId }: DashboardClientProps) {
+export function DashboardClient({ teamId }: DashboardClientProps) {
   const router = useRouter()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
 
-  const handleContactSubmit = async (contactData: any) => {
+  const handleContactSubmit = async (contactData: CreateContactData) => {
     try {
       console.log('[DASHBOARD-CLIENT] Contact creation:', contactData)
 

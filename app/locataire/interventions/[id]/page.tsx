@@ -1,29 +1,26 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
-import { ArrowLeft, Building2, User, MessageSquare, CalendarDays, Euro, CheckCircle, XCircle } from "lucide-react"
+import { useState, useEffect, use, useCallback } from "react"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
-import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
 
-interface InterventionDetailsProps {
-  params: {
-    id: string
-  }
-}
+
+import { determineAssignmentType } from '@/lib/services'
+
+// interface InterventionDetailsProps removed as unused
 
 export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
-  const [intervention, setIntervention] = useState<any>(null)
+  const [intervention, setIntervention] = useState<{ id: string; title: string; description: string; status: string; [key: string]: any } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,7 +33,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
   }
 
-  const refreshIntervention = async () => {
+  const refreshIntervention = useCallback(async () => {
     if (!resolvedParams.id || !user?.id) return
 
     try {
@@ -87,7 +84,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         }
 
         // Organiser les contacts et filtrer le locataire connecté
-        const getContactAssignmentType = (contact: any) => {
+        const getContactAssignmentType = (contact: { id: string; role?: string; provider_category?: string }) => {
           if (contact.role && contact.provider_category !== undefined) {
             return determineAssignmentType({
               id: contact.id,
@@ -101,11 +98,11 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         organizedContacts = {
           // Autres locataires du bien (exclure l'utilisateur connecté)
           locataires: contacts
-            .filter((contact: any) =>
+            .filter((contact: { id: string; role?: string; provider_category?: string }) =>
               getContactAssignmentType(contact) === 'tenant' &&
               contact.id !== user.id
             )
-            .map((contact: any) => ({
+            .map((contact: { id: string; role?: string; provider_category?: string }) => ({
               ...contact,
               inChat: false
             })),
@@ -113,12 +110,12 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
           syndics: [],
           // Seulement les gestionnaires, pas les prestataires du bien
           autres: contacts
-            .filter((contact: any) => {
+            .filter((contact: { id: string; role?: string; provider_category?: string }) => {
               const type = getContactAssignmentType(contact)
               // Garder seulement les gestionnaires, exclure prestataires et syndics
               return type === 'manager'
             })
-            .map((contact: any) => ({
+            .map((contact: { id: string; role?: string; provider_category?: string }) => ({
               ...contact,
               inChat: false
             }))
@@ -252,7 +249,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     } catch (err) {
       console.error("Error refreshing intervention:", err)
     }
-  }
+  }, [resolvedParams.id, user?.id])
 
 
   useEffect(() => {
@@ -272,7 +269,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     if (resolvedParams.id && user?.id) {
       fetchIntervention()
     }
-  }, [resolvedParams.id, user?.id])
+  }, [resolvedParams.id, user?.id, refreshIntervention])
 
   if (loading) {
     return <LoadingSkeleton />

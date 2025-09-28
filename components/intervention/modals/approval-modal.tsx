@@ -1,11 +1,11 @@
 "use client"
 
-import { Check, X, MapPin, User, Wrench, Calendar, Clock, AlertTriangle } from "lucide-react"
+import { Check, X, MapPin, User, Wrench, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
+// Removed unused Textarea import
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
+// Removed unused Label import
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 import { 
   getInterventionLocationText, 
@@ -32,11 +32,11 @@ export const ApprovalModal = ({
   isOpen,
   onClose,
   intervention,
-  action,
-  rejectionReason,
-  internalComment,
-  onRejectionReasonChange,
-  onInternalCommentChange,
+  // action,
+  // rejectionReason,
+  // internalComment,
+  // onRejectionReasonChange,
+  // onInternalCommentChange,
   onActionChange,
   onConfirm,
 }: ApprovalModalProps) => {

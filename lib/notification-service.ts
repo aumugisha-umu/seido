@@ -30,6 +30,7 @@ interface ContactWithUser {
 }
 
 // Type for lot with building relationship
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface LotWithBuilding {
   id: string
   reference?: string
@@ -992,7 +993,6 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const lotManagerIds = await this.getLotManagers(lot.id)
       const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`
@@ -1143,7 +1143,6 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const lotManagerIds = await this.getLotManagers(lot.id)
       const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`
@@ -1294,7 +1293,6 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const lotManagerIds = await this.getLotManagers(lot.id)
       const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`

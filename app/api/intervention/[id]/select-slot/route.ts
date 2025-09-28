@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService, interventionService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 export async function PUT(
   request: NextRequest,
@@ -101,7 +106,7 @@ export async function PUT(
 
     // Check if user has permission to select slot (tenant, assigned participants, or gestionnaire)
     const isUserTenant = intervention.lot?.lot_contacts?.some(
-      (contact: any) => contact.user_id === user.id
+      (contact) => contact.user_id === user.id
     )
     console.log("👤 [SELECT-SLOT] User access check:", { userId: user.id, userRole: user.role, isUserTenant })
 
@@ -218,7 +223,7 @@ export async function PUT(
     const scheduledDateTime = `${selectedSlot.date}T${selectedSlot.startTime}:00.000Z`
 
     // Update the intervention with the selected slot
-    const updateData: any = {
+    const updateData = {
       status: 'planifiee' as Database['public']['Enums']['intervention_status'],
       scheduled_date: scheduledDateTime,
       updated_at: new Date().toISOString()
@@ -246,7 +251,7 @@ export async function PUT(
     const notificationPromises = []
 
     // Find tenant ID from lot_contacts for notifications
-    const tenantContact = intervention.lot?.lot_contacts?.find((contact: any) => contact.is_primary)
+    const tenantContact = intervention.lot?.lot_contacts?.find((contact) => contact.is_primary)
     const tenantId = tenantContact?.user_id || intervention.tenant_id // fallback to old structure
 
     // Notify tenant if they're not the one who selected the slot

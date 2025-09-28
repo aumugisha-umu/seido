@@ -1,21 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { userService } from '@/lib/database-service'
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 interface DiagnosticResult {
   test: string
   status: 'pending' | 'success' | 'error'
   message: string
-  details?: any
+  details?: Record<string, unknown>
 }
 
 export default function DebugPage() {
   const [results, setResults] = useState<DiagnosticResult[]>([])
   const [isRunning, setIsRunning] = useState(false)
 
-  const updateResult = (testName: string, status: DiagnosticResult['status'], message: string, details?: any) => {
+  const updateResult = (testName: string, status: DiagnosticResult['status'], message: string, details?: Record<string, unknown>) => {
     setResults(prev => {
       const existing = prev.findIndex(r => r.test === testName)
       const newResult = { test: testName, status, message, details }
@@ -28,21 +32,21 @@ export default function DebugPage() {
     })
   }
 
-  const runDiagnostics = async () => {
+  const runDiagnostics = useCallback(async () => {
     setIsRunning(true)
     setResults([])
 
     // Test 1: Connexion Supabase basique
     updateResult('Connection', 'pending', 'Test de connexion Supabase...')
     try {
-      const { data, error } = await supabase.from('users').select('count').limit(1)
+      const { error } = await supabase.from('users').select('count').limit(1)
       if (error) {
-        updateResult('Connection', 'error', `Erreur de connexion: ${error.message}`, error)
+        updateResult('Connection', 'error', `Erreur de connexion: ${error.message}`, { error })
       } else {
         updateResult('Connection', 'success', 'Connexion Supabase OK')
       }
     } catch (error) {
-      updateResult('Connection', 'error', `Exception: ${error}`, error)
+      updateResult('Connection', 'error', `Exception: ${error}`, { error })
     }
 
     // Test 2: Vérification de l'auth
@@ -135,11 +139,11 @@ export default function DebugPage() {
     }
 
     setIsRunning(false)
-  }
+  }, [])
 
   useEffect(() => {
     runDiagnostics()
-  }, [])
+  }, [runDiagnostics])
 
   const getStatusColor = (status: DiagnosticResult['status']) => {
     switch (status) {

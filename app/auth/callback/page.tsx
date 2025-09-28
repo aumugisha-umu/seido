@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getDashboardPath } from '@/lib/auth-router'
+
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
@@ -17,31 +17,7 @@ export default function AuthCallback() {
   const [message, setMessage] = useState('')
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  useEffect(() => {
-    handleAuthCallback()
-  }, [])
-
-  // ✅ Écouter les changements d'utilisateur via AuthProvider
-  useEffect(() => {
-    if (!loading && user) {
-      console.log('✅ [AUTH-CALLBACK-DELEGATED] User loaded by AuthProvider:', user.name, user.role)
-      setStatus('success')
-
-      // ✅ Message adapté selon si on va vers set-password ou dashboard
-      const callbackContext = sessionStorage.getItem('auth_callback_context')
-      const isInvitationCallback = callbackContext && JSON.parse(callbackContext).type === 'invitation'
-
-      if (isInvitationCallback) {
-        setMessage(`✅ Authentification réussie ! Configuration de votre compte en cours...`)
-      } else {
-        setMessage(`✅ Connexion réussie ! Redirection vers votre espace ${user.role}...`)
-      }
-
-      setUserRole(user.role)
-    }
-  }, [user, loading])
-
-  const handleAuthCallback = async () => {
+  const handleAuthCallback = useCallback(async () => {
     try {
       console.log('🚀 [AUTH-CALLBACK-DELEGATED] Starting simplified OAuth callback')
       console.log('🔍 [AUTH-CALLBACK-DELEGATED] URL:', window.location.href)
@@ -122,7 +98,31 @@ export default function AuthCallback() {
         router.push('/auth/login?error=callback_failed')
       }, 3000)
     }
-  }
+  }, [searchParams, router])
+
+  useEffect(() => {
+    handleAuthCallback()
+  }, [handleAuthCallback])
+
+  // ✅ Écouter les changements d'utilisateur via AuthProvider
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('✅ [AUTH-CALLBACK-DELEGATED] User loaded by AuthProvider:', user.name, user.role)
+      setStatus('success')
+
+      // ✅ Message adapté selon si on va vers set-password ou dashboard
+      const callbackContext = sessionStorage.getItem('auth_callback_context')
+      const isInvitationCallback = callbackContext && JSON.parse(callbackContext).type === 'invitation'
+
+      if (isInvitationCallback) {
+        setMessage(`✅ Authentification réussie ! Configuration de votre compte en cours...`)
+      } else {
+        setMessage(`✅ Connexion réussie ! Redirection vers votre espace ${user.role}...`)
+      }
+
+      setUserRole(user.role)
+    }
+  }, [user, loading])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

@@ -5,11 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Users, Plus, Search } from "lucide-react"
-import * as SelectPrimitive from "@radix-ui/react-select"
+import { Users, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import ContactFormModal from "@/components/contact-form-modal"
-import { contactInvitationService } from "@/lib/database-service"
+import { createContactInvitationService } from "@/lib/services"
+
 
 // Composant SelectItem personnalisé avec bouton au lieu du checkmark
 const CustomSelectItem = ({ 
@@ -20,7 +20,15 @@ const CustomSelectItem = ({
   isSelected, 
   keepOpen = false,
   ...props 
-}: any) => {
+}: {
+  className?: string
+  children: React.ReactNode
+  value: string
+  onSelect: (value: string) => void
+  isSelected: boolean
+  keepOpen?: boolean
+  [key: string]: unknown
+}) => {
   return (
     <div
       className={cn(
@@ -52,11 +60,22 @@ const CustomSelectItem = ({
 }
 
 interface ContactSelectorProps {
-  contacts: any[]
-  selectedContactId?: string
+  contacts: Array<{
+    id: string
+    name: string
+    email: string
+    role: string
+    provider_category?: string
+  }>
   selectedContactIds?: string[]
   onContactSelect: (contactId: string) => void
-  onContactCreated: (contact: any) => void
+  onContactCreated: (contact: {
+    id: string
+    name: string
+    email: string
+    role: string
+    provider_category?: string
+  }) => void
   contactType: 'gestionnaire' | 'prestataire'
   placeholder: string
   isLoading?: boolean
@@ -65,7 +84,6 @@ interface ContactSelectorProps {
 
 const ContactSelector = ({
   contacts,
-  selectedContactId,
   selectedContactIds = [],
   onContactSelect,
   onContactCreated,
@@ -91,7 +109,17 @@ const ContactSelector = ({
     return selectedContactIds.map(id => String(id)).includes(String(contactId))
   }
 
-  const handleContactCreated = async (contactData: any) => {
+  const handleContactCreated = async (contactData: {
+    type: string
+    firstName: string
+    lastName: string
+    email: string
+    phone?: string
+    address?: string
+    speciality?: string
+    notes?: string
+    inviteToApp?: boolean
+  }) => {
     try {
       console.log('🆕 Création d\'un contact:', contactData)
       
@@ -101,6 +129,7 @@ const ContactSelector = ({
       }
 
       // Utiliser le service d'invitation pour créer le contact et optionnellement l'utilisateur
+      const contactInvitationService = createContactInvitationService()
       const result = await contactInvitationService.createContactWithOptionalInvite({
         type: contactData.type,
         firstName: contactData.firstName,

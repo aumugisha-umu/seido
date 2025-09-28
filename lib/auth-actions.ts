@@ -62,7 +62,7 @@ function createServerSupabaseClient() {
                 sameSite: 'lax'
               })
             })
-          } catch (error) {
+          } catch {
             // Ignore l'erreur de set cookies depuis Server Action
             console.log('Note: Cookie setting ignored in Server Action context')
           }
@@ -83,7 +83,7 @@ export async function signInAction(formData: FormData) {
     return { error: 'Email et mot de passe requis' }
   }
 
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // ✅ BONNE PRATIQUE 2025: Authentification côté serveur
@@ -142,7 +142,7 @@ export async function signUpAction(formData: FormData) {
     return { error: 'Tous les champs requis doivent être remplis' }
   }
 
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     // Créer l'utilisateur auth
@@ -233,7 +233,7 @@ export async function signUpAction(formData: FormData) {
  * Action de déconnexion
  */
 export async function signOutAction() {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     await supabase.auth.signOut()
@@ -255,7 +255,7 @@ export async function resetPasswordAction(formData: FormData) {
     return { error: 'Email requis' }
   }
 
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -294,7 +294,7 @@ export async function updatePasswordAction(formData: FormData) {
     return { error: 'Le mot de passe doit contenir au moins 8 caractères' }
   }
 
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     const { error } = await supabase.auth.updateUser({

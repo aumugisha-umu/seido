@@ -1,14 +1,9 @@
-import { useState } from "react"
 import {
   Euro,
   CheckCircle2,
   XCircle,
   CalendarCheck,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,7 +25,7 @@ interface FinalizationFormData {
 }
 
 interface FinalizationDecisionProps {
-  contextData: any
+  contextData: unknown
   formData: FinalizationFormData
   setFormData: (data: FinalizationFormData | ((prev: FinalizationFormData) => FinalizationFormData)) => void
   onSubmit: () => Promise<void>
@@ -50,10 +45,7 @@ export const FinalizationDecision = ({
 }: FinalizationDecisionProps) => {
   const finalCost = contextData.intervention.final_cost || contextData.selectedQuote?.amount || 0
   const estimatedCost = contextData.intervention.estimated_cost || 0
-  const variance = estimatedCost ? ((finalCost - estimatedCost) / estimatedCost * 100) : 0
 
-  // Detect if we're on mobile
-  const isMobileLayout = typeof window !== 'undefined' && window.innerWidth < 1024
 
   return (
     <div className={cn(

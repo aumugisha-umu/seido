@@ -23,7 +23,6 @@ import {
   Building2,
   Home,
   Wrench,
-  Star
 } from "lucide-react"
 
 interface ProfilePageProps {

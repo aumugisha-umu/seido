@@ -11,6 +11,24 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import LotCard from "@/components/lot-card"
 import ContentNavigator from "@/components/content-navigator"
 
+interface Lot {
+  id: string | number
+  reference: string
+  status: string
+  floor: number
+  interventions: number
+  lot_tenants?: Array<unknown>
+  tenant?: unknown
+  building_name?: string
+}
+
+interface Building {
+  id: string | number
+  name: string
+  address: string
+  lots: Lot[]
+}
+
 interface PropertySelectorProps {
   mode: "view" | "select"
   onBuildingSelect?: (buildingId: string | null) => void
@@ -26,7 +44,7 @@ export default function PropertySelector({
   onLotSelect,
   selectedBuildingId,
   selectedLotId,
-  showActions = true,
+  showActions: _showActions = true,
 }: PropertySelectorProps) {
   const router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
@@ -35,7 +53,7 @@ export default function PropertySelector({
     status: "all",
     interventions: "all"
   })
-  const { data, loading, error } = useManagerStats()
+  const { data, loading, error: _error } = useManagerStats()
 
   const buildings = data?.buildings || []
   const individualLots = data?.lots || []
@@ -57,14 +75,14 @@ export default function PropertySelector({
     }))
   }
 
-  const filterBuildings = (buildingsList: any[]) => {
+  const filterBuildings = (buildingsList: Building[]) => {
     return buildingsList.filter(building => {
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
         const matchesName = building.name.toLowerCase().includes(searchLower)
         const matchesAddress = building.address.toLowerCase().includes(searchLower)
-        const matchesLots = building.lots.some((lot: any) => 
+        const matchesLots = building.lots.some((lot: Lot) =>
           lot.reference.toLowerCase().includes(searchLower)
         )
         if (!matchesName && !matchesAddress && !matchesLots) return false
@@ -72,14 +90,14 @@ export default function PropertySelector({
 
       // Status filter
       if (filters.status !== "all") {
-        const hasOccupiedLots = building.lots.some((lot: any) => lot.status === "occupied")
+        const hasOccupiedLots = building.lots.some((lot: Lot) => lot.status === "occupied")
         if (filters.status === "occupied" && !hasOccupiedLots) return false
         if (filters.status === "vacant" && hasOccupiedLots) return false
       }
 
       // Interventions filter
       if (filters.interventions !== "all") {
-        const hasInterventions = building.lots.some((lot: any) => lot.interventions > 0)
+        const hasInterventions = building.lots.some((lot: Lot) => lot.interventions > 0)
         if (filters.interventions === "with" && !hasInterventions) return false
         if (filters.interventions === "without" && hasInterventions) return false
       }
@@ -88,7 +106,7 @@ export default function PropertySelector({
     })
   }
 
-  const filterIndividualLots = (lotsList: any[]) => {
+  const filterIndividualLots = (lotsList: Lot[]) => {
     return lotsList.filter(lot => {
       // Search filter
       if (searchTerm) {
@@ -167,8 +185,8 @@ export default function PropertySelector({
           filteredBuildings.map((building) => {
             const buildingIdStr = building.id.toString()
             const isExpanded = expandedBuildings.includes(buildingIdStr)
-            const occupiedLots = building.lots.filter((lot: any) => lot.status === "occupied").length
-            const totalInterventions = building.lots.reduce((sum: number, lot: any) => sum + lot.interventions, 0)
+            const occupiedLots = building.lots.filter((lot: Lot) => lot.status === "occupied").length
+            const totalInterventions = building.lots.reduce((sum: number, lot: Lot) => sum + lot.interventions, 0)
             const isSelected = selectedBuildingId === buildingIdStr
 
             return (
@@ -278,7 +296,7 @@ export default function PropertySelector({
 
                       {building.lots.length > 0 && !isExpanded && (
                         <div className="grid grid-cols-1 gap-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">
-                          {building.lots.slice(0, 2).map((lot: any) => {
+                          {building.lots.slice(0, 2).map((lot: Lot) => {
                             const isLotSelected = selectedLotId === lot.id.toString()
                             return (
                               <div
@@ -377,7 +395,7 @@ export default function PropertySelector({
                         <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
                           <div className="max-h-64 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 rounded-md">
                             <div className="space-y-2 pr-2">
-                              {building.lots.map((lot: any) => {
+                              {building.lots.map((lot: Lot) => {
                                 const isLotSelected = selectedLotId === lot.id.toString()
                                 return (
                                   <div

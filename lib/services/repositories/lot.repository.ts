@@ -6,14 +6,32 @@
 import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Lot, LotInsert, LotUpdate } from '../core/service-types'
-import { ValidationException, NotFoundException } from '../core/error-handler'
+import type { Lot, LotInsert, LotUpdate, User } from '../core/service-types'
+import { NotFoundException } from '../core/error-handler'
 import {
   validateRequired,
   validateLength,
   validateNumber,
   validateEnum
 } from '../core/service-types'
+
+// Types for lot relations
+interface LotContact {
+  is_primary?: boolean
+  user?: User
+}
+
+interface LotWithContacts extends Lot {
+  lot_contacts?: LotContact[]
+  tenant?: User | null
+  is_occupied?: boolean
+  tenants?: User[]
+  building?: {
+    name: string
+    address: string
+    city: string
+  }
+}
 
 /**
  * Lot Repository
@@ -103,16 +121,16 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     // Post-process to extract tenants and calculate is_occupied
     const processedData = data?.map(lot => {
-      const tenants = lot.lot_contacts?.filter((contact: any) =>
-        contact.user?.role === 'tenant'
+      const tenants = lot.lot_contacts?.filter((contact: LotContact) =>
+        contact.user?.role === 'locataire'
       ) || []
 
       return {
         ...lot,
-        tenant: tenants.find((contact: any) => contact.is_primary)?.user ||
+        tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
           tenants[0]?.user || null,
         is_occupied: tenants.length > 0,
-        tenants: tenants.map((contact: any) => contact.user)
+        tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
       }
     })
 
@@ -156,16 +174,16 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     // Post-process to extract tenants and calculate is_occupied
     const processedData = data?.map(lot => {
-      const tenants = lot.lot_contacts?.filter((contact: any) =>
-        contact.user?.role === 'tenant'
+      const tenants = lot.lot_contacts?.filter((contact: LotContact) =>
+        contact.user?.role === 'locataire'
       ) || []
 
       return {
         ...lot,
-        tenant: tenants.find((contact: any) => contact.is_primary)?.user ||
+        tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
           tenants[0]?.user || null,
         is_occupied: tenants.length > 0,
-        tenants: tenants.map((contact: any) => contact.user)
+        tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
       }
     })
 
@@ -198,14 +216,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     // Post-process to extract tenants
     if (data) {
-      const tenants = data.lot_contacts?.filter((contact: any) =>
-        contact.user?.role === 'tenant'
+      const tenants = data.lot_contacts?.filter((contact: LotContact) =>
+        contact.user?.role === 'locataire'
       ) || []
 
-      data.tenant = tenants.find((contact: any) => contact.is_primary)?.user ||
+      data.tenant = tenants.find((contact: LotContact) => contact.is_primary)?.user ||
         tenants[0]?.user || null
       data.is_occupied = tenants.length > 0
-      data.tenants = tenants.map((contact: any) => contact.user)
+      data.tenants = tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
     }
 
     return { success: true as const, data }
@@ -229,9 +247,9 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     if (statsError && statsError.code !== 'PGRST116') {
       // If view doesn't exist or error, calculate manually
       const contacts = lotResult.data?.lot_contacts || []
-      const tenants = contacts.filter((c: any) => c.user?.role === 'tenant')
-      const managers = contacts.filter((c: any) => c.user?.role === 'manager')
-      const providers = contacts.filter((c: any) => c.user?.role === 'provider')
+      const tenants = contacts.filter((c: LotContact) => c.user?.role === 'locataire')
+      const managers = contacts.filter((c: LotContact) => c.user?.role === 'gestionnaire')
+      const providers = contacts.filter((c: LotContact) => c.user?.role === 'prestataire')
 
       return {
         success: true as const,
@@ -241,9 +259,9 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           active_managers_count: managers.length,
           active_providers_count: providers.length,
           active_contacts_total: contacts.length,
-          primary_tenant_name: tenants.find((t: any) => t.is_primary)?.user?.name,
-          primary_tenant_email: tenants.find((t: any) => t.is_primary)?.user?.email,
-          primary_tenant_phone: tenants.find((t: any) => t.is_primary)?.user?.phone
+          primary_tenant_name: tenants.find((t: LotContact) => t.is_primary)?.user?.name,
+          primary_tenant_email: tenants.find((t: LotContact) => t.is_primary)?.user?.email,
+          primary_tenant_phone: tenants.find((t: LotContact) => t.is_primary)?.user?.phone
         }
       }
     }
@@ -365,7 +383,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     // Filter for lots without tenants
     const vacantLots = data?.filter(lot => {
       const hasTenant = lot.lot_contacts?.some((contact: any) =>
-        contact.user?.role === 'tenant'
+        contact.user?.role === 'locataire'
       )
       return !hasTenant
     }) || []

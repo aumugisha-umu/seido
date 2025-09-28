@@ -76,7 +76,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
-  const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications()
+  const { unreadCount: globalUnreadCount } = useGlobalNotifications()
   
   const userName = user?.display_name || user?.name || "Utilisateur"
   const userInitial = userName.charAt(0).toUpperCase()

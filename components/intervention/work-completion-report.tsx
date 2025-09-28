@@ -4,13 +4,10 @@ import { useState } from "react"
 import {
   Camera,
   FileText,
-  Upload,
   X,
   CheckCircle,
   AlertTriangle,
-  Clock,
   Wrench,
-  Euro,
   User
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
@@ -67,7 +63,7 @@ export function WorkCompletionReport({
   const [error, setError] = useState<string | null>(null)
   const [currentSection, setCurrentSection] = useState<'details' | 'photos' | 'qa'>('details')
 
-  const handleInputChange = (field: keyof WorkCompletionReportData, value: any) => {
+  const handleInputChange = (field: keyof WorkCompletionReportData, value: string | number | File[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setError(null)
   }

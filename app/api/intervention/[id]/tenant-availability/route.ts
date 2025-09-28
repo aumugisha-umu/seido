@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
+
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -154,7 +158,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Insert new tenant availabilities
-    const availabilityData = tenantAvailabilities.map((avail: any) => ({
+    const availabilityData = tenantAvailabilities.map((avail) => ({
       user_id: user.id,
       intervention_id: resolvedParams.id,
       date: avail.date,

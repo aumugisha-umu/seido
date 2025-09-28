@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
+import { useState, forwardRef, useImperativeHandle } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,7 +20,9 @@ import {
   Users 
 } from "lucide-react"
 import ContactFormModal from "@/components/contact-form-modal"
-import { contactService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
+
+
+import { determineAssignmentType } from '@/lib/services'
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -61,7 +63,7 @@ interface ContactSelectorProps {
   // Callback quand un contact est retiré - AVEC CONTEXTE
   onContactRemoved?: (contactId: string, contactType: string, context?: { lotId?: string }) => void
   // Callback quand un nouveau contact est créé - AVEC CONTEXTE
-  onContactCreated?: (contact: any, contactType: string, context?: { lotId?: string }) => void
+  onContactCreated?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Classe CSS personnalisée
   className?: string
   // Si true, ne pas afficher le titre
@@ -93,7 +95,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [selectedContactType, setSelectedContactType] = useState<string>("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [existingContacts, setExistingContacts] = useState<any[]>([])
+  const [existingContacts, setExistingContacts] = useState<Contact[]>([])
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
   // NOUVEAU : État pour stocker le lotId temporaire lors de l'ouverture externe
   const [externalLotId, setExternalLotId] = useState<string | undefined>(undefined)
@@ -152,8 +154,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
           const assignmentUser = {
             id: contact.id,
-            role: mappedRole as any,
-            provider_category: mappedProviderCategory as any,
+            role: mappedRole,
+            provider_category: mappedProviderCategory,
             speciality: (contact.speciality || undefined) as string | undefined  // Convertir null en undefined
           }
           
@@ -187,7 +189,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       setExternalLotId(contextLotId)
       handleOpenContactModal(contactType)
     }
-  }), [teamId, handleOpenContactModal])
+  }), [handleOpenContactModal])
 
   // [SUPPRIMÉ] Ancienne fonction openContactModal remplacée par handleOpenContactModal
 
@@ -199,7 +201,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // Ajouter un contact existant (callback centralisé)
-  const handleAddExistingContact = (contact: any) => {
+  const handleAddExistingContact = (contact: Contact) => {
     const newContact: Contact = {
       id: contact.id,
       name: contact.name,
@@ -227,7 +229,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // Créer un contact (logique centralisée)
-  const handleContactCreated = async (contactData: any) => {
+  const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; address: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
     try {
       if (!teamId) {
         console.error("❌ [ContactSelector] No teamId provided")

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, Check, CheckCircle, Phone } from "lucide-react"
+import { Eye, EyeOff, Check, Phone } from "lucide-react"
 import { signupAction } from "@/app/actions/auth-actions"
 
 /**
@@ -241,12 +241,12 @@ export function SignupForm() {
           <div className="flex-1">
             <Label htmlFor="terms" className="text-sm text-foreground leading-relaxed cursor-pointer">
               <div>
-                En créant mon compte, j&apos;accepte les{" "}
+                En créant mon compte, j'accepte les{" "}
                 <Link
                   href="/terms"
                   className="text-primary hover:text-primary/80 underline decoration-primary/60 underline-offset-2 font-medium transition-colors"
                 >
-                  conditions d&apos;utilisation
+                  conditions d'utilisation
                 </Link>
               </div>
               <div>

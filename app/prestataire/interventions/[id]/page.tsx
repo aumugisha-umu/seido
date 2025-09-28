@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, use, useEffect } from "react"
-import { ArrowLeft, Building2, User, MessageSquare, Calendar, FileText, Euro, Plus, MapPin, Clock, AlertCircle } from "lucide-react"
+import { useState, use, useEffect, useCallback } from "react"
+import { ArrowLeft, FileText, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+// import { CardContent, CardHeader} from "@/components/ui/card" // unused
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
+
+
+import { determineAssignmentType } from '@/lib/services'
 import { QuoteSubmissionForm } from "@/components/intervention/quote-submission-form"
 import { QuoteCancellationModal } from "@/components/quotes/quote-cancellation-modal"
 import { useQuoteCancellation } from "@/hooks/use-quote-cancellation"
@@ -27,6 +28,29 @@ interface DatabaseContact {
   company?: string | null
   speciality?: string | null
   inChat?: boolean
+}
+
+interface InterventionQuote {
+  id: string
+  provider_id: string
+  status: string
+  amount?: number
+  description?: string
+  provider?: {
+    name: string
+    email?: string
+    phone?: string
+    company?: string
+    provider_category?: string
+    speciality?: string
+  }
+}
+
+interface Attachment {
+  id: string
+  name: string
+  url: string
+  type: string
 }
 
 interface InterventionDetail {
@@ -139,16 +163,11 @@ interface InterventionDetail {
     reviewedAt?: string
     reviewComments?: string
     rejectionReason?: string
-    attachments: Array<any>
+    attachments: Attachment[]
     isCurrentUserQuote?: boolean
   }>
 }
 
-interface InterventionDetailsProps {
-  params: {
-    id: string
-  }
-}
 
 export default function PrestatairInterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -176,7 +195,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
   }
 
   // Fonction pour récupérer les données depuis la DB
-  const fetchInterventionData = async () => {
+  const fetchInterventionData = useCallback(async () => {
     if (!resolvedParams.id || !user?.id) return
 
     setLoading(true)
@@ -196,7 +215,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
 
       // Vérifier si le prestataire a un devis accepté pour cette intervention
       const providerQuote = interventionData.intervention_quotes?.find(
-        (quote: any) => quote.provider_id === user.id
+        (quote: InterventionQuote) => quote.provider_id === user.id
       )
       const hasAcceptedQuote = providerQuote?.status === 'approved'
 
@@ -249,8 +268,8 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
 
         // Récupérer aussi les autres prestataires avec devis accepté
         const acceptedProviderIds = interventionData.intervention_quotes
-          ?.filter((quote: any) => quote.status === 'approved')
-          ?.map((quote: any) => quote.provider_id) || []
+          ?.filter((quote: InterventionQuote) => quote.status === 'approved')
+          ?.map((quote: InterventionQuote) => quote.provider_id) || []
 
         console.log('👥 [Provider] Providers with accepted quotes:', acceptedProviderIds)
 
@@ -258,11 +277,11 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         organizedContacts = {
           // Tous les locataires du bien
           locataires: allContacts
-            .filter((contact: any) => {
+            .filter((contact: DatabaseContact) => {
               const type = determineAssignmentType(contact)
               return type === 'tenant'
             })
-            .map((contact: any) => ({
+            .map((contact: DatabaseContact) => ({
               ...contact,
               inChat: true // Les locataires sont dans le chat pour un prestataire accepté
             })),
@@ -271,29 +290,29 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           autres: [
             // D'abord les autres prestataires avec devis accepté
             ...interventionData.intervention_quotes
-              ?.filter((quote: any) =>
+              ?.filter((quote: InterventionQuote) =>
                 quote.status === 'approved' &&
                 quote.provider_id !== user.id
               )
-              ?.map((quote: any) => ({
+              ?.map((quote: InterventionQuote) => ({
                 id: quote.provider_id,
-                name: quote.provider.name,
-                email: quote.provider.email,
-                phone: quote.provider.phone,
+                name: quote.provider?.name || '',
+                email: quote.provider?.email || '',
+                phone: quote.provider?.phone || null,
                 role: 'prestataire',
                 provider_category: quote.provider.provider_category || 'service',
-                company: quote.provider.company,
-                speciality: quote.provider.speciality,
+                company: quote.provider?.company || null,
+                speciality: quote.provider?.speciality || null,
                 inChat: true // Les autres prestataires acceptés sont dans le chat
               })) || [],
 
             // Ensuite les gestionnaires du bien
             ...allContacts
-              .filter((contact: any) => {
+              .filter((contact: DatabaseContact) => {
                 const type = determineAssignmentType(contact)
                 return type === 'manager'
               })
-              .map((contact: any) => ({
+              .map((contact: DatabaseContact) => ({
                 ...contact,
                 inChat: true // Les gestionnaires sont toujours dans le chat
               }))
@@ -440,12 +459,12 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams.id, user?.id])
 
   // Charger les données au montage du composant
   useEffect(() => {
     fetchInterventionData()
-  }, [resolvedParams.id, user?.id])
+  }, [resolvedParams.id, user?.id, fetchInterventionData])
 
   // États de chargement et d'erreur
   if (loading) {
@@ -453,7 +472,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Chargement des détails de l'intervention...</p>
+          <p className="text-slate-600">Chargement des détails de l&apos;intervention...</p>
         </div>
       </div>
     )
@@ -483,7 +502,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         <div className="text-center">
           <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-slate-900 mb-2">Intervention non trouvée</h2>
-          <p className="text-slate-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
+          <p className="text-slate-600 mb-4">L&apos;intervention demandée n&apos;existe pas ou n&apos;est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour
@@ -493,37 +512,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     )
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "en_attente":
-      case "pending":
-        return "bg-amber-100 text-amber-800 border-amber-200"
-      case "en_cours":
-      case "programmee":
-        return "bg-sky-100 text-sky-800 border-sky-200"
-      case "terminee":
-      case "cloturee":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
-      default:
-        return "bg-slate-100 text-slate-800 border-slate-200"
-    }
-  }
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency.toLowerCase()) {
-      case "urgent":
-      case "urgente":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "importante":
-      case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200"
-      case "normale":
-      case "normal":
-        return "bg-amber-100 text-amber-800 border-amber-200"
-      default:
-        return "bg-slate-100 text-slate-800 border-slate-200"
-    }
-  }
+  // Removed unused functions getStatusColor and getUrgencyColor
 
   const handleBack = () => {
     router.back()

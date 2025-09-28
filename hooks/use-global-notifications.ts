@@ -22,7 +22,8 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
     if (!user?.id || teamStatus !== 'verified') return
 
     try {
-      const { teamService } = await import('@/lib/database-service')
+      const { createServerTeamService } = await import('@/lib/services')
+      const teamService = createServerTeamService()
       const teams = await teamService.getUserTeams(user.id)
       if (teams && teams.length > 0) {
         setUserTeamId(teams[0].id)

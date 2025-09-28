@@ -336,7 +336,7 @@ export class SEIDOValidationEngine {
             files.push(fullPath)
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Skip directories we can't read
       }
 
@@ -351,7 +351,7 @@ export class SEIDOValidationEngine {
     return roles.find(role => filePath.includes(role))
   }
 
-  private calculateFileMetrics(violations: DesignViolation[], content: string) {
+  private calculateFileMetrics(violations: DesignViolation[], _content: string) {
     const categoryScores = {
       accessibility: 100,
       responsive: 100,
@@ -385,14 +385,14 @@ export class SEIDOValidationEngine {
     return categoryScores
   }
 
-  private calculateOverallScore(metrics: any): number {
+  private calculateOverallScore(metrics: { accessibility: number; responsive: number; designSystem: number; materialDesign: number; roleUX: number }): number {
     return Math.round(
       (metrics.accessibility + metrics.responsive + metrics.designSystem +
        metrics.materialDesign + metrics.roleUX) / 5
     )
   }
 
-  private generateFileRecommendations(violations: DesignViolation[], metrics: any): string[] {
+  private generateFileRecommendations(violations: DesignViolation[], metrics: { accessibility: number; responsive: number; designSystem: number; materialDesign: number; roleUX: number }): string[] {
     const recommendations: string[] = []
 
     if (metrics.designSystem < 80) {
@@ -452,7 +452,12 @@ export class SEIDOValidationEngine {
       })
     })
 
-    const topViolations = Array.from(violationCounts.entries())
+    const violationEntries: Array<[string, { count: number; severity: string; examples: Set<string> }]> = []
+    violationCounts.forEach((data, type) => {
+      violationEntries.push([type, data])
+    })
+
+    const topViolations = violationEntries
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 10)
       .map(([type, data]) => ({
@@ -501,12 +506,12 @@ export class SEIDOValidationEngine {
   }
 
   // Additional helper methods would be implemented here...
-  private validateBreakpoint(content: string, breakpoint: string) {
+  private validateBreakpoint(_content: string, _breakpoint: string) {
     // Implementation for breakpoint-specific validation
     return { score: 85, issues: [] }
   }
 
-  private calculateResponsiveScore(content: string): number {
+  private calculateResponsiveScore(_content: string): number {
     // Implementation for responsive scoring
     return 85
   }
@@ -519,11 +524,11 @@ export class SEIDOValidationEngine {
     return 'General'
   }
 
-  private calculateAccessibilityScore(violations: any[]): number {
+  private calculateAccessibilityScore(violations: { severity: string }[]): number {
     return Math.max(0, 100 - (violations.length * 10))
   }
 
-  private determineAccessibilityCompliance(score: number, violations: any[]): 'AA' | 'partial' | 'fail' {
+  private determineAccessibilityCompliance(score: number, violations: { severity: string }[]): 'AA' | 'partial' | 'fail' {
     if (score >= 95 && violations.filter(v => v.severity === 'error').length === 0) return 'AA'
     if (score >= 80) return 'partial'
     return 'fail'
@@ -541,7 +546,7 @@ export class SEIDOValidationEngine {
     ]
   }
 
-  private findCustomComponents(content: string) {
+  private findCustomComponents(_content: string) {
     // Implementation to find custom components that could be replaced
     return []
   }
@@ -550,32 +555,32 @@ export class SEIDOValidationEngine {
     return this.getProjectFiles().filter(file => file.includes(role))
   }
 
-  private getRoleGuidelines(role: string) {
+  private getRoleGuidelines(_role: string) {
     // Return role-specific UX guidelines
     return []
   }
 
-  private checkGuidelineCompliance(files: string[], guideline: any): string {
+  private checkGuidelineCompliance(_files: string[], _guideline: { name: string; recommendation: string }): string {
     // Check compliance with specific guideline
     return 'compliant'
   }
 
-  private findRoleSpecificIssues(role: string, files: string[]): string[] {
+  private findRoleSpecificIssues(_role: string, _files: string[]): string[] {
     // Find role-specific UX issues
     return []
   }
 
-  private applyShadcnFixes(content: string, violations: DesignViolation[]): string {
+  private applyShadcnFixes(content: string, _violations: DesignViolation[]): string {
     // Apply shadcn/ui component fixes
     return content
   }
 
-  private applyResponsiveFixes(content: string, violations: DesignViolation[]): string {
+  private applyResponsiveFixes(content: string, _violations: DesignViolation[]): string {
     // Apply responsive design fixes
     return content
   }
 
-  private applyAccessibilityFixes(content: string, violations: DesignViolation[]): string {
+  private applyAccessibilityFixes(content: string, _violations: DesignViolation[]): string {
     // Apply accessibility fixes
     return content
   }

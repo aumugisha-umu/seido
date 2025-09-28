@@ -21,7 +21,7 @@ interface IntegratedAvailabilityCardProps {
 export function IntegratedAvailabilityCard({
   interventionId,
   userRole,
-  planning
+  // planning
 }: IntegratedAvailabilityCardProps) {
   const {
     data,

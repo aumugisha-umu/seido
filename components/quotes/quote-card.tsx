@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Check, X, User, Download, Trash2 } from "lucide-react"
+import { Check, X, User, Download, Trash2 } from "lucide-react"
 import { QuoteApprovalModal } from "./quote-approval-modal"
 import { QuoteRejectionModal } from "./quote-rejection-modal"
 
@@ -25,14 +25,24 @@ interface QuoteCardProps {
     reviewedAt?: string
     reviewComments?: string
     rejectionReason?: string
-    attachments: Array<any>
+    attachments: Array<{
+      id: string
+      name: string
+      url: string
+      type: string
+    }>
     isCurrentUserQuote?: boolean
   }
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
   onApprove?: (quoteId: string) => void
   onReject?: (quoteId: string) => void
   onCancel?: (quoteId: string) => void
-  onDownloadAttachment?: (attachment: any) => void
+  onDownloadAttachment?: (attachment: {
+    id: string
+    name: string
+    url: string
+    type: string
+  }) => void
   onDataChange?: () => void
   showActions?: boolean
   compact?: boolean
@@ -41,8 +51,6 @@ interface QuoteCardProps {
 export function QuoteCard({
   quote,
   userContext = 'gestionnaire',
-  onApprove,
-  onReject,
   onCancel,
   onDownloadAttachment,
   onDataChange,

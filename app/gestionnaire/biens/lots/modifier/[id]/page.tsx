@@ -7,8 +7,9 @@ import { ArrowLeft, Save, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { useManagerStats } from "@/hooks/use-manager-stats"
-import { lotService, teamService } from "@/lib/database-service"
+
+
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
@@ -50,7 +51,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
     doorNumber: "",
     category: "appartement",
   })
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
+  // const [selectedManagerId, setSelectedManagerId] = useState<string>("")
   const [teamManagers, setTeamManagers] = useState<any[]>([])
   const [userTeam, setUserTeam] = useState<any>(null)
   
@@ -359,13 +360,13 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
             {/* Building information display */}
             {lot?.building && (
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Informations de l'immeuble</h4>
+                <h4 className="font-medium text-gray-900 mb-2">Informations de l&apos;immeuble</h4>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><strong>Nom :</strong> {lot.building.name}</p>
                   <p><strong>Adresse :</strong> {lot.building.address}</p>
                   <p><strong>Ville :</strong> {lot.building.city}</p>
                   <p className="text-xs text-gray-500 mt-2">
-                    Les informations d'adresse sont héritées de l'immeuble parent.
+                    Les informations d&apos;adresse sont héritées de l&apos;immeuble parent.
                   </p>
                 </div>
               </div>

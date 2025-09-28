@@ -25,12 +25,8 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
     showAvailabilityEditor,
     saveUserAvailabilities,
     runMatching,
-    addAvailability,
-    updateAvailability,
-    removeAvailability,
     openAvailabilityEditor,
     closeAvailabilityEditor,
-    areAvailabilitiesValid,
     canRunMatching,
     isScheduled,
     clearError

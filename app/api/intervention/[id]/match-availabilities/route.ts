@@ -4,9 +4,9 @@ import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 interface UserAvailability {

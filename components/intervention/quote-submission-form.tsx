@@ -30,10 +30,38 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 
+interface Intervention {
+  id: string
+  title: string
+  description: string
+  urgency: string
+  quote_deadline?: string
+}
+
+interface ExistingQuote {
+  laborCost?: number
+  materialsCost?: number
+  workDetails?: string
+  estimatedDurationHours?: number
+  attachments?: File[]
+  providerAvailabilities?: Array<{
+    date: string
+    startTime: string
+  }>
+}
+
+interface QuoteRequest {
+  id: string
+  status: string
+  individual_message?: string
+  deadline?: string
+  sent_at: string
+}
+
 interface QuoteSubmissionFormProps {
-  intervention: any
-  existingQuote?: any // Si le prestataire a déjà soumis un devis
-  quoteRequest?: any // La demande de devis correspondante
+  intervention: Intervention
+  existingQuote?: ExistingQuote
+  quoteRequest?: QuoteRequest
   onSuccess: () => void
 }
 

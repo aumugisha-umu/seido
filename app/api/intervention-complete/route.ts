@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 export async function POST(request: NextRequest) {
   console.log("✅ intervention-complete API route called")
@@ -156,7 +161,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention status and details
-    const updateData: any = {
+    const updateData = {
       status: 'cloturee_par_prestataire' as Database['public']['Enums']['intervention_status'],
       completed_date: new Date().toISOString(),
       updated_at: new Date().toISOString()

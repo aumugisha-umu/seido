@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
+
 
 // Admin client for creating auth users
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY

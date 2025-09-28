@@ -35,7 +35,7 @@ export function QuoteValidationModal({
   quote,
   action,
   onConfirm,
-  isLoading = false
+  isLoading: _isLoading
 }: QuoteValidationModalProps) {
   const [comments, setComments] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)

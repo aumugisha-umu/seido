@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { userService, teamService } from '@/lib/database-service'
+import { createServerUserService, createServerTeamService } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 import { activityLogger } from '@/lib/activity-logger'
 
@@ -8,15 +8,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { email, password, name, firstName, lastName, phone } = body
-    
+
     console.log('🚀 [SIGNUP-SIMPLE] Starting simple signup process for:', email)
-    
+
     // Créer le client Supabase
     const supabase = await createSupabaseServerClient()
 
+    // Initialize services
+    const userService = await createServerUserService()
+    const teamService = await createServerTeamService()
+
     // ÉTAPE 1: CRÉER LE USER PROFILE TEMPORAIRE (pour avoir un UUID pour la team)
     console.log('👤 [STEP-1] Creating temporary user profile...')
-    const userProfile = await userService.create({
+    const userProfileResult = await userService.create({
       auth_user_id: null, // Pas encore d'auth
       email: email,
       name: name,
@@ -26,15 +30,29 @@ export async function POST(request: Request) {
       phone: phone || null,
       is_active: true
     })
+
+    if (!userProfileResult.success || !userProfileResult.data) {
+      console.error('❌ [STEP-1] User profile creation failed:', userProfileResult.error)
+      throw new Error('Failed to create user profile: ' + (userProfileResult.error?.message || 'Unknown error'))
+    }
+
+    const userProfile = userProfileResult.data
     console.log('✅ [STEP-1] Temporary user profile created:', userProfile.id)
 
     // ÉTAPE 2: CRÉER L'ÉQUIPE AVEC L'ID USER VALIDE
     console.log('👥 [STEP-2] Creating team with valid user ID...')
-    const team = await teamService.create({
+    const teamResult = await teamService.create({
       name: `Équipe de ${name}`,
       description: `Équipe personnelle de ${name}`,
       created_by: userProfile.id // ✅ UUID valide de users
     })
+
+    if (!teamResult.success || !teamResult.data) {
+      console.error('❌ [STEP-2] Team creation failed:', teamResult.error)
+      throw new Error('Failed to create team: ' + (teamResult.error?.message || 'Unknown error'))
+    }
+
+    const team = teamResult.data
     console.log('✅ [STEP-2] Team created:', team.id)
 
     // LOGS D'ACTIVITÉ: Enregistrer la création de l'équipe et du compte utilisateur
@@ -77,9 +95,14 @@ export async function POST(request: Request) {
     }
 
     // Lier le user à l'équipe
-    await userService.update(userProfile.id, {
+    const updateResult = await userService.update(userProfile.id, {
       team_id: team.id
     })
+
+    if (!updateResult.success) {
+      console.error('❌ Failed to link user to team:', updateResult.error)
+      throw new Error('Failed to link user to team: ' + (updateResult.error?.message || 'Unknown error'))
+    }
 
     // ÉTAPE 3: CRÉER L'AUTH USER ET LIER AU PROFIL
     console.log('🔐 [STEP-3] Creating auth user and linking to profile...')
@@ -102,9 +125,15 @@ export async function POST(request: Request) {
     }
     
     // Lier l'auth au user existant
-    await userService.update(userProfile.id, {
+    const linkResult = await userService.update(userProfile.id, {
       auth_user_id: authData.user.id
     })
+
+    if (!linkResult.success) {
+      console.error('❌ Failed to link auth to user:', linkResult.error)
+      throw new Error('Failed to link auth to user: ' + (linkResult.error?.message || 'Unknown error'))
+    }
+
     console.log('✅ [STEP-3] Auth user created and linked:', authData.user.id)
 
     // ✅ L'utilisateur est déjà ajouté à l'équipe par teamService.create

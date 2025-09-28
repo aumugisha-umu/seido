@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 export async function POST(request: NextRequest) {
   console.log("✅ intervention-quote-validate API route called")
@@ -130,7 +135,7 @@ export async function POST(request: NextRequest) {
     console.log(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
 
     // Prepare update data
-    const updateData: any = {
+    const updateData = {
       status: action === 'approve' ? 'approved' : 'rejected',
       reviewed_at: new Date().toISOString(),
       reviewed_by: user.id,

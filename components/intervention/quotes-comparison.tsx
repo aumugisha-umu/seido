@@ -13,7 +13,8 @@ import {
   Phone,
   Mail,
   Info,
-  MessageSquare
+  MessageSquare,
+  Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -57,8 +58,16 @@ interface Quote {
   }
 }
 
+interface Intervention {
+  id: string
+  title: string
+  description: string
+  urgency: string
+  quote_deadline?: string
+}
+
 interface QuotesComparisonProps {
-  intervention: any
+  intervention: Intervention
   quotes: Quote[]
   onQuoteApprove: (quoteId: string, comments?: string) => void
   onQuoteReject: (quoteId: string, reason: string) => void
@@ -286,18 +295,8 @@ export const QuotesComparison = ({
             </div>
           )}
 
-          {/* Alerte expiration */}
-          {isExpired && quote.status === 'pending' && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                Ce devis a expiré. Contactez le prestataire pour une mise à jour.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Actions */}
-          {showActions && quote.status === 'pending' && !isExpired && (
+          {showActions && quote.status === 'pending' && (
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
@@ -342,7 +341,7 @@ export const QuotesComparison = ({
             Aucun devis reçu
           </h3>
           <p className="text-slate-600">
-            Les devis soumis par les prestataires apparaîtront ici pour comparaison.
+            Les devis soumis par les prestataires appara&icirc;tront ici pour comparaison.
           </p>
         </CardContent>
       </Card>

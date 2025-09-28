@@ -1,38 +1,38 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import React, { useState, useEffect, use, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  ArrowLeft, 
-  Edit, 
-  Eye, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Building2, 
-  Wrench, 
-  Users, 
-  Plus, 
-  Search, 
-  Filter,
+import {
+  ArrowLeft,
+  Eye,
+  User,
+  Wrench,
+  Plus,
   AlertCircle,
-  FileText,
-  Home,
-  Clock,
-  Euro,
-  Calendar
+  Home
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { contactService, interventionService, lotService, buildingService, determineAssignmentType } from "@/lib/database-service"
+
+
+
+
+import {
+  determineAssignmentType,
+  createServerContactService,
+  createServerBuildingService,
+  createServerLotService,
+  createServerInterventionService,
+  type Contact as ContactType,
+  type Intervention as InterventionType,
+  type Lot as LotType,
+  type Building as BuildingType
+} from '@/lib/services'
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
 import { ContactDetailHeader } from "@/components/contact-detail-header"
@@ -49,6 +49,8 @@ interface ContactData {
   speciality?: string
   notes?: string
   team_id?: string
+  created_at?: string
+  created_by?: string
 }
 
 // Rôles et catégories pour l'affichage
@@ -86,8 +88,8 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
 
   // State pour les données
   const [contact, setContact] = useState<ContactData | null>(null)
-  const [interventions, setInterventions] = useState<any[]>([])
-  const [properties, setProperties] = useState<any[]>([])
+  const [interventions, setInterventions] = useState<InterventionType[]>([])
+  const [properties, setProperties] = useState<Array<(LotType & { type: 'lot' }) | (BuildingType & { type: 'building' })>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -215,52 +217,20 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     }
   }
 
-  // Charger les données du contact
-  useEffect(() => {
-    if (resolvedParams.id && user?.id) {
-      loadContactData()
-    }
-  }, [resolvedParams.id, user?.id])
+  // Initialize services
+  const [contactService] = useState(() => createServerContactService())
+  const [buildingService] = useState(() => createServerBuildingService())
+  const [lotService] = useState(() => createServerLotService())
+  const [interventionService] = useState(() => createServerInterventionService())
 
-  const loadContactData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      console.log("👤 Loading contact data for ID:", resolvedParams.id)
-
-      // 1. Charger les données du contact
-      const contactData = await contactService.getById(resolvedParams.id)
-      console.log("👤 Contact loaded:", contactData)
-      setContact(contactData as ContactData)
-
-      // 2. Charger le statut d'invitation
-      await loadInvitationStatus()
-
-      // 3. Charger les interventions liées au contact (passer les données du contact)
-      const interventionsData = await getContactInterventions(resolvedParams.id, contactData)
-      console.log("🔧 Interventions loaded:", interventionsData?.length || 0)
-      setInterventions(interventionsData || [])
-
-      // 4. Charger les biens liés au contact (passer les données du contact)
-      const propertiesData = await getContactProperties(resolvedParams.id, contactData)
-      console.log("🏠 Properties loaded:", propertiesData?.length || 0)
-      setProperties(propertiesData || [])
-
-    } catch (error) {
-      console.error("❌ Error loading contact data:", error)
-      setError("Erreur lors du chargement des données du contact")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadInvitationStatus = async () => {
+  // Define helper functions first
+  const loadInvitationStatus = useCallback(async () => {
     try {
       setInvitationLoading(true)
       console.log("🔍 Loading invitation status for contact:", resolvedParams.id)
-      
+
       const response = await fetch(`/api/contact-invitation-status?contactId=${resolvedParams.id}`)
-      
+
       if (response.ok) {
         const { status } = await response.json()
         setInvitationStatus(status)
@@ -269,17 +239,17 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
         console.log("ℹ️ No invitation found for this contact")
         setInvitationStatus(null)
       }
-      
+
     } catch (error) {
       console.error("❌ Error loading invitation status:", error)
       setInvitationStatus(null)
     } finally {
       setInvitationLoading(false)
     }
-  }
+  }, [resolvedParams.id])
 
-  // Fonction pour récupérer les interventions d'un contact
-  const getContactInterventions = async (contactId: string, contactData?: any) => {
+  // Fonction pour récupérer les interventions d&apos;un contact
+  const getContactInterventions = useCallback(async (contactId: string, contactData?: ContactType | ContactData) => {
     try {
       const contactToUse = contactData || contact
       console.log("🔧 Getting interventions for contact role:", contactToUse?.role)
@@ -339,10 +309,10 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       console.error("❌ Error loading contact interventions:", error)
       return []
     }
-  }
+  }, [contact, user?.team_id, interventionService, lotService])
 
   // Fonction pour récupérer les biens liés à un contact
-  const getContactProperties = async (contactId: string, contactData?: any) => {
+  const getContactProperties = useCallback(async (contactId: string, contactData?: ContactType | ContactData) => {
     try {
       const contactToUse = contactData || contact
       const properties = []
@@ -447,9 +417,49 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       console.error("❌ Error loading contact properties:", error)
       return []
     }
-  }
+  }, [contact, user?.team_id, interventionService, lotService, buildingService])
 
-  // Fonction pour obtenir le badge du statut d'invitation
+  // Load contact data function
+  const loadContactData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      console.log("👤 Loading contact data for ID:", resolvedParams.id)
+
+      // 1. Charger les données du contact
+      const contactData = await contactService.getById(resolvedParams.id)
+      console.log("👤 Contact loaded:", contactData)
+      setContact(contactData as ContactData)
+
+      // 2. Charger le statut d&apos;invitation
+      await loadInvitationStatus()
+
+      // 3. Charger les interventions liées au contact (passer les données du contact)
+      const interventionsData = await getContactInterventions(resolvedParams.id, contactData)
+      console.log("🔧 Interventions loaded:", interventionsData?.length || 0)
+      setInterventions(interventionsData || [])
+
+      // 4. Charger les biens liés au contact (passer les données du contact)
+      const propertiesData = await getContactProperties(resolvedParams.id, contactData)
+      console.log("🏠 Properties loaded:", propertiesData?.length || 0)
+      setProperties(propertiesData || [])
+
+    } catch (error) {
+      console.error("❌ Error loading contact data:", error)
+      setError("Erreur lors du chargement des données du contact")
+    } finally {
+      setLoading(false)
+    }
+  }, [resolvedParams.id, contactService, loadInvitationStatus, getContactInterventions, getContactProperties])
+
+  // Charger les données du contact
+  useEffect(() => {
+    if (resolvedParams.id && user?.id) {
+      loadContactData()
+    }
+  }, [resolvedParams.id, user?.id, loadContactData])
+
+  // Fonction pour obtenir le badge du statut d&apos;invitation
   const getInvitationStatusBadge = () => {
     if (invitationLoading) {
       return (
@@ -747,12 +757,12 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-slate-800">
                       <AlertCircle className="h-5 w-5 text-slate-500" />
-                      <span>Statut d'Accès</span>
+                      <span>Statut d&apos;Accès</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600 text-sm">Statut d'invitation</span>
+                      <span className="text-slate-600 text-sm">Statut d&apos;invitation</span>
                       {getInvitationStatusBadge()}
                     </div>
 
@@ -760,7 +770,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {invitationStatus === 'accepted' && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                         <p className="text-sm text-green-800">
-                          ✅ Ce contact a accès à l'application et peut se connecter
+                          ✅ Ce contact a accès à l&apos;application et peut se connecter
                         </p>
                       </div>
                     )}
@@ -776,7 +786,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {invitationStatus === 'expired' && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                         <p className="text-sm text-amber-800">
-                          ⏰ L'invitation de ce contact a expiré. Vous pouvez en envoyer une nouvelle depuis la page de modification.
+                          ⏰ L&apos;invitation de ce contact a expiré. Vous pouvez en envoyer une nouvelle depuis la page de modification.
                         </p>
                       </div>
                     )}
@@ -784,7 +794,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {invitationStatus === 'cancelled' && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <p className="text-sm text-red-800">
-                          🚫 L'invitation de ce contact a été annulée. Vous pouvez en envoyer une nouvelle depuis la page de modification.
+                          🚫 L&apos;invitation de ce contact a été annulée. Vous pouvez en envoyer une nouvelle depuis la page de modification.
                         </p>
                       </div>
                     )}
@@ -792,7 +802,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {!invitationStatus && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <p className="text-sm text-slate-600">
-                          👤 Ce contact existe dans votre base mais n'a pas accès à l'application
+                          👤 Ce contact existe dans votre base mais n&apos;a pas accès à l&apos;application
                         </p>
                       </div>
                     )}
@@ -803,7 +813,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                       className="w-full"
                       onClick={() => router.push(`/gestionnaire/contacts/modifier/${resolvedParams.id}`)}
                     >
-                      Gérer l'accès
+                      Gérer l&apos;accès
                     </Button>
                   </CardContent>
                 </Card>
@@ -860,7 +870,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                             variant="outline"
                             size="sm"
                             className="w-full"
-                            onClick={() => setActiveTab('interventions')}
+                            onClick={() => setActiveTab(&apos;interventions&apos;)}
                           >
                             <Wrench className="h-4 w-4 mr-2" />
                             Voir les interventions
@@ -871,7 +881,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                             variant="outline"
                             size="sm"
                             className="w-full"
-                            onClick={() => setActiveTab('properties')}
+                            onClick={() => setActiveTab(&apos;properties&apos;)}
                           >
                             <Home className="h-4 w-4 mr-2" />
                             Voir les biens
@@ -920,7 +930,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     <Wrench className="h-5 w-5 mr-2 text-slate-500" />
                     Interventions liées à {contact.name} ({interventions.length})
                   </h2>
-                  <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}>
+                  <Button onClick={() => router.push(&apos;/gestionnaire/interventions/nouvelle-intervention&apos;)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Créer une intervention
                   </Button>
@@ -986,7 +996,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
+                      onClick={() => router.push(&apos;/gestionnaire/biens/lots/nouveau&apos;)}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Nouveau lot
@@ -994,7 +1004,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
+                      onClick={() => router.push(&apos;/gestionnaire/biens/immeubles/nouveau&apos;)}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Nouvel immeuble

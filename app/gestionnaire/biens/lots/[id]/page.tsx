@@ -6,16 +6,51 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter, User, MapPin, Building2, Calendar, Euro, AlertCircle, UserCheck } from "lucide-react"
+import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Search, Filter, AlertCircle, UserCheck } from "lucide-react"
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { lotService, interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
+
+
+
+import { determineAssignmentType } from '@/lib/services'
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
+
+interface LotData {
+  id: string
+  reference: string
+  building?: {
+    name: string
+    address: string
+  }
+  [key: string]: unknown
+}
+
+interface InterventionData {
+  id: string
+  title: string
+  status: string
+  [key: string]: unknown
+}
+
+interface ContactData {
+  id: string
+  name: string
+  email: string
+  [key: string]: unknown
+}
+
+interface DocumentData {
+  id: string
+  name: string
+  size: number
+  type: string
+  [key: string]: unknown
+}
 
 export default function LotDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
@@ -24,9 +59,9 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   const { user } = useAuth()
 
   // State pour les données
-  const [lot, setLot] = useState<any>(null)
-  const [interventions, setInterventions] = useState<any[]>([])
-  const [contacts, setContacts] = useState<any[]>([])
+  const [lot, setLot] = useState<LotData | null>(null)
+  const [interventions, setInterventions] = useState<InterventionData[]>([])
+  const [contacts, setContacts] = useState<ContactData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -39,7 +74,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     if (resolvedParams.id && user?.id) {
       loadLotData()
     }
-  }, [resolvedParams.id, user?.id])
+  }, [resolvedParams.id, user?.id, loadLotData])
 
   const loadLotData = async () => {
     try {
@@ -109,7 +144,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   }
 
   // Load interventions with documents
-  const [interventionsWithDocs, setInterventionsWithDocs] = useState<any[]>([])
+  const [interventionsWithDocs, setInterventionsWithDocs] = useState<InterventionData[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
 
   const loadInterventionsWithDocuments = async () => {
@@ -131,10 +166,10 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     if (resolvedParams.id && !loading) {
       loadInterventionsWithDocuments()
     }
-  }, [resolvedParams.id, loading])
+  }, [resolvedParams.id, loading, loadInterventionsWithDocuments])
 
   // Transform interventions data for documents component
-  const transformInterventionsForDocuments = (interventionsData: any[]) => {
+  const transformInterventionsForDocuments = (interventionsData: InterventionData[]) => {
     return interventionsData.map(intervention => ({
       id: intervention.id,
       reference: intervention.reference || `INT-${intervention.id.slice(-6)}`,
@@ -146,7 +181,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
         name: intervention.assigned_contact.name,
         role: 'prestataire'
       } : undefined,
-      documents: intervention.documents?.map((doc: any) => ({
+      documents: intervention.documents?.map((doc: DocumentData) => ({
         id: doc.id,
         name: doc.original_filename || doc.filename,
         size: doc.file_size,
@@ -160,13 +195,13 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     })).filter(intervention => intervention.documents.length > 0)
   }
 
-  const handleDocumentView = (document: any) => {
+  const handleDocumentView = (document: DocumentData) => {
     // TODO: Implement document viewer
     console.log('Viewing document:', document)
     // For now, we can open in a new tab or show a modal
   }
 
-  const handleDocumentDownload = (document: any) => {
+  const handleDocumentDownload = (document: DocumentData) => {
     // TODO: Implement document download
     console.log('Downloading document:', document)
     // For now, we can trigger a download or redirect to download URL
@@ -175,7 +210,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   const interventionStats = getInterventionStats()
 
   const tabs = [
-    { id: "overview", label: "Vue d'ensemble", icon: Eye },
+    { id: "overview", label: "Vue d&apos;ensemble", icon: Eye },
     { id: "contacts", label: "Contacts", icon: Users, count: contacts.length },
     { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
     { id: "documents", label: "Documents", icon: FileText },
@@ -396,7 +431,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                 </div>
                 {lot.apartment_number && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Numéro d'appartement</span>
+                    <span className="text-gray-600">Numéro d&apos;appartement</span>
                     <span className="font-medium">{lot.apartment_number}</span>
                   </div>
                 )}
@@ -413,7 +448,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                   <span className="font-medium">{lot.floor ?? "Non défini"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Statut d'occupation</span>
+                  <span className="text-gray-600">Statut d&apos;occupation</span>
                   <span className="font-medium">
                     <Badge variant={lot.is_occupied ? "default" : "secondary"}>
                       {lot.is_occupied ? "Occupé" : "Vacant"}
@@ -531,7 +566,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               lotId={resolvedParams.id} 
               buildingId={lot?.building?.id}
               contacts={contacts}
-              onContactsUpdate={(updatedContacts: any[]) => setContacts(updatedContacts)}
+              onContactsUpdate={(updatedContacts: ContactData[]) => setContacts(updatedContacts)}
             />
           </div>
         )}
@@ -665,7 +700,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               <div className="text-center py-12">
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour ce lot.</p>
+                <p className="text-gray-600 mb-4">Aucune intervention n&apos;a été créée pour ce lot.</p>
                 <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
@@ -690,7 +725,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               interventions={transformInterventionsForDocuments(interventionsWithDocs)}
               loading={loadingDocs}
               emptyMessage="Aucun document trouvé"
-              emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
+              emptyDescription="Aucune intervention avec documents n&apos;a été réalisée dans ce lot."
               onDocumentView={handleDocumentView}
               onDocumentDownload={handleDocumentDownload}
             />

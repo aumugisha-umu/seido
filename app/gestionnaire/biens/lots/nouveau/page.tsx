@@ -3,16 +3,13 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, Home, Users, ArrowLeft, ArrowRight, Check, Plus, X, Search, User, Building, MapPin, FileText } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, Search, User, MapPin, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
@@ -20,34 +17,28 @@ import ContactSelector, { ContactSelectorRef } from "@/components/contact-select
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { teamService, lotService, contactService, contactInvitationService, type Team } from "@/lib/database-service"
-import { TeamCheckModal } from "@/components/team-check-modal"
+
+
+
+
+
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { lotSteps } from "@/lib/step-configurations"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
+import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
 
-const countries = [
-  "Belgique",
-  "France",
-  "Luxembourg",
-  "Pays-Bas",
-  "Allemagne",
-  "Espagne",
-  "Italie",
-  "Portugal",
-  "Royaume-Uni",
-  "Suisse",
-  "Autriche",
-  "République tchèque",
-  "Pologne",
-  "Danemark",
-  "Suède",
-  "Norvège",
-  "Finlande",
-  "Autre"
-]
 
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+
+interface TeamManager {
+  user: {
+    id: string
+    name: string
+    email: string
+    role: string
+  }
+  role: string
+}
 
 interface LotData {
   // Step 1: Building Association
@@ -108,7 +99,6 @@ export default function NewLotPage() {
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData, loading: buildingsLoading, forceRefetch: refetchManagerData } = useManagerStats()
   const [currentStep, setCurrentStep] = useState(1)
-  const [showBuildingSelector, setShowBuildingSelector] = useState(false)
   const [buildingSearchQuery, setBuildingSearchQuery] = useState("")
   
   // États pour la gestion des gestionnaires de lot
@@ -117,11 +107,9 @@ export default function NewLotPage() {
   
   // États pour les informations générales de l'immeuble (étape 2)
   const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
-  const [userTeam, setUserTeam] = useState<any | null>(null)
+  const [teamManagers, setTeamManagers] = useState<TeamManager[]>([])
+  const [userTeam, setUserTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [teams, setTeams] = useState<Team[]>([])
-  const [error, setError] = useState<string>("")
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
@@ -207,13 +195,13 @@ export default function NewLotPage() {
         }
         
         // 4. Filtrer pour ne garder que les gestionnaires
-        const managers = teamMembers.filter((member: any) => 
+        const managers = teamMembers.filter((member: TeamManager) => 
           member.user && member.user.role === 'gestionnaire'
         )
         console.log("👑 Managers in team:", managers)
         
         // 5. TOUJOURS s'assurer que l'utilisateur actuel est disponible s'il est gestionnaire
-        const currentUserExists = managers.find((member: any) => 
+        const currentUserExists = managers.find((member: TeamManager) => 
           member.user.id === user.id
         )
         
@@ -235,7 +223,7 @@ export default function NewLotPage() {
         setTeamManagers(managers)
         
         // 6. Sélectionner l'utilisateur actuel par défaut s'il est gestionnaire
-        const currentUserAsMember = managers.find((member: any) => 
+        const currentUserAsMember = managers.find((member: TeamManager) => 
           member.user.id === user.id
         )
         
@@ -257,7 +245,7 @@ export default function NewLotPage() {
     }
 
     loadUserTeamAndManagers()
-  }, [user?.id, teamStatus])
+  }, [user?.id, teamStatus, user])
 
   // Récupérer les comptages par catégorie quand l'équipe est chargée
   useEffect(() => {
@@ -301,7 +289,7 @@ export default function NewLotPage() {
         }))
       }
     }
-  }, [lotData.buildingAssociation])
+  }, [lotData.buildingAssociation, lotData.generalBuildingInfo?.name])
 
   // Initialiser la référence par défaut pour les nouveaux immeubles
   // Note: Désactivé car l'option "new" redirige maintenant vers la page de création d'immeuble
@@ -335,7 +323,7 @@ export default function NewLotPage() {
         reference: newDefaultReference
       }))
     }
-  }, [lotData.category, categoryCountsByTeam])
+  }, [lotData.category, categoryCountsByTeam, lotData.reference])
 
 
   // Afficher la vérification d'équipe si nécessaire
@@ -405,7 +393,7 @@ export default function NewLotPage() {
           ? (lotData.generalBuildingInfo?.name || `Lot ${Date.now()}`)
           : (lotData.reference || `Lot ${Date.now()}`),
         building_id: (lotData.buildingAssociation === "existing" && lotData.selectedBuilding) 
-          ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as any)?.id) 
+          ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as {id: string})?.id) 
           : null,
         floor: lotData.buildingAssociation === "independent"
           ? (lotData.generalBuildingInfo?.floor ? parseInt(String(lotData.generalBuildingInfo.floor)) : 0)
@@ -446,7 +434,7 @@ export default function NewLotPage() {
         })
 
         const assignmentResults = await Promise.all(managerAssignmentPromises)
-        const successfulAssignments = assignmentResults.filter((result: any) => result !== null)
+        const successfulAssignments = assignmentResults.filter((result: unknown) => result !== null)
         
         console.log("✅ Manager assignments completed:", {
           total: lotData.assignedLotManagers.length,
@@ -480,7 +468,7 @@ export default function NewLotPage() {
         )
 
         const contactAssignmentResults = await Promise.all(contactAssignmentPromises)
-        const successfulContactAssignments = contactAssignmentResults.filter((result: any) => result !== null)
+        const successfulContactAssignments = contactAssignmentResults.filter((result: unknown) => result !== null)
         
         console.log("✅ Contact assignments completed:", {
           total: totalContacts,
@@ -513,7 +501,7 @@ export default function NewLotPage() {
   }
 
   // Fonction pour gérer la création d'un nouveau gestionnaire
-  const handleGestionnaireCreated = async (contactData: any) => {
+  const handleGestionnaireCreated = async (contactData: CreateContactData) => {
     try {
       console.log("🆕 Création d'un nouveau gestionnaire:", contactData)
       
@@ -725,7 +713,7 @@ export default function NewLotPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
                   {filteredBuildings.map((building) => {
                     const isSelected = lotData.selectedBuilding === building.id;
-                    const occupiedLots = building.lots?.filter((lot: any) => lot.status === 'occupied').length || 0;
+                    const occupiedLots = building.lots?.filter((lot: {status: string}) => lot.status === 'occupied').length || 0;
                     
                     return (
                       <div
@@ -859,7 +847,7 @@ export default function NewLotPage() {
                     Vous allez d'abord créer l'immeuble
                   </h4>
                   <p className="text-blue-700 text-sm leading-relaxed">
-                    En cliquant sur "Suivant", vous serez redirigé vers la page de création d'immeuble. 
+                    En cliquant sur "Suivant", vous serez redirigé vers la page de création d'immeuble.
                     Une fois l'immeuble créé, vous pourrez revenir ici pour créer votre lot et l'associer 
                     à ce nouvel immeuble.
                   </p>
@@ -1009,7 +997,7 @@ export default function NewLotPage() {
   }
 
   // Callbacks pour le composant ContactSelector - Interface mise à jour
-  const handleContactSelected = (contact: any, contactType: string, context?: { lotId?: string }) => {
+  const handleContactSelected = (contact: Contact, contactType: string) => {
     console.log('✅ Contact selected:', contact.name, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
@@ -1020,20 +1008,20 @@ export default function NewLotPage() {
     }))
   }
 
-  const handleContactRemoved = (contactId: string, contactType: string, context?: { lotId?: string }) => {
+  const handleContactRemoved = (contactId: string, contactType: string) => {
     console.log('🗑️ Contact removed:', contactId, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
       assignedContacts: {
         ...prev.assignedContacts,
         [contactType]: prev.assignedContacts[contactType as keyof typeof prev.assignedContacts].filter(
-          (contact: any) => contact.id !== contactId
+          (contact: Contact) => contact.id !== contactId
         ),
       },
     }))
   }
 
-  const handleContactCreated = (contact: any, contactType: string, context?: { lotId?: string }) => {
+  const handleContactCreated = (contact: Contact, contactType: string) => {
     console.log('🆕 Contact created:', contact.name, 'type:', contactType)
     // Le contact créé est automatiquement ajouté par handleContactSelected
   }
@@ -1043,7 +1031,7 @@ export default function NewLotPage() {
     setIsLotManagerModalOpen(true)
   }
 
-  const addLotManager = (manager: any) => {
+  const addLotManager = (manager: TeamManager) => {
     setLotData(prev => {
       const currentManagers = prev.assignedLotManagers || []
       // Vérifier si le gestionnaire n'est pas déjà assigné

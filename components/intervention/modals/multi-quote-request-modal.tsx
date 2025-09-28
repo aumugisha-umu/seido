@@ -1,21 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, Calendar, MessageSquare, MapPin, Wrench, Clock, AlertTriangle, Plus, Minus, X } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
+// Removed unused Input import
+// Removed unused Checkbox import
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+// Removed unused Separator import
 import ContactSelector from "@/components/ui/contact-selector"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
-  isBuildingWideIntervention,
+  // isBuildingWideIntervention,
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
@@ -31,7 +31,7 @@ interface Provider {
 interface MultiQuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  intervention: any | null
+  intervention: { id: string; title: string; description: string; [key: string]: unknown } | null
   additionalNotes: string
   selectedProviderIds: string[]
   selectedProviders: Provider[]
@@ -63,7 +63,7 @@ export const MultiQuoteRequestModal = ({
   error,
   teamId
 }: MultiQuoteRequestModalProps) => {
-  const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
+  // const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
 
   // Callback pour la sélection de contact via le ContactSelector
   const handleContactSelect = (contactId: string) => {
@@ -74,7 +74,7 @@ export const MultiQuoteRequestModal = ({
   }
 
   // Callback pour la création d'un nouveau contact
-  const handleContactCreated = (contact: any) => {
+  const handleContactCreated = (contact: { id: string; name: string; [key: string]: unknown }) => {
     // Pour l'instant, nous ne gérons pas la création depuis la modale de devis
     console.log('Nouveau contact créé:', contact)
     // TODO: Ajouter le nouveau prestataire à la liste des providers

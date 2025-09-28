@@ -6,8 +6,14 @@ import { Building2, Home } from "lucide-react"
 import ContentNavigator from "@/components/content-navigator"
 import { PropertiesList } from "@/components/properties/properties-list"
 
+interface Property {
+  id: string
+  type: 'building' | 'lot'
+  [key: string]: unknown
+}
+
 interface PropertiesNavigatorProps {
-  properties: any[]
+  properties: Property[]
   loading?: boolean
   emptyStateConfig?: {
     title: string
@@ -54,7 +60,7 @@ export function PropertiesNavigator({
   const lots = properties.filter(p => p.type === 'lot') || []
 
   // Apply search and filters to buildings
-  const applySearchAndFilters = (propertiesList: any[], propertyType: 'building' | 'lot') => {
+  const applySearchAndFilters = (propertiesList: Property[], propertyType: 'building' | 'lot') => {
     let result = propertiesList
 
     // Search filter

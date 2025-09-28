@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { useDataRefresh } from "./use-cache-management"
-import { contactService, teamService, contactInvitationService } from "@/lib/database-service"
+import { createContactService, createTeamService, createContactInvitationService } from "@/lib/services"
 
 export interface ContactsData {
   contacts: any[]
@@ -50,6 +50,7 @@ export function useContactsData() {
       // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
       let userTeams = []
       try {
+        const teamService = createTeamService()
         userTeams = await teamService.getUserTeams(userId)
       } catch (teamError) {
         console.error("❌ [CONTACTS-DATA] Error fetching user teams:", teamError)
@@ -80,12 +81,14 @@ export function useContactsData() {
       console.log("🏢 [CONTACTS-DATA] Found team:", team.id, team.name)
       
       // 2. Récupérer les contacts de l'équipe
+      const contactService = createContactService()
       const teamContacts = await contactService.getTeamContacts(team.id)
       console.log("✅ [CONTACTS-DATA] Contacts loaded:", teamContacts.length)
       
       // 3. Charger les invitations en attente
       let invitations: any[] = []
       try {
+        const contactInvitationService = createContactInvitationService()
         invitations = await contactInvitationService.getPendingInvitations(team.id)
         console.log("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
       } catch (invitationError) {

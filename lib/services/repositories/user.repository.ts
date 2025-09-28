@@ -7,7 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { User, UserInsert, UserUpdate } from '../core/service-types'
-import { ValidationException, NotFoundException } from '../core/error-handler'
+import { NotFoundException, handleError } from '../core/error-handler'
 import {
   validateRequired,
   validateEmail,
@@ -70,7 +70,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
         // Not found
         return { success: true as const, data: null }
       }
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data }
@@ -93,7 +93,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
         // Not found
         return { success: true as const, data: null }
       }
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data }
@@ -112,7 +112,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .order('name')
 
     if (error) {
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data: data || [] }
@@ -131,7 +131,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .order('name')
 
     if (error) {
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data: data || [] }
@@ -149,7 +149,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .single()
 
     if (error) {
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data }
@@ -178,7 +178,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     const { data, error } = await queryBuilder.order('name')
 
     if (error) {
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data: data || [] }
@@ -199,14 +199,14 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       queryBuilder = queryBuilder.neq('id', excludeId)
     }
 
-    const { data, error } = await queryBuilder.single()
+    const { error } = await queryBuilder.single()
 
     if (error) {
       if (error.code === 'PGRST116') {
         // Not found = email doesn't exist
         return { success: true as const, exists: false }
       }
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, exists: true }
@@ -234,7 +234,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       if (error.code === 'PGRST116') {
         throw new NotFoundException('User not found', this.tableName, id)
       }
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data }
@@ -254,7 +254,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .order('last_seen_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data: data || [] }
@@ -275,7 +275,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .select()
 
     if (error) {
-      return this.handleError(error)
+      return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data: data || [] }

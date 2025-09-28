@@ -96,7 +96,7 @@ class ConnectionManager {
     try {
       // Utiliser une vérification simple de l'état de l'authentification
       // qui ne nécessite pas d'accès à des tables spécifiques
-      const { data, error } = await supabase.auth.getSession()
+      const { error } = await supabase.auth.getSession()
 
       if (error && !this.isOnline) {
         console.log('❌ Health check failed:', error.message)

@@ -15,7 +15,7 @@ interface LogActivityParams {
   entityName?: string
   description: string
   status?: ActivityStatus
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   errorMessage?: string
   ipAddress?: string
   userAgent?: string
@@ -96,7 +96,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'invite' | 'accept_invite',
     userId: string,
     userName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -135,7 +135,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete',
     teamId: string,
     teamName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -168,7 +168,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete',
     buildingId: string,
     buildingName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -201,7 +201,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'assign' | 'unassign',
     lotId: string,
     lotReference: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -240,7 +240,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'assign' | 'unassign',
     contactId: string,
     contactName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -279,7 +279,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'assign' | 'approve' | 'reject' | 'complete' | 'cancel' | 'status_change',
     interventionId: string,
     interventionRef: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -332,7 +332,7 @@ class ActivityLogger {
     actionType: 'upload' | 'download' | 'delete',
     documentId: string,
     fileName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -363,7 +363,7 @@ class ActivityLogger {
   // Logs pour les sessions
   async logSessionAction(
     actionType: 'login' | 'logout',
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     const description = actionType === 'login' 
       ? 'Connexion à l\'application' 
@@ -387,7 +387,7 @@ class ActivityLogger {
     entityType: ActivityEntityType,
     entityName: string,
     errorMessage: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     return this.log({
       actionType,
@@ -477,7 +477,6 @@ class ActivityLogger {
    */
   async getActivityStats(teamId: string, period: '24h' | '7d' | '30d' = '7d') {
     try {
-      const now = new Date()
       const startDate = new Date()
       
       switch (period) {

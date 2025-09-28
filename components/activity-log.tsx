@@ -45,7 +45,7 @@ interface ActivityLogEntry {
   status: ActivityStatus
   description: string
   error_message?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   ip_address?: string
   user_agent?: string
   created_at: string
@@ -256,7 +256,7 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
 
   return (
     <div className="space-y-1 sm:space-y-1">
-      {activities.map((activity, index) => (
+      {activities.map((activity) => (
         <Card 
           key={activity.id} 
           className={`transition-all hover:shadow-sm border-l-4 ${

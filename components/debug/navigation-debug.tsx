@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,7 +16,6 @@ export function NavigationDebugPanel() {
   const [logs, setLogs] = useState<string[]>([])
   const [testResults, setTestResults] = useState<{ [key: string]: boolean }>({})
   const [loopDetected, setLoopDetected] = useState(false)
-  const [logCount, setLogCount] = useState(0)
   // ✅ FIX HYDRATION: État pour contrôler l'affichage du debug panel (évite les problèmes d'hydration)
   const [isVisible, setIsVisible] = useState(false)
   const [isClient, setIsClient] = useState(false)
@@ -75,7 +74,7 @@ export function NavigationDebugPanel() {
   }, [logs])
 
   // ✅ FIX: Fonctions pour gérer la persistance des préférences utilisateur avec gestion d'erreurs
-  const toggleVisibility = (visible: boolean) => {
+  const toggleVisibility = useCallback((visible: boolean) => {
     try {
       setIsVisible(visible)
       if (typeof window !== 'undefined') {
@@ -88,7 +87,7 @@ export function NavigationDebugPanel() {
       // Même en cas d'erreur, on change l'état pour que ça marche
       setIsVisible(visible)
     }
-  }
+  }, [])
 
 
   // ✅ NOUVEAU: Emergency stop pour arrêter les boucles infinies
@@ -96,7 +95,6 @@ export function NavigationDebugPanel() {
     console.log('🚨 [DEBUG-PANEL] Emergency stop triggered')
     setLoopDetected(false)
     setLogs([])
-    setLogCount(0)
     
     // ✅ FIX: Réinitialiser l'état et forcer un reload de la page si nécessaire
     try {
@@ -398,7 +396,7 @@ export function NavigationDebugPanel() {
               <span className="text-red-800 font-medium">🚨 Boucle Infinie Détectée</span>
             </div>
             <p className="text-sm text-red-700 mb-3">
-              Le système de cache semble être en boucle infinie. Cliquez sur "Emergency Stop" pour l'arrêter.
+              Le système de cache semble être en boucle infinie. Cliquez sur &ldquo;Emergency Stop&rdquo; pour l'arrêter.
             </p>
             <Button size="sm" variant="destructive" onClick={emergencyStopLoop}>
               <AlertTriangle className="h-4 w-4 mr-2" />
@@ -450,10 +448,10 @@ export function NavigationDebugPanel() {
               <div className="text-xs text-slate-500 bg-blue-50 p-3 rounded-lg">
                 <div className="font-medium mb-1">How to test:</div>
                 <ol className="list-decimal list-inside space-y-1">
-                  <li>Click "Run Tests" to verify the cache system works</li>
+                  <li>Click &ldquo;Run Tests&rdquo; to verify the cache system works</li>
                   <li>Navigate to different sections (Dashboard, Biens, Interventions)</li>
                   <li>Watch the logs for navigation and refresh events</li>
-                  <li>Use "Refresh Section" to manually trigger data refresh</li>
+                  <li>Use &ldquo;Refresh Section&rdquo; to manually trigger data refresh</li>
                 </ol>
                 <div className="mt-2 pt-2 border-t border-blue-200">
                   <div className="font-medium mb-1">Raccourci clavier :</div>

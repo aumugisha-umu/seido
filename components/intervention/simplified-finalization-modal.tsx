@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { AlertTriangle, X, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
@@ -16,6 +16,65 @@ interface SimplifiedFinalizationModalProps {
   onClose: () => void
   onComplete?: () => void
   isLoading?: boolean
+}
+
+interface Photo {
+  id: string
+  url?: string
+  name: string
+  size?: number
+  type?: string
+}
+
+interface Document {
+  id: string
+  name: string
+  url?: string
+  type: string
+  size?: number
+}
+
+interface QualityAssurance {
+  workCompleted: boolean
+  workQuality: boolean
+  materialsQuality: boolean
+  cleanupCompleted: boolean
+}
+
+interface Satisfaction {
+  workQuality: number
+  timeliness: number
+  communication: number
+  overall: number
+}
+
+interface WorkApproval {
+  workCompleted: boolean
+  workQuality: boolean
+  materialsQuality: boolean
+  timelyCompletion: boolean
+}
+
+interface Issues {
+  description: string
+  severity: 'low' | 'medium' | 'high'
+  photos: File[]
+}
+
+interface Provider {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  provider_category?: string
+}
+
+interface Contact {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  role: string
 }
 
 interface FinalizationContextData {
@@ -57,26 +116,20 @@ interface FinalizationContextData {
     actualCost?: number
     issuesEncountered?: string
     recommendations?: string
-    qualityAssurance: any
-    beforePhotos: any[]
-    afterPhotos: any[]
-    documents: any[]
+    qualityAssurance: QualityAssurance
+    beforePhotos: Photo[]
+    afterPhotos: Photo[]
+    documents: Document[]
     submittedAt: string
-    provider: {
-      id: string
-      name: string
-      email: string
-      phone?: string
-      provider_category?: string
-    }
+    provider: Provider
   }
   tenantValidation?: {
     id: string
     validationType: 'approve' | 'contest'
-    satisfaction: any
-    workApproval: any
+    satisfaction: Satisfaction
+    workApproval: WorkApproval
     comments: string
-    issues?: any
+    issues?: Issues
     recommendProvider: boolean
     additionalComments?: string
     submittedAt: string
@@ -85,11 +138,11 @@ interface FinalizationContextData {
     id: string
     amount: number
     description: string
-    details: any
-    provider: any
+    details: Record<string, unknown>
+    provider: Provider
     createdAt: string
   }
-  contacts: any[]
+  contacts: Contact[]
   existingFinalization?: {
     id: string
     finalStatus: string
@@ -112,7 +165,6 @@ export function SimplifiedFinalizationModal({
   isOpen,
   onClose,
   onComplete,
-  isLoading = false
 }: SimplifiedFinalizationModalProps) {
   const { toast } = useToast()
 
@@ -161,9 +213,9 @@ export function SimplifiedFinalizationModal({
     if (isOpen && interventionId) {
       fetchFinalizationContext()
     }
-  }, [isOpen, interventionId])
+  }, [isOpen, interventionId, fetchFinalizationContext])
 
-  const fetchFinalizationContext = async () => {
+  const fetchFinalizationContext = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -182,7 +234,7 @@ export function SimplifiedFinalizationModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [interventionId])
 
   const handleSubmit = async () => {
     if (!contextData) return
@@ -300,7 +352,12 @@ export function SimplifiedFinalizationModal({
     setShowConfirmation(true)
   }
 
-  const handleConfirmAction = async (confirmationData: any) => {
+  const handleConfirmAction = async (confirmationData: {
+    decision: 'validate' | 'reject'
+    internalComments: string
+    providerFeedback: string
+    scheduleFollowUp: boolean
+  }) => {
     if (!contextData) return
 
     // Update form data with confirmation data

@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,9 +8,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { X, Building2, Mail, AlertCircle } from "lucide-react"
+import { Building2, Mail, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { contactService } from "@/lib/database-service"
+
 import { supabase } from "@/lib/supabase"
 
 interface ContactFormModalProps {
@@ -35,10 +33,6 @@ interface ContactFormData {
   inviteToApp: boolean
 }
 
-interface ValidationError {
-  field: string
-  message: string
-}
 
 interface FormErrors {
   firstName?: string
@@ -276,7 +270,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         }
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur lors de la création du contact:', error)
       
       // Gestion des erreurs spécifiques

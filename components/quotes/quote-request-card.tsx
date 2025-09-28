@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -189,9 +190,11 @@ export function QuoteRequestCard({
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
               {request.provider?.avatar ? (
-                <img
+                <Image
                   src={request.provider.avatar}
                   alt={getProviderName()}
+                  width={32}
+                  height={32}
                   className="h-8 w-8 rounded-full object-cover"
                 />
               ) : (
@@ -227,7 +230,7 @@ export function QuoteRequestCard({
                 <span>
                   Envoyé le {(() => {
                     try {
-                      const dateStr = request.sent_at || (request as any).assigned_at
+                      const dateStr = request.sent_at || (request as { assigned_at?: string }).assigned_at
                       return dateStr ? format(new Date(dateStr), 'dd MMM yyyy à HH:mm', { locale: fr }) : 'Date inconnue'
                     } catch {
                       return 'Date invalide'

@@ -1,31 +1,30 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import React, { useState, useEffect, use, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  ArrowLeft, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Building2, 
-  Save, 
-  AlertCircle, 
+import {
+  ArrowLeft,
+  User,
+  Mail,
+  Phone,
+  Save,
+  AlertCircle,
   Check,
   Loader2
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { contactService } from "@/lib/database-service"
+import { contactService, contactInvitationService } from '@/lib/services'
+
 
 interface ContactData {
   id: string
@@ -104,15 +103,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   const [showResendModal, setShowResendModal] = useState(false)
   const [resending, setResending] = useState(false)
 
-  // Charger les données du contact et son statut d'invitation
-  useEffect(() => {
-    if (resolvedParams.id && user) {
-      loadContact()
-      loadInvitationStatus()
-    }
-  }, [resolvedParams.id, user])
-
-  const loadInvitationStatus = async () => {
+  const loadInvitationStatus = useCallback(async () => {
     try {
       setInvitationLoading(true)
       console.log("🔍 Loading invitation status for contact:", resolvedParams.id)
@@ -138,9 +129,9 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     } finally {
       setInvitationLoading(false)
     }
-  }
+  }, [resolvedParams.id])
 
-  const loadContact = async () => {
+  const loadContact = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -170,7 +161,15 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams.id])
+
+  // Charger les données du contact et son statut d'invitation
+  useEffect(() => {
+    if (resolvedParams.id && user) {
+      loadContact()
+      loadInvitationStatus()
+    }
+  }, [resolvedParams.id, user, loadContact, loadInvitationStatus])
 
   const validateForm = () => {
     const errors: {[key: string]: string} = {}
@@ -291,22 +290,22 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   }
 
   // ✅ Nouvelle fonction pour obtenir le label du rôle/catégorie
-  const getRoleLabel = (contact: ContactData) => {
-    // Trouver le label du rôle principal
-    const roleLabel = userRoles.find(r => r.value === contact.role)?.label || contact.role
-    
-    // Pour les prestataires, ajouter la catégorie
-    if (contact.role === "prestataire" && contact.provider_category) {
-      const categoryLabel = providerCategories.find(c => c.value === contact.provider_category)?.label
-      return categoryLabel || roleLabel
-    }
-    
-    return roleLabel
-  }
+  // const getRoleLabel = (contact: ContactData) => {
+  //   // Trouver le label du rôle principal
+  //   const roleLabel = userRoles.find(r => r.value === contact.role)?.label || contact.role
+  //   
+  //   // Pour les prestataires, ajouter la catégorie
+  //   if (contact.role === "prestataire" && contact.provider_category) {
+  //     const categoryLabel = providerCategories.find(c => c.value === contact.provider_category)?.label
+  //     return categoryLabel || roleLabel
+  //   }
+  //   
+  //   return roleLabel
+  // }
 
-  const getSpecialityLabel = (speciality: string) => {
-    return specialities.find(s => s.value === speciality)?.label || speciality
-  }
+  // const getSpecialityLabel = (speciality: string) => {
+  //   return specialities.find(s => s.value === speciality)?.label || speciality
+  // }
 
   // Gestion des invitations
   const handleRevokeInvitation = async () => {
@@ -337,8 +336,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         
         toast({
           title: wasPending ? "Invitation annulée" : "Accès révoqué", 
-          description: result.message || `L'action sur ${contact?.name} a été effectuée avec succès`,
-          variant: "success"
+          description: result.message || `L'action sur ${contact?.name} a été effectuée avec succès`
         })
       } else {
         throw new Error(result.error || 'Erreur lors de la révocation')
@@ -414,8 +412,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         
         toast({
           title: "Invitation envoyée",
-          description: `Une nouvelle invitation a été envoyée à ${contact.name}`,
-          variant: "success"
+          description: `Une nouvelle invitation a été envoyée à ${contact.name}`
         })
       } else {
         throw new Error(result.error || 'Erreur lors de l\'envoi de l\'invitation')
@@ -469,6 +466,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     )
   }
 
+  // Early returns for loading and error states
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -496,7 +494,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       </div>
     )
   }
-
+    
   if (!contact) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -511,7 +509,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       </div>
     )
   }
-
+    
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -902,7 +900,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
                       {invitationStatus === 'accepted' ? 'Révocation...' : 'Annulation...'}
                     </>
                   ) : (
-                    invitationStatus === 'accepted' ? 'Révoquer l\'accès' : 'Annuler l\'invitation'
+                    invitationStatus === 'accepted' ? 'Révoquer l'accès' : 'Annuler l'invitation'
                   )}
                 </Button>
               </div>

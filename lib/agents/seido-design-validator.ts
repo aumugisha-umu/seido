@@ -466,7 +466,7 @@ export class SEIDODesignValidator {
   /**
    * Find the best shadcn/ui equivalent for a custom component
    */
-  private findShadcnEquivalent(customComponent: any): {
+  private findShadcnEquivalent(customComponent: { name: string; complexity?: string }): {
     name: string
     features: string[]
     accessibility: string[]
@@ -505,7 +505,7 @@ export class SEIDODesignValidator {
   /**
    * Assess if replacement would be beneficial
    */
-  private assessReplacementBenefit(customComponent: any, shadcnEquivalent: any): {
+  private assessReplacementBenefit(customComponent: { complexity?: string; name: string }, shadcnEquivalent: { accessibility: string[]; name: string }): {
     shouldReplace: boolean
     severity: 'error' | 'warning' | 'info'
     reason: string

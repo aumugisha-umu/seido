@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from './database.types'
-import { userService } from './database-service'
+import { createServerUserService } from './services'
 
 export interface AuthUser {
   id: string
@@ -47,7 +47,7 @@ async function createServerSupabaseClient() {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options)
             })
-          } catch (error) {
+          } catch {
             // Next.js bug: https://github.com/vercel/next.js/issues/48081
             // Ignore la tentative de set cookies depuis Server Component
           }
@@ -77,7 +77,9 @@ export const verifySession = cache(async (): Promise<{ isValid: boolean; user: A
     console.log('✅ [DAL] Valid session found for user:', user.id)
 
     // Récupérer le profil utilisateur complet depuis la base de données
-    const userProfile = await userService.findByAuthUserId(user.id)
+    const userService = await createServerUserService()
+    const result = await userService.getByAuthUserId(user.id)
+    const userProfile = result.success ? result.data : null
 
     if (!userProfile) {
       console.log('⚠️ [DAL] User authenticated but no profile found')

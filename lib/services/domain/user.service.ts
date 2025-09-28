@@ -4,7 +4,7 @@
  */
 
 import { UserRepository, createUserRepository, createServerUserRepository } from '../repositories/user.repository'
-import type { User, UserInsert, UserUpdate, RepositoryResponse, PaginatedResponse } from '../core/service-types'
+import type { User, UserInsert, UserUpdate } from '../core/service-types'
 import { ValidationException, ConflictException, PermissionException } from '../core/error-handler'
 import { hashPassword } from '../core/service-types'
 
@@ -74,7 +74,7 @@ export class UserService {
     }
 
     // Hash password if provided
-    let processedData = { ...userData }
+    const processedData = { ...userData }
     if ('password' in processedData && processedData.password) {
       processedData.password = await hashPassword(processedData.password)
     }
@@ -121,7 +121,7 @@ export class UserService {
     }
 
     // Hash password if provided
-    let processedUpdates = { ...updates }
+    const processedUpdates = { ...updates }
     if ('password' in processedUpdates && processedUpdates.password) {
       processedUpdates.password = await hashPassword(processedUpdates.password)
     }
@@ -259,6 +259,7 @@ export class UserService {
     const userResult = await this.repository.findByEmail(email)
     if (!userResult.success) return userResult
 
+    // TODO: Implement actual password validation using password parameter
     if (!userResult.data) {
       return {
         success: false as const,

@@ -11,7 +11,6 @@ import {
   FileText,
   Calendar,
   Clock,
-  Building,
   MessageSquare,
   DollarSign,
   User
@@ -26,7 +25,7 @@ interface ActionConfig {
   iconColor: string
   textColor: string
   subtextColor: string
-  icon: any
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   actionLabel: string
   buttonText: string
   urgentAction?: boolean
@@ -48,7 +47,7 @@ interface PendingAction {
     name: string
     role: string
   }
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   actionUrl: string
 }
 
@@ -77,7 +76,7 @@ export function PendingActionsCard({
 
   // Configuration des actions selon le rôle utilisateur et le type/statut
   const getActionConfig = (action: PendingAction): ActionConfig => {
-    const { type, status } = action
+    const { status } = action
 
     // Configurations pour les locataires
     if (userRole === 'locataire') {

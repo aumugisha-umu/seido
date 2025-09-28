@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
+import { createServerUserService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,15 +15,18 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [GET-USER-PROFILE] Looking up user profile for auth_user_id:', authUserId)
 
     // Récupérer le profil utilisateur par auth_user_id
-    const userProfile = await userService.findByAuthUserId(authUserId)
+    const userService = await createServerUserService()
+    const userResult = await userService.getByAuthUserId(authUserId)
 
-    if (!userProfile) {
+    if (!userResult.success || !userResult.data) {
       console.log('❌ [GET-USER-PROFILE] No user profile found for auth_user_id:', authUserId)
       return NextResponse.json(
         { success: false, error: 'User profile not found' },
         { status: 404 }
       )
     }
+
+    const userProfile = userResult.data
 
     console.log('✅ [GET-USER-PROFILE] User profile found:', {
       id: userProfile.id,

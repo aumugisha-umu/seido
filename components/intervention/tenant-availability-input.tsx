@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Calendar, Clock, Plus, Trash2, Save, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,15 +40,15 @@ export function TenantAvailabilityInput({
   // Load existing availabilities on mount
   useEffect(() => {
     loadExistingAvailabilities()
-  }, [interventionId])
+  }, [interventionId, loadExistingAvailabilities])
 
-  const loadExistingAvailabilities = async () => {
+  const loadExistingAvailabilities = useCallback(async () => {
     try {
       const response = await fetch(`/api/intervention/${interventionId}/tenant-availability`)
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.availabilities) {
-          const existing = result.availabilities.map((avail: any) => ({
+          const existing = result.availabilities.map((avail: { date: string; start_time: string; end_time: string }) => ({
             date: avail.date,
             startTime: avail.start_time,
             endTime: avail.end_time
@@ -61,7 +61,7 @@ export function TenantAvailabilityInput({
     } finally {
       setLoadingExisting(false)
     }
-  }
+  }, [interventionId])
 
   const addAvailability = () => {
     setAvailabilities([...availabilities, {

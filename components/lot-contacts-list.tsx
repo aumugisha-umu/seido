@@ -8,32 +8,28 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle } from "lucide-react"
-import { contactService, determineAssignmentType } from "@/lib/database-service"
+
+import { determineAssignmentType } from '@/lib/services'
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
+import type { ContactWithRelations } from "@/lib/services"
 
 interface LotContactsListProps {
   lotId: string
-  buildingId?: string
-  contacts?: any[]
-  onContactsUpdate?: (contacts: any[]) => void
+  contacts?: ContactWithRelations[]
+  onContactsUpdate?: (contacts: ContactWithRelations[]) => void
 }
 
-export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
-  const [contacts, setContacts] = useState<any[]>(propContacts)
-  const [filteredContacts, setFilteredContacts] = useState<any[]>([])
+export const LotContactsList = ({ lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+  const [contacts, setContacts] = useState<ContactWithRelations[]>(propContacts)
+  const [filteredContacts, setFilteredContacts] = useState<ContactWithRelations[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const [selectedContact, setSelectedContact] = useState<any>(null)
-  const [deleteContact, setDeleteContact] = useState<any>(null)
+  const [selectedContact, setSelectedContact] = useState<ContactWithRelations | null>(null)
+  const [deleteContact, setDeleteContact] = useState<ContactWithRelations | null>(null)
 
-  // Helper function to check if ID looks like a UUID
-  const isValidUUID = (id: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    return uuidRegex.test(id)
-  }
 
   // Update local contacts when props change
   useEffect(() => {
@@ -103,7 +99,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
   }, [contacts, searchTerm])
 
 
-  const handleContactSubmit = async (contactData: any) => {
+  const handleContactSubmit = async (contactData: Partial<ContactWithRelations>) => {
     try {
       if (selectedContact) {
         // Update existing contact

@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { userService, buildingService, lotService, interventionService } from '@/lib/database-service'
-import type { User, Building, Lot, Intervention } from '@/lib/database-service'
+import { createBrowserUserService, createBrowserBuildingService, createBrowserLotService, createBrowserInterventionService } from '@/lib/services'
+import type { User, Building, Lot, Intervention } from '@/lib/services/core/service-types'
+
+// Create service instances
+const userService = createBrowserUserService()
+const buildingService = createBrowserBuildingService()
+const lotService = createBrowserLotService()
+const interventionService = createBrowserInterventionService()
 
 // Hook for user data
 export function useUser(userId?: string) {

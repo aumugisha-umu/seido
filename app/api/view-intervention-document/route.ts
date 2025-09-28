@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
               cookiesToSet.forEach(({ name, value, options }) => {
                 cookieStore.set(name, value, options)
               })
-            } catch (error) {
+            } catch {
               // Ignore cookie setting errors in API routes
             }
           },
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user is member of the team that owns this intervention
     const userHasAccess = document.intervention.team.members.some(
-      (member: any) => member.user_id === user.id
+      (member) => member.user_id === user.id
     )
 
     if (!userHasAccess) {

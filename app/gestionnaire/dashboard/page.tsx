@@ -2,9 +2,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Building2, Home, Users, Wrench, BarChart3 } from "lucide-react"
-import { requireRole, getUserBasicInfo } from "@/lib/dal"
+import { requireRole } from "@/lib/dal"
 import { DashboardClient } from "./dashboard-client"
-import { userService, teamService, interventionService, buildingService, lotService } from "@/lib/database-service"
+
+
+
+
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 /**
  * 🔐 DASHBOARD GESTIONNAIRE - SERVER COMPONENT (Bonnes Pratiques 2025)
@@ -184,7 +192,7 @@ export default async function DashboardGestionnaire() {
             </div>
 
             {/* Actions rapides - Composant client sécurisé */}
-            <DashboardClient userId={user.id} teamId={userTeamId} />
+            <DashboardClient teamId={userTeamId} />
           </div>
         </div>
 

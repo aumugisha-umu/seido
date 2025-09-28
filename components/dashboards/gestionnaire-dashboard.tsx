@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarChart3, UserPlus, Plus, Loader2 } from "lucide-react"
+import { Building2, Home, Users, Wrench, BarChart3, UserPlus, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { TeamCheckModal } from "@/components/team-check-modal"
@@ -20,11 +20,10 @@ import { useInterventionExecution } from "@/hooks/use-intervention-execution"
 import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
 
 export default function GestionnaireDashboard() {
-  const { user } = useAuth()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { data: managerData, loading: statsLoading, error: statsError, stats, refetch } = useManagerStats()
+  const { data: managerData, loading: statsLoading, stats, refetch } = useManagerStats()
 
   // Hooks pour les actions d'intervention
   const approvalHook = useInterventionApproval()
@@ -47,7 +46,7 @@ export default function GestionnaireDashboard() {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
-  const handleContactSubmit = (contactData: any) => {
+  const handleContactSubmit = (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; address: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
     console.log("[v0] Contact created:", {
       ...contactData,
       fullName: `${contactData.firstName} ${contactData.lastName}`,

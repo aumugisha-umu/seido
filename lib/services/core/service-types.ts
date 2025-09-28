@@ -40,8 +40,11 @@ export interface Building {
   id: string
   name: string
   address: string
+  city: string
+  postal_code: string
+  team_id?: string | null
+  total_lots?: number
   description?: string | null
-  manager_id: string
   created_at: string
   updated_at: string
 }
@@ -49,15 +52,24 @@ export interface Building {
 export interface BuildingInsert {
   name: string
   address: string
+  city: string
+  postal_code: string
+  team_id?: string | null
+  total_lots?: number
   description?: string | null
-  manager_id: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface BuildingUpdate {
   name?: string
   address?: string
+  city?: string
+  postal_code?: string
+  team_id?: string | null
+  total_lots?: number
   description?: string | null
-  manager_id?: string
+  updated_at?: string
 }
 
 export interface Lot {
@@ -346,6 +358,76 @@ export interface CreateContactDTO {
 export interface UpdateContactDTO {
   type?: Contact['type']
   status?: Contact['status']
+}
+
+// ===================================
+// VALIDATION UTILITIES
+// ===================================
+
+export function validateRequired<T extends Record<string, unknown>>(
+  data: T,
+  fields: (keyof T)[]
+): void {
+  for (const field of fields) {
+    if (!data[field]) {
+      throw new Error(`Field '${String(field)}' is required`)
+    }
+  }
+}
+
+export function validateEmail(email: string): void {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    throw new Error('Invalid email format')
+  }
+}
+
+export function validateUUID(uuid: string): void {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(uuid)) {
+    throw new Error('Invalid UUID format')
+  }
+}
+
+export function validateLength(
+  value: string,
+  min: number,
+  max: number,
+  fieldName: string
+): void {
+  if (value.length < min || value.length > max) {
+    throw new Error(`${fieldName} must be between ${min} and ${max} characters`)
+  }
+}
+
+export function validateNumber(
+  value: number,
+  min: number,
+  max: number,
+  fieldName: string
+): void {
+  if (value < min || value > max) {
+    throw new Error(`${fieldName} must be between ${min} and ${max}`)
+  }
+}
+
+export function validateEnum<T extends string>(
+  value: T,
+  allowedValues: readonly T[],
+  fieldName: string
+): void {
+  if (!allowedValues.includes(value)) {
+    throw new Error(`${fieldName} must be one of: ${allowedValues.join(', ')}`)
+  }
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  // Simple hash function for demo - in production use bcrypt
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 // Relations

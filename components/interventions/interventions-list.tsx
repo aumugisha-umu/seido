@@ -4,33 +4,40 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
+import type { InterventionWithRelations } from "@/lib/services"
+
+interface EmptyStateConfig {
+  title: string
+  description: string
+  showCreateButton?: boolean
+  createButtonText?: string
+  createButtonAction?: () => void
+}
+
+interface ContactContext {
+  contactId: string
+  contactName: string
+  contactRole?: 'gestionnaire' | 'prestataire' | 'locataire'
+}
+
+interface ActionHooks {
+  approvalHook?: () => void
+  quotingHook?: () => void
+  planningHook?: () => void
+  executionHook?: () => void
+  finalizationHook?: () => void
+}
 
 interface InterventionsListProps {
-  interventions: any[]
+  interventions: InterventionWithRelations[]
   loading?: boolean
   compact?: boolean
   maxItems?: number
-  emptyStateConfig?: {
-    title: string
-    description: string
-    showCreateButton?: boolean
-    createButtonText?: string
-    createButtonAction?: () => void
-  }
+  emptyStateConfig?: EmptyStateConfig
   showStatusActions?: boolean
-  contactContext?: {
-    contactId: string
-    contactName: string
-    contactRole?: string
-  }
+  contactContext?: ContactContext
   className?: string
-  actionHooks?: {
-    approvalHook?: any
-    quotingHook?: any
-    planningHook?: any
-    executionHook?: any
-    finalizationHook?: any
-  }
+  actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
 }
 

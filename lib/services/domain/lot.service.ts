@@ -16,8 +16,7 @@ import {
 import type {
   Lot,
   LotInsert,
-  LotUpdate,
-  RepositoryResponse
+  LotUpdate
 } from '../core/service-types'
 import {
   ValidationException,
@@ -80,6 +79,9 @@ export class LotService {
    * Create new lot with validation
    */
   async create(lotData: LotInsert) {
+    // Validate input data
+    this.validateLotData(lotData)
+
     // Validate building exists
     if (this.buildingService) {
       const buildingResult = await this.buildingService.getById(lotData.building_id)
@@ -454,6 +456,7 @@ export class LotService {
 
     // This would typically update lot_contacts table
     // For now, we update the occupancy status
+    // TODO: Implement actual tenant assignment logic using tenantId
     return this.repository.updateOccupancy(lotId, true)
   }
 
@@ -605,6 +608,111 @@ export class LotService {
   private async logLotDeletion(lot: Lot) {
     // In production, this would use the activity-logger service
     console.log('Lot deleted:', lot.id, lot.reference)
+  }
+
+  /**
+   * Validate lot data for creation
+   */
+  private validateLotData(data: LotInsert) {
+    // Validate required fields
+    if (!data.building_id || data.building_id.trim() === '') {
+      throw new ValidationException('Building ID is required', 'lots', 'building_id')
+    }
+
+    if (!data.reference || data.reference.trim() === '') {
+      throw new ValidationException('Reference is required', 'lots', 'reference')
+    }
+
+    // Validate data types and ranges
+    if (data.size !== undefined && data.size < 0) {
+      throw new ValidationException('Size must be positive', 'lots', 'size')
+    }
+
+    // Validate category if provided
+    if (data.category && !['apartment', 'commercial', 'office', 'parking', 'storage'].includes(data.category)) {
+      throw new ValidationException('Invalid lot category', 'lots', 'category')
+    }
+  }
+
+  /**
+   * Alias methods for test compatibility
+   */
+
+  /**
+   * Get lots by type
+   */
+  async getByType(type: Lot['category']) {
+    try {
+      const result = await this.repository.findByCategory(type)
+      return { success: true as const, data: result }
+    } catch (error) {
+      return this.errorHandler.handleError(error)
+    }
+  }
+
+  /**
+   * Get lots by building
+   */
+  async getByBuilding(buildingId: string) {
+    return this.getLotsByBuilding(buildingId)
+  }
+
+  /**
+   * Get available lots
+   */
+  async getAvailable() {
+    try {
+      const result = await this.repository.findVacant()
+      return { success: true as const, data: result }
+    } catch (error) {
+      return this.errorHandler.handleError(error)
+    }
+  }
+
+  /**
+   * Get occupied lots
+   */
+  async getOccupied() {
+    return this.getOccupiedLots()
+  }
+
+  /**
+   * Get occupancy statistics
+   */
+  async getOccupancyStats() {
+    try {
+      const [occupied, vacant] = await Promise.all([
+        this.repository.findOccupied(),
+        this.repository.findVacant()
+      ])
+
+      const total = occupied.length + vacant.length
+      const occupancyRate = total > 0 ? (occupied.length / total) * 100 : 0
+
+      return {
+        success: true as const,
+        data: {
+          total,
+          occupied: occupied.length,
+          vacant: vacant.length,
+          occupancy_rate: Math.round(occupancyRate * 100) / 100
+        }
+      }
+    } catch (error) {
+      return this.errorHandler.handleError(error)
+    }
+  }
+
+  /**
+   * Count total lots
+   */
+  async count() {
+    try {
+      const result = await this.repository.count()
+      return { success: true as const, data: result }
+    } catch (error) {
+      return this.errorHandler.handleError(error)
+    }
   }
 }
 

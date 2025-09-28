@@ -1,10 +1,10 @@
-import { useState } from "react"
+import React, { useState } from "react"
+import Image from "next/image"
 import {
   FileText,
   Star,
   MessageSquare,
   Calendar,
-  CalendarCheck,
   Clock,
   User,
   Building,
@@ -17,8 +17,7 @@ import {
   Shield,
   Euro,
   TrendingUp,
-  TrendingDown,
-  Gavel
+  TrendingDown
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -26,30 +25,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
-interface FinalizationTabsProps {
-  contextData: any
-  formData?: {
-    decision: 'validate' | 'reject'
-    internalComments: string
-    providerFeedback: string
-    scheduleFollowUp: boolean
-    followUpDate?: Date
+interface Photo {
+  id: string
+  url?: string
+  name?: string
+  [key: string]: unknown
+}
+
+interface Document {
+  id: string
+  name?: string
+  url?: string
+  [key: string]: unknown
+}
+
+interface ContextData {
+  workCompletion?: {
+    beforePhotos?: Photo[]
+    afterPhotos?: Photo[]
+    documents?: Document[]
+    [key: string]: unknown
   }
-  setFormData?: (data: any) => void
-  onSubmit?: () => Promise<void>
-  submitting?: boolean
-  onClose?: () => void
+  [key: string]: unknown
+}
+
+interface FinalizationTabsProps {
+  contextData: ContextData
   className?: string
   activeTab?: string
   onTabChange?: (tab: string) => void
@@ -57,16 +64,6 @@ interface FinalizationTabsProps {
 
 export const FinalizationTabs = ({
   contextData,
-  formData = {
-    decision: 'validate',
-    internalComments: '',
-    providerFeedback: '',
-    scheduleFollowUp: false
-  },
-  setFormData = () => {},
-  onSubmit = async () => {},
-  submitting = false,
-  onClose = () => {},
   className,
   activeTab = 'overview',
   onTabChange = () => {}
@@ -623,15 +620,17 @@ export const FinalizationTabs = ({
                           Photos des travaux
                         </Label>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          {Array.isArray(contextData.workCompletion.beforePhotos) && contextData.workCompletion.beforePhotos.map((photo: any, index: number) => (
+                          {Array.isArray(contextData.workCompletion.beforePhotos) && contextData.workCompletion.beforePhotos.map((photo: Photo, index: number) => (
                             <button
                               key={`before-${index}`}
                               onClick={() => setSelectedImage(photo.url)}
                               className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-sky-500 transition-all duration-200 hover:shadow-md group"
                             >
-                              <img
-                                src={photo.url}
+                              <Image
+                                src={photo.url || ''}
                                 alt={`Avant ${index + 1}`}
+                                width={200}
+                                height={150}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                               />
                               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs py-2 px-2">
@@ -639,15 +638,17 @@ export const FinalizationTabs = ({
                               </div>
                             </button>
                           ))}
-                          {Array.isArray(contextData.workCompletion.afterPhotos) && contextData.workCompletion.afterPhotos.map((photo: any, index: number) => (
+                          {Array.isArray(contextData.workCompletion.afterPhotos) && contextData.workCompletion.afterPhotos.map((photo: Photo, index: number) => (
                             <button
                               key={`after-${index}`}
                               onClick={() => setSelectedImage(photo.url)}
                               className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-sky-500 transition-all duration-200 hover:shadow-md group"
                             >
-                              <img
-                                src={photo.url}
+                              <Image
+                                src={photo.url || ''}
                                 alt={`Après ${index + 1}`}
+                                width={200}
+                                height={150}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                               />
                               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs py-2 px-2">
@@ -670,7 +671,7 @@ export const FinalizationTabs = ({
                           Documents joints
                         </Label>
                         <div className="space-y-2">
-                          {contextData.workCompletion.documents.map((doc: any, index: number) => (
+                          {contextData.workCompletion.documents.map((doc: Document, index: number) => (
                             <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
                               <FileText className="h-5 w-5 text-sky-600 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -838,9 +839,11 @@ export const FinalizationTabs = ({
                 <DialogTitle>Aperçu de l'image</DialogTitle>
               </DialogHeader>
               <div className="px-4 pb-4">
-                <img
-                  src={selectedImage}
+                <Image
+                  src={selectedImage || ''}
                   alt="Image agrandie"
+                  width={800}
+                  height={600}
                   className="w-full h-auto max-h-[75vh] object-contain rounded-lg"
                 />
               </div>

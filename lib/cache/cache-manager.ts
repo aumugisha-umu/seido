@@ -15,6 +15,7 @@
 import { LRUCache } from 'lru-cache'
 
 // Conditional Redis import for server-side only
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let Redis: any = null
 
 async function loadRedis() {
@@ -22,7 +23,7 @@ async function loadRedis() {
     try {
       const ioredis = await import('ioredis')
       Redis = ioredis.default
-    } catch (error) {
+    } catch {
       console.warn('[CACHE-MANAGER] Redis not available, using L1 cache only')
     }
   }
@@ -53,7 +54,9 @@ export interface CacheMetrics {
 }
 
 export class CacheManager {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private l1Cache: LRUCache<string, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private l2Cache: any | null = null
   private metrics: CacheMetrics
   private config: CacheConfig
@@ -178,6 +181,7 @@ export class CacheManager {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async set(key: string, value: any, ttl = 300): Promise<void> {
     try {
       // Set in L1 cache
@@ -297,6 +301,7 @@ export const cache = {
     return await cacheManager.get<T>(key)
   },
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async set(key: string, value: any, ttl?: number): Promise<void> {
     await cacheManager.set(key, value, ttl)
   },

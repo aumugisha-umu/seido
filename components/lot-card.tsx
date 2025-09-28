@@ -218,7 +218,7 @@ export default function LotCard({
                         {/* Show all tenants */}
                         {lot.lot_tenants?.length > 0 ? (
                           <div className="space-y-1">
-                            {lot.lot_tenants.map((tenantInfo: any, idx: number) => (
+                            {lot.lot_tenants.map((tenantInfo, idx: number) => (
                               <div key={idx} className="flex items-center gap-2 text-xs">
                                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                                 <span className="text-slate-700">{tenantInfo.contact?.name}</span>

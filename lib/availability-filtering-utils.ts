@@ -7,7 +7,7 @@ interface Quote {
   id: string
   providerId: string
   status: 'pending' | 'approved' | 'rejected'
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface UserAvailability {
@@ -17,7 +17,7 @@ interface UserAvailability {
   startTime: string
   endTime: string
   userId?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface AvailabilityFilterState {

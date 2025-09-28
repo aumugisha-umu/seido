@@ -6,12 +6,9 @@ import {
   XCircle,
   Calendar,
   Play,
-  Pause,
   Clock,
   UserCheck,
-  Settings,
   AlertTriangle,
-  MessageSquare,
   TrendingUp,
   FileText,
   Euro,
@@ -32,7 +29,6 @@ import { SimplifiedFinalizationModal } from "./simplified-finalization-modal"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
-import { QuoteRequestModal } from "./modals/quote-request-modal"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
@@ -68,7 +64,7 @@ interface InterventionActionPanelHeaderProps {
 interface ActionConfig {
   key: string
   label: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<{ className?: string }>
   variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'
   description: string
   requiresComment?: boolean
@@ -689,7 +685,7 @@ export function InterventionActionPanelHeader({
         setError(errorData.error || 'Erreur lors de la soumission du rapport')
         return false
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erreur lors de la soumission du rapport')
       return false
     } finally {
@@ -728,7 +724,7 @@ export function InterventionActionPanelHeader({
         setError(errorData.error || 'Erreur lors de la soumission du rapport')
         return false
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erreur lors de la soumission du rapport')
       return false
     } finally {
@@ -756,7 +752,7 @@ export function InterventionActionPanelHeader({
         setError(errorData.error || 'Erreur lors de la validation')
         return false
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erreur lors de la validation')
       return false
     } finally {

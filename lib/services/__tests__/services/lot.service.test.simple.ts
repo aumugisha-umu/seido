@@ -10,7 +10,6 @@ import { BuildingService } from '../../domain/building.service'
 import { LotTestDataFactory, BuildingTestDataFactory } from '../helpers/test-data'
 import {
   ValidationException,
-  ConflictException,
   NotFoundException
 } from '../../core/error-handler'
 
@@ -20,8 +19,8 @@ vi.mock('../../domain/building.service')
 
 describe('LotService (Simplified)', () => {
   let service: LotService
-  let mockRepository: any
-  let mockBuildingService: any
+  let mockRepository: Partial<LotRepository>
+  let mockBuildingService: Partial<BuildingService>
 
   beforeEach(() => {
     vi.clearAllMocks()

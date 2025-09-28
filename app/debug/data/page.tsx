@@ -1,10 +1,16 @@
+import React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { requireRole } from "@/lib/dal"
-import { teamService, buildingService, userService, interventionService } from "@/lib/database-service"
+import { createServerTeamService } from "@/lib/services"
 import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-sample-data"
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 /**
  * 🐛 PAGE DE DEBUG DATA
@@ -14,8 +20,6 @@ import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-
  */
 
 async function createSampleData(teamId: string) {
-  'use server'
-
   console.log('🔧 [DEBUG] Creating sample data for team:', teamId)
   const result = await createSampleBuildingsForTeam({ teamId, force: false })
   console.log('🔧 [DEBUG] Sample data creation result:', result)
@@ -25,8 +29,12 @@ async function createSampleData(teamId: string) {
 export default async function DebugDataPage() {
   const user = await requireRole('gestionnaire')
 
+  // Initialize team service
+  const teamService = await createServerTeamService()
+
   // Récupérer l'équipe de l'utilisateur
-  const teams = await teamService.getUserTeams(user.id)
+  const teamsResult = await teamService.getUserTeams(user.id)
+  const teams = teamsResult.success ? teamsResult.data : []
   const userTeamId = teams && teams.length > 0 ? teams[0].id : ''
 
   if (!userTeamId) {
@@ -46,7 +54,7 @@ export default async function DebugDataPage() {
 
   // Diagnostic complet des données
   let dataStatus = { buildings: 0, users: 0, interventions: 0, hasError: true }
-  let diagnosticDetails: any = {}
+  let diagnosticDetails: Record<string, unknown> = {}
 
   try {
     dataStatus = await checkTeamDataStatus(userTeamId)

@@ -87,7 +87,7 @@ export function FinalizationConfirmationModal({
       setScheduleFollowUp(false)
       onClose()
 
-    } catch (error) {
+    } catch {
       toast({
         title: "Erreur",
         description: "Une erreur s'est produite lors de la finalisation",

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import React, { useState, useEffect, use } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ArrowLeft, Edit, Trash2, Eye, FileText, Wrench, Users, Plus, Search, Filter, Home } from "lucide-react"
+import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Search, Filter, Home } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { getLotCategoryConfig } from "@/lib/lot-types"
-import { buildingService, lotService, interventionService } from "@/lib/database-service"
+import { contactService, buildingService, lotService, interventionService } from '@/lib/services'
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -28,7 +28,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   const resolvedParams = use(params)
   const { user } = useAuth()
 
-  // State pour les données
+  // State pour les donnees
   const [building, setBuilding] = useState<any>(null)
   const [lots, setLots] = useState<any[]>([])
   const [interventions, setInterventions] = useState<any[]>([])
@@ -39,7 +39,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Effet pour basculer automatiquement sur l'onglet lots si paramètre présent
+  // Effet pour basculer automatiquement sur l'onglet lots si parametre present
   useEffect(() => {
     const lotParam = searchParams.get('lot')
     if (lotParam) {
@@ -47,7 +47,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     }
   }, [searchParams])
 
-  // Charger les données de l'immeuble
+  // Charger les donnees de l'immeuble
   useEffect(() => {
     if (resolvedParams.id && user?.id) {
       loadBuildingData()
@@ -60,7 +60,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       setError(null)
       console.log("🏢 Loading building data for ID:", resolvedParams.id)
 
-      // 1. Charger les données de l'immeuble
+      // 1. Charger les donnees de l'immeuble
       const buildingData = await buildingService.getById(resolvedParams.id)
       console.log("🏢 Building loaded:", buildingData)
       setBuilding(buildingData)
@@ -111,7 +111,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     }
 
     const totalLots = lots.length
-    const occupiedLots = lots.filter(lot => lot.is_occupied).length // ✅ Utiliser seulement is_occupied (calculé automatiquement)
+    const occupiedLots = lots.filter(lot => lot.is_occupied).length // ✅ Utiliser seulement is_occupied (calcule automatiquement)
     const vacantLots = totalLots - occupiedLots
     const occupancyRate = totalLots > 0 ? Math.round((occupiedLots / totalLots) * 100) : 0
 
@@ -224,7 +224,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         type: doc.mime_type,
         uploadedAt: doc.uploaded_at,
         uploadedBy: {
-          name: 'Utilisateur', // Simplifié car on n'a plus les foreign keys
+          name: 'Utilisateur', // Simplifie car on n'a plus les foreign keys
           role: 'user'
         }
       })) || []
@@ -252,7 +252,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     { id: "documents", label: "Documents", icon: FileText, count: null },
   ]
 
-  // États de chargement
+  // Etats de chargement
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -298,7 +298,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  // État d'erreur
+  // Etat d'erreur
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -325,7 +325,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  // Vérifier que l'immeuble existe
+  // Verifier que l'immeuble existe
   if (!building) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -354,7 +354,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header amélioré */}
+      {/* Header ameliore */}
       <PropertyDetailHeader
         property={{
           id: building.id,
@@ -406,7 +406,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
           <div className="py-8">
             <TabsContent value="overview" className="mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Informations Générales */}
+            {/* Informations Generales */}
             <Card>
               <CardHeader>
                 <CardTitle>Informations Générales</CardTitle>
@@ -448,7 +448,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
             {/* Statistiques d'Occupation */}
             <Card>
               <CardHeader>
-                <CardTitle>Statistiques d'Occupation</CardTitle>
+                <CardTitle>Statistiques d&apos;Occupation</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
@@ -464,7 +464,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                   <span className="font-medium text-red-600">{stats.vacantLots}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Taux d'occupation</span>
+                  <span className="text-gray-600">Taux d&apos;occupation</span>
                   <span className="font-medium">
                     <Badge variant={stats.occupancyRate >= 80 ? "default" : stats.occupancyRate >= 50 ? "secondary" : "destructive"}>
                       {stats.occupancyRate}%
@@ -480,7 +480,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               </CardContent>
             </Card>
 
-            {/* Activité */}
+            {/* Activite */}
             <Card>
               <CardHeader>
                 <CardTitle>Activité</CardTitle>
@@ -545,7 +545,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                 <Wrench className="h-5 w-5 mr-2 text-gray-400" />
                 Interventions ({interventions.length})
               </h2>
-              <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
+              <Button onClick={() => router.push(&apos;/gestionnaire/interventions/nouvelle&apos;)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Créer une intervention
               </Button>
@@ -623,8 +623,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="text-center py-12">
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour cet immeuble.</p>
-                <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
+                <p className="text-gray-600 mb-4">Aucune intervention n&apos;a été créée pour cet immeuble.</p>
+                <Button onClick={() => router.push(&apos;/gestionnaire/interventions/nouvelle&apos;)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
                 </Button>
@@ -637,7 +637,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">Liste des Lots ({lots.length})</h2>
-              <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
+              <Button onClick={() => router.push(&apos;/gestionnaire/biens/lots/nouveau&apos;)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter un lot
               </Button>
@@ -659,8 +659,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="text-center py-12">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot</h3>
-                <p className="text-gray-600 mb-4">Cet immeuble n'a pas encore de lots définis.</p>
-                <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
+                <p className="text-gray-600 mb-4">Cet immeuble n&apos;a pas encore de lots définis.</p>
+                <Button onClick={() => router.push(&apos;/gestionnaire/biens/lots/nouveau&apos;)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer le premier lot
                 </Button>
@@ -673,7 +673,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900">Documents de l'immeuble</h2>
+                    <h2 className="text-lg font-medium text-gray-900">Documents de l&apos;immeuble</h2>
                     <p className="text-sm text-gray-600 mt-1">
                       Documents liés aux interventions réalisées dans cet immeuble
                     </p>

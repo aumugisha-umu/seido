@@ -9,9 +9,7 @@ import { BuildingRepository } from '../../repositories/building.repository'
 import { UserService } from '../../domain/user.service'
 import { BuildingTestDataFactory, UserTestDataFactory } from '../helpers/test-data'
 import {
-  ValidationException,
-  ConflictException,
-  NotFoundException
+  ValidationException
 } from '../../core/error-handler'
 
 // Mock the repositories
@@ -20,8 +18,8 @@ vi.mock('../../domain/user.service')
 
 describe('BuildingService (Simplified)', () => {
   let service: BuildingService
-  let mockRepository: any
-  let mockUserService: any
+  let mockRepository: Partial<BuildingRepository>
+  let mockUserService: Partial<UserService>
 
   beforeEach(() => {
     vi.clearAllMocks()

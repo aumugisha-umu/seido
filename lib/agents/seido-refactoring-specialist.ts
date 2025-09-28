@@ -419,7 +419,7 @@ export class SEIDORefactoringSpecialist {
     // Run linting
   }
 
-  private async executeTaskByType(task: SEIDORefactoringTask): Promise<any> {
+  private async executeTaskByType(task: SEIDORefactoringTask): Promise<{ success: boolean; changes: unknown[]; metrics: unknown; warnings: unknown[] }> {
     switch (task.type) {
       case 'extract-component':
         return await this.extractComponent(task)
@@ -452,27 +452,27 @@ export class SEIDORefactoringSpecialist {
   /**
    * Refactoring Implementations
    */
-  private async extractComponent(task: SEIDORefactoringTask) {
+  private async extractComponent(_task: SEIDORefactoringTask) {
     // Implementation for component extraction
     return { success: true, changes: [], metrics: this.metrics, warnings: [] }
   }
 
-  private async consolidateHooks(task: SEIDORefactoringTask) {
+  private async consolidateHooks(_task: SEIDORefactoringTask) {
     // Implementation for hook consolidation
     return { success: true, changes: [], metrics: this.metrics, warnings: [] }
   }
 
-  private async optimizeService(task: SEIDORefactoringTask) {
+  private async optimizeService(_task: SEIDORefactoringTask) {
     // Implementation for service optimization
     return { success: true, changes: [], metrics: this.metrics, warnings: [] }
   }
 
-  private async standardizeUI(task: SEIDORefactoringTask) {
+  private async standardizeUI(_task: SEIDORefactoringTask) {
     // Implementation for UI standardization with shadcn/ui
     return { success: true, changes: [], metrics: this.metrics, warnings: [] }
   }
 
-  private async improveAccessibility(task: SEIDORefactoringTask) {
+  private async improveAccessibility(_task: SEIDORefactoringTask) {
     // Implementation for accessibility improvements
     return { success: true, changes: [], metrics: this.metrics, warnings: [] }
   }
@@ -593,7 +593,7 @@ export class SEIDORefactoringSpecialist {
   /**
    * Collaboration methods with other SEIDO agents
    */
-  private async collaborateWithAPIDesigner(context: string) {
+  private async collaborateWithAPIDesigner(_context: string) {
     return {
       suggestions: [
         'Consolidate intervention status endpoints for better performance',
@@ -609,7 +609,7 @@ export class SEIDORefactoringSpecialist {
     }
   }
 
-  private async collaborateWithBackendDeveloper(context: string) {
+  private async collaborateWithBackendDeveloper(_context: string) {
     return {
       suggestions: [
         'Break down intervention-actions-service.ts into focused services',
@@ -625,7 +625,7 @@ export class SEIDORefactoringSpecialist {
     }
   }
 
-  private async collaborateWithFrontendDeveloper(context: string) {
+  private async collaborateWithFrontendDeveloper(_context: string) {
     return {
       suggestions: [
         'Consolidate intervention hooks for better reusability',
@@ -641,7 +641,7 @@ export class SEIDORefactoringSpecialist {
     }
   }
 
-  private async collaborateWithUIDesigner(context: string) {
+  private async collaborateWithUIDesigner(_context: string) {
     return {
       suggestions: [
         'Simplify intervention creation flow for tenants',
@@ -658,7 +658,7 @@ export class SEIDORefactoringSpecialist {
     }
   }
 
-  private createCollaborativeRefactoringPlan(collaborations: any) {
+  private createCollaborativeRefactoringPlan(collaborations: { api: { suggestions: string[] }; backend: { suggestions: string[] }; frontend: { suggestions: string[] }; ux: { suggestions: string[] } }) {
     return {
       phase1: {
         title: 'API & Backend Optimization',

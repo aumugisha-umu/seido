@@ -23,6 +23,13 @@ export interface InterventionAction {
 export interface ApprovalData {
   action: "approve" | "reject"
   rejectionReason?: string
+}
+
+export interface APIResponse {
+  success: boolean
+  message?: string
+  data?: unknown
+  error?: string
   internalComment?: string
 }
 
@@ -71,7 +78,7 @@ export class InterventionActionsService {
    * Actions d'approbation/rejet
    */
   // Nouvelles méthodes simplifiées pour le workflow
-  async approveIntervention(intervention: InterventionAction): Promise<any> {
+  async approveIntervention(intervention: InterventionAction): Promise<APIResponse> {
     console.log(`✅ Approving intervention ${intervention.id}`)
 
     const response = await fetch('/api/intervention-approve', {
@@ -94,7 +101,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async rejectIntervention(intervention: InterventionAction, reason: string): Promise<any> {
+  async rejectIntervention(intervention: InterventionAction, reason: string): Promise<APIResponse> {
     console.log(`❌ Rejecting intervention ${intervention.id}`)
     console.log(`📝 Rejection reason: ${reason}`)
 
@@ -123,7 +130,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async startIntervention(intervention: InterventionAction): Promise<any> {
+  async startIntervention(intervention: InterventionAction): Promise<APIResponse> {
     console.log(`🚀 Starting intervention ${intervention.id}`)
 
     const response = await fetch('/api/intervention-start', {
@@ -146,7 +153,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async completeByProvider(intervention: InterventionAction, report: string): Promise<any> {
+  async completeByProvider(intervention: InterventionAction, report: string): Promise<APIResponse> {
     console.log(`✅ Completing intervention ${intervention.id} by provider`)
 
     const response = await fetch('/api/intervention-complete-provider', {
@@ -170,7 +177,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async validateByTenant(intervention: InterventionAction): Promise<any> {
+  async validateByTenant(intervention: InterventionAction): Promise<APIResponse> {
     console.log(`✅ Validating intervention ${intervention.id} by tenant`)
 
     const response = await fetch('/api/intervention-validate-tenant', {
@@ -193,7 +200,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async contestByTenant(intervention: InterventionAction, contestReason: string): Promise<any> {
+  async contestByTenant(intervention: InterventionAction, contestReason: string): Promise<APIResponse> {
     console.log(`⚠️ Contesting intervention ${intervention.id} by tenant`)
 
     const response = await fetch('/api/intervention-contest-tenant', {
@@ -217,7 +224,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async finalizeByManager(intervention: InterventionAction): Promise<any> {
+  async finalizeByManager(intervention: InterventionAction): Promise<APIResponse> {
     console.log(`🏁 Finalizing intervention ${intervention.id} by manager`)
 
     const response = await fetch('/api/intervention-finalize-manager', {
@@ -240,7 +247,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async cancelIntervention(intervention: InterventionAction, reason: string): Promise<any> {
+  async cancelIntervention(intervention: InterventionAction, reason: string): Promise<APIResponse> {
     if (!reason?.trim()) {
       throw new Error("Le motif d'annulation est requis")
     }
@@ -268,7 +275,7 @@ export class InterventionActionsService {
     return result
   }
 
-  async confirmSlot(interventionId: string, slotData: { date: string; startTime: string; endTime: string; }, comment?: string): Promise<any> {
+  async confirmSlot(interventionId: string, slotData: { date: string; startTime: string; endTime: string; }, comment?: string): Promise<APIResponse> {
     console.log(`📅 Confirming slot for intervention ${interventionId}`)
     console.log(`🕐 Selected slot: ${slotData.date} ${slotData.startTime}-${slotData.endTime}`)
 

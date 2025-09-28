@@ -145,7 +145,7 @@ interface InterventionDetail {
     reviewedAt?: string
     reviewComments?: string
     rejectionReason?: string
-    attachments: Array<any>
+    attachments: Array<{ id: string; name: string; url?: string; [key: string]: unknown }>
     isCurrentUserQuote?: boolean
   }>
 }
@@ -172,7 +172,7 @@ interface InterventionDetailTabsProps {
   userRole: 'gestionnaire' | 'prestataire' | 'locataire'
   userId: string
   onDataChange?: () => void
-  onDownloadAttachment?: (attachment: any) => void
+  onDownloadAttachment?: (attachment: { id: string; name: string; url?: string; [key: string]: unknown }) => void
   onResendRequest?: (requestId: string) => void
   onCancelRequest?: (requestId: string) => void
   onNewRequest?: (requestId: string) => void
@@ -200,8 +200,8 @@ export function InterventionDetailTabs({
   onApprove,
   onReject,
   onCancel,
-  onOpenQuoteModal,
-  onCancelQuote,
+  // onOpenQuoteModal,
+  // onCancelQuote,
 }: InterventionDetailTabsProps) {
   const [activeTab, setActiveTab] = useState("general")
 

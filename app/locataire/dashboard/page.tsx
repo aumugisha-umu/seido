@@ -1,15 +1,21 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Home,
   Wrench,
   User,
-  MessageCircle,
-  Plus
+  MessageCircle
 } from "lucide-react"
 import { requireRole } from "@/lib/dal"
-import { userService, lotService, interventionService, buildingService } from "@/lib/database-service"
+// import { createServerUserService } from '@/lib/services' // TODO: implement when ready
+
+
+
 import { LocataireDashboardClient } from "./locataire-dashboard-client"
+
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 /**
  * 🔐 DASHBOARD LOCATAIRE - SERVER COMPONENT (Migration Server Components)
@@ -26,11 +32,10 @@ export default async function LocataireDashboard() {
   const user = await requireRole('locataire')
 
   // ✅ LAYER 2: Data Layer Security - Récupération données locataire
-  let tenantData: any = null
-  let tenantInterventions: any[] = []
-  let pendingActions: any[] = []
-  let loading = false
-  let error = null
+  let tenantData: { id: string; building_id?: string; building?: any; reference: string; category?: string; floor?: number; rooms?: string; surface_area?: number; charges_amount?: number } | null = null
+  let tenantInterventions: { id: string; title: string; description: string; status: string; created_at: string; urgency_level?: string }[] = []
+  let pendingActions: { id: string; type: string; title: string; description: string; priority: string; href: string }[] = []
+  let error: string | null = null
 
   try {
     console.log('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data for user:', user.id)
@@ -275,123 +280,6 @@ export default async function LocataireDashboard() {
   )
 }
 
-function LoadingSkeleton() {
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-      {/* Header skeleton */}
-      <div className="text-center lg:text-left mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <Skeleton className="h-8 w-64 mb-2 mx-auto lg:mx-0" />
-            <Skeleton className="h-5 w-80 mx-auto lg:mx-0" />
-          </div>
-          <Skeleton className="h-12 w-48 mx-auto lg:mx-0" />
-        </div>
-      </div>
-
-      {/* Informations du logement skeleton */}
-      <Card className="mb-8">
-        <CardHeader className="pb-4">
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-5 w-48" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-40 rounded-full" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Interventions en cours skeleton */}
-      <Card className="mb-8">
-        <CardHeader className="pb-4">
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="border rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Skeleton className="w-5 h-5 mt-0.5" />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="h-5 w-40" />
-                      <Skeleton className="h-6 w-20" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                    <Skeleton className="h-4 w-64" />
-                    <div className="space-y-1">
-                      <Skeleton className="h-3 w-32" />
-                      <Skeleton className="h-3 w-36" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-          {/* Interventions skeleton */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Skeleton className="w-5 h-5" />
-          <Skeleton className="h-6 w-48" />
-        </div>
-        
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            {/* Tab skeleton */}
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-32" />
-              <Skeleton className="h-10 w-32" />
-            </div>
-            
-            {/* Grid skeleton */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3 flex-1">
-                      <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                        <Skeleton className="h-5 w-40" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-8 w-16" />
-                  </div>
-                  <div className="flex gap-2">
-                      <Skeleton className="h-6 w-20" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                  <Skeleton className="h-4 w-full" />
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex gap-3">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-4 w-18" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      </div>
-    </div>
-  )
-}
+// LoadingSkeleton component removed as it was unused
 
 // Les fonctions de style sont maintenant gérées par les utilitaires dans /lib/intervention-utils

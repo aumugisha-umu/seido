@@ -12,20 +12,14 @@
 import type { Database } from './database.types'
 import type { AuthUser } from './auth-service'
 
-// Import conditionnel pour éviter les erreurs côté client
-let dalFunctions: any = null
-
-async function loadDalFunctions() {
-  if (typeof window === 'undefined' && !dalFunctions) {
-    // Côté serveur uniquement
-    try {
-      dalFunctions = await import('./dal')
-    } catch (error) {
-      console.warn('DAL server functions not available')
-    }
-  }
-  return dalFunctions
+// Types pour les fonctions DAL
+interface DalFunctions {
+  verifySession: () => Promise<{ isValid: boolean; user?: AuthUser }>;
+  redirect: (path: string) => void;
 }
+
+// Import conditionnel pour éviter les erreurs côté client
+const dalFunctions: DalFunctions | null = null
 
 export type UserRole = Database['public']['Enums']['user_role']
 
@@ -248,7 +242,7 @@ export const isInAuthTransition = (pathname: string): boolean => {
 export const logRoutingDecision = (
   decision: RedirectionDecision,
   user: AuthUser | null,
-  context: any
+  context: Record<string, unknown>
 ) => {
   console.log('🎯 [AUTH-ROUTER] Redirection decision:', {
     strategy: decision.strategy,
@@ -264,7 +258,7 @@ export const logRoutingDecision = (
 /**
  * Vérifie si l'utilisateur peut accéder à une route donnée (DAL Integration - Server Only)
  */
-export async function canAccessRoute(pathname: string): Promise<{ canAccess: boolean; redirectTo?: string; user?: any }> {
+export async function canAccessRoute(pathname: string): Promise<{ canAccess: boolean; redirectTo?: string; user?: AuthUser }> {
   try {
     // Routes publiques → toujours autorisées
     if (PUBLIC_ROUTES.some(route => pathname === route)) {
@@ -319,7 +313,7 @@ export async function canAccessRoute(pathname: string): Promise<{ canAccess: boo
 /**
  * Protection de route côté serveur - à utiliser dans les layouts
  */
-export async function protectRoute(pathname: string): Promise<{ user: any }> {
+export async function protectRoute(pathname: string): Promise<{ user: AuthUser | null }> {
   if (typeof window !== 'undefined') {
     throw new Error('protectRoute can only be used server-side')
   }

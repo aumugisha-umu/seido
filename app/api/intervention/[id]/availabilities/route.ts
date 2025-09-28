@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService } from '@/lib/database-service'
+
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log("📅 GET availabilities API called for intervention:", params.id)
+  const { id } = await params
+  console.log("📅 GET availabilities API called for intervention:", id)
 
   try {
     // Initialize Supabase client
@@ -52,7 +53,7 @@ export async function GET(
       }, { status: 404 })
     }
 
-    const interventionId = params.id
+    const interventionId = id
 
     // Verify intervention exists and user has access
     const { data: intervention, error: interventionError } = await supabase

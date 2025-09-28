@@ -9,8 +9,6 @@
  * - Dashboard component optimization
  */
 
-import { readFileSync, writeFileSync } from 'fs'
-import { join } from 'path'
 
 /**
  * SEIDO-specific refactoring patterns

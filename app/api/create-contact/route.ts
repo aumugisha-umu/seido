@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { contactService } from '@/lib/database-service'
+
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 

@@ -8,8 +8,6 @@
  * - Désynchronisation client/serveur
  */
 
-import { supabase } from './supabase'
-import { logRoutingDecision } from './auth-router'
 
 /**
  * Erreurs d'authentification non-récupérables
@@ -123,7 +121,7 @@ export const clearSupabaseCookies = (): void => {
           try {
             document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`
             document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path};`
-          } catch (e) {
+          } catch {
             // Ignore errors for invalid domain/path combinations
           }
         })
@@ -239,9 +237,9 @@ if (typeof window !== 'undefined') {
 /**
  * Nettoyage complet et redirection vers login (VERSION COMPLEXE TEMPORAIREMENT COMMENTÉE)
  */
-export const cleanupCorruptedSession = async (options: CleanupOptions): Promise<void> => {
+export const cleanupCorruptedSession = async (options?: CleanupOptions): Promise<void> => {
   console.log('⚠️ [SESSION-CLEANUP] Complex cleanup temporarily disabled - use manualSessionCleanup() for testing')
-  
+
   // Fallback vers la fonction simple
   await manualSessionCleanup()
   
@@ -399,7 +397,7 @@ export const detectCorruptedSessionOnLoad = async (): Promise<boolean> => {
     const { data: { session }, error } = await Promise.race([
       sessionPromise,
       timeoutPromise
-    ]) as any
+    ]) as { data: { session: unknown }, error: Error | null }
     
     if (error) {
       console.log('🚨 [SESSION-DETECTION] Session error detected:', error.message)

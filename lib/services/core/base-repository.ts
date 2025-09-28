@@ -21,9 +21,9 @@ import {
  * with type safety and error handling
  */
 export abstract class BaseRepository<
-  TRow extends Record<string, any> = Record<string, any>,
-  TInsert extends Record<string, any> = Record<string, any>,
-  TUpdate extends Record<string, any> = Record<string, any>
+  TRow extends Record<string, unknown> = Record<string, unknown>,
+  TInsert extends Record<string, unknown> = Record<string, unknown>,
+  TUpdate extends Record<string, unknown> = Record<string, unknown>
 > {
   protected readonly supabase: SupabaseClient<Database>
   protected readonly tableName: string
@@ -41,7 +41,7 @@ export abstract class BaseRepository<
   async create(data: TInsert): Promise<RepositoryResponse<TRow>> {
     try {
       const { data: result, error } = await this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .insert(data)
         .select()
         .single()
@@ -75,7 +75,7 @@ export abstract class BaseRepository<
       }
 
       const { data, error } = await this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .select('*')
         .eq('id', id)
         .single()
@@ -107,13 +107,13 @@ export abstract class BaseRepository<
   ): Promise<RepositoryListResponse<TRow>> {
     try {
       let query = this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .select('*')
 
       // Apply filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          query = query.eq(key, value as any)
+          query = query.eq(key, value as unknown)
         }
       })
 
@@ -169,13 +169,13 @@ export abstract class BaseRepository<
 
       // Get total count
       let countQuery = this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .select('*', { count: 'exact', head: true })
 
       // Apply filters to count query
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          countQuery = countQuery.eq(key, value as any)
+          countQuery = countQuery.eq(key, value as unknown)
         }
       })
 
@@ -202,13 +202,13 @@ export abstract class BaseRepository<
 
       // Get data
       let dataQuery = this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .select('*')
 
       // Apply filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          dataQuery = dataQuery.eq(key, value as any)
+          dataQuery = dataQuery.eq(key, value as unknown)
         }
       })
 
@@ -281,7 +281,7 @@ export abstract class BaseRepository<
       }
 
       const { data: result, error } = await this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .update(data)
         .eq('id', id)
         .select()
@@ -315,7 +315,7 @@ export abstract class BaseRepository<
       }
 
       const { error } = await this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .delete()
         .eq('id', id)
 
@@ -341,7 +341,7 @@ export abstract class BaseRepository<
       validateUUID(id)
 
       const { data, error } = await this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .select('id')
         .eq('id', id)
         .single()
@@ -365,13 +365,13 @@ export abstract class BaseRepository<
   async count(filters: FilterOptions = {}): Promise<RepositoryResponse<number>> {
     try {
       let query = this.supabase
-        .from(this.tableName as any)
+        .from(this.tableName as keyof Database['public']['Tables'])
         .select('*', { count: 'exact', head: true })
 
       // Apply filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          query = query.eq(key, value as any)
+          query = query.eq(key, value as unknown)
         }
       })
 
@@ -456,15 +456,15 @@ export abstract class BaseRepository<
    * Hook called after successful operations
    * Override in concrete repositories for custom logic
    */
-  protected async afterCreate(data: TRow): Promise<void> {
+  protected async afterCreate(): Promise<void> {
     // Override in concrete repositories
   }
 
-  protected async afterUpdate(data: TRow): Promise<void> {
+  protected async afterUpdate(): Promise<void> {
     // Override in concrete repositories
   }
 
-  protected async afterDelete(id: string): Promise<void> {
+  protected async afterDelete(): Promise<void> {
     // Override in concrete repositories
   }
 }

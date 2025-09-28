@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
+import type { User, Team, Contact } from "@/lib/services/core/service-types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Building,
@@ -26,7 +26,6 @@ import {
   MoreHorizontal,
   Copy,
   X,
-  Search,
   AlertTriangle,
   Loader2,
   Users,
@@ -35,15 +34,21 @@ import {
   ChevronUp,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
-import ContactFormModal from "@/components/contact-form-modal"  // Encore utilisé pour la création de gestionnaire
+import ContactFormModal from "@/components/contact-form-modal"  // Encore utilise pour la creation de gestionnaire
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
-import { compositeService, teamService, contactService, contactInvitationService, lotService, determineAssignmentType, type Team } from "@/lib/database-service"
+import { createServerTeamService, createServerBuildingService, createServerLotService, createServerCompositeService, createServerContactInvitationService } from "@/lib/services"
+
+
+
+
+
+
+
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
@@ -88,13 +93,6 @@ const contactTypes = [
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 
-const countries = [
-  "Belgique",
-  "France",
-  "Luxembourg",
-  "Pays-Bas",
-  "Allemagne",
-]
 
 // Mapping des noms de pays vers codes ISO-2
 const countryToISOCode: Record<string, string> = {
@@ -107,7 +105,6 @@ const countryToISOCode: Record<string, string> = {
 
 export default function NewImmeubleePage() {
   const router = useRouter()
-  const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
@@ -127,7 +124,7 @@ export default function NewImmeubleePage() {
   })
   const [lots, setLots] = useState<Lot[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
-  // Contacts assignés au niveau de l'immeuble (format pour ContactSelector)
+  // Contacts assignes au niveau de l'immeuble (format pour ContactSelector)
   const [buildingContacts, setBuildingContacts] = useState<{[contactType: string]: Contact[]}>({
     tenant: [],
     provider: [],
@@ -136,23 +133,22 @@ export default function NewImmeubleePage() {
     insurance: [],
     other: [],
   })
-  const [assignedManagers, setAssignedManagers] = useState<{[key: string]: any[]}>({}) // gestionnaires assignés par lot
-  const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignés par lot
+  const [assignedManagers, setAssignedManagers] = useState<{[key: string]: User[]}>({}) // gestionnaires assignes par lot
+  const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignes par lot
   
-  // [SUPPRIMÉ] États des modals maintenant gérés dans ContactSelector centralisé :
+  // [SUPPRIME] Etats des modals maintenant geres dans ContactSelector centralise :
   // isContactModalOpen, selectedContactType, selectedLotForContact, searchTerm,
   // isContactFormModalOpen, prefilledContactType, existingContacts, isLoadingContacts
   
-  // Référence au ContactSelector pour ouvrir les modals depuis l'extérieur
+  // Reference au ContactSelector pour ouvrir les modals depuis l'exterieur
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
   
-  // États pour la gestion des gestionnaires
+  // Etats pour la gestion des gestionnaires
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false)
   const [selectedLotForManager, setSelectedLotForManager] = useState<string>("")
   
-  // Nouveaux états pour Supabase
-  const [teams, setTeams] = useState<Team[]>([])
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
+  // Nouveaux etats pour Supabase
+  const [teamManagers, setTeamManagers] = useState<User[]>([])
   const [selectedManagerId, setSelectedManagerId] = useState<string>("")
   const [userTeam, setUserTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -160,14 +156,21 @@ export default function NewImmeubleePage() {
   const [isCreating, setIsCreating] = useState(false)
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
   
-  // États pour la création de gestionnaire
+  // Etats pour la creation de gestionnaire
   const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
   
-  // État pour gérer l'affichage des détails de chaque lot
+  // Etat pour gerer l'affichage des details de chaque lot
   const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
 
+  // Initialize services
+  const [teamService] = useState(() => createServerTeamService())
+  const [buildingService] = useState(() => createServerBuildingService())
+  const [lotService] = useState(() => createServerLotService())
+  const [compositeService] = useState(() => createServerCompositeService())
+  const [contactInvitationService] = useState(() => createServerContactInvitationService())
+
   // TOUS LES useEffect DOIVENT AUSSI ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
-  // Charger l'équipe de l'utilisateur et ses gestionnaires
+  // Charger l'equipe de l'utilisateur et ses gestionnaires
   useEffect(() => {
     const loadUserTeamAndManagers = async () => {
       if (!user?.id || teamStatus !== 'verified') {
@@ -178,20 +181,19 @@ export default function NewImmeubleePage() {
         setIsLoading(true)
         setError("")
         
-        // 1. Récupérer les équipes de l'utilisateur
+        // 1. Recuperer les equipes de l'utilisateur
         const userTeams = await teamService.getUserTeams(user.id)
-        setTeams(userTeams)
         
         if (userTeams.length === 0) {
           setError('Vous devez faire partie d\'une équipe pour créer des immeubles')
           return
         }
         
-        // 2. Prendre la première équipe (un gestionnaire n'a normalement qu'une équipe)
+        // 2. Prendre la premiere equipe (un gestionnaire n'a normalement qu'une equipe)
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
         
-        // 3. Récupérer les membres de cette équipe
+        // 3. Recuperer les membres de cette equipe
         let teamMembers = []
         try {
           teamMembers = await teamService.getMembers(primaryTeam.id)
@@ -201,12 +203,12 @@ export default function NewImmeubleePage() {
         }
         
         // 4. Filtrer pour ne garder que les gestionnaires
-        const managers = teamMembers.filter((member: any) => 
+        const managers = teamMembers.filter((member) => 
           member.user && member.user.role === 'gestionnaire'
         )
         
         // 5. TOUJOURS s'assurer que l'utilisateur actuel est disponible s'il est gestionnaire
-        const currentUserExists = managers.find((member: any) => 
+        const currentUserExists = managers.find((member) => 
           member.user.id === user.id
         )
         
@@ -218,15 +220,15 @@ export default function NewImmeubleePage() {
               email: user.email,
               role: user.role
             },
-            role: 'admin' // Le créateur de l'équipe est admin
+            role: 'admin' // Le createur de l'equipe est admin
           }
           managers.push(currentUserAsManager)
         }
         
         setTeamManagers(managers)
         
-        // 6. Sélectionner l'utilisateur actuel par défaut s'il est gestionnaire
-        const currentUserAsMember = managers.find((member: any) => 
+        // 6. Selectionner l'utilisateur actuel par defaut s'il est gestionnaire
+        const currentUserAsMember = managers.find((member) => 
           member.user.id === user.id
         )
         
@@ -247,7 +249,7 @@ export default function NewImmeubleePage() {
     loadUserTeamAndManagers()
   }, [user?.id, teamStatus])
 
-  // Récupérer les comptages par catégorie quand l'équipe est chargée
+  // Recuperer les comptages par categorie quand l'equipe est chargee
   useEffect(() => {
     const loadCategoryCountsByTeam = async () => {
       if (!userTeam?.id) {
@@ -259,14 +261,14 @@ export default function NewImmeubleePage() {
         setCategoryCountsByTeam(counts)
       } catch (error) {
         console.error("Error loading category counts:", error)
-        setCategoryCountsByTeam({}) // Valeur par défaut en cas d'erreur
+        setCategoryCountsByTeam({}) // Valeur par defaut en cas d'erreur
       }
     }
 
     loadCategoryCountsByTeam()
   }, [userTeam?.id])
 
-  // Initialiser le nom par défaut de l'immeuble quand les données sont disponibles
+  // Initialiser le nom par defaut de l'immeuble quand les donnees sont disponibles
   useEffect(() => {
     if (managerData?.buildings && !buildingInfo.name) {
       const nextBuildingNumber = managerData.buildings.length + 1
@@ -277,14 +279,14 @@ export default function NewImmeubleePage() {
     }
   }, [managerData?.buildings, buildingInfo.name])
 
-  // Pré-remplir le responsable de l'immeuble pour tous les lots quand on passe à l'étape 3
+  // Pre-remplir le responsable de l'immeuble pour tous les lots quand on passe a l'etape 3
   useEffect(() => {
     if (currentStep === 3 && selectedManagerId && lots.length > 0) {
       const buildingManager = teamManagers.find(member => member.user.id === selectedManagerId)
       if (buildingManager) {
-        const initialAssignments: {[key: string]: any[]} = {}
+        const initialAssignments: {[key: string]: User[]} = {}
         lots.forEach(lot => {
-          // Vérifier si ce lot n'a pas déjà des gestionnaires assignés
+          // Verifier si ce lot n'a pas deja des gestionnaires assignes
           if (!assignedManagers[lot.id] || assignedManagers[lot.id].length === 0) {
             initialAssignments[lot.id] = [buildingManager]
           } else {
@@ -296,7 +298,7 @@ export default function NewImmeubleePage() {
     }
   }, [currentStep, selectedManagerId, lots, teamManagers])
 
-  // Ouvrir tous les lots par défaut quand on arrive à l'étape 3
+  // Ouvrir tous les lots par defaut quand on arrive a l'etape 3
   useEffect(() => {
     if (currentStep === 3 && lots.length > 0) {
       const allExpanded: {[key: string]: boolean} = {}
@@ -307,18 +309,18 @@ export default function NewImmeubleePage() {
     }
   }, [currentStep, lots])
 
-  // Mettre à jour automatiquement la référence des lots quand leur catégorie change
+  // Mettre a jour automatiquement la reference des lots quand leur categorie change
   useEffect(() => {
     if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
-      return // Attendre que les données de catégorie soient chargées
+      return // Attendre que les donnees de categorie soient chargees
     }
 
-    // Créer dynamiquement le pattern basé sur tous les labels de catégorie possibles
+    // Creer dynamiquement le pattern base sur tous les labels de categorie possibles
     const allCategories = getAllLotCategories()
     const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
 
-    // Vérifier chaque lot pour voir si sa référence doit être mise à jour
+    // Verifier chaque lot pour voir si sa reference doit etre mise a jour
     const lotsToUpdate: { id: string; newReference: string }[] = []
 
     lots.forEach(lot => {
@@ -333,13 +335,13 @@ export default function NewImmeubleePage() {
       const currentReference = lot.reference
       const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
 
-      // Ne mettre à jour que si la référence est vide ou générée par défaut
+      // Ne mettre a jour que si la reference est vide ou generee par defaut
       if (isEmptyOrDefault && currentReference !== newDefaultReference) {
         lotsToUpdate.push({ id: lot.id, newReference: newDefaultReference })
       }
     })
 
-    // Appliquer toutes les mises à jour en une seule fois
+    // Appliquer toutes les mises a jour en une seule fois
     if (lotsToUpdate.length > 0) {
       setLots(prevLots => 
         prevLots.map(lot => {
@@ -350,14 +352,14 @@ export default function NewImmeubleePage() {
     }
   }, [lots.map(lot => lot.category).join(','), categoryCountsByTeam])
 
-  // Afficher la vérification d'équipe si nécessaire (APRÈS tous les hooks)
+  // Afficher la verification d'equipe si necessaire (APRES tous les hooks)
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
 
   const addLot = () => {
-    // Générer la référence basée sur la catégorie par défaut (appartement)
+    // Generer la reference basee sur la categorie par defaut (appartement)
     const category = "appartement"
     const categoryConfig = getLotCategoryConfig(category)
     const currentCategoryCount = categoryCountsByTeam[category] || 0
@@ -383,7 +385,7 @@ export default function NewImmeubleePage() {
 
   const removeLot = (id: string) => {
     setLots(lots.filter((lot) => lot.id !== id))
-    // Nettoyer l'état d'expansion pour ce lot
+    // Nettoyer l'etat d'expansion pour ce lot
     const newExpandedLots = {...expandedLots}
     delete newExpandedLots[id]
     setExpandedLots(newExpandedLots)
@@ -399,7 +401,7 @@ export default function NewImmeubleePage() {
   const duplicateLot = (id: string) => {
     const lotToDuplicate = lots.find((lot) => lot.id === id)
     if (lotToDuplicate) {
-      // Générer la référence basée sur la catégorie du lot dupliqué
+      // Generer la reference basee sur la categorie du lot duplique
       const category = lotToDuplicate.category || "appartement"
       const categoryConfig = getLotCategoryConfig(category)
       const currentCategoryCount = categoryCountsByTeam[category] || 0
@@ -410,19 +412,19 @@ export default function NewImmeubleePage() {
         id: `lot${Date.now()}`,
         reference: `${categoryConfig.label} ${nextNumber}`,
       }
-      // Ajouter le lot dupliqué en haut de la liste
+      // Ajouter le lot duplique en haut de la liste
       setLots([newLot, ...lots])
-      // Fermer toutes les cartes et ouvrir seulement le lot dupliqué
+      // Fermer toutes les cartes et ouvrir seulement le lot duplique
       setExpandedLots({[newLot.id]: true})
     }
   }
 
-  // Callbacks pour la gestion des contacts (nouvelle interface centralisée avec contexte)
+  // Callbacks pour la gestion des contacts (nouvelle interface centralisee avec contexte)
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
     console.log('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
     
     if (context?.lotId) {
-      // AJOUTER AU LOT SPÉCIFIQUE
+      // AJOUTER AU LOT SPECIFIQUE
       setLotContactAssignments((prev) => {
         const lotId = context.lotId!  // On sait que lotId existe ici
         return {
@@ -434,14 +436,14 @@ export default function NewImmeubleePage() {
         }
       })
     } else {
-      // AJOUTER AUX CONTACTS GÉNÉRAUX DE L'IMMEUBLE
+      // AJOUTER AUX CONTACTS GENERAUX DE L'IMMEUBLE
     setBuildingContacts((prev) => ({
       ...prev,
       [contactType]: [...prev[contactType], contact],
     }))
     }
     
-    // Ajouter aussi à la liste globale des contacts si pas déjà présent
+    // Ajouter aussi a la liste globale des contacts si pas deja present
     if (!contacts.some(c => c.id === contact.id)) {
       setContacts([...contacts, contact])
     }
@@ -453,7 +455,7 @@ export default function NewImmeubleePage() {
       [contactType]: prev[contactType].filter(contact => contact.id !== contactId),
     }))
     
-    // Retirer aussi de la liste globale des contacts si plus utilisé
+    // Retirer aussi de la liste globale des contacts si plus utilise
     const isContactUsedElsewhere = Object.entries(buildingContacts).some(([type, contactsArray]) => 
       type !== contactType && contactsArray.some(c => c.id === contactId)
     ) || Object.values(lotContactAssignments).some(assignments => 
@@ -465,7 +467,7 @@ export default function NewImmeubleePage() {
     }
   }
 
-  // Fonction pour ouvrir le ContactSelector avec un type spécifique (pour les boutons individuels)
+  // Fonction pour ouvrir le ContactSelector avec un type specifique (pour les boutons individuels)
   const openContactModalForType = (contactType: string, lotId?: string) => {
     console.log('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', lotId)
     if (contactSelectorRef.current) {
@@ -475,11 +477,11 @@ export default function NewImmeubleePage() {
     }
   }
 
-  // [SUPPRIMÉ] addContact maintenant géré dans ContactSelector
+  // [SUPPRIME] addContact maintenant gere dans ContactSelector
 
-  const removeContact = (id: string) => {
+  const _removeContact = (id: string) => {
     setContacts(contacts.filter((contact) => contact.id !== id))
-    
+
     // Aussi retirer ce contact de toutes les assignations de lots
     const newLotContactAssignments = { ...lotContactAssignments }
     Object.keys(newLotContactAssignments).forEach(lotId => {
@@ -490,18 +492,18 @@ export default function NewImmeubleePage() {
     setLotContactAssignments(newLotContactAssignments)
   }
 
-  // Fonction pour assigner un contact à un lot spécifique
-  const assignContactToLot = (lotId: string, contactType: string, contact: Contact) => {
-    setLotContactAssignments(prev => ({
-      ...prev,
-      [lotId]: {
-        ...prev[lotId],
-        [contactType]: [...(prev[lotId]?.[contactType] || []), contact]
-      }
-    }))
-  }
+  // Fonction pour assigner un contact a un lot specifique
+  // const _assignContactToLot = (lotId: string, contactType: string, contact: Contact) => {
+  //   setLotContactAssignments(prev => ({
+  //     ...prev,
+  //     [lotId]: {
+  //       ...prev[lotId],
+  //       [contactType]: [...(prev[lotId]?.[contactType] || []), contact]
+  //     }
+  //   }))
+  // }
 
-  // Fonction pour retirer un contact d'un lot spécifique
+  // Fonction pour retirer un contact d'un lot specifique
   const removeContactFromLot = (lotId: string, contactType: string, contactId: string) => {
     setLotContactAssignments(prev => ({
       ...prev,
@@ -512,27 +514,27 @@ export default function NewImmeubleePage() {
     }))
   }
 
-  // Fonction pour obtenir les contacts assignés à un lot par type
+  // Fonction pour obtenir les contacts assignes a un lot par type
   const getLotContactsByType = (lotId: string, contactType: string): Contact[] => {
     return lotContactAssignments[lotId]?.[contactType] || []
   }
 
-  // Fonction pour obtenir tous les contacts assignés à un lot
+  // Fonction pour obtenir tous les contacts assignes a un lot
   const getAllLotContacts = (lotId: string): Contact[] => {
     const lotAssignments = lotContactAssignments[lotId] || {}
     return Object.values(lotAssignments).flat()
   }
 
-  const getContactsByType = (type: string) => {
-    return contacts.filter((contact) => contact.type === type)
-  }
+  // const _getContactsByType = (type: string) => {
+  //   return contacts.filter((contact) => contact.type === type)
+  // }
 
-  const getTotalStats = () => {
-    // Statistiques des lots sans la surface
-    return { totalLots: lots.length }
-  }
+  // const _getTotalStats = () => {
+  //   // Statistiques des lots sans la surface
+  //   return { totalLots: lots.length }
+  // }
 
-  // [SUPPRIMÉ] getFilteredContacts et getSelectedContactTypeInfo maintenant gérés dans ContactSelector
+  // [SUPPRIME] getFilteredContacts et getSelectedContactTypeInfo maintenant geres dans ContactSelector
 
   const canProceedToNextStep = () => {
     if (currentStep === 1) {
@@ -577,7 +579,7 @@ export default function NewImmeubleePage() {
       setIsCreating(true)
       setError("")
 
-      // Préparer les données de l'immeuble
+      // Preparer les donnees de l'immeuble
       const immeubleData = {
         name: buildingInfo.name.trim() || `Immeuble ${buildingInfo.address}`,
         address: buildingInfo.address.trim(),
@@ -589,18 +591,18 @@ export default function NewImmeubleePage() {
         team_id: userTeam!.id,
       }
 
-      // Préparer les données des lots
+      // Preparer les donnees des lots
       const lotsData = lots.map((lot) => ({
         reference: lot.reference.trim(),
         floor: lot.floor ? parseInt(lot.floor) : 0,
         apartment_number: lot.doorNumber.trim() || undefined,
-        surface_area: undefined, // Surface retirée
-        rooms: undefined, // Peut être ajouté plus tard
+        surface_area: undefined, // Surface retiree
+        rooms: undefined, // Peut etre ajoute plus tard
         charges_amount: undefined, // Charges amount removed
         category: lot.category,
       }))
 
-      // Préparer les données des contacts si ils existent
+      // Preparer les donnees des contacts si ils existent
       const contactsData = contacts.map((contact) => ({
         name: contact.name,
         email: contact.email,
@@ -608,21 +610,21 @@ export default function NewImmeubleePage() {
         team_id: userTeam!.id,
       }))
 
-      // Préparer les assignations de contacts aux lots
+      // Preparer les assignations de contacts aux lots
       const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
-        // Trouver l'index du lot dans le tableau lotsData basé sur l'ID
+        // Trouver l'index du lot dans le tableau lotsData base sur l'ID
         const lotIndex = lots.findIndex(lot => lot.id === lotId)
         
-        // Récupérer les contacts classiques assignés à ce lot
+        // Recuperer les contacts classiques assignes a ce lot
         const contactAssignments = Object.entries(assignments).flatMap(([contactType, contacts]) =>
           contacts.map(contact => ({
             contactId: contact.id,
             contactType: contactType,
-            isPrimary: false // Peut être étendu plus tard
+            isPrimary: false // Peut etre etendu plus tard
           }))
         )
         
-        // Ajouter les gestionnaires assignés à ce lot
+        // Ajouter les gestionnaires assignes a ce lot
         const managersForThisLot = assignedManagers[lotId] || []
         const managerAssignments = managersForThisLot.map((manager, index) => ({
           contactId: manager.user.id, // ✅ CORRECTION : utiliser manager.user.id au lieu de manager.id
@@ -638,7 +640,7 @@ export default function NewImmeubleePage() {
         }
       }).filter(item => item.lotIndex !== -1) // Filtrer les lots qui n'existent plus
 
-      // Créer l'immeuble complet avec lots et contacts
+      // Creer l'immeuble complet avec lots et contacts
       const result = await compositeService.createCompleteProperty({
         building: immeubleData,
         lots: lotsData,
@@ -646,7 +648,7 @@ export default function NewImmeubleePage() {
         lotContactAssignments: lotContactAssignmentsData,
       })
 
-      // Gérer le succès avec la nouvelle stratégie
+      // Gerer le succes avec la nouvelle strategie
       await handleSuccess({
         successTitle: "Immeuble créé avec succès",
         successDescription: `L'immeuble "${result.building.name}" avec ${result.lots.length} lot(s) a été créé et assigné à votre équipe.`,
@@ -665,32 +667,32 @@ export default function NewImmeubleePage() {
     }
   }
 
-  const getProgressPercentage = () => {
-    if (currentStep === 1) {
-      const filledFields = Object.values(buildingInfo).filter((value) => value.trim() !== "").length
-      return Math.round((filledFields / 7) * 100)
-    }
-    return 0
-  }
+  // const _getProgressPercentage = () => {
+  //   if (currentStep === 1) {
+  //     const filledFields = Object.values(buildingInfo).filter((value) => value.trim() !== "").length
+  //     return Math.round((filledFields / 7) * 100)
+  //   }
+  //   return 0
+  // }
 
-  // [SUPPRIMÉ] openContactFormModal maintenant géré dans ContactSelector
+  // [SUPPRIME] openContactFormModal maintenant gere dans ContactSelector
 
-  // [SUPPRIMÉ] cleanContactContext maintenant inutile (gestion centralisée dans ContactSelector)
+  // [SUPPRIME] cleanContactContext maintenant inutile (gestion centralisee dans ContactSelector)
 
-  // [SUPPRIMÉ] La fonction openContactModal est maintenant centralisée dans ContactSelector
+  // [SUPPRIME] La fonction openContactModal est maintenant centralisee dans ContactSelector
 
-  // [SUPPRIMÉ] addExistingContactToLot maintenant inutile (gestion centralisée dans ContactSelector)
+  // [SUPPRIME] addExistingContactToLot maintenant inutile (gestion centralisee dans ContactSelector)
 
-  // [SUPPRIMÉ] handleContactCreated maintenant géré dans ContactSelector centralisé
+  // [SUPPRIME] handleContactCreated maintenant gere dans ContactSelector centralise
 
-  const handleGestionnaireCreated = async (contactData: any) => {
+  const handleGestionnaireCreated = async (contactData: Contact) => {
     try {
       if (!userTeam?.id) {
         console.error("No team found for user")
         return
       }
 
-      // Utiliser le service d'invitation pour créer le gestionnaire et optionnellement l'utilisateur
+      // Utiliser le service d'invitation pour creer le gestionnaire et optionnellement l'utilisateur
       const result = await contactInvitationService.createContactWithOptionalInvite({
         type: 'gestionnaire',
         firstName: contactData.firstName,
@@ -704,11 +706,11 @@ export default function NewImmeubleePage() {
         teamId: userTeam.id
       })
 
-      // Si l'invitation a réussi, l'utilisateur sera créé avec les bonnes permissions
-      // Créer l'objet manager pour l'état local
+      // Si l'invitation a reussi, l'utilisateur sera cree avec les bonnes permissions
+      // Creer l'objet manager pour l'etat local
       const newManager = {
         user: {
-          id: result.contact.id, // Utiliser l'ID réel du contact
+          id: result.contact.id, // Utiliser l'ID reel du contact
           name: result.contact.name,
           email: result.contact.email,
           role: 'gestionnaire'
@@ -722,7 +724,7 @@ export default function NewImmeubleePage() {
       
     } catch (error) {
       console.error("Erreur lors de la création du gestionnaire:", error)
-      // Vous pourriez vouloir afficher une notification d'erreur à l'utilisateur ici
+      // Vous pourriez vouloir afficher une notification d'erreur a l'utilisateur ici
     }
   }
 
@@ -730,16 +732,16 @@ export default function NewImmeubleePage() {
     setIsGestionnaireModalOpen(true)
   }
 
-  // Fonctions pour la gestion des gestionnaires assignés aux lots
+  // Fonctions pour la gestion des gestionnaires assignes aux lots
   const openManagerModal = (lotId: string) => {
     setSelectedLotForManager(lotId)
     setIsManagerModalOpen(true)
   }
 
-  const addManagerToLot = (lotId: string, manager: any) => {
+  const addManagerToLot = (lotId: string, manager: User) => {
     setAssignedManagers(prev => {
       const currentManagers = prev[lotId] || []
-      // Vérifier si le gestionnaire n'est pas déjà assigné
+      // Verifier si le gestionnaire n'est pas deja assigne
       const alreadyAssigned = currentManagers.some(m => m.user.id === manager.user.id)
       if (alreadyAssigned) return prev
       
@@ -934,7 +936,7 @@ export default function NewImmeubleePage() {
                               </div>
                             </div>
 
-                            {/* Sélection de catégorie */}
+                            {/* Selection de categorie */}
                             <LotCategorySelector
                               value={lot.category}
                               onChange={(category) => updateLot(lot.id, "category", category)}
@@ -1084,7 +1086,7 @@ export default function NewImmeubleePage() {
                       {expandedLots[lot.id] && (
                         <CardContent className="p-4">
                         <div className="space-y-3">
-                          {/* Section Responsable spécifique du lot */}
+                          {/* Section Responsable specifique du lot */}
                           <div className="border border-purple-200 rounded-lg p-3 bg-purple-50/30">
                             <div className="flex items-center gap-2 mb-2">
                               <Users className="w-4 h-4 text-purple-600" />
@@ -1306,7 +1308,7 @@ export default function NewImmeubleePage() {
                         </div>
                       </div>
 
-                      {/* Adresse complète */}
+                      {/* Adresse complete */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-3.5 h-3.5 text-slate-500" />
@@ -1551,7 +1553,7 @@ export default function NewImmeubleePage() {
           </Card>
         )}
 
-        {/* [SUPPRIMÉ] Contact Selection Modal et Contact Form Modal maintenant gérés dans ContactSelector centralisé */}
+        {/* [SUPPRIME] Contact Selection Modal et Contact Form Modal maintenant geres dans ContactSelector centralise */}
 
         {/* Gestionnaire Creation Modal */}
         <ContactFormModal
@@ -1670,4 +1672,3 @@ export default function NewImmeubleePage() {
     </div>
   )
 }
-

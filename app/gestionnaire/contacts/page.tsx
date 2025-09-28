@@ -1,12 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,16 +11,17 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "lucide-react"
+import { Users, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "lucide-react"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
-import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useContactsData } from "@/hooks/use-contacts-data"
-import { contactService, teamService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
-import { TeamCheckModal } from "@/components/team-check-modal"
+
+
+
+import { determineAssignmentType, contactService, contactInvitationService } from '@/lib/services'
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function ContactsPage() {
@@ -44,7 +42,7 @@ export default function ContactsPage() {
   
   // ✅ Toujours appeler tous les hooks, indépendamment du return early
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const [filteredContacts, setFilteredContacts] = useState<any[]>([])
+  const [filteredContacts, setFilteredContacts] = useState<typeof contacts>([])
   const [filteredInvitations, setFilteredInvitations] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [error, setError] = useState<string | null>(null)

@@ -116,7 +116,7 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
       
       return
     }
-  }, [user, loading, requiredRole, router, callbackGracePeriod])
+  }, [user, loading, requiredRole, router, callbackGracePeriod, pathname])
 
   // ✅ NOUVEAU : Affichage loading amélioré avec messages contextuels
   if (isAuthLoading || callbackGracePeriod) {

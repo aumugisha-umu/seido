@@ -12,9 +12,9 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/utils/supabase/server'
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
 import { requireGuest, invalidateAuth, getDashboardPath } from '@/lib/auth-dal'
-import { userService } from '@/lib/database-service'
+import { createServerUserService } from '@/lib/services'
 import { z } from 'zod'
 
 // ✅ VALIDATION: Schemas Zod pour sécurité server-side
@@ -84,7 +84,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   }
 
   // ✅ AUTHENTIFICATION: Utiliser client server Supabase
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email: validatedData.email,
     password: validatedData.password
@@ -113,7 +113,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   console.log('⏳ [LOGIN-ACTION] Waiting for server-side session to be established...')
 
   // Créer un nouveau client server pour vérifier la session
-  const sessionSupabase = await createClient()
+  const sessionSupabase = await createServerSupabaseClient()
   let sessionEstablished = false
   let retryCount = 0
   const maxRetries = 5
@@ -135,7 +135,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
         }
       }
     } catch (error) {
-      console.log(`⏳ [LOGIN-ACTION] Session check error, retry ${retryCount + 1}/${maxRetries}:`, error.message)
+      console.log(`⏳ [LOGIN-ACTION] Session check error, retry ${retryCount + 1}/${maxRetries}:`, error instanceof Error ? error.message : String(error))
       retryCount++
 
       if (retryCount < maxRetries) {
@@ -155,11 +155,13 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   let dashboardPath = '/admin/dashboard' // Fallback par défaut
 
   try {
-    const userProfile = await userService.findByAuthUserId(data.user.id)
-    if (userProfile && userProfile.role) {
-      dashboardPath = getDashboardPath(userProfile.role)
+    const userService = await createServerUserService()
+    const userResult = await userService.getByAuthUserId(data.user.id)
+
+    if (userResult.success && userResult.data && userResult.data.role) {
+      dashboardPath = getDashboardPath(userResult.data.role)
       console.log('🔄 [LOGIN-ACTION] Redirecting to role-specific dashboard:', {
-        role: userProfile.role,
+        role: userResult.data.role,
         dashboard: dashboardPath,
         sessionEstablished
       })
@@ -198,7 +200,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     console.log('📝 [SIGNUP-ACTION] Data validated for:', validatedData.email)
 
     // ✅ AUTHENTIFICATION: Utiliser client server Supabase
-    const supabase = await createClient()
+    const supabase = await createServerSupabaseClient()
     const { data, error } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,
@@ -267,7 +269,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     console.log('📝 [RESET-PASSWORD-ACTION] Data validated for:', validatedData.email)
 
     // ✅ AUTHENTIFICATION: Utiliser client server Supabase
-    const supabase = await createClient()
+    const supabase = await createServerSupabaseClient()
     const { error } = await supabase.auth.resetPasswordForEmail(validatedData.email, {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`
     })

@@ -7,7 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Building, BuildingInsert, BuildingUpdate } from '../core/service-types'
-import { ValidationException, NotFoundException } from '../core/error-handler'
+import { NotFoundException } from '../core/error-handler'
 import {
   validateRequired,
   validateLength,
@@ -101,8 +101,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     // Post-process to extract primary managers
     const processedData = data?.map(building => ({
       ...building,
-      manager: building.building_contacts?.find((bc: any) =>
-        bc.user?.role === 'manager' && bc.is_primary
+      manager: building.building_contacts?.find((bc: { user?: { role?: string }; is_primary?: boolean }) =>
+        bc.user?.role === 'gestionnaire' && bc.is_primary
       )?.user || null
     }))
 
@@ -158,8 +158,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     // Post-process to extract primary managers
     const processedData = data?.map(building => ({
       ...building,
-      manager: building.building_contacts?.find((bc: any) =>
-        bc.user?.role === 'manager' && bc.is_primary
+      manager: building.building_contacts?.find((bc: { user?: { role?: string }; is_primary?: boolean }) =>
+        bc.user?.role === 'gestionnaire' && bc.is_primary
       )?.user || null
     }))
 
@@ -200,8 +200,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     // Post-process to extract primary managers
     const processedData = data?.map(building => ({
       ...building,
-      manager: building.building_contacts?.find((bc: any) =>
-        bc.user?.role === 'manager' && bc.is_primary
+      manager: building.building_contacts?.find((bc: { user?: { role?: string }; is_primary?: boolean }) =>
+        bc.user?.role === 'gestionnaire' && bc.is_primary
       )?.user || null
     }))
 
@@ -253,6 +253,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       data.manager = data.building_contacts?.[0]?.user || null
 
       // For each lot, extract primary tenant
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data.lots = data.lots?.map((lot: any) => ({
         ...lot,
         tenant: lot.lot_contacts?.[0]?.user || null
@@ -317,6 +318,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     // Calculate lot statistics
     const processedData = data?.map(building => {
       const lots = building.lots || []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const occupiedLots = lots.filter((lot: any) => lot.is_occupied)
 
       return {
@@ -351,34 +353,6 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     return { success: true as const, data }
   }
 
-  /**
-   * Check if building name exists (for validation)
-   */
-  async nameExists(name: string, teamId: string, excludeId?: string) {
-    validateLength(name, 2, 100, 'name')
-
-    let queryBuilder = this.supabase
-      .from(this.tableName)
-      .select('id')
-      .eq('name', name)
-      .eq('team_id', teamId)
-
-    if (excludeId) {
-      queryBuilder = queryBuilder.neq('id', excludeId)
-    }
-
-    const { data, error } = await queryBuilder.single()
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // Not found = name doesn't exist
-        return { success: true as const, exists: false }
-      }
-      return this.handleError(error)
-    }
-
-    return { success: true as const, exists: true }
-  }
 
   /**
    * Bulk update buildings' team
@@ -444,6 +418,32 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     }
 
     return { success: true as const, data: data || [] }
+  }
+
+  /**
+   * Check if building name exists in a team
+   */
+  async nameExists(name: string, teamId?: string, excludeId?: string) {
+    let queryBuilder = this.supabase
+      .from(this.tableName)
+      .select('id')
+      .eq('name', name)
+
+    if (teamId) {
+      queryBuilder = queryBuilder.eq('team_id', teamId)
+    }
+
+    if (excludeId) {
+      queryBuilder = queryBuilder.neq('id', excludeId)
+    }
+
+    const { data, error } = await queryBuilder.limit(1)
+
+    if (error) {
+      return this.handleError(error)
+    }
+
+    return { success: true as const, data: (data && data.length > 0) }
   }
 }
 

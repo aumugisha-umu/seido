@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
+import type { User, Team, Building } from "@/lib/services/core/service-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { useManagerStats } from "@/hooks/use-manager-stats"
-import { buildingService, teamService } from "@/lib/database-service"
+
+
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
@@ -29,10 +31,10 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
   const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
-  const { teamStatus, hasTeam } = useTeamStatus()
+  const { teamStatus } = useTeamStatus()
 
   // States
-  const [building, setBuilding] = useState<any>(null)
+  const [building, setBuilding] = useState<Building | null>(null)
   const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>({
     name: "",
     address: "",
@@ -43,9 +45,8 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
     floors: "",
     description: "",
   })
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
-  const [userTeam, setUserTeam] = useState<any>(null)
+  const [teamManagers, setTeamManagers] = useState<User[]>([])
+  const [userTeam, setUserTeam] = useState<Team | null>(null)
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -305,7 +306,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       {/* Page Title */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          Modifier l'immeuble
+          Modifier l&apos;immeuble
         </h1>
         <p className="text-gray-600 mt-1">
           Modifiez les informations de l'immeuble "{building?.name}"
@@ -331,15 +332,13 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
 
         <Card>
           <CardHeader>
-            <CardTitle>Informations de l'immeuble</CardTitle>
+            <CardTitle>Informations de l&apos;immeuble</CardTitle>
           </CardHeader>
           <CardContent>
             {/* TODO: Migrer vers le nouveau système de building_contacts */}
             <BuildingInfoForm
               buildingInfo={buildingInfo}
               setBuildingInfo={setBuildingInfo}
-              selectedManagerId=""
-              setSelectedManagerId={() => {}}
               teamManagers={[]}
               userTeam={null}
               isLoading={teamManagers.length === 0 && userTeam === null}

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, createContext, useContext } from 'react'
-import { teamService } from '@/lib/database-service'
+import { createTeamService } from '@/lib/services'
 import { useAuth } from './use-auth'
 
 interface TeamStatusContextType {
@@ -42,6 +42,7 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
         return
       }
 
+      const teamService = createTeamService()
       const result = await teamService.ensureUserHasTeam(userId)
       
       if (result.hasTeam) {

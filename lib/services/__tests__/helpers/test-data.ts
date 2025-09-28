@@ -1,4 +1,3 @@
-import type { Database } from '../../../database.types'
 import type {
   User,
   Building,
@@ -104,9 +103,12 @@ export class BuildingTestDataFactory {
     return {
       id: generateId(),
       name: 'Test Building',
-      address: '123 Test Street, Test City',
+      address: '123 Test Street',
+      city: 'Test City',
+      postal_code: '12345',
+      team_id: generateId(), // Always include team_id for testing
+      total_lots: 0,
       description: null,
-      manager_id: generateId(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       ...overrides

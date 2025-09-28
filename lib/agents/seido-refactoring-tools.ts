@@ -9,7 +9,7 @@
  */
 
 import { execSync } from 'child_process'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync } from 'fs'
 import { join } from 'path'
 
 /**
@@ -82,7 +82,7 @@ export class SEIDORefactoringTools {
 
     // Check TypeScript compilation
     try {
-      const tscOutput = execSync('npx tsc --noEmit', {
+      execSync('npx tsc --noEmit', {
         cwd: this.projectRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'pipe']
@@ -93,18 +93,19 @@ export class SEIDORefactoringTools {
         success: true,
         output: 'No type errors found'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const execError = error as { stdout?: string; message?: string }
       allSuccess = false
       results.push({
         tool: 'TypeScript',
         success: false,
-        output: error.stdout || error.message
+        output: execError.stdout || execError.message || 'Unknown error'
       })
     }
 
     // Check ESLint
     try {
-      const eslintOutput = execSync('npx eslint . --ext .ts,.tsx --max-warnings 0', {
+      execSync('npx eslint . --ext .ts,.tsx --max-warnings 0', {
         cwd: this.projectRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'pipe']
@@ -115,18 +116,19 @@ export class SEIDORefactoringTools {
         success: true,
         output: 'No linting errors found'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const execError = error as { stdout?: string; message?: string }
       allSuccess = false
       results.push({
         tool: 'ESLint',
         success: false,
-        output: error.stdout || error.message
+        output: execError.stdout || execError.message || 'Unknown error'
       })
     }
 
     // Check tests
     try {
-      const testOutput = execSync('npm run test:unit', {
+      execSync('npm run test:unit', {
         cwd: this.projectRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'pipe']
@@ -137,12 +139,13 @@ export class SEIDORefactoringTools {
         success: true,
         output: 'All tests passing'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Tests might fail, but we still want to proceed with refactoring
+      const execError = error as { stdout?: string; message?: string }
       results.push({
         tool: 'Vitest',
         success: false,
-        output: error.stdout || error.message
+        output: execError.stdout || execError.message || 'Unknown error'
       })
     }
 
@@ -163,7 +166,7 @@ export class SEIDORefactoringTools {
 
     // Additional build check to ensure nothing is broken
     try {
-      const buildOutput = execSync('npm run build', {
+      execSync('npm run build', {
         cwd: this.projectRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'pipe']
@@ -174,11 +177,12 @@ export class SEIDORefactoringTools {
         success: true,
         output: 'Build successful'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const execError = error as { stdout?: string; message?: string }
       results.results.push({
         tool: 'Next.js Build',
         success: false,
-        output: error.stdout || error.message
+        output: execError.stdout || execError.message || 'Unknown error'
       })
       results.success = false
     }
@@ -191,7 +195,7 @@ export class SEIDORefactoringTools {
    */
   async autoFixESLintIssues(): Promise<{ success: boolean; output: string }> {
     try {
-      const output = execSync('npx eslint . --ext .ts,.tsx --fix', {
+      execSync('npx eslint . --ext .ts,.tsx --fix', {
         cwd: this.projectRoot,
         encoding: 'utf-8'
       })
@@ -200,10 +204,11 @@ export class SEIDORefactoringTools {
         success: true,
         output: 'ESLint auto-fixes applied successfully'
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const execError = error as { stdout?: string; message?: string }
       return {
         success: false,
-        output: error.stdout || error.message
+        output: execError.stdout || execError.message || 'Unknown error'
       }
     }
   }
@@ -317,7 +322,7 @@ export class SEIDORefactoringTools {
     }
 
     // Find actual duplicates (appearing in multiple places)
-    for (const [pattern, data] of patterns) {
+    patterns.forEach((data, pattern) => {
       if (data.files.size > 1 || data.lines.size > 1) {
         duplicates.push({
           pattern: pattern.substring(0, 100) + '...',
@@ -325,7 +330,7 @@ export class SEIDORefactoringTools {
           lines: Array.from(data.lines)
         })
       }
-    }
+    })
 
     const totalLines = sourceFiles.reduce((sum, file) => {
       const content = readFileSync(file, 'utf-8')
@@ -345,9 +350,9 @@ export class SEIDORefactoringTools {
    * Generate refactoring metrics report
    */
   async generateMetricsReport(): Promise<{
-    complexity: any
-    duplication: any
-    typeScript: any
+    complexity: { files: { file: string; complexity: number; score: 'good' | 'medium' | 'high' | 'critical' }[]; averageComplexity: number }
+    duplication: { duplicates: { pattern: string; files: string[]; lines: number[] }[]; duplicationPercentage: number }
+    typeScript: { coverage: number; untyped: string[]; anyUsage: string[] }
     testCoverage: number
     recommendations: string[]
   }> {
@@ -371,7 +376,7 @@ export class SEIDORefactoringTools {
       if (match) {
         testCoverage = parseFloat(match[1])
       }
-    } catch (error) {
+    } catch (_error) {
       console.log('⚠️ Could not get test coverage')
     }
 
@@ -427,7 +432,7 @@ export class SEIDORefactoringTools {
         .filter(file => !file.includes('node_modules'))
         .filter(file => !file.includes('.d.ts'))
         .map(file => join(this.projectRoot, file))
-    } catch (error) {
+    } catch (_error) {
       // Fallback if git is not available
       return []
     }

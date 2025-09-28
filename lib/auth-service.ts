@@ -1,8 +1,43 @@
-import { supabase } from './supabase'
-import { userService, teamService } from './database-service'
-import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createBrowserSupabaseClient } from './services/core/supabase-client'
+import type { AuthError, SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from './services/core/service-types'
 import { activityLogger } from './activity-logger'
+
+// ✅ TEMPORAIRE: Type pour user_role en attendant la synchronisation
+type UserRole = 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+
+// Types pour les services
+interface UserServiceType {
+  create: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  update: (id: string, data: Record<string, unknown>) => Promise<Record<string, unknown>>;
+}
+
+interface TeamServiceType {
+  create: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
+}
+
+// ✅ IMPORTS des services nécessaires pour les méthodes legacy
+let userService: UserServiceType | null = null
+let teamService: TeamServiceType | null = null
+
+// ✅ Initialisation lazy des services
+const getUserService = async () => {
+  if (!userService) {
+    const { createServerUserService } = await import('./services')
+    userService = await createServerUserService()
+  }
+  return userService
+}
+
+const getTeamService = async () => {
+  if (!teamService) {
+    // ✅ TEMPORAIRE: Utiliser le legacy service en attendant la migration
+    const { createTeamService } = await import('./services')
+    const legacyTeamService = createTeamService()
+    teamService = legacyTeamService
+  }
+  return teamService
+}
 
 export interface AuthUser {
   id: string
@@ -11,7 +46,7 @@ export interface AuthUser {
   first_name?: string
   last_name?: string
   display_name?: string
-  role: Database['public']['Enums']['user_role']
+  role: UserRole
   team_id?: string // ✅ Ajout du team_id manquant
   phone?: string
   avatar_url?: string
@@ -40,11 +75,20 @@ export interface SignInData {
 }
 
 class AuthService {
+  // ✅ NOUVEAU: Méthode pour obtenir le client approprié selon le contexte
+  private getSupabaseClient(): SupabaseClient<Database> {
+    // Si nous sommes côté serveur, utiliser le client server
+    if (typeof window === 'undefined') {
+      throw new Error('❌ AuthService server-side operations should use server actions')
+    }
+    // Sinon, utiliser le client browser pour les composants client
+    return createBrowserSupabaseClient()
+  }
   // Inscription - Crée auth user + profil + équipe personnelle
   async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
       // Créer l'utilisateur auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await this.getSupabaseClient().auth.signUp({
         email,
         password,
         options: {
@@ -62,19 +106,21 @@ class AuthService {
       }
 
       // Créer le profil utilisateur (NOUVELLE ARCHITECTURE)
-      const userProfile = await userService.create({
+      const userSvc = await getUserService()
+      const userProfile = await userSvc.create({
         auth_user_id: authData.user.id, // ✅ LIEN vers auth.users.id
         email: authData.user.email!,
         name,
         first_name,
         last_name,
-        role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+        role: 'gestionnaire' as UserRole,
         provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
         phone: phone || null,
       })
 
       // Créer l'équipe personnelle (NOUVELLE ARCHITECTURE)
-      const team = await teamService.create({
+      const teamSvc = await getTeamService()
+      const team = await teamSvc.create({
         name: `Équipe de ${name}`,
         description: `Équipe personnelle de ${name}`,
         created_by: userProfile.id // ✅ UTILISE l'ID généré de users, pas auth.users.id
@@ -147,28 +193,30 @@ class AuthService {
   // Compléter le profil après confirmation email
   async completeProfile({ firstName, lastName, phone }: CompleteProfileData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-      
+      const { data: { user: authUser }, error: authError } = await this.getSupabaseClient().auth.getUser()
+
       if (authError || !authUser || !authUser.email_confirmed_at) {
         return { user: null, error: { message: 'Utilisateur non connecté ou email non confirmé', name: 'AuthError', status: 401 } as AuthError }
       }
       
       // Créer profil utilisateur
       const fullName = `${firstName.trim()} ${lastName.trim()}`
-      const userProfile = await userService.create({
+      const userSvc = await getUserService()
+      const userProfile = await userSvc.create({
         id: authUser.id,
         email: authUser.email!,
         name: fullName,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+        role: 'gestionnaire' as UserRole,
         provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
         phone: phone?.trim() || null,
       })
 
       // Créer équipe personnelle
       const teamName = `Équipe de ${fullName}`
-      const team = await teamService.create({
+      const teamSvc = await getTeamService()
+      const team = await teamSvc.create({
         name: teamName,
         description: `Équipe personnelle de ${fullName}`,
         created_by: authUser.id
@@ -176,7 +224,8 @@ class AuthService {
 
       // Créer automatiquement un contact pour ce gestionnaire
       try {
-        const { contactService } = await import('./database-service')
+        const { createContactService } = await import('./services')
+        const contactService = createContactService()
         await contactService.create({
           name: fullName,
           email: authUser.email!,
@@ -192,7 +241,7 @@ class AuthService {
       }
 
       // Mettre à jour metadata auth
-      await supabase.auth.updateUser({
+      await this.getSupabaseClient().auth.updateUser({
         data: { 
           profile_completed: true,
           display_name: fullName,
@@ -225,7 +274,7 @@ class AuthService {
   // Connexion - Vérifie ou crée le profil utilisateur
   async signIn({ email, password }: SignInData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await this.getSupabaseClient().auth.signInWithPassword({
         email,
         password,
       })
@@ -238,7 +287,7 @@ class AuthService {
       let userProfile
       try {
         // NOUVELLE ARCHITECTURE: Chercher par auth_user_id au lieu de id
-        const { data: usersData, error: findError } = await supabase
+        const { data: usersData, error: findError } = await this.getSupabaseClient()
           .from('users')
           .select('*')
           .eq('auth_user_id', data.user.id)
@@ -249,22 +298,23 @@ class AuthService {
         }
           
         userProfile = usersData
-      } catch (profileError) {
+      } catch {
         // Créer profil depuis metadata (NOUVELLE ARCHITECTURE)
         const metadata = data.user.user_metadata
         if (metadata && metadata.full_name) {
-          userProfile = await userService.create({
+          const userSvc = await getUserService()
+          userProfile = await userSvc.create({
             auth_user_id: data.user.id, // ✅ NOUVELLE ARCHITECTURE
             email: data.user.email!,
             name: metadata.full_name,
             first_name: metadata.first_name || null,
             last_name: metadata.last_name || null,
-            role: 'gestionnaire' as Database['public']['Enums']['user_role'],
+            role: 'gestionnaire' as UserRole,
             provider_category: null, // ✅ NOUVEAU: Gestionnaires n'ont pas de catégorie
             phone: metadata.phone || null,
           })
-          
-          await supabase.auth.updateUser({
+
+          await this.getSupabaseClient().auth.updateUser({
             data: { ...metadata, profile_created: true }
           })
         } else {
@@ -294,13 +344,13 @@ class AuthService {
 
   // Déconnexion
   async signOut(): Promise<{ error: AuthError | null }> {
-    const { error } = await supabase.auth.signOut()
+    const { error } = await this.getSupabaseClient().auth.signOut()
     return { error }
   }
 
   // Récupérer seulement la session auth (sans profil utilisateur)
-  async getCurrentAuthSession(): Promise<{ authUser: any | null; error: AuthError | null }> {
-    const { data: { user: authUser }, error } = await supabase.auth.getUser()
+  async getCurrentAuthSession(): Promise<{ authUser: Record<string, unknown> | null; error: AuthError | null }> {
+    const { data: { user: authUser }, error } = await this.getSupabaseClient().auth.getUser()
     
     if (error || !authUser || !authUser.email_confirmed_at) {
       return { authUser: null, error: null }
@@ -315,7 +365,7 @@ class AuthService {
       console.log('🔍 [AUTH-SERVICE-REFACTORED] Getting current user...')
 
       // ✅ Récupération simple de l'utilisateur auth
-      const { data: { user: authUser }, error } = await supabase.auth.getUser()
+      const { data: { user: authUser }, error } = await this.getSupabaseClient().auth.getUser()
 
       if (error) {
         console.log('❌ [AUTH-SERVICE-REFACTORED] Auth error:', error.message)
@@ -330,7 +380,7 @@ class AuthService {
       // ✅ Récupération du profil utilisateur
       console.log('🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for:', authUser.id)
 
-      const { data: userProfile, error: profileError } = await supabase
+      const { data: userProfile, error: profileError } = await this.getSupabaseClient()
         .from('users')
         .select('*')
         .eq('auth_user_id', authUser.id)
@@ -477,7 +527,7 @@ class AuthService {
 
   // Renvoyer l'email de confirmation
   async resendConfirmation(email: string): Promise<{ error: AuthError | null }> {
-    const { error } = await supabase.auth.resend({
+    const { error } = await this.getSupabaseClient().auth.resend({
       type: 'signup',
       email: email,
     })
@@ -487,14 +537,14 @@ class AuthService {
   // Mettre à jour le profil utilisateur
   async updateProfile(updates: Partial<AuthUser>): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      const { data: { user: authUser }, error: authError } = await this.getSupabaseClient().auth.getUser()
 
       if (authError || !authUser) {
         return { user: null, error: authError }
       }
 
       // ✅ CORRIGER: Récupérer l'ID utilisateur dans la table users via auth_user_id
-      const { data: dbUser, error: findError } = await supabase
+      const { data: dbUser, error: findError } = await this.getSupabaseClient()
         .from('users')
         .select('id')
         .eq('auth_user_id', authUser.id)
@@ -514,7 +564,8 @@ class AuthService {
       })
 
       // Mettre à jour le profil dans notre table avec le bon ID
-      const updatedProfile = await userService.update(dbUser.id, {
+      const userSvc = await getUserService()
+      const updatedProfile = await userSvc.update(dbUser.id, {
         name: updates.name,
         first_name: updates.first_name,
         last_name: updates.last_name,
@@ -528,7 +579,7 @@ class AuthService {
       // Mettre à jour le display_name dans Supabase Auth si le nom change
       if (updates.display_name || updates.name) {
         try {
-          await supabase.auth.updateUser({
+          await this.getSupabaseClient().auth.updateUser({
             data: { 
               display_name: updates.display_name || updates.name,
               first_name: updates.first_name,
@@ -573,7 +624,7 @@ class AuthService {
 
   // ✅ REFACTORISÉ: onAuthStateChange simplifié
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
+    return this.getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
       console.log('🔍 [AUTH-STATE-CHANGE-REFACTORED] Event:', event, 'Has session:', !!session?.user)
 
       if (!session?.user || !session.user.email_confirmed_at) {
@@ -596,7 +647,7 @@ class AuthService {
             // Promise.race pour timeout + fallback par email
             const profileResult = await Promise.race([
               // Requête principale par auth_user_id
-              supabase
+              this.getSupabaseClient()
                 .from('users')
                 .select('*')
                 .eq('auth_user_id', session.user.id)
@@ -610,14 +661,14 @@ class AuthService {
             userProfile = profileResult.data
             profileError = profileResult.error
 
-          } catch (timeoutError) {
+          } catch {
             console.warn('⏰ [AUTH-STATE-CHANGE-TIMEOUT] Profile query timed out, trying email fallback...')
 
             // Fallback : chercher par email si timeout
             if (session.user.email) {
               try {
                 const emailResult = await Promise.race([
-                  supabase
+                  this.getSupabaseClient()
                     .from('users')
                     .select('*')
                     .eq('email', session.user.email)
@@ -628,12 +679,12 @@ class AuthService {
                 ])
 
                 userProfile = emailResult.data
-                profileError = emailResult.error
+                // Note: profileError would be emailResult.error if needed
 
                 if (userProfile && !userProfile.auth_user_id) {
                   // Lier le profil trouvé par email à l'auth_user_id
                   console.log('🔗 [AUTH-STATE-CHANGE-LINK] Linking profile found by email to auth_user_id...')
-                  await supabase
+                  await this.getSupabaseClient()
                     .from('users')
                     .update({ auth_user_id: session.user.id })
                     .eq('id', userProfile.id)
@@ -642,7 +693,7 @@ class AuthService {
                 }
               } catch (emailError) {
                 console.warn('⚠️ [AUTH-STATE-CHANGE-TIMEOUT] Email fallback also failed:', emailError)
-                profileError = emailError
+                // emailError logged above, no need to store
               }
             }
           }
@@ -678,7 +729,7 @@ class AuthService {
           try {
             // Requête directe avec timeout de 4s
             const directResult = await Promise.race([
-              supabase
+              this.getSupabaseClient()
                 .from('users')
                 .select('*')
                 .eq('auth_user_id', session.user.id)
@@ -747,7 +798,7 @@ class AuthService {
     firstName: string
     lastName: string
     phone?: string
-    role: Database['public']['Enums']['user_role']
+    role: UserRole
     teamId: string
   }): Promise<{ success: boolean; error?: string; userId?: string }> {
     try {

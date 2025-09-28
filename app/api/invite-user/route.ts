@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { userService, teamService } from '@/lib/database-service'
+import { createServerUserService, createServerTeamService } from '@/lib/services'
 import { activityLogger } from '@/lib/activity-logger'
 import { getServerSession } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
@@ -33,14 +33,20 @@ export async function POST(request: Request) {
       )
     }
 
+    // Initialize services
+    const userService = await createServerUserService()
+    const teamService = await createServerTeamService()
+
     // Récupérer le profil utilisateur pour avoir le bon ID
-    const currentUserProfile = await userService.findByAuthUserId(session.user.id)
-    if (!currentUserProfile) {
+    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
+    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
       return NextResponse.json(
         { error: 'Profil utilisateur non trouvé' },
         { status: 404 }
       )
     }
+
+    const currentUserProfile = currentUserProfileResult.data
 
     // Vérifier si le service d'invitation est disponible
     if (!supabaseAdmin) {
@@ -174,7 +180,8 @@ export async function POST(request: Request) {
 
     try {
       // Vérifier si l'utilisateur existe déjà
-      const existingUser = await userService.findByEmail(email)
+      const existingUserResult = await userService.getByEmail(email)
+      const existingUser = existingUserResult.success ? existingUserResult.data : null
 
       if (existingUser) {
         console.log('✅ [STEP-2] User already exists:', existingUser.id)
@@ -182,14 +189,18 @@ export async function POST(request: Request) {
 
         // Si on a créé un auth et que le user n'a pas encore d'auth_user_id, le lier
         if (authUserId && !existingUser.auth_user_id) {
-          await userService.update(existingUser.id, {
+          const linkResult = await userService.update(existingUser.id, {
             auth_user_id: authUserId
           })
-          console.log('✅ [STEP-2] Linked existing user to new auth:', authUserId)
+          if (linkResult.success) {
+            console.log('✅ [STEP-2] Linked existing user to new auth:', authUserId)
+          } else {
+            console.error('❌ [STEP-2] Failed to link existing user to auth:', linkResult.error)
+          }
         }
       } else {
         // Créer nouveau user avec auth_user_id déjà défini si invitation
-        userProfile = await userService.create({
+        const createUserResult = await userService.create({
           auth_user_id: authUserId, // ✅ DÉJÀ DÉFINI si invitation, null sinon
           email: email,
           name: `${firstName} ${lastName}`,
@@ -203,6 +214,13 @@ export async function POST(request: Request) {
           is_active: true,
           password_set: authUserId ? false : true // ✅ NOUVEAU: false si invitation (auth créé), true sinon
         })
+
+        if (!createUserResult.success || !createUserResult.data) {
+          console.error('❌ [STEP-2] User creation failed:', createUserResult.error)
+          throw new Error('Failed to create user: ' + (createUserResult.error?.message || 'Unknown error'))
+        }
+
+        userProfile = createUserResult.data
         console.log('✅ [STEP-2] User profile created with auth_user_id:', authUserId || 'null')
       }
     } catch (userError) {
@@ -215,8 +233,12 @@ export async function POST(request: Request) {
 
     // ÉTAPE 3: Ajouter à l'équipe
     try {
-      await teamService.addMember(teamId, userProfile.id, 'member')
-      console.log('✅ [STEP-3] User added to team:', teamId)
+      const addMemberResult = await teamService.addMember(teamId, userProfile.id, 'member')
+      if (addMemberResult.success) {
+        console.log('✅ [STEP-3] User added to team:', teamId)
+      } else {
+        console.log('⚠️ [STEP-3] User might already be in team or team error:', addMemberResult.error)
+      }
     } catch (teamError) {
       console.log('⚠️ [STEP-3] User might already be in team or team error:', teamError)
       // Non bloquant, continuer

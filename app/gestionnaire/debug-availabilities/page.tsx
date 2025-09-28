@@ -3,8 +3,46 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
+interface User {
+  id: string
+  name: string
+  role: string
+}
+
+interface UserAvailability {
+  id: string
+  intervention_id: string
+  user_id: string
+  date: string
+  start_time: string
+  end_time: string
+  user?: User
+}
+
+interface Intervention {
+  id: string
+  title: string
+  status: string
+  [key: string]: unknown
+}
+
+interface DebugResults {
+  intervention?: Intervention
+  availabilities?: UserAvailability[]
+  availabilitiesCount: number
+  providerAvails: UserAvailability[]
+  providers?: User[]
+  providersCount: number
+  errors: {
+    availError?: unknown
+    intError?: unknown
+    provError?: unknown
+  }
+  error?: unknown
+}
+
 export default function DebugAvailabilitiesPage() {
-  const [results, setResults] = useState<any>(null)
+  const [results, setResults] = useState<DebugResults | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

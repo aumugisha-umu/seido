@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService, tenantService, teamService, buildingService } from '@/lib/database-service'
+
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+
 
 export async function POST(request: NextRequest) {
   console.log("🔧 create-intervention API route called")

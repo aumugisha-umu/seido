@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { Plus, Bell, Menu, X, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -26,7 +25,6 @@ interface TenantHeaderProps {
 export default function TenantHeader({ className }: TenantHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { user, signOut } = useAuth()
-  const pathname = usePathname()
   const { unreadCount: globalUnreadCount } = useGlobalNotifications()
   
   const userName = user?.display_name || user?.name || "Marie Dupont"
@@ -43,8 +41,6 @@ export default function TenantHeader({ className }: TenantHeaderProps) {
     }
   }
 
-  // Badge de notification pour les nouvelles demandes (exemple avec 2)
-  const pendingRequestsCount = 2
 
   return (
     <>

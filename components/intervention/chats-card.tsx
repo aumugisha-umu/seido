@@ -68,7 +68,7 @@ export function ChatsCard({ chats }: ChatsCardProps) {
             </div>
             <div className="ml-6 space-y-1">
               <p className="text-sm text-gray-700 leading-relaxed">
-                Dernier message: "{groupChat.lastMessage}" - {groupChat.lastMessageSender}
+                Dernier message: &ldquo;{groupChat.lastMessage}&rdquo; - {groupChat.lastMessageSender}
               </p>
               <p className="text-xs text-green-600 font-medium">{groupChat.lastMessageTime}</p>
             </div>
@@ -103,7 +103,7 @@ export function ChatsCard({ chats }: ChatsCardProps) {
                   </Button>
                 </div>
                 <div className="ml-6 space-y-1">
-                  <p className="text-sm text-gray-700 leading-relaxed">"{chat.lastMessage}"</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">&ldquo;{chat.lastMessage}&rdquo;</p>
                   <p className="text-xs text-purple-600 font-medium">{chat.lastMessageTime}</p>
                 </div>
               </div>

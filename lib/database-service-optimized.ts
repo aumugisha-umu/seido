@@ -24,7 +24,7 @@ class DatabaseError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message)
     this.name = 'DatabaseError'
@@ -105,7 +105,7 @@ export const buildingServiceOptimized = {
       const processed = (data || []).map(building => ({
         ...building,
         manager: building.building_contacts?.find(
-          (bc: any) => bc.user?.role === 'gestionnaire' && bc.is_primary
+          (bc: { user?: { role: string }; is_primary: boolean }) => bc.user?.role === 'gestionnaire' && bc.is_primary
         )?.user || null
       }))
 
@@ -204,15 +204,15 @@ export const lotServiceOptimized = {
       // Best Practice: Efficient post-processing
       return (data || []).map(lot => {
         const tenants = lot.lot_contacts?.filter(
-          (contact: any) => contact.user?.role === 'locataire'
+          (contact: { user?: { role: string } }) => contact.user?.role === 'locataire'
         ) || []
 
         return {
           ...lot,
           is_occupied: tenants.length > 0,
-          tenant: tenants.find((t: any) => t.is_primary)?.user ||
+          tenant: tenants.find((t: { is_primary: boolean; user?: unknown }) => t.is_primary)?.user ||
                   tenants[0]?.user || null,
-          tenants: tenants.map((contact: any) => contact.user).filter(Boolean)
+          tenants: tenants.map((contact: { user?: unknown }) => contact.user).filter(Boolean)
         }
       })
     } catch (error) {
@@ -271,14 +271,14 @@ export const lotServiceOptimized = {
         }
 
         const tenants = lot.lot_contacts?.filter(
-          (contact: any) => contact.user?.role === 'locataire'
+          (contact: { user?: { role: string } }) => contact.user?.role === 'locataire'
         ) || []
 
         grouped[lot.building_id].push({
           ...lot,
           is_occupied: tenants.length > 0,
-          tenant: tenants.find((t: any) => t.is_primary)?.user || null,
-          tenants: tenants.map((contact: any) => contact.user).filter(Boolean)
+          tenant: tenants.find((t: { is_primary: boolean; user?: unknown }) => t.is_primary)?.user || null,
+          tenants: tenants.map((contact: { user?: unknown }) => contact.user).filter(Boolean)
         })
       }
 
@@ -442,7 +442,7 @@ export const interventionServiceOptimized = {
    */
   subscribeToTeamInterventions(
     teamId: string,
-    callback: (payload: any) => void
+    callback: (payload: unknown) => void
   ) {
     console.log('📡 [INTERVENTION-SERVICE] Setting up realtime subscription for team:', teamId)
 

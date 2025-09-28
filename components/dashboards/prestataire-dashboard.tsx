@@ -1,9 +1,9 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Wrench, MapPin, Clock, CheckCircle, AlertCircle, Archive, Calendar, FileText, Euro } from "lucide-react"
+import { Wrench, Clock, AlertCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
@@ -23,7 +23,7 @@ export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { stats, interventions, urgentInterventions, loading, error } = usePrestataireData(user?.id || '')
+  const { interventions, loading, error } = usePrestataireData(user?.id || '')
 
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
@@ -131,16 +131,6 @@ export default function PrestataireDashboard() {
     )
   }
 
-  // Get pending actions count for summary card (excluding quote requests which have their own section)
-  // ⚠️ IMPORTANT: Utiliser les statuts FRONTEND mappés par le hook usePrestataireData
-  const getPendingActionsCount = () => {
-    return interventions.filter((i) => [
-      "devis-a-fournir",     // Devis à fournir (mappé depuis demande_de_devis) - Legacy, devrait être demande_de_devis
-      "planification",       // Planification à faire
-      "programmee",          // Prêt à commencer (mappé depuis planifiee)
-      "en_cours"             // En cours d'exécution
-    ].includes(i.status)).length
-  }
 
   // Tabs configuration pour les prestataires
   const interventionsTabsConfig = [

@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
+
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  console.log("✅ quote-requests/[id] GET API route called for ID:", params.id)
+  const resolvedParams = await params
+  console.log("✅ quote-requests/[id] GET API route called for ID:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -59,7 +64,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: quoteRequest, error: quoteRequestError } = await supabase
       .from('quote_requests_with_details')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (quoteRequestError || !quoteRequest) {
@@ -85,7 +90,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // If provider is viewing their own request, mark it as viewed
     if (user.role === 'prestataire' && quoteRequest.provider_id === user.id && quoteRequest.status === 'sent') {
       const { error: markViewedError } = await supabase.rpc('mark_quote_request_as_viewed', {
-        request_id: params.id
+        request_id: resolvedParams.id
       })
 
       if (markViewedError) {
@@ -110,7 +115,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  console.log("✅ quote-requests/[id] PATCH API route called for ID:", params.id)
+  const resolvedParams = await params
+  console.log("✅ quote-requests/[id] PATCH API route called for ID:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -165,7 +171,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         *,
         intervention:intervention_id(team_id)
       `)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (quoteRequestError || !quoteRequest) {
@@ -183,7 +189,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }, { status: 403 })
     }
 
-    let updateFields: any = {}
+    let updateFields = {}
 
     // Handle specific actions
     if (action === 'cancel') {
@@ -219,7 +225,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { data: updatedRequest, error: updateError } = await supabase
       .from('quote_requests')
       .update(updateFields)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .select('*')
       .single()
 
@@ -251,7 +257,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  console.log("✅ quote-requests/[id] DELETE API route called for ID:", params.id)
+  const resolvedParams = await params
+  console.log("✅ quote-requests/[id] DELETE API route called for ID:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -302,7 +309,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         *,
         intervention:intervention_id(team_id)
       `)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (quoteRequestError || !quoteRequest) {
@@ -332,7 +339,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { error: deleteError } = await supabase
       .from('quote_requests')
       .delete()
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
 
     if (deleteError) {
       console.error("❌ Error deleting quote request:", deleteError)

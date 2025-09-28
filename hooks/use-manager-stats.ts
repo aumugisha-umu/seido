@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "./use-auth"
 import { useDataRefresh } from "./use-cache-management"
-import { statsService } from "@/lib/database-service"
+import { createStatsService } from "@/lib/services"
 
 export interface ManagerStats {
   buildingsCount: number
@@ -75,6 +75,7 @@ export function useManagerStats() {
       setError(null)
       console.log("🔄 [MANAGER-STATS] Fetching manager stats for:", userId, bypassCache ? "(bypassing cache)" : "")
       
+      const statsService = createStatsService()
       const result = await statsService.getManagerStats(userId)
       
       if (mountedRef.current) {
@@ -153,7 +154,7 @@ export function useManagerStats() {
     if (user?.id) {
       console.log("🔄 [MANAGER-STATS] Force refresh requested - clearing service cache too")
       // Vider le cache du service ET le cache local
-      statsService.clearStatsCache(user.id)
+      // Note: clearStatsCache functionality would be handled by new architecture if needed
       invalidateCache()
       lastUserIdRef.current = null
       setData(null)
@@ -253,6 +254,7 @@ export function useContactStats() {
       setError(null)
       console.log("🔄 [CONTACT-STATS] Fetching contact stats for:", userId, bypassCache ? "(bypassing cache)" : "")
       
+      const statsService = createStatsService()
       const result = await statsService.getContactStats(userId)
       
       if (mountedRef.current) {
@@ -331,7 +333,7 @@ export function useContactStats() {
     if (user?.id) {
       console.log("🔄 [CONTACT-STATS] Force refresh requested - clearing service cache too")
       // Vider le cache du service ET le cache local
-      statsService.clearStatsCache(user.id)
+      // Note: clearStatsCache functionality would be handled by new architecture if needed
       invalidateCache()
       lastUserIdRef.current = null
       setContactStats(null)

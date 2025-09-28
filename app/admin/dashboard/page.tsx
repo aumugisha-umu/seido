@@ -2,7 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
 import { requireRole } from "@/lib/dal"
-import { userService, interventionService, buildingService } from "@/lib/database-service"
+import { createServerUserService } from '@/lib/services'
+import { createServerInterventionService } from '@/lib/services'
+import { createServerBuildingService } from '@/lib/services'
+import type { Intervention } from '@/lib/services/core/service-types'
 import { AdminDashboardClient } from "./admin-dashboard-client"
 
 /**
@@ -18,6 +21,11 @@ import { AdminDashboardClient } from "./admin-dashboard-client"
 export default async function AdminDashboard() {
   // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
   const user = await requireRole('admin')
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
+  const buildingService = await createServerBuildingService()
 
   // ✅ LAYER 2: Data Layer Security - Récupération données système
   let systemStats = {
@@ -36,19 +44,22 @@ export default async function AdminDashboard() {
     console.log('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
 
     // Statistiques utilisateurs
-    const allUsers = await userService.getAllUsers()
+    const allUsersResult = await userService.getAll()
+    const allUsers = allUsersResult.success ? allUsersResult.data : []
     const totalUsers = allUsers?.length || 0
 
     // Statistiques immeubles (toutes les équipes)
-    const allBuildings = await buildingService.getAllBuildings()
+    const allBuildingsResult = await buildingService.getAll()
+    const allBuildings = allBuildingsResult.success ? allBuildingsResult.data : []
     const totalBuildings = allBuildings?.length || 0
 
     // Statistiques interventions (toutes les équipes)
-    const allInterventions = await interventionService.getAllInterventions()
+    const allInterventionsResult = await interventionService.getAll()
+    const allInterventions = allInterventionsResult.success ? allInterventionsResult.data : []
     const totalInterventions = allInterventions?.length || 0
 
     // Calcul du chiffre d'affaires simulé (basé sur les interventions)
-    const completedInterventions = allInterventions?.filter(i => i.status === 'completed') || []
+    const completedInterventions = allInterventions?.filter((i: Intervention) => i.status === 'completed') || []
     const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
 
     systemStats = {
@@ -141,7 +152,7 @@ export default async function AdminDashboard() {
       {/* Actions rapides */}
       <Card>
         <CardHeader>
-          <CardTitle>Actions d&apos;administration</CardTitle>
+          <CardTitle>Actions d'administration</CardTitle>
           <CardDescription>Gestion globale de la plateforme</CardDescription>
         </CardHeader>
         <CardContent>

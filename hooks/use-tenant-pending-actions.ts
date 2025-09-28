@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { interventionService } from '@/lib/database-service'
+import { createBrowserInterventionService } from '@/lib/services'
+
+const interventionService = createBrowserInterventionService()
 
 interface PendingAction {
   id: string

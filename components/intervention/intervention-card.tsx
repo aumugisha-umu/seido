@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+// Removed unused useState import
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -53,7 +53,20 @@ import {
 import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
 
 interface InterventionCardProps {
-  intervention: any
+  intervention: {
+    id: string
+    title: string
+    status: string
+    type?: string
+    urgency?: string
+    description?: string
+    scheduled_date?: string
+    created_at?: string
+    created_by_user?: { name: string }
+    creator?: { name: string }
+    tenant?: { name: string }
+    [key: string]: unknown
+  }
   userContext: 'gestionnaire' | 'prestataire' | 'locataire'
   compact?: boolean
   showStatusActions?: boolean
@@ -63,11 +76,21 @@ interface InterventionCardProps {
     contactRole?: string
   }
   actionHooks?: {
-    approvalHook?: any
-    quotingHook?: any
-    planningHook?: any
-    executionHook?: any
-    finalizationHook?: any
+    approvalHook?: {
+      handleApprovalAction?: (intervention: unknown, action: string) => void
+    }
+    quotingHook?: {
+      handleQuoteRequest?: (intervention: unknown) => void
+    }
+    planningHook?: {
+      handleProgrammingModal?: (intervention: unknown) => void
+    }
+    executionHook?: {
+      handleExecutionModal?: (intervention: unknown, type: string) => void
+    }
+    finalizationHook?: {
+      handleFinalizeModal?: (intervention: unknown) => void
+    }
   }
   onActionComplete?: () => void
 }
@@ -97,7 +120,7 @@ export function InterventionCard({
   }
 
   // Get creator name
-  const getCreatorName = (intervention: any): string => {
+  const getCreatorName = (intervention: InterventionCardProps['intervention']): string => {
     if (intervention.created_by_user?.name) {
       return intervention.created_by_user.name
     }

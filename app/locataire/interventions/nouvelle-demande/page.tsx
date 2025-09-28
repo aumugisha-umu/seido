@@ -8,7 +8,6 @@ import {
   Building2,
   CheckCircle,
   AlertTriangle,
-  Plus,
   X,
   Upload,
   File,
@@ -23,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
@@ -40,18 +38,16 @@ interface UploadedFile {
 
 export default function NouvelleDemandePage() {
   const router = useRouter()
-  const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
-  const { tenantData, loading, error, refreshData } = useTenantData()
+  const { loading, error, refreshData } = useTenantData()
   
   // ALL useState hooks must be declared before any conditional returns
-  const [allTenantLots, setAllTenantLots] = useState<any[]>([])
+  const [allTenantLots, setAllTenantLots] = useState<{ id: string; apartment_number?: string; reference: string; building?: { id: string; name: string; address: string; postal_code: string; city: string }; surface_area?: number }[]>([])
   const [lotsLoading, setLotsLoading] = useState(true)
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [countdown, setCountdown] = useState(10)
   const [formData, setFormData] = useState({
     titre: "",
     type: "",
@@ -98,7 +94,8 @@ export default function NouvelleDemandePage() {
       try {
         setLotsLoading(true)
         // Import du service tenant
-        const { tenantService } = await import('@/lib/database-service')
+        const { createServerTenantService } = await import('@/lib/services')
+        const tenantService = createServerTenantService()
         const lots = await tenantService.getAllTenantLots(user.id)
         setAllTenantLots(lots || [])
       } catch (err) {
@@ -195,8 +192,8 @@ export default function NouvelleDemandePage() {
     setCurrentStep(3)
   }
 
-  const interventionId = createdInterventionId || generateInterventionId()
-  const numeroDeclaration = `#${interventionId}`
+  // const interventionId = createdInterventionId || generateInterventionId()
+  // const numeroDeclaration = `#${interventionId}` // unused
 
   const handleConfirmCreation = async () => {
     if (isCreating) return // Prevent multiple submissions
@@ -206,7 +203,7 @@ export default function NouvelleDemandePage() {
       setCreationError(null) // Clear any previous error
       
       // Get the selected lot data
-      const selectedLotData = logements.find(l => l.id === selectedLogement)
+      // const selectedLotData = logements.find(l => l.id === selectedLogement)
       
       // Prepare the intervention data
       const interventionData = {
@@ -283,7 +280,7 @@ export default function NouvelleDemandePage() {
   }
 
   const handleVoirDetails = () => {
-    const realInterventionId = createdInterventionId || interventionId
+    const realInterventionId = createdInterventionId || generateInterventionId()
     router.push(`/locataire/interventions/${realInterventionId}`)
   }
 
@@ -618,13 +615,7 @@ export default function NouvelleDemandePage() {
   }
 
   if (currentStep === 3) {
-    const dateEnvoi = new Date().toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+    // const dateEnvoi = new Date().toLocaleDateString("fr-FR", { ... }) // unused
 
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -783,9 +774,9 @@ export default function NouvelleDemandePage() {
                 </Button>
               </div>
 
-              <p className="text-center text-sm text-gray-500 mt-4">
-                Redirection automatique vers les détails dans {countdown} secondes
-              </p>
+              {/* <p className="text-center text-sm text-gray-500 mt-4">
+                Redirection automatique vers les détails dans 10 secondes
+              </p> */}
             </div>
           </div>
         )}

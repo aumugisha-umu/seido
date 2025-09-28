@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { interventionService, contactInvitationService } from "@/lib/database-service"
-import type { Intervention } from "@/lib/database-service"
+import { createInterventionService, createContactInvitationService } from "@/lib/services"
+import type { Intervention } from "@/lib/services/core/service-types"
 
 export interface PrestataireDashboardStats {
   interventionsEnCours: number
@@ -158,6 +158,7 @@ export const usePrestataireData = (userId: string) => {
       console.log("✅ Found prestataire profile:", contactId)
 
       // 2. Get interventions assigned to this prestataire
+      const interventionService = createInterventionService()
       const interventions = await interventionService.getByProviderId(contactId)
       console.log("📋 Found interventions:", interventions?.length || 0)
 

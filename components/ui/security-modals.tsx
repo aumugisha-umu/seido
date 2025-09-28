@@ -16,7 +16,6 @@ import {
   CheckCircle, 
   AlertCircle, 
   Shield,
-  X
 } from "lucide-react"
 
 interface ChangePasswordModalProps {

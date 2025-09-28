@@ -6,12 +6,10 @@ import {
   XCircle,
   Calendar,
   Play,
-  Pause,
   Clock,
   UserCheck,
   Settings,
   AlertTriangle,
-  MessageSquare,
   TrendingUp,
   FileText,
   Euro,
@@ -33,7 +31,7 @@ import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
-import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
+import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig } from "@/lib/quote-state-utils"
 import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
 
@@ -61,7 +59,7 @@ interface InterventionActionPanelProps {
 interface ActionConfig {
   key: string
   label: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<{ className?: string }>
   variant: 'default' | 'destructive' | 'outline' | 'secondary'
   description: string
   requiresComment?: boolean
@@ -629,7 +627,7 @@ export function InterventionActionPanel({
         setError(errorData.error || 'Erreur lors de la soumission du rapport')
         return false
       }
-    } catch (error) {
+    } catch {
       setError('Erreur lors de la soumission du rapport')
       return false
     } finally {
@@ -668,7 +666,7 @@ export function InterventionActionPanel({
         setError(errorData.error || 'Erreur lors de la soumission du rapport')
         return false
       }
-    } catch (error) {
+    } catch {
       setError('Erreur lors de la soumission du rapport')
       return false
     } finally {
@@ -697,7 +695,7 @@ export function InterventionActionPanel({
         setError(errorData.error || 'Erreur lors de la validation')
         return false
       }
-    } catch (error) {
+    } catch {
       setError('Erreur lors de la validation')
       return false
     } finally {

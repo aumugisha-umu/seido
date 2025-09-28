@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, Calendar, MessageSquare, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
-  isBuildingWideIntervention,
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
@@ -25,10 +24,19 @@ interface Provider {
   provider_category?: string
 }
 
+interface InterventionForQuote {
+  id: string
+  title: string
+  description?: string
+  type?: string
+  urgency?: string
+  created_at: string
+}
+
 interface QuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  intervention: any | null
+  intervention: InterventionForQuote | null
   deadline: string
   additionalNotes: string
   selectedProviderId: string

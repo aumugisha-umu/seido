@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/dal'
-import { contactInvitationService, teamService } from '@/lib/database-service'
+import { createServerTeamService, createServerContactInvitationService } from '@/lib/services'
+
+
 
 /**
  * 🔐 DASHBOARD ACTIONS (Bonnes Pratiques 2025)
@@ -30,6 +32,10 @@ export async function createContactAction(data: CreateContactData) {
   try {
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
     const user = await requireRole('gestionnaire')
+
+    // Initialize services
+    const teamService = createServerTeamService()
+    const contactInvitationService = createServerContactInvitationService()
 
     // Vérifier que l'utilisateur peut créer des contacts pour cette équipe
     const teams = await teamService.getUserTeams(user.id)
@@ -80,10 +86,10 @@ export async function createContactAction(data: CreateContactData) {
   }
 }
 
-export async function createInterventionAction(formData: FormData) {
+export async function createInterventionAction() {
   try {
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
-    const user = await requireRole('gestionnaire')
+    await requireRole('gestionnaire')
 
     // TODO: Implémenter création intervention
     // Pour l'instant, redirection vers le formulaire

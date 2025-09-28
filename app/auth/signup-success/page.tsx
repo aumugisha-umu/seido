@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Building2, Mail, CheckCircle } from "lucide-react"
+import { Mail, CheckCircle } from "lucide-react"
 
 /**
  * 📧 PAGE SIGNUP SUCCESS - SERVER COMPONENT

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { tenantService } from '@/lib/database-service'
+import { createTenantService } from '@/lib/services'
 import { useAuth } from './use-auth'
 
 interface TenantData {
@@ -73,6 +73,7 @@ export const useTenantData = () => {
         setError(null)
 
         // Fetch all tenant data in parallel
+        const tenantService = createTenantService()
         const [data, stats, interventions] = await Promise.all([
           tenantService.getTenantData(user.id),
           tenantService.getTenantStats(user.id),
@@ -99,6 +100,7 @@ export const useTenantData = () => {
     try {
       setError(null)
       
+      const tenantService = createTenantService()
       const [data, stats, interventions] = await Promise.all([
         tenantService.getTenantData(user.id),
         tenantService.getTenantStats(user.id),

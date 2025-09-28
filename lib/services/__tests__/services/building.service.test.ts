@@ -72,7 +72,7 @@ describe('BuildingService', () => {
 
         mockRepository.nameExists.mockResolvedValueOnce({
           success: true,
-          exists: false
+          data: false
         })
         mockRepository.create.mockResolvedValueOnce({
           success: true,
@@ -84,7 +84,8 @@ describe('BuildingService', () => {
         expect(result.success).toBe(true)
         expect(result.data).toEqual(createdBuilding)
         expect(mockRepository.nameExists).toHaveBeenCalledWith(
-          newBuilding.name
+          newBuilding.name,
+          newBuilding.team_id
         )
         expect(mockRepository.create).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -100,7 +101,7 @@ describe('BuildingService', () => {
 
         mockRepository.nameExists.mockResolvedValueOnce({
           success: true,
-          exists: true
+          data: true
         })
 
         await expect(service.create(newBuilding)).rejects.toThrow(ConflictException)
@@ -118,7 +119,7 @@ describe('BuildingService', () => {
 
         mockRepository.nameExists.mockResolvedValueOnce({
           success: true,
-          exists: false
+          data: false
         })
         mockRepository.create.mockResolvedValueOnce({
           success: true,
@@ -264,6 +265,10 @@ describe('BuildingService', () => {
           success: true,
           data: existingBuilding
         })
+        mockRepository.nameExists.mockResolvedValueOnce({
+          success: true,
+          data: false
+        })
         mockRepository.update.mockResolvedValueOnce({
           success: true,
           data: updatedBuilding
@@ -293,7 +298,7 @@ describe('BuildingService', () => {
         })
         mockRepository.nameExists.mockResolvedValueOnce({
           success: true,
-          exists: false
+          data: false
         })
         mockRepository.update.mockResolvedValueOnce({
           success: true,
@@ -319,7 +324,7 @@ describe('BuildingService', () => {
         })
         mockRepository.nameExists.mockResolvedValueOnce({
           success: true,
-          exists: true
+          data: true
         })
 
         await expect(

@@ -370,11 +370,11 @@ export class QueryOptimizerV2 {
       dataLoader: {
         userLoader: {
           cacheHitRatio: this.userLoader.cacheKeyFn ? 'enabled' : 'disabled',
-          size: (this.userLoader as any)._cache?.size || 0
+          size: (this.userLoader as unknown as { _cache?: { size: number } })._cache?.size || 0
         },
         interventionLoader: {
           cacheHitRatio: this.interventionLoader.cacheKeyFn ? 'enabled' : 'disabled',
-          size: (this.interventionLoader as any)._cache?.size || 0
+          size: (this.interventionLoader as unknown as { _cache?: { size: number } })._cache?.size || 0
         }
       }
     }

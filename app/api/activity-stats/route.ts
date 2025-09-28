@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/services'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
 
     // Récupération des paramètres
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Requête principale pour les logs
+    // Note: activity_logs table not yet in database types - this is demo code
     let query = supabase
       .from('activity_logs')
       .select('action_type, entity_type, status, created_at, user_id')
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
     const userActivity = {} as Record<string, number>
     const dailyCount = {} as Record<string, number>
 
-    data.forEach(log => {
+    data.forEach((log: { action_type: string; entity_type: string; status: string; created_at: string; user_id: string }) => {
       // Par action
       stats.byAction[log.action_type] = (stats.byAction[log.action_type] || 0) + 1
       

@@ -54,7 +54,7 @@ interface ContactHeaderProps {
   customActions?: Array<{
     key: string
     label: string
-    icon: any
+    icon: React.ComponentType<{ className?: string }>
     onClick: () => void
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost"
   }>
@@ -278,7 +278,7 @@ export const ContactDetailHeader = ({
                   </h1>
                   
                   {/* Badges dynamiques */}
-                  {badges.map((badge: any, index: number) => {
+                  {badges.map((badge, index: number) => {
                     const BadgeIcon = badge.icon
                     return (
                       <Badge key={index} className={`${badge.color} flex items-center space-x-1 font-medium border`}>

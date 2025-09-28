@@ -39,12 +39,15 @@ describe('LotService', () => {
       count: vi.fn(),
       referenceExists: vi.fn(),
       findByBuilding: vi.fn(),
+      findByCategory: vi.fn(),
       findByType: vi.fn(),
       findAvailable: vi.fn(),
+      findVacant: vi.fn(),
       findOccupied: vi.fn(),
       findByTenant: vi.fn(),
       getOccupancyStats: vi.fn(),
-      getRevenueStats: vi.fn()
+      getRevenueStats: vi.fn(),
+      updateBuildingBulk: vi.fn()
     }
 
     mockBuildingService = {
@@ -55,6 +58,16 @@ describe('LotService', () => {
       mockRepository as LotRepository,
       mockBuildingService as BuildingService
     )
+
+    // Default mock responses for commonly used methods
+    mockRepository.findByIdWithRelations.mockResolvedValue({
+      success: true,
+      data: null
+    })
+    mockRepository.count.mockResolvedValue(0)
+    mockRepository.findOccupied.mockResolvedValue([])
+    mockRepository.findVacant.mockResolvedValue([])
+    mockRepository.findByCategory.mockResolvedValue([])
   })
 
   describe('CRUD Operations', () => {
@@ -70,7 +83,7 @@ describe('LotService', () => {
         })
         mockRepository.referenceExists.mockResolvedValueOnce({
           success: true,
-          data: false
+          exists: false
         })
         mockRepository.create.mockResolvedValueOnce({
           success: true,
@@ -87,7 +100,13 @@ describe('LotService', () => {
           newLot.building_id
         )
         expect(mockRepository.create).toHaveBeenCalledWith(
-          expect.objectContaining(newLot)
+          expect.objectContaining({
+            ...newLot,
+            is_occupied: false,
+            floor: 0,
+            created_at: expect.any(String),
+            updated_at: expect.any(String)
+          })
         )
       })
 
@@ -112,13 +131,10 @@ describe('LotService', () => {
         })
         mockRepository.referenceExists.mockResolvedValueOnce({
           success: true,
-          data: true // Reference already exists
+          exists: true // Reference already exists
         })
 
-        const result = await service.create(newLot)
-
-        expect(result.success).toBe(false)
-        expect(result.error?.code).toBe('CONFLICT')
+        await expect(service.create(newLot)).rejects.toThrow(ConflictException)
       })
     })
 
@@ -203,7 +219,11 @@ describe('LotService', () => {
         expect(result.success).toBe(true)
         expect(result.data?.size).toBe(85)
         expect(result.data?.description).toBe('Updated description')
-        expect(mockRepository.update).toHaveBeenCalledWith('lot-123', updateData)
+        expect(mockRepository.update).toHaveBeenCalledWith('lot-123', expect.objectContaining({
+          size: 85,
+          description: 'Updated description',
+          updated_at: expect.any(String)
+        }))
       })
 
       it('should return error if lot not found for update', async () => {
@@ -223,7 +243,7 @@ describe('LotService', () => {
       it('should delete lot successfully', async () => {
         const lot = LotTestDataFactory.create()
 
-        mockRepository.findById.mockResolvedValueOnce({
+        mockRepository.findByIdWithRelations.mockResolvedValueOnce({
           success: true,
           data: lot
         })
@@ -239,7 +259,7 @@ describe('LotService', () => {
       })
 
       it('should return error if lot not found for deletion', async () => {
-        mockRepository.findById.mockResolvedValueOnce({
+        mockRepository.findByIdWithRelations.mockResolvedValueOnce({
           success: false,
           error: { code: 'NOT_FOUND', message: 'Lot not found' }
         })
@@ -258,16 +278,13 @@ describe('LotService', () => {
         const apartments = LotTestDataFactory.createMultiple(2)
         apartments.forEach(lot => lot.type = 'apartment')
 
-        mockRepository.findByType.mockResolvedValueOnce({
-          success: true,
-          data: apartments
-        })
+        mockRepository.findByCategory.mockResolvedValueOnce(apartments)
 
         const result = await service.getByType('apartment')
 
         expect(result.success).toBe(true)
         expect(result.data).toHaveLength(2)
-        expect(mockRepository.findByType).toHaveBeenCalledWith('apartment')
+        expect(mockRepository.findByCategory).toHaveBeenCalledWith('apartment')
       })
     })
 
@@ -276,6 +293,10 @@ describe('LotService', () => {
         const building = BuildingTestDataFactory.create()
         const lots = LotTestDataFactory.createMultiple(3, building.id)
 
+        mockBuildingService.getById.mockResolvedValueOnce({
+          success: true,
+          data: building
+        })
         mockRepository.findByBuilding.mockResolvedValueOnce({
           success: true,
           data: lots
@@ -292,7 +313,7 @@ describe('LotService', () => {
         const lot = LotTestDataFactory.create()
         const newBuilding = BuildingTestDataFactory.create()
 
-        mockRepository.findById.mockResolvedValueOnce({
+        mockRepository.findById.mockResolvedValue({
           success: true,
           data: lot
         })
@@ -300,13 +321,13 @@ describe('LotService', () => {
           success: true,
           data: newBuilding
         })
-        mockRepository.referenceExists.mockResolvedValueOnce({
+        mockRepository.referenceExists.mockResolvedValue({
           success: true,
-          data: false
+          exists: false
         })
-        mockRepository.update.mockResolvedValueOnce({
+        mockRepository.updateBuildingBulk.mockResolvedValueOnce({
           success: true,
-          data: { ...lot, building_id: newBuilding.id }
+          data: [{ ...lot, building_id: newBuilding.id }]
         })
 
         const result = await service.moveToBuilding('lot-123', newBuilding.id)
@@ -320,16 +341,13 @@ describe('LotService', () => {
       it('should get available lots', async () => {
         const availableLots = LotTestDataFactory.createMultiple(2)
 
-        mockRepository.findAvailable.mockResolvedValueOnce({
-          success: true,
-          data: availableLots
-        })
+        mockRepository.findVacant.mockResolvedValueOnce(availableLots)
 
         const result = await service.getAvailable()
 
         expect(result.success).toBe(true)
         expect(result.data).toHaveLength(2)
-        expect(mockRepository.findAvailable).toHaveBeenCalled()
+        expect(mockRepository.findVacant).toHaveBeenCalled()
       })
 
       it('should get occupied lots', async () => {
@@ -350,30 +368,23 @@ describe('LotService', () => {
 
     describe('Statistics', () => {
       it('should get occupancy statistics', async () => {
-        const stats = {
-          total: 10,
-          occupied: 7,
-          available: 3,
-          occupancy_rate: 0.7
-        }
+        const occupiedLots = LotTestDataFactory.createMultiple(7)
+        const vacantLots = LotTestDataFactory.createMultiple(3)
 
-        mockRepository.getOccupancyStats.mockResolvedValueOnce({
-          success: true,
-          data: stats
-        })
+        mockRepository.findOccupied.mockResolvedValueOnce(occupiedLots)
+        mockRepository.findVacant.mockResolvedValueOnce(vacantLots)
 
         const result = await service.getOccupancyStats()
 
         expect(result.success).toBe(true)
-        expect(result.data?.occupancy_rate).toBe(0.7)
-        expect(mockRepository.getOccupancyStats).toHaveBeenCalled()
+        expect(result.data?.total).toBe(10)
+        expect(result.data?.occupied).toBe(7)
+        expect(result.data?.vacant).toBe(3)
+        expect(result.data?.occupancy_rate).toBe(70)
       })
 
       it('should count lots', async () => {
-        mockRepository.count.mockResolvedValueOnce({
-          success: true,
-          data: 25
-        })
+        mockRepository.count.mockResolvedValueOnce(25)
 
         const result = await service.count()
 

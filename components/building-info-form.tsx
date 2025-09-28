@@ -4,9 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Building,
   MapPin,
@@ -16,7 +14,6 @@ import {
   User,
   Users,
   AlertTriangle,
-  Loader2,
   Home,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
@@ -64,8 +61,8 @@ interface BuildingInfoFormProps {
   setBuildingInfo: (info: BuildingInfo) => void
   selectedManagerId: string
   setSelectedManagerId: (id: string) => void
-  teamManagers: any[]
-  userTeam: any | null
+  teamManagers: Array<{ user: { id: string; name: string } }>
+  userTeam: { id: string; name: string } | null
   isLoading: boolean
   onCreateManager?: () => void
   showManagerSection?: boolean
@@ -90,24 +87,10 @@ export const BuildingInfoForm = ({
   showAddressSection = true,
   entityType = "immeuble",
   showTitle = false,
-  defaultReference = "",
-  buildingsCount = 0,
   categoryCountsByTeam = {},
 }: BuildingInfoFormProps) => {
   const { user } = useAuth()
 
-  // Générer les valeurs par défaut pour les lots (les immeubles sont gérés par l'effet useEffect du parent)
-  const generateDefaultLotName = () => {
-    if (entityType === "lot") {
-      // Pour les lots, utiliser la catégorie et compter par catégorie
-      const category = buildingInfo.category || "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + 1
-      return `${categoryConfig.label} ${nextNumber}`
-    }
-    return ""
-  }
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -140,7 +123,7 @@ export const BuildingInfoForm = ({
                   <SelectValue placeholder="Sélectionnez un responsable" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teamManagers.map((member: any) => (
+                  {teamManagers.map((member) => (
                     <SelectItem key={member.user.id} value={member.user.id}>
                       <div className="flex items-center gap-2">
                         <span>{member.user.name}</span>

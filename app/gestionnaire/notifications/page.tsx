@@ -72,9 +72,9 @@ function formatDate(dateString: string) {
 
 export default function NotificationsPage() {
   const { user } = useAuth()
-  const { teamStatus, hasTeam } = useTeamStatus()
+  const { teamStatus } = useTeamStatus()
   const { toast } = useToast()
-  const [userTeam, setUserTeam] = useState<any>(null)
+  const [userTeam, setUserTeam] = useState<{ id: string } | null>(null)
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
@@ -85,7 +85,7 @@ export default function NotificationsPage() {
     error: teamNotificationsError,
     unreadCount,
     refetch: refetchTeamNotifications,
-    markAsRead: markTeamNotificationAsRead,
+    // markAsRead: markTeamNotificationAsRead,
     markAllAsRead: markAllTeamNotificationsAsRead 
   } = useNotifications({
     teamId: userTeam?.id,
@@ -101,7 +101,7 @@ export default function NotificationsPage() {
     error: personalNotificationsError,
     unreadCount: personalUnreadCount,
     refetch: refetchPersonalNotifications,
-    markAsRead: markPersonalNotificationAsRead 
+    // markAsRead: markPersonalNotificationAsRead
   } = useNotifications({
     teamId: userTeam?.id,
     scope: 'personal', // Mes notifications personnelles
@@ -128,7 +128,8 @@ export default function NotificationsPage() {
       if (!user?.id || teamStatus !== 'verified') return
 
       try {
-        const { teamService } = await import('@/lib/database-service')
+        const { createServerTeamService } = await import('@/lib/services')
+        const teamService = createServerTeamService()
         const teams = await teamService.getUserTeams(user.id)
         if (teams && teams.length > 0) {
           setUserTeam(teams[0])
@@ -524,7 +525,7 @@ function NotificationsList({
   onMarkAsRead: (notification: Notification) => void
   onArchive: (id: string, title: string) => void
   updatingNotifications: Set<string>
-  emptyStateIcon: any
+  emptyStateIcon: React.ComponentType<{ className?: string }>
   emptyStateTitle: string
   emptyStateDescription: string
 }) {
@@ -721,7 +722,7 @@ function EmptyNotificationsState({
   title, 
   description 
 }: { 
-  icon: React.ComponentType<any>, 
+  icon: React.ComponentType<{ className?: string }>, 
   title: string, 
   description: string 
 }) {

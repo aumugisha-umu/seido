@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-import { userService } from "@/lib/database-service"
+import { createServerUserService } from '@/lib/services'
 
 /**
  * POST /api/change-email
@@ -12,6 +12,9 @@ import { userService } from "@/lib/database-service"
  */
 export async function POST(request: NextRequest) {
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+
     // Initialiser le client Supabase
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -86,8 +89,9 @@ export async function POST(request: NextRequest) {
 
     // Étape 2: Vérifier que le nouvel email n'est pas déjà utilisé
     console.log("🔍 [CHANGE-EMAIL] Checking if new email already exists...")
-    const existingUser = await userService.findByEmail(newEmail)
-    
+    const existingUserResult = await userService.getByEmail(newEmail)
+    const existingUser = existingUserResult.success ? existingUserResult.data : null
+
     if (existingUser) {
       console.log("❌ [CHANGE-EMAIL] Email already in use by another user")
       return NextResponse.json({ 
@@ -128,14 +132,13 @@ export async function POST(request: NextRequest) {
 
     // Étape 5: Mettre à jour l'email dans notre table users
     console.log("🔄 [CHANGE-EMAIL] Updating email in users table...")
-    try {
-      await userService.update(dbUser.id, {
-        email: newEmail
-      })
-      console.log("✅ [CHANGE-EMAIL] Email updated in users table")
-    } catch (dbError) {
-      console.error("❌ [CHANGE-EMAIL] Error updating email in users table:", dbError)
-      
+    const updateResult = await userService.update(dbUser.id, {
+      email: newEmail
+    })
+
+    if (!updateResult.success) {
+      console.error("❌ [CHANGE-EMAIL] Error updating email in users table:", updateResult.error)
+
       // Si la mise à jour de la DB échoue, essayer de rétablir l'ancien email dans Supabase Auth
       try {
         await supabase.auth.updateUser({
@@ -145,11 +148,13 @@ export async function POST(request: NextRequest) {
       } catch (rollbackError) {
         console.error("❌ [CHANGE-EMAIL] Failed to rollback email in Supabase Auth:", rollbackError)
       }
-      
-      return NextResponse.json({ 
-        error: "Erreur lors de la mise à jour de l'email dans la base de données" 
+
+      return NextResponse.json({
+        error: "Erreur lors de la mise à jour de l'email dans la base de données"
       }, { status: 500 })
     }
+
+    console.log("✅ [CHANGE-EMAIL] Email updated in users table")
 
     console.log("✅ [CHANGE-EMAIL] Email change completed successfully")
 

@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  Building2,
   Calendar,
   ChevronDown,
   FileText,
@@ -14,7 +13,6 @@ import {
   XCircle,
   Clock,
   Play,
-  Square,
   RefreshCw,
   Send,
   Eye,

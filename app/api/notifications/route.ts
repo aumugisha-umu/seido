@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
     // Récupérer l'ID utilisateur de la table users à partir de l'ID Supabase Auth
-    const { userService } = await import('@/lib/database-service')
+    const { createServerUserService } = await import('@/lib/services')
+    const userService = createServerUserService()
     const dbUserGet = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserGet) {
@@ -169,7 +170,8 @@ export async function POST(request: NextRequest) {
     const supabasePost = await createSupabaseServerClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
-    const { userService } = await import('@/lib/database-service')
+    const { createServerUserService } = await import('@/lib/services')
+    const userService = createServerUserService()
     const dbUserPost = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserPost) {
@@ -264,7 +266,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    let updateData: any = {}
+    let updateData = {}
 
     switch (action) {
       case 'mark_read':
@@ -289,7 +291,8 @@ export async function PATCH(request: NextRequest) {
     const supabasePatch = await createSupabaseServerClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
-    const { userService } = await import('@/lib/database-service')
+    const { createServerUserService } = await import('@/lib/services')
+    const userService = createServerUserService()
     const dbUserPatch = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserPatch) {
@@ -326,7 +329,7 @@ export async function PATCH(request: NextRequest) {
 
     // Vérifier les permissions : soit c'est sa notification personnelle, soit il fait partie de l'équipe
     const isOwner = notificationCheck.user_id === dbUserPatch.id
-    const isTeamMember = notificationCheck.teams?.team_members?.some((member: any) => member.user_id === dbUserPatch.id)
+    const isTeamMember = notificationCheck.teams?.team_members?.some((member) => member.user_id === dbUserPatch.id)
 
     if (!isOwner && !isTeamMember) {
       return NextResponse.json(

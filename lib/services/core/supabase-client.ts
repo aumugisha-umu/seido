@@ -1,5 +1,4 @@
 import { createBrowserClient, createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import type { CookieOptions } from '@supabase/ssr'
 import type { Database } from '../../database.types'
 import { ENV_CONFIG, calculateRetryDelay } from '../../environment'
@@ -64,6 +63,7 @@ export function createBrowserSupabaseClient() {
  * Use this in Server Components, Server Actions, and API routes
  */
 export async function createServerSupabaseClient() {
+  const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
 
   return createServerClient<Database>(supabaseUrl!, supabaseAnonKey!, {
@@ -74,14 +74,14 @@ export async function createServerSupabaseClient() {
       set(name: string, value: string, options: CookieOptions) {
         try {
           cookieStore.set({ name, value, ...options })
-        } catch (error) {
+        } catch {
           // Handle error when setting cookies in Server Components
         }
       },
       remove(name: string, options: CookieOptions) {
         try {
           cookieStore.set({ name, value: '', ...options })
-        } catch (error) {
+        } catch {
           // Handle error when removing cookies in Server Components
         }
       }

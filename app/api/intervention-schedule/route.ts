@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
           is_selected: false
         }))
 
-        const { error: slotsError } = await supabase
+        await supabase
           .from('intervention_time_slots')
           .delete()
           .eq('intervention_id', interventionId)

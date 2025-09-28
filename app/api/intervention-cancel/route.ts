@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-import { notificationService } from "@/lib/notification-service"
 
 interface CancelRequest {
   interventionId: string

@@ -232,7 +232,7 @@ export const manualSessionCleanup = async (): Promise<void> => {
 
 // ✅ RENDRE DISPONIBLE GLOBALEMENT pour test dans la console
 if (typeof window !== 'undefined') {
-  (window as any).testSessionCleanup = manualSessionCleanup
+  (window as unknown as { testSessionCleanup: typeof manualSessionCleanup }).testSessionCleanup = manualSessionCleanup
   console.log('🧪 [SESSION-CLEANUP] Test function available: window.testSessionCleanup()')
 }
 

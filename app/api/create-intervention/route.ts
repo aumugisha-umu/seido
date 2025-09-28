@@ -351,15 +351,15 @@ export async function POST(request: NextRequest) {
           
           // 1. Créer des notifications PERSONNELLES pour les gestionnaires directement assignés/responsables du bien
           //    Ces gestionnaires sont automatiquement assignés car ils sont liés au lot/bâtiment via lot_contacts/building_contacts
-          let personalNotificationPromises: Promise<any>[] = []
+          let personalNotificationPromises: Promise<unknown>[] = []
           
           if (assignments && assignments.length > 0) {
             personalNotificationPromises = assignments
-              .filter((assignment: any) => 
+              .filter((assignment: { user_id: string; role: string; is_primary?: boolean }) => 
                 assignment.user_id !== user.id && // Don't notify the creator
                 assignment.role === 'gestionnaire' // Only managers get personal notifications
               )
-              .map((assignment: any) => {
+              .map((assignment: { user_id: string; role: string; is_primary?: boolean }) => {
               console.log('📬 [CREATE-INTERVENTION] Creating personal notification for manager LINKED TO BUILDING/LOT:', {
                 userId: assignment.user_id,
                 teamId: effectiveTeamId,
@@ -419,7 +419,7 @@ export async function POST(request: NextRequest) {
               .filter(member => 
                 member.user_id !== user.id && // Don't notify the creator
                 member.user?.role === 'gestionnaire' && // Only gestionnaires
-                !(assignments && assignments.some((assignment: any) => assignment.user_id === member.user_id)) // Don't double-notify assigned users (those linked to the building/lot)
+                !(assignments && assignments.some((assignment: { user_id: string }) => assignment.user_id === member.user_id)) // Don't double-notify assigned users (those linked to the building/lot)
               )
               .map(member => {
                 console.log('📬 [CREATE-INTERVENTION] Creating team notification for gestionnaire:', {

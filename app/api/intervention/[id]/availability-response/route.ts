@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -145,13 +144,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Verify user is the tenant for this intervention
     console.log("🔐 [DEBUG] Verifying tenant permissions")
     const isUserTenant = intervention.lot?.lot_contacts?.some(
-      (contact: any) => contact.user_id === user.id
+      (contact: { user_id: string; is_primary: boolean }) => contact.user_id === user.id
     )
 
     if (!isUserTenant) {
       console.error("❌ [DEBUG] User is not a tenant for this intervention:", {
         userId: user.id,
-        lotContacts: intervention.lot?.lot_contacts?.map((c: any) => c.user_id) || []
+        lotContacts: intervention.lot?.lot_contacts?.map((c: { user_id: string; is_primary: boolean }) => c.user_id) || []
       })
       return NextResponse.json({
         success: false,

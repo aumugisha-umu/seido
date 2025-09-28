@@ -21,7 +21,8 @@
       "WebSearch",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

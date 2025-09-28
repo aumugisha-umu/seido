@@ -181,33 +181,10 @@ export async function POST(request: NextRequest) {
         // Send email notification with magic link
         if (supabaseAdmin) {
           try {
-            const emailSubject = `Demande de devis - ${intervention.title}`
-            const individualMessage = individualMessages[email] || additionalNotes || ''
+            // const individualMessage = individualMessages[email] || additionalNotes || ''
 
-            const emailContent = `
-Bonjour,
-
-Vous avez reçu une demande de devis pour l'intervention suivante :
-
-**${intervention.title}**
-${intervention.description}
-
-📍 Localisation : ${intervention.lot?.building?.name || 'Immeuble'} - ${intervention.lot?.reference || 'Lot non spécifié'}
-⏰ ${deadline ? `Date limite : ${new Date(deadline).toLocaleDateString('fr-FR')}` : 'Aucune date limite spécifiée'}
-
-${individualMessage ? `**Message spécifique :**\n${individualMessage}\n` : ''}
-
-**Pour consulter les détails et soumettre votre devis, cliquez sur ce lien :**
-${magicLinkUrl}
-
-Ce lien est valide jusqu'au ${expiresAt.toLocaleDateString('fr-FR')}.
-
-Si vous n'avez pas de compte, vous pourrez en créer un en suivant ce lien.
-
-Cordialement,
-${user.name}
-${intervention.team?.name || 'Équipe de gestion'}
-            `
+            // Email content would be sent here
+            // TODO: Implement email sending when ready
 
             // Use Supabase Edge Function or email service to send the email
             // For now, we'll create a notification in the system

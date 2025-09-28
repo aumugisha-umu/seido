@@ -1,8 +1,6 @@
 import {
   ArrowLeft,
   Bell,
-  Check,
-  Clock,
   AlertTriangle,
   Info,
   Eye,

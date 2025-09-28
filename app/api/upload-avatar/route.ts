@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     console.log("☁️ [UPLOAD-AVATAR] Uploading to Storage:", filePath)
 
     // Uploader vers Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
  * DELETE /api/upload-avatar
  * Supprimer la photo de profil actuelle
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     // Initialiser le client Supabase
     const cookieStore = await cookies()

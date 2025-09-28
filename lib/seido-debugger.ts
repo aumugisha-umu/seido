@@ -4,9 +4,10 @@
  */
 
 import { UserRole } from './auth'
+import * as React from 'react'
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug'
-type SEIDOComponent = 'AUTH' | 'INTERVENTION' | 'DASHBOARD' | 'NOTIFICATION' | 'DATABASE' | 'PERMISSION'
+type SEIDOComponent = 'AUTH' | 'INTERVENTION' | 'DASHBOARD' | 'NOTIFICATION' | 'DATABASE' | 'PERMISSION' | 'DEBUG'
 
 interface DebugContext {
   userId?: string
@@ -14,7 +15,7 @@ interface DebugContext {
   interventionId?: string
   component?: string
   action?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export class SEIDODebugger {
@@ -28,7 +29,7 @@ export class SEIDODebugger {
     level: LogLevel,
     message: string,
     context?: DebugContext,
-    data?: any
+    data?: unknown
   ) {
     if (!this.isEnabled) return
 
@@ -53,13 +54,13 @@ export class SEIDODebugger {
     operation: string,
     userRole: UserRole,
     userId: string,
-    resource: any,
+    resource: unknown,
     authorized: boolean,
     reason?: string
   ) {
     this.log('PERMISSION', authorized ? 'info' : 'error',
       `Permission ${authorized ? 'granted' : 'denied'} for ${operation}`,
-      { userRole, userId, operation },
+      { userRole, userId, action: operation },
       { resource, reason }
     )
   }
@@ -108,7 +109,7 @@ export class SEIDODebugger {
     recipientRole: UserRole,
     recipientId: string,
     delivered: boolean,
-    payload?: any
+    payload?: unknown
   ) {
     this.log('NOTIFICATION', delivered ? 'info' : 'warn',
       `Notification ${delivered ? 'delivered' : 'failed'}: ${type}`,
@@ -125,8 +126,8 @@ export class SEIDODebugger {
     operation: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE',
     userRole: UserRole,
     userId: string,
-    filters?: Record<string, any>,
-    result?: { data?: any[], count?: number, error?: any }
+    filters?: Record<string, unknown>,
+    result?: { data?: unknown[], count?: number, error?: Error | unknown }
   ) {
     this.log('DATABASE', result?.error ? 'error' : 'info',
       `${operation} on ${table}`,
@@ -193,7 +194,7 @@ export class SEIDODebugger {
    */
   static validateSEIDOData(
     dataType: 'intervention' | 'user' | 'building' | 'lot',
-    data: any,
+    data: Record<string, unknown>,
     userRole: UserRole
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = []
@@ -296,8 +297,8 @@ export class SEIDODebugger {
  */
 export function useSEIDODebug(
   componentName: string,
-  props?: any,
-  dependencies: any[] = []
+  props?: Record<string, unknown>,
+  dependencies: React.DependencyList = []
 ) {
   // Hook utilisable seulement côté client - pas de conditional hooks
   React.useEffect(() => {
@@ -307,7 +308,8 @@ export function useSEIDODebug(
         { props }
       )
     }
-  }, [componentName, props, ...dependencies])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [componentName, ...dependencies])
 
   React.useDebugValue({ componentName, props })
 }

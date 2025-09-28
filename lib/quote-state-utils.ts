@@ -7,7 +7,7 @@ export interface Quote {
   status: 'pending' | 'approved' | 'rejected'
   providerId: string
   providerName: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface QuoteState {

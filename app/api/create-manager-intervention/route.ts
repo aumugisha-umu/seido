@@ -1,38 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService, lotService, buildingService, contactService, teamService } from '@/lib/database-service'
+import { interventionService, userService, lotService, buildingService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
-// Helper function to determine document type from file type and name
-function getDocumentType(mimeType: string, filename: string): string {
-  const lowerFilename = filename.toLowerCase()
-  
-  // Photos
-  if (mimeType.startsWith('image/')) {
-    if (lowerFilename.includes('avant')) return 'photo_avant'
-    if (lowerFilename.includes('apres') || lowerFilename.includes('après')) return 'photo_apres'
-    return 'photo_avant' // Default for images
-  }
-  
-  // Documents
-  if (mimeType === 'application/pdf') {
-    if (lowerFilename.includes('rapport')) return 'rapport'
-    if (lowerFilename.includes('facture')) return 'facture'
-    if (lowerFilename.includes('devis')) return 'devis'
-    if (lowerFilename.includes('plan')) return 'plan'
-    if (lowerFilename.includes('certificat')) return 'certificat'
-    if (lowerFilename.includes('garantie')) return 'garantie'
-  }
-  
-  // Spreadsheets and documents
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
-    if (lowerFilename.includes('devis')) return 'devis'
-    if (lowerFilename.includes('facture')) return 'facture'
-  }
-  
-  return 'autre' // Default type
-}
 
 export async function POST(request: NextRequest) {
   console.log("🔧 create-manager-intervention API route called")
@@ -91,7 +62,6 @@ export async function POST(request: NextRequest) {
       location,
       
       // Housing selection
-      selectedLogement,
       selectedBuildingId,
       selectedLotId,
       
@@ -374,7 +344,7 @@ export async function POST(request: NextRequest) {
       console.log("✅ Statut déterminé: PLANIFICATION (cas par défaut)")
     }
     
-    const interventionData: any = {
+    const interventionData: Record<string, unknown> = {
       title,
       description,
       type: mapInterventionType(type || ''),
@@ -466,8 +436,8 @@ export async function POST(request: NextRequest) {
       console.log("📅 Creating time slots:", timeSlots.length)
       
       const timeSlotsToInsert = timeSlots
-        .filter((slot: any) => slot.date && slot.startTime && slot.endTime) // Only valid slots
-        .map((slot: any) => ({
+        .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
+        .map((slot: { date: string; startTime: string; endTime: string }) => ({
           intervention_id: intervention.id,
           slot_date: slot.date,
           start_time: slot.startTime,
@@ -569,7 +539,7 @@ export async function POST(request: NextRequest) {
         // Note: Actual file upload will be handled by separate API calls from the frontend
         // This is because FormData with files needs special handling in Next.js
         console.log("📝 Files will be uploaded separately via upload API")
-        console.log("Files to upload:", files.map((f: any) => ({ name: f.name, size: f.size, type: f.type })))
+        console.log("Files to upload:", files.map((f: { name: string; size: number; type: string }) => ({ name: f.name, size: f.size, type: f.type })))
         
         // We'll return the file information so the frontend can handle the uploads
         // The frontend will call /api/upload-intervention-document for each file
@@ -581,7 +551,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Store additional metadata in manager_comment
-    let managerCommentParts = []
+    const managerCommentParts = []
     if (buildingId && !lotId) managerCommentParts.push('Intervention sur bâtiment entier')
     if (location) managerCommentParts.push(`Localisation: ${location}`)
     if (expectsQuote) managerCommentParts.push('Devis requis')

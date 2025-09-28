@@ -119,7 +119,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }, { status: 500 })
     }
 
-    let result: any = {
+    const result = {
       success: true,
       quoteRequests: quoteRequests || []
     }

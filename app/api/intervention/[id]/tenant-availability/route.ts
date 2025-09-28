@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'

@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     // Étape 5: Mettre à jour l'email dans notre table users
     console.log("🔄 [CHANGE-EMAIL] Updating email in users table...")
     try {
-      const updatedUser = await userService.update(dbUser.id, {
+      await userService.update(dbUser.id, {
         email: newEmail
       })
       console.log("✅ [CHANGE-EMAIL] Email updated in users table")

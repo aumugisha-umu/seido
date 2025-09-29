@@ -18,29 +18,44 @@ function getGitInfo(workingDir) {
             stdio: ['pipe', 'pipe', 'ignore']
         }).trim();
 
-        const status = execSync('git status --porcelain', {
+        const status = execSync('git status', {
             cwd: workingDir,
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore']
         }).trim();
 
-        const lines = status.split('\n').filter(line => line.trim());
-
-        // Count files by category
+        // Parse git status output by sections
         let stagedCount = 0;
         let modifiedCount = 0;
         let untrackedCount = 0;
 
-        lines.forEach(line => {
-            const indexStatus = line[0];
-            const workingTreeStatus = line[1];
+        const lines = status.split('\n');
+        let currentSection = '';
 
-            if (indexStatus && indexStatus !== ' ' && indexStatus !== '?') {
-                stagedCount++;
-            } else if (workingTreeStatus && workingTreeStatus !== ' ' && workingTreeStatus !== '?') {
-                modifiedCount++;
-            } else if (line.startsWith('??')) {
-                untrackedCount++;
+        lines.forEach(line => {
+            const trimmed = line.trim();
+
+            // Identify sections
+            if (trimmed.startsWith('Changes to be committed:')) {
+                currentSection = 'staged';
+            } else if (trimmed.startsWith('Changes not staged for commit:')) {
+                currentSection = 'modified';
+            } else if (trimmed.startsWith('Untracked files:')) {
+                currentSection = 'untracked';
+            } else if (trimmed.startsWith('On branch') || trimmed.startsWith('nothing to commit') || trimmed === '') {
+                currentSection = '';
+            } else if (currentSection && trimmed.startsWith('(use ')) {
+                // Skip help text
+                return;
+            } else if (currentSection && trimmed.length > 0) {
+                // Count files in each section
+                if (currentSection === 'staged' && (trimmed.startsWith('modified:') || trimmed.startsWith('new file:') || trimmed.startsWith('deleted:') || trimmed.startsWith('renamed:'))) {
+                    stagedCount++;
+                } else if (currentSection === 'modified' && (trimmed.startsWith('modified:') || trimmed.startsWith('deleted:'))) {
+                    modifiedCount++;
+                } else if (currentSection === 'untracked' && !trimmed.startsWith('(use ')) {
+                    untrackedCount++;
+                }
             }
         });
 

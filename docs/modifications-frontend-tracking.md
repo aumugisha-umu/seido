@@ -285,8 +285,95 @@ Ce document liste toutes les modifications **UI, layout et design** appliquées 
 
 ---
 
-**📅 Dernière mise à jour:** 29 décembre 2025
-**📝 Version:** 1.0
+### **AMÉLIORATIONS UX - CRÉATION D'IMMEUBLES (29/09/2025) - 🏗️ Optimisations Workflow Gestionnaire**
+
+#### ✅ **Problème résolu: Pré-remplissage automatique du premier lot**
+
+26. **app/gestionnaire/biens/immeubles/nouveau/page.tsx** - Pré-remplissage automatique premier lot (MODIFIÉE)
+    - **Vue:** Formulaire de création d'immeuble - Étape 2 (Lots Configuration)
+    - **Path:** `app/gestionnaire/biens/immeubles/nouveau/page.tsx`
+    - **Fix UX majeur:** Ajout useEffect pour créer automatiquement le premier lot à l'arrivée sur l'étape 2
+    - **Problème résolu:** L'utilisateur n'a plus besoin de cliquer manuellement sur "Ajouter mon premier lot"
+    - **Logique:** `currentStep === 2 && lots.length === 0 && categoryCountsByTeam loaded → addLot()`
+    - **Impact utilisateur:** Workflow plus fluide, respect automatique de l'exigence "minimum 1 lot par immeuble"
+
+#### 🎨 **Amélioration des messages d'interface**
+
+27. **Modifications textes et labels** - Messages d'aide optimisés
+    - **Interface:** Étape 2 création d'immeuble - Messages utilisateur
+    - **Impact UI:**
+      - **Message d'état vide:** "Préparation de votre premier lot..." (au lieu de "Aucun lot configuré")
+      - **Description explicative:** "Un premier lot est automatiquement créé pour vous..."
+      - **Bouton d'action:** "Créer le premier lot maintenant" puis "Ajouter un autre lot"
+      - **Message d'aide:** "Un lot minimum est requis pour créer l'immeuble"
+
+#### ✅ **Problème résolu: Cohérence références de lots**
+
+28. **Correction logique génération références** - Unification calculs de numérotation (MODIFIÉE)
+    - **Vue:** Toutes les fonctions de création/duplication de lots
+    - **Path:** `app/gestionnaire/biens/immeubles/nouveau/page.tsx`
+    - **Fix technique critique:** Alignement de la logique entre `addLot()`, `duplicateLot()` et `useEffect`
+    - **Problème résolu:** Incohérence entre référence affichée et valeur réellement enregistrée
+    - **Avant:** `addLot()` utilisait `lots.filter(...).length + 1` vs `useEffect` utilisait `lotIndex + 1`
+    - **Après:** Unification avec `currentCategoryCount + lotsOfSameCategory.length + 1`
+    - **Impact utilisateur:** La référence affichée dans le champ correspond exactement à ce qui sera enregistré
+
+#### 🎯 **Impact UX global des améliorations:**
+- **Workflow accéléré:** Plus de clic manuel obligatoire pour créer le premier lot
+- **Cohérence données:** Références affichées = références enregistrées (pas de surprise)
+- **Messages informatifs:** Interface plus claire sur les étapes et requis
+- **Robustesse:** Respect automatique des règles métier (minimum 1 lot)
+- **Expérience fluide:** Transition naturelle entre étapes sans friction
+
+#### 📱 **Code des modifications UI critiques:**
+
+**useEffect pré-remplissage automatique:**
+```typescript
+// Pré-remplir automatiquement le premier lot quand on arrive à l'étape 2
+useEffect(() => {
+  if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0) {
+    // Un immeuble doit avoir au minimum 1 lot, donc on en crée un automatiquement
+    addLot()
+  }
+}, [currentStep, lots.length, categoryCountsByTeam])
+```
+
+**Logique unifiée génération références:**
+```typescript
+const addLot = () => {
+  const category = "appartement"
+  const categoryConfig = getLotCategoryConfig(category)
+  const currentCategoryCount = categoryCountsByTeam[category] || 0
+  // Utiliser la même logique que le useEffect : position du nouveau lot dans la liste filtrée + 1
+  const lotsOfSameCategory = lots.filter(lot => lot.category === category)
+  const nextNumber = currentCategoryCount + lotsOfSameCategory.length + 1
+  // ...rest of the function
+}
+```
+
+**Messages d'interface améliorés:**
+```jsx
+{lots.length === 0 ? (
+  <div className="text-center py-12">
+    <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+    <h3 className="text-lg font-medium text-gray-900 mb-2">Préparation de votre premier lot...</h3>
+    <p className="text-gray-500 mb-6">
+      Un premier lot est automatiquement créé pour vous. Vous pourrez ensuite le personnaliser et en ajouter d'autres.
+    </p>
+    <Button onClick={addLot} className="bg-blue-600 hover:bg-blue-700">
+      <Plus className="w-4 h-4 mr-2" />
+      Créer le premier lot maintenant
+    </Button>
+  </div>
+) : (
+  // Section avec bouton "Ajouter un autre lot"
+)}
+```
+
+---
+
+**📅 Dernière mise à jour:** 29 septembre 2025
+**📝 Version:** 1.2
 **🔄 Status:** Document vivant - à mettre à jour à chaque modification frontend
 
 ---

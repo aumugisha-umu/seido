@@ -329,7 +329,7 @@ export default function NewImmeubleePage() {
       const lotIndex = lotsOfSameCategory.findIndex(l => l.id === lot.id)
       const nextNumber = currentCategoryCount + lotIndex + 1
       const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
-      
+
       const currentReference = lot.reference
       const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
 
@@ -341,7 +341,7 @@ export default function NewImmeubleePage() {
 
     // Appliquer toutes les mises à jour en une seule fois
     if (lotsToUpdate.length > 0) {
-      setLots(prevLots => 
+      setLots(prevLots =>
         prevLots.map(lot => {
           const update = lotsToUpdate.find(u => u.id === lot.id)
           return update ? { ...lot, reference: update.newReference } : lot
@@ -349,6 +349,14 @@ export default function NewImmeubleePage() {
       )
     }
   }, [lots.map(lot => lot.category).join(','), categoryCountsByTeam])
+
+  // Pré-remplir automatiquement le premier lot quand on arrive à l'étape 2
+  useEffect(() => {
+    if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0) {
+      // Un immeuble doit avoir au minimum 1 lot, donc on en crée un automatiquement
+      addLot()
+    }
+  }, [currentStep, lots.length, categoryCountsByTeam])
 
   // Afficher la vérification d'équipe si nécessaire (APRÈS tous les hooks)
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -361,7 +369,9 @@ export default function NewImmeubleePage() {
     const category = "appartement"
     const categoryConfig = getLotCategoryConfig(category)
     const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const nextNumber = currentCategoryCount + lots.filter(lot => lot.category === category).length + 1
+    // Utiliser la même logique que le useEffect : position du nouveau lot dans la liste filtrée + 1
+    const lotsOfSameCategory = lots.filter(lot => lot.category === category)
+    const nextNumber = currentCategoryCount + lotsOfSameCategory.length + 1
     
     const newLot: Lot = {
       id: `lot${lots.length + 1}`,
@@ -403,7 +413,9 @@ export default function NewImmeubleePage() {
       const category = lotToDuplicate.category || "appartement"
       const categoryConfig = getLotCategoryConfig(category)
       const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + lots.filter(lot => lot.category === category).length + 1
+      // Utiliser la même logique que le useEffect : position du nouveau lot dans la liste filtrée + 1
+      const lotsOfSameCategory = lots.filter(lot => lot.category === category)
+      const nextNumber = currentCategoryCount + lotsOfSameCategory.length + 1
       
       const newLot: Lot = {
         ...lotToDuplicate,
@@ -830,13 +842,13 @@ export default function NewImmeubleePage() {
                 {lots.length === 0 ? (
                   <div className="text-center py-12">
                     <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot configuré</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Préparation de votre premier lot...</h3>
                     <p className="text-gray-500 mb-6">
-                      Commencez par ajouter votre premier lot. Vous pourrez ensuite le dupliquer pour gagner du temps.
+                      Un premier lot est automatiquement créé pour vous. Vous pourrez ensuite le personnaliser et en ajouter d'autres.
                     </p>
                     <Button onClick={addLot} className="bg-blue-600 hover:bg-blue-700">
                       <Plus className="w-4 h-4 mr-2" />
-                      Ajouter mon premier lot
+                      Créer le premier lot maintenant
                     </Button>
                   </div>
                 ) : (
@@ -849,7 +861,7 @@ export default function NewImmeubleePage() {
                         className="border-green-600 text-green-600 hover:bg-green-50 bg-transparent"
                       >
                         <Plus className="w-4 h-4 mr-2" />
-                        Ajouter un lot
+                        Ajouter un autre lot
                       </Button>
                     </div>
 
@@ -973,7 +985,7 @@ export default function NewImmeubleePage() {
                   </Button>
                 </div>
                 {lots.length === 0 && (
-                  <p className="text-center text-sm text-gray-500 mt-2">Ajoutez au moins un lot pour continuer</p>
+                  <p className="text-center text-sm text-gray-500 mt-2">Un lot minimum est requis pour créer l'immeuble</p>
                 )}
               </CardContent>
             </Card>

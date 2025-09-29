@@ -352,11 +352,15 @@ export default function NewImmeubleePage() {
 
   // Pré-remplir automatiquement le premier lot quand on arrive à l'étape 2
   useEffect(() => {
-    if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0) {
+    if (currentStep === 2 && lots.length === 0) {
       // Un immeuble doit avoir au minimum 1 lot, donc on en crée un automatiquement
-      addLot()
+      // Ne pas attendre categoryCountsByTeam car addLot() gère déjà le fallback (|| 0)
+      // ✅ Utiliser setTimeout pour éviter flushSync pendant le render
+      setTimeout(() => {
+        addLot()
+      }, 0)
     }
-  }, [currentStep, lots.length, categoryCountsByTeam])
+  }, [currentStep, lots.length])
 
   // Afficher la vérification d'équipe si nécessaire (APRÈS tous les hooks)
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {

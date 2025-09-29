@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,7 +15,9 @@ import {
   Building,
   MessageSquare,
   DollarSign,
-  User
+  User,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -74,6 +77,13 @@ export function PendingActionsCard({
   onActionClick
 }: PendingActionsCardProps) {
   const router = useRouter()
+  // ✅ Fermée par défaut si vide, ouverte si des actions existent
+  const [isExpanded, setIsExpanded] = useState(actions.length > 0)
+
+  // ✅ Mettre à jour l'état quand les actions changent (après chargement async)
+  useEffect(() => {
+    setIsExpanded(actions.length > 0)
+  }, [actions.length])
 
   // Configuration des actions selon le rôle utilisateur et le type/statut
   const getActionConfig = (action: PendingAction): ActionConfig => {
@@ -241,9 +251,19 @@ export function PendingActionsCard({
     return (
       <Card className="mb-8">
         <CardHeader className="pb-4">
-          <div className="animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div className="flex items-center justify-between">
+            <div className="animate-pulse flex-1">
+              <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              disabled
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -262,15 +282,38 @@ export function PendingActionsCard({
   return (
     <Card className="mb-8">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-slate-900">
-          <AlertCircle className="w-5 h-5 text-orange-500" />
-          {title}
-        </CardTitle>
-        <CardDescription>
-          {description}
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              {title}
+              {actions.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {actions.length}
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="mt-1">
+              {description}
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 hover:bg-slate-100"
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-label={isExpanded ? "Masquer les actions" : "Afficher les actions"}
+          >
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4 text-slate-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-slate-600" />
+            )}
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      {isExpanded && (
+        <CardContent className="pt-0">
         {actions.length === 0 ? (
           <div className="text-center py-6">
             <CheckCircle className="w-12 h-12 mx-auto mb-4 text-emerald-500" />
@@ -352,7 +395,8 @@ export function PendingActionsCard({
             })}
           </div>
         )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   )
 }

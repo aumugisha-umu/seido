@@ -184,22 +184,146 @@ export default function LocataireDashboard() {
   ]
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-      {/* Page Header - Simple et centré */}
-      <div className="text-center lg:text-left mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user.name} 👋</h1>
-            <p className="text-slate-600">Signalez vos problèmes ici et faites-en le suivi facilement</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      {/* Page Header - Simplifié */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-slate-900">Bonjour {user.name} 👋</h1>
+        <p className="text-slate-600 mt-1">Gérez vos demandes d'intervention et suivez leur avancement</p>
+      </div>
+
+      {/* Section Informations du logement - VERSION COMPACTE */}
+      <section className="mb-6">
+        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          {/* Desktop Layout - Horizontal */}
+          <div className="hidden lg:flex lg:items-center lg:justify-between lg:flex-wrap gap-4">
+            {/* Colonne 1: Identification du logement */}
+            <div className="flex items-center gap-3 flex-1">
+              <Home className="w-5 h-5 text-slate-600 flex-shrink-0" />
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-semibold text-slate-900">
+                  {tenantData.building?.name || `Lot ${tenantData.reference}`}
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-700">
+                  {tenantData.reference}
+                </span>
+                {tenantData.building && (
+                  <>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-slate-600">
+                      {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Colonne 2: Détails compacts (si disponibles) */}
+            {(tenantData.floor !== undefined || tenantData.rooms || tenantData.surface_area || tenantData.charges_amount) && (
+              <div className="flex items-center gap-3 text-sm text-slate-600">
+                {tenantData.floor !== undefined && (
+                  <span>Étage {tenantData.floor}</span>
+                )}
+                {tenantData.rooms && (
+                  <>
+                    {tenantData.floor !== undefined && <span className="text-slate-400">•</span>}
+                    <span>{tenantData.rooms} pièces</span>
+                  </>
+                )}
+                {tenantData.surface_area && (
+                  <>
+                    <span className="text-slate-400">•</span>
+                    <span>{tenantData.surface_area}m²</span>
+                  </>
+                )}
+                {tenantData.charges_amount && (
+                  <>
+                    <span className="text-slate-400">•</span>
+                    <span>Charges: {tenantData.charges_amount.toFixed(0)}€</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Colonne 3: Gestionnaire avec action chat */}
+            {tenantData.building?.manager && (
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-slate-600" />
+                <span className="text-sm text-slate-600">Gestionnaire:</span>
+                <button
+                  onClick={handleOpenChat}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"
+                  aria-label={`Contacter ${tenantData.building.manager.name}`}
+                >
+                  <span>{tenantData.building.manager.name}</span>
+                  <MessageCircle className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
-          <div className="flex justify-center lg:justify-end">
-            <Button className="px-6 py-3 text-base font-semibold" onClick={handleNewIntervention}>
-              <Plus className="w-5 h-5 mr-2" />
-              Créer une nouvelle demande
-            </Button>
+
+          {/* Mobile Layout - Vertical compact */}
+          <div className="lg:hidden space-y-2">
+            {/* Ligne 1: Identification principale */}
+            <div className="flex items-start gap-2">
+              <Home className="w-4 h-4 text-slate-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 text-sm">
+                <div className="font-semibold text-slate-900">
+                  {tenantData.building?.name || `Lot ${tenantData.reference}`}
+                </div>
+                <div className="text-slate-600">
+                  {tenantData.reference}
+                </div>
+              </div>
+            </div>
+
+            {/* Ligne 2: Adresse */}
+            {tenantData.building && (
+              <div className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-slate-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-slate-600 flex-1">
+                  {tenantData.building.address}, {tenantData.building.postal_code} {tenantData.building.city}
+                </div>
+              </div>
+            )}
+
+            {/* Ligne 3: Détails compacts */}
+            {(tenantData.floor !== undefined || tenantData.rooms || tenantData.surface_area || tenantData.charges_amount) && (
+              <div className="flex flex-wrap gap-3 text-xs text-slate-600 ml-6">
+                {tenantData.floor !== undefined && (
+                  <span>Étage {tenantData.floor}</span>
+                )}
+                {tenantData.rooms && (
+                  <span>{tenantData.rooms} pièces</span>
+                )}
+                {tenantData.surface_area && (
+                  <span>{tenantData.surface_area}m²</span>
+                )}
+                {tenantData.charges_amount && (
+                  <span>{tenantData.charges_amount.toFixed(0)}€/mois</span>
+                )}
+              </div>
+            )}
+
+            {/* Ligne 4: Gestionnaire avec bouton chat */}
+            {tenantData.building?.manager && (
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <User className="w-4 h-4" />
+                  <span>Gestionnaire</span>
+                </div>
+                <button
+                  onClick={handleOpenChat}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"
+                >
+                  <span>{tenantData.building.manager.name}</span>
+                  <MessageCircle className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Section 1: Actions en attente */}
       <section>
@@ -236,104 +360,6 @@ export default function LocataireDashboard() {
         />
       </section>
 
-      {/* Section 2: Informations du logement */}
-      <section>
-        <Card className="mb-8">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-slate-900">
-              <Home className="w-5 h-5" />
-              Informations du logement
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Nom / Référence */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Nom / Référence</p>
-                  <p className="font-semibold text-slate-900">
-                    {tenantData.building?.name || `Lot ${tenantData.reference}`}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    {tenantData.building ? tenantData.reference : `${tenantData.category || 'appartement'} • ${tenantData.reference}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Adresse */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Adresse</p>
-                  <p className="text-slate-900">
-                    {tenantData.building ?
-                      `${tenantData.building.address}, ${tenantData.building.postal_code} ${tenantData.building.city}` :
-                      'Lot indépendant'
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Gestionnaire */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Gestionnaire</p>
-                  <div 
-                    onClick={handleOpenChat}
-                    className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-full cursor-pointer transition-colors group"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        handleOpenChat()
-                      }
-                    }}
-                    aria-label="Jean Martin • Cliquer pour ouvrir le chat"
-                  >
-                    <User className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium">Jean Martin</span>
-                    <MessageCircle className="w-4 h-4 text-blue-600 opacity-70 group-hover:opacity-100 transition-opacity ml-1" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Informations supplémentaires du lot */}
-            {(tenantData.floor !== undefined || tenantData.rooms || tenantData.surface_area || tenantData.charges_amount) && (
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <h3 className="text-base font-medium text-slate-900 mb-4">Détails du logement</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {tenantData.floor !== undefined && (
-                    <div>
-                      <p className="text-sm text-slate-600">Étage</p>
-                      <p className="font-semibold text-slate-900">{tenantData.floor}</p>
-                    </div>
-                  )}
-                  {tenantData.rooms && (
-                    <div>
-                      <p className="text-sm text-slate-600">Pièces</p>
-                      <p className="font-semibold text-slate-900">{tenantData.rooms}</p>
-                    </div>
-                  )}
-                  {tenantData.surface_area && (
-                    <div>
-                      <p className="text-sm text-slate-600">Surface</p>
-                      <p className="font-semibold text-slate-900">{tenantData.surface_area} m²</p>
-                    </div>
-                  )}
-                  {tenantData.charges_amount && (
-                    <div>
-                      <p className="text-sm text-slate-600">Charges</p>
-                      <p className="font-semibold text-slate-900">{tenantData.charges_amount.toFixed(2)} €</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      
     </div>
   )
 }

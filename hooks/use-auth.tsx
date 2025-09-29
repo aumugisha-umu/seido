@@ -47,7 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('✅ [AUTH-PROVIDER-OPTIMIZED] Initial auth ready:', user ? `${user.name} (${user.role})` : 'none')
         }
       } catch (error) {
-        console.error('❌ [AUTH-PROVIDER-OPTIMIZED] Failed to initialize auth:', error)
+        // ✅ Ne logger que si c'est une vraie erreur inattendue
+        const errorMessage = error instanceof Error ? error.message : String(error)
+
+        if (!errorMessage.includes('session') && !errorMessage.includes('not authenticated')) {
+          console.error('❌ [AUTH-PROVIDER-OPTIMIZED] Failed to initialize auth:', error)
+        }
+
         if (isMounted) {
           setUser(null)
           setLoading(false)

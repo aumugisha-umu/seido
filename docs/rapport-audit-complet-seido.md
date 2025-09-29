@@ -4,7 +4,7 @@
 **Version analysée :** Branche `refacto` (Commit 0c4a8ea)
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité, upload de fichiers
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 29 décembre 2025 - 16:00 CET (CORRECTION COMPLÈTE DU SYSTÈME D'UPLOAD DE FICHIERS - Phase 4 terminée avec succès)
+**Dernière mise à jour :** 29 septembre 2025 - 21:45 CET (AMÉLIORATION UX CARTE ACTIONS EN ATTENTE - Collapsible)
 
 ---
 
@@ -35,6 +35,194 @@ Tests E2E:            ████░░░░░░  40% 🔴 13/25 échecs
 Infrastructure Test:   ██████████ 100% ✅ Puppeteer opérationnel
 Taux Global Réussite:  ████░░░░░░  40% 🔴 NON PRÊT PRODUCTION
 ```
+
+---
+
+## 🔧 CORRECTIONS APPLIQUÉES (29 septembre 2025)
+
+### ✅ Amélioration UX : Carte "Actions en attente" Collapsible (21:45 CET)
+
+**Amélioration demandée :**
+- Ajouter un chevron pour fermer/ouvrir la carte "Actions en attente" sur les dashboards locataire et prestataire
+- Permettre à l'utilisateur de masquer temporairement la carte pour un affichage plus épuré
+- Impact : Meilleure gestion de l'espace écran, UX plus flexible
+
+**Solution implémentée :**
+
+**Fichier `components/shared/pending-actions-card.tsx`**
+- Ajout d'un état `isExpanded` pour gérer l'ouverture/fermeture (ligne 80)
+- Import des icônes `ChevronDown` et `ChevronUp` de Lucide React
+- Ajout d'un bouton chevron dans le header avec transition visuelle
+- Badge avec compteur d'actions visible même quand la carte est fermée
+- Animation fluide lors de l'ouverture/fermeture
+
+**Caractéristiques :**
+```typescript
+// État de collapsible
+const [isExpanded, setIsExpanded] = useState(true) // Ouvert par défaut
+
+// Bouton chevron dans header
+<Button
+  variant="ghost"
+  size="sm"
+  className="h-8 w-8 p-0 hover:bg-slate-100"
+  onClick={() => setIsExpanded(!isExpanded)}
+  aria-label={isExpanded ? "Masquer les actions" : "Afficher les actions"}
+>
+  {isExpanded ? <ChevronUp /> : <ChevronDown />}
+</Button>
+
+// Badge avec compteur
+{actions.length > 0 && (
+  <Badge variant="secondary" className="ml-2">
+    {actions.length}
+  </Badge>
+)}
+
+// Contenu conditionnel
+{isExpanded && <CardContent>...</CardContent>}
+```
+
+**Résultats :**
+- ✅ Carte collapsible avec chevron dans header
+- ✅ Badge affichant le nombre d'actions en attente
+- ✅ État intelligent : **fermée si vide**, **ouverte si actions présentes**
+- ✅ Animation visuelle du chevron (up/down)
+- ✅ Accessible (aria-label explicite)
+- ✅ Réactivité : se ferme/ouvre automatiquement quand le nombre d'actions change
+- ✅ Fonctionne sur dashboards locataire ET prestataire
+
+**Fichiers modifiés :**
+- `components/shared/pending-actions-card.tsx` (lignes 3, 19-20, 81, 84-86, 244-309, 392-393)
+
+**Dashboards impactés :**
+- `/locataire/dashboard` (ligne 206-210)
+- `/prestataire/dashboard` (via `components/dashboards/prestataire-dashboard.tsx:218`)
+
+---
+
+### ✅ Correction de la Création Automatique du Premier Lot (21:15 CET)
+
+**Problème identifié :**
+- À l'étape 2 "Lots" de la création d'immeuble, le formulaire du premier lot n'apparaissait pas automatiquement
+- L'utilisateur voyait un message "Préparation de votre premier lot..." avec un bouton manuel
+- Impact : UX dégradée, étape supplémentaire inutile alors qu'un lot minimum est obligatoire
+
+**Cause racine :**
+- Le `useEffect` attendait que `categoryCountsByTeam` soit chargé avant de créer le premier lot (ligne 355)
+- Ce chargement asynchrone créait un délai, laissant l'utilisateur face à un écran vide
+
+**Solution implémentée :**
+
+**Fichier `app/gestionnaire/biens/immeubles/nouveau/page.tsx:353-360`**
+- Suppression de la condition `categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0`
+- Création immédiate du premier lot dès l'arrivée à l'étape 2
+- La fonction `addLot()` gère déjà le fallback avec `|| 0` si les catégories ne sont pas encore chargées
+
+**Avant :**
+```typescript
+if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0) {
+  addLot()
+}
+```
+
+**Après :**
+```typescript
+if (currentStep === 2 && lots.length === 0) {
+  // ✅ Utiliser setTimeout pour éviter flushSync pendant le render
+  setTimeout(() => {
+    addLot()
+  }, 0)
+}
+```
+
+**Erreur `flushSync` corrigée :**
+- Erreur initiale : `flushSync was called from inside a lifecycle method`
+- Cause : `addLot()` appelé directement depuis `useEffect` créait un state update synchrone pendant le render
+- Solution : **Micro-task avec `setTimeout(fn, 0)`** pour différer l'exécution après le render cycle
+
+**Résultats :**
+- ✅ Premier lot créé **instantanément** à l'arrivée sur l'étape 2
+- ✅ Formulaire visible immédiatement, prêt à personnaliser
+- ✅ UX fluide sans attente ni clic supplémentaire
+- ✅ Cohérence avec le message "au moins 1 lot obligatoire"
+- ✅ Pas d'erreur `flushSync` en console
+
+**Fichiers modifiés :**
+- `app/gestionnaire/biens/immeubles/nouveau/page.tsx` (lignes 353-360)
+
+---
+
+### ✅ Correction du Double Comptage des Contacts (20:58 CET)
+
+**Problème identifié :**
+- Dashboard affichait **3 contacts** alors qu'il n'y en avait que **2** (Arthur + Bernard)
+- Bernard Meunier était compté **deux fois** :
+  - Une fois dans les contacts actifs (compte créé via invitation)
+  - Une fois dans les invitations en attente (invitation non marquée comme acceptée)
+- Impact : Statistiques dashboard incorrectes et trompeuses
+
+**Solution implémentée :**
+
+**Fichier `lib/database-service.ts:3428-3470`**
+- Ajout d'un `Set<string>` pour tracker les emails des utilisateurs actifs
+- Filtrage des invitations pending pour exclure celles dont l'utilisateur a déjà un compte actif
+- Logging détaillé des invitations skippées pour le debugging
+- Calcul correct de `invitationsPending` (seulement les vraies invitations en attente)
+
+**Logique de déduplication :**
+```typescript
+// 1. Track active user emails while counting
+activeUserEmails.add(member.user.email.toLowerCase())
+
+// 2. Skip pending invitations for users who already have accounts
+if (invitationEmail && activeUserEmails.has(invitationEmail)) {
+  continue // Don't count this invitation
+}
+```
+
+**Résultats :**
+- ✅ Dashboard affiche maintenant **2 contacts** correctement
+- ✅ Invitations pending = vraies invitations uniquement (pas les comptes déjà créés)
+- ✅ Statistiques par type de contact précises
+- ✅ Pas de double comptage entre onglets "Contacts" et "Invitations"
+
+**Fichiers modifiés :**
+- `lib/database-service.ts` (lignes 3428-3470)
+
+---
+
+### ✅ Correction du Logging des Erreurs d'Authentification (18:30 CET)
+
+**Problème identifié :**
+- Erreurs `"Auth session missing!"` loggées comme erreurs critiques sur la page `/auth/login`
+- Console polluée avec des erreurs normales quand l'utilisateur n'est pas connecté sur pages publiques
+- Impact négatif sur l'expérience développeur et difficultés de débogage
+
+**Solution implémentée :**
+
+1. **Fichier `lib/auth-service.ts:340-348`**
+   - Logging conditionnel selon le type d'erreur
+   - Messages "no session" traités comme informatifs (ℹ️) au lieu d'erreurs (❌)
+   - Retour de `null` au lieu de `throw` pour éviter la propagation d'erreur
+
+2. **Fichier `lib/auth-service.ts:425-436`**
+   - Catch block intelligent détectant les erreurs de session attendues
+   - Distinction entre erreurs normales (pas de session) et erreurs critiques (bugs)
+
+3. **Fichier `hooks/use-auth.tsx:49-62`**
+   - Filtrage des erreurs de session lors de l'initialisation du AuthProvider
+   - Logging uniquement des erreurs inattendues
+
+**Résultats :**
+- ✅ Console propre sur page de login
+- ✅ Erreurs critiques toujours visibles pour le débogage
+- ✅ Build réussi sans avertissements
+- ✅ UX développeur améliorée
+
+**Fichiers modifiés :**
+- `lib/auth-service.ts` (lignes 340-348, 425-436)
+- `hooks/use-auth.tsx` (lignes 49-62)
 
 ---
 

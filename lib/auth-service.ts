@@ -338,8 +338,13 @@ class AuthService {
       const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
       if (error) {
-        console.log('❌ [AUTH-SERVICE-OPTIMIZED] Auth error:', error.message)
-        throw new Error(`Auth error: ${error.message}`)
+        // ✅ Ne pas logger comme erreur si c'est juste "no session" (comportement normal sur pages publiques)
+        if (error.message.includes('session') || error.message.includes('not authenticated')) {
+          console.log('ℹ️ [AUTH-SERVICE-OPTIMIZED] No active session (expected on public pages)')
+        } else {
+          console.log('❌ [AUTH-SERVICE-OPTIMIZED] Auth error:', error.message)
+        }
+        return { user: null, error: null } // ✅ Retourner null au lieu de throw
       }
 
       if (!authUser || !authUser.email_confirmed_at) {
@@ -418,7 +423,15 @@ class AuthService {
       return { user, error: null }
 
     } catch (error) {
-      console.error('❌ [AUTH-SERVICE-REFACTORED] getCurrentUser failed:', error)
+      // ✅ Logging conditionnel selon le type d'erreur
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      if (errorMessage.includes('session') || errorMessage.includes('not authenticated') || errorMessage.includes('Auth session missing')) {
+        console.log('ℹ️ [AUTH-SERVICE-OPTIMIZED] No session available (normal on public pages)')
+      } else {
+        console.error('❌ [AUTH-SERVICE-REFACTORED] getCurrentUser failed:', error)
+      }
+
       return { user: null, error: null }
     }
   }

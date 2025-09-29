@@ -188,14 +188,10 @@ export async function GET(
     const sortBy = searchParams.get('sortBy') || 'uploaded_at'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    // Build the query
+    // Build the query - fetch documents without user joins first
     let query = supabase
       .from('intervention_documents')
-      .select(`
-        *,
-        uploaded_by_user:uploaded_by(id, name, email, role),
-        validated_by_user:validated_by(id, name, email, role)
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('intervention_id', interventionId)
 
     // Apply document type filter
@@ -225,9 +221,31 @@ export async function GET(
       }, { status: 500 })
     }
 
+    // Collect unique auth user IDs for batch user lookup
+    const authUserIds = new Set<string>()
+    documents?.forEach(doc => {
+      if (doc.uploaded_by) authUserIds.add(doc.uploaded_by)
+      if (doc.validated_by) authUserIds.add(doc.validated_by)
+    })
+
+    // Fetch user details for all auth user IDs in one query
+    const userMap = new Map<string, any>()
+    if (authUserIds.size > 0) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, name, email, role, auth_user_id')
+        .in('auth_user_id', Array.from(authUserIds))
+
+      usersData?.forEach(user => {
+        if (user.auth_user_id) {
+          userMap.set(user.auth_user_id, user)
+        }
+      })
+    }
+
     // Generate signed URLs for each document
     const documentsWithUrls = await Promise.all(
-      (documents || []).map(async (doc: DocumentWithUser) => {
+      (documents || []).map(async (doc: any) => {
         let signedUrl = null
         let thumbnailUrl = null
 
@@ -257,6 +275,10 @@ export async function GET(
           console.warn(`⚠️ Could not create signed URL for document ${doc.id}:`, urlError)
         }
 
+        // Get user details from map
+        const uploadedByUser = doc.uploaded_by ? userMap.get(doc.uploaded_by) : null
+        const validatedByUser = doc.validated_by ? userMap.get(doc.validated_by) : null
+
         return {
           id: doc.id,
           intervention_id: doc.intervention_id,
@@ -266,11 +288,11 @@ export async function GET(
           document_type: doc.document_type,
           uploaded_at: doc.uploaded_at || doc.created_at, // Hook expects this
           uploaded_by: doc.uploaded_by,
-          uploaded_by_user: doc.uploaded_by_user ? {
-            id: doc.uploaded_by_user.id,
-            name: doc.uploaded_by_user.name,
-            email: doc.uploaded_by_user.email,
-            role: doc.uploaded_by_user.role
+          uploaded_by_user: uploadedByUser ? {
+            id: uploadedByUser.id,
+            name: uploadedByUser.name,
+            email: uploadedByUser.email,
+            role: uploadedByUser.role
           } : null, // Hook expects this
           description: doc.description,
           signed_url: signedUrl, // Hook expects this
@@ -279,11 +301,11 @@ export async function GET(
           storage_bucket: doc.storage_bucket,
           is_validated: doc.is_validated || false,
           validated_at: doc.validated_at,
-          validated_by_user: doc.validated_by_user ? {
-            id: doc.validated_by_user.id,
-            name: doc.validated_by_user.name,
-            email: doc.validated_by_user.email,
-            role: doc.validated_by_user.role
+          validated_by_user: validatedByUser ? {
+            id: validatedByUser.id,
+            name: validatedByUser.name,
+            email: validatedByUser.email,
+            role: validatedByUser.role
           } : null,
           updated_at: doc.updated_at
         }
@@ -293,7 +315,7 @@ export async function GET(
     // Group documents by type for easier frontend consumption
     const groupedDocuments = documentsWithUrls.reduce((acc, doc) => {
       const category = Object.entries(DOCUMENT_TYPE_CATEGORIES).find(([_, types]) =>
-        types.includes(doc.documentType || 'autre')
+        types.includes(doc.document_type || 'autre')
       )?.[0] || 'other'
 
       if (!acc[category]) {

@@ -204,12 +204,17 @@ export const useInterventionQuoting = () => {
 
   /**
    * Mettre à jour les données du formulaire
+   * Accepte soit (field, value) soit un objet de mise à jour partielle
    */
-  const updateFormData = (field: keyof QuoteRequestData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
+  const updateFormData = (fieldOrUpdate: keyof QuoteRequestData | Partial<QuoteRequestData>, value?: string) => {
+    setFormData(prev => {
+      // Si le premier paramètre est un objet, on fait un merge
+      if (typeof fieldOrUpdate === 'object') {
+        return { ...prev, ...fieldOrUpdate }
+      }
+      // Sinon, syntaxe classique (field, value)
+      return { ...prev, [fieldOrUpdate]: value }
+    })
   }
 
   /**

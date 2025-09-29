@@ -31,10 +31,12 @@ import { TenantValidationForm } from "./tenant-validation-form"
 import { SimplifiedFinalizationModal } from "./simplified-finalization-modal"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
+import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import { useAuth } from "@/hooks/use-auth"
 import { QuoteRequestModal } from "./modals/quote-request-modal"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
+import { ProgrammingModal } from "./modals/programming-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
@@ -104,8 +106,9 @@ export function InterventionActionPanelHeader({
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
 
-  // Hook for quote management
+  // Hooks for quote and planning management
   const quoting = useInterventionQuoting()
+  const planning = useInterventionPlanning()
   const { user } = useAuth()
 
   // Fonction pour détecter le devis existant du prestataire connecté
@@ -124,11 +127,11 @@ export function InterventionActionPanelHeader({
     // Types d'actions selon le Design System
     const actionTypes = {
       // Actions positives (succès, validation)
-      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot'],
+      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes'],
       // Actions destructives (suppression, rejet, annulation)
       destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote'],
       // Actions neutres (planification, demande, gestion)
-      neutral: ['request_quotes', 'start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'submit_quote', 'run_matching', 'propose_slots', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
+      neutral: ['start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'submit_quote', 'modify_planning', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
       // Actions informatives (consultation)
       informative: ['view', 'consult', 'check', 'view_quote']
     }
@@ -313,18 +316,11 @@ export function InterventionActionPanelHeader({
         if (userRole === 'gestionnaire') {
           actions.push(
             {
-              key: 'run_matching',
-              label: 'Lancer le matching',
-              icon: TrendingUp,
-              variant: 'default',
-              description: 'Trouver automatiquement les créneaux compatibles'
-            },
-            {
-              key: 'propose_slots',
-              label: 'Proposer des créneaux',
+              key: 'modify_planning',
+              label: 'Modifier la planification',
               icon: Clock,
               variant: 'outline',
-              description: 'Proposer manuellement des créneaux'
+              description: 'Modifier les options de planification'
             }
           )
         }
@@ -571,7 +567,9 @@ export function InterventionActionPanelHeader({
           return
 
         case 'start_planning':
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=planning`
+        case 'modify_planning':
+          // Ouvrir la modale de programmation
+          planning.handleProgrammingModal(intervention)
           return
 
         case 'start_work':
@@ -990,6 +988,26 @@ export function InterventionActionPanelHeader({
         onClose={quoting.closeSuccessModal}
         providerNames={quoting.successModal.providerNames}
         interventionTitle={quoting.successModal.interventionTitle}
+      />
+
+      {/* Programming Modal */}
+      <ProgrammingModal
+        isOpen={planning.programmingModal.isOpen}
+        onClose={planning.closeProgrammingModal}
+        intervention={planning.programmingModal.intervention}
+        programmingOption={planning.programmingOption}
+        onProgrammingOptionChange={planning.setProgrammingOption}
+        directSchedule={planning.programmingDirectSchedule}
+        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+        proposedSlots={planning.programmingProposedSlots}
+        onAddProposedSlot={planning.addProgrammingSlot}
+        onUpdateProposedSlot={planning.updateProgrammingSlot}
+        onRemoveProposedSlot={planning.removeProgrammingSlot}
+        onConfirm={() => {
+          planning.handleProgrammingConfirm()
+          onActionComplete?.()
+        }}
+        isFormValid={planning.isProgrammingFormValid}
       />
     </>
   )

@@ -123,6 +123,30 @@ export class InterventionActionsService {
     return result
   }
 
+  async updateInterventionStatus(interventionId: string, newStatus: string): Promise<any> {
+    console.log(`🔄 Updating intervention ${interventionId} to status: ${newStatus}`)
+
+    const response = await fetch('/api/intervention-status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId,
+        status: newStatus
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de la mise à jour du statut: ${response.status}`)
+    }
+
+    console.log(`✅ Intervention status updated successfully to: ${newStatus}`)
+    return result
+  }
+
   async startIntervention(intervention: InterventionAction): Promise<any> {
     console.log(`🚀 Starting intervention ${intervention.id}`)
 

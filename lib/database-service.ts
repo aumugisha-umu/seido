@@ -3427,6 +3427,8 @@ export const statsService = {
 
       // Count active users by type
       let totalActiveAccounts = 0
+      const activeUserEmails = new Set<string>() // ✅ Track emails to avoid double counting
+
       if (activeUsers) {
         for (const member of activeUsers) {
           if (member.user?.role) {
@@ -3435,15 +3437,29 @@ export const statsService = {
               contactsByType[contactType].active += 1
               contactsByType[contactType].total += 1
               totalActiveAccounts += 1
+
+              // ✅ Track active user email to avoid counting invitation for same user
+              if (member.user.email) {
+                activeUserEmails.add(member.user.email.toLowerCase())
+              }
             }
           }
         }
       }
-      
-      // Count pending invitations by type
-      const invitationsPending = pendingInvitations?.length || 0
+
+      // Count pending invitations by type (EXCLUDING invitations for users who already have accounts)
+      let invitationsPending = 0
       if (pendingInvitations) {
         for (const invitation of pendingInvitations) {
+          // ✅ Skip invitation if user already has an active account
+          const invitationEmail = invitation.email?.toLowerCase()
+          if (invitationEmail && activeUserEmails.has(invitationEmail)) {
+            console.log(`⏭️ Skipping invitation for ${invitation.email} - user already has active account`)
+            continue
+          }
+
+          invitationsPending += 1
+
           if (invitation.role) {
             const contactType = mapUserRoleToContactType(invitation.role, invitation.provider_category) as keyof typeof contactsByType
             if (contactsByType[contactType]) {
@@ -4006,7 +4022,8 @@ export const tenantService = {
               address,
               city,
               postal_code,
-              description
+              description,
+              team_id
             )
           ),
           is_primary,
@@ -4032,6 +4049,73 @@ export const tenantService = {
       const lot = primaryLotContact.lot
 
       console.log("✅ Found tenant lot via lot_contacts:", lot)
+
+      // ✅ Récupérer le gestionnaire du lot (priorité 1: lot_contacts, fallback: équipe building)
+      let manager = null
+
+      // Étape 1: Chercher un gestionnaire directement lié au lot via lot_contacts
+      console.log("🔍 [TENANT-DATA] Step 1: Fetching manager from lot_contacts for lot:", lot.id)
+
+      const { data: lotManagers, error: lotManagerError } = await supabase
+        .from('lot_contacts')
+        .select(`
+          user:user_id(
+            id,
+            name,
+            email,
+            role
+          )
+        `)
+        .eq('lot_id', lot.id)
+        .eq('user.role', 'gestionnaire')
+        .is('end_date', null) // Relation active
+        .limit(1)
+
+      if (!lotManagerError && lotManagers && lotManagers.length > 0 && lotManagers[0].user) {
+        manager = {
+          id: lotManagers[0].user.id,
+          name: lotManagers[0].user.name,
+          email: lotManagers[0].user.email
+        }
+        console.log("✅ [TENANT-DATA] Found LOT manager:", manager.name)
+      } else {
+        console.log("ℹ️ [TENANT-DATA] No lot-specific manager found, checking building team...")
+
+        // Étape 2 (Fallback): Chercher le gestionnaire de l'équipe du building
+        if (lot.building?.team_id) {
+          console.log("🔍 [TENANT-DATA] Step 2: Fetching manager from building team:", lot.building.team_id)
+
+          const { data: teamMembers, error: teamError } = await supabase
+            .from('team_members')
+            .select(`
+              user:user_id(
+                id,
+                name,
+                email,
+                role
+              )
+            `)
+            .eq('team_id', lot.building.team_id)
+            .eq('user.role', 'gestionnaire')
+            .limit(1)
+
+          if (!teamError && teamMembers && teamMembers.length > 0 && teamMembers[0].user) {
+            manager = {
+              id: teamMembers[0].user.id,
+              name: teamMembers[0].user.name,
+              email: teamMembers[0].user.email
+            }
+            console.log("✅ [TENANT-DATA] Found BUILDING manager:", manager.name)
+          } else {
+            console.log("⚠️ [TENANT-DATA] No manager found (neither lot nor building)")
+          }
+        }
+      }
+
+      // Assigner le gestionnaire trouvé (lot ou building)
+      if (manager && lot.building) {
+        lot.building.manager = manager
+      }
 
       // ✅ VALIDATION: Gestion des lots avec/sans bâtiment
       if (!lot.building && lot.building_id) {

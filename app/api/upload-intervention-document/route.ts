@@ -254,13 +254,10 @@ export async function POST(request: NextRequest) {
         storage_path: uploadData.path,
         storage_bucket: 'intervention-documents',
         document_type: getDocumentType(file.type, file.name),
-        uploaded_by: dbUser.id, // Use database user ID, not auth user ID
+        uploaded_by: authUser.id, // Use auth user ID as uploaded_by references auth.users
         description: description || `Document ajouté pour l'intervention`
       })
-      .select(`
-        *,
-        uploaded_by_user:uploaded_by(name, email)
-      `)
+      .select('*')
       .single()
 
     if (docError) {
@@ -336,8 +333,8 @@ export async function POST(request: NextRequest) {
         storagePath: document.storage_path,
         signedUrl,
         uploadedBy: {
-          name: document.uploaded_by_user?.name || dbUser.name,
-          email: document.uploaded_by_user?.email || dbUser.email
+          name: dbUser.name,
+          email: dbUser.email
         }
       },
       message: 'Document uploadé avec succès',

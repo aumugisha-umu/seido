@@ -424,7 +424,7 @@ export default function NouvelleDemandePage() {
 
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Déclarer un sinistre</h1>
           <p className="text-gray-600">
-            Signalez un problème dans votre logement. Votre propriétaire sera automatiquement notifié.
+            Signalez un problème dans votre logement et le gestionnaire sera automatiquement notifié.
           </p>
         </div>
 

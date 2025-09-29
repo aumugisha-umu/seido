@@ -20,6 +20,11 @@ interface TenantData {
     city: string
     postal_code: string
     description?: string
+    manager?: {
+      id: string
+      name: string
+      email: string
+    } | null
   } | null
 }
 

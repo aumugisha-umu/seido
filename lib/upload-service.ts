@@ -163,6 +163,18 @@ export async function uploadDocumentInternal({
 
   console.log("✅ [INTERNAL-UPLOAD] File uploaded to storage:", uploadData.path)
 
+  // Get auth_user_id from uploadedBy (which is the DB user ID)
+  const { data: uploaderData } = await serviceClient
+    .from('users')
+    .select('auth_user_id')
+    .eq('id', uploadedBy)
+    .single()
+
+  if (!uploaderData?.auth_user_id) {
+    console.error("❌ [INTERNAL-UPLOAD] Could not find auth_user_id for user:", uploadedBy)
+    throw new Error('Utilisateur invalide')
+  }
+
   // Store document metadata in database using Service Role client
   const { data: document, error: docError } = await serviceClient
     .from('intervention_documents')
@@ -175,13 +187,10 @@ export async function uploadDocumentInternal({
       storage_path: uploadData.path,
       storage_bucket: 'intervention-documents',
       document_type: getDocumentType(file.type, file.name),
-      uploaded_by: uploadedBy,
+      uploaded_by: uploaderData.auth_user_id, // Use auth_user_id, not DB user ID
       description: description || `Document ajouté pour l'intervention`
     })
-    .select(`
-      *,
-      uploaded_by_user:uploaded_by(name, email)
-    `)
+    .select('*')
     .single()
 
   if (docError) {
@@ -198,6 +207,18 @@ export async function uploadDocumentInternal({
     }
 
     throw new Error('Erreur lors de l\'enregistrement des métadonnées du document')
+  }
+
+  // Fetch user info separately via users table
+  let uploadedByUser = null
+  if (uploadedBy) {
+    const { data: userData } = await serviceClient
+      .from('users')
+      .select('name, email')
+      .eq('id', uploadedBy)
+      .single()
+
+    uploadedByUser = userData
   }
 
   console.log("✅ [INTERNAL-UPLOAD] Document metadata stored:", document.id)
@@ -237,10 +258,10 @@ export async function uploadDocumentInternal({
       documentType: document.document_type,
       storagePath: document.storage_path,
       signedUrl,
-      uploadedBy: {
-        name: document.uploaded_by_user?.name,
-        email: document.uploaded_by_user?.email
-      }
+      uploadedBy: uploadedByUser ? {
+        name: uploadedByUser.name,
+        email: uploadedByUser.email
+      } : null
     }
   }
 }

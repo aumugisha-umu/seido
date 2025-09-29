@@ -57,6 +57,13 @@ export class UserService {
   }
 
   /**
+   * Alias for getByAuthUserId - for compatibility
+   */
+  async findByAuthUserId(authUserId: string) {
+    return this.getByAuthUserId(authUserId)
+  }
+
+  /**
    * Create new user with business validation
    */
   async create(userData: UserInsert) {
@@ -75,8 +82,8 @@ export class UserService {
 
     // Hash password if provided
     const processedData = { ...userData }
-    if ('password' in processedData && processedData.password) {
-      processedData.password = await hashPassword(processedData.password)
+    if ('password' in processedData && processedData._password) {
+      processedData.password = await hashPassword(processedData._password)
     }
 
     // Set default values
@@ -122,8 +129,8 @@ export class UserService {
 
     // Hash password if provided
     const processedUpdates = { ...updates }
-    if ('password' in processedUpdates && processedUpdates.password) {
-      processedUpdates.password = await hashPassword(processedUpdates.password)
+    if ('password' in processedUpdates && processedUpdates._password) {
+      processedUpdates.password = await hashPassword(processedUpdates._password)
     }
 
     // Update timestamp
@@ -282,7 +289,7 @@ export class UserService {
 
     // Note: In production, password verification would be done here
     // For now, we return the user if found
-    // const isValid = await verifyPassword(password, userResult.data.password)
+    // const isValid = await verifyPassword(_password, userResult.data._password)
     // if (!isValid) { return error }
 
     // Update last seen

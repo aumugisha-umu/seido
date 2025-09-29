@@ -27,7 +27,7 @@ interface SuccessModal {
 }
 
 export const useInterventionApproval = () => {
-  const router = useRouter()
+  const _router = useRouter()
   
   // État des modals
   const [approvalModal, setApprovalModal] = useState<ApprovalModal>({

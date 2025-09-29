@@ -75,7 +75,7 @@ export class TestAccountsHelper {
   /**
    * Valide qu'un email suit le format de test standardisé
    */
-  static isValidTestEmail(email: string): boolean {
+  static isValidTestEmail(_email: string): boolean {
     const pattern = /^arthur\+\d{3}@seido\.pm$/;
     return pattern.test(email);
   }
@@ -83,7 +83,7 @@ export class TestAccountsHelper {
   /**
    * Extrait le suffixe d'un email de test
    */
-  static extractSuffixFromEmail(email: string): string | null {
+  static extractSuffixFromEmail(_email: string): string | null {
     const match = email.match(/^arthur\+(\d{3})@seido\.pm$/);
     return match ? match[1] : null;
   }
@@ -127,7 +127,7 @@ export class TestAccountsHelper {
   /**
    * Utilitaire pour capitaliser la première lettre
    */
-  private static capitalizeFirst(str: string): string {
+  private static capitalizeFirst(_str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 }
@@ -144,7 +144,7 @@ export const testAccountHelpers = {
   /**
    * Génère un email de test avec un suffixe donné
    */
-  generateTestEmail: (suffix: string) => `arthur+${suffix}@seido.pm`,
+  generateTestEmail: (_suffix: string) => `arthur+${suffix}@seido.pm`,
   
   /**
    * Génère un nom d'utilisateur de test
@@ -154,6 +154,6 @@ export const testAccountHelpers = {
   /**
    * Vérifie si un compte est un compte de test
    */
-  isTestAccount: (email: string) => TestAccountsHelper.isValidTestEmail(email)
+  isTestAccount: (_email: string) => TestAccountsHelper.isValidTestEmail(email)
 };
 

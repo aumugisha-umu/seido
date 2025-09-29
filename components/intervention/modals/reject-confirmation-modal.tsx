@@ -11,9 +11,9 @@ interface RejectConfirmationModalProps {
   onConfirm: () => void
   intervention: InterventionAction | null
   rejectionReason: string
-  onRejectionReasonChange: (reason: string) => void
+  onRejectionReasonChange: (_reason: string) => void
   internalComment: string
-  onInternalCommentChange: (comment: string) => void
+  onInternalCommentChange: (_comment: string) => void
   isLoading?: boolean
 }
 

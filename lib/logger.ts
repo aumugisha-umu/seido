@@ -10,7 +10,7 @@ const createLogger = () => {
     level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
     timestamp: pino.stdTimeFunctions.isoTime,
     formatters: {
-      level: (label: string) => {
+      level: (_label: string) => {
         return { level: label }
       }
     }
@@ -28,8 +28,8 @@ const createLogger = () => {
           ignore: 'pid,hostname',
           messageFormat: '[{level}] {msg}',
           customPrettifiers: {
-            time: (timestamp: string) => `🕐 ${timestamp}`,
-            level: (level: string) => {
+            time: (_timestamp: string) => `🕐 ${timestamp}`,
+            level: (_level: string) => {
               const levelEmojis: Record<string, string> = {
                 '10': '🔍', // trace
                 '20': '🐛', // debug
@@ -87,7 +87,7 @@ export const logUserAction = (action: string, userId?: string, metadata?: Record
   logger.info({
     type: 'user_action',
     action,
-    userId,
+    _userId,
     metadata
   }, `👤 User action: ${action}`)
 }

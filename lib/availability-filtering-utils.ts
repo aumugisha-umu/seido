@@ -113,11 +113,11 @@ export function filterAvailabilitiesByQuoteStatus(
     }
 
     // Pour les prestataires, vérifier s'ils ont des devis actifs
-    if (!availability.userId) {
+    if (!availability._userId) {
       return true // Inclure si pas d'userId (sécurité)
     }
 
-    const providerStatuses = providerQuoteStatus.get(availability.userId)
+    const providerStatuses = providerQuoteStatus.get(availability._userId)
 
     // Gestion des prestataires sans devis selon le rôle utilisateur
     if (!providerStatuses || providerStatuses.size === 0) {

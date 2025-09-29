@@ -12,7 +12,7 @@ export type UiQuoteStatus = 'En attente' | 'Accepté' | 'Refusé' | 'Expiré' | 
 /**
  * Convert French UI status to English database status
  */
-export function mapStatusToDb(uiStatus: string): DbQuoteStatus {
+export function mapStatusToDb(_uiStatus: string): DbQuoteStatus {
   const mapping: Record<string, DbQuoteStatus> = {
     'En attente': 'pending',
     'Accepté': 'approved',
@@ -56,13 +56,13 @@ export function mapStatusFromDb(dbStatus: DbQuoteStatus): UiQuoteStatus {
 /**
  * Check if a status is valid for database storage
  */
-export function isValidDbStatus(status: string): status is DbQuoteStatus {
+export function isValidDbStatus(_status: string): status is DbQuoteStatus {
   return ['pending', 'approved', 'rejected', 'expired', 'cancelled'].includes(status as DbQuoteStatus)
 }
 
 /**
  * Normalize status - convert any format to valid database format
  */
-export function normalizeStatus(status: string): DbQuoteStatus {
+export function normalizeStatus(_status: string): DbQuoteStatus {
   return mapStatusToDb(status)
 }

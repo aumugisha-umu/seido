@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId') // Optionnel pour stats personnelles
 
     // Validation
-    if (!teamId) {
+    if (!_teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
@@ -42,11 +42,11 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('activity_logs')
       .select('action_type, entity_type, status, created_at, user_id')
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
       .gte('created_at', startDate.toISOString())
 
-    if (userId) {
-      query = query.eq('user_id', userId)
+    if (_userId) {
+      query = query.eq('user_id', _userId)
     }
 
     const { data, error } = await query
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
     // Top utilisateurs
     stats.topUsers = Object.entries(userActivity)
-      .map(([userId, count]) => ({ userId, count }))
+      .map(([_userId, count]) => ({ _userId, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
 
@@ -144,12 +144,12 @@ export async function GET(request: NextRequest) {
     let previousQuery = supabase
       .from('activity_logs')
       .select('id', { count: 'exact' })
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
       .gte('created_at', previousStartDate.toISOString())
       .lt('created_at', startDate.toISOString())
 
-    if (userId) {
-      previousQuery = previousQuery.eq('user_id', userId)
+    if (_userId) {
+      previousQuery = previousQuery.eq('user_id', _userId)
     }
 
     const { count: previousCount } = await previousQuery
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
       evolution,
       metadata: {
         generatedAt: now.toISOString(),
-        teamId,
+        _teamId,
         userId: userId || null,
         period
       }

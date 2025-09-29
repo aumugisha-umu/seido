@@ -380,7 +380,7 @@ export class InterventionActionsService {
     })
 
     if (!response.ok) {
-      const error = await response.text()
+      const _error = await response.text()
       throw new Error(error || 'Erreur lors de l\'annulation de l\'intervention')
     }
 

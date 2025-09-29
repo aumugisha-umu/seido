@@ -18,7 +18,7 @@ const fixes = [
   {
     file: 'app/gestionnaire/biens/lots/modifier/[id]/page.tsx',
     replacements: [
-      { old: 'const hasTeam = ', new: '// const hasTeam = ' },
+      { old: 'const _hasTeam = ', new: '// const hasTeam = ' },
       { old: 'const [selectedManagerId, setSelectedManagerId] = ', new: '// const [selectedManagerId, setSelectedManagerId] = ' }
     ]
   },

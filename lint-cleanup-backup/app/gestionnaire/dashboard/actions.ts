@@ -34,7 +34,7 @@ export async function createContactAction(data: CreateContactData) {
 
     // Vérifier que l'utilisateur peut créer des contacts pour cette équipe
     const teams = await teamService.getUserTeams(user.id)
-    const hasTeamAccess = teams.some(team => team.id === data.teamId)
+    const hasTeamAccess = teams.some(team => team.id === data._teamId)
 
     if (!hasTeamAccess) {
       console.log(`🚫 [DASHBOARD-ACTION] User ${user.id} cannot create contacts for team ${data.teamId}`)

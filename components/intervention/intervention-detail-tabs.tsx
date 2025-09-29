@@ -173,24 +173,24 @@ interface InterventionDetailTabsProps {
   userId: string
   onDataChange?: () => void
   onDownloadAttachment?: (attachment: { id: string; name: string; url?: string; [key: string]: unknown }) => void
-  onResendRequest?: (requestId: string) => void
-  onCancelRequest?: (requestId: string) => void
-  onNewRequest?: (requestId: string) => void
-  onViewProvider?: (providerId: string) => void
+  onResendRequest?: (_requestId: string) => void
+  onCancelRequest?: (_requestId: string) => void
+  onNewRequest?: (_requestId: string) => void
+  onViewProvider?: (_providerId: string) => void
   // Callbacks spécifiques selon le rôle
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
   // Props pour prestataires
   onOpenQuoteModal?: () => void
-  onCancelQuote?: (quoteId: string) => void
+  onCancelQuote?: (_quoteId: string) => void
 }
 
 export function InterventionDetailTabs({
   intervention,
   quoteRequests = [],
   userRole,
-  userId,
+  _userId,
   onDataChange,
   onDownloadAttachment,
   onResendRequest,
@@ -509,7 +509,7 @@ export function InterventionDetailTabs({
 
                     {/* Prestataires avec devis accepté - Visibles pour gestionnaires, locataires et autres prestataires */}
                     {getApprovedProviders()
-                      .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== userId)
+                      .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== _userId)
                       .map((provider) => (
                       <div key={provider.id} className="flex items-center space-x-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">

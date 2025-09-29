@@ -46,7 +46,7 @@ export default function PropertySelector({
   selectedLotId,
   showActions: _showActions = true,
 }: PropertySelectorProps) {
-  const router = useRouter()
+  const _router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
@@ -58,13 +58,13 @@ export default function PropertySelector({
   const buildings = data?.buildings || []
   const individualLots = data?.lots || []
 
-  const toggleBuildingExpansion = (buildingId: string) => {
+  const toggleBuildingExpansion = (_buildingId: string) => {
     setExpandedBuildings((prev) =>
-      prev.includes(buildingId) ? prev.filter((id) => id !== buildingId) : [...prev, buildingId],
+      prev.includes(_buildingId) ? prev.filter((id) => id !== _buildingId) : [...prev, buildingId],
     )
   }
 
-  const handleSearch = (value: string) => {
+  const handleSearch = (_value: string) => {
     setSearchTerm(value)
   }
 

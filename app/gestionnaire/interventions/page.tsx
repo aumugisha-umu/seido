@@ -38,7 +38,7 @@ import {
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 
 export default function InterventionsPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { data: managerData, loading, error } = useManagerStats()
 
   // Hooks pour les différentes actions

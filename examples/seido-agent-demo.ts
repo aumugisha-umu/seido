@@ -316,7 +316,7 @@ export const runFullDemo = async () => {
   console.log('🚀 SEIDO Refactoring Agent - Démonstration')
   console.log('🚀 ==========================================')
 
-  const results: any = {}
+  const results: unknown = {}
 
   try {
     // Demo 1: Analyse dashboard

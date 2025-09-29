@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const teamId = searchParams.get('teamId')
     const type = searchParams.get('type') // 'prestataire', 'locataire', 'gestionnaire'
 
-    if (!teamId) {
+    if (!_teamId) {
       return NextResponse.json({
         success: false,
         error: 'teamId est requis'
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         speciality,
         is_active
       `)
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
       .eq('is_active', true)
 
     console.log(`📋 [TEAM-CONTACTS] Base query: team_id=${teamId}, is_active=true`)

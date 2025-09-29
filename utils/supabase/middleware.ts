@@ -52,7 +52,7 @@ export async function updateSession(request: NextRequest) {
   }
 }
 
-function handleRouteProtection(request: NextRequest, user: any, response: NextResponse) {
+function handleRouteProtection(request: NextRequest, user: unknown, response: NextResponse) {
   const { pathname } = request.nextUrl
   const protectedRoutes = [
     '/dashboard',

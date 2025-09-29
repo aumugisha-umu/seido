@@ -55,7 +55,7 @@ async function testAuthentication() {
       accountResult.responseTime = Date.now() - startTime;
 
       if (loginResponse.ok) {
-        const data = await loginResponse.json();
+        const _data = await loginResponse.json();
         accountResult.loginSuccess = true;
         console.log(`  ✅ Login successful (${accountResult.responseTime}ms)`);
         console.log(`  ✅ User ID: ${data.user?.id || 'N/A'}`);

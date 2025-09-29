@@ -33,7 +33,7 @@ interface ProfilePageProps {
 export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
   const { user, updateProfile } = useAuth()
   const { toast } = useToast()
-  const router = useRouter()
+  const _router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [isEditing, setIsEditing] = useState(false)
@@ -192,7 +192,7 @@ export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
         body: formData,
       })
 
-      const data = await response.json()
+      const _data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || "Erreur lors de l'upload")

@@ -69,7 +69,7 @@ const DEFAULT_CONTACT_ASSIGNMENTS = {
 }
 
 export function usePropertyCreation(config: PropertyCreationConfig): UsePropertyCreationReturn {
-  const router = useRouter()
+  const _router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
@@ -297,7 +297,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     const warnings: Record<string, string> = {}
 
     if (config.mode === 'building' && formData.mode === 'building') {
-      const data = formData as BuildingFormData
+      const _data = formData as BuildingFormData
 
       switch (step) {
         case 1:
@@ -470,7 +470,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     }
   }, [formData.mode])
 
-  const removeLot = useCallback((id: string) => {
+  const removeLot = useCallback((_id: string) => {
     if (formData.mode === 'building') {
       setFormData(prev => {
         const data = prev as BuildingFormData
@@ -488,7 +488,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     }
   }, [formData.mode])
 
-  const duplicateLot = useCallback((id: string) => {
+  const duplicateLot = useCallback((_id: string) => {
     if (formData.mode === 'building') {
       const data = formData as BuildingFormData
       const lotToDuplicate = data.lots.find(lot => lot.id === id)
@@ -517,7 +517,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     if (formData.mode === 'building') {
       setFormData(prev => {
         const data = prev as BuildingFormData
-        if (context?.lotId) {
+        if (context?._lotId) {
           return {
             ...data,
             lotContactAssignments: {
@@ -553,7 +553,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     if (formData.mode === 'building') {
       setFormData(prev => {
         const data = prev as BuildingFormData
-        if (context?.lotId) {
+        if (context?._lotId) {
           return {
             ...data,
             lotContactAssignments: {
@@ -586,7 +586,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
   }, [formData.mode])
 
   // Manager selection
-  const selectManager = useCallback((managerId: string) => {
+  const selectManager = useCallback((_managerId: string) => {
     setFormData(prev => ({ ...prev, selectedManagerId: managerId }))
     setTeamData(prev => ({ ...prev, selectedManagerId: managerId }))
   }, [])

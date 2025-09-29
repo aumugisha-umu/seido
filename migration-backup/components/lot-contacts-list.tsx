@@ -15,13 +15,13 @@ import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 interface LotContactsListProps {
   lotId: string
   buildingId?: string
-  contacts?: any[]
-  onContactsUpdate?: (contacts: any[]) => void
+  contacts?: unknown[]
+  onContactsUpdate?: (contacts: unknown[]) => void
 }
 
-export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
-  const [contacts, setContacts] = useState<any[]>(propContacts)
-  const [filteredContacts, setFilteredContacts] = useState<any[]>([])
+export const LotContactsList = ({ _lotId, _buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+  const [contacts, setContacts] = useState<unknown[]>(propContacts)
+  const [filteredContacts, setFilteredContacts] = useState<unknown[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +30,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
   const [deleteContact, setDeleteContact] = useState<any>(null)
 
   // Helper function to check if ID looks like a UUID
-  const isValidUUID = (id: string) => {
+  const isValidUUID = (_id: string) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     return uuidRegex.test(id)
   }
@@ -44,7 +44,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
 
   // Separate useCallback to prevent infinite loops
   const loadLotContacts = useCallback(async () => {
-    if (!lotId) return
+    if (!_lotId) return
     
     const timeoutId = setTimeout(() => {
       console.warn("⏰ Request timeout for lot contacts")
@@ -55,10 +55,10 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     try {
       setLoading(true)
       setError(null)
-      console.log("📞 Loading contacts for lot:", lotId)
+      console.log("📞 Loading contacts for lot:", _lotId)
       
       // Adapter pour nouvelle architecture - récupérer les locataires pour ce lot
-      const lotContacts = await contactService.getLotContactsByType(lotId, 'tenant')
+      const lotContacts = await contactService.getLotContactsByType(_lotId, 'tenant')
       console.log("✅ Lot contacts loaded:", lotContacts?.length || 0)
       
       clearTimeout(timeoutId)
@@ -103,7 +103,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
   }, [contacts, searchTerm])
 
 
-  const handleContactSubmit = async (contactData: any) => {
+  const handleContactSubmit = async (_contactData: unknown) => {
     try {
       if (selectedContact) {
         // Update existing contact
@@ -121,7 +121,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(lotId)
+        const updatedContacts = await contactService.getLotContacts(_lotId)
         onContactsUpdate(updatedContacts || [])
       } else {
         // Fallback to local loading
@@ -146,7 +146,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(lotId)
+        const updatedContacts = await contactService.getLotContacts(_lotId)
         onContactsUpdate(updatedContacts || [])
       } else {
         // Fallback to local loading
@@ -161,7 +161,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     }
   }
 
-  const getContactTypeLabel = (type: string) => {
+  const getContactTypeLabel = (_type: string) => {
     const labels: { [key: string]: string } = {
       tenant: "Locataire",
       owner: "Propriétaire", 
@@ -175,7 +175,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     return labels[type] || type
   }
 
-  const getSpecialityLabel = (speciality: string) => {
+  const getSpecialityLabel = (_speciality: string) => {
     const labels: { [key: string]: string } = {
       plumbing: "Plomberie",
       electricity: "Électricité",

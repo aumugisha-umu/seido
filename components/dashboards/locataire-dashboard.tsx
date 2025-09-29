@@ -15,7 +15,7 @@ import { getStatusActionMessage } from "@/lib/intervention-utils"
 export default function LocataireDashboard() {
   const { user } = useAuth()
   const { tenantData, tenantStats, tenantInterventions, loading, error } = useTenantData()
-  const router = useRouter()
+  const _router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
 
   // Afficher la vérification d'équipe en cours ou échoué
@@ -55,7 +55,7 @@ export default function LocataireDashboard() {
     )
   }
 
-  const handleInterventionClick = (interventionId: string) => {
+  const handleInterventionClick = (_interventionId: string) => {
     router.push(`/locataire/interventions/${interventionId}`)
   }
 
@@ -309,7 +309,7 @@ function LoadingSkeleton() {
   )
 }
 
-function getStatusVariant(status: string) {
+function getStatusVariant(_status: string) {
   switch (status) {
     case 'terminee':
       return 'outline' as const
@@ -325,7 +325,7 @@ function getStatusVariant(status: string) {
   }
 }
 
-function getStatusClassName(status: string) {
+function getStatusClassName(_status: string) {
   switch (status) {
     case 'terminee':
       return 'border-green-200 text-green-800'
@@ -343,7 +343,7 @@ function getStatusClassName(status: string) {
   }
 }
 
-function getStatusLabel(status: string) {
+function getStatusLabel(_status: string) {
   switch (status) {
     case 'terminee':
       return 'Terminé'

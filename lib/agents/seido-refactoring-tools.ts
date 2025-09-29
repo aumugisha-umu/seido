@@ -240,7 +240,7 @@ export class SEIDORefactoringTools {
       }
 
       // Check for 'any' usage
-      if (content.includes(': any') || content.includes('as any')) {
+      if (content.includes(': unknown') || content.includes('as any')) {
         anyUsage.push(file)
       }
     }
@@ -438,7 +438,7 @@ export class SEIDORefactoringTools {
     }
   }
 
-  private isProperlyTyped(content: string): boolean {
+  private isProperlyTyped(_content: string): boolean {
     // Heuristic: file is properly typed if it has type annotations
     const hasTypeAnnotations = /:\s*(?:string|number|boolean|object|\w+\[\]|\w+<)/.test(content)
     const hasInterfaces = /interface\s+\w+/.test(content)
@@ -448,7 +448,7 @@ export class SEIDORefactoringTools {
     return hasTypeAnnotations || hasInterfaces || hasTypes || hasGenerics
   }
 
-  private calculateCyclomaticComplexity(content: string): number {
+  private calculateCyclomaticComplexity(_content: string): number {
     // Simplified cyclomatic complexity calculation
     let complexity = 1 // Base complexity
 
@@ -474,7 +474,7 @@ export class SEIDORefactoringTools {
     return complexity
   }
 
-  private isBoilerplate(code: string): boolean {
+  private isBoilerplate(_code: string): boolean {
     // Skip common boilerplate patterns
     const boilerplatePatterns = [
       'import',
@@ -499,7 +499,7 @@ export class SEIDOCodeTransformer {
   /**
    * Transform custom components to use shadcn/ui
    */
-  static transformToShadcnComponents(code: string): string {
+  static transformToShadcnComponents(_code: string): string {
     let transformed = code
 
     // Replace custom Button patterns with shadcn Button
@@ -521,7 +521,7 @@ export class SEIDOCodeTransformer {
   /**
    * Transform to responsive Tailwind classes
    */
-  static transformToResponsive(code: string): string {
+  static transformToResponsive(_code: string): string {
     let transformed = code
 
     // Replace fixed widths with responsive classes
@@ -547,7 +547,7 @@ export class SEIDOCodeTransformer {
   /**
    * Add accessibility attributes
    */
-  static addAccessibilityAttributes(code: string): string {
+  static addAccessibilityAttributes(_code: string): string {
     let transformed = code
 
     // Add aria-label to buttons with icons

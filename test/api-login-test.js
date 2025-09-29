@@ -3,7 +3,7 @@
  * Tests the /api/auth/login endpoint with real Supabase authentication
  */
 
-async function testAPILogin(email, password) {
+async function testAPILogin(email, _password) {
   console.log(`\n🔐 Testing API login for: ${email}`)
   console.log('=' * 60)
 
@@ -19,7 +19,7 @@ async function testAPILogin(email, password) {
       credentials: 'include', // Important for cookies
     })
 
-    const data = await response.json()
+    const _data = await response.json()
 
     if (!response.ok) {
       console.error('❌ Login failed:', data.error)
@@ -80,7 +80,7 @@ async function runAPITests() {
   const results = []
 
   for (const account of testAccounts) {
-    const success = await testAPILogin(account.email, account.password)
+    const success = await testAPILogin(account.email, account._password)
     results.push({ email: account.email, success })
   }
 

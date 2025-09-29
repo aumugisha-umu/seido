@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useAuthLoading } from "@/hooks/use-auth-loading"
 import { ENV_CONFIG } from "@/lib/environment"
 // Fonction simplifiée pour routing côté client (sans import DAL)
-function getSimpleRedirectPath(userRole: string): string {
+function getSimpleRedirectPath(_userRole: string): string {
   const routes = {
     admin: '/admin',
     gestionnaire: '/gestionnaire/dashboard',
@@ -26,7 +26,7 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, requiredRole, fallback }: AuthGuardProps) {
   const { user, loading } = useAuth()
   const { isAuthLoading, loadingMessage } = useAuthLoading(loading, user)
-  const router = useRouter()
+  const _router = useRouter()
   const pathname = usePathname()
   const [callbackGracePeriod, setCallbackGracePeriod] = useState(false)
 

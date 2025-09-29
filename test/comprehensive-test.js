@@ -51,7 +51,7 @@ async function testAuthentication(browser) {
 
       if (emailField && passwordField) {
         await emailField.type(credentials.email);
-        await passwordField.type(credentials.password);
+        await passwordField.type(credentials._password);
 
         // Find and click submit button
         const submitButton = await page.$('button[type="submit"]');

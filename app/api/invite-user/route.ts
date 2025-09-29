@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       firstName,
       lastName,
       role = 'gestionnaire', 
-      teamId, 
+      _teamId, 
       phone,
       speciality, // ✅ AJOUT: Spécialité pour les prestataires
       shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     })
 
     // ✅ LOGIQUE: Mapper les types de contacts vers role + provider_category
-    const mapContactTypeToRoleAndCategory = (contactType: string) => {
+    const mapContactTypeToRoleAndCategory = (_contactType: string) => {
       const mapping: Record<string, { 
         role: Database['public']['Enums']['user_role'], 
         provider_category: Database['public']['Enums']['provider_category'] | null 
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
             display_name: `${firstName} ${lastName}`,
             role: validUserRole,
             provider_category: providerCategory,
-            team_id: teamId,
+            team_id: _teamId,
             invited: true
           },
           redirectTo: redirectTo
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
             display_name: `${firstName} ${lastName}`,
             role: validUserRole,
             provider_category: providerCategory,
-            team_id: teamId,
+            team_id: _teamId,
             invited: true
           },
           redirectTo: redirectTo
@@ -210,7 +210,7 @@ export async function POST(request: Request) {
           provider_category: providerCategory,
           speciality: speciality || null,
           phone: phone || null,
-          team_id: teamId,
+          team_id: _teamId,
           is_active: true,
           password_set: authUserId ? false : true // ✅ NOUVEAU: false si invitation (auth créé), true sinon
         })
@@ -233,9 +233,9 @@ export async function POST(request: Request) {
 
     // ÉTAPE 3: Ajouter à l'équipe
     try {
-      const addMemberResult = await teamService.addMember(teamId, userProfile.id, 'member')
+      const addMemberResult = await teamService.addMember(_teamId, userProfile.id, 'member')
       if (addMemberResult.success) {
-        console.log('✅ [STEP-3] User added to team:', teamId)
+        console.log('✅ [STEP-3] User added to team:', _teamId)
       } else {
         console.log('⚠️ [STEP-3] User might already be in team or team error:', addMemberResult.error)
       }
@@ -256,7 +256,7 @@ export async function POST(request: Request) {
             last_name: lastName,
             role: validUserRole,
             provider_category: providerCategory,
-            team_id: teamId,
+            team_id: _teamId,
             invited_by: currentUserProfile.id,
             invitation_code: authUserId, // Utiliser l'auth user ID comme code unique
             status: 'pending',
@@ -288,7 +288,7 @@ export async function POST(request: Request) {
       try {
         await activityLogger.logUserAction(
           session.user.id,
-          teamId,
+          _teamId,
         shouldInviteToApp ? 'invite' : 'create',
         'contact',
         userProfile.id,

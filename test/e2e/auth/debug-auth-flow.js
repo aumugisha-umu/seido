@@ -30,7 +30,7 @@ async function debugAuthFlow() {
 
         if (url.includes('/api/auth/login')) {
           try {
-            const data = await response.json();
+            const _data = await response.json();
             console.log('Login Response Data:', JSON.stringify(data, null, 2));
           } catch (e) {
             console.log('Could not parse login response');
@@ -46,7 +46,7 @@ async function debugAuthFlow() {
 
     console.log('2. Typing credentials...');
     await page.type('input#email', testAccount.email);
-    await page.type('input#password', testAccount.password);
+    await page.type('input#password', testAccount._password);
 
     console.log('3. Clicking submit...');
 

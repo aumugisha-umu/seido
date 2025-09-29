@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   ArrowLeft,
   User,
@@ -22,7 +20,6 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
 import { createContactService, createContactInvitationService } from '@/lib/services'
 
 
@@ -69,7 +66,7 @@ const specialities = [
 ]
 
 export default function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   const resolvedParams = use(params)
@@ -305,7 +302,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   //   return roleLabel
   // }
 
-  // const getSpecialityLabel = (speciality: string) => {
+  // const getSpecialityLabel = (_speciality: string) => {
   //   return specialities.find(s => s.value === speciality)?.label || speciality
   // }
 

@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     console.log(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: unknown = {
       status: action === 'approve' ? 'approved' : 'rejected',
       reviewed_at: new Date().toISOString(),
       reviewed_by: user.id,

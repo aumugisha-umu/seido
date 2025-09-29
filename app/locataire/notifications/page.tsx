@@ -23,7 +23,7 @@ import { useNotifications } from "@/hooks/use-notifications"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-function getNotificationIcon(type: string) {
+function getNotificationIcon(_type: string) {
   switch (type) {
     case "intervention":
       return <Wrench className="h-5 w-5 text-blue-600" />
@@ -42,7 +42,7 @@ function getNotificationIcon(type: string) {
   }
 }
 
-function formatDate(dateString: string) {
+function formatDate(_dateString: string) {
   const date = new Date(dateString)
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -53,7 +53,7 @@ function formatDate(dateString: string) {
   }).format(date)
 }
 
-function getPriorityBadge(priority: string) {
+function getPriorityBadge(_priority: string) {
   switch (priority) {
     case "urgent":
       return (
@@ -93,7 +93,7 @@ export default function NotificationsPage() {
     refreshInterval: 30000
   })
 
-  const handleMarkAsRead = async (notificationId: string) => {
+  const handleMarkAsRead = async (_notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await markAsRead(notificationId)
@@ -104,7 +104,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleMarkAsUnread = async (notificationId: string) => {
+  const handleMarkAsUnread = async (_notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await markAsUnread(notificationId)
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleDelete = async (notificationId: string) => {
+  const handleDelete = async (_notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await deleteNotification(notificationId)

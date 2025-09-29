@@ -5,7 +5,7 @@ import type { User, Building, Lot, Intervention } from '@/lib/services/core/serv
 
 // Create service instances
 const userService = createBrowserUserService()
-const buildingService = createBrowserBuildingService()
+const _buildingService = createBrowserBuildingService()
 const lotService = createBrowserLotService()
 const interventionService = createBrowserInterventionService()
 
@@ -16,7 +16,7 @@ export function useUser(userId?: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!userId) {
+    if (!_userId) {
       setLoading(false)
       return
     }
@@ -24,7 +24,7 @@ export function useUser(userId?: string) {
     async function fetchUser() {
       try {
         setLoading(true)
-        const userData = await userService.getById(userId)
+        const userData = await userService.getById(_userId)
         setUser(userData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching user')
@@ -71,7 +71,7 @@ export function useUsersByRole(role?: User['role']) {
 
 // Hook for buildings
 export function useBuildings() {
-  const [buildings, setBuildings] = useState<any[]>([])
+  const [buildings, setBuildings] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -112,7 +112,7 @@ export function useInterventions(filters?: {
   tenantId?: string
   providerId?: string
 }) {
-  const [interventions, setInterventions] = useState<any[]>([])
+  const [interventions, setInterventions] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -124,8 +124,8 @@ export function useInterventions(filters?: {
 
         if (filters?.status) {
           data = await interventionService.getByStatus(filters.status)
-        } else if (filters?.tenantId) {
-          data = await interventionService.getByTenantId(filters.tenantId)
+        } else if (filters?._tenantId) {
+          data = await interventionService.getByTenantId(filters._tenantId)
         } else if (filters?.providerId) {
           data = await interventionService.getByProviderId(filters.providerId)
         } else {
@@ -141,7 +141,7 @@ export function useInterventions(filters?: {
     }
 
     fetchInterventions()
-  }, [filters?.status, filters?.tenantId, filters?.providerId])
+  }, [filters?.status, filters?._tenantId, filters?.providerId])
 
   const refetch = async () => {
     try {
@@ -150,8 +150,8 @@ export function useInterventions(filters?: {
 
       if (filters?.status) {
         data = await interventionService.getByStatus(filters.status)
-      } else if (filters?.tenantId) {
-        data = await interventionService.getByTenantId(filters.tenantId)
+      } else if (filters?._tenantId) {
+        data = await interventionService.getByTenantId(filters._tenantId)
       } else if (filters?.providerId) {
         data = await interventionService.getByProviderId(filters.providerId)
       } else {
@@ -171,12 +171,12 @@ export function useInterventions(filters?: {
 
 // Hook for lots by building
 export function useLotsByBuilding(buildingId?: string) {
-  const [lots, setLots] = useState<any[]>([])
+  const [lots, setLots] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!buildingId) {
+    if (!_buildingId) {
       setLoading(false)
       return
     }
@@ -184,7 +184,7 @@ export function useLotsByBuilding(buildingId?: string) {
     async function fetchLots() {
       try {
         setLoading(true)
-        const lotData = await lotService.getByBuildingId(buildingId)
+        const lotData = await lotService.getByBuildingId(_buildingId)
         setLots(lotData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching lots')
@@ -202,7 +202,7 @@ export function useLotsByBuilding(buildingId?: string) {
 // Hook for real-time subscriptions
 export function useRealtimeSubscription<T>(
   table: string,
-  callback: (payload: any) => void
+  callback: (_payload: unknown) => void
 ) {
   useEffect(() => {
     const subscription = supabase

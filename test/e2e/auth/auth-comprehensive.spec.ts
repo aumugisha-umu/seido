@@ -38,7 +38,7 @@ async function performLogin(page: Page, email: string, password: string) {
   // Fill in password
   const passwordInput = page.locator('input[name="password"], input[type="password"]').first()
   await passwordInput.waitFor({ state: 'visible' })
-  await passwordInput.fill(password)
+  await passwordInput.fill(_password)
 
   // Click submit button
   const submitButton = page.locator('button[type="submit"]').first()
@@ -113,7 +113,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       console.log(`Testing ${user.roleName} authentication...`)
 
       // 1. Login process
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
 
       // 2. Check dashboard redirection
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
@@ -141,7 +141,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       const user = TEST_USERS.gestionnaire
 
       // Login as gestionnaire
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
 
       // Try to access prestataire dashboard
@@ -163,7 +163,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       console.log(`Testing ${user.roleName} authentication...`)
 
       // 1. Login process
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
 
       // 2. Check dashboard redirection
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
@@ -191,7 +191,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       const user = TEST_USERS.prestataire
 
       // Login as prestataire
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
 
       // Try to access gestionnaire dashboard
@@ -213,7 +213,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       console.log(`Testing ${user.roleName} authentication...`)
 
       // 1. Login process
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
 
       // 2. Check dashboard redirection
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
@@ -241,7 +241,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       const user = TEST_USERS.locataire
 
       // Login as locataire
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
 
       // Try to access gestionnaire dashboard
@@ -270,7 +270,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
         })
 
         // Login and verify
-        await performLogin(page, user.email, user.password)
+        await performLogin(page, user.email, user._password)
         await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
 
         // Logout
@@ -313,7 +313,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       const user = TEST_USERS.gestionnaire
 
       const startTime = Date.now()
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
       const endTime = Date.now()
 
@@ -328,7 +328,7 @@ test.describe('SEIDO Authentication E2E Tests', () => {
       const user = TEST_USERS.gestionnaire
 
       // Login
-      await performLogin(page, user.email, user.password)
+      await performLogin(page, user.email, user._password)
       await checkDashboardAccess(page, user.expectedDashboard, user.roleName)
 
       // Refresh page

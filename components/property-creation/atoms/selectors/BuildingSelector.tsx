@@ -100,7 +100,7 @@ export function BuildingSelector({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
             {filteredBuildings.map((building) => {
               const isSelected = selectedBuildingId === building.id
-              const occupiedLots = building.lots?.filter((lot: any) => lot.status === 'occupied').length || 0
+              const occupiedLots = building.lots?.filter((_lot: unknown) => lot.status === 'occupied').length || 0
               const totalLots = building.lots?.length || 0
 
               return (

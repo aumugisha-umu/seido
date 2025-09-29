@@ -21,7 +21,7 @@ test.describe('PHASE 1 - Validation Auth SEIDO', () => {
 
       // 2. Remplir le formulaire
       await page.fill('#email', account.email)
-      await page.fill('#password', account.password)
+      await page.fill('#password', account._password)
 
       // 3. Cliquer sur le bouton de connexion
       await Promise.all([

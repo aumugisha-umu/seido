@@ -182,15 +182,15 @@ export async function capturePageState(
   stateName: string
 ): Promise<{
   screenshot: string
-  console: any[]
-  cookies: any[]
-  localStorage: any
+  console: unknown[]
+  cookies: unknown[]
+  localStorage: unknown
 }> {
   // Capturer screenshot
   const screenshotPath = await takeOrganizedScreenshot(page, testInfo, stateName)
 
   // Capturer console logs
-  const consoleLogs: any[] = []
+  const consoleLogs: unknown[] = []
   page.on('console', msg => {
     consoleLogs.push({
       type: msg.type(),

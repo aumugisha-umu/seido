@@ -47,7 +47,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   /**
    * Get contact with all relations (user, lot, building)
    */
-  async findByIdWithRelations(id: string) {
+  async findByIdWithRelations(_id: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -72,7 +72,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   /**
    * Get all contacts for a specific user
    */
-  async findByUser(userId: string) {
+  async findByUser(_userId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -80,7 +80,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         lot:lot_id(id, reference, building:building_id(name, address)),
         building:building_id(id, name, address, city)
       `)
-      .eq('user_id', userId)
+      .eq('user_id', _userId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -100,7 +100,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         *,
         user:user_id(id, name, email, phone, role, provider_category)
       `)
-      .eq('lot_id', lotId)
+      .eq('lot_id', _lotId)
 
     if (type) {
       queryBuilder = queryBuilder.eq('type', type)
@@ -125,7 +125,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         *,
         user:user_id(id, name, email, phone, role, provider_category)
       `)
-      .eq('building_id', buildingId)
+      .eq('building_id', _buildingId)
 
     if (type) {
       queryBuilder = queryBuilder.eq('type', type)
@@ -174,14 +174,14 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_id', _userId)
 
-    if (lotId) {
-      queryBuilder = queryBuilder.eq('lot_id', lotId)
+    if (_lotId) {
+      queryBuilder = queryBuilder.eq('lot_id', _lotId)
     }
 
-    if (buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', buildingId)
+    if (_buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', _buildingId)
     }
 
     const { data, error } = await queryBuilder.single()
@@ -242,7 +242,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
    */
   async addToLot(lotId: string, userId: string, type: Contact['type'], isPrimary: boolean = false) {
     // Check if user is already assigned to this lot
-    const existingCheck = await this.userExists(userId, lotId)
+    const existingCheck = await this.userExists(_userId, _lotId)
     if (!existingCheck.success) return existingCheck
 
     if (existingCheck.exists) {
@@ -250,8 +250,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     const contactData: ContactInsert = {
-      user_id: userId,
-      lot_id: lotId,
+      user_id: _userId,
+      lot_id: _lotId,
       type,
       status: 'active'
     }
@@ -264,7 +264,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
    */
   async addToBuilding(buildingId: string, userId: string, type: Contact['type'], isPrimary: boolean = false) {
     // Check if user is already assigned to this building
-    const existingCheck = await this.userExists(userId, undefined, buildingId)
+    const existingCheck = await this.userExists(_userId, undefined, _buildingId)
     if (!existingCheck.success) return existingCheck
 
     if (existingCheck.exists) {
@@ -272,8 +272,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     const contactData: ContactInsert = {
-      user_id: userId,
-      building_id: buildingId,
+      user_id: _userId,
+      building_id: _buildingId,
       type,
       status: 'active'
     }
@@ -288,8 +288,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await this.supabase
       .from(this.tableName)
       .delete()
-      .eq('lot_id', lotId)
-      .eq('user_id', userId)
+      .eq('lot_id', _lotId)
+      .eq('user_id', _userId)
       .select()
 
     if (error) {
@@ -310,8 +310,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await this.supabase
       .from(this.tableName)
       .delete()
-      .eq('building_id', buildingId)
-      .eq('user_id', userId)
+      .eq('building_id', _buildingId)
+      .eq('user_id', _userId)
       .select()
 
     if (error) {

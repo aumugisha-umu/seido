@@ -92,7 +92,7 @@ interface LotData {
 }
 
 export default function NewLotPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
@@ -458,7 +458,7 @@ export default function NewLotPage() {
               return await contactService.addContactToLot(
                 result.id,
                 contact.id,
-                isPrimary
+                _isPrimary
               )
             } catch (error) {
               console.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
@@ -1053,7 +1053,7 @@ export default function NewLotPage() {
     setIsLotManagerModalOpen(false)
   }
 
-  const removeLotManager = (managerId: string) => {
+  const removeLotManager = (_managerId: string) => {
     setLotData(prev => ({
       ...prev,
       assignedLotManagers: (prev.assignedLotManagers || []).filter(manager => manager.id !== managerId)

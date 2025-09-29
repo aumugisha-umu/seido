@@ -37,7 +37,7 @@ interface UploadedFile {
 }
 
 export default function NouvelleDemandePage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { loading, error, refreshData } = useTenantData()
@@ -178,7 +178,7 @@ export default function NouvelleDemandePage() {
     )
   }
 
-  const handleLogementSelect = (logementId: string) => {
+  const handleLogementSelect = (_logementId: string) => {
     setSelectedLogement(logementId)
     setCurrentStep(2)
   }
@@ -301,7 +301,7 @@ export default function NouvelleDemandePage() {
     event.target.value = ""
   }
 
-  const removeFile = (fileId: string) => {
+  const removeFile = (_fileId: string) => {
     setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId))
   }
 

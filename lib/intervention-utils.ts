@@ -22,7 +22,7 @@ export const isBuildingWideIntervention = (intervention: InterventionAction): bo
   return !!(intervention.building && !intervention.lot)
 }
 
-export const getStatusColor = (status: string) => {
+export const getStatusColor = (_status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -59,7 +59,7 @@ export const getStatusColor = (status: string) => {
   }
 }
 
-export const getStatusLabel = (status: string) => {
+export const getStatusLabel = (_status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -96,7 +96,7 @@ export const getStatusLabel = (status: string) => {
   }
 }
 
-export const getPriorityColor = (urgency: string) => {
+export const getPriorityColor = (_urgency: string) => {
   switch (urgency) {
     case "urgente":
       return "bg-red-100 text-red-800"
@@ -111,7 +111,7 @@ export const getPriorityColor = (urgency: string) => {
   }
 }
 
-export const getPriorityLabel = (urgency: string) => {
+export const getPriorityLabel = (_urgency: string) => {
   switch (urgency) {
     case "urgente":
       return "Urgente"

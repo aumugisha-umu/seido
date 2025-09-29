@@ -50,9 +50,9 @@ export function SignupForm() {
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
-    { text: "Une majuscule", met: /[A-Z]/.test(formData.password) },
-    { text: "Une minuscule", met: /[a-z]/.test(formData.password) },
-    { text: "Un chiffre", met: /\d/.test(formData.password) },
+    { text: "Une majuscule", met: /[A-Z]/.test(formData._password) },
+    { text: "Une minuscule", met: /[a-z]/.test(formData._password) },
+    { text: "Un chiffre", met: /\d/.test(formData._password) },
   ]
 
   const isPasswordValid = passwordRequirements.every(req => req.met)

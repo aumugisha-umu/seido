@@ -89,8 +89,8 @@ class NotificationService {
    * Créer une notification pour un utilisateur
    */
   async createNotification({
-    userId,
-    teamId,
+    _userId,
+    _teamId,
     createdBy,
     type,
     priority = 'normal',
@@ -103,8 +103,8 @@ class NotificationService {
   }: CreateNotificationParams) {
     try {
       console.log('📬 [NOTIFICATION-SERVICE] Creating notification:', { 
-        userId, 
-        teamId, 
+        _userId, 
+        _teamId, 
         createdBy, 
         type, 
         title, 
@@ -113,8 +113,8 @@ class NotificationService {
       })
 
       const notificationData = {
-        user_id: userId,
-        team_id: teamId,
+        user_id: _userId,
+        team_id: _teamId,
         created_by: createdBy,
         type,
         priority,
@@ -157,7 +157,7 @@ class NotificationService {
    * Créer des notifications pour tous les membres d'une équipe
    */
   async createTeamNotification({
-    teamId,
+    _teamId,
     createdBy,
     type,
     priority = 'normal',
@@ -171,13 +171,13 @@ class NotificationService {
     excludeUsers?: string[]
   }) {
     try {
-      console.log('📬 Creating team notification for team:', teamId)
+      console.log('📬 Creating team notification for team:', _teamId)
 
       // Récupérer tous les membres de l'équipe
       const { data: teamMembers, error: membersError } = await supabase
         .from('team_members')
         .select('user_id')
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
 
       if (membersError) {
         console.error('❌ Error fetching team members:', membersError)
@@ -185,19 +185,19 @@ class NotificationService {
       }
 
       if (!teamMembers || teamMembers.length === 0) {
-        console.log('⚠️ No team members found for team:', teamId)
+        console.log('⚠️ No team members found for team:', _teamId)
         return []
       }
 
       // Filtrer les utilisateurs exclus
       const userIds = teamMembers
         .map(member => member.user_id)
-        .filter(userId => !excludeUsers.includes(userId))
+        .filter(userId => !excludeUsers.includes(_userId))
 
       // Créer une notification pour chaque membre
       const notifications = userIds.map(userId => ({
-        user_id: userId,
-        team_id: teamId,
+        user_id: _userId,
+        team_id: _teamId,
         created_by: createdBy,
         type,
         priority,
@@ -232,11 +232,11 @@ class NotificationService {
   async notifyInterventionCreated({
     interventionId,
     interventionTitle,
-    teamId,
+    _teamId,
     createdBy,
     assignedTo,
     managerId,
-    lotId,
+    _lotId,
     lotReference,
     urgency = 'normal'
   }: {
@@ -255,7 +255,7 @@ class NotificationService {
       let buildingManagerIds: string[] = []
       let lotManagerIds: string[] = []
       
-      if (lotId) {
+      if (_lotId) {
         // Récupérer le lot avec son immeuble parent
         const { data: lotData } = await supabase
           .from('lots')
@@ -264,7 +264,7 @@ class NotificationService {
             reference,
             building:buildings(id, name)
           `)
-          .eq('id', lotId)
+          .eq('id', _lotId)
           .single()
         
         // Récupérer les gestionnaires du bâtiment via building_contacts
@@ -273,7 +273,7 @@ class NotificationService {
         }
 
         // Récupérer les gestionnaires spécifiquement assignés au lot
-        lotManagerIds = await this.getLotManagers(lotId)
+        lotManagerIds = await this.getLotManagers(_lotId)
       }
 
       // Récupérer tous les gestionnaires de l'équipe
@@ -283,7 +283,7 @@ class NotificationService {
           user_id,
           user:users(id, name, role)
         `)
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
 
       if (!teamMembers) return []
 
@@ -320,7 +320,7 @@ class NotificationService {
           // Notification personnelle pour les gestionnaires directement responsables
           const notification = await this.createNotification({
             userId: manager.user_id,
-            teamId,
+            _teamId,
             createdBy,
             type: 'intervention',
             priority: urgency === 'normal' ? 'high' : urgency,
@@ -339,7 +339,7 @@ class NotificationService {
           // Notification d'équipe pour les autres gestionnaires
           const notification = await this.createNotification({
             userId: manager.user_id,
-            teamId,
+            _teamId,
             createdBy,
             type: 'intervention',
             priority: 'normal',
@@ -382,11 +382,11 @@ class NotificationService {
     interventionTitle,
     oldStatus,
     newStatus,
-    teamId,
+    _teamId,
     changedBy,
     assignedTo,
     managerId,
-    lotId,
+    _lotId,
     lotReference
   }: {
     interventionId: string
@@ -426,7 +426,7 @@ class NotificationService {
       let buildingManagerIds: string[] = []
       let lotManagerIds: string[] = []
       
-      if (lotId) {
+      if (_lotId) {
         // Récupérer le lot avec son immeuble parent
         const { data: lotData } = await supabase
           .from('lots')
@@ -435,7 +435,7 @@ class NotificationService {
             reference,
             building:buildings(id, name)
           `)
-          .eq('id', lotId)
+          .eq('id', _lotId)
           .single()
         
         // Récupérer les gestionnaires du bâtiment via building_contacts
@@ -444,7 +444,7 @@ class NotificationService {
         }
 
         // Récupérer les gestionnaires spécifiquement assignés au lot
-        lotManagerIds = await this.getLotManagers(lotId)
+        lotManagerIds = await this.getLotManagers(_lotId)
       }
 
       // Récupérer tous les gestionnaires de l'équipe
@@ -454,7 +454,7 @@ class NotificationService {
           user_id,
           user:users(id, name, role)
         `)
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
 
       if (!teamMembers) return []
 
@@ -494,7 +494,7 @@ class NotificationService {
           // Notification personnelle pour les gestionnaires directement responsables
           const notification = await this.createNotification({
             userId: manager.user_id,
-            teamId,
+            _teamId,
             createdBy: changedBy,
             type: 'status_change',
             priority: newStatus === 'validee' ? 'high' : 'normal',
@@ -515,7 +515,7 @@ class NotificationService {
           // Notification d'équipe pour les autres gestionnaires
           const notification = await this.createNotification({
             userId: manager.user_id,
-            teamId,
+            _teamId,
             createdBy: changedBy,
             type: 'status_change',
             priority: 'normal',
@@ -558,7 +558,7 @@ class NotificationService {
   async notifyDocumentUploaded({
     documentId,
     documentName,
-    teamId,
+    _teamId,
     uploadedBy,
     relatedEntityType,
     relatedEntityId,
@@ -578,7 +578,7 @@ class NotificationService {
     if (assignedTo && assignedTo !== uploadedBy) {
       const assigneeNotification = await this.createNotification({
         userId: assignedTo,
-        teamId,
+        _teamId,
         createdBy: uploadedBy,
         type: 'document',
         priority: 'normal',
@@ -603,8 +603,8 @@ class NotificationService {
    * Notifications pour les invitations d'équipe
    */
   async notifyTeamInvitation({
-    userId,
-    teamId,
+    _userId,
+    _teamId,
     teamName,
     invitedBy,
     role
@@ -616,8 +616,8 @@ class NotificationService {
     role: string
   }) {
     return this.createNotification({
-      userId,
-      teamId,
+      _userId,
+      _teamId,
       createdBy: invitedBy,
       type: 'team_invite',
       priority: 'high',
@@ -633,7 +633,7 @@ class NotificationService {
    * Notifications système
    */
   async notifySystemMaintenance({
-    teamId,
+    _teamId,
     title,
     message,
     scheduledFor
@@ -644,7 +644,7 @@ class NotificationService {
     scheduledFor: string
   }) {
     return this.createTeamNotification({
-      teamId,
+      _teamId,
       type: 'system',
       priority: 'normal',
       title,
@@ -657,8 +657,8 @@ class NotificationService {
    * Notifications de rappel
    */
   async notifyReminder({
-    userId,
-    teamId,
+    _userId,
+    _teamId,
     createdBy,
     title,
     message,
@@ -676,8 +676,8 @@ class NotificationService {
     relatedEntityId?: string
   }) {
     return this.createNotification({
-      userId,
-      teamId,
+      _userId,
+      _teamId,
       createdBy,
       type: 'reminder',
       priority: 'normal',
@@ -790,7 +790,7 @@ class NotificationService {
    */
   async notifyBuildingUpdated(building: Building, updatedBy: string, changes: Partial<Building>) {
     try {
-      if (!building.team_id || !updatedBy) return
+      if (!building.team_id || !_updatedBy) return
 
       // Récupérer tous les gestionnaires de l'équipe
       const { data: teamMembers } = await supabase
@@ -804,7 +804,7 @@ class NotificationService {
       if (!teamMembers) return
 
       const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
-        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
+        member.user?.role === 'gestionnaire' && member.user_id !== _updatedBy
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
@@ -834,7 +834,7 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: building.team_id,
-            createdBy: updatedBy,
+            createdBy: _updatedBy,
             type: 'system',
             priority: 'normal',
             title: 'Immeuble dont vous êtes responsable modifié',
@@ -853,7 +853,7 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: building.team_id,
-            createdBy: updatedBy,
+            createdBy: _updatedBy,
             type: 'system',
             priority: 'normal',
             title: 'Immeuble modifié',
@@ -1123,7 +1123,7 @@ class NotificationService {
    */
   async notifyLotUpdated(lot: Lot, building: Building | null, updatedBy: string, changes: Partial<Lot>) {
     try {
-      if (!lot.team_id || !updatedBy) return
+      if (!lot.team_id || !_updatedBy) return
 
       const { data: teamMembers } = await supabase
         .from('team_members')
@@ -1136,7 +1136,7 @@ class NotificationService {
       if (!teamMembers) return
 
       const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
-        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
+        member.user?.role === 'gestionnaire' && member.user_id !== _updatedBy
       )
 
       // Identifier TOUS les gestionnaires directement responsables
@@ -1157,7 +1157,7 @@ class NotificationService {
       const lotAdditionalManagers = new Set<string>()
 
       (lotContacts as LotContact[])?.forEach(contact => {
-        if (contact.user?.role === 'gestionnaire' && contact.user_id !== updatedBy) {
+        if (contact.user?.role === 'gestionnaire' && contact.user_id !== _updatedBy) {
           directResponsibles.add(contact.user_id)
           if (contact.is_primary) {
             lotPrimaryManagers.add(contact.user_id)
@@ -1216,7 +1216,7 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: lot.team_id,
-            createdBy: updatedBy,
+            createdBy: _updatedBy,
             type: 'system',
             priority: 'normal',
             title,
@@ -1237,7 +1237,7 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: lot.team_id,
-            createdBy: updatedBy,
+            createdBy: _updatedBy,
             type: 'system',
             priority: 'normal',
             title: 'Lot modifié',
@@ -1495,7 +1495,7 @@ class NotificationService {
   /**
    * Récupérer les gestionnaires spécifiquement assignés à un lot
    */
-  private async getLotManagers(lotId: string): Promise<string[]> {
+  private async getLotManagers(_lotId: string): Promise<string[]> {
     try {
       const { data: lotContacts } = await supabase
         .from('lot_contacts')
@@ -1506,7 +1506,7 @@ class NotificationService {
             provider_category
           )
         `)
-        .eq('lot_id', lotId)
+        .eq('lot_id', _lotId)
         .is('end_date', null) // Only active assignments
 
       // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
@@ -1525,7 +1525,7 @@ class NotificationService {
   /**
    * Récupérer les gestionnaires spécifiquement assignés à un bâtiment
    */
-  private async getBuildingManagers(buildingId: string): Promise<string[]> {
+  private async getBuildingManagers(_buildingId: string): Promise<string[]> {
     try {
       const { data: buildingContacts } = await supabase
         .from('building_contacts')
@@ -1536,7 +1536,7 @@ class NotificationService {
             provider_category
           )
         `)
-        .eq('building_id', buildingId)
+        .eq('building_id', _buildingId)
         .is('end_date', null) // Only active assignments
 
       // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
@@ -1697,7 +1697,7 @@ class NotificationService {
    */
   async notifyContactUpdated(contact: Contact, updatedBy: string, changes: Partial<Contact>) {
     try {
-      if (!contact.team_id || !updatedBy) return
+      if (!contact.team_id || !_updatedBy) return
 
       const { data: teamMembers } = await supabase
         .from('team_members')
@@ -1710,11 +1710,11 @@ class NotificationService {
       if (!teamMembers) return
 
       const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
-        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
+        member.user?.role === 'gestionnaire' && member.user_id !== _updatedBy
       )
 
       // Identifier les gestionnaires directement responsables
-      const directResponsibles = await this.getContactDirectResponsibles(contact.id, updatedBy)
+      const directResponsibles = await this.getContactDirectResponsibles(contact.id, _updatedBy)
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
@@ -1725,7 +1725,7 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: contact.team_id,
-            createdBy: updatedBy,
+            createdBy: _updatedBy,
             type: 'system',
             priority: 'normal',
             title: 'Contact lié à vos biens modifié',
@@ -1744,7 +1744,7 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: contact.team_id,
-            createdBy: updatedBy,
+            createdBy: _updatedBy,
             type: 'system',
             priority: 'normal',
             title: 'Contact modifié',
@@ -2077,7 +2077,7 @@ class NotificationService {
     responseType,
     tenantName,
     message = '',
-    teamId,
+    _teamId,
     lotReference
   }: {
     interventionId: string
@@ -2089,7 +2089,7 @@ class NotificationService {
     lotReference?: string
   }) {
     try {
-      if (!teamId) return
+      if (!_teamId) return
 
       console.log('📬 Notifying availability response:', {
         interventionId,
@@ -2157,7 +2157,7 @@ class NotificationService {
       const managerPromises = managers.map(manager =>
         this.createNotification({
           userId: manager.user_id,
-          teamId,
+          _teamId,
           type: 'intervention',
           priority,
           title: managerTitle,
@@ -2180,7 +2180,7 @@ class NotificationService {
       const providerPromises = providers.map(provider =>
         this.createNotification({
           userId: provider.user_id,
-          teamId,
+          _teamId,
           type: 'intervention',
           priority,
           title: providerTitle,

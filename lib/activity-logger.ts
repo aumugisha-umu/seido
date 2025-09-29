@@ -44,8 +44,8 @@ class ActivityLogger {
   async log(params: LogActivityParams): Promise<string | null> {
     try {
       const logData = {
-        team_id: params.teamId || this.context.teamId,
-        user_id: params.userId || this.context.userId,
+        team_id: params.teamId || this.context._teamId,
+        user_id: params.userId || this.context._userId,
         action_type: params.actionType,
         entity_type: params.entityType,
         entity_id: params.entityId || null,
@@ -121,7 +121,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'user',
-      entityId: userId,
+      entityId: _userId,
       entityName: userName,
       description,
       metadata: details,
@@ -154,7 +154,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'team',
-      entityId: teamId,
+      entityId: _teamId,
       entityName: teamName,
       description,
       metadata: details,
@@ -187,7 +187,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'building',
-      entityId: buildingId,
+      entityId: _buildingId,
       entityName: buildingName,
       description,
       metadata: details,
@@ -226,7 +226,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'lot',
-      entityId: lotId,
+      entityId: _lotId,
       entityName: lotReference,
       description,
       metadata: details,
@@ -422,12 +422,12 @@ class ActivityLogger {
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (filters?.teamId) {
-        query = query.eq('team_id', filters.teamId)
+      if (filters?._teamId) {
+        query = query.eq('team_id', filters._teamId)
       }
       
-      if (filters?.userId) {
-        query = query.eq('user_id', filters.userId)
+      if (filters?._userId) {
+        query = query.eq('user_id', filters._userId)
       }
       
       if (filters?.entityType) {
@@ -494,7 +494,7 @@ class ActivityLogger {
       const { data, error } = await supabase
         .from('activity_logs')
         .select('action_type, entity_type, status')
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
         .gte('created_at', startDate.toISOString())
 
       if (error) {

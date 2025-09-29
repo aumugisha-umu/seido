@@ -387,7 +387,7 @@ export class SEIDORefactoringSpecialist {
   /**
    * PHASE 3: Safe Refactoring Execution
    */
-  async executeRefactoring(taskId: string): Promise<{
+  async executeRefactoring(_taskId: string): Promise<{
     success: boolean
     changes: string[]
     metrics: SEIDORefactoringMetrics
@@ -501,7 +501,7 @@ export class SEIDORefactoringSpecialist {
    */
 
   // Pattern: Role-based component optimization
-  async optimizeRoleBasedComponents(role: string) {
+  async optimizeRoleBasedComponents(_role: string) {
     console.log(`🎭 Optimizing ${role} specific components...`)
 
     // Apply role-specific UX guidelines from DESIGN/07-guidelines.md
@@ -663,15 +663,15 @@ export class SEIDORefactoringSpecialist {
       phase1: {
         title: 'API & Backend Optimization',
         tasks: [
-          ...collaborations.api.suggestions.map((s: string) => ({ type: 'api', description: s })),
-          ...collaborations.backend.suggestions.map((s: string) => ({ type: 'backend', description: s }))
+          ...collaborations.api.suggestions.map((_s: string) => ({ type: 'api', description: s })),
+          ...collaborations.backend.suggestions.map((_s: string) => ({ type: 'backend', description: s }))
         ]
       },
       phase2: {
         title: 'Frontend & UX Enhancement',
         tasks: [
-          ...collaborations.frontend.suggestions.map((s: string) => ({ type: 'frontend', description: s })),
-          ...collaborations.ux.suggestions.map((s: string) => ({ type: 'ux', description: s }))
+          ...collaborations.frontend.suggestions.map((_s: string) => ({ type: 'frontend', description: s })),
+          ...collaborations.ux.suggestions.map((_s: string) => ({ type: 'ux', description: s }))
         ]
       },
       collaborationPoints: [
@@ -722,7 +722,7 @@ export const useRefactoringSpecialist = (context: SEIDORefactoringContext) => {
     }
   }, [specialist])
 
-  const executeRefactoring = useCallback(async (taskId: string) => {
+  const executeRefactoring = useCallback(async (_taskId: string) => {
     setIsRefactoring(true)
     try {
       const result = await specialist.executeRefactoring(taskId)

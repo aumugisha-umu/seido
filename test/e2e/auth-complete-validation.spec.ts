@@ -52,7 +52,7 @@ test.describe('Authentication Complete Validation', () => {
 
       // 2. Fill login form
       await page.fill('input[name="email"]', account.email);
-      await page.fill('input[name="password"]', account.password);
+      await page.fill('input[name="password"]', account._password);
 
       // 3. Submit form
       await page.click('button[type="submit"]');

@@ -41,8 +41,8 @@ interface QuoteRequestModalProps {
   additionalNotes: string
   selectedProviderId: string
   providers: Provider[]
-  onDeadlineChange: (deadline: string) => void
-  onNotesChange: (notes: string) => void
+  onDeadlineChange: (_deadline: string) => void
+  onNotesChange: (_notes: string) => void
   onProviderSelect: (providerId: string, providerName: string) => void
   onSubmit: () => void
   isLoading: boolean

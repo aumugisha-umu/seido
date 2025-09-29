@@ -26,7 +26,7 @@ interface BuildingInfo {
 }
 
 export default function EditBuildingPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
@@ -44,7 +44,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
     description: "",
   })
   const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
+  const [teamManagers, setTeamManagers] = useState<unknown[]>([])
   const [userTeam, setUserTeam] = useState<any>(null)
   
   const [loading, setLoading] = useState(true)

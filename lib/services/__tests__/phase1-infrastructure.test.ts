@@ -31,20 +31,20 @@ import {
 describe('Phase 1 Infrastructure Tests', () => {
   describe('Error Handling', () => {
     it('should create success responses correctly', () => {
-      const data = { id: '123', name: 'Test' }
-      const response = createSuccessResponse(data)
+      const testData = { id: '123', name: 'Test' }
+      const response = createSuccessResponse(testData)
 
       expect(response.success).toBe(true)
       expect(response.error).toBeNull()
-      expect(response.data).toEqual(data)
+      expect(response.data).toEqual(testData)
     })
 
     it('should create error responses correctly', () => {
-      const error = {
+      const testError = {
         code: 'TEST_ERROR',
         message: 'Test error message'
       }
-      const response = createErrorResponse(error)
+      const response = createErrorResponse(testError)
 
       expect(response.success).toBe(false)
       expect(response.data).toBeNull()

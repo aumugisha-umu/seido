@@ -19,9 +19,9 @@ import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-
  * Accessible uniquement aux gestionnaires en développement
  */
 
-async function createSampleData(teamId: string) {
-  console.log('🔧 [DEBUG] Creating sample data for team:', teamId)
-  const result = await createSampleBuildingsForTeam({ teamId, force: false })
+async function createSampleData(_teamId: string) {
+  console.log('🔧 [DEBUG] Creating sample data for team:', _teamId)
+  const result = await createSampleBuildingsForTeam({ _teamId, force: false })
   console.log('🔧 [DEBUG] Sample data creation result:', result)
   return result
 }

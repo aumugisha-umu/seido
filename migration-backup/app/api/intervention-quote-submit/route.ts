@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Insert new availabilities linked to both quote and quote request
-      const availabilityData = providerAvailabilities.map((avail: any) => ({
+      const availabilityData = providerAvailabilities.map((_avail: unknown) => ({
         user_id: user.id,
         intervention_id: interventionId,
         date: avail.date,

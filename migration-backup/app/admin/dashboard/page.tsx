@@ -44,11 +44,11 @@ export default async function AdminDashboard() {
     const totalBuildings = allBuildings?.length || 0
 
     // Statistiques interventions (toutes les équipes)
-    const allInterventions = await interventionService.getAll() as any[]
+    const allInterventions = await interventionService.getAll() as unknown[]
     const totalInterventions = allInterventions?.length || 0
 
     // Calcul du chiffre d'affaires simulé (basé sur les interventions)
-    const completedInterventions = allInterventions?.filter((i: any) => i.status === 'completed') || []
+    const completedInterventions = allInterventions?.filter((_i: unknown) => i.status === 'completed') || []
     const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
 
     systemStats = {

@@ -50,7 +50,7 @@ interface ContactHeaderProps {
   onBack: () => void
   onEdit: () => void
   onArchive: () => void
-  onInvitationAction: (action: string) => void
+  onInvitationAction: (_action: string) => void
   customActions?: Array<{
     key: string
     label: string
@@ -71,7 +71,7 @@ export const ContactDetailHeader = ({
   customActions = [],
 }: ContactHeaderProps) => {
   // Configuration des rôles
-  const getRoleConfig = (role: string) => {
+  const getRoleConfig = (_role: string) => {
     switch (role.toLowerCase()) {
       case "locataire":
         return {

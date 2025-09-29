@@ -26,7 +26,7 @@ interface DebugPanelProps {
   isVisible?: boolean
 }
 
-export function SEIDODebugPanel({ userRole, userId, isVisible = false }: DebugPanelProps) {
+export function SEIDODebugPanel({ userRole, _userId, isVisible = false }: DebugPanelProps) {
   const [logs, setLogs] = useState<DebugLog[]>([])
   const [isExpanded, setIsExpanded] = useState(isVisible)
   const [activeTab, setActiveTab] = useState('logs')
@@ -80,12 +80,12 @@ export function SEIDODebugPanel({ userRole, userId, isVisible = false }: DebugPa
     return null
   }
 
-  const extractComponent = (message: string): string => {
+  const extractComponent = (_message: string): string => {
     const match = message.match(/\[SEIDO-(\w+)\]/)
     return match ? match[1] : 'UNKNOWN'
   }
 
-  const extractMessage = (message: string): string => {
+  const extractMessage = (_message: string): string => {
     return message.replace(/^.*\[SEIDO-\w+\]\s*/, '')
   }
 

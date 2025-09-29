@@ -54,7 +54,7 @@ interface InterventionHeaderProps {
   }
   onBack: () => void
   onArchive: () => void
-  onStatusAction: (action: string) => void
+  onStatusAction: (_action: string) => void
   displayMode?: "dropdown" | "buttons" | "custom"
   actionPanel?: React.ReactNode
 }
@@ -67,7 +67,7 @@ export const InterventionDetailHeader = ({
   displayMode = "dropdown",
   actionPanel,
 }: InterventionHeaderProps) => {
-  const getUrgencyConfig = (urgency: string) => {
+  const getUrgencyConfig = (_urgency: string) => {
     switch (urgency.toLowerCase()) {
       case "urgent":
         return { 
@@ -92,7 +92,7 @@ export const InterventionDetailHeader = ({
     }
   }
 
-  const getStatusConfig = (status: string) => {
+  const getStatusConfig = (_status: string) => {
     const statusLower = status.toLowerCase()
     switch (statusLower) {
       case "demande":
@@ -171,7 +171,7 @@ export const InterventionDetailHeader = ({
   }
 
   // Actions disponibles selon le statut
-  const getAvailableActions = (status: string) => {
+  const getAvailableActions = (_status: string) => {
     const statusLower = status.toLowerCase()
     const actions = []
     

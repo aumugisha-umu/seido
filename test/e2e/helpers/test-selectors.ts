@@ -207,7 +207,7 @@ export const SELECTORS = {
  * Fonction helper pour obtenir le premier sélecteur disponible
  */
 export async function getFirstAvailableSelector(
-  page: any,
+  page: unknown,
   selectors: string[],
   options?: { timeout?: number }
 ): Promise<string | null> {
@@ -229,7 +229,7 @@ export async function getFirstAvailableSelector(
  * Fonction helper pour cliquer sur le premier élément disponible
  */
 export async function clickFirstAvailable(
-  page: any,
+  page: unknown,
   selectors: string[],
   options?: { timeout?: number }
 ): Promise<boolean> {
@@ -247,7 +247,7 @@ export async function clickFirstAvailable(
  * Fonction helper pour remplir le premier champ disponible
  */
 export async function fillFirstAvailable(
-  page: any,
+  page: unknown,
   selectors: string[],
   value: string,
   options?: { timeout?: number }
@@ -266,7 +266,7 @@ export async function fillFirstAvailable(
  * Fonction helper pour attendre un élément avec plusieurs sélecteurs
  */
 export async function waitForFirstAvailable(
-  page: any,
+  page: unknown,
   selectors: string[],
   options?: { timeout?: number; state?: 'visible' | 'attached' | 'detached' | 'hidden' }
 ): Promise<string | null> {

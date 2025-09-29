@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     // Validation des paramètres obligatoires
-    if (!teamId) {
+    if (!_teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('activity_logs_with_user')
       .select('*')
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
       .order('created_at', { ascending: false })
 
     // Application des filtres optionnels
-    if (userId) {
-      query = query.eq('user_id', userId)
+    if (_userId) {
+      query = query.eq('user_id', _userId)
     }
 
     if (entityType) {
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     const { count } = await supabase
       .from('activity_logs')
       .select('*', { count: 'exact', head: true })
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
 
     return NextResponse.json({
       data: data || [],
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
 
     // Validation des champs obligatoires
     const {
-      teamId,
-      userId,
+      _teamId,
+      _userId,
       actionType,
       entityType,
       entityId,
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     if (!teamId || !userId || !actionType || !entityType || !description) {
       return NextResponse.json(
-        { error: 'Missing required fields: teamId, userId, actionType, entityType, description' },
+        { error: 'Missing required fields: _teamId, _userId, actionType, entityType, description' },
         { status: 400 }
       )
     }
@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('activity_logs')
       .insert({
-        team_id: teamId,
-        user_id: userId,
+        team_id: _teamId,
+        user_id: _userId,
         action_type: actionType,
         entity_type: entityType,
         entity_id: entityId || null,

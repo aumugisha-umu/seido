@@ -59,7 +59,7 @@ const mockNotifications: Notification[] = [
   },
 ]
 
-function getNotificationIcon(type: string) {
+function getNotificationIcon(_type: string) {
   switch (type) {
     case "security":
       return <Shield className="h-5 w-5 text-red-600" />

@@ -94,7 +94,7 @@ export class ScreenshotHelper {
     for (const selector of maskSelectors) {
       await this.page.evaluate((sel) => {
         const elements = document.querySelectorAll(sel)
-        elements.forEach((el: any) => {
+        elements.forEach((_el: unknown) => {
           el.style.filter = 'blur(5px)'
         })
       }, selector)
@@ -135,7 +135,7 @@ export class ScreenshotHelper {
     for (const selector of maskSelectors) {
       await this.page.evaluate((sel) => {
         const elements = document.querySelectorAll(sel)
-        elements.forEach((el: any) => {
+        elements.forEach((_el: unknown) => {
           el.style.filter = ''
         })
       }, selector)
@@ -290,7 +290,7 @@ export class ScreenshotHelper {
    * Capture l'état du réseau (requêtes en cours)
    */
   async captureNetworkState(): Promise<void> {
-    const requests: any[] = []
+    const requests: unknown[] = []
 
     // Collecter les requêtes
     this.page.on('request', (request) => {
@@ -315,7 +315,7 @@ export class ScreenshotHelper {
   /**
    * Ajoute des annotations visuelles sur la page
    */
-  private async addAnnotations(annotations: any[]): Promise<void> {
+  private async addAnnotations(annotations: unknown[]): Promise<void> {
     await this.page.evaluate((annots) => {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
       svg.style.cssText = `

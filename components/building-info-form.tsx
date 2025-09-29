@@ -60,7 +60,7 @@ interface BuildingInfoFormProps {
   buildingInfo: BuildingInfo
   setBuildingInfo: (info: BuildingInfo) => void
   selectedManagerId: string
-  setSelectedManagerId: (id: string) => void
+  setSelectedManagerId: (_id: string) => void
   teamManagers: Array<{ user: { id: string; name: string } }>
   userTeam: { id: string; name: string } | null
   isLoading: boolean

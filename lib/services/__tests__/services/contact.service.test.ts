@@ -24,10 +24,10 @@ vi.mock('../../domain/building.service')
 
 describe('ContactService', () => {
   let service: ContactService
-  let mockRepository: any
-  let mockUserService: any
-  let mockLotService: any
-  let mockBuildingService: any
+  let mockRepository: unknown
+  let mockUserService: unknown
+  let mockLotService: unknown
+  let mockBuildingService: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()

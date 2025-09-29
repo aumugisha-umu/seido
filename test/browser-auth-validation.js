@@ -90,7 +90,7 @@ async function validateWithBrowser() {
       // Fill and submit login form
       console.log('  → Logging in...');
       await page.type('input[type="email"]', account.email);
-      await page.type('input[type="password"]', account.password);
+      await page.type('input[type="password"]', account._password);
 
       // Click login button and wait for navigation
       await Promise.all([

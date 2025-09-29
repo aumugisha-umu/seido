@@ -127,7 +127,7 @@ export class InterventionOrchestrator {
       before: `
 // Inconsistent error handling and connection management
 export const userService = {
-  async getUser(id: string) {
+  async getUser(_id: string) {
     const { data, error } = await supabase.from('users').select('*').eq('id', id).single()
     if (error) throw error
     return data
@@ -136,7 +136,7 @@ export const userService = {
       after: `
 // Consistent error handling with retry logic and proper typing
 export const userService = {
-  async getUser(id: string): Promise<User | null> {
+  async getUser(_id: string): Promise<User | null> {
     try {
       return await withRetry(async () => {
         const { data, error } = await supabase
@@ -236,7 +236,7 @@ type InterventionAction = 'approval' | 'quoting' | 'planning' | 'execution' | 'f
 interface InterventionActionConfig<T> {
   action: InterventionAction
   handler: (data: T) => Promise<void>
-  onSuccess?: (result: any) => void
+  onSuccess?: (_result: unknown) => void
   onError?: (error: Error) => void
 }
 
@@ -253,7 +253,7 @@ export const useInterventionAction = <T>(config: InterventionActionConfig<T>) =>
       config.onSuccess?.(result)
       return result
     } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
+      const _error = err instanceof Error ? err : new Error(String(err))
       setError(error.message)
       config.onError?.(error)
       throw error
@@ -480,8 +480,8 @@ const DASHBOARD_CONFIGS = {
 // Unified dashboard component
 interface DashboardProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
-  stats: any
-  onKPIClick?: (metric: string) => void
+  stats: unknown
+  onKPIClick?: (_metric: string) => void
 }
 
 const UnifiedDashboard: React.FC<DashboardProps> = ({ role, stats, onKPIClick }) => {
@@ -608,7 +608,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
       files: ['lib/intervention-utils.ts', 'components/intervention/**/*.tsx'],
       before: `
 // Complex state management with manual transitions
-const handleInterventionAction = async (action: string, data: any) => {
+const handleInterventionAction = async (action: string, data: unknown) => {
   switch (action) {
     case 'approve':
       if (intervention.status !== 'pending') {
@@ -656,11 +656,11 @@ class InterventionWorkflowManager {
     return this.stateMachine.states[currentState][action]
   }
 
-  getAvailableActions(currentState: string): string[] {
+  getAvailableActions(_currentState: string): string[] {
     return Object.keys(this.stateMachine.states[currentState] || {})
   }
 
-  async executeAction(intervention: Intervention, action: string, data: any): Promise<Intervention> {
+  async executeAction(intervention: Intervention, action: string, data: unknown): Promise<Intervention> {
     const nextState = this.getNextState(intervention.status, action)
 
     // Execute action-specific logic
@@ -706,10 +706,10 @@ class InterventionWorkflowManager {
       before: `
 // Hard-coded dependencies
 export class InterventionService {
-  async createIntervention(data: any) {
+  async createIntervention(_data: unknown) {
     // Direct imports and usage
     const user = await userService.getCurrentUser()
-    const building = await buildingService.getBuilding(data.buildingId)
+    const building = await buildingService.getBuilding(data._buildingId)
     await notificationService.sendNotification(...)
     // ...
   }
@@ -721,7 +721,7 @@ interface IUserService {
 }
 
 interface IBuildingService {
-  getBuilding(id: string): Promise<Building>
+  getBuilding(_id: string): Promise<Building>
 }
 
 interface INotificationService {
@@ -735,9 +735,9 @@ export class InterventionService {
     private notificationService: INotificationService
   ) {}
 
-  async createIntervention(data: any) {
+  async createIntervention(_data: unknown) {
     const user = await this.userService.getCurrentUser()
-    const building = await this.buildingService.getBuilding(data.buildingId)
+    const building = await this.buildingService.getBuilding(data._buildingId)
     await this.notificationService.sendNotification(...)
     // ...
   }
@@ -759,7 +759,7 @@ export class ServiceContainer {
     this.services.set(name, service)
   }
 
-  resolve<T>(name: string): T {
+  resolve<T>(_name: string): T {
     return this.services.get(name)
   }
 }`,
@@ -804,7 +804,7 @@ export class ServiceContainer {
   /**
    * Get patterns applicable to specific files
    */
-  getPatternsForFile(filePath: string): SEIDORefactoringPattern[] {
+  getPatternsForFile(_filePath: string): SEIDORefactoringPattern[] {
     return this.patterns.filter(p =>
       p.files.some(f => f.includes('**') ? this.matchGlob(filePath, f) : filePath.includes(f))
     )

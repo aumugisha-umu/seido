@@ -19,7 +19,7 @@ vi.mock('../../repositories/user.repository')
 
 describe('UserService', () => {
   let service: UserService
-  let mockRepository: any
+  let mockRepository: unknown
 
   beforeEach(() => {
     // Reset mocks

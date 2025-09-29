@@ -50,7 +50,7 @@ test.describe('PHASE 1 - Final Validation Tests', () => {
         // 2. Remplir et soumettre le formulaire
         console.log('📍 Step 2: Filling login form...')
         await page.fill('input#email', account.email)
-        await page.fill('input#password', account.password)
+        await page.fill('input#password', account._password)
 
         // Screenshot avant soumission
         await page.screenshot({
@@ -176,7 +176,7 @@ test.describe('PHASE 1 - Final Validation Tests', () => {
       // Login rapide
       await page.goto(`${BASE_URL}/auth/login`)
       await page.fill('input#email', account.email)
-      await page.fill('input#password', account.password)
+      await page.fill('input#password', account._password)
       await page.click('button[type="submit"]')
 
       // Attendre le dashboard
@@ -238,7 +238,7 @@ test.describe('PHASE 1 - Final Validation Tests', () => {
 
       // Login
       await page.fill('input#email', account.email)
-      await page.fill('input#password', account.password)
+      await page.fill('input#password', account._password)
       await page.click('button[type="submit"]')
 
       // Attendre AUTH_READY

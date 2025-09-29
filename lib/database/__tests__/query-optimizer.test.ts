@@ -200,7 +200,7 @@ describe('QueryOptimizerV2', () => {
 
     it('should handle dashboard summary errors', async () => {
       const { cache } = await import('../cache-manager')
-      const error = new Error('Database error')
+      const _error = new Error('Database error')
 
       ;(cache.getOrSet as any).mockRejectedValueOnce(error)
 

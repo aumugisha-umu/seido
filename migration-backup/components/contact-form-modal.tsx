@@ -71,7 +71,7 @@ const specialityTypes = [
   { value: "autre", label: "Autre" },
 ]
 
-const getContactTitle = (type: string) => {
+const getContactTitle = (_type: string) => {
   switch (type) {
     case "tenant":
       return { title: "Créer un locataire", subtitle: "Personne qui occupe le logement" }
@@ -96,7 +96,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
   const { toast } = useToast()
   
   // Types de contacts qui doivent avoir la checkbox cochée par défaut
-  const shouldInviteByDefault = (type: string) => {
+  const shouldInviteByDefault = (_type: string) => {
     return ['manager', 'tenant', 'owner', 'provider'].includes(type)
   }
 
@@ -126,20 +126,20 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
   }, [formData.type])
 
   // Fonction pour valider un email
-  const isValidEmail = (email: string): boolean => {
+  const isValidEmail = (_email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email.trim())
   }
 
   // Fonction pour valider un numéro de téléphone français
-  const isValidPhone = (phone: string): boolean => {
+  const isValidPhone = (_phone: string): boolean => {
     if (!phone.trim()) return true // Le téléphone n'est pas obligatoire
     const phoneRegex = /^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/
     return phoneRegex.test(phone.replace(/\s/g, ''))
   }
 
   // Fonction pour vérifier si l'email existe déjà
-  const checkEmailExists = async (email: string): Promise<boolean> => {
+  const checkEmailExists = async (_email: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -276,7 +276,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         }
       }
 
-    } catch (error: any) {
+    } catch (_error: unknown) {
       console.error('❌ Erreur lors de la création du contact:', error)
       
       // Gestion des erreurs spécifiques

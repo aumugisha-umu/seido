@@ -153,10 +153,10 @@ export async function GET(
     for (const avail of (allAvailabilities || [])) {
       const userId = avail.user_id
 
-      if (!availabilitiesByUser.has(userId)) {
-        availabilitiesByUser.set(userId, [])
-        userSummary.set(userId, {
-          user_id: userId,
+      if (!availabilitiesByUser.has(_userId)) {
+        availabilitiesByUser.set(_userId, [])
+        userSummary.set(_userId, {
+          user_id: _userId,
           name: avail.user.name,
           role: avail.user.role,
           provider_category: avail.user.provider_category,
@@ -165,7 +165,7 @@ export async function GET(
         })
       }
 
-      availabilitiesByUser.get(userId).push({
+      availabilitiesByUser.get(_userId).push({
         id: avail.id,
         date: avail.date,
         start_time: avail.start_time,
@@ -175,7 +175,7 @@ export async function GET(
       })
 
       // Update summary
-      const summary = userSummary.get(userId)
+      const summary = userSummary.get(_userId)
       summary.total_slots++
 
       if (!summary.date_range.start || avail.date < summary.date_range.start) {
@@ -187,8 +187,8 @@ export async function GET(
     }
 
     // Convert to arrays for response
-    const userAvailabilities = Array.from(availabilitiesByUser.entries()).map(([userId, slots]) => ({
-      user: userSummary.get(userId),
+    const userAvailabilities = Array.from(availabilitiesByUser.entries()).map(([_userId, slots]) => ({
+      user: userSummary.get(_userId),
       availabilities: slots
     }))
 

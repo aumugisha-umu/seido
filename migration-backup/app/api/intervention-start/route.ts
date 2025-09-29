@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention status
-    const updateData: any = {
+    const updateData: unknown = {
       status: 'en_cours' as Database['public']['Enums']['intervention_status'],
       updated_at: new Date().toISOString()
     }

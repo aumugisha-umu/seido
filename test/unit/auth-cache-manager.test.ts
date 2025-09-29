@@ -124,15 +124,15 @@ describe('AuthCacheManager', () => {
       const userId = 'user-invalidate'
 
       // Set data in multiple cache types
-      cacheManager.set('profile', userId, { id: userId, name: 'User' })
+      cacheManager.set('profile', _userId, { id: _userId, name: 'User' })
       cacheManager.set('permission', `${userId}_admin`, { canEdit: true })
       cacheManager.set('team', `user_teams_${userId}`, ['team1', 'team2'])
 
       // Invalidate all user data
-      cacheManager.invalidateUser(userId)
+      cacheManager.invalidateUser(_userId)
 
       // Verify all caches are cleared
-      expect(cacheManager.get('profile', userId)).resolves.toBeNull()
+      expect(cacheManager.get('profile', _userId)).resolves.toBeNull()
       expect(cacheManager.get('permission', `${userId}_admin`)).resolves.toBeNull()
       expect(cacheManager.get('team', `user_teams_${userId}`)).resolves.toBeNull()
     })

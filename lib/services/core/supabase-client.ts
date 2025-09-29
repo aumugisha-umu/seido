@@ -68,8 +68,8 @@ export async function createServerSupabaseClient() {
 
   return createServerClient<Database>(supabaseUrl!, supabaseAnonKey!, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      get(_name: string) {
+        return cookieStore.get(_name)?.value
       },
       set(name: string, value: string, options: CookieOptions) {
         try {

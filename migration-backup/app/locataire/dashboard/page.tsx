@@ -26,9 +26,9 @@ export default async function LocataireDashboard() {
   const user = await requireRole('locataire')
 
   // ✅ LAYER 2: Data Layer Security - Récupération données locataire
-  let tenantData: any = null
-  let tenantInterventions: any[] = []
-  let pendingActions: any[] = []
+  let tenantData: unknown = null
+  let tenantInterventions: unknown[] = []
+  let pendingActions: unknown[] = []
   let loading = false
   let error = null
 

@@ -14,11 +14,11 @@ import { useDataRefresh } from './use-cache-management'
 // ✅ Hook pour utiliser le cache directement
 export function useCache() {
   return {
-    get: <T>(key: string) => cache.get<T>(key),
-    set: (key: string, data: any, ttl?: number) => cache.set(key, data, ttl),
+    get: <T>(_key: string) => cache.get<T>(key),
+    set: (key: string, data: unknown, ttl?: number) => cache.set(key, data, ttl),
     getOrSet: <T>(key: string, fetcher: () => Promise<T>, ttl?: number) =>
       cache.getOrSet<T>(key, fetcher, ttl),
-    invalidate: (pattern: string) => cache.invalidate(pattern),
+    invalidate: (_pattern: string) => cache.invalidate(pattern),
     metrics: () => cache.getMetrics(),
     status: () => cache.getStatus()
   }
@@ -186,7 +186,7 @@ export function useCachedList<T>(
 }
 
 // ✅ Hook pour optimistic updates avec cache
-export function useOptimisticMutation<T, TArgs extends any[]>(
+export function useOptimisticMutation<T, TArgs extends unknown[]>(
   cacheKey: string,
   mutationFn: (...args: TArgs) => Promise<T>,
   options: {

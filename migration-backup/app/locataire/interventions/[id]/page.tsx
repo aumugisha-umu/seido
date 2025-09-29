@@ -20,7 +20,7 @@ interface InterventionDetailsProps {
 }
 
 export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [intervention, setIntervention] = useState<any>(null)
@@ -40,7 +40,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     if (!resolvedParams.id || !user?.id) return
 
     try {
-      const data = await interventionService.getById(resolvedParams.id)
+      const _data = await interventionService.getById(resolvedParams.id)
 
       console.log('🔍 [TENANT-DEBUG] Raw intervention data received:', {
         id: data.id,
@@ -87,7 +87,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         }
 
         // Organiser les contacts et filtrer le locataire connecté
-        const getContactAssignmentType = (contact: any) => {
+        const getContactAssignmentType = (_contact: unknown) => {
           if (contact.role && contact.provider_category !== undefined) {
             return determineAssignmentType({
               id: contact.id,
@@ -101,11 +101,11 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         organizedContacts = {
           // Autres locataires du bien (exclure l'utilisateur connecté)
           locataires: contacts
-            .filter((contact: any) =>
+            .filter((_contact: unknown) =>
               getContactAssignmentType(contact) === 'tenant' &&
               contact.id !== user.id
             )
-            .map((contact: any) => ({
+            .map((_contact: unknown) => ({
               ...contact,
               inChat: false
             })),
@@ -113,12 +113,12 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
           syndics: [],
           // Seulement les gestionnaires, pas les prestataires du bien
           autres: contacts
-            .filter((contact: any) => {
+            .filter((_contact: unknown) => {
               const type = getContactAssignmentType(contact)
               // Garder seulement les gestionnaires, exclure prestataires et syndics
               return type === 'manager'
             })
-            .map((contact: any) => ({
+            .map((_contact: unknown) => ({
               ...contact,
               inChat: false
             }))
@@ -332,7 +332,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     console.log('Archive not available for tenants')
   }
 
-  const handleStatusAction = (action: string) => {
+  const handleStatusAction = (_action: string) => {
     // Actions gérées par le panel d'actions
     console.log('Status action:', action)
   }

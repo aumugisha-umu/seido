@@ -31,7 +31,7 @@ async function login(page: Page, email: string, password: string) {
   await page.waitForLoadState('networkidle')
 
   await page.fill('input[type="email"], input[name="email"], #email', email)
-  await page.fill('input[type="password"], input[name="password"], #password', password)
+  await page.fill('input[type="password"], input[name="password"], #password', _password)
   await page.click('button[type="submit"]:has-text("Se connecter"), button[type="submit"]:has-text("Connexion")')
 
   // Attendre que l'authentification soit complète
@@ -78,7 +78,7 @@ test.describe('Chargement des Données par Rôle', () => {
     console.log('Testing data loading for Gestionnaire...')
 
     // 1. Se connecter
-    await login(page, TEST_ACCOUNTS.gestionnaire.email, TEST_ACCOUNTS.gestionnaire.password)
+    await login(page, TEST_ACCOUNTS.gestionnaire.email, TEST_ACCOUNTS.gestionnaire._password)
     await page.waitForURL(TEST_ACCOUNTS.gestionnaire.dashboard, { timeout: 15000 })
     await waitForDataLoad(page)
 
@@ -171,7 +171,7 @@ test.describe('Chargement des Données par Rôle', () => {
     console.log('Testing data loading for Prestataire...')
 
     // 1. Se connecter
-    await login(page, TEST_ACCOUNTS.prestataire.email, TEST_ACCOUNTS.prestataire.password)
+    await login(page, TEST_ACCOUNTS.prestataire.email, TEST_ACCOUNTS.prestataire._password)
     await page.waitForURL(TEST_ACCOUNTS.prestataire.dashboard, { timeout: 15000 })
     await waitForDataLoad(page)
 
@@ -247,7 +247,7 @@ test.describe('Chargement des Données par Rôle', () => {
     console.log('Testing data loading for Locataire...')
 
     // 1. Se connecter
-    await login(page, TEST_ACCOUNTS.locataire.email, TEST_ACCOUNTS.locataire.password)
+    await login(page, TEST_ACCOUNTS.locataire.email, TEST_ACCOUNTS.locataire._password)
     await page.waitForURL(TEST_ACCOUNTS.locataire.dashboard, { timeout: 15000 })
     await waitForDataLoad(page)
 
@@ -327,7 +327,7 @@ test.describe('Chargement des Données par Rôle', () => {
       // Mesurer le chargement initial
       const startInitial = Date.now()
 
-      await login(page, account.email, account.password)
+      await login(page, account.email, account._password)
       await page.waitForURL(account.dashboard, { timeout: 15000 })
       await waitForDataLoad(page)
 
@@ -371,7 +371,7 @@ test.describe('Chargement des Données par Rôle', () => {
     console.log('Testing data persistence after navigation...')
 
     // Se connecter comme gestionnaire
-    await login(page, TEST_ACCOUNTS.gestionnaire.email, TEST_ACCOUNTS.gestionnaire.password)
+    await login(page, TEST_ACCOUNTS.gestionnaire.email, TEST_ACCOUNTS.gestionnaire._password)
     await page.waitForURL(TEST_ACCOUNTS.gestionnaire.dashboard, { timeout: 15000 })
     await waitForDataLoad(page)
 

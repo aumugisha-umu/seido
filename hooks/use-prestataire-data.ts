@@ -1,7 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createInterventionService, createContactInvitationService } from "@/lib/services"
+import {
+  createInterventionService,
+  createUserService,
+  createContactInvitationService
+} from "@/lib/services"
 import type { Intervention } from "@/lib/services/core/service-types"
 
 export interface PrestataireDashboardStats {
@@ -28,10 +32,10 @@ export interface PrestataireIntervention {
   requestedBy: string
   needsQuote: boolean
   reference: string
-  lot?: any
-  tenant_details?: any
-  manager?: any
-  assigned_contact?: any
+  lot?: unknown
+  tenant_details?: unknown
+  manager?: unknown
+  assigned_contact?: unknown
 }
 
 export interface UrgentIntervention {
@@ -43,7 +47,7 @@ export interface UrgentIntervention {
 }
 
 // Mapping des statuts database vers les statuts frontend attendus
-const mapStatusToFrontend = (dbStatus: string): string => {
+const mapStatusToFrontend = (_dbStatus: string): string => {
   const statusMap: Record<string, string> = {
     'demande': 'nouvelle-demande',
     'rejetee': 'rejetee',
@@ -61,7 +65,7 @@ const mapStatusToFrontend = (dbStatus: string): string => {
 }
 
 // Mapping des types database vers les types frontend
-const mapTypeToFrontend = (dbType: string): string => {
+const mapTypeToFrontend = (_dbType: string): string => {
   const typeMap: Record<string, string> = {
     'plomberie': 'Plomberie',
     'electricite': 'Électricité',
@@ -76,7 +80,7 @@ const mapTypeToFrontend = (dbType: string): string => {
 }
 
 // Mapping des urgences database vers les priorités frontend
-const mapUrgencyToPriority = (dbUrgency: string): 'basse' | 'normale' | 'haute' | 'urgente' => {
+const mapUrgencyToPriority = (_dbUrgency: string): 'basse' | 'normale' | 'haute' | 'urgente' => {
   const urgencyMap: Record<string, 'basse' | 'normale' | 'haute' | 'urgente'> = {
     'basse': 'basse',
     'normale': 'normale',
@@ -124,28 +128,18 @@ export const usePrestataireData = (userId: string) => {
         isJwtOnly: userId.startsWith('jwt_')
       })
 
-      // 1. Dans la nouvelle architecture, userId est directement l'ID du profil utilisateur
-      // Plus besoin de passer par user_invitations.contact_id car users remplace contacts
-      const { supabase } = await import('@/lib/supabase')
+      // Initialize services
+      const userService = createUserService()
+      const interventionService = createInterventionService()
 
-      // Vérifier que l'utilisateur existe d'abord, puis vérifier son rôle
-      // ✅ CORRECTION : userId est maintenant l'ID du profil utilisateur, pas auth_user_id
-      const { data: userProfile, error: userError } = await supabase
-        .from('users')
-        .select('id, role, team_id, name, email')
-        .eq('id', cleanUserId)
-        .single()
-
-      if (userError) {
-        console.error("❌ Error getting user profile:", userError)
-        throw userError
-      }
-
-      if (!userProfile) {
+      // 1. Get user profile using new service architecture
+      const userResult = await userService.getById(cleanUserId)
+      if (!userResult.success || !userResult.data) {
         console.log("❌ No user profile found for user_id:", cleanUserId)
         throw new Error("Aucun profil utilisateur trouvé")
       }
 
+      const userProfile = userResult.data
       console.log("✅ Found user profile:", userProfile.name, userProfile.role)
 
       // Vérifier que l'utilisateur est bien un prestataire
@@ -154,16 +148,15 @@ export const usePrestataireData = (userId: string) => {
         throw new Error(`Utilisateur n'est pas un prestataire (rôle: ${userProfile.role})`)
       }
 
-      const contactId = userProfile.id
-      console.log("✅ Found prestataire profile:", contactId)
+      console.log("✅ Found prestataire profile:", userProfile.id)
 
-      // 2. Get interventions assigned to this prestataire
-      const interventionService = createInterventionService()
-      const interventions = await interventionService.getByProviderId(contactId)
+      // 2. Get interventions assigned to this prestataire using new service
+      const interventionsResult = await interventionService.getByProvider(userProfile.id)
+      const interventions = interventionsResult.success ? (interventionsResult.data || []) : []
       console.log("📋 Found interventions:", interventions?.length || 0)
 
       // 3. Transform interventions to frontend format
-      const transformedInterventions: PrestataireIntervention[] = (interventions || []).map((intervention: Intervention & { lot?: any; tenant?: any; manager?: any; assigned_contact?: any }) => ({
+      const transformedInterventions: PrestataireIntervention[] = (interventions || []).map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown }) => ({
         id: intervention.id,
         title: intervention.title,
         description: intervention.description,

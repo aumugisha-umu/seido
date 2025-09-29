@@ -67,7 +67,7 @@ export function QuoteApprovalModal({
       console.log('📥 [APPROVAL] Response status:', response.status)
       console.log('📥 [APPROVAL] Response ok:', response.ok)
 
-      const data = await response.json()
+      const _data = await response.json()
       console.log('📄 [APPROVAL] Response data:', data)
 
       if (!response.ok) {

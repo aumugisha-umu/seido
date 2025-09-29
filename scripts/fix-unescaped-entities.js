@@ -10,7 +10,7 @@ const entitiesToFix = [];
 
 lines.forEach(line => {
   // Match pattern like: ./app/auth/callback/page.tsx
-  // 172:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.
+  // 172:37  Warning: `'` can be escaped with `'`, `&lsquo;`, `&#39;`, `&rsquo;`.
   const match = line.match(/^\.\/(.+)$/);
   if (match) {
     const filePath = match[1];
@@ -68,9 +68,9 @@ Object.entries(fileGroups).forEach(([relPath, warnings]) => {
       if (line.includes('>') && line.includes('<')) {
         // Replace the character with its escaped version
         if (warning.char === "'") {
-          line = line.substring(0, charIndex) + '&apos;' + line.substring(charIndex + 1);
+          line = line.substring(0, charIndex) + ''' + line.substring(charIndex + 1);
         } else if (warning.char === '"') {
-          line = line.substring(0, charIndex) + '&quot;' + line.substring(charIndex + 1);
+          line = line.substring(0, charIndex) + '"' + line.substring(charIndex + 1);
         }
         lines[lineIndex] = line;
       }

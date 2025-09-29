@@ -10,7 +10,7 @@ import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeou
  * Seulement les parties interactives du dashboard locataire
  */
 export function LocataireDashboardClient() {
-  const router = useRouter()
+  const _router = useRouter()
 
   // ✅ Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()

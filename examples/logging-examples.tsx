@@ -19,7 +19,7 @@ import { createSupabaseLogger } from '@/lib/supabase-logger'
 // ========================================
 // EXEMPLE 1: Composant avec logging complet
 // ========================================
-const InterventionCard: React.FC<{ intervention: any }> = ({ intervention }) => {
+const InterventionCard: React.FC<{ intervention: unknown }> = ({ intervention }) => {
   const { logAction, logError, logStateChange } = useComponentLogger('InterventionCard')
   const { logClick, logHover } = useInteractionLogger('InterventionCard')
   usePerformanceLogger('InterventionCard')
@@ -30,7 +30,7 @@ const InterventionCard: React.FC<{ intervention: any }> = ({ intervention }) => 
     logStateChange('status', status)
   }, [status])
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (_newStatus: string) => {
     try {
       logAction('status_change_started', { 
         interventionId: intervention.id, 
@@ -122,7 +122,7 @@ export const useAuthWithLogging = () => {
       authLogger.info('Tentative de connexion', { email })
       
       // Simulation de l'authentification
-      const result = await authenticateUser(email, password)
+      const result = await authenticateUser(email, _password)
       
       setUser(result.user)
       logUserAction('sign_in', result.user.id, { email })
@@ -147,7 +147,7 @@ export const useAuthWithLogging = () => {
       await signOutUser()
       setUser(null)
       
-      logUserAction('sign_out', userId)
+      logUserAction('sign_out', _userId)
       authLogger.info('Déconnexion réussie', { userId })
     } catch (error) {
       logError(error as Error, 'sign_out')
@@ -161,13 +161,13 @@ export const useAuthWithLogging = () => {
 // EXEMPLE 3: Service Supabase avec logging
 // ========================================
 export class InterventionService {
-  private supabaseLogger: any
+  private supabaseLogger: unknown
 
-  constructor(supabaseClient: any) {
+  constructor(_supabaseClient: unknown) {
     this.supabaseLogger = createSupabaseLogger(supabaseClient)
   }
 
-  async createIntervention(data: any) {
+  async createIntervention(_data: unknown) {
     try {
       interventionLogger.info('Création d\'intervention', { 
         type: data.type,
@@ -193,7 +193,7 @@ export class InterventionService {
     }
   }
 
-  async getInterventions(filters: any = {}) {
+  async getInterventions(filters: unknown = {}) {
     try {
       interventionLogger.info('Récupération des interventions', { filters })
       
@@ -214,7 +214,7 @@ export class InterventionService {
     }
   }
 
-  async updateIntervention(id: string, updates: any) {
+  async updateIntervention(id: string, updates: unknown) {
     try {
       interventionLogger.info('Mise à jour d\'intervention', { 
         interventionId: id,
@@ -255,7 +255,7 @@ const Dashboard: React.FC = () => {
         const startTime = performance.now()
         
         // Simulation du chargement des données
-        const data = await loadDashboardStats()
+        const _data = await loadDashboardStats()
         
         const loadTime = performance.now() - startTime
         

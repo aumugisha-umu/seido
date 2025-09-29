@@ -380,52 +380,39 @@ describe('TeamService', () => {
       expect(mockRepository.findUserTeams).toHaveBeenCalledWith(mockAdmin.id)
     })
 
-    it('should create personal team if user has none', async () => {
+    it('should return error if user has no team assigned', async () => {
       mockRepository.findUserTeams = vi.fn().mockResolvedValue({
         success: true,
         data: []
       })
-      mockUserService.getById = vi.fn().mockResolvedValue({
-        success: true,
-        data: mockAdmin
-      })
-      mockRepository.findAll = vi.fn().mockResolvedValue({
-        success: true,
-        data: []
-      })
-      mockRepository.createWithMember = vi.fn().mockResolvedValue({
-        success: true,
-        data: mockTeam
-      })
 
       const result = await service.ensureUserHasTeam(mockAdmin.id)
 
-      expect(result.hasTeam).toBe(true)
-      expect(result.team).toEqual(mockTeam)
-      expect(mockRepository.createWithMember).toHaveBeenCalled()
+      expect(result.hasTeam).toBe(false)
+      expect(result.error).toBe('Utilisateur sans équipe assignée. Contactez votre administrateur.')
+      // Should not try to create team automatically
+      expect(mockRepository.createWithMember).not.toHaveBeenCalled()
     })
 
     it('should return error for JWT-only users', async () => {
       const result = await service.ensureUserHasTeam('jwt_test_user')
 
       expect(result.hasTeam).toBe(false)
-      expect(result.error).toContain('JWT-only')
+      expect(result.error).toBe('JWT-only users need to complete registration')
     })
 
-    it('should return error if user cannot create teams', async () => {
+    it('should return error for user without team regardless of role', async () => {
       mockRepository.findUserTeams = vi.fn().mockResolvedValue({
         success: true,
         data: []
-      })
-      mockUserService.getById = vi.fn().mockResolvedValue({
-        success: true,
-        data: mockTenant // Tenant cannot create teams
       })
 
       const result = await service.ensureUserHasTeam(mockTenant.id)
 
       expect(result.hasTeam).toBe(false)
-      expect(result.error).toContain('cannot create teams')
+      expect(result.error).toBe('Utilisateur sans équipe assignée. Contactez votre administrateur.')
+      // Should not try to create team or check user permissions
+      expect(mockUserService.getById).not.toHaveBeenCalled()
     })
   })
 

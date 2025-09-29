@@ -192,7 +192,7 @@ export const getUserProfile = cache(async () => {
 /**
  * ✅ UTILITAIRE: Déterminer dashboard selon le rôle
  */
-export function getDashboardPath(role: string): string {
+export function getDashboardPath(_role: string): string {
   switch (role) {
     case 'admin':
       return '/admin/dashboard'

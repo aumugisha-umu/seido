@@ -104,14 +104,14 @@ async function testAPIEndpoint() {
     });
 
     if (response.ok) {
-      const data = await response.json();
+      const _data = await response.json();
       console.log(`  ${colors.green}✓ API login successful${colors.reset}`);
       console.log(`    - User: ${data.user.email}`);
       console.log(`    - Role: ${data.user.role}`);
       console.log(`    - Cookies set: ${response.headers.get('set-cookie') ? 'Yes' : 'No'}`);
     } else {
       console.log(`  ${colors.red}✗ API login failed: ${response.status}${colors.reset}`);
-      const error = await response.text();
+      const _error = await response.text();
       console.log(`    ${error}`);
     }
   } catch (err) {

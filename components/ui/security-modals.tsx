@@ -44,13 +44,13 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   const [error, setError] = useState("")
   const { toast } = useToast()
 
-  const validatePassword = (password: string) => {
+  const validatePassword = (_password: string) => {
     const requirements = {
       length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /\d/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      uppercase: /[A-Z]/.test(_password),
+      lowercase: /[a-z]/.test(_password),
+      number: /\d/.test(_password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(_password)
     }
     return requirements
   }
@@ -104,7 +104,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
         }),
       })
 
-      const data = await response.json()
+      const _data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || "Erreur lors du changement de mot de passe")
@@ -292,7 +292,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
   const [error, setError] = useState("")
   const { toast } = useToast()
 
-  const isEmailValid = (email: string) => {
+  const isEmailValid = (_email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
   }

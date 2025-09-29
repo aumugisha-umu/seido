@@ -29,7 +29,7 @@ async function testAuthentication(account) {
     console.log('📝 Attempting to sign in...')
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: account.email,
-      password: account.password,
+      password: account._password,
     })
 
     if (authError) {

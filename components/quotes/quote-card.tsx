@@ -34,9 +34,9 @@ interface QuoteCardProps {
     isCurrentUserQuote?: boolean
   }
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
   onDownloadAttachment?: (attachment: {
     id: string
     name: string
@@ -60,7 +60,7 @@ export function QuoteCard({
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showRejectionModal, setShowRejectionModal] = useState(false)
   
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (_status: string) => {
     switch (status) {
       case 'approved':
         return 'bg-green-50 border-green-200 text-green-800'
@@ -74,7 +74,7 @@ export function QuoteCard({
     }
   }
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (_status: string) => {
     switch (status) {
       case 'approved':
         return 'Accepté'
@@ -88,7 +88,7 @@ export function QuoteCard({
     }
   }
 
-  const getBadgeColor = (status: string) => {
+  const getBadgeColor = (_status: string) => {
     switch (status) {
       case 'approved':
         return 'bg-green-100 text-green-800'

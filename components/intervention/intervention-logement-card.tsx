@@ -15,7 +15,7 @@ interface InterventionLogementCardProps {
     floor: string
     tenant: string
   }
-  getUrgencyColor: (urgency: string) => string
+  getUrgencyColor: (_urgency: string) => string
 }
 
 export function InterventionLogementCard({ intervention, logement, getUrgencyColor }: InterventionLogementCardProps) {

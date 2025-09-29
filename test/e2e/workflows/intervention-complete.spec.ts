@@ -55,7 +55,7 @@ test.describe('SEIDO - Workflow Complet d\'Intervention', () => {
   async function loginUser(page: Page, account: typeof accounts.locataire) {
     await page.goto('/auth/login')
     await page.fill('[name="email"]', account.email)
-    await page.fill('[name="password"]', account.password)
+    await page.fill('[name="password"]', account._password)
     await page.click('button[type="submit"]')
     await page.waitForURL(`**/dashboard/${account.role}`, { timeout: 30000 })
     console.log(`✅ ${account.role} connecté avec succès`)

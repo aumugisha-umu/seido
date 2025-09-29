@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
       return { provider, quoteRequest, error: null }
     })
 
-    let createdQuoteRequests: any[] = []
+    let createdQuoteRequests: unknown[] = []
 
     try {
       const quoteRequestResults = await Promise.all(quoteRequestPromises)

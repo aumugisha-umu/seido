@@ -529,7 +529,7 @@ export class CompositeService {
           entity: 'contact',
           data: {
             ...contactData,
-            team_id: data.teamId,
+            team_id: data._teamId,
             created_by: data.invitedBy
           },
           status: 'pending',
@@ -539,7 +539,7 @@ export class CompositeService {
 
         const contactResult = await this.contactService.create({
           ...contactData,
-          team_id: data.teamId,
+          team_id: data._teamId,
           created_by: data.invitedBy
         })
 
@@ -599,9 +599,9 @@ export class CompositeService {
 
     try {
       // Validate lot exists
-      const lotResult = await this.lotService.getById(data.lotId)
+      const lotResult = await this.lotService.getById(data._lotId)
       if (!lotResult.success) {
-        throw new Error('Lot not found: ' + data.lotId)
+        throw new Error('Lot not found: ' + data._lotId)
       }
 
       const lot = lotResult.data
@@ -629,14 +629,14 @@ export class CompositeService {
         type: 'update',
         service: 'lot',
         entity: 'tenant_assignment',
-        entityId: data.lotId,
+        entityId: data._lotId,
         data: { tenant_id: data.toTenantId },
         status: 'pending',
         timestamp: new Date().toISOString()
       }
       operations.push(transferOperation)
 
-      const transferResult = await this.lotService.assignTenant(data.lotId, data.toTenantId)
+      const transferResult = await this.lotService.assignTenant(data._lotId, data.toTenantId)
       if (!transferResult.success) {
         transferOperation.status = 'failed'
         throw new Error('Tenant transfer failed: ' + transferResult.error)
@@ -768,7 +768,7 @@ export class CompositeService {
         operations.push(teamOp)
 
         try {
-          const teamResult = await this.teamService.getById(request.teamId)
+          const teamResult = await this.teamService.getById(request._teamId)
           if (teamResult.success) {
             data.team = teamResult.data
             teamOp.status = 'completed'
@@ -794,7 +794,7 @@ export class CompositeService {
       operations.push(buildingOp)
 
       try {
-        const buildingsResult = await this.buildingService.getByTeam(request.teamId)
+        const buildingsResult = await this.buildingService.getByTeam(request._teamId)
         if (buildingsResult.success) {
           data.buildings = buildingsResult.data
           buildingOp.status = 'completed'

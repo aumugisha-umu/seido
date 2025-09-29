@@ -17,10 +17,10 @@ import { determineAssignmentType } from '@/lib/services'
 // interface InterventionDetailsProps removed as unused
 
 export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
-  const [intervention, setIntervention] = useState<{ id: string; title: string; description: string; status: string; [key: string]: any } | null>(null)
+  const [intervention, setIntervention] = useState<{ id: string; title: string; description: string; status: string; [key: string]: unknown } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,7 +37,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     if (!resolvedParams.id || !user?.id) return
 
     try {
-      const data = await interventionService.getById(resolvedParams.id)
+      const _data = await interventionService.getById(resolvedParams.id)
 
       console.log('🔍 [TENANT-DEBUG] Raw intervention data received:', {
         id: data.id,
@@ -329,7 +329,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     console.log('Archive not available for tenants')
   }
 
-  const handleStatusAction = (action: string) => {
+  const handleStatusAction = (_action: string) => {
     // Actions gérées par le panel d'actions
     console.log('Status action:', action)
   }

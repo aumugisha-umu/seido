@@ -15,7 +15,7 @@ import type { AuthUser } from './auth-service'
 // Types pour les fonctions DAL
 interface DalFunctions {
   verifySession: () => Promise<{ isValid: boolean; user?: AuthUser }>;
-  redirect: (path: string) => void;
+  redirect: (_path: string) => void;
 }
 
 // Import conditionnel pour éviter les erreurs côté client
@@ -78,7 +78,7 @@ export interface AuthRoutingConfig {
 /**
  * Détermine le dashboard approprié selon le rôle utilisateur (Compatible 2025)
  */
-export const getDashboardPath = (userRole: string): string => {
+export const getDashboardPath = (_userRole: string): string => {
   const roleConfig = ROLE_ROUTES[userRole as UserRole]
   return roleConfig?.default || '/gestionnaire/dashboard'
 }
@@ -134,7 +134,7 @@ export const shouldRedirectAfterAuth = (
 /**
  * Créer la configuration de routage depuis le pathname
  */
-export const createAuthRoutingConfig = (pathname: string): AuthRoutingConfig => {
+export const createAuthRoutingConfig = (_pathname: string): AuthRoutingConfig => {
   // ✅ NOUVEAU: Exclure les pages de configuration du mot de passe des redirections auth
   const isAuthPage = pathname.startsWith('/auth/') &&
                      !pathname.includes('/auth/set-password') &&
@@ -230,7 +230,7 @@ export const decideRedirectionStrategy = (
 /**
  * Vérifier si on est dans un état de transition auth
  */
-export const isInAuthTransition = (pathname: string): boolean => {
+export const isInAuthTransition = (_pathname: string): boolean => {
   return pathname.includes('/auth/callback') || 
          pathname.includes('/auth/signup-success') ||
          pathname.includes('/auth/reset-password')
@@ -258,7 +258,7 @@ export const logRoutingDecision = (
 /**
  * Vérifie si l'utilisateur peut accéder à une route donnée (DAL Integration - Server Only)
  */
-export async function canAccessRoute(pathname: string): Promise<{ canAccess: boolean; redirectTo?: string; user?: AuthUser }> {
+export async function canAccessRoute(_pathname: string): Promise<{ canAccess: boolean; redirectTo?: string; user?: AuthUser }> {
   try {
     // Routes publiques → toujours autorisées
     if (PUBLIC_ROUTES.some(route => pathname === route)) {
@@ -313,7 +313,7 @@ export async function canAccessRoute(pathname: string): Promise<{ canAccess: boo
 /**
  * Protection de route côté serveur - à utiliser dans les layouts
  */
-export async function protectRoute(pathname: string): Promise<{ user: AuthUser | null }> {
+export async function protectRoute(_pathname: string): Promise<{ user: AuthUser | null }> {
   if (typeof window !== 'undefined') {
     throw new Error('protectRoute can only be used server-side')
   }

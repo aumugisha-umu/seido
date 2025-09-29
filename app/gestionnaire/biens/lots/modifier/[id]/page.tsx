@@ -31,7 +31,7 @@ interface LotInfo {
 }
 
 export default function EditLotPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
@@ -52,7 +52,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
     category: "appartement",
   })
   // const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
+  const [teamManagers, setTeamManagers] = useState<unknown[]>([])
   const [userTeam, setUserTeam] = useState<any>(null)
   
   const [loading, setLoading] = useState(true)
@@ -360,13 +360,13 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
             {/* Building information display */}
             {lot?.building && (
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Informations de l&apos;immeuble</h4>
+                <h4 className="font-medium text-gray-900 mb-2">Informations de l'immeuble</h4>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><strong>Nom :</strong> {lot.building.name}</p>
                   <p><strong>Adresse :</strong> {lot.building.address}</p>
                   <p><strong>Ville :</strong> {lot.building.city}</p>
                   <p className="text-xs text-gray-500 mt-2">
-                    Les informations d&apos;adresse sont héritées de l&apos;immeuble parent.
+                    Les informations d'adresse sont héritées de l'immeuble parent.
                   </p>
                 </div>
               </div>

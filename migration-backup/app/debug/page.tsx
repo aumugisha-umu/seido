@@ -8,14 +8,14 @@ interface DiagnosticResult {
   test: string
   status: 'pending' | 'success' | 'error'
   message: string
-  details?: any
+  details?: unknown
 }
 
 export default function DebugPage() {
   const [results, setResults] = useState<DiagnosticResult[]>([])
   const [isRunning, setIsRunning] = useState(false)
 
-  const updateResult = (testName: string, status: DiagnosticResult['status'], message: string, details?: any) => {
+  const updateResult = (testName: string, status: DiagnosticResult['status'], message: string, details?: unknown) => {
     setResults(prev => {
       const existing = prev.findIndex(r => r.test === testName)
       const newResult = { test: testName, status, message, details }

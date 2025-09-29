@@ -12,7 +12,7 @@ interface Provider {
 
 interface QuoteRequestModal {
   isOpen: boolean
-  intervention: any | null
+  intervention: unknown | null
 }
 
 interface QuoteRequestData {
@@ -31,7 +31,7 @@ interface SuccessModal {
 }
 
 export const useInterventionQuoting = () => {
-  const router = useRouter()
+  const _router = useRouter()
   const { user } = useAuth()
 
   // État des modals
@@ -83,7 +83,7 @@ export const useInterventionQuoting = () => {
         console.log('📡 [PROVIDERS] Response status:', response.status, response.statusText)
         
         if (response.ok) {
-          const data = await response.json()
+          const _data = await response.json()
           console.log('📊 [PROVIDERS] API Response data:', data)
           console.log('👥 [PROVIDERS] Found providers:', data.contacts?.length || 0, data.contacts)
           setProviders(data.contacts || [])
@@ -101,7 +101,7 @@ export const useInterventionQuoting = () => {
   }, [user?.team_id])
 
   // Récupérer les prestataires éligibles pour une intervention
-  const fetchEligibleProviders = async (interventionId: string) => {
+  const fetchEligibleProviders = async (_interventionId: string) => {
     if (!user?.team_id) {
       console.warn('🚨 [ELIGIBLE-PROVIDERS] No team_id available')
       return
@@ -156,7 +156,7 @@ export const useInterventionQuoting = () => {
   /**
    * Ouvrir la modal de demande de devis
    */
-  const handleQuoteRequest = async (intervention: any) => {
+  const handleQuoteRequest = async (_intervention: unknown) => {
     console.log('🎯 [QUOTE-REQUEST] Opening quote request modal for intervention:', intervention.id)
 
     setQuoteRequestModal({

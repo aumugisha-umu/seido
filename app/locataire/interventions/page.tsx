@@ -10,7 +10,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTenantData } from "@/hooks/use-tenant-data"
 
-const getStatusIcon = (status: string) => {
+const getStatusIcon = (_status: string) => {
   switch (status) {
     case "nouvelle_demande":
     case "en_attente_validation":
@@ -25,7 +25,7 @@ const getStatusIcon = (status: string) => {
   }
 }
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (_status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -62,7 +62,7 @@ const getStatusColor = (status: string) => {
   }
 }
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (_status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -99,7 +99,7 @@ const getStatusLabel = (status: string) => {
   }
 }
 
-const getPriorityColor = (priority: string) => {
+const getPriorityColor = (_priority: string) => {
   switch (priority) {
     case "critique":
       return "bg-red-100 text-red-800"
@@ -113,10 +113,10 @@ const getPriorityColor = (priority: string) => {
 }
 
 export default function LocataireInterventionsPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { tenantInterventions, loading, error } = useTenantData()
 
-  const handleViewDetails = (interventionId: string) => {
+  const handleViewDetails = (_interventionId: string) => {
     router.push(`/locataire/interventions/${interventionId}`)
   }
 

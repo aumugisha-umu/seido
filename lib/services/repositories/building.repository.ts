@@ -127,7 +127,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   /**
    * Get buildings by team
    */
-  async findByTeam(teamId: string) {
+  async findByTeam(_teamId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -148,7 +148,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
       .order('name')
 
     if (error) {
@@ -169,7 +169,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   /**
    * Get buildings for a user (via building_contacts or team_members)
    */
-  async findByUser(userId: string) {
+  async findByUser(_userId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -211,7 +211,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   /**
    * Get building by ID with full relations
    */
-  async findByIdWithRelations(id: string) {
+  async findByIdWithRelations(_id: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -254,7 +254,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
       // For each lot, extract primary tenant
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data.lots = data.lots?.map((lot: any) => ({
+      data.lots = data.lots?.map((_lot: unknown) => ({
         ...lot,
         tenant: lot.lot_contacts?.[0]?.user || null
       }))
@@ -274,8 +274,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select('*')
       .or(`name.ilike.%${query}%,address.ilike.%${query}%,city.ilike.%${query}%`)
 
-    if (options?.teamId) {
-      queryBuilder = queryBuilder.eq('team_id', options.teamId)
+    if (options?._teamId) {
+      queryBuilder = queryBuilder.eq('team_id', options._teamId)
     }
 
     if (options?.city) {
@@ -305,8 +305,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         )
       `)
 
-    if (teamId) {
-      queryBuilder = queryBuilder.eq('team_id', teamId)
+    if (_teamId) {
+      queryBuilder = queryBuilder.eq('team_id', _teamId)
     }
 
     const { data, error } = await queryBuilder.order('name')
@@ -319,7 +319,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const processedData = data?.map(building => {
       const lots = building.lots || []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const occupiedLots = lots.filter((lot: any) => lot.is_occupied)
+      const occupiedLots = lots.filter((_lot: unknown) => lot.is_occupied)
 
       return {
         ...building,
@@ -342,7 +342,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({ team_id: teamId })
-      .eq('id', buildingId)
+      .eq('id', _buildingId)
       .select()
       .single()
 
@@ -384,8 +384,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select('*')
       .eq('city', city)
 
-    if (options?.teamId) {
-      queryBuilder = queryBuilder.eq('team_id', options.teamId)
+    if (options?._teamId) {
+      queryBuilder = queryBuilder.eq('team_id', options._teamId)
     }
 
     const { data, error } = await queryBuilder.order('name')
@@ -429,8 +429,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select('id')
       .eq('name', name)
 
-    if (teamId) {
-      queryBuilder = queryBuilder.eq('team_id', teamId)
+    if (_teamId) {
+      queryBuilder = queryBuilder.eq('team_id', _teamId)
     }
 
     if (excludeId) {
@@ -444,6 +444,45 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     }
 
     return { success: true as const, data: (data && data.length > 0) }
+  }
+  /**
+   * Find buildings by manager ID
+   */
+  async findByManager(managerId: string) {
+    validateRequired({ managerId }, ['managerId'])
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('manager_id', managerId)
+      .order('name')
+
+    if (error) {
+      return this.handleError(error)
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
+   * Update building manager assignment
+   */
+  async updateManager(buildingId: string, managerId: string | null) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .update({
+        manager_id: managerId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', buildingId)
+      .select()
+      .single()
+
+    if (error) {
+      return this.handleError(error)
+    }
+
+    return { success: true as const, data: data as unknown as Building }
   }
 }
 

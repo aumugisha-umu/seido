@@ -321,7 +321,7 @@ export class LotService {
    */
   async updateOccupancy(lotId: string, isOccupied: boolean) {
     // Check if lot exists
-    const lot = await this.repository.findById(lotId)
+    const lot = await this.repository.findById(_lotId)
     if (!lot.success || !lot.data) {
       return {
         success: false as const,
@@ -332,7 +332,7 @@ export class LotService {
       }
     }
 
-    return this.repository.updateOccupancy(lotId, isOccupied)
+    return this.repository.updateOccupancy(_lotId, isOccupied)
   }
 
   /**
@@ -441,7 +441,7 @@ export class LotService {
    * Get lot statistics by category for a team
    */
   async getLotStatsByCategory(teamId: string) {
-    return this.repository.getCountByCategory(teamId)
+    return this.repository.getCountByCategory(_teamId)
   }
 
   /**
@@ -449,15 +449,15 @@ export class LotService {
    */
   async assignTenant(lotId: string, tenantId: string) {
     // Check if lot exists
-    const lot = await this.repository.findById(lotId)
+    const lot = await this.repository.findById(_lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', lotId)
+      throw new NotFoundException('Lot not found', 'lots', _lotId)
     }
 
     // This would typically update lot_contacts table
     // For now, we update the occupancy status
     // TODO: Implement actual tenant assignment logic using tenantId
-    return this.repository.updateOccupancy(lotId, true)
+    return this.repository.updateOccupancy(_lotId, true)
   }
 
   /**
@@ -465,17 +465,17 @@ export class LotService {
    */
   async removeTenant(lotId: string, tenantId: string) {
     // Check if lot exists
-    const lot = await this.repository.findByIdWithRelations(lotId)
+    const lot = await this.repository.findByIdWithRelations(_lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', lotId)
+      throw new NotFoundException('Lot not found', 'lots', _lotId)
     }
 
     // Check if this is the last tenant
-    const remainingTenants = lot.data.tenants?.filter(t => t.id !== tenantId) || []
+    const remainingTenants = lot.data.tenants?.filter(t => t.id !== _tenantId) || []
 
     // Update occupancy if no tenants remain
     if (remainingTenants.length === 0) {
-      return this.repository.updateOccupancy(lotId, false)
+      return this.repository.updateOccupancy(_lotId, false)
     }
 
     return { success: true as const, data: lot.data }
@@ -485,9 +485,9 @@ export class LotService {
    * Calculate rent total for lot
    */
   async calculateRentTotal(lotId: string) {
-    const lot = await this.repository.findById(lotId)
+    const lot = await this.repository.findById(_lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', lotId)
+      throw new NotFoundException('Lot not found', 'lots', _lotId)
     }
 
     const monthlyRent = lot.data.monthly_rent || 0
@@ -581,6 +581,154 @@ export class LotService {
         actual_annual_rent: stats.actual_monthly_rent * 12,
         lost_rent: (stats.total_monthly_rent - stats.actual_monthly_rent) * 12
       }
+    }
+  }
+
+  /**
+   * Get lot with detailed contact relationships
+   */
+  async getLotWithContacts(lotId: string) {
+    const lotResult = await this.repository.findByIdWithContacts(lotId)
+    if (!lotResult.success || !lotResult.data) {
+      return lotResult
+    }
+
+    // Enhance with building information
+    let building = null
+    if (this.buildingService && lotResult.data.building_id) {
+      const buildingResult = await this.buildingService.getById(lotResult.data.building_id)
+      if (buildingResult.success) {
+        building = buildingResult.data
+      }
+    }
+
+    return {
+      success: true as const,
+      data: {
+        ...lotResult.data,
+        building: building
+      }
+    }
+  }
+
+  /**
+   * Assign multiple contacts to lot (tenant, owner, etc.)
+   */
+  async assignContacts(lotId: string, contacts: Array<{ contactId: string; type: 'tenant' | 'owner' | 'emergency' }>) {
+    const lotResult = await this.repository.findById(lotId)
+    if (!lotResult.success || !lotResult.data) {
+      return lotResult
+    }
+
+    // TODO: Implement actual contact assignment using ContactService when available
+    // For now, update basic occupancy status
+    const hasActiveTenant = contacts.some(c => c.type === 'tenant')
+
+    if (hasActiveTenant !== lotResult.data.is_occupied) {
+      const updateResult = await this.repository.update(lotId, {
+        is_occupied: hasActiveTenant,
+        updated_at: new Date().toISOString()
+      })
+
+      if (!updateResult.success) return updateResult
+    }
+
+    return {
+      success: true as const,
+      data: {
+        lotId,
+        contacts: contacts,
+        occupancy_updated: hasActiveTenant !== lotResult.data.is_occupied
+      }
+    }
+  }
+
+  /**
+   * Remove contact from lot
+   */
+  async removeContact(lotId: string, contactId: string, contactType: 'tenant' | 'owner' | 'emergency') {
+    const lotResult = await this.repository.findById(lotId)
+    if (!lotResult.success || !lotResult.data) {
+      return lotResult
+    }
+
+    // TODO: Implement actual contact removal using ContactService when available
+    // For now, if removing tenant, update occupancy
+    if (contactType === 'tenant') {
+      const updateResult = await this.repository.update(lotId, {
+        is_occupied: false,
+        updated_at: new Date().toISOString()
+      })
+
+      if (!updateResult.success) return updateResult
+    }
+
+    return {
+      success: true as const,
+      data: {
+        lotId,
+        contactId,
+        contactType,
+        action: 'removed'
+      }
+    }
+  }
+
+  /**
+   * Get lot rental history and contracts
+   */
+  async getLotRentalHistory(lotId: string) {
+    const lotResult = await this.repository.findById(lotId)
+    if (!lotResult.success || !lotResult.data) {
+      return lotResult
+    }
+
+    // TODO: Implement rental history tracking when available
+    // For now, return basic information
+    return {
+      success: true as const,
+      data: {
+        lotId,
+        current_tenant: null, // Will be populated from contacts
+        rental_history: [], // Will be populated from rental records
+        current_rent: lotResult.data.rent || 0,
+        lease_start: null,
+        lease_end: null
+      }
+    }
+  }
+
+  /**
+   * Calculate lot profitability metrics
+   */
+  async getLotProfitability(lotId: string) {
+    const lotResult = await this.repository.findById(lotId)
+    if (!lotResult.success || !lotResult.data) {
+      return lotResult
+    }
+
+    const lot = lotResult.data
+
+    // Basic profitability calculation
+    const monthlyRent = lot.rent || 0
+    const annualRent = monthlyRent * 12
+
+    // TODO: Include maintenance costs from intervention service
+    const estimatedMaintenanceCosts = annualRent * 0.1 // 10% estimate
+
+    const profitability = {
+      lotId,
+      monthly_rent: monthlyRent,
+      annual_rent: annualRent,
+      estimated_maintenance: estimatedMaintenanceCosts,
+      net_annual_income: annualRent - estimatedMaintenanceCosts,
+      profitability_ratio: annualRent > 0 ? ((annualRent - estimatedMaintenanceCosts) / annualRent) * 100 : 0,
+      occupancy_rate: lot.is_occupied ? 100 : 0
+    }
+
+    return {
+      success: true as const,
+      data: profitability
     }
   }
 

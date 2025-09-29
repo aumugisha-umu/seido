@@ -118,12 +118,12 @@ export const handlers = [
 
     let filteredLots = mockLots
 
-    if (buildingId) {
-      filteredLots = filteredLots.filter(lot => lot.building_id === buildingId)
+    if (_buildingId) {
+      filteredLots = filteredLots.filter(lot => lot.building_id === _buildingId)
     }
 
-    if (tenantId) {
-      filteredLots = filteredLots.filter(lot => lot.tenant_id === tenantId)
+    if (_tenantId) {
+      filteredLots = filteredLots.filter(lot => lot.tenant_id === _tenantId)
     }
 
     return HttpResponse.json(filteredLots)
@@ -137,7 +137,7 @@ export const handlers = [
     return HttpResponse.json([
       {
         id: 'notif-1',
-        user_id: userId,
+        user_id: _userId,
         type: 'intervention_created',
         title: 'Nouvelle intervention',
         message: 'Une nouvelle intervention a été créée',

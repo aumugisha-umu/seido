@@ -75,7 +75,7 @@ export async function updateSessionEdge(request: NextRequest) {
 /**
  * Simple role-based redirect helper (Edge Runtime compatible)
  */
-export function getDefaultDashboardPath(cookies: any): string {
+export function getDefaultDashboardPath(_cookies: unknown): string {
   // Try to extract role from a safe cookie or use default
   const roleCookie = cookies.get('seido-user-role')
   if (roleCookie?.value) {

@@ -202,7 +202,7 @@ describe('StatsService', () => {
       expect(result.success).toBe(true)
       expect(result.data.topUsers).toBeDefined()
       // Prestataires get sanitized user data
-      expect(result.data.topUsers[0].userId).toContain('...')
+      expect(result.data.topUsers[0]._userId).toContain('...')
     })
 
     it('should default to user team when no teamId specified', async () => {

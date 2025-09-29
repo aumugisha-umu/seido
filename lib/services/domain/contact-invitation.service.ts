@@ -61,7 +61,7 @@ export class ContactInvitationService {
             lastName: contactData.lastName,
             role: this.mapFrontendTypeToUserRole(contactData.type).role,
             providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
-            teamId: contactData.teamId,
+            teamId: contactData._teamId,
             phone: contactData.phone,
             speciality: contactData.speciality,
             shouldInviteToApp: contactData.inviteToApp
@@ -84,7 +84,7 @@ export class ContactInvitationService {
           last_name: contactData.lastName,
           phone: contactData.phone,
           role: this.mapFrontendTypeToUserRole(contactData.type).role,
-          team_id: contactData.teamId,
+          team_id: contactData._teamId,
           created_by: 'system', // Would be replaced with actual user ID
           invitation_status: 'not_invited',
           is_active: true
@@ -110,7 +110,7 @@ export class ContactInvitationService {
   /**
    * Map frontend contact type to user role and provider category
    */
-  private mapFrontendTypeToUserRole(type: string): RoleMappingResult {
+  private mapFrontendTypeToUserRole(_type: string): RoleMappingResult {
     const mapping: Record<string, RoleMappingResult> = {
       'tenant': { role: 'locataire' },
       'locataire': { role: 'locataire' },

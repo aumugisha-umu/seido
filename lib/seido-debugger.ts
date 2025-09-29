@@ -60,7 +60,7 @@ export class SEIDODebugger {
   ) {
     this.log('PERMISSION', authorized ? 'info' : 'error',
       `Permission ${authorized ? 'granted' : 'denied'} for ${operation}`,
-      { userRole, userId, action: operation },
+      { userRole, _userId, action: operation },
       { resource, reason }
     )
   }
@@ -131,7 +131,7 @@ export class SEIDODebugger {
   ) {
     this.log('DATABASE', result?.error ? 'error' : 'info',
       `${operation} on ${table}`,
-      { userRole, userId, action: operation.toLowerCase() },
+      { userRole, _userId, action: operation.toLowerCase() },
       { table, filters, result }
     )
   }
@@ -174,7 +174,7 @@ export class SEIDODebugger {
   /**
    * Trace complète d'une intervention depuis la création
    */
-  static async traceIntervention(interventionId: string) {
+  static async traceIntervention(_interventionId: string) {
     if (!this.isEnabled) return
 
     console.group(`🔍 [SEIDO-TRACE] Intervention Timeline: ${interventionId}`)
@@ -268,7 +268,7 @@ export class SEIDODebugger {
   /**
    * Helper pour récupérer les événements d'intervention (à implémenter)
    */
-  private static async getInterventionEvents(interventionId: string) {
+  private static async getInterventionEvents(_interventionId: string) {
     // Cette méthode doit être implémentée selon votre système d'audit/logging
     return [
       {

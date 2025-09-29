@@ -32,7 +32,7 @@ import {
  * `─────────────────────────────────────────────────`
  */
 export default function NewBuildingPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
 
   // Handle team verification

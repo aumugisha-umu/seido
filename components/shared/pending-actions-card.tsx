@@ -72,7 +72,7 @@ export function PendingActionsCard({
   emptyStateDescription = "Toutes vos interventions sont à jour",
   onActionClick
 }: PendingActionsCardProps) {
-  const router = useRouter()
+  const _router = useRouter()
 
   // Configuration des actions selon le rôle utilisateur et le type/statut
   const getActionConfig = (action: PendingAction): ActionConfig => {

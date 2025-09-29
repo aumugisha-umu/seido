@@ -18,7 +18,7 @@ export const mockSupabaseClient = {
       data: { subscription: { unsubscribe: vi.fn() } }
     }))
   },
-  from: vi.fn((table: string) => createMockQueryBuilder(table)),
+  from: vi.fn((_table: string) => createMockQueryBuilder(table)),
   storage: {
     from: vi.fn(() => ({
       upload: vi.fn(),
@@ -31,7 +31,7 @@ export const mockSupabaseClient = {
 }
 
 // Mock query builder with chainable methods
-function createMockQueryBuilder(table: string) {
+function createMockQueryBuilder(_table: string) {
   const mockData = getMockDataForTable(table)
 
   const builder = {
@@ -75,7 +75,7 @@ function createMockQueryBuilder(table: string) {
 }
 
 // Mock data for different tables
-function getMockDataForTable(table: string) {
+function getMockDataForTable(_table: string) {
   switch (table) {
     case 'users':
       return [
@@ -164,7 +164,7 @@ function getMockDataForTable(table: string) {
 beforeEach(() => {
   vi.clearAllMocks()
   // Reset mock implementations to default
-  mockSupabaseClient.from = vi.fn((table: string) => createMockQueryBuilder(table))
+  mockSupabaseClient.from = vi.fn((_table: string) => createMockQueryBuilder(table))
 })
 
 // Clean up after each test
@@ -265,8 +265,8 @@ export function mockSupabaseError(code: string, message: string) {
   }
 }
 
-export function mockRepositoryError(operation: string) {
-  const error = mockSupabaseError('MOCK_ERROR', `Mock error for ${operation}`)
+export function mockRepositoryError(_operation: string) {
+  const _error = mockSupabaseError('MOCK_ERROR', `Mock error for ${operation}`)
   mockSupabaseClient.from = vi.fn(() => ({
     ...createMockQueryBuilder(''),
     single: vi.fn(() => Promise.resolve({ data: null, error })),

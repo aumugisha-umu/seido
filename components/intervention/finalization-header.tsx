@@ -30,7 +30,7 @@ interface FinalizationHeaderProps {
 }
 
 export const FinalizationHeader = ({ intervention, className, compact = false }: FinalizationHeaderProps) => {
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (_status: string) => {
     const statusConfig = {
       'cloturee_par_prestataire': {
         label: "Terminée par prestataire",
@@ -65,7 +65,7 @@ export const FinalizationHeader = ({ intervention, className, compact = false }:
     )
   }
 
-  const getUrgencyBadge = (urgency: string) => {
+  const getUrgencyBadge = (_urgency: string) => {
     const isUrgent = urgency === 'urgent' || urgency === 'urgente'
     return (
       <Badge

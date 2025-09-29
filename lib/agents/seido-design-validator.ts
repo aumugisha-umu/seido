@@ -407,7 +407,7 @@ export class SEIDODesignValidator {
   /**
    * Analyze custom components in the code
    */
-  private analyzeCustomComponents(content: string): Array<{
+  private analyzeCustomComponents(_content: string): Array<{
     name: string
     pattern: string
     complexity: 'simple' | 'moderate' | 'complex'
@@ -557,7 +557,7 @@ export class SEIDODesignValidator {
   /**
    * Identify opportunities to enhance existing components with shadcn/ui
    */
-  private identifyUpgradeOpportunities(content: string): Array<{
+  private identifyUpgradeOpportunities(_content: string): Array<{
     component: string
     suggestion: string
     benefits: string[]
@@ -593,72 +593,72 @@ export class SEIDODesignValidator {
   }
 
   // Existing detection methods
-  private hasCustomButton(content: string): boolean {
+  private hasCustomButton(_content: string): boolean {
     return /className.*(?:bg-(?:blue|green|red|gray)-\d+.*cursor-pointer|px-\d+.*py-\d+.*bg-)/gm.test(content)
   }
 
-  private hasCustomCard(content: string): boolean {
+  private hasCustomCard(_content: string): boolean {
     return /className.*(?:bg-white.*shadow|border.*rounded.*p-\d+)/.test(content)
   }
 
-  private hasCustomForm(content: string): boolean {
+  private hasCustomForm(_content: string): boolean {
     return /<form/.test(content) && !/import.*Form.*from.*@\/components\/ui\/form/.test(content)
   }
 
-  private hasCustomModal(content: string): boolean {
+  private hasCustomModal(_content: string): boolean {
     return /(?:modal|overlay|backdrop)/.test(content) && !/import.*Dialog.*from.*@\/components\/ui\/dialog/.test(content)
   }
 
-  private hasButtonsWithoutAriaLabel(content: string): boolean {
+  private hasButtonsWithoutAriaLabel(_content: string): boolean {
     // Check for buttons with icons but no aria-label
     return /<[Bb]utton[^>]*>[^<]*<[^>]*Icon[^>]*\/>[^<]*<\/[Bb]utton>/.test(content) &&
            !/aria-label/.test(content)
   }
 
-  private hasLowContrastColors(content: string): boolean {
+  private hasLowContrastColors(_content: string): boolean {
     // Check for potentially low contrast color combinations
     return /text-(?:gray|slate)-(?:300|400)/.test(content) ||
            /text-yellow-\d+.*bg-white/.test(content)
   }
 
-  private hasInputsWithoutLabels(content: string): boolean {
+  private hasInputsWithoutLabels(_content: string): boolean {
     return /<input[^>]*id=(?!.*htmlFor)/.test(content)
   }
 
-  private hasFixedWidths(content: string): boolean {
+  private hasFixedWidths(_content: string): boolean {
     return /w-\[\d+px\]/.test(content) || /width:\s*\d+px/.test(content)
   }
 
-  private lacksMobileFirstApproach(content: string): boolean {
+  private lacksMobileFirstApproach(_content: string): boolean {
     // Check if responsive classes start with mobile-first approach
     return /(?:md|lg|xl):(?!.*(?:sm|base))/.test(content) && !/text-sm.*md:text-base/.test(content)
   }
 
-  private hasSmallTouchTargets(content: string): boolean {
+  private hasSmallTouchTargets(_content: string): boolean {
     // Check for potentially small touch targets (less than 44px)
     return /p-1(?![0-9])/.test(content) || /min-h-\[(?:[1-3][0-9]|[1-9])px\]/.test(content)
   }
 
-  private lacksProperElevation(content: string): boolean {
+  private lacksProperElevation(_content: string): boolean {
     return /bg-white.*border(?!.*shadow)/.test(content)
   }
 
-  private inconsistentSpacing(content: string): boolean {
+  private inconsistentSpacing(_content: string): boolean {
     // Check for spacing that doesn't follow 8dp grid (p-1, p-3, p-5, p-7, etc.)
     return /p-[1357](?![0-9])/.test(content) || /m-[1357](?![0-9])/.test(content)
   }
 
-  private lacksInformationDensity(content: string): boolean {
+  private lacksInformationDensity(_content: string): boolean {
     // Admin interfaces should be more dense
     return /space-y-8/.test(content) || /p-8/.test(content) || /gap-8/.test(content)
   }
 
-  private lacksSimplicity(content: string): boolean {
+  private lacksSimplicity(_content: string): boolean {
     // Tenant interfaces should be simpler
     return /grid-cols-[4-9]/.test(content) || /flex.*space-x-1(?![0-9])/.test(content)
   }
 
-  private lacksActionOrientation(content: string): boolean {
+  private lacksActionOrientation(_content: string): boolean {
     // Provider interfaces should focus on actions
     return !/Button.*(?:primary|size="lg")/.test(content) || !/(?:w-full|flex-1).*Button/.test(content)
   }

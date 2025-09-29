@@ -70,7 +70,7 @@ const specialities = [
 ]
 
 export default function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   const resolvedParams = use(params)
@@ -304,7 +304,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     return roleLabel
   }
 
-  const getSpecialityLabel = (speciality: string) => {
+  const getSpecialityLabel = (_speciality: string) => {
     return specialities.find(s => s.value === speciality)?.label || speciality
   }
 

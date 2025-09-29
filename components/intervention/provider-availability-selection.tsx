@@ -60,7 +60,7 @@ export function ProviderAvailabilitySelection({
     `${avail.userId}-${avail.date}-${avail.startTime}-${avail.endTime}-${index}`
 
   // Convertir l'ID de slot en objet de créneau
-  const parseSlotId = (slotId: string) => {
+  const parseSlotId = (_slotId: string) => {
     const slot = providerAvailabilities.find((avail, index) =>
       generateSlotId(avail, index) === slotId
     )
@@ -72,7 +72,7 @@ export function ProviderAvailabilitySelection({
   }
 
   // Fonction pour normaliser le format d'heure (HH:MM:SS → HH:MM)
-  const normalizeTimeFormat = (time: string): string => {
+  const normalizeTimeFormat = (_time: string): string => {
     return time && time.length > 5 ? time.substring(0, 5) : time
   }
 

@@ -126,7 +126,7 @@ async function testAuthentication(page) {
       });
 
       await page.type('#email', credentials.email);
-      await page.type('#password', credentials.password);
+      await page.type('#password', credentials._password);
 
       // Submit form
       await Promise.all([
@@ -179,7 +179,7 @@ async function testDashboardFeatures(page) {
   try {
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.gestionnaire.email);
-    await page.type('#password', TEST_CREDENTIALS.gestionnaire.password);
+    await page.type('#password', TEST_CREDENTIALS.gestionnaire._password);
 
     await Promise.all([
       page.click('button[type="submit"]'),
@@ -230,7 +230,7 @@ async function testDashboardFeatures(page) {
   try {
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.prestataire.email);
-    await page.type('#password', TEST_CREDENTIALS.prestataire.password);
+    await page.type('#password', TEST_CREDENTIALS.prestataire._password);
 
     await Promise.all([
       page.click('button[type="submit"]'),
@@ -264,7 +264,7 @@ async function testDashboardFeatures(page) {
   try {
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.locataire.email);
-    await page.type('#password', TEST_CREDENTIALS.locataire.password);
+    await page.type('#password', TEST_CREDENTIALS.locataire._password);
 
     await Promise.all([
       page.click('button[type="submit"]'),
@@ -302,7 +302,7 @@ async function testInterventionWorkflow(page) {
 
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.locataire.email);
-    await page.type('#password', TEST_CREDENTIALS.locataire.password);
+    await page.type('#password', TEST_CREDENTIALS.locataire._password);
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle0' })
@@ -325,7 +325,7 @@ async function testInterventionWorkflow(page) {
 
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.gestionnaire.email);
-    await page.type('#password', TEST_CREDENTIALS.gestionnaire.password);
+    await page.type('#password', TEST_CREDENTIALS.gestionnaire._password);
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle0' })
@@ -352,7 +352,7 @@ async function testInterventionWorkflow(page) {
 
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.prestataire.email);
-    await page.type('#password', TEST_CREDENTIALS.prestataire.password);
+    await page.type('#password', TEST_CREDENTIALS.prestataire._password);
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle0' })
@@ -403,7 +403,7 @@ async function testMobileResponsiveness(page) {
 
       // Test dashboard
       await page.type('#email', TEST_CREDENTIALS.gestionnaire.email);
-      await page.type('#password', TEST_CREDENTIALS.gestionnaire.password);
+      await page.type('#password', TEST_CREDENTIALS.gestionnaire._password);
       await Promise.all([
         page.click('button[type="submit"]'),
         page.waitForNavigation({ waitUntil: 'networkidle0' })
@@ -481,7 +481,7 @@ async function testSecurityFeatures(page) {
     // Login as locataire
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('#email', TEST_CREDENTIALS.locataire.email);
-    await page.type('#password', TEST_CREDENTIALS.locataire.password);
+    await page.type('#password', TEST_CREDENTIALS.locataire._password);
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle0' })
@@ -540,7 +540,7 @@ async function testPerformance(page) {
         // Login first
         await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
         await page.type('#email', TEST_CREDENTIALS.gestionnaire.email);
-        await page.type('#password', TEST_CREDENTIALS.gestionnaire.password);
+        await page.type('#password', TEST_CREDENTIALS.gestionnaire._password);
         await Promise.all([
           page.click('button[type="submit"]'),
           page.waitForNavigation({ waitUntil: 'networkidle0' })

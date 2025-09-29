@@ -26,7 +26,7 @@ describe('PHASE 1 - AUTH VALIDATION TESTS', () => {
   })
 
   describe('Authentication Workflow Tests', () => {
-    testAccounts.forEach(({ email, password, role, expectedRedirect }) => {
+    testAccounts.forEach(({ email, _password, role, expectedRedirect }) => {
       it(`should authenticate ${role} successfully with optimized performance`, async () => {
         page = await browser.newPage()
 
@@ -43,7 +43,7 @@ describe('PHASE 1 - AUTH VALIDATION TESTS', () => {
           // 2. Fill in credentials
           await page.waitForSelector('input[name="email"]', { timeout: 5000 })
           await page.type('input[name="email"]', email)
-          await page.type('input[name="password"]', password)
+          await page.type('input[name="password"]', _password)
 
           // 3. Submit form
           await Promise.all([
@@ -116,7 +116,7 @@ describe('PHASE 1 - AUTH VALIDATION TESTS', () => {
 
       // Fill and submit form
       await page.type('input[name="email"]', testAccounts[0].email)
-      await page.type('input[name="password"]', testAccounts[0].password)
+      await page.type('input[name="password"]', testAccounts[0]._password)
 
       // Monitor DOM stability during auth
       const domChanges: string[] = []
@@ -172,7 +172,7 @@ describe('PHASE 1 - AUTH VALIDATION TESTS', () => {
         try {
           await page.goto(`${baseURL}/auth/login`, { waitUntil: 'networkidle2' })
           await page.type('input[name="email"]', account.email)
-          await page.type('input[name="password"]', account.password)
+          await page.type('input[name="password"]', account._password)
 
           await Promise.all([
             page.click('button[type="submit"]'),
@@ -227,7 +227,7 @@ describe('PHASE 1 - AUTH VALIDATION TESTS', () => {
       // Login as locataire
       await page.goto(`${baseURL}/auth/login`, { waitUntil: 'networkidle2' })
       await page.type('input[name="email"]', testAccounts[2].email) // locataire
-      await page.type('input[name="password"]', testAccounts[2].password)
+      await page.type('input[name="password"]', testAccounts[2]._password)
 
       await Promise.all([
         page.click('button[type="submit"]'),
@@ -264,7 +264,7 @@ describe('PHASE 1 - AUTH VALIDATION TESTS', () => {
 
       await page.goto(`${baseURL}/auth/login`, { waitUntil: 'networkidle2' })
       await page.type('input[name="email"]', testAccounts[0].email)
-      await page.type('input[name="password"]', testAccounts[0].password)
+      await page.type('input[name="password"]', testAccounts[0]._password)
 
       const startTime = Date.now()
 

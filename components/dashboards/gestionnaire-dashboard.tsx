@@ -21,7 +21,7 @@ import { useInterventionFinalization } from "@/hooks/use-intervention-finalizati
 
 export default function GestionnaireDashboard() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const router = useRouter()
+  const _router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData, loading: statsLoading, stats, refetch } = useManagerStats()
 

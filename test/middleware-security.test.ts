@@ -30,7 +30,7 @@ class MockNextRequest {
   public cookies: { getAll: () => Array<{ name: string; value: string }>, set: (name: string, value: string) => void }
   private cookiesMap = new Map<string, string>()
 
-  constructor(url: string) {
+  constructor(_url: string) {
     this.nextUrl = { pathname: new URL(url).pathname }
     this.cookies = {
       getAll: () => Array.from(this.cookiesMap.entries()).map(([name, value]) => ({ name, value })),

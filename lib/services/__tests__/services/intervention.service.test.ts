@@ -57,7 +57,7 @@ describe('InterventionService', () => {
   let mockProvider: User
   let mockTenant: User
   let mockIntervention: Intervention
-  let mockLot: any
+  let mockLot: unknown
 
   beforeEach(() => {
     // Reset all mocks

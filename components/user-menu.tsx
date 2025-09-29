@@ -20,7 +20,7 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ userName, userInitial, role }: UserMenuProps) {
-  const router = useRouter()
+  const _router = useRouter()
   const { signOut } = useAuth()
 
   const handleLogout = async () => {
@@ -47,7 +47,7 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
     router.push(`/${role}/profile`)
   }
 
-  const getRoleDisplayName = (role: string) => {
+  const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
       gestionnaire: "Gestionnaire", 

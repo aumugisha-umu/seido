@@ -59,7 +59,7 @@ export function QuoteRejectionModal({
         })
       })
 
-      const data = await response.json()
+      const _data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors du rejet')

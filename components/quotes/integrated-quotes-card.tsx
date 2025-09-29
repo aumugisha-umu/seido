@@ -105,7 +105,7 @@ export function IntegratedQuotesCard({
       const response = await fetch(`/api/intervention/${interventionId}/quotes`)
 
       if (response.ok) {
-        const data = await response.json()
+        const _data = await response.json()
         setQuotes(data.quotes || [])
       } else {
         const errorData = await response.json()
@@ -224,7 +224,7 @@ export function IntegratedQuotesCard({
   }
 
   // Couleurs selon Design System SEIDO
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (_status: string) => {
     switch (status) {
       case 'demande': return 'bg-amber-100 text-amber-800 border-amber-200'
       case 'approuvee': return 'bg-emerald-100 text-emerald-800 border-emerald-200'

@@ -58,7 +58,7 @@ async function testManualAuth() {
     // Type password
     console.log(`📝 Typing password: ${testAccount.password}`);
     await page.focus('input#password');
-    await page.keyboard.type(testAccount.password, { delay: 50 });
+    await page.keyboard.type(testAccount._password, { delay: 50 });
 
     // Wait a moment before clicking
     await new Promise(resolve => setTimeout(resolve, 500));

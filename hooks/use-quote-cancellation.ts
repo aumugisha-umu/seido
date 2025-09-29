@@ -17,7 +17,7 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const cancelQuote = async (quoteId: string) => {
+  const cancelQuote = async (_quoteId: string) => {
     try {
       setIsLoading(true)
       console.log('🔍 [HOOK] Attempting to cancel quote with ID:', quoteId)
@@ -65,7 +65,7 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
     }
   }
 
-  const handleCancelRequest = (quoteId: string) => {
+  const handleCancelRequest = (_quoteId: string) => {
     console.log('🔍 [HOOK] Cancel request for quote ID:', quoteId)
     setPendingQuoteId(quoteId)
     setIsConfirmModalOpen(true)

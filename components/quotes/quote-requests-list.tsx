@@ -28,10 +28,10 @@ interface QuoteRequest {
 
 interface QuoteRequestsListProps {
   requests: QuoteRequest[]
-  onResendRequest?: (requestId: string) => void
-  onCancelRequest?: (requestId: string) => void
-  onNewRequest?: (requestId: string) => void
-  onViewProvider?: (providerId: string) => void
+  onResendRequest?: (_requestId: string) => void
+  onCancelRequest?: (_requestId: string) => void
+  onNewRequest?: (_requestId: string) => void
+  onViewProvider?: (_providerId: string) => void
   className?: string
 }
 

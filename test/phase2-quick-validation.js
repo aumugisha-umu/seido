@@ -77,7 +77,7 @@ async function testCacheApi() {
     const response = await fetch(`${TEST_CONFIG.baseUrl}/api/cache-metrics`);
 
     if (response.ok) {
-      const data = await response.json();
+      const _data = await response.json();
       metrics.cacheApi = true;
       console.log('✅ API Cache fonctionnelle');
       console.log('📊 Stats:', JSON.stringify(data, null, 2));

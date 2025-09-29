@@ -58,7 +58,7 @@ function getNotificationIcon(type: string, priority?: string) {
   }
 }
 
-function formatDate(dateString: string) {
+function formatDate(_dateString: string) {
   const date = new Date(dateString)
   
   // Use a consistent format that doesn't depend on current time for SSR/hydration

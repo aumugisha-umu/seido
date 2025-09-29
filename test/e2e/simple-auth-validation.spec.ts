@@ -39,7 +39,7 @@ test.describe('Validation Authentification SEIDO', () => {
 
     // Remplir le formulaire
     await page.fill('input[type="email"]', REAL_ACCOUNTS.gestionnaire.email)
-    await page.fill('input[type="password"]', REAL_ACCOUNTS.gestionnaire.password)
+    await page.fill('input[type="password"]', REAL_ACCOUNTS.gestionnaire._password)
 
     // Screenshot avant connexion
     await page.screenshot({
@@ -82,7 +82,7 @@ test.describe('Validation Authentification SEIDO', () => {
 
     // Remplir le formulaire
     await page.fill('input[type="email"]', REAL_ACCOUNTS.locataire.email)
-    await page.fill('input[type="password"]', REAL_ACCOUNTS.locataire.password)
+    await page.fill('input[type="password"]', REAL_ACCOUNTS.locataire._password)
 
     // Se connecter
     await page.click('button[type="submit"]')
@@ -112,7 +112,7 @@ test.describe('Validation Authentification SEIDO', () => {
 
     // Remplir le formulaire
     await page.fill('input[type="email"]', REAL_ACCOUNTS.admin.email)
-    await page.fill('input[type="password"]', REAL_ACCOUNTS.admin.password)
+    await page.fill('input[type="password"]', REAL_ACCOUNTS.admin._password)
 
     // Se connecter
     await page.click('button[type="submit"]')

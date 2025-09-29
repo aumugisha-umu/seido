@@ -20,8 +20,8 @@ vi.mock('../../domain/building.service')
 
 describe('LotService', () => {
   let service: LotService
-  let mockRepository: any
-  let mockBuildingService: any
+  let mockRepository: unknown
+  let mockBuildingService: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()

@@ -64,7 +64,7 @@ test.describe('SEIDO Dashboard Visual Tests', () => {
         loginFn: async () => {
           await page.goto('/auth/signin')
           await page.fill('[data-testid="email-input"]', role.email)
-          await page.fill('[data-testid="password-input"]', role.password)
+          await page.fill('[data-testid="password-input"]', role._password)
           await page.click('[data-testid="submit-button"]')
           await page.waitForURL('/dashboard/**')
         }

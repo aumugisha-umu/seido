@@ -78,7 +78,7 @@ export interface ContactSelectorRef {
 }
 
 export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorProps>(({
-  teamId,
+  _teamId,
   displayMode = "full",
   title = "Assignation des contacts",
   description = "Assignez des contacts à vos lots (optionnel)",
@@ -110,18 +110,18 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   )
 
   // Fonction interne pour ouvrir le modal (sera utilisée par le composant et exposée via ref)
-  const handleOpenContactModal = async (contactType: string) => {
+  const handleOpenContactModal = async (_contactType: string) => {
     console.log('🚀 [ContactSelector] openContactModal appelé avec type:', contactType)
     setSelectedContactType(contactType)
     setSearchTerm("")
     setIsContactModalOpen(true)
     
     // Charger les contacts existants du type correspondant
-    if (teamId) {
+    if (_teamId) {
       setIsLoadingContacts(true)
       try {
-        console.log('📞 [ContactSelector] Loading contacts for team:', teamId)
-        const teamContacts = await contactService.getTeamContacts(teamId)
+        console.log('📞 [ContactSelector] Loading contacts for team:', _teamId)
+        const teamContacts = await contactService.getTeamContacts(_teamId)
         
         console.log('✅ [ContactSelector] Loaded', teamContacts?.length, 'contacts')
         console.log('📋 [ContactSelector] Sample contact:', JSON.stringify(teamContacts?.[0], null, 2))
@@ -194,7 +194,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // [SUPPRIMÉ] Ancienne fonction openContactModal remplacée par handleOpenContactModal
 
   // Ouvrir le modal de création de contact
-  const openContactFormModal = (type: string) => {
+  const openContactFormModal = (_type: string) => {
     setPrefilledContactType(type)
     setIsContactFormModalOpen(true)
     setIsContactModalOpen(false)
@@ -231,7 +231,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // Créer un contact (logique centralisée)
   const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; address: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
     try {
-      if (!teamId) {
+      if (!_teamId) {
         console.error("❌ [ContactSelector] No teamId provided")
         return
       }
@@ -302,7 +302,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // Obtenir les contacts sélectionnés pour un type donné (centralisé)
-  const getSelectedContactsByType = (contactType: string): Contact[] => {
+  const getSelectedContactsByType = (_contactType: string): Contact[] => {
     return selectedContacts[contactType] || []
   }
 

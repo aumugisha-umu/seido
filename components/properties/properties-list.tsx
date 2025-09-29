@@ -65,10 +65,10 @@ export function PropertiesList({
   contactContext,
   className = ""
 }: PropertiesListProps) {
-  const router = useRouter()
+  const _router = useRouter()
 
   // Get property type configuration
-  const getPropertyTypeConfig = (type: string) => {
+  const getPropertyTypeConfig = (_type: string) => {
     if (type === 'lot') {
       return {
         icon: Home,

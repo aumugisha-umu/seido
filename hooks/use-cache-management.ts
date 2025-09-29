@@ -162,7 +162,7 @@ class EnhancedCacheManager {
     }
   }
 
-  async setCachedData(key: string, data: any, ttl = 300): Promise<void> {
+  async setCachedData(key: string, data: unknown, ttl = 300): Promise<void> {
     try {
       const { cache } = await import('../lib/cache/cache-manager')
       await cache.set(key, data, ttl)

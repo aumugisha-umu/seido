@@ -54,7 +54,7 @@ interface DocumentData {
 
 export default function LotDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
 
@@ -210,7 +210,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   const interventionStats = getInterventionStats()
 
   const tabs = [
-    { id: "overview", label: "Vue d&apos;ensemble", icon: Eye },
+    { id: "overview", label: "Vue d'ensemble", icon: Eye },
     { id: "contacts", label: "Contacts", icon: Users, count: contacts.length },
     { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
     { id: "documents", label: "Documents", icon: FileText },
@@ -329,7 +329,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     router.push(`/gestionnaire/biens/lots/modifier/${resolvedParams.id}`)
   }
 
-  const handleCustomAction = (actionKey: string) => {
+  const handleCustomAction = (_actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
         router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
@@ -431,7 +431,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                 </div>
                 {lot.apartment_number && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Numéro d&apos;appartement</span>
+                    <span className="text-gray-600">Numéro d'appartement</span>
                     <span className="font-medium">{lot.apartment_number}</span>
                   </div>
                 )}
@@ -448,7 +448,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                   <span className="font-medium">{lot.floor ?? "Non défini"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Statut d&apos;occupation</span>
+                  <span className="text-gray-600">Statut d'occupation</span>
                   <span className="font-medium">
                     <Badge variant={lot.is_occupied ? "default" : "secondary"}>
                       {lot.is_occupied ? "Occupé" : "Vacant"}
@@ -700,7 +700,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               <div className="text-center py-12">
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                <p className="text-gray-600 mb-4">Aucune intervention n&apos;a été créée pour ce lot.</p>
+                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour ce lot.</p>
                 <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
@@ -725,7 +725,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               interventions={transformInterventionsForDocuments(interventionsWithDocs)}
               loading={loadingDocs}
               emptyMessage="Aucun document trouvé"
-              emptyDescription="Aucune intervention avec documents n&apos;a été réalisée dans ce lot."
+              emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
               onDocumentView={handleDocumentView}
               onDocumentDownload={handleDocumentDownload}
             />

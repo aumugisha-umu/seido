@@ -28,10 +28,10 @@ const filesToFix = [
 function fixHtmlEntities(content) {
   // Replace HTML entities with actual characters
   return content
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
+    .replace(/"/g, '"')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/&/g, '&')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ');
 }

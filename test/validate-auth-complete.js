@@ -48,7 +48,7 @@ async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function testLogin(email, password) {
+async function testLogin(email, _password) {
   try {
     const response = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
@@ -59,7 +59,7 @@ async function testLogin(email, password) {
       credentials: 'include'
     });
 
-    const data = await response.json();
+    const _data = await response.json();
 
     return {
       success: response.ok,

@@ -79,7 +79,7 @@ export async function loginUser(page: Page, user: TestUser, screenshotPrefix: st
     // 2. Remplir le formulaire de manière robuste
     await page.fill('input[type="email"]', user.email)
     await page.waitForTimeout(200)
-    await page.fill('input[type="password"]', user.password)
+    await page.fill('input[type="password"]', user._password)
     await page.waitForTimeout(200)
 
     // Vérifier que les champs sont bien remplis
@@ -328,7 +328,7 @@ export async function measureLoginPerformance(page: Page, user: TestUser): Promi
 
   await page.goto('/auth/login')
   await page.fill('input[type="email"]', user.email)
-  await page.fill('input[type="password"]', user.password)
+  await page.fill('input[type="password"]', user._password)
   await page.click('button[type="submit"]')
 
   await page.waitForURL(`**${user.expectedDashboard}**`, {

@@ -166,13 +166,13 @@ const formatFileSize = (bytes: number): string => {
 
 
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [quoteRequests, setQuoteRequests] = useState<any[]>([])
+  const [quoteRequests, setQuoteRequests] = useState<unknown[]>([])
 
   // Hook pour la gestion de l'annulation
   const cancellation = useInterventionCancellation()
@@ -187,7 +187,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     // TODO: Implémenter la logique d'archivage
   }
 
-  const handleStatusAction = (action: string) => {
+  const handleStatusAction = (_action: string) => {
     console.log('Status action:', action, 'for intervention:', intervention?.id)
     // TODO: Implémenter les actions selon le statut
   }
@@ -458,7 +458,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
     } catch (error) {
       console.error('❌ Error fetching intervention data:', error)
-      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l&apos;intervention')
+      setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l\'intervention')
     } finally {
       setLoading(false)
     }
@@ -475,7 +475,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des détails de l&apos;intervention...</p>
+          <p className="text-gray-600">Chargement des détails de l'intervention...</p>
         </div>
       </div>
     )
@@ -505,7 +505,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         <div className="text-center">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Intervention non trouvée</h2>
-          <p className="text-gray-600 mb-4">L&apos;intervention demandée n&apos;existe pas ou n&apos;est plus accessible.</p>
+          <p className="text-gray-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour

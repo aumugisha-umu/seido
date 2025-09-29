@@ -81,7 +81,7 @@ export async function loginAsRole(
 
   // Remplir le formulaire
   await page.fill('input#email', account.email);
-  await page.fill('input#password', account.password);
+  await page.fill('input#password', account._password);
 
   // Soumettre
   await page.click('button[type="submit"]');
@@ -121,7 +121,7 @@ export async function verifyCurrentPath(page: Page, expectedPath: string): Promi
  * Helper pour créer un contexte avec storage d'authentification
  */
 export async function createAuthenticatedContext(
-  browser: any,
+  browser: unknown,
   role: 'gestionnaire' | 'prestataire' | 'locataire' | 'admin'
 ): Promise<BrowserContext> {
   const context = await browser.newContext({

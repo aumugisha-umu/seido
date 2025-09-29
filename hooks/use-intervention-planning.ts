@@ -8,7 +8,7 @@ import {
 interface PlanningModal {
   isOpen: boolean
   intervention: InterventionAction | null
-  acceptedQuote?: any
+  acceptedQuote?: unknown
 }
 
 interface ProgrammingModal {
@@ -66,7 +66,7 @@ export const useInterventionPlanning = () => {
   ])
 
   // Actions de planification (après acceptation d'un devis)
-  const handlePlanningModal = (intervention: InterventionAction, acceptedQuote?: any) => {
+  const handlePlanningModal = (intervention: InterventionAction, acceptedQuote?: unknown) => {
     setPlanningModal({
       isOpen: true,
       intervention,

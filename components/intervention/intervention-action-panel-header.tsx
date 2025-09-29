@@ -57,7 +57,7 @@ interface InterventionActionPanelHeaderProps {
   userId: string
   onActionComplete?: () => void
   onOpenQuoteModal?: () => void
-  onCancelQuote?: (quoteId: string) => void
+  onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
 }
 
@@ -81,7 +81,7 @@ interface ActionConfig {
 export function InterventionActionPanelHeader({
   intervention,
   userRole,
-  userId,
+  _userId,
   onActionComplete,
   onOpenQuoteModal,
   onCancelQuote,
@@ -355,7 +355,7 @@ export function InterventionActionPanelHeader({
             confirmationMessage: 'Confirmer le début de l\'intervention ?'
           })
         }
-        if (userRole === 'locataire' && intervention.tenant_id === userId) {
+        if (userRole === 'locataire' && intervention.tenant_id === _userId) {
           actions.push(
             {
               key: 'modify_schedule',
@@ -497,7 +497,7 @@ export function InterventionActionPanelHeader({
     }
   }
 
-  const executeAction = async (actionKey: string) => {
+  const executeAction = async (_actionKey: string) => {
     if (!selectedAction && actionKey !== selectedAction?.key) return
 
     setIsProcessing(true)
@@ -973,7 +973,7 @@ export function InterventionActionPanelHeader({
         additionalNotes={quoting.formData.additionalNotes}
         individualMessages={quoting.formData.individualMessages}
         onProviderToggle={quoting.toggleProvider}
-        onNotesChange={(additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
+        onNotesChange={(_additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
         onIndividualMessageChange={quoting.updateIndividualMessage}
         onSubmit={quoting.submitQuoteRequest}
         isLoading={quoting.isLoading}

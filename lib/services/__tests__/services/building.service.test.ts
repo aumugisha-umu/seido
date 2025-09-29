@@ -21,8 +21,8 @@ vi.mock('../../domain/user.service')
 
 describe('BuildingService', () => {
   let service: BuildingService
-  let mockRepository: any
-  let mockUserService: any
+  let mockRepository: unknown
+  let mockUserService: unknown
 
   beforeEach(() => {
     // Reset mocks

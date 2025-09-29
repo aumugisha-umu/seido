@@ -116,7 +116,7 @@ export function TenantAvailabilityInput({
 
     // Validate each availability
     for (const avail of validAvailabilities) {
-      const error = validateAvailability(avail)
+      const _error = validateAvailability(avail)
       if (error) {
         setError(error)
         return
@@ -155,7 +155,7 @@ export function TenantAvailabilityInput({
     }
   }
 
-  const getProviderAvailabilitiesForDate = (date: string) => {
+  const getProviderAvailabilitiesForDate = (_date: string) => {
     return providerAvailabilities.filter(avail => avail.date === date)
   }
 
@@ -175,7 +175,7 @@ export function TenantAvailabilityInput({
     })
   }
 
-  const timeToMinutes = (time: string): number => {
+  const timeToMinutes = (_time: string): number => {
     const [hours, minutes] = time.split(':').map(Number)
     return hours * 60 + minutes
   }

@@ -169,7 +169,7 @@ export class ContactService {
    */
   async getUserContacts(userId: string) {
     try {
-      const result = await this.repository.findByUser(userId)
+      const result = await this.repository.findByUser(_userId)
       return result
     } catch (error) {
       throw error
@@ -181,7 +181,7 @@ export class ContactService {
    */
   async getLotContacts(lotId: string, type?: Contact['type']) {
     try {
-      const result = await this.repository.findByLot(lotId, type)
+      const result = await this.repository.findByLot(_lotId, type)
       return result
     } catch (error) {
       throw error
@@ -193,7 +193,7 @@ export class ContactService {
    */
   async getBuildingContacts(buildingId: string, type?: Contact['type']) {
     try {
-      const result = await this.repository.findByBuilding(buildingId, type)
+      const result = await this.repository.findByBuilding(_buildingId, type)
       return result
     } catch (error) {
       throw error
@@ -221,9 +221,9 @@ export class ContactService {
       throw new Error('UserService is required for contact assignment')
     }
 
-    const userResult = await this.userService.getById(userId)
+    const userResult = await this.userService.getById(_userId)
     if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', userId)
+      throw new NotFoundException('User not found', 'users', _userId)
     }
 
     const user = userResult.data
@@ -233,10 +233,10 @@ export class ContactService {
     this.validateLotAssignment(user)
 
     try {
-      const result = await this.repository.addToLot(lotId, userId, contactType, isPrimary)
+      const result = await this.repository.addToLot(_lotId, _userId, contactType, _isPrimary)
 
       if (result.success && result.data) {
-        await this.logContactAssignment('lot', lotId, userId, contactType)
+        await this.logContactAssignment('lot', _lotId, _userId, contactType)
       }
 
       return result
@@ -254,9 +254,9 @@ export class ContactService {
       throw new Error('UserService is required for contact assignment')
     }
 
-    const userResult = await this.userService.getById(userId)
+    const userResult = await this.userService.getById(_userId)
     if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', userId)
+      throw new NotFoundException('User not found', 'users', _userId)
     }
 
     const user = userResult.data
@@ -266,10 +266,10 @@ export class ContactService {
     this.validateBuildingAssignment(user)
 
     try {
-      const result = await this.repository.addToBuilding(buildingId, userId, contactType, isPrimary)
+      const result = await this.repository.addToBuilding(_buildingId, _userId, contactType, _isPrimary)
 
       if (result.success && result.data) {
-        await this.logContactAssignment('building', buildingId, userId, contactType)
+        await this.logContactAssignment('building', _buildingId, _userId, contactType)
       }
 
       return result
@@ -283,10 +283,10 @@ export class ContactService {
    */
   async removeContactFromLot(lotId: string, userId: string) {
     try {
-      const result = await this.repository.removeFromLot(lotId, userId)
+      const result = await this.repository.removeFromLot(_lotId, _userId)
 
       if (result.success) {
-        await this.logContactRemoval('lot', lotId, userId)
+        await this.logContactRemoval('lot', _lotId, _userId)
       }
 
       return result
@@ -300,10 +300,10 @@ export class ContactService {
    */
   async removeContactFromBuilding(buildingId: string, userId: string) {
     try {
-      const result = await this.repository.removeFromBuilding(buildingId, userId)
+      const result = await this.repository.removeFromBuilding(_buildingId, _userId)
 
       if (result.success) {
-        await this.logContactRemoval('building', buildingId, userId)
+        await this.logContactRemoval('building', _buildingId, _userId)
       }
 
       return result
@@ -331,6 +331,137 @@ export class ContactService {
     try {
       const result = await this.repository.count()
       return { success: true as const, data: result }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * Get contacts by team with role filtering
+   */
+  async getContactsByTeam(teamId: string, role?: User['role']) {
+    try {
+      // TODO: Implement team-based filtering in repository
+      // For now, get all and filter by user team
+      const allContacts = await this.repository.findAll()
+
+      // If UserService is available, filter by team
+      if (this.userService) {
+        const teamUsersResponse = await this.userService.getUsersByTeam(teamId)
+        if (teamUsersResponse.success && teamUsersResponse.data) {
+          const teamUserIds = new Set(teamUsersResponse.data.map(u => u.id))
+          const filteredContacts = allContacts.filter(contact =>
+            teamUserIds.has(contact.user_id) &&
+            (!role || (contact.user && contact.user.role === role))
+          )
+          return { success: true as const, data: filteredContacts }
+        }
+      }
+
+      return { success: true as const, data: allContacts }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * Get contacts by role (tenants, owners, managers, etc.)
+   */
+  async getContactsByRole(role: User['role'], options?: { teamId?: string; buildingId?: string }) {
+    try {
+      const allContacts = await this.repository.findAll()
+
+      let filteredContacts = allContacts.filter(contact =>
+        contact.user && contact.user.role === role
+      )
+
+      // Apply additional filters if provided
+      if (options?.buildingId) {
+        filteredContacts = filteredContacts.filter(contact =>
+          contact.building_id === options.buildingId
+        )
+      }
+
+      // Filter by team if specified
+      if (options?.teamId && this.userService) {
+        const teamUsersResponse = await this.userService.getUsersByTeam(options.teamId)
+        if (teamUsersResponse.success && teamUsersResponse.data) {
+          const teamUserIds = new Set(teamUsersResponse.data.map(u => u.id))
+          filteredContacts = filteredContacts.filter(contact =>
+            teamUserIds.has(contact.user_id)
+          )
+        }
+      }
+
+      return { success: true as const, data: filteredContacts }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * Get tenant contacts for a building
+   */
+  async getTenantsByBuilding(buildingId: string) {
+    return this.getContactsByRole('locataire', { buildingId })
+  }
+
+  /**
+   * Get manager contacts for buildings
+   */
+  async getBuildingManagers(teamId?: string) {
+    return this.getContactsByRole('gestionnaire', { teamId })
+  }
+
+  /**
+   * Get emergency contacts for a lot
+   */
+  async getEmergencyContacts(lotId: string) {
+    try {
+      // TODO: Implement emergency contact type in repository
+      // For now, return contacts associated with the lot
+      const allContacts = await this.repository.findAll()
+      const emergencyContacts = allContacts.filter(contact =>
+        contact.lot_id === lotId
+      )
+
+      return { success: true as const, data: emergencyContacts }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * Search contacts by name or email
+   */
+  async searchContacts(query: string, options?: { role?: User['role']; teamId?: string }) {
+    try {
+      const allContacts = await this.repository.findAll()
+
+      const filteredContacts = allContacts.filter(contact => {
+        // Search in user name and email
+        const searchText = `${contact.user?.name || ''} ${contact.user?.email || ''}`.toLowerCase()
+        const matchesQuery = searchText.includes(query.toLowerCase())
+
+        // Apply role filter if specified
+        const matchesRole = !options?.role || (contact.user?.role === options.role)
+
+        return matchesQuery && matchesRole
+      })
+
+      // Filter by team if specified
+      if (options?.teamId && this.userService) {
+        const teamUsersResponse = await this.userService.getUsersByTeam(options.teamId)
+        if (teamUsersResponse.success && teamUsersResponse.data) {
+          const teamUserIds = new Set(teamUsersResponse.data.map(u => u.id))
+          return {
+            success: true as const,
+            data: filteredContacts.filter(contact => teamUserIds.has(contact.user_id))
+          }
+        }
+      }
+
+      return { success: true as const, data: filteredContacts }
     } catch (error) {
       throw error
     }
@@ -444,7 +575,7 @@ export class ContactService {
     contactType: Contact['type']
   ) {
     // In production, this would use the activity-logger service
-    console.log(`Contact assigned to ${assignmentType}:`, assignmentId, userId, contactType)
+    console.log(`Contact assigned to ${assignmentType}:`, assignmentId, _userId, contactType)
   }
 
   /**
@@ -456,7 +587,7 @@ export class ContactService {
     userId: string
   ) {
     // In production, this would use the activity-logger service
-    console.log(`Contact removed from ${assignmentType}:`, assignmentId, userId)
+    console.log(`Contact removed from ${assignmentType}:`, assignmentId, _userId)
   }
 }
 

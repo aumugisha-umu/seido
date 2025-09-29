@@ -22,8 +22,8 @@ interface ApprovalModalProps {
   action: "approve" | "reject" | null
   rejectionReason: string
   internalComment: string
-  onRejectionReasonChange: (reason: string) => void
-  onInternalCommentChange: (comment: string) => void
+  onRejectionReasonChange: (_reason: string) => void
+  onInternalCommentChange: (_comment: string) => void
   onActionChange: (action: "approve" | "reject") => void
   onConfirm: (action?: "approve" | "reject") => void
 }

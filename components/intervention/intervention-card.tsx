@@ -104,10 +104,10 @@ export function InterventionCard({
   actionHooks,
   onActionComplete
 }: InterventionCardProps) {
-  const router = useRouter()
+  const _router = useRouter()
 
   // Generate intervention URL based on user context
-  const getInterventionUrl = (interventionId: string) => {
+  const getInterventionUrl = (_interventionId: string) => {
     switch (userContext) {
       case 'prestataire':
         return `/prestataire/interventions/${interventionId}`
@@ -134,7 +134,7 @@ export function InterventionCard({
   }
 
   // Get intervention type icon and color
-  const getInterventionTypeIcon = (type: string) => {
+  const getInterventionTypeIcon = (_type: string) => {
     const typeConfig = {
       plomberie: { icon: Droplets, color: "bg-blue-100", iconColor: "text-blue-600" },
       electricite: { icon: Zap, color: "bg-yellow-100", iconColor: "text-yellow-600" },
@@ -338,7 +338,7 @@ export function InterventionCard({
   }
 
   // Handle action clicks
-  const handleAction = (actionType: string) => {
+  const handleAction = (_actionType: string) => {
     console.log(`[InterventionCard] Action: ${actionType} for intervention ${intervention.id}`)
 
     // Route to specific actions based on type

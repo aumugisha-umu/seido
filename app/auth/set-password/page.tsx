@@ -21,7 +21,7 @@ interface PasswordCriteria {
 }
 
 export default function SetPasswordPage() {
-  const [password, setPassword] = useState("")
+  const [_password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -35,7 +35,7 @@ export default function SetPasswordPage() {
     hasNumber: false
   })
 
-  const router = useRouter()
+  const _router = useRouter()
   const { user, loading, refreshUser } = useAuth()
 
   useEffect(() => {
@@ -93,9 +93,9 @@ export default function SetPasswordPage() {
     // Vérifier les critères du mot de passe en temps réel
     const newCriteria: PasswordCriteria = {
       minLength: password.length >= 8,
-      hasUppercase: /[A-Z]/.test(password),
-      hasLowercase: /[a-z]/.test(password),
-      hasNumber: /\d/.test(password)
+      hasUppercase: /[A-Z]/.test(_password),
+      hasLowercase: /[a-z]/.test(_password),
+      hasNumber: /\d/.test(_password)
     }
     setCriteria(newCriteria)
   }, [password])

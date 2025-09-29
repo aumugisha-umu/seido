@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention
-    const updateData: any = {
+    const updateData: unknown = {
       status: newStatus,
       tenant_comment: updatedComment,
       updated_at: new Date().toISOString()

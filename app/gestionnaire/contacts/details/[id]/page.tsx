@@ -82,7 +82,7 @@ const specialities = [
 
 export default function ContactDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
 
@@ -111,7 +111,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     // TODO: Implémenter la logique d'archivage
   }
 
-  const handleInvitationAction = async (action: string) => {
+  const handleInvitationAction = async (_action: string) => {
     if (!contact?.id) return
     
     console.log("Invitation action:", action, "for contact:", contact.id)
@@ -621,15 +621,15 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     )
   }
 
-  const getRoleConfig = (role: string) => {
+  const getRoleConfig = (_role: string) => {
     return userRoles.find(r => r.value === role) || userRoles[0]
   }
 
-  const getProviderCategoryLabel = (category: string) => {
+  const getProviderCategoryLabel = (_category: string) => {
     return providerCategories.find(c => c.value === category)?.label || category
   }
 
-  const getSpecialityLabel = (speciality: string) => {
+  const getSpecialityLabel = (_speciality: string) => {
     return specialities.find(s => s.value === speciality)?.label || speciality
   }
 

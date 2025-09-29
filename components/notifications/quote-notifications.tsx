@@ -23,11 +23,11 @@ interface QuoteNotificationsProps {
   userId: string
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
   onNotificationClick?: (notification: QuoteNotification) => void
-  onMarkAsRead?: (notificationId: string) => void
+  onMarkAsRead?: (_notificationId: string) => void
 }
 
 export function QuoteNotifications({
-  userId,
+  _userId,
   userRole,
   onNotificationClick,
   onMarkAsRead
@@ -82,7 +82,7 @@ export function QuoteNotifications({
     }
 
     fetchNotifications()
-  }, [userId, userRole])
+  }, [_userId, userRole])
 
   // Fonction pour obtenir l'icône selon le type (Design System)
   const getNotificationIcon = (type: QuoteNotification['type']) => {
@@ -224,13 +224,13 @@ export function QuoteNotifications({
 
 // Composant pour afficher les notifications dans un dropdown/panel
 export function QuoteNotificationsPanel({
-  userId,
+  _userId,
   userRole,
   onNotificationClick
 }: Omit<QuoteNotificationsProps, 'onMarkAsRead'>) {
   const [notifications, setNotifications] = useState<QuoteNotification[]>([])
 
-  const markAsRead = (notificationId: string) => {
+  const markAsRead = (_notificationId: string) => {
     setNotifications(prev =>
       prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
     )

@@ -3,16 +3,19 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Building2, Home, Users, Wrench, BarChart3 } from "lucide-react"
 import { requireRole } from "@/lib/dal"
-import { createServerTeamService } from "@/lib/services"
+import {
+  createServerTeamService,
+  createServerUserService,
+  createServerBuildingService,
+  createServerLotService,
+  createServerStatsService
+} from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
 
 
 
 
 
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
 
 
 /**
@@ -45,12 +48,18 @@ export default async function DashboardGestionnaire() {
     contactsByType: {} as Record<string, { total: number; active: number }>
   }
 
-  let recentInterventions: any[] = []
+  let recentInterventions: unknown[] = []
 
   try {
+    // Initialiser les services
+    const teamService = await createServerTeamService()
+    const userService = await createServerUserService()
+    const buildingService = await createServerBuildingService()
+    const lotService = await createServerLotService()
+    const statsService = await createServerStatsService()
+
     // Récupérer l'équipe de l'utilisateur
     console.log('🔍 [DASHBOARD] Getting teams for user:', user.id)
-    const teamService = await createServerTeamService()
     const teams = await teamService.getUserTeams(user.id)
     console.log('📦 [DASHBOARD] Teams returned:', teams)
     console.log('📦 [DASHBOARD] Teams count:', teams?.length || 0)
@@ -68,7 +77,8 @@ export default async function DashboardGestionnaire() {
 
       try {
         console.log('🏢 [DASHBOARD] Loading buildings...')
-        const buildingsData = await buildingService.getTeamBuildings(userTeamId)
+        const buildingsResponse = await buildingService.findByTeam(userTeamId)
+        const buildingsData = buildingsResponse.success ? buildingsResponse.data : []
         console.log('✅ [DASHBOARD] Buildings loaded - raw response:', buildingsData)
         console.log('✅ [DASHBOARD] Buildings loaded - type:', typeof buildingsData)
         console.log('✅ [DASHBOARD] Buildings loaded - is array:', Array.isArray(buildingsData))
@@ -85,7 +95,8 @@ export default async function DashboardGestionnaire() {
 
       try {
         console.log('👥 [DASHBOARD] Loading users...')
-        users = await userService.getTeamUsers(userTeamId)
+        const usersResponse = await userService.getUsersByTeam(userTeamId)
+        users = usersResponse.success ? usersResponse.data : []
         console.log('✅ [DASHBOARD] Users loaded:', users?.length || 0)
       } catch (error) {
         console.error('❌ [DASHBOARD] Error loading users:', error)
@@ -94,7 +105,9 @@ export default async function DashboardGestionnaire() {
 
       try {
         console.log('🔧 [DASHBOARD] Loading interventions...')
-        interventions = await interventionService.getTeamInterventions(userTeamId)
+        // TODO: Remplacer par le service d'intervention une fois prêt
+        // const interventionsResponse = await interventionService.getTeamInterventions(userTeamId)
+        interventions = [] // Temporairement vide
         console.log('✅ [DASHBOARD] Interventions loaded:', interventions?.length || 0)
       } catch (error) {
         console.error('❌ [DASHBOARD] Error loading interventions:', error)
@@ -107,7 +120,8 @@ export default async function DashboardGestionnaire() {
       for (const building of buildings || []) {
         try {
           console.log(`🏠 [DASHBOARD] Loading lots for building ${building.id} (${building.name})`)
-          const buildingLots = await lotService.getByBuildingId(building.id)
+          const buildingLotsResponse = await lotService.findByBuilding(building.id)
+          const buildingLots = buildingLotsResponse.success ? buildingLotsResponse.data : []
           console.log(`✅ [DASHBOARD] Lots loaded for building ${building.id}:`, buildingLots?.length || 0)
           allLots.push(...(buildingLots || []))
         } catch (error) {

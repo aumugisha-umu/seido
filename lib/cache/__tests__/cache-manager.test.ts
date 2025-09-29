@@ -216,7 +216,7 @@ describe('CacheManager', () => {
 
     it('should handle circular references in values', async () => {
       const key = 'circular-test'
-      const value: any = { name: 'test' }
+      const value: unknown = { name: 'test' }
       value.self = value // Create circular reference
 
       // Should handle circular references (might stringify differently)
@@ -263,7 +263,7 @@ describe('Cache Utility Functions', () => {
 
     it('should handle fetcher errors', async () => {
       const key = 'error-fetcher'
-      const error = new Error('Fetch failed')
+      const _error = new Error('Fetch failed')
       const fetcher = vi.fn().mockRejectedValue(error)
 
       await expect(cache.getOrSet(key, fetcher)).rejects.toThrow('Fetch failed')

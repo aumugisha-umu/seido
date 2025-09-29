@@ -6,9 +6,9 @@ import { useDataRefresh } from "./use-cache-management"
 import { createContactService, createTeamService, createContactInvitationService } from "@/lib/services"
 
 export interface ContactsData {
-  contacts: any[]
-  pendingInvitations: any[]
-  userTeam: any | null
+  contacts: unknown[]
+  pendingInvitations: unknown[]
+  userTeam: unknown | null
   contactsInvitationStatus: { [key: string]: string }
 }
 
@@ -45,13 +45,13 @@ export function useContactsData() {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
+      console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", _userId, bypassCache ? "(bypassing cache)" : "")
       
       // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
       let userTeams = []
       try {
         const teamService = createTeamService()
-        userTeams = await teamService.getUserTeams(userId)
+        userTeams = await teamService.getUserTeams(_userId)
       } catch (teamError) {
         console.error("❌ [CONTACTS-DATA] Error fetching user teams:", teamError)
         setData({
@@ -86,7 +86,7 @@ export function useContactsData() {
       console.log("✅ [CONTACTS-DATA] Contacts loaded:", teamContacts.length)
       
       // 3. Charger les invitations en attente
-      let invitations: any[] = []
+      let invitations: unknown[] = []
       try {
         const contactInvitationService = createContactInvitationService()
         invitations = await contactInvitationService.getPendingInvitations(team.id)
@@ -109,7 +109,7 @@ export function useContactsData() {
           console.log("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
           
           // Marquer uniquement les contacts qui ont une invitation réelle
-          teamInvitations?.forEach((invitation: any) => {
+          teamInvitations?.forEach((_invitation: unknown) => {
             if (invitation.email) {
               contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
             }

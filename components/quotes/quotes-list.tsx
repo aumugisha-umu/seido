@@ -33,9 +33,9 @@ interface Quote {
 interface QuotesListProps {
   quotes: Quote[]
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
   onDownloadAttachment?: (attachment: {
     id: string
     name: string

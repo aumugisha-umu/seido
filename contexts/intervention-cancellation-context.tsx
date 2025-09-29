@@ -19,8 +19,8 @@ interface InterventionCancellationContextType {
   isFormValid: boolean
 
   // Setters
-  setCancellationReason: (reason: string) => void
-  setInternalComment: (comment: string) => void
+  setCancellationReason: (_reason: string) => void
+  setInternalComment: (_comment: string) => void
   setError: (error: string | null) => void
 
   // Actions

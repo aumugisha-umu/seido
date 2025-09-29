@@ -10,7 +10,7 @@ import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function AuthCallback() {
-  const router = useRouter()
+  const _router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')

@@ -74,7 +74,7 @@ test.describe('SEIDO Performance Baseline Tests', () => {
         // Remplir et soumettre le formulaire
         const authStartTime = Date.now()
         await page.fill('[name="email"]', credentials.email)
-        await page.fill('[name="password"]', credentials.password)
+        await page.fill('[name="password"]', credentials._password)
         await page.click('button[type="submit"]')
 
         // Attendre la redirection vers le dashboard
@@ -159,7 +159,7 @@ test.describe('SEIDO Performance Baseline Tests', () => {
         // Login first
         await page.goto('/auth/login')
         await page.fill('[name="email"]', credentials.email)
-        await page.fill('[name="password"]', credentials.password)
+        await page.fill('[name="password"]', credentials._password)
         await page.click('button[type="submit"]')
 
         // Wait for redirect
@@ -277,7 +277,7 @@ test.describe('SEIDO Performance Baseline Tests', () => {
     // Login first to get auth token
     await page.goto('/auth/login')
     await page.fill('[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('[name="password"]', testAccounts.gestionnaire.password)
+    await page.fill('[name="password"]', testAccounts.gestionnaire._password)
     await page.click('button[type="submit"]')
     await page.waitForURL('**/dashboard/gestionnaire', { timeout: 30000 })
 
@@ -332,7 +332,7 @@ test.describe('SEIDO Performance Baseline Tests', () => {
     // Login as gestionnaire
     await page.goto('/auth/login')
     await page.fill('[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('[name="password"]', testAccounts.gestionnaire.password)
+    await page.fill('[name="password"]', testAccounts.gestionnaire._password)
     await page.click('button[type="submit"]')
     await page.waitForURL('**/dashboard/gestionnaire', { timeout: 30000 })
 

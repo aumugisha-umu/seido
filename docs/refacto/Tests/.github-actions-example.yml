@@ -1,0 +1,418 @@
+# Exemple de Configuration GitHub Actions pour Tests E2E SEIDO
+# À copier dans .github/workflows/e2e-tests.yml
+
+name: 🚀 SEIDO E2E Tests with Intelligent Debugging
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'docs/refacto/Tests/**'
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Exécution quotidienne à 2h du matin
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'complete'
+        type: choice
+        options:
+          - complete
+          - auth-only
+          - workflows-only
+          - performance-only
+
+env:
+  NODE_ENV: test
+  BASE_URL: http://localhost:3000
+  PINO_LOG_LEVEL: info
+  DEBUGGER_ENABLED: true
+  DISABLE_ANIMATIONS: true
+
+jobs:
+  # Job de validation des fixtures et configuration
+  validate-setup:
+    name: 🔧 Validate Test Setup
+    runs-on: ubuntu-latest
+    outputs:
+      fixtures-valid: ${{ steps.validate.outputs.fixtures-valid }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Validate test fixtures
+        id: validate
+        run: |
+          npm run test:e2e:complete -- tests/phase1-auth/auth-quick-validation.spec.ts --reporter=json --output-file=validation-results.json
+          echo "fixtures-valid=true" >> $GITHUB_OUTPUT
+
+      - name: 📊 Upload validation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-results
+          path: validation-results.json
+
+  # Job principal des tests E2E
+  e2e-tests:
+    name: 🧪 E2E Tests
+    runs-on: ubuntu-latest
+    needs: validate-setup
+    if: needs.validate-setup.outputs.fixtures-valid == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [auth-tests, admin-workflow, gestionnaire-workflow, locataire-workflow, prestataire-workflow]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🎭 Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: 🏗️ Build application
+        run: npm run build
+
+      - name: 🚀 Start application
+        run: |
+          npm run start &
+          sleep 30
+          curl -f http://localhost:3000 || exit 1
+
+      - name: 🧪 Run E2E tests
+        run: |
+          case "${{ matrix.project }}" in
+            "auth-tests")
+              npm run test:e2e:complete -- --project=auth-tests --reporter=json --output-file=test-results-${{ matrix.project }}.json
+              ;;
+            "admin-workflow")
+              npm run test:e2e:admin -- --reporter=json --output-file=test-results-${{ matrix.project }}.json
+              ;;
+            "gestionnaire-workflow")
+              npm run test:e2e:gestionnaire -- --reporter=json --output-file=test-results-${{ matrix.project }}.json
+              ;;
+            "locataire-workflow")
+              npm run test:e2e:locataire -- --reporter=json --output-file=test-results-${{ matrix.project }}.json
+              ;;
+            "prestataire-workflow")
+              npm run test:e2e:prestataire -- --reporter=json --output-file=test-results-${{ matrix.project }}.json
+              ;;
+          esac
+
+      - name: 🤖 Run intelligent analysis
+        if: always()
+        run: |
+          npm run test:analyze -- --format=json --days=1 > analysis-${{ matrix.project }}.json
+
+      - name: 📊 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.project }}
+          path: |
+            test-results-${{ matrix.project }}.json
+            analysis-${{ matrix.project }}.json
+            docs/refacto/Tests/reports/
+            docs/refacto/Tests/logs/
+
+      - name: 📸 Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-screenshots-${{ matrix.project }}
+          path: docs/refacto/Tests/screenshots/errors/
+          retention-days: 30
+
+      - name: 🎥 Upload videos on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-videos-${{ matrix.project }}
+          path: test-results/
+          retention-days: 30
+
+  # Job d'analyse globale avec l'agent debugger
+  global-analysis:
+    name: 🧠 Global Intelligence Analysis
+    runs-on: ubuntu-latest
+    needs: e2e-tests
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 📥 Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+
+      - name: 🤖 Run comprehensive analysis
+        run: |
+          npm run test:analyze -- --format=all --verbose --days=1
+
+      - name: 📊 Generate performance report
+        run: |
+          echo "## 📊 E2E Test Performance Report" > performance-report.md
+          echo "" >> performance-report.md
+          echo "**Run Date:** $(date)" >> performance-report.md
+          echo "" >> performance-report.md
+
+          # Extraire les métriques des analyses
+          for file in analysis-*.json; do
+            if [ -f "$file" ]; then
+              project=$(echo "$file" | sed 's/analysis-\(.*\)\.json/\1/')
+              echo "### $project" >> performance-report.md
+
+              # Extraire les métriques clés avec jq
+              if command -v jq >/dev/null 2>&1; then
+                total_tests=$(jq -r '.summary.totalTests // 0' "$file")
+                successful_tests=$(jq -r '.summary.successfulTests // 0' "$file")
+                avg_duration=$(jq -r '.summary.averageTestDuration // 0' "$file")
+                success_rate=$(echo "scale=1; $successful_tests * 100 / $total_tests" | bc -l 2>/dev/null || echo "N/A")
+
+                echo "- **Tests:** $total_tests" >> performance-report.md
+                echo "- **Success Rate:** $success_rate%" >> performance-report.md
+                echo "- **Avg Duration:** ${avg_duration}ms" >> performance-report.md
+                echo "" >> performance-report.md
+              fi
+            fi
+          done
+
+      - name: 📝 Create GitHub comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let reportContent = '# 🚀 E2E Test Results\n\n';
+
+            // Lire le rapport de performance s'il existe
+            try {
+              const perfReport = fs.readFileSync('performance-report.md', 'utf8');
+              reportContent += perfReport;
+            } catch (error) {
+              reportContent += '⚠️ Performance report not available\n';
+            }
+
+            // Ajouter les recommandations critiques
+            reportContent += '\n## 🚨 Critical Recommendations\n';
+
+            const analysisFiles = fs.readdirSync('.')
+              .filter(f => f.startsWith('analysis-') && f.endsWith('.json'));
+
+            for (const file of analysisFiles) {
+              try {
+                const analysis = JSON.parse(fs.readFileSync(file, 'utf8'));
+                const criticalRecs = analysis.recommendations?.filter(r => r.priority === 'critical') || [];
+
+                if (criticalRecs.length > 0) {
+                  const project = file.replace('analysis-', '').replace('.json', '');
+                  reportContent += `\n### ${project}\n`;
+
+                  criticalRecs.forEach(rec => {
+                    reportContent += `- 🚨 ${rec.description}\n`;
+                  });
+                }
+              } catch (error) {
+                console.log(`Could not parse ${file}:`, error);
+              }
+            }
+
+            // Créer ou mettre à jour le commentaire
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('# 🚀 E2E Test Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: reportContent
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: reportContent
+              });
+            }
+
+      - name: 📊 Upload comprehensive analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-analysis
+          path: |
+            analysis-*.json
+            performance-report.md
+            docs/refacto/Tests/reports/debugger/
+          retention-days: 90
+
+      - name: 📈 Update performance baseline (main branch)
+        if: github.ref == 'refs/heads/main' && success()
+        run: |
+          # Créer ou mettre à jour le baseline de performance
+          mkdir -p docs/performance-baselines
+          cp analysis-*.json docs/performance-baselines/
+          echo "$(date): Updated performance baseline" >> docs/performance-baselines/CHANGELOG.md
+
+  # Job de notification Slack (optionnel)
+  notify-slack:
+    name: 📢 Slack Notification
+    runs-on: ubuntu-latest
+    needs: [e2e-tests, global-analysis]
+    if: always() && (failure() || success())
+
+    steps:
+      - name: 📥 Download analysis results
+        uses: actions/download-artifact@v4
+        with:
+          name: comprehensive-analysis
+        continue-on-error: true
+
+      - name: 📢 Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Déterminer le statut global
+          if [[ "${{ needs.e2e-tests.result }}" == "success" && "${{ needs.global-analysis.result }}" == "success" ]]; then
+            STATUS="✅ SUCCESS"
+            COLOR="#36a64f"
+          else
+            STATUS="❌ FAILURE"
+            COLOR="#ff0000"
+          fi
+
+          # Créer le message Slack
+          cat <<EOF > slack-message.json
+          {
+            "attachments": [
+              {
+                "color": "$COLOR",
+                "title": "🚀 SEIDO E2E Tests - $STATUS",
+                "fields": [
+                  {
+                    "title": "Branch",
+                    "value": "${{ github.ref_name }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Commit",
+                    "value": "${{ github.sha }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Triggered by",
+                    "value": "${{ github.actor }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Workflow",
+                    "value": "${{ github.event_name }}",
+                    "short": true
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "button",
+                    "text": "View Results",
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data @slack-message.json \
+            $SLACK_WEBHOOK_URL
+
+  # Job de nettoyage des artifacts anciens
+  cleanup:
+    name: 🧹 Cleanup Old Artifacts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: 🧹 Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 30); // 30 jours
+
+            for (const artifact of artifacts.data.artifacts) {
+              if (new Date(artifact.created_at) < cutoffDate) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`Deleted artifact: ${artifact.name}`);
+              }
+            }
+
+# Configuration des secrets nécessaires:
+# - SLACK_WEBHOOK_URL (optionnel): Pour les notifications Slack
+#
+# Variables d'environnement disponibles:
+# - NODE_ENV: Toujours 'test' pour les tests E2E
+# - BASE_URL: URL de l'application (défaut: http://localhost:3000)
+# - PINO_LOG_LEVEL: Niveau de logs (défaut: info)
+# - DEBUGGER_ENABLED: Active l'agent debugger (défaut: true)
+# - DISABLE_ANIMATIONS: Désactive les animations pour plus de stabilité

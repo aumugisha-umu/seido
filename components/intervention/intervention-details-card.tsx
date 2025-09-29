@@ -9,7 +9,7 @@ interface InterventionDetailsCardProps {
     location?: string
     description: string
   }
-  getUrgencyColor: (urgency: string) => string
+  getUrgencyColor: (_urgency: string) => string
 }
 
 export function InterventionDetailsCard({ intervention, getUrgencyColor }: InterventionDetailsCardProps) {

@@ -217,13 +217,13 @@ export class BuildingService {
   async getBuildingsByTeam(teamId: string) {
     // Validate team exists
     if (this.userService) {
-      const teamExists = await this.validateTeamExists(teamId)
+      const teamExists = await this.validateTeamExists(_teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('Team not found', 'teams', _teamId)
       }
     }
 
-    return this.repository.findByTeam(teamId)
+    return this.repository.findByTeam(_teamId)
   }
 
   /**
@@ -232,13 +232,13 @@ export class BuildingService {
   async getBuildingsByUser(userId: string) {
     // Validate user exists
     if (this.userService) {
-      const userResult = await this.userService.getById(userId)
+      const userResult = await this.userService.getById(_userId)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('User not found', 'users', userId)
+        throw new NotFoundException('User not found', 'users', _userId)
       }
     }
 
-    return this.repository.findByUser(userId)
+    return this.repository.findByUser(_userId)
   }
 
   /**
@@ -261,13 +261,13 @@ export class BuildingService {
    */
   async getBuildingsWithStats(teamId?: string) {
     if (teamId && this.userService) {
-      const teamExists = await this.validateTeamExists(teamId)
+      const teamExists = await this.validateTeamExists(_teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('Team not found', 'teams', _teamId)
       }
     }
 
-    return this.repository.findWithLotStats(teamId)
+    return this.repository.findWithLotStats(_teamId)
   }
 
   /**
@@ -275,7 +275,7 @@ export class BuildingService {
    */
   async assignToTeam(buildingId: string, teamId: string | null) {
     // Check if building exists
-    const building = await this.repository.findById(buildingId)
+    const building = await this.repository.findById(_buildingId)
     if (!building.success || !building.data) {
       return {
         success: false as const,
@@ -288,13 +288,13 @@ export class BuildingService {
 
     // Validate new team exists if provided
     if (teamId && this.userService) {
-      const teamExists = await this.validateTeamExists(teamId)
+      const teamExists = await this.validateTeamExists(_teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('Team not found', 'teams', _teamId)
       }
     }
 
-    return this.repository.updateTeam(buildingId, teamId)
+    return this.repository.updateTeam(_buildingId, _teamId)
   }
 
   /**
@@ -311,7 +311,7 @@ export class BuildingService {
 
     // Verify all buildings exist
     for (const buildingId of buildingIds) {
-      const building = await this.repository.findById(buildingId)
+      const building = await this.repository.findById(_buildingId)
       if (!building.success || !building.data) {
         return {
           success: false as const,
@@ -325,13 +325,13 @@ export class BuildingService {
 
     // Validate new team exists if provided
     if (teamId && this.userService) {
-      const teamExists = await this.validateTeamExists(teamId)
+      const teamExists = await this.validateTeamExists(_teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('Team not found', 'teams', _teamId)
       }
     }
 
-    return this.repository.updateTeamBulk(buildingIds, teamId)
+    return this.repository.updateTeamBulk(buildingIds, _teamId)
   }
 
   /**
@@ -347,9 +347,9 @@ export class BuildingService {
     }
 
     if (options?.teamId && this.userService) {
-      const teamExists = await this.validateTeamExists(options.teamId)
+      const teamExists = await this.validateTeamExists(options._teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', options.teamId)
+        throw new NotFoundException('Team not found', 'teams', options._teamId)
       }
     }
 
@@ -384,9 +384,9 @@ export class BuildingService {
    */
   async assignManager(buildingId: string, managerId: string) {
     // Check if building exists
-    const building = await this.repository.findById(buildingId)
+    const building = await this.repository.findById(_buildingId)
     if (!building.success || !building.data) {
-      throw new NotFoundException('Building not found', 'buildings', buildingId)
+      throw new NotFoundException('Building not found', 'buildings', _buildingId)
     }
 
     // Validate manager exists and has correct role
@@ -411,7 +411,7 @@ export class BuildingService {
     return {
       success: true as const,
       data: {
-        building_id: buildingId,
+        building_id: _buildingId,
         manager_id: managerId,
         assigned_at: new Date().toISOString()
       }
@@ -422,7 +422,7 @@ export class BuildingService {
    * Get building statistics
    */
   async getBuildingStats(teamId?: string) {
-    const buildings = await this.repository.findWithLotStats(teamId)
+    const buildings = await this.repository.findWithLotStats(_teamId)
 
     if (!buildings.success) {
       return {
@@ -471,6 +471,96 @@ export class BuildingService {
   }
 
   // Private helper methods
+
+  /**
+   * Get building with lot occupancy statistics
+   */
+  async getBuildingWithOccupancy(buildingId: string) {
+    const buildingResult = await this.repository.findById(buildingId)
+    if (!buildingResult.success || !buildingResult.data) {
+      return buildingResult
+    }
+
+    // TODO: Add lot aggregation when LotService is fully available
+    // For now, return building with basic structure
+    return {
+      success: true as const,
+      data: {
+        ...buildingResult.data,
+        lots: [], // Will be populated by lot service
+        occupancy: {
+          total_lots: buildingResult.data.total_lots || 0,
+          occupied_lots: 0,
+          vacant_lots: buildingResult.data.total_lots || 0,
+          occupancy_rate: 0
+        }
+      }
+    }
+  }
+
+  /**
+   * Assign building manager (contact)
+   */
+  async assignManager(buildingId: string, managerId: string) {
+    // Validate building exists
+    const buildingResult = await this.repository.findById(buildingId)
+    if (!buildingResult.success || !buildingResult.data) {
+      return buildingResult
+    }
+
+    // TODO: Add contact validation when ContactService is available
+    // For now, just update the manager_id field
+    return this.repository.update(buildingId, {
+      manager_id: managerId,
+      updated_at: new Date().toISOString()
+    })
+  }
+
+  /**
+   * Remove building manager
+   */
+  async removeManager(buildingId: string) {
+    return this.repository.update(buildingId, {
+      manager_id: null,
+      updated_at: new Date().toISOString()
+    })
+  }
+
+  /**
+   * Get buildings managed by a specific contact
+   */
+  async getBuildingsByManager(managerId: string) {
+    return this.repository.findByManager(managerId)
+  }
+
+  /**
+   * Get building performance metrics
+   */
+  async getBuildingMetrics(buildingId: string) {
+    const buildingResult = await this.repository.findById(buildingId)
+    if (!buildingResult.success || !buildingResult.data) {
+      return buildingResult
+    }
+
+    const building = buildingResult.data
+
+    // Calculate basic metrics
+    const metrics = {
+      building_id: buildingId,
+      total_lots: building.total_lots || 0,
+      occupancy_rate: 0, // Will be calculated with lot service
+      average_rent: 0, // Will be calculated with lot service
+      maintenance_costs: 0, // Will be calculated with intervention service
+      last_maintenance: null,
+      performance_score: 0,
+      generated_at: new Date().toISOString()
+    }
+
+    return {
+      success: true as const,
+      data: metrics
+    }
+  }
 
   /**
    * Validate team exists (simplified - would query teams table in production)

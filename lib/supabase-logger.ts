@@ -2,7 +2,7 @@ import { supabaseLogger, logSupabaseOperation } from './logger'
 import type { SupabaseClient, ServerSupabaseClient } from './services/core/supabase-client'
 
 // Types for Supabase operations
-interface SupabaseOperationOptions {
+interface _SupabaseOperationOptions {
   error?: string
   query?: string
   values?: Record<string, unknown>
@@ -186,17 +186,16 @@ export const logAuthStateChange = (event: string, session: AuthSession | null) =
 }
 
 // Hook pour les erreurs d'authentification
-export const logAuthError = (error: AuthError | Error | unknown, context: string) => {
-  const authError = error as AuthError | Error
-  supabaseLogger.error({
+export const logAuthError = (authError: Error, context?: string) => {
+  logger.error({
     type: 'auth_error',
     context,
     error: {
-      message: authError?.message || 'Unknown auth error',
-      code: 'code' in authError ? authError.code : undefined,
-      status: 'status' in authError ? authError.status : undefined
+      name: authError.name,
+      message: authError.message,
+      stack: authError.stack
     }
-  }, `🔐 Auth error in ${context}: ${authError?.message || 'Unknown error'}`)
+  }, `🔐 Auth error${context ? ` in ${context}` : ''}: ${authError?.message || 'Unknown error'}`)
 }
 
 export default createSupabaseLogger

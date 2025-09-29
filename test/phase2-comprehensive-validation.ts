@@ -21,7 +21,7 @@ const WARNING = '⚠️'
 const INFO = 'ℹ️'
 
 class Phase2Validator {
-  private results: any = {
+  private results: unknown = {
     passed: [],
     failed: [],
     warnings: [],
@@ -454,7 +454,7 @@ class Phase2Validator {
     const apiDir = path.join(process.cwd(), 'app/api')
     if (fs.existsSync(apiDir)) {
       let anyTypeCount = 0
-      const checkForAnyTypes = (dir: string) => {
+      const checkForAnyTypes = (_dir: string) => {
         const files = fs.readdirSync(dir)
         for (const file of files) {
           const filePath = path.join(dir, file)
@@ -533,32 +533,32 @@ class Phase2Validator {
 
     if (this.results.failed.length > 0) {
       console.log('\n❌ Failed Tests:')
-      this.results.failed.forEach((test: string) => {
+      this.results.failed.forEach((_test: string) => {
         console.log(`   - ${test}`)
       })
     }
 
     if (this.results.warnings.length > 0) {
       console.log('\n⚠️ Warnings:')
-      this.results.warnings.forEach((warning: string) => {
+      this.results.warnings.forEach((_warning: string) => {
         console.log(`   - ${warning}`)
       })
     }
 
     console.log('\n✅ Passed Tests:')
-    this.results.passed.forEach((test: string) => {
+    this.results.passed.forEach((_test: string) => {
       console.log(`   - ${test}`)
     })
 
     // Next.js Best Practices Assessment
     console.log('\n📋 Next.js 15 Best Practices Compliance:')
     const compliance = {
-      'Server Components': this.results.passed.some((p: string) => p.includes('client component')),
-      'App Router': this.results.passed.some((p: string) => p.includes('role routing')),
-      'Loading States': this.results.passed.some((p: string) => p.includes('Loading states')),
-      'Error Boundaries': this.results.passed.some((p: string) => p.includes('Error boundaries')),
-      'Metadata': this.results.passed.some((p: string) => p.includes('Metadata')),
-      'Server Actions': this.results.passed.some((p: string) => p.includes('server-side'))
+      'Server Components': this.results.passed.some((_p: string) => p.includes('client component')),
+      'App Router': this.results.passed.some((_p: string) => p.includes('role routing')),
+      'Loading States': this.results.passed.some((_p: string) => p.includes('Loading states')),
+      'Error Boundaries': this.results.passed.some((_p: string) => p.includes('Error boundaries')),
+      'Metadata': this.results.passed.some((_p: string) => p.includes('Metadata')),
+      'Server Actions': this.results.passed.some((_p: string) => p.includes('server-side'))
     }
 
     Object.entries(compliance).forEach(([feature, implemented]) => {
@@ -588,10 +588,10 @@ class Phase2Validator {
     if (this.results.warnings.length > 0) {
       console.log('   1. Address warnings to improve code quality')
     }
-    if (!this.results.passed.some((p: string) => p.includes('Cache operations'))) {
+    if (!this.results.passed.some((_p: string) => p.includes('Cache operations'))) {
       console.log('   2. Implement cache system for better performance')
     }
-    if (this.results.warnings.some((w: string) => w.includes('any types'))) {
+    if (this.results.warnings.some((_w: string) => w.includes('any types'))) {
       console.log('   3. Replace any types with proper TypeScript types')
     }
 

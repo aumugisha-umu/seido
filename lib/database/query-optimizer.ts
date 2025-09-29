@@ -168,7 +168,7 @@ export class QueryOptimizerV2 {
   /**
    * Get user with batching and caching
    */
-  async getUser(id: string): Promise<User | null> {
+  async getUser(_id: string): Promise<User | null> {
     const cacheKey = `user:${id}`
 
     // Try cache first
@@ -192,7 +192,7 @@ export class QueryOptimizerV2 {
   /**
    * Get intervention with batching and caching
    */
-  async getIntervention(id: string): Promise<Intervention | null> {
+  async getIntervention(_id: string): Promise<Intervention | null> {
     const cacheKey = `intervention:${id}`
 
     const cached = await cache.get<Intervention>(cacheKey)
@@ -213,7 +213,7 @@ export class QueryOptimizerV2 {
   /**
    * Get building with batching and caching
    */
-  async getBuilding(id: string): Promise<Building | null> {
+  async getBuilding(_id: string): Promise<Building | null> {
     const cacheKey = `building:${id}`
 
     const cached = await cache.get<Building>(cacheKey)
@@ -234,7 +234,7 @@ export class QueryOptimizerV2 {
   /**
    * Get dashboard summary with materialized view
    */
-  async getDashboardSummary(teamId: string) {
+  async getDashboardSummary(_teamId: string) {
     const cacheKey = `dashboard:summary:${teamId}`
     const startTime = Date.now()
 
@@ -245,7 +245,7 @@ export class QueryOptimizerV2 {
       const { data, error } = await supabase
         .from('intervention_summary_view')
         .select('*')
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
 
       queryMonitor.logQuery(`dashboard_summary:${teamId}`, Date.now() - startTime)
 
@@ -293,7 +293,7 @@ export class QueryOptimizerV2 {
             address
           )
         `, { count: 'exact' })
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
         .range(offset, offset + limit - 1)
         .order('created_at', { ascending: false })
 
@@ -340,7 +340,7 @@ export class QueryOptimizerV2 {
   /**
    * Clear all cache for team
    */
-  async invalidateTeam(teamId: string) {
+  async invalidateTeam(_teamId: string) {
     await Promise.all([
       cache.invalidate(`dashboard:summary:${teamId}`),
       cache.invalidate(`interventions:paginated:${teamId}`),

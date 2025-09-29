@@ -16,7 +16,7 @@ import { LRUCache } from 'lru-cache'
 
 // Conditional Redis import for server-side only
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let Redis: any = null
+let Redis: unknown = null
 
 async function loadRedis() {
   if (typeof window === 'undefined' && !Redis) {
@@ -57,7 +57,7 @@ export class CacheManager {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private l1Cache: LRUCache<string, any>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private l2Cache: any | null = null
+  private l2Cache: unknown | null = null
   private metrics: CacheMetrics
   private config: CacheConfig
   private isRedisAvailable = false
@@ -137,7 +137,7 @@ export class CacheManager {
     }
   }
 
-  async get<T>(key: string): Promise<T | null> {
+  async get<T>(_key: string): Promise<T | null> {
     const startTime = Date.now()
     this.metrics.totalRequests++
 
@@ -182,7 +182,7 @@ export class CacheManager {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async set(key: string, value: any, ttl = 300): Promise<void> {
+  async set(key: string, value: unknown, ttl = 300): Promise<void> {
     try {
       // Set in L1 cache
       this.l1Cache.set(key, value)
@@ -204,7 +204,7 @@ export class CacheManager {
     }
   }
 
-  async invalidate(pattern: string): Promise<void> {
+  async invalidate(_pattern: string): Promise<void> {
     try {
       // Invalidate L1 cache
       let l1Count = 0
@@ -297,16 +297,16 @@ export const cacheManager = new CacheManager()
 
 // Utility wrapper with automatic JSON handling
 export const cache = {
-  async get<T>(key: string): Promise<T | null> {
+  async get<T>(_key: string): Promise<T | null> {
     return await cacheManager.get<T>(key)
   },
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async set(key: string, value: any, ttl?: number): Promise<void> {
+  async set(key: string, value: unknown, ttl?: number): Promise<void> {
     await cacheManager.set(key, value, ttl)
   },
 
-  async invalidate(pattern: string): Promise<void> {
+  async invalidate(_pattern: string): Promise<void> {
     await cacheManager.invalidate(pattern)
   },
 

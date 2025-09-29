@@ -145,15 +145,15 @@ export interface PropertyCreationActions {
   // Lot management
   addLot: () => void
   updateLot: (id: string, updates: Partial<LotInfo>) => void
-  removeLot: (id: string) => void
-  duplicateLot: (id: string) => void
+  removeLot: (_id: string) => void
+  duplicateLot: (_id: string) => void
 
   // Contact management
   addContact: (contact: Contact, type: string, context?: { lotId?: string }) => void
   removeContact: (contactId: string, type: string, context?: { lotId?: string }) => void
 
   // Manager management
-  selectManager: (managerId: string) => void
+  selectManager: (_managerId: string) => void
   addLotManager: (lotId: string, manager: TeamManager) => void
   removeLotManager: (lotId: string, managerId: string) => void
 
@@ -190,7 +190,7 @@ export interface AddressInputProps {
 
 export interface PropertyNameInputProps {
   value: string
-  onChange: (name: string) => void
+  onChange: (_name: string) => void
   placeholder?: string
   validation?: ValidationState
   disabled?: boolean
@@ -202,7 +202,7 @@ export interface PropertyNameInputProps {
 export interface ManagerSelectorProps {
   selectedManagerId: string
   teamManagers: TeamManager[]
-  onManagerSelect: (managerId: string) => void
+  onManagerSelect: (_managerId: string) => void
   onCreateManager?: () => void
   userTeam: Team | null
   isLoading?: boolean
@@ -213,9 +213,9 @@ export interface ManagerSelectorProps {
 export interface BuildingSelectorProps {
   buildings: Building[]
   selectedBuildingId?: string
-  onBuildingSelect: (buildingId: string) => void
+  onBuildingSelect: (_buildingId: string) => void
   searchQuery: string
-  onSearchChange: (query: string) => void
+  onSearchChange: (_query: string) => void
   isLoading?: boolean
   disabled?: boolean
   emptyStateAction?: () => void

@@ -2,9 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
 import { requireRole } from "@/lib/dal"
-import { createServerUserService } from '@/lib/services'
-import { createServerInterventionService } from '@/lib/services'
-import { createServerBuildingService } from '@/lib/services'
+import {
+  createServerUserService,
+  createServerInterventionService,
+  createServerBuildingService,
+  createServerStatsService
+} from '@/lib/services'
 import type { Intervention } from '@/lib/services/core/service-types'
 import { AdminDashboardClient } from "./admin-dashboard-client"
 
@@ -26,6 +29,7 @@ export default async function AdminDashboard() {
   const userService = await createServerUserService()
   const interventionService = await createServerInterventionService()
   const buildingService = await createServerBuildingService()
+  const statsService = await createServerStatsService()
 
   // ✅ LAYER 2: Data Layer Security - Récupération données système
   let systemStats = {
@@ -40,37 +44,51 @@ export default async function AdminDashboard() {
   }
 
   try {
-    // Récupérer les statistiques globales du système
+    // Utiliser StatsService pour les statistiques système
     console.log('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
 
-    // Statistiques utilisateurs
-    const allUsersResult = await userService.getAll()
-    const allUsers = allUsersResult.success ? allUsersResult.data : []
-    const totalUsers = allUsers?.length || 0
+    const systemStatsResult = await statsService.getSystemStats(user)
 
-    // Statistiques immeubles (toutes les équipes)
-    const allBuildingsResult = await buildingService.getAll()
-    const allBuildings = allBuildingsResult.success ? allBuildingsResult.data : []
-    const totalBuildings = allBuildings?.length || 0
+    if (systemStatsResult.success && systemStatsResult.data) {
+      systemStats = {
+        totalUsers: systemStatsResult.data.totalUsers || 0,
+        totalBuildings: systemStatsResult.data.totalBuildings || 0,
+        totalInterventions: systemStatsResult.data.totalInterventions || 0,
+        totalRevenue: systemStatsResult.data.totalRevenue || 0,
+        usersGrowth: systemStatsResult.data.usersGrowth || 0,
+        buildingsGrowth: systemStatsResult.data.buildingsGrowth || 0,
+        interventionsGrowth: systemStatsResult.data.interventionsGrowth || 0,
+        revenueGrowth: systemStatsResult.data.revenueGrowth || 0
+      }
+    } else {
+      // Fallback: récupérer les données directement si StatsService échoue
+      console.log('📊 [ADMIN-DASHBOARD] Using fallback stats calculation...')
 
-    // Statistiques interventions (toutes les équipes)
-    const allInterventionsResult = await interventionService.getAll()
-    const allInterventions = allInterventionsResult.success ? allInterventionsResult.data : []
-    const totalInterventions = allInterventions?.length || 0
+      const [usersResult, buildingsResult, interventionsResult] = await Promise.all([
+        userService.getAll(),
+        buildingService.getAll(),
+        interventionService.getAll()
+      ])
 
-    // Calcul du chiffre d'affaires simulé (basé sur les interventions)
-    const completedInterventions = allInterventions?.filter((i: Intervention) => i.status === 'completed') || []
-    const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
+      const totalUsers = usersResult.success ? (usersResult.data?.length || 0) : 0
+      const totalBuildings = buildingsResult.success ? (buildingsResult.data?.length || 0) : 0
+      const allInterventions = interventionsResult.success ? interventionsResult.data : []
+      const totalInterventions = allInterventions?.length || 0
 
-    systemStats = {
-      totalUsers,
-      totalBuildings,
-      totalInterventions,
-      totalRevenue,
-      usersGrowth: 12, // Simulation de croissance
-      buildingsGrowth: 8,
-      interventionsGrowth: 15,
-      revenueGrowth: 20
+      // Calcul du chiffre d'affaires simulé (basé sur les interventions)
+      const completedInterventions = allInterventions?.filter((i: Intervention) => i.status === 'completed') || []
+      const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
+
+      systemStats = {
+        totalUsers,
+        totalBuildings,
+        totalInterventions,
+        totalRevenue,
+        usersGrowth: 12, // Simulation de croissance
+        buildingsGrowth: 8,
+        interventionsGrowth: 15,
+        revenueGrowth: 20
+      }
     }
 
     console.log('✅ [ADMIN-DASHBOARD] System stats loaded:', systemStats)

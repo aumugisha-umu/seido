@@ -97,7 +97,7 @@ function LotsConfiguration() {
   const buildingData = formData as BuildingFormData
   const [expandedLots, setExpandedLots] = React.useState<{[key: string]: boolean}>({})
 
-  const toggleLotExpansion = (lotId: string) => {
+  const toggleLotExpansion = (_lotId: string) => {
     setExpandedLots(prev => ({
       ...prev,
       [lotId]: !prev[lotId]

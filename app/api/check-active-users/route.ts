@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!teamId) {
+    if (!_teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
       )
     }
 
-    console.log('👥 [CHECK-ACTIVE-USERS] Checking', emails.length, 'emails for team:', teamId)
+    console.log('👥 [CHECK-ACTIVE-USERS] Checking', emails.length, 'emails for team:', _teamId)
 
     // Vérifier quels emails correspondent à des utilisateurs actifs
     // Un utilisateur est "actif" s'il existe dans la table users avec cet email
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       .from('users')
       .select('email')
       .in('email', emails.map(email => email.toLowerCase()))
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
 
     if (error) {
       console.error('❌ [CHECK-ACTIVE-USERS] Database error:', error)

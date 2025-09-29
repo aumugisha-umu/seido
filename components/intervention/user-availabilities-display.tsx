@@ -82,8 +82,8 @@ export function UserAvailabilitiesDisplay({
     filterRole: filterRole || 'none',
     excludedProviders: filterState?.excludedProviders || [],
     details: {
-      original: availabilities.map(a => ({ userId: a.userId, person: a.person, role: a.role })),
-      finalFiltered: filteredAvailabilities.map(a => ({ userId: a.userId, person: a.person, role: a.role }))
+      original: availabilities.map(a => ({ userId: a._userId, person: a.person, role: a.role })),
+      finalFiltered: filteredAvailabilities.map(a => ({ userId: a._userId, person: a.person, role: a.role }))
     }
   })
 
@@ -99,7 +99,7 @@ export function UserAvailabilitiesDisplay({
         acc[key] = {
           person: availability.person,
           role: availability.role,
-          userId: availability.userId,
+          userId: availability._userId,
           slots: []
         }
       }
@@ -123,7 +123,7 @@ export function UserAvailabilitiesDisplay({
     totalGroups: Object.keys(groupedAvailabilities).length,
     groups: Object.entries(groupedAvailabilities).map(([key, group]) => ({
       key,
-      userId: group.userId,
+      userId: group._userId,
       person: group.person,
       role: group.role,
       slotCount: group.slots.length
@@ -138,7 +138,7 @@ export function UserAvailabilitiesDisplay({
   const displayTitle = title || defaultTitle
 
   // Fonction pour obtenir la couleur du badge selon le rôle
-  const getRoleBadgeColor = (role: string) => {
+  const getRoleBadgeColor = (_role: string) => {
     switch (role.toLowerCase()) {
       case 'prestataire':
         return "bg-blue-100 text-blue-700"

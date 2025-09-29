@@ -28,7 +28,7 @@ interface ContentNavigatorProps {
   defaultTab?: string
   searchPlaceholder?: string
   filters?: FilterConfig[]
-  onSearch?: (value: string) => void
+  onSearch?: (_value: string) => void
   onFilterChange?: (filterId: string, value: string) => void
   onResetFilters?: () => void
   className?: string
@@ -50,7 +50,7 @@ export default function ContentNavigator({
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
 
-  const handleSearchChange = (value: string) => {
+  const handleSearchChange = (_value: string) => {
     setSearchValue(value)
     onSearch?.(value)
   }
@@ -59,7 +59,7 @@ export default function ContentNavigator({
     onFilterChange?.(filterId, value)
   }
 
-  const handleTabChange = (tabId: string) => {
+  const handleTabChange = (_tabId: string) => {
     setActiveTab(tabId)
   }
 

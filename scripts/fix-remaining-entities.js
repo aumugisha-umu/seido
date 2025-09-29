@@ -40,13 +40,13 @@ filesToFix.forEach(file => {
 
     // Replace apostrophes
     if (text.includes("'")) {
-      newText = newText.replace(/'/g, '&apos;');
+      newText = newText.replace(/'/g, ''');
       changed = true;
     }
 
     // Replace double quotes
     if (text.includes('"')) {
-      newText = newText.replace(/"/g, '&quot;');
+      newText = newText.replace(/"/g, '"');
       changed = true;
     }
 

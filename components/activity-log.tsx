@@ -178,7 +178,7 @@ const getEntityIcon = (entityType: ActivityEntityType) => {
 }
 
 // Formater la date selon notre design (similaire à la photo)
-const formatActivityDate = (dateString: string) => {
+const formatActivityDate = (_dateString: string) => {
   const date = new Date(dateString)
   const now = new Date()
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
@@ -199,7 +199,7 @@ const formatActivityDate = (dateString: string) => {
 }
 
 // Obtenir les initiales pour l'avatar
-const getUserInitials = (name: string) => {
+const getUserInitials = (_name: string) => {
   return name
     .split(' ')
     .map(word => word.charAt(0))

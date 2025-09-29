@@ -105,7 +105,7 @@ class AuthMigrationValidator {
       // Step 2: Fill login form
       console.log('  → Filling login form...');
       await page.fill('input[type="email"]', account.email);
-      await page.fill('input[type="password"]', account.password);
+      await page.fill('input[type="password"]', account._password);
 
       // Step 3: Submit login
       console.log('  → Submitting login...');

@@ -20,7 +20,7 @@ interface LotContactsListProps {
   onContactsUpdate?: (contacts: ContactWithRelations[]) => void
 }
 
-export const LotContactsList = ({ lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
   const [contacts, setContacts] = useState<ContactWithRelations[]>(propContacts)
   const [filteredContacts, setFilteredContacts] = useState<ContactWithRelations[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -40,7 +40,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
 
   // Separate useCallback to prevent infinite loops
   const loadLotContacts = useCallback(async () => {
-    if (!lotId) return
+    if (!_lotId) return
     
     const timeoutId = setTimeout(() => {
       console.warn("⏰ Request timeout for lot contacts")
@@ -51,10 +51,10 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
     try {
       setLoading(true)
       setError(null)
-      console.log("📞 Loading contacts for lot:", lotId)
+      console.log("📞 Loading contacts for lot:", _lotId)
       
       // Adapter pour nouvelle architecture - récupérer les locataires pour ce lot
-      const lotContacts = await contactService.getLotContactsByType(lotId, 'tenant')
+      const lotContacts = await contactService.getLotContactsByType(_lotId, 'tenant')
       console.log("✅ Lot contacts loaded:", lotContacts?.length || 0)
       
       clearTimeout(timeoutId)
@@ -117,7 +117,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(lotId)
+        const updatedContacts = await contactService.getLotContacts(_lotId)
         onContactsUpdate(updatedContacts || [])
       } else {
         // Fallback to local loading
@@ -142,7 +142,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(lotId)
+        const updatedContacts = await contactService.getLotContacts(_lotId)
         onContactsUpdate(updatedContacts || [])
       } else {
         // Fallback to local loading
@@ -157,7 +157,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
     }
   }
 
-  const getContactTypeLabel = (type: string) => {
+  const getContactTypeLabel = (_type: string) => {
     const labels: { [key: string]: string } = {
       tenant: "Locataire",
       owner: "Propriétaire", 
@@ -171,7 +171,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
     return labels[type] || type
   }
 
-  const getSpecialityLabel = (speciality: string) => {
+  const getSpecialityLabel = (_speciality: string) => {
     const labels: { [key: string]: string } = {
       plumbing: "Plomberie",
       electricity: "Électricité",

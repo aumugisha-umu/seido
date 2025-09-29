@@ -122,7 +122,7 @@ export class ScreenshotHelper {
   /**
    * Compare deux captures d'écran (pour tests de régression visuelle)
    */
-  async compareScreenshots(name: string) {
+  async compareScreenshots(_name: string) {
     const screenshot = await this.page.screenshot({
       fullPage: true,
       animations: 'disabled',

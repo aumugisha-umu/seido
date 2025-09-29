@@ -36,7 +36,7 @@ export default async function DashboardGestionnaire() {
     contactsByType: {} as Record<string, { total: number; active: number }>
   }
 
-  let recentInterventions: any[] = []
+  let recentInterventions: unknown[] = []
 
   try {
     // Récupérer l'équipe de l'utilisateur

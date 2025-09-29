@@ -32,13 +32,13 @@ interface UseTenantPendingActionsReturn {
   refresh: () => Promise<void>
 }
 
-export function useTenantPendingActions(userId: string): UseTenantPendingActionsReturn {
+export function useTenantPendingActions(_userId: string): UseTenantPendingActionsReturn {
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchPendingActions = async () => {
-    if (!userId) {
+    if (!_userId) {
       setLoading(false)
       return
     }
@@ -47,10 +47,10 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
       setError(null)
 
       // Récupérer les interventions du locataire
-      const interventions = await interventionService.getByTenantId(userId)
+      const interventions = await interventionService.getByTenantId(_userId)
 
       // Filtrer les interventions nécessitant une action du locataire
-      const actionsRequirantes = interventions.filter((intervention: any) => {
+      const actionsRequirantes = interventions.filter((_intervention: unknown) => {
         // Statuts nécessitant une action du locataire
         return [
           'planification',     // Renseigner ses disponibilités
@@ -62,7 +62,7 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
       })
 
       // Convertir en format PendingAction
-      const actions: PendingAction[] = actionsRequirantes.map((intervention: any) => {
+      const actions: PendingAction[] = actionsRequirantes.map((_intervention: unknown) => {
         let description = ''
         let actionUrl = `/locataire/interventions/${intervention.id}`
 

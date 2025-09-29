@@ -12,6 +12,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Users, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { TeamCheckModal } from "@/components/team-check-modal"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
@@ -25,7 +28,7 @@ import { determineAssignmentType, createContactService, createContactInvitationS
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function ContactsPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   
@@ -43,7 +46,7 @@ export default function ContactsPage() {
   // ✅ Toujours appeler tous les hooks, indépendamment du return early
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [filteredContacts, setFilteredContacts] = useState<typeof contacts>([])
-  const [filteredInvitations, setFilteredInvitations] = useState<any[]>([])
+  const [filteredInvitations, setFilteredInvitations] = useState<unknown[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loadingInvitations, setLoadingInvitations] = useState(false)
@@ -54,7 +57,7 @@ export default function ContactsPage() {
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true) // Pour stocker le statut d'invitation de chaque contact
 
   // Fonction pour obtenir le badge de statut d'invitation
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (_status: string) => {
     const configs = {
       pending: { label: 'En attente', class: 'bg-orange-100 text-orange-800' },
       accepted: { label: 'Acceptée', class: 'bg-green-100 text-green-800' },
@@ -70,7 +73,7 @@ export default function ContactsPage() {
   }
 
   // ✅ Fonction pour obtenir le badge de statut d'invitation pour les contacts
-  const getContactInvitationBadge = (email: string) => {
+  const getContactInvitationBadge = (_email: string) => {
     const status = contactsInvitationStatus[email?.toLowerCase()]
     
     if (!status) {
@@ -94,7 +97,7 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour obtenir le badge "Vous" si c'est l'utilisateur connecté
-  const getCurrentUserBadge = (email: string) => {
+  const getCurrentUserBadge = (_email: string) => {
     if (!user?.email || !email) {
       return null
     }
@@ -223,13 +226,13 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour charger les invitations séparément
-  const loadPendingInvitations = async (teamId: string) => {
+  const loadPendingInvitations = async (_teamId: string) => {
     try {
       setLoadingInvitations(true)
-      console.log("📧 Loading invitations for team:", teamId)
+      console.log("📧 Loading invitations for team:", _teamId)
 
       const contactInvitationService = createContactInvitationService()
-      const invitations = await contactInvitationService.getPendingInvitations(teamId)
+      const invitations = await contactInvitationService.getPendingInvitations(_teamId)
       console.log("✅ Invitations loaded:", invitations.length)
       // Note: maintenant les invitations sont gérées par useContactsData, 
       // cette fonction est gardée pour les actions spéciales si nécessaire
@@ -241,7 +244,7 @@ export default function ContactsPage() {
   }
 
 
-  const handleResendInvitation = async (contactId: string) => {
+  const handleResendInvitation = async (_contactId: string) => {
     try {
       console.log("🔄 [CONTACTS-UI] Resending invitation for contact:", contactId)
       
@@ -304,7 +307,7 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour annuler une invitation
-  const handleCancelInvitation = async (invitationId: string) => {
+  const handleCancelInvitation = async (_invitationId: string) => {
     try {
       console.log("🚫 [CONTACTS-UI] Cancelling invitation:", invitationId)
       
@@ -347,7 +350,7 @@ export default function ContactsPage() {
         setError(`Erreur lors de l'annulation: ${errorMessage}`)
       }
       
-    } catch (error: any) {
+    } catch (_error: unknown) {
       console.error("❌ [CONTACTS-UI] Exception in cancel:", error)
       const errorMessage = error?.message || "Erreur inconnue"
       setError(`Erreur lors de l'annulation de l'invitation: ${errorMessage}`)
@@ -376,7 +379,7 @@ export default function ContactsPage() {
     }
   }
 
-  const handleCloseSuccessState = (contactId: string) => {
+  const handleCloseSuccessState = (_contactId: string) => {
     // Enlever l'état de succès pour revenir au bouton "Renvoyer"
     setResentInvitations(prev => {
       const newState = { ...prev }
@@ -392,7 +395,7 @@ export default function ContactsPage() {
     })
   }
 
-  const handleContactSubmit = async (contactData: any) => {
+  const handleContactSubmit = async (_contactData: unknown) => {
     try {
       console.log("📞 [CONTACTS-PAGE] Creating contact:", contactData)
       console.log("📞 [CONTACTS-PAGE] User team:", userTeam)
@@ -442,7 +445,7 @@ export default function ContactsPage() {
     }
   }
 
-  const handleDeleteContact = async (contactId: string) => {
+  const handleDeleteContact = async (_contactId: string) => {
     try {
       console.log("🗑️ Deleting contact:", contactId)
       await contactService.delete(contactId)
@@ -456,7 +459,7 @@ export default function ContactsPage() {
     }
   }
 
-  const getSpecialityLabel = (speciality: string) => {
+  const getSpecialityLabel = (_speciality: string) => {
     const specialities = {
       'plomberie': 'Plomberie',
       'electricite': 'Électricité',
@@ -471,7 +474,7 @@ export default function ContactsPage() {
   }
 
   // Fonction pour obtenir le type d'assignation basé sur role/provider_category
-  const getAssignmentType = (contact: any): string => {
+  const getAssignmentType = (_contact: unknown): string => {
     if (!contact.role) return 'Non défini'
     
     const assignmentUser = {
@@ -484,7 +487,7 @@ export default function ContactsPage() {
     return determineAssignmentType(assignmentUser)
   }
 
-  const getContactTypeLabel = (contact: any) => {
+  const getContactTypeLabel = (_contact: unknown) => {
     const assignmentType = getAssignmentType(contact)
     
     const types = {
@@ -500,7 +503,7 @@ export default function ContactsPage() {
     return types[assignmentType as keyof typeof types] || 'Non défini'
   }
 
-  const getContactTypeBadgeStyle = (contact: any) => {
+  const getContactTypeBadgeStyle = (_contact: unknown) => {
     const assignmentType = getAssignmentType(contact)
     
     const styles = {

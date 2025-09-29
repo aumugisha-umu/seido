@@ -75,7 +75,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user, signOut } = useAuth()
   const pathname = usePathname()
-  const router = useRouter()
+  const _router = useRouter()
   const { unreadCount: globalUnreadCount } = useGlobalNotifications()
   
   const userName = user?.display_name || user?.name || "Utilisateur"
@@ -84,7 +84,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const isActivePage = (href: string) => {
     // Correspondance exacte pour toutes les pages
     if (pathname === href) return true
-    
+
     // Pour les pages non-dashboard, vérifier si on est dans une sous-section
     // Ex: /gestionnaire/biens active aussi /gestionnaire/biens/nouveau
     if (!href.endsWith('/dashboard')) {
@@ -95,7 +95,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
     return false
   }
 
-  const getRoleDisplayName = (role: string) => {
+  const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
       gestionnaire: "Gestionnaire", 
@@ -118,7 +118,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   }
 
   const handleProfile = () => {
-    router.push(`/${role}/profile`)
+    _router.push(`/${role}/profile`)
   }
 
   // Fermer le menu mobile lors du changement de route

@@ -45,9 +45,9 @@ interface UseNotificationsReturn {
   error: string | null
   unreadCount: number
   refetch: () => Promise<void>
-  markAsRead: (id: string) => Promise<void>
+  markAsRead: (_id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
-  archive: (id: string) => Promise<void>
+  archive: (_id: string) => Promise<void>
 }
 
 export const useNotifications = (options: UseNotificationsOptions = {}): UseNotificationsReturn => {
@@ -57,7 +57,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   const [error, setError] = useState<string | null>(null)
 
   const {
-    teamId,
+    _teamId,
     scope,
     read,
     type,
@@ -69,14 +69,14 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   const fetchNotifications = async () => {
     console.log('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
       userId: user?.id,
-      teamId,
+      _teamId,
       scope,
       read,
       type,
       limit
     })
     
-    if (!user?.id || !teamId) {
+    if (!user?.id || !_teamId) {
       console.log('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
       setLoading(false)
       return
@@ -95,7 +95,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
         params.append('user_id', user.id)
       }
       
-      if (teamId) params.append('team_id', teamId)
+      if (_teamId) params.append('team_id', _teamId)
       if (scope) params.append('scope', scope)
       if (read !== undefined) params.append('read', read.toString())
       if (type) params.append('type', type)
@@ -135,7 +135,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     }
   }
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = async (_id: string) => {
     try {
       const response = await fetch(`/api/notifications?id=${id}`, {
         method: 'PATCH',
@@ -179,7 +179,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     }
   }
 
-  const archive = async (id: string) => {
+  const archive = async (_id: string) => {
     try {
       const response = await fetch(`/api/notifications?id=${id}`, {
         method: 'PATCH',
@@ -209,7 +209,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   // Fetch initial data
   useEffect(() => {
     fetchNotifications()
-  }, [user?.id, teamId, read, type, limit])
+  }, [user?.id, _teamId, read, type, limit])
 
   // Auto-refresh
   useEffect(() => {
@@ -217,7 +217,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
 
     const interval = setInterval(fetchNotifications, refreshInterval)
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, teamId, read, type, limit])
+  }, [autoRefresh, refreshInterval, user?.id, _teamId, read, type, limit])
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length

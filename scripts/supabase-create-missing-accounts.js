@@ -91,7 +91,7 @@ async function createAuthUser(account) {
     // Créer l'utilisateur dans Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: account.email,
-      password: account.password,
+      password: account._password,
       email_confirm: true, // Auto-confirmer l'email
       user_metadata: {
         full_name: account.fullName,
@@ -221,7 +221,7 @@ async function createCompleteAccount(account) {
   }
 
   // Étape 2: Créer ou mettre à jour le profil
-  const profileResult = await createOrUpdateUserProfile(account, authResult.userId);
+  const profileResult = await createOrUpdateUserProfile(account, authResult._userId);
   if (!profileResult.success) {
     console.error(`❌ Échec de la création/mise à jour du profil pour ${account.email}`);
     return { success: false, account, error: profileResult.error };
@@ -235,7 +235,7 @@ async function createCompleteAccount(account) {
   return {
     success: true,
     account,
-    authId: authResult.userId,
+    authId: authResult._userId,
     profileId: profileResult.profile.id,
     authExisting: authResult.existing,
     profileUpdated: profileResult.updated

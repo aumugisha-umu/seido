@@ -334,22 +334,33 @@ export class TeamService {
 
   /**
    * Ensure user has access to a team
-   * Returns team information or creates a default team if needed
+   * Verifies that user has an assigned team (does NOT create one automatically)
+   * Teams should be created during manager signup or user creation by managers
    */
-  async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; teamId?: string; error?: string }> {
+  async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; teamId?: string; team?: TeamWithMembers; error?: string }> {
     try {
+      // Special handling for JWT-only users
+      if (userId.startsWith('jwt_')) {
+        return {
+          hasTeam: false,
+          error: 'JWT-only users need to complete registration'
+        }
+      }
+
       // Check if user already has teams
       const teams = await this.getUserTeams(userId)
 
       if (teams && teams.data && teams.data.length > 0) {
         return {
           hasTeam: true,
-          teamId: teams.data[0].id
+          teamId: teams.data[0].id,
+          team: teams.data[0]
         }
       }
 
-      // User has no teams - this might be a configuration issue
-      // For now, we return false and let the application handle it
+      // If user has no team, this indicates a problem in the signup flow
+      // Teams should be created automatically during manager signup
+      // or users should be assigned to teams when created by managers
       return {
         hasTeam: false,
         error: 'Utilisateur sans équipe assignée. Contactez votre administrateur.'

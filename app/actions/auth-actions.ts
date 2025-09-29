@@ -203,7 +203,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     const supabase = await createServerSupabaseClient()
     const { data, error } = await supabase.auth.signUp({
       email: validatedData.email,
-      password: validatedData.password,
+      password: validatedData._password,
       options: {
         data: {
           first_name: validatedData.firstName,

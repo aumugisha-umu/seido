@@ -106,7 +106,7 @@ const countryToISOCode: Record<string, string> = {
 }
 
 export default function NewImmeubleePage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
@@ -136,7 +136,7 @@ export default function NewImmeubleePage() {
     insurance: [],
     other: [],
   })
-  const [assignedManagers, setAssignedManagers] = useState<{[key: string]: any[]}>({}) // gestionnaires assignés par lot
+  const [assignedManagers, setAssignedManagers] = useState<{[key: string]: unknown[]}>({}) // gestionnaires assignés par lot
   const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignés par lot
   
   // [SUPPRIMÉ] États des modals maintenant gérés dans ContactSelector centralisé :
@@ -152,7 +152,7 @@ export default function NewImmeubleePage() {
   
   // Nouveaux états pour Supabase
   const [teams, setTeams] = useState<Team[]>([])
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
+  const [teamManagers, setTeamManagers] = useState<unknown[]>([])
   const [selectedManagerId, setSelectedManagerId] = useState<string>("")
   const [userTeam, setUserTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -201,12 +201,12 @@ export default function NewImmeubleePage() {
         }
         
         // 4. Filtrer pour ne garder que les gestionnaires
-        const managers = teamMembers.filter((member: any) => 
+        const managers = teamMembers.filter((_member: unknown) => 
           member.user && member.user.role === 'gestionnaire'
         )
         
         // 5. TOUJOURS s'assurer que l'utilisateur actuel est disponible s'il est gestionnaire
-        const currentUserExists = managers.find((member: any) => 
+        const currentUserExists = managers.find((_member: unknown) => 
           member.user.id === user.id
         )
         
@@ -226,7 +226,7 @@ export default function NewImmeubleePage() {
         setTeamManagers(managers)
         
         // 6. Sélectionner l'utilisateur actuel par défaut s'il est gestionnaire
-        const currentUserAsMember = managers.find((member: any) => 
+        const currentUserAsMember = managers.find((_member: unknown) => 
           member.user.id === user.id
         )
         
@@ -282,7 +282,7 @@ export default function NewImmeubleePage() {
     if (currentStep === 3 && selectedManagerId && lots.length > 0) {
       const buildingManager = teamManagers.find(member => member.user.id === selectedManagerId)
       if (buildingManager) {
-        const initialAssignments: {[key: string]: any[]} = {}
+        const initialAssignments: {[key: string]: unknown[]} = {}
         lots.forEach(lot => {
           // Vérifier si ce lot n'a pas déjà des gestionnaires assignés
           if (!assignedManagers[lot.id] || assignedManagers[lot.id].length === 0) {
@@ -381,7 +381,7 @@ export default function NewImmeubleePage() {
     setLots(lots.map((lot) => (lot.id === id ? { ...lot, [field]: value } : lot)))
   }
 
-  const removeLot = (id: string) => {
+  const removeLot = (_id: string) => {
     setLots(lots.filter((lot) => lot.id !== id))
     // Nettoyer l'état d'expansion pour ce lot
     const newExpandedLots = {...expandedLots}
@@ -389,14 +389,14 @@ export default function NewImmeubleePage() {
     setExpandedLots(newExpandedLots)
   }
 
-  const toggleLotExpansion = (lotId: string) => {
+  const toggleLotExpansion = (_lotId: string) => {
     setExpandedLots({
       ...expandedLots,
       [lotId]: !expandedLots[lotId]
     })
   }
 
-  const duplicateLot = (id: string) => {
+  const duplicateLot = (_id: string) => {
     const lotToDuplicate = lots.find((lot) => lot.id === id)
     if (lotToDuplicate) {
       // Générer la référence basée sur la catégorie du lot dupliqué
@@ -421,7 +421,7 @@ export default function NewImmeubleePage() {
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
     console.log('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
     
-    if (context?.lotId) {
+    if (context?._lotId) {
       // AJOUTER AU LOT SPÉCIFIQUE
       setLotContactAssignments((prev) => {
         const lotId = context.lotId!  // On sait que lotId existe ici
@@ -467,9 +467,9 @@ export default function NewImmeubleePage() {
 
   // Fonction pour ouvrir le ContactSelector avec un type spécifique (pour les boutons individuels)
   const openContactModalForType = (contactType: string, lotId?: string) => {
-    console.log('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', lotId)
+    console.log('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', _lotId)
     if (contactSelectorRef.current) {
-      contactSelectorRef.current.openContactModal(contactType, lotId)
+      contactSelectorRef.current.openContactModal(contactType, _lotId)
     } else {
       console.error('❌ [IMMEUBLE] ContactSelector ref not found')
     }
@@ -477,7 +477,7 @@ export default function NewImmeubleePage() {
 
   // [SUPPRIMÉ] addContact maintenant géré dans ContactSelector
 
-  const removeContact = (id: string) => {
+  const removeContact = (_id: string) => {
     setContacts(contacts.filter((contact) => contact.id !== id))
     
     // Aussi retirer ce contact de toutes les assignations de lots
@@ -518,12 +518,12 @@ export default function NewImmeubleePage() {
   }
 
   // Fonction pour obtenir tous les contacts assignés à un lot
-  const getAllLotContacts = (lotId: string): Contact[] => {
+  const getAllLotContacts = (_lotId: string): Contact[] => {
     const lotAssignments = lotContactAssignments[lotId] || {}
     return Object.values(lotAssignments).flat()
   }
 
-  const getContactsByType = (type: string) => {
+  const getContactsByType = (_type: string) => {
     return contacts.filter((contact) => contact.type === type)
   }
 
@@ -609,9 +609,9 @@ export default function NewImmeubleePage() {
       }))
 
       // Préparer les assignations de contacts aux lots
-      const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
+      const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([_lotId, assignments]) => {
         // Trouver l'index du lot dans le tableau lotsData basé sur l'ID
-        const lotIndex = lots.findIndex(lot => lot.id === lotId)
+        const lotIndex = lots.findIndex(lot => lot.id === _lotId)
         
         // Récupérer les contacts classiques assignés à ce lot
         const contactAssignments = Object.entries(assignments).flatMap(([contactType, contacts]) =>
@@ -632,7 +632,7 @@ export default function NewImmeubleePage() {
         }))
         
         return {
-          lotId: lotId,
+          lotId: _lotId,
           lotIndex: lotIndex, // Index du lot dans le tableau lotsData
           assignments: [...contactAssignments, ...managerAssignments]
         }
@@ -683,7 +683,7 @@ export default function NewImmeubleePage() {
 
   // [SUPPRIMÉ] handleContactCreated maintenant géré dans ContactSelector centralisé
 
-  const handleGestionnaireCreated = async (contactData: any) => {
+  const handleGestionnaireCreated = async (_contactData: unknown) => {
     try {
       if (!userTeam?.id) {
         console.error("No team found for user")
@@ -731,12 +731,12 @@ export default function NewImmeubleePage() {
   }
 
   // Fonctions pour la gestion des gestionnaires assignés aux lots
-  const openManagerModal = (lotId: string) => {
-    setSelectedLotForManager(lotId)
+  const openManagerModal = (_lotId: string) => {
+    setSelectedLotForManager(_lotId)
     setIsManagerModalOpen(true)
   }
 
-  const addManagerToLot = (lotId: string, manager: any) => {
+  const addManagerToLot = (lotId: string, manager: unknown) => {
     setAssignedManagers(prev => {
       const currentManagers = prev[lotId] || []
       // Vérifier si le gestionnaire n'est pas déjà assigné
@@ -758,7 +758,7 @@ export default function NewImmeubleePage() {
     }))
   }
 
-  const getAssignedManagers = (lotId: string) => {
+  const getAssignedManagers = (_lotId: string) => {
     return assignedManagers[lotId] || []
   }
 

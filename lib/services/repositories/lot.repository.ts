@@ -155,7 +155,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Get lots by building
    */
-  async findByBuilding(buildingId: string) {
+  async findByBuilding(_buildingId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -165,7 +165,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .eq('building_id', buildingId)
+      .eq('building_id', _buildingId)
       .order('reference')
 
     if (error) {
@@ -193,7 +193,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Get lot by ID with full relations
    */
-  async findByIdWithRelations(id: string) {
+  async findByIdWithRelations(_id: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -232,7 +232,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Get lot with contact statistics
    */
-  async findByIdWithContacts(id: string) {
+  async findByIdWithContacts(_id: string) {
     // First get the basic lot data
     const lotResult = await this.findByIdWithRelations(id)
     if (!lotResult.success) return lotResult
@@ -279,7 +279,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select('id')
       .eq('reference', reference)
-      .eq('building_id', buildingId)
+      .eq('building_id', _buildingId)
 
     if (excludeId) {
       queryBuilder = queryBuilder.neq('id', excludeId)
@@ -310,12 +310,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       `)
       .eq('category', category)
 
-    if (options?.buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', options.buildingId)
+    if (options?._buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', options._buildingId)
     }
 
-    if (options?.teamId) {
-      queryBuilder = queryBuilder.eq('building.team_id', options.teamId)
+    if (options?._teamId) {
+      queryBuilder = queryBuilder.eq('building.team_id', options._teamId)
     }
 
     const { data, error } = await queryBuilder.order('reference')
@@ -342,8 +342,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       `)
       .eq('lot_contacts.user.role', 'tenant')
 
-    if (buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', buildingId)
+    if (_buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', _buildingId)
     }
 
     const { data, error } = await queryBuilder.order('reference')
@@ -370,8 +370,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         )
       `)
 
-    if (buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', buildingId)
+    if (_buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', _buildingId)
     }
 
     const { data, error } = await queryBuilder.order('reference')
@@ -382,7 +382,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     // Filter for lots without tenants
     const vacantLots = data?.filter(lot => {
-      const hasTenant = lot.lot_contacts?.some((contact: any) =>
+      const hasTenant = lot.lot_contacts?.some((_contact: unknown) =>
         contact.user?.role === 'locataire'
       )
       return !hasTenant
@@ -398,7 +398,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({ is_occupied: isOccupied, updated_at: new Date().toISOString() })
-      .eq('id', lotId)
+      .eq('id', _lotId)
       .select()
       .single()
 
@@ -416,7 +416,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select('*')
-      .eq('building_id', buildingId)
+      .eq('building_id', _buildingId)
       .eq('floor', floor)
       .order('reference')
 
@@ -441,8 +441,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       `)
       .or(`reference.ilike.%${query}%`)
 
-    if (options?.buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', options.buildingId)
+    if (options?._buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', options._buildingId)
     }
 
     if (options?.category) {
@@ -461,14 +461,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Get lot count by category for a team
    */
-  async getCountByCategory(teamId: string) {
+  async getCountByCategory(_teamId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         category,
         building:building_id!inner(team_id)
       `)
-      .eq('building.team_id', teamId)
+      .eq('building.team_id', _teamId)
 
     if (error) {
       return this.handleError(error)
@@ -494,7 +494,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({
-        building_id: buildingId,
+        building_id: _buildingId,
         updated_at: new Date().toISOString()
       })
       .in('id', lotIds)

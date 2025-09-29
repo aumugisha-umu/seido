@@ -30,7 +30,7 @@ async function testAuth() {
 
     console.log(`📍 Status: ${response.status}`);
 
-    const data = await response.json();
+    const _data = await response.json();
 
     if (response.ok) {
       console.log('✅ Login réussi!\n');

@@ -107,7 +107,7 @@ async function testAuthPerformance() {
 
       // Remplir le formulaire
       await page.fill('input[name="email"]', credentials.email);
-      await page.fill('input[name="password"]', credentials.password);
+      await page.fill('input[name="password"]', credentials._password);
 
       // Soumettre et attendre la redirection
       await Promise.all([
@@ -156,7 +156,7 @@ async function testBusinessWorkflows() {
 
     await locatairePage.goto(`${TEST_CONFIG.baseUrl}/auth/login`);
     await locatairePage.fill('input[name="email"]', TEST_CONFIG.testAccounts.locataire.email);
-    await locatairePage.fill('input[name="password"]', TEST_CONFIG.testAccounts.locataire.password);
+    await locatairePage.fill('input[name="password"]', TEST_CONFIG.testAccounts.locataire._password);
     await locatairePage.click('button[type="submit"]');
     await locatairePage.waitForURL('**/locataire/dashboard');
 
@@ -179,7 +179,7 @@ async function testBusinessWorkflows() {
 
     await gestionnairePage.goto(`${TEST_CONFIG.baseUrl}/auth/login`);
     await gestionnairePage.fill('input[name="email"]', TEST_CONFIG.testAccounts.gestionnaire.email);
-    await gestionnairePage.fill('input[name="password"]', TEST_CONFIG.testAccounts.gestionnaire.password);
+    await gestionnairePage.fill('input[name="password"]', TEST_CONFIG.testAccounts.gestionnaire._password);
     await gestionnairePage.click('button[type="submit"]');
     await gestionnairePage.waitForURL('**/gestionnaire/dashboard');
 
@@ -202,7 +202,7 @@ async function testBusinessWorkflows() {
 
     await prestatairePage.goto(`${TEST_CONFIG.baseUrl}/auth/login`);
     await prestatairePage.fill('input[name="email"]', TEST_CONFIG.testAccounts.prestataire.email);
-    await prestatairePage.fill('input[name="password"]', TEST_CONFIG.testAccounts.prestataire.password);
+    await prestatairePage.fill('input[name="password"]', TEST_CONFIG.testAccounts.prestataire._password);
     await prestatairePage.click('button[type="submit"]');
     await prestatairePage.waitForURL('**/prestataire/dashboard');
 

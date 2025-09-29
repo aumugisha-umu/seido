@@ -15,12 +15,12 @@ export interface ManagerStats {
 }
 
 export interface ManagerData {
-  buildings: any[]
-  lots: any[]
-  contacts: any[]
-  interventions: any[]
+  buildings: unknown[]
+  lots: unknown[]
+  contacts: unknown[]
+  interventions: unknown[]
   stats: ManagerStats
-  team?: any
+  team?: unknown
 }
 
 export function useManagerStats() {
@@ -73,10 +73,10 @@ export function useManagerStats() {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log("🔄 [MANAGER-STATS] Fetching manager stats for:", userId, bypassCache ? "(bypassing cache)" : "")
+      console.log("🔄 [MANAGER-STATS] Fetching manager stats for:", _userId, bypassCache ? "(bypassing cache)" : "")
       
       const statsService = createStatsService()
-      const result = await statsService.getManagerStats(userId)
+      const result = await statsService.getManagerStats(_userId)
       
       if (mountedRef.current) {
         setData(result)
@@ -252,10 +252,10 @@ export function useContactStats() {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log("🔄 [CONTACT-STATS] Fetching contact stats for:", userId, bypassCache ? "(bypassing cache)" : "")
+      console.log("🔄 [CONTACT-STATS] Fetching contact stats for:", _userId, bypassCache ? "(bypassing cache)" : "")
       
       const statsService = createStatsService()
-      const result = await statsService.getContactStats(userId)
+      const result = await statsService.getContactStats(_userId)
       
       if (mountedRef.current) {
         setContactStats(result)

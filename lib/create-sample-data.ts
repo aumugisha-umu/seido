@@ -20,17 +20,17 @@ export interface SampleDataResult {
 }
 
 export async function createSampleBuildingsForTeam({
-  teamId,
+  _teamId,
   force = false
 }: CreateSampleDataOptions): Promise<SampleDataResult> {
   try {
-    console.log('🏗️ [SAMPLE-DATA] Creating sample buildings for team:', teamId)
+    console.log('🏗️ [SAMPLE-DATA] Creating sample buildings for team:', _teamId)
 
     // Vérifier d'abord s'il y a déjà des buildings
     const { data: existingBuildings, error: checkError } = await supabase
       .from('buildings')
       .select('id')
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
 
     if (checkError) {
       console.error('❌ [SAMPLE-DATA] Error checking existing buildings:', checkError)
@@ -49,7 +49,7 @@ export async function createSampleBuildingsForTeam({
         address: '123 rue de la Paix',
         city: 'Paris',
         postal_code: '75001',
-        team_id: teamId,
+        team_id: _teamId,
         description: 'Résidence moderne avec jardin privé'
       },
       {
@@ -57,7 +57,7 @@ export async function createSampleBuildingsForTeam({
         address: '456 avenue des Champs',
         city: 'Lyon',
         postal_code: '69001',
-        team_id: teamId,
+        team_id: _teamId,
         description: 'Immeuble historique rénové'
       }
     ]
@@ -154,12 +154,12 @@ export async function createSampleBuildingsForTeam({
   }
 }
 
-export async function checkTeamDataStatus(teamId: string) {
+export async function checkTeamDataStatus(_teamId: string) {
   try {
     const [buildingsResult, usersResult, interventionsResult] = await Promise.all([
-      supabase.from('buildings').select('id').eq('team_id', teamId),
-      supabase.from('users').select('id').eq('team_id', teamId),
-      supabase.from('interventions').select('id').eq('team_id', teamId)
+      supabase.from('buildings').select('id').eq('team_id', _teamId),
+      supabase.from('users').select('id').eq('team_id', _teamId),
+      supabase.from('interventions').select('id').eq('team_id', _teamId)
     ])
 
     return {

@@ -258,7 +258,7 @@ export async function PUT(
     if (tenantId && tenantId !== user.id) {
       notificationPromises.push(
         notificationService.createNotification({
-          userId: tenantId,
+          userId: _tenantId,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',

@@ -11,7 +11,7 @@ interface ApproveConfirmationModalProps {
   onConfirm: () => void
   intervention: InterventionAction | null
   internalComment: string
-  onInternalCommentChange: (comment: string) => void
+  onInternalCommentChange: (_comment: string) => void
   isLoading?: boolean
 }
 

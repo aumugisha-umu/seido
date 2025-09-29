@@ -24,7 +24,7 @@ const CustomSelectItem = ({
   className?: string
   children: React.ReactNode
   value: string
-  onSelect: (value: string) => void
+  onSelect: (_value: string) => void
   isSelected: boolean
   keepOpen?: boolean
   [key: string]: unknown
@@ -68,7 +68,7 @@ interface ContactSelectorProps {
     provider_category?: string
   }>
   selectedContactIds?: string[]
-  onContactSelect: (contactId: string) => void
+  onContactSelect: (_contactId: string) => void
   onContactCreated: (contact: {
     id: string
     name: string
@@ -95,7 +95,7 @@ const ContactSelector = ({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const handleSelectChange = (value: string) => {
+  const handleSelectChange = (_value: string) => {
     if (value === "create-new") {
       setIsModalOpen(true)
     } else {
@@ -104,7 +104,7 @@ const ContactSelector = ({
   }
 
   // Fonction pour vérifier si un contact est sélectionné
-  const isContactSelected = (contactId: string) => {
+  const isContactSelected = (_contactId: string) => {
     // Comportement unifié : tous les types utilisent maintenant selectedContactIds
     return selectedContactIds.map(id => String(id)).includes(String(contactId))
   }
@@ -123,7 +123,7 @@ const ContactSelector = ({
     try {
       console.log('🆕 Création d\'un contact:', contactData)
       
-      if (!teamId) {
+      if (!_teamId) {
         console.error("❌ No team found")
         return
       }

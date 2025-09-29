@@ -111,7 +111,7 @@ export interface AvailabilityData {
   }
 }
 
-export const useAvailabilityManagement = (interventionId: string) => {
+export const useAvailabilityManagement = (_interventionId: string) => {
   // État des données
   const [data, setData] = useState<AvailabilityData | null>(null)
   const [matchingResult, setMatchingResult] = useState<MatchingResult | null>(null)
@@ -145,7 +145,7 @@ export const useAvailabilityManagement = (interventionId: string) => {
       }
 
       setData(result)
-      setUserAvailabilities(result.userAvailabilities.map((avail: any) => ({
+      setUserAvailabilities(result.userAvailabilities.map((_avail: unknown) => ({
         id: avail.id,
         date: avail.date,
         startTime: avail.start_time ? avail.start_time.substring(0, 5) : avail.start_time, // Normalize HH:MM:SS → HH:MM

@@ -10,8 +10,8 @@ interface UploadProgress {
 
 interface UseDocumentUploadOptions {
   interventionId: string
-  onUploadComplete?: (documents: any[]) => void
-  onUploadError?: (error: string) => void
+  onUploadComplete?: (documents: unknown[]) => void
+  onUploadError?: (_error: string) => void
 }
 
 export const useDocumentUpload = ({

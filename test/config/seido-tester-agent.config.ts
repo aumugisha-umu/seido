@@ -491,19 +491,19 @@ export const SeidoTesterConfig = {
 
 // Helper functions pour l'agent tester
 export const TestingHelpers = {
-  getRoleConfig(roleName: string): SeidoRole | undefined {
+  getRoleConfig(_roleName: string): SeidoRole | undefined {
     return SeidoTesterConfig.roles.find(r => r.name === roleName)
   },
 
-  getWorkflow(workflowName: string): CriticalWorkflow | undefined {
+  getWorkflow(_workflowName: string): CriticalWorkflow | undefined {
     return SeidoTesterConfig.criticalWorkflows.find(w => w.name === workflowName)
   },
 
-  getPhaseConfig(phaseName: string): TestPhase | undefined {
+  getPhaseConfig(_phaseName: string): TestPhase | undefined {
     return SeidoTesterConfig.testPhases[phaseName]
   },
 
-  getPerformanceTarget(metricName: string): PerformanceMetric | undefined {
+  getPerformanceTarget(_metricName: string): PerformanceMetric | undefined {
     return SeidoTesterConfig.performanceTargets[metricName]
   },
 
@@ -524,7 +524,7 @@ export const TestingHelpers = {
     return false
   },
 
-  generateTestReport(phase: string, results: any): string {
+  generateTestReport(phase: string, results: unknown): string {
     const phaseConfig = SeidoTesterConfig.testPhases[phase]
     const timestamp = new Date().toISOString()
 

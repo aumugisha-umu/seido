@@ -23,15 +23,15 @@ import { PropertyDetailHeader } from "@/components/property-detail-header"
 
 export default function BuildingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const router = useRouter()
+  const _router = useRouter()
   const searchParams = useSearchParams()
   const resolvedParams = use(params)
   const { user } = useAuth()
 
   // State pour les donnees
   const [building, setBuilding] = useState<any>(null)
-  const [lots, setLots] = useState<any[]>([])
-  const [interventions, setInterventions] = useState<any[]>([])
+  const [lots, setLots] = useState<unknown[]>([])
+  const [interventions, setInterventions] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -61,7 +61,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       console.log("🏢 Loading building data for ID:", resolvedParams.id)
 
       // Initialize services
-      const buildingService = createBuildingService()
+      const _buildingService = createBuildingService()
       const lotService = createLotService()
       const interventionService = createInterventionService()
 
@@ -82,7 +82,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         
         for (const lotId of lotIds) {
           try {
-            const lotInterventions = await interventionService.getByLotId(lotId)
+            const lotInterventions = await interventionService.getByLotId(_lotId)
             allInterventions.push(...(lotInterventions || []))
           } catch (error) {
             console.warn(`⚠️ Could not load interventions for lot ${lotId}:`, error)
@@ -172,7 +172,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     router.push(`/gestionnaire/biens/immeubles/modifier/${resolvedParams.id}`)
   }
 
-  const handleCustomAction = (actionKey: string) => {
+  const handleCustomAction = (_actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
         router.push(`/gestionnaire/interventions/nouvelle?buildingId=${building.id}`)
@@ -186,7 +186,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   }
 
   // Load interventions with documents
-  const [interventionsWithDocs, setInterventionsWithDocs] = useState<any[]>([])
+  const [interventionsWithDocs, setInterventionsWithDocs] = useState<unknown[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
 
   const loadInterventionsWithDocuments = async () => {
@@ -212,7 +212,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   }, [resolvedParams.id, loading])
 
   // Transform interventions data for documents component
-  const transformInterventionsForDocuments = (interventionsData: any[]) => {
+  const transformInterventionsForDocuments = (interventionsData: unknown[]) => {
     return interventionsData.map(intervention => ({
       id: intervention.id,
       reference: intervention.reference || `INT-${intervention.id.slice(-6)}`,
@@ -224,7 +224,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         name: intervention.assigned_contact.name,
         role: 'prestataire'
       } : undefined,
-      documents: intervention.documents?.map((doc: any) => ({
+      documents: intervention.documents?.map((_doc: unknown) => ({
         id: doc.id,
         name: doc.original_filename || doc.filename,
         size: doc.file_size,
@@ -238,13 +238,13 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     })).filter(intervention => intervention.documents.length > 0)
   }
 
-  const handleDocumentView = (document: any) => {
+  const handleDocumentView = (_document: unknown) => {
     // TODO: Implement document viewer
     console.log('Viewing document:', document)
     // For now, we can open in a new tab or show a modal
   }
 
-  const handleDocumentDownload = (document: any) => {
+  const handleDocumentDownload = (_document: unknown) => {
     // TODO: Implement document download
     console.log('Downloading document:', document)
     // For now, we can trigger a download or redirect to download URL

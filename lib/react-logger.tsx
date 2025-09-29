@@ -37,7 +37,7 @@ export const useComponentLogger = (componentName: string) => {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const logStateChange = (state: string, value: any) => {
+  const logStateChange = (state: string, value: unknown) => {
     componentLogger.debug({
       type: 'component_state_change',
       state,

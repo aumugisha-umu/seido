@@ -53,7 +53,7 @@ export function InterventionsList({
   actionHooks,
   userContext = 'gestionnaire'
 }: InterventionsListProps) {
-  const router = useRouter()
+  const _router = useRouter()
 
   // Limit interventions if maxItems is specified
   const displayedInterventions = maxItems ? interventions.slice(0, maxItems) : interventions

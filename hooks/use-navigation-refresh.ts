@@ -98,7 +98,7 @@ export function useNavigationRefresh() {
 }
 
 // Hook pour détecter les changements de section spécifiques
-export function useSectionChange(onSectionChange?: (section: string) => void) {
+export function useSectionChange(onSectionChange?: (_section: string) => void) {
   const pathname = usePathname()
   
   useEffect(() => {

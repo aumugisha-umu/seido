@@ -161,7 +161,7 @@ export class InterventionService {
 
     // Validate status transitions if status is being updated
     if (updates.status && updates.status !== existingIntervention.data.status) {
-      this.validateStatusTransition(existingIntervention.data.status, updates.status, updatedBy)
+      this.validateStatusTransition(existingIntervention.data.status, updates.status, _updatedBy)
     }
 
     // Update timestamp
@@ -174,7 +174,7 @@ export class InterventionService {
 
     // Log activity
     if (result.success && result.data) {
-      await this.logInterventionUpdate(result.data, updates, updatedBy)
+      await this.logInterventionUpdate(result.data, updates, _updatedBy)
     }
 
     return result
@@ -216,7 +216,7 @@ export class InterventionService {
    */
   async getByTenant(tenantId: string) {
     try {
-      const result = await this.repository.findByTenant(tenantId)
+      const result = await this.repository.findByTenant(_tenantId)
       return result
     } catch (error) {
       throw error
@@ -228,7 +228,7 @@ export class InterventionService {
    */
   async getByLot(lotId: string) {
     try {
-      const result = await this.repository.findByLot(lotId)
+      const result = await this.repository.findByLot(_lotId)
       return result
     } catch (error) {
       throw error
@@ -240,7 +240,7 @@ export class InterventionService {
    */
   async getByBuilding(buildingId: string) {
     try {
-      const result = await this.repository.findByBuilding(buildingId)
+      const result = await this.repository.findByBuilding(_buildingId)
       return result
     } catch (error) {
       throw error
@@ -484,7 +484,7 @@ export class InterventionService {
       }
     }
 
-    const result = await this.repository.assignToProvider(interventionId, providerId, isPrimary)
+    const result = await this.repository.assignToProvider(interventionId, providerId, _isPrimary)
 
     if (result.success) {
       await this.logProviderAssignment(interventionId, providerId, assignedBy)

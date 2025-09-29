@@ -84,12 +84,12 @@ export default function NouvelleInterventionPage() {
   const [expectsQuote, setExpectsQuote] = useState(false)
 
   // États pour les données réelles
-  const [managers, setManagers] = useState<any[]>([])
-  const [providers, setProviders] = useState<any[]>([])
+  const [managers, setManagers] = useState<unknown[]>([])
+  const [providers, setProviders] = useState<unknown[]>([])
   const [loading, setLoading] = useState(false)
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
-  const router = useRouter()
+  const _router = useRouter()
   // const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const searchParams = useSearchParams()
@@ -126,8 +126,8 @@ export default function NouvelleInterventionPage() {
         
         // Filtrer les gestionnaires avec la même logique que les prestataires
         const managersData = contacts
-          .filter((contact: any) => determineAssignmentType(contact) === 'manager')
-          .map((contact: any) => ({
+          .filter((_contact: unknown) => determineAssignmentType(contact) === 'manager')
+          .map((_contact: unknown) => ({
             id: contact.id,
             name: contact.name,
             role: "Gestionnaire",
@@ -139,8 +139,8 @@ export default function NouvelleInterventionPage() {
         
         // Filtrer les prestataires avec la même logique
         const providersData = contacts
-          .filter((contact: any) => determineAssignmentType(contact) === 'provider')
-          .map((contact: any) => ({
+          .filter((_contact: unknown) => determineAssignmentType(contact) === 'provider')
+          .map((_contact: unknown) => ({
             id: contact.id,
             name: contact.name,
             role: "Prestataire",
@@ -172,9 +172,9 @@ export default function NouvelleInterventionPage() {
   }
 
   // Load tenant's assigned lots
-  const loadTenantLots = async (tenantId: string) => {
+  const loadTenantLots = async (_tenantId: string) => {
     try {
-      const lots = await tenantService.getAllTenantLots(tenantId)
+      const lots = await tenantService.getAllTenantLots(_tenantId)
       console.log("📍 Tenant lots loaded:", lots)
       
       if (lots.length > 0) {
@@ -201,7 +201,7 @@ export default function NouvelleInterventionPage() {
   }
 
   // Load specific lot by ID or reference
-  const loadSpecificLot = async (lotIdentifier: string) => {
+  const loadSpecificLot = async (_lotIdentifier: string) => {
     try {
       // Try to get lot by ID first, then by reference if needed
       const lot = await lotService.getById(lotIdentifier)
@@ -255,9 +255,9 @@ export default function NouvelleInterventionPage() {
 
       // Pre-select lot based on tenant or location info
       const tenantId = searchParams.get("tenantId")
-      if (tenantId) {
+      if (_tenantId) {
         // For tenant-initiated interventions, get their assigned lots
-        loadTenantLots(tenantId)
+        loadTenantLots(_tenantId)
       } else if (tenantLocation.includes("Lot")) {
         // Parse location to extract lot info and load real lot data
         const lotMatch = tenantLocation.match(/Lot(\d+)/)
@@ -309,7 +309,7 @@ export default function NouvelleInterventionPage() {
   }
 
   // Fonctions de gestion des contacts
-  const handleManagerSelect = (managerId: string) => {
+  const handleManagerSelect = (_managerId: string) => {
     console.log("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
     const normalizedManagerId = String(managerId)
     setSelectedManagerIds(prevIds => {
@@ -329,7 +329,7 @@ export default function NouvelleInterventionPage() {
     })
   }
 
-  const handleProviderSelect = (providerId: string) => {
+  const handleProviderSelect = (_providerId: string) => {
     console.log("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
     console.log("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
     const normalizedProviderId = String(providerId)
@@ -350,7 +350,7 @@ export default function NouvelleInterventionPage() {
     })
   }
 
-  const handleContactCreated = (newContact: any) => {
+  const handleContactCreated = (_newContact: unknown) => {
     // Ajouter le nouveau contact à la liste appropriée (nouvelle architecture)
     console.log("🆕 Contact créé:", { id: newContact.id, name: newContact.name, role: newContact.role, provider_category: newContact.provider_category })
     const assignmentType = determineAssignmentType(newContact)
@@ -390,7 +390,7 @@ export default function NouvelleInterventionPage() {
   const handleBuildingSelect = (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    if (buildingId) {
+    if (_buildingId) {
       setSelectedLogement({ type: "building", id: buildingId })
     } else {
       setSelectedLogement(null)
@@ -398,7 +398,7 @@ export default function NouvelleInterventionPage() {
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
-    if (!lotId) {
+    if (!_lotId) {
       setSelectedLotId(undefined)
       setSelectedBuildingId(buildingId || undefined)
       setSelectedLogement(null)
@@ -406,7 +406,7 @@ export default function NouvelleInterventionPage() {
     }
     try {
       // Load real lot data when selecting a lot
-      const lot = await lotService.getById(lotId)
+      const lot = await lotService.getById(_lotId)
       
       if (lot) {
         setSelectedLogement({
@@ -421,16 +421,16 @@ export default function NouvelleInterventionPage() {
         setSelectedBuildingId(lot.building_id)
       } else {
         // Fallback to minimal data if lot not found
-        setSelectedLotId(lotId)
-        setSelectedBuildingId(buildingId)
-        setSelectedLogement({ type: "lot", id: lotId, buildingId })
+        setSelectedLotId(_lotId)
+        setSelectedBuildingId(_buildingId)
+        setSelectedLogement({ type: "lot", id: _lotId, buildingId })
       }
     } catch (error) {
       console.error("❌ Error loading lot data:", error)
       // Fallback to minimal data
-      setSelectedLotId(lotId)
-      setSelectedBuildingId(buildingId)
-      setSelectedLogement({ type: "lot", id: lotId, buildingId })
+      setSelectedLotId(_lotId)
+      setSelectedBuildingId(_buildingId)
+      setSelectedLogement({ type: "lot", id: _lotId, buildingId })
     }
   }
 
@@ -615,7 +615,7 @@ export default function NouvelleInterventionPage() {
     }
   }
 
-  const handleNavigation = (path: string) => {
+  const handleNavigation = (_path: string) => {
     setShowSuccessModal(false)
     router.push(path)
   }

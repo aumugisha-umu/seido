@@ -170,7 +170,7 @@ interface InterventionDetail {
 
 
 export default function PrestatairInterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false)
@@ -472,7 +472,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Chargement des détails de l&apos;intervention...</p>
+          <p className="text-slate-600">Chargement des détails de l'intervention...</p>
         </div>
       </div>
     )
@@ -502,7 +502,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         <div className="text-center">
           <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-slate-900 mb-2">Intervention non trouvée</h2>
-          <p className="text-slate-600 mb-4">L&apos;intervention demandée n&apos;existe pas ou n&apos;est plus accessible.</p>
+          <p className="text-slate-600 mb-4">L'intervention demandée n'existe pas ou n'est plus accessible.</p>
           <Button onClick={() => router.back()} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour
@@ -523,7 +523,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     console.log('Archive not available for providers')
   }
 
-  const handleStatusAction = (action: string) => {
+  const handleStatusAction = (_action: string) => {
     // Actions gérées par le panel d'actions
     console.log('Status action:', action)
   }

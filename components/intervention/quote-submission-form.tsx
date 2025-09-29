@@ -88,7 +88,7 @@ export function QuoteSubmissionForm({
   quoteRequest,
   onSuccess
 }: QuoteSubmissionFormProps) {
-  const router = useRouter()
+  const _router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -227,7 +227,7 @@ export function QuoteSubmissionForm({
   }
 
   // Calcule l'heure de fin basée sur l'heure de début et la durée estimée
-  const calculateEndTime = (startTime: string): string => {
+  const calculateEndTime = (_startTime: string): string => {
     if (!startTime || !formData.estimatedDurationHours) return ''
 
     const duration = parseFloat(formData.estimatedDurationHours)

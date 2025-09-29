@@ -100,7 +100,7 @@ async function testLogin(page, role, credentials) {
 
     // Fill in credentials
     await page.type('input[name="email"]', credentials.email);
-    await page.type('input[name="password"]', credentials.password);
+    await page.type('input[name="password"]', credentials._password);
 
     // Submit form
     await page.click('button[type="submit"]');
@@ -200,7 +200,7 @@ async function testInterventionWorkflow(page) {
     // Login as locataire
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('input[name="email"]', TEST_CREDENTIALS.locataire.email);
-    await page.type('input[name="password"]', TEST_CREDENTIALS.locataire.password);
+    await page.type('input[name="password"]', TEST_CREDENTIALS.locataire._password);
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }).catch(() => {});
 
@@ -227,7 +227,7 @@ async function testInterventionWorkflow(page) {
 
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('input[name="email"]', TEST_CREDENTIALS.gestionnaire.email);
-    await page.type('input[name="password"]', TEST_CREDENTIALS.gestionnaire.password);
+    await page.type('input[name="password"]', TEST_CREDENTIALS.gestionnaire._password);
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }).catch(() => {});
 
@@ -270,7 +270,7 @@ async function testMobileResponsiveness(page) {
 
     // Test dashboard mobile view
     await page.type('input[name="email"]', TEST_CREDENTIALS.gestionnaire.email);
-    await page.type('input[name="password"]', TEST_CREDENTIALS.gestionnaire.password);
+    await page.type('input[name="password"]', TEST_CREDENTIALS.gestionnaire._password);
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }).catch(() => {});
 
@@ -311,7 +311,7 @@ async function testSecurityAndPermissions(page) {
     // Login as locataire and try to access gestionnaire dashboard
     await page.goto(`${BASE_URL}/auth/login`, { waitUntil: 'networkidle0' });
     await page.type('input[name="email"]', TEST_CREDENTIALS.locataire.email);
-    await page.type('input[name="password"]', TEST_CREDENTIALS.locataire.password);
+    await page.type('input[name="password"]', TEST_CREDENTIALS.locataire._password);
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }).catch(() => {});
 
@@ -441,7 +441,7 @@ async function testPerformance(page) {
 
     // Test dashboard load time
     await page.type('input[name="email"]', TEST_CREDENTIALS.gestionnaire.email);
-    await page.type('input[name="password"]', TEST_CREDENTIALS.gestionnaire.password);
+    await page.type('input[name="password"]', TEST_CREDENTIALS.gestionnaire._password);
 
     const dashboardStart = Date.now();
     await page.click('button[type="submit"]');

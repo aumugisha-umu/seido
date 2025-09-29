@@ -52,7 +52,7 @@ export default function LotCard({
   onSelect,
   showBuilding = false
 }: LotCardProps) {
-  const router = useRouter()
+  const _router = useRouter()
   const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
   const isOccupied = lot.is_occupied || lot.tenant_id || lot.has_active_tenants
   const tenantName = lot.tenant?.name || (lot.lot_tenants?.[0]?.contact?.name) || null

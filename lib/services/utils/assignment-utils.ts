@@ -56,7 +56,7 @@ export const validateAssignment = (user: AssignmentUser, context: 'building' | '
 /**
  * Get assignment type display name
  */
-export const getAssignmentTypeDisplayName = (assignmentType: string): string => {
+export const getAssignmentTypeDisplayName = (_assignmentType: string): string => {
   const displayNames: Record<string, string> = {
     'tenant': 'Locataire',
     'manager': 'Gestionnaire',
@@ -102,7 +102,7 @@ export const getAvailableAssignmentTypes = (context: 'building' | 'lot'): string
 /**
  * Map frontend role to database role and provider category
  */
-export const mapFrontendToDbRole = (frontendRole: string): { role: string; provider_category?: string } => {
+export const mapFrontendToDbRole = (_frontendRole: string): { role: string; provider_category?: string } => {
   const mapping: Record<string, { role: string; provider_category?: string }> = {
     'tenant': { role: 'locataire' },
     'locataire': { role: 'locataire' },

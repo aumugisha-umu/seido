@@ -154,7 +154,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Insert new tenant availabilities
-    const availabilityData = tenantAvailabilities.map((avail: any) => ({
+    const availabilityData = tenantAvailabilities.map((_avail: unknown) => ({
       user_id: user.id,
       intervention_id: resolvedParams.id,
       date: avail.date,

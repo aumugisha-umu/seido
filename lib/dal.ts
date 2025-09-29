@@ -201,7 +201,7 @@ export const getUserPermissions = cache(async (): Promise<string[]> => {
 /**
  * Vérifie si l'utilisateur a une permission spécifique
  */
-export const hasPermission = cache(async (permission: string): Promise<boolean> => {
+export const hasPermission = cache(async (_permission: string): Promise<boolean> => {
   const permissions = await getUserPermissions()
   return permissions.includes('*') || permissions.includes(permission)
 })
@@ -209,7 +209,7 @@ export const hasPermission = cache(async (permission: string): Promise<boolean> 
 /**
  * Middleware de vérification de permissions pour les actions
  */
-export const requirePermission = cache(async (permission: string): Promise<AuthUser> => {
+export const requirePermission = cache(async (_permission: string): Promise<AuthUser> => {
   const user = await getAuthenticatedUser()
   const userHasPermission = await hasPermission(permission)
 

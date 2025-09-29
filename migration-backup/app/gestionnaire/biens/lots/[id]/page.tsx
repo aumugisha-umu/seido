@@ -19,14 +19,14 @@ import { PropertyDetailHeader } from "@/components/property-detail-header"
 
 export default function LotDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
 
   // State pour les données
   const [lot, setLot] = useState<any>(null)
-  const [interventions, setInterventions] = useState<any[]>([])
-  const [contacts, setContacts] = useState<any[]>([])
+  const [interventions, setInterventions] = useState<unknown[]>([])
+  const [contacts, setContacts] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -109,7 +109,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   }
 
   // Load interventions with documents
-  const [interventionsWithDocs, setInterventionsWithDocs] = useState<any[]>([])
+  const [interventionsWithDocs, setInterventionsWithDocs] = useState<unknown[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
 
   const loadInterventionsWithDocuments = async () => {
@@ -134,7 +134,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   }, [resolvedParams.id, loading])
 
   // Transform interventions data for documents component
-  const transformInterventionsForDocuments = (interventionsData: any[]) => {
+  const transformInterventionsForDocuments = (interventionsData: unknown[]) => {
     return interventionsData.map(intervention => ({
       id: intervention.id,
       reference: intervention.reference || `INT-${intervention.id.slice(-6)}`,
@@ -146,7 +146,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
         name: intervention.assigned_contact.name,
         role: 'prestataire'
       } : undefined,
-      documents: intervention.documents?.map((doc: any) => ({
+      documents: intervention.documents?.map((_doc: unknown) => ({
         id: doc.id,
         name: doc.original_filename || doc.filename,
         size: doc.file_size,
@@ -160,13 +160,13 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     })).filter(intervention => intervention.documents.length > 0)
   }
 
-  const handleDocumentView = (document: any) => {
+  const handleDocumentView = (_document: unknown) => {
     // TODO: Implement document viewer
     console.log('Viewing document:', document)
     // For now, we can open in a new tab or show a modal
   }
 
-  const handleDocumentDownload = (document: any) => {
+  const handleDocumentDownload = (_document: unknown) => {
     // TODO: Implement document download
     console.log('Downloading document:', document)
     // For now, we can trigger a download or redirect to download URL
@@ -294,7 +294,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     router.push(`/gestionnaire/biens/lots/modifier/${resolvedParams.id}`)
   }
 
-  const handleCustomAction = (actionKey: string) => {
+  const handleCustomAction = (_actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
         router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
@@ -531,7 +531,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
               lotId={resolvedParams.id} 
               buildingId={lot?.building?.id}
               contacts={contacts}
-              onContactsUpdate={(updatedContacts: any[]) => setContacts(updatedContacts)}
+              onContactsUpdate={(updatedContacts: unknown[]) => setContacts(updatedContacts)}
             />
           </div>
         )}

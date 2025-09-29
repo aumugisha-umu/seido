@@ -93,7 +93,7 @@ export function DocumentsSection({
     return matchesSearch && matchesStatus
   })
 
-  const toggleInterventionExpanded = (interventionId: string) => {
+  const toggleInterventionExpanded = (_interventionId: string) => {
     setExpandedInterventions(prev =>
       prev.includes(interventionId)
         ? prev.filter(id => id !== interventionId)
@@ -101,14 +101,14 @@ export function DocumentsSection({
     )
   }
 
-  const getFileIcon = (fileType: string) => {
+  const getFileIcon = (_fileType: string) => {
     if (fileType.startsWith('image/')) return FileImage
     if (fileType.includes('spreadsheet') || fileType.includes('excel')) return FileSpreadsheet
     if (fileType === 'application/pdf') return File
     return FileText
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (_status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800'
       case 'in_progress': return 'bg-blue-100 text-blue-800'
@@ -117,7 +117,7 @@ export function DocumentsSection({
     }
   }
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (_status: string) => {
     switch (status) {
       case 'completed': return 'Terminée'
       case 'in_progress': return 'En cours'
@@ -153,7 +153,7 @@ export function DocumentsSection({
       // Use built-in download functionality
       try {
         const response = await fetch(`/api/download-intervention-document?documentId=${document.id}`)
-        const data = await response.json()
+        const _data = await response.json()
         
         if (response.ok && data.downloadUrl) {
           // Create a temporary link to trigger download

@@ -43,7 +43,7 @@ const config = {
     buildingService: {
       import: "import { createServerBuildingService } from '@/lib/services'",
       clientImport: "import { createBuildingService } from '@/lib/services'",
-      initialization: "const buildingService = await createServerBuildingService()",
+      initialization: "const _buildingService = await createServerBuildingService()",
       clientInitialization: "const buildingService = createBuildingService()"
     },
     lotService: {

@@ -23,7 +23,7 @@ async function waitForAuthReady(page) {
 }
 
 // Fonction pour mesurer le temps d'auth
-async function measureAuthTime(page, email, password) {
+async function measureAuthTime(page, email, _password) {
   const startTime = Date.now();
 
   try {
@@ -32,7 +32,7 @@ async function measureAuthTime(page, email, password) {
 
     // Remplir le formulaire
     await page.type('input#email', email);
-    await page.type('input#password', password);
+    await page.type('input#password', _password);
 
     // Soumettre
     await Promise.all([
@@ -79,7 +79,7 @@ async function runValidation() {
 
       try {
         // Mesurer le temps d'auth
-        const authTime = await measureAuthTime(page, account.email, account.password);
+        const authTime = await measureAuthTime(page, account.email, account._password);
 
         if (authTime > 0) {
           console.log(`✅ Login réussi: ${authTime}ms`);

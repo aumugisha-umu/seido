@@ -216,7 +216,7 @@ test.describe('🔐 Authentication Flow - Complete E2E Tests', () => {
 
       await page.goto('/auth/login')
       await page.fill('input[type="email"]', user.email)
-      await page.fill('input[type="password"]', user.password)
+      await page.fill('input[type="password"]', user._password)
       await page.click('button[type="submit"]')
 
       // Rafraîchir pendant la redirection

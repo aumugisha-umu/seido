@@ -101,7 +101,7 @@ interface LotData {
 }
 
 export default function NewLotPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
@@ -117,7 +117,7 @@ export default function NewLotPage() {
   
   // États pour les informations générales de l'immeuble (étape 2)
   const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
+  const [teamManagers, setTeamManagers] = useState<unknown[]>([])
   const [userTeam, setUserTeam] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
@@ -207,13 +207,13 @@ export default function NewLotPage() {
         }
         
         // 4. Filtrer pour ne garder que les gestionnaires
-        const managers = teamMembers.filter((member: any) => 
+        const managers = teamMembers.filter((_member: unknown) => 
           member.user && member.user.role === 'gestionnaire'
         )
         console.log("👑 Managers in team:", managers)
         
         // 5. TOUJOURS s'assurer que l'utilisateur actuel est disponible s'il est gestionnaire
-        const currentUserExists = managers.find((member: any) => 
+        const currentUserExists = managers.find((_member: unknown) => 
           member.user.id === user.id
         )
         
@@ -235,7 +235,7 @@ export default function NewLotPage() {
         setTeamManagers(managers)
         
         // 6. Sélectionner l'utilisateur actuel par défaut s'il est gestionnaire
-        const currentUserAsMember = managers.find((member: any) => 
+        const currentUserAsMember = managers.find((_member: unknown) => 
           member.user.id === user.id
         )
         
@@ -446,7 +446,7 @@ export default function NewLotPage() {
         })
 
         const assignmentResults = await Promise.all(managerAssignmentPromises)
-        const successfulAssignments = assignmentResults.filter((result: any) => result !== null)
+        const successfulAssignments = assignmentResults.filter((_result: unknown) => result !== null)
         
         console.log("✅ Manager assignments completed:", {
           total: lotData.assignedLotManagers.length,
@@ -470,7 +470,7 @@ export default function NewLotPage() {
               return await contactService.addContactToLot(
                 result.id,
                 contact.id,
-                isPrimary
+                _isPrimary
               )
             } catch (error) {
               console.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
@@ -480,7 +480,7 @@ export default function NewLotPage() {
         )
 
         const contactAssignmentResults = await Promise.all(contactAssignmentPromises)
-        const successfulContactAssignments = contactAssignmentResults.filter((result: any) => result !== null)
+        const successfulContactAssignments = contactAssignmentResults.filter((_result: unknown) => result !== null)
         
         console.log("✅ Contact assignments completed:", {
           total: totalContacts,
@@ -513,7 +513,7 @@ export default function NewLotPage() {
   }
 
   // Fonction pour gérer la création d'un nouveau gestionnaire
-  const handleGestionnaireCreated = async (contactData: any) => {
+  const handleGestionnaireCreated = async (_contactData: unknown) => {
     try {
       console.log("🆕 Création d'un nouveau gestionnaire:", contactData)
       
@@ -725,7 +725,7 @@ export default function NewLotPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
                   {filteredBuildings.map((building) => {
                     const isSelected = lotData.selectedBuilding === building.id;
-                    const occupiedLots = building.lots?.filter((lot: any) => lot.status === 'occupied').length || 0;
+                    const occupiedLots = building.lots?.filter((_lot: unknown) => lot.status === 'occupied').length || 0;
                     
                     return (
                       <div
@@ -1009,7 +1009,7 @@ export default function NewLotPage() {
   }
 
   // Callbacks pour le composant ContactSelector - Interface mise à jour
-  const handleContactSelected = (contact: any, contactType: string, context?: { lotId?: string }) => {
+  const handleContactSelected = (contact: unknown, contactType: string, context?: { lotId?: string }) => {
     console.log('✅ Contact selected:', contact.name, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
@@ -1027,13 +1027,13 @@ export default function NewLotPage() {
       assignedContacts: {
         ...prev.assignedContacts,
         [contactType]: prev.assignedContacts[contactType as keyof typeof prev.assignedContacts].filter(
-          (contact: any) => contact.id !== contactId
+          (_contact: unknown) => contact.id !== contactId
         ),
       },
     }))
   }
 
-  const handleContactCreated = (contact: any, contactType: string, context?: { lotId?: string }) => {
+  const handleContactCreated = (contact: unknown, contactType: string, context?: { lotId?: string }) => {
     console.log('🆕 Contact created:', contact.name, 'type:', contactType)
     // Le contact créé est automatiquement ajouté par handleContactSelected
   }
@@ -1043,7 +1043,7 @@ export default function NewLotPage() {
     setIsLotManagerModalOpen(true)
   }
 
-  const addLotManager = (manager: any) => {
+  const addLotManager = (_manager: unknown) => {
     setLotData(prev => {
       const currentManagers = prev.assignedLotManagers || []
       // Vérifier si le gestionnaire n'est pas déjà assigné
@@ -1065,7 +1065,7 @@ export default function NewLotPage() {
     setIsLotManagerModalOpen(false)
   }
 
-  const removeLotManager = (managerId: string) => {
+  const removeLotManager = (_managerId: string) => {
     setLotData(prev => ({
       ...prev,
       assignedLotManagers: (prev.assignedLotManagers || []).filter(manager => manager.id !== managerId)

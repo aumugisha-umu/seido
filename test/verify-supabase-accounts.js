@@ -35,7 +35,7 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
-async function testAccount(supabase, email, password, expectedRole) {
+async function testAccount(supabase, email, _password, expectedRole) {
   log(`\nTest du compte: ${email}`, 'cyan');
 
   try {

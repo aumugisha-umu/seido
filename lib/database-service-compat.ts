@@ -147,7 +147,7 @@ export const userService = {
       }
 
       if (!response.data) {
-        const notFoundError = new Error(`User not found with ID: ${id}`)
+        const notFoundError = new Error(`User not found with ID: ${userId}`)
         console.error('❌ User not found:', { userId: userId })
         throw notFoundError
       }
@@ -163,7 +163,7 @@ export const userService = {
       return response.data
     } catch (error) {
       console.error('❌ Exception in userService.getById:', {
-        userId: id,
+        userId: userId,
         errorType: error?.constructor?.name || 'Unknown',
         message: error instanceof Error ? error.message : String(error)
       })
@@ -214,7 +214,7 @@ export const userService = {
     return unwrapResponse(response)
   },
 
-  async delete(id: string) {
+  async delete(_id: string) {
     const service = await getUserService()
     const response = await service.delete(id)
     if (!response.success) {
@@ -227,7 +227,7 @@ export const userService = {
     return true
   },
 
-  async findByEmail(email: string) {
+  async findByEmail(_email: string) {
     console.log('🔍 [USER-SERVICE-COMPAT] Finding user by email:', email)
     const service = await getUserService()
     const response = await service.getByEmail(email)
@@ -245,7 +245,7 @@ export const userService = {
     return response.data || null
   },
 
-  async findByAuthUserId(authUserId: string) {
+  async findByAuthUserId(_authUserId: string) {
     console.log('🔍 [USER-SERVICE-COMPAT] Finding user by auth_user_id:', authUserId)
     const service = await getUserService()
     const response = await service.getByAuthUserId(authUserId)
@@ -263,10 +263,10 @@ export const userService = {
     return response.data || null
   },
 
-  async getTeamUsers(teamId: string) {
-    console.log('🔍 [USER-SERVICE-COMPAT] Getting users for team:', teamId)
+  async getTeamUsers(_teamId: string) {
+    console.log('🔍 [USER-SERVICE-COMPAT] Getting users for team:', _teamId)
     const service = await getUserService()
-    const response = await service.getUsersByTeam(teamId)
+    const response = await service.getUsersByTeam(_teamId)
 
     if (!response.success) {
       console.error('❌ [USER-SERVICE-COMPAT] Error getting team users:', response.error)
@@ -288,7 +288,7 @@ export const userService = {
  * Note: Some methods are placeholders that will fallback to legacy implementation
  * until the new building service is fully implemented with all required features.
  */
-export const buildingService = {
+export const _buildingService = {
   async getAll() {
     const service = await getBuildingService()
     const response = await service.getAll()
@@ -304,11 +304,11 @@ export const buildingService = {
     }))
   },
 
-  async getTeamBuildings(teamId: string) {
-    console.log('🏢 [BUILDING-SERVICE-COMPAT] Getting buildings for team:', teamId)
+  async getTeamBuildings(_teamId: string) {
+    console.log('🏢 [BUILDING-SERVICE-COMPAT] Getting buildings for team:', _teamId)
 
     const service = await getBuildingService()
-    const response = await service.getByTeam(teamId)
+    const response = await service.getByTeam(_teamId)
 
     if (!response.success) {
       console.error('❌ [BUILDING-SERVICE-COMPAT] Error getting team buildings:', response.error)
@@ -329,7 +329,7 @@ export const buildingService = {
   },
 
   // Placeholder methods that will delegate to legacy implementation for now
-  async getById(id: string) {
+  async getById(_id: string) {
     const service = await getBuildingService()
     const response = await service.getById(id)
     return unwrapResponse(response)
@@ -347,7 +347,7 @@ export const buildingService = {
     return unwrapResponse(response)
   },
 
-  async delete(id: string) {
+  async delete(_id: string) {
     const service = await getBuildingService()
     const response = await service.delete(id)
     if (!response.success) {
@@ -371,7 +371,7 @@ export const lotService = {
     return unwrapArrayResponse(response)
   },
 
-  async getById(id: string) {
+  async getById(_id: string) {
     const service = await getLotService()
     const response = await service.getById(id)
     return unwrapResponse(response)
@@ -389,7 +389,7 @@ export const lotService = {
     return unwrapResponse(response)
   },
 
-  async delete(id: string) {
+  async delete(_id: string) {
     const service = await getLotService()
     const response = await service.delete(id)
     if (!response.success) {
@@ -403,9 +403,9 @@ export const lotService = {
   },
 
   // Placeholder methods for building-specific operations
-  async getBuildingLots(buildingId: string) {
+  async getBuildingLots(_buildingId: string) {
     const service = await getLotService()
-    const response = await service.getByBuilding(buildingId)
+    const response = await service.getByBuilding(_buildingId)
     return unwrapArrayResponse(response)
   }
 }
@@ -480,11 +480,11 @@ export const validateAssignment = (user: AssignmentUser): boolean => {
 
 export const getActiveUsersByAssignmentType = async (teamId: string, assignmentType: string): Promise<AssignmentUser[]> => {
   // For now, delegate to userService and filter
-  const users = await userService.getTeamUsers(teamId)
+  const users = await userService.getTeamUsers(_teamId)
   return filterUsersByRole(users as AssignmentUser[], assignmentType)
 }
 
-export const mapFrontendTypeToUserRole = (frontendType: string): { role: string; provider_category?: string } => {
+export const mapFrontendTypeToUserRole = (_frontendType: string): { role: string; provider_category?: string } => {
   switch (frontendType) {
     case 'manager':
       return { role: 'gestionnaire' }

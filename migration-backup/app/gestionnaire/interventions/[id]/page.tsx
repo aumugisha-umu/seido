@@ -189,13 +189,13 @@ const isBuildingWideIntervention = (intervention: InterventionDetail): boolean =
 }
 
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [quoteRequests, setQuoteRequests] = useState<any[]>([])
+  const [quoteRequests, setQuoteRequests] = useState<unknown[]>([])
 
   // Hook pour la gestion de l'annulation
   const cancellation = useInterventionCancellation()
@@ -210,7 +210,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     // TODO: Implémenter la logique d'archivage
   }
 
-  const handleStatusAction = (action: string) => {
+  const handleStatusAction = (_action: string) => {
     console.log('Status action:', action, 'for intervention:', intervention?.id)
     // TODO: Implémenter les actions selon le statut
   }
@@ -267,7 +267,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       console.log('✅ Contacts loaded:', contacts.length)
 
       // 3. Organiser les contacts par type (nouvelle architecture)
-      const getContactAssignmentType = (contact: any) => {
+      const getContactAssignmentType = (_contact: unknown) => {
         if (contact.role && contact.provider_category !== undefined) {
           return determineAssignmentType({
             id: contact.id,
@@ -280,21 +280,21 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       }
       
       const organizedContacts = {
-        locataires: contacts.filter((contact: any) => 
+        locataires: contacts.filter((_contact: unknown) => 
           getContactAssignmentType(contact) === 'tenant'
-        ).map((contact: any) => ({
+        ).map((_contact: unknown) => ({
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
-        syndics: contacts.filter((contact: any) => 
+        syndics: contacts.filter((_contact: unknown) => 
           getContactAssignmentType(contact) === 'syndic'
-        ).map((contact: any) => ({
+        ).map((_contact: unknown) => ({
           ...contact,
           inChat: false
         })),
-        autres: contacts.filter((contact: any) => 
+        autres: contacts.filter((_contact: unknown) => 
           !['tenant', 'syndic'].includes(getContactAssignmentType(contact))
-        ).map((contact: any) => ({
+        ).map((_contact: unknown) => ({
           ...contact,
           inChat: false
         }))
@@ -421,10 +421,10 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
 
         // 5. Créer les demandes de devis à partir des prestataires assignés
         const requests = interventionData.intervention_contacts
-          ?.filter((contact: any) => contact.role === 'prestataire')
-          ?.map((contact: any) => {
+          ?.filter((_contact: unknown) => contact.role === 'prestataire')
+          ?.map((_contact: unknown) => {
             // Vérifier si ce prestataire a déjà soumis un devis et récupérer son statut
-            const providerQuote = transformedIntervention.quotes.find((quote: any) => quote.providerId === contact.user.id)
+            const providerQuote = transformedIntervention.quotes.find((_quote: unknown) => quote.providerId === contact.user.id)
             const hasQuote = !!providerQuote
             
             // Déterminer le statut basé sur le devis reçu

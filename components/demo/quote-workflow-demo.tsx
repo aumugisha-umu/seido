@@ -90,7 +90,7 @@ export function QuoteWorkflowDemo() {
     )
   }
 
-  const getStepColor = (status: string) => {
+  const getStepColor = (_status: string) => {
     switch (status) {
       case "completed":
         return "bg-emerald-50 border-emerald-200 text-emerald-800"

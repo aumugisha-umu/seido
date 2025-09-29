@@ -35,7 +35,7 @@ async function testAuth(account) {
     await page.waitForSelector('input#email', { timeout: 5000 });
     await page.type('input#email', account.email);
     await page.waitForSelector('input#password', { timeout: 5000 });
-    await page.type('input#password', account.password);
+    await page.type('input#password', account._password);
 
     // 3. Submit
     await page.click('button[type="submit"]');

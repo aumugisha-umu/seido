@@ -85,12 +85,12 @@ class AuthService {
     return createBrowserSupabaseClient()
   }
   // Inscription - Crée auth user + profil + équipe personnelle
-  async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
+  async signUp({ email, _password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
       // Créer l'utilisateur auth
       const { data: authData, error: authError } = await this.getSupabaseClient().auth.signUp({
         email,
-        password,
+        _password,
         options: {
           data: {
             full_name: name,
@@ -276,7 +276,7 @@ class AuthService {
     try {
       const { data, error } = await this.getSupabaseClient().auth.signInWithPassword({
         email,
-        password,
+        _password,
       })
 
       if (error || !data.user) {
@@ -443,7 +443,7 @@ class AuthService {
   }
 
   // Réinitialiser le mot de passe (via API serveur comme les invitations)
-  async resetPassword(email: string): Promise<{ error: AuthError | null }> {
+  async resetPassword(_email: string): Promise<{ error: AuthError | null }> {
     console.log('🔄 [RESET-PASSWORD-SERVICE] Starting server-side password reset for:', email)
     console.log('🔧 [RESET-PASSWORD-SERVICE] Client environment:', {
       currentUrl: typeof window !== 'undefined' ? window.location.href : 'server-side',
@@ -526,7 +526,7 @@ class AuthService {
   }
 
   // Renvoyer l'email de confirmation
-  async resendConfirmation(email: string): Promise<{ error: AuthError | null }> {
+  async resendConfirmation(_email: string): Promise<{ error: AuthError | null }> {
     const { error } = await this.getSupabaseClient().auth.resend({
       type: 'signup',
       email: email,
@@ -819,7 +819,7 @@ class AuthService {
         return { success: false, error: result.error }
       }
 
-      console.log('✅ User invited successfully:', result.userId)
+      console.log('✅ User invited successfully:', result._userId)
       return { 
         success: true, 
         userId: result.userId 

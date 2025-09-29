@@ -13,11 +13,11 @@ import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-
  * Accessible uniquement aux gestionnaires en développement
  */
 
-async function createSampleData(teamId: string) {
+async function createSampleData(_teamId: string) {
   'use server'
 
-  console.log('🔧 [DEBUG] Creating sample data for team:', teamId)
-  const result = await createSampleBuildingsForTeam({ teamId, force: false })
+  console.log('🔧 [DEBUG] Creating sample data for team:', _teamId)
+  const result = await createSampleBuildingsForTeam({ _teamId, force: false })
   console.log('🔧 [DEBUG] Sample data creation result:', result)
   return result
 }
@@ -46,7 +46,7 @@ export default async function DebugDataPage() {
 
   // Diagnostic complet des données
   let dataStatus = { buildings: 0, users: 0, interventions: 0, hasError: true }
-  let diagnosticDetails: any = {}
+  let diagnosticDetails: unknown = {}
 
   try {
     dataStatus = await checkTeamDataStatus(userTeamId)

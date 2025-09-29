@@ -18,14 +18,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const teamId = searchParams.get('teamId')
 
-    if (!teamId) {
+    if (!_teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
       )
     }
 
-    console.log('📧 [TEAM-INVITATIONS] Fetching all invitations for team:', teamId)
+    console.log('📧 [TEAM-INVITATIONS] Fetching all invitations for team:', _teamId)
 
     // Récupérer toutes les invitations de cette équipe (tous statuts)
     const { data: invitations, error } = await supabaseAdmin
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         expires_at,
         invited_at
       `)
-      .eq('team_id', teamId)
+      .eq('team_id', _teamId)
       .order('created_at', { ascending: false })
 
     if (error) {

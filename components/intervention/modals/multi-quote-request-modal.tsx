@@ -37,7 +37,7 @@ interface MultiQuoteRequestModalProps {
   selectedProviders: Provider[]
   individualMessages: Record<string, string>
   providers: Provider[]
-  onNotesChange: (notes: string) => void
+  onNotesChange: (_notes: string) => void
   onProviderToggle: (provider: Provider) => void
   onIndividualMessageChange: (providerId: string, message: string) => void
   onSubmit: () => void
@@ -66,7 +66,7 @@ export const MultiQuoteRequestModal = ({
   // const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
 
   // Callback pour la sélection de contact via le ContactSelector
-  const handleContactSelect = (contactId: string) => {
+  const handleContactSelect = (_contactId: string) => {
     const provider = providers.find(p => p.id === contactId)
     if (provider) {
       onProviderToggle(provider)

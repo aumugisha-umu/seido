@@ -56,8 +56,8 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   const [stats, setStats] = useState<any>(null)
 
   const {
-    teamId,
-    userId,
+    _teamId,
+    _userId,
     entityType,
     actionType,
     status,
@@ -69,7 +69,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   } = options
 
   const fetchActivityLogs = async () => {
-    if (!user?.id || !teamId) {
+    if (!user?.id || !_teamId) {
       setLoading(false)
       return
     }
@@ -81,8 +81,8 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
         limit: limit.toString(),
       })
       
-      if (teamId) params.append('teamId', teamId)
-      if (userId) params.append('userId', userId)
+      if (_teamId) params.append('teamId', _teamId)
+      if (_userId) params.append('userId', _userId)
       if (entityType) params.append('entityType', entityType)
       if (actionType) params.append('actionType', actionType)
       if (status) params.append('status', status)
@@ -113,7 +113,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   }
 
   const fetchStats = async () => {
-    if (!teamId) return
+    if (!_teamId) return
 
     try {
       const response = await fetch(`/api/activity-stats?teamId=${teamId}&period=7d`)
@@ -135,10 +135,10 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   // Fetch initial data
   useEffect(() => {
     fetchActivityLogs()
-    if (teamId) {
+    if (_teamId) {
       fetchStats()
     }
-  }, [user?.id, teamId, userId, entityType, actionType, status, startDate, endDate, limit])
+  }, [user?.id, _teamId, _userId, entityType, actionType, status, startDate, endDate, limit])
 
   // Auto-refresh
   useEffect(() => {
@@ -146,13 +146,13 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
 
     const interval = setInterval(() => {
       fetchActivityLogs()
-      if (teamId) {
+      if (_teamId) {
         fetchStats()
       }
     }, refreshInterval)
     
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, teamId, userId, entityType, actionType, status, startDate, endDate, limit])
+  }, [autoRefresh, refreshInterval, user?.id, _teamId, _userId, entityType, actionType, status, startDate, endDate, limit])
 
   return {
     activities,

@@ -66,7 +66,7 @@ export function PropertyNameInput({
     }
   }, [placeholder, entityType, buildingsCount])
 
-  const handleSuggestionClick = (suggestion: string) => {
+  const handleSuggestionClick = (_suggestion: string) => {
     onChange(suggestion)
   }
 

@@ -185,7 +185,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }, { status: 403 })
     }
 
-    let updateFields: any = {}
+    let updateFields: unknown = {}
 
     // Handle specific actions
     if (action === 'cancel') {

@@ -151,7 +151,7 @@ interface InterventionDetailsProps {
 }
 
 export default function PrestatairInterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false)
@@ -196,7 +196,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
 
       // Vérifier si le prestataire a un devis accepté pour cette intervention
       const providerQuote = interventionData.intervention_quotes?.find(
-        (quote: any) => quote.provider_id === user.id
+        (_quote: unknown) => quote.provider_id === user.id
       )
       const hasAcceptedQuote = providerQuote?.status === 'approved'
 
@@ -249,8 +249,8 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
 
         // Récupérer aussi les autres prestataires avec devis accepté
         const acceptedProviderIds = interventionData.intervention_quotes
-          ?.filter((quote: any) => quote.status === 'approved')
-          ?.map((quote: any) => quote.provider_id) || []
+          ?.filter((_quote: unknown) => quote.status === 'approved')
+          ?.map((_quote: unknown) => quote.provider_id) || []
 
         console.log('👥 [Provider] Providers with accepted quotes:', acceptedProviderIds)
 
@@ -258,11 +258,11 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         organizedContacts = {
           // Tous les locataires du bien
           locataires: allContacts
-            .filter((contact: any) => {
+            .filter((_contact: unknown) => {
               const type = determineAssignmentType(contact)
               return type === 'tenant'
             })
-            .map((contact: any) => ({
+            .map((_contact: unknown) => ({
               ...contact,
               inChat: true // Les locataires sont dans le chat pour un prestataire accepté
             })),
@@ -271,11 +271,11 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           autres: [
             // D'abord les autres prestataires avec devis accepté
             ...interventionData.intervention_quotes
-              ?.filter((quote: any) =>
+              ?.filter((_quote: unknown) =>
                 quote.status === 'approved' &&
                 quote.provider_id !== user.id
               )
-              ?.map((quote: any) => ({
+              ?.map((_quote: unknown) => ({
                 id: quote.provider_id,
                 name: quote.provider.name,
                 email: quote.provider.email,
@@ -289,11 +289,11 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
 
             // Ensuite les gestionnaires du bien
             ...allContacts
-              .filter((contact: any) => {
+              .filter((_contact: unknown) => {
                 const type = determineAssignmentType(contact)
                 return type === 'manager'
               })
-              .map((contact: any) => ({
+              .map((_contact: unknown) => ({
                 ...contact,
                 inChat: true // Les gestionnaires sont toujours dans le chat
               }))
@@ -493,7 +493,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     )
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (_status: string) => {
     switch (status.toLowerCase()) {
       case "en_attente":
       case "pending":
@@ -509,7 +509,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     }
   }
 
-  const getUrgencyColor = (urgency: string) => {
+  const getUrgencyColor = (_urgency: string) => {
     switch (urgency.toLowerCase()) {
       case "urgent":
       case "urgente":
@@ -534,7 +534,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     console.log('Archive not available for providers')
   }
 
-  const handleStatusAction = (action: string) => {
+  const handleStatusAction = (_action: string) => {
     // Actions gérées par le panel d'actions
     console.log('Status action:', action)
   }

@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         notificationMessage = `Des créneaux ont été proposés pour votre intervention "${intervention.title}". Veuillez choisir celui qui vous convient le mieux.`
         
         // Store proposed time slots
-        const timeSlots = proposedSlots.map((slot: any) => ({
+        const timeSlots = proposedSlots.map((_slot: unknown) => ({
           intervention_id: interventionId,
           slot_date: slot.date,
           start_time: slot.startTime,
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update intervention
-    const updateData: any = {
+    const updateData: unknown = {
       status: newStatus,
       updated_at: new Date().toISOString()
     }

@@ -6,15 +6,14 @@ import {
   MessageCircle
 } from "lucide-react"
 import { requireRole } from "@/lib/dal"
-// import { createServerUserService } from '@/lib/services' // TODO: implement when ready
-
-
+import {
+  createServerUserService,
+  createServerLotService,
+  createServerBuildingService,
+  createServerInterventionService
+} from '@/lib/services'
 
 import { LocataireDashboardClient } from "./locataire-dashboard-client"
-
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
 
 
 /**
@@ -31,8 +30,14 @@ export default async function LocataireDashboard() {
   // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
   const user = await requireRole('locataire')
 
+  // Initialize services
+  const userService = await createServerUserService()
+  const lotService = await createServerLotService()
+  const buildingService = await createServerBuildingService()
+  const interventionService = await createServerInterventionService()
+
   // ✅ LAYER 2: Data Layer Security - Récupération données locataire
-  let tenantData: { id: string; building_id?: string; building?: any; reference: string; category?: string; floor?: number; rooms?: string; surface_area?: number; charges_amount?: number } | null = null
+  let tenantData: { id: string; building_id?: string; building?: unknown; reference: string; category?: string; floor?: number; rooms?: string; surface_area?: number; charges_amount?: number } | null = null
   let tenantInterventions: { id: string; title: string; description: string; status: string; created_at: string; urgency_level?: string }[] = []
   let pendingActions: { id: string; type: string; title: string; description: string; priority: string; href: string }[] = []
   let error: string | null = null
@@ -41,19 +46,29 @@ export default async function LocataireDashboard() {
     console.log('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data for user:', user.id)
 
     // Récupérer les données du locataire
-    const userData = await userService.getById(user.id)
-    if (userData && userData.lot_id) {
-      // Récupérer le lot du locataire
-      tenantData = await lotService.getById(userData.lot_id)
+    const userResult = await userService.getById(user.id)
+    if (userResult.success && userResult.data && userResult.data.lot_id) {
+      const userData = userResult.data
 
-      if (tenantData && tenantData.building_id) {
-        // Récupérer les informations du bâtiment
-        const building = await buildingService.getById(tenantData.building_id)
-        tenantData.building = building
+      // Récupérer le lot du locataire
+      const lotResult = await lotService.getById(userData.lot_id)
+      if (lotResult.success && lotResult.data) {
+        tenantData = lotResult.data
+
+        if (tenantData.building_id) {
+          // Récupérer les informations du bâtiment
+          const buildingResult = await buildingService.getById(tenantData.building_id)
+          if (buildingResult.success && buildingResult.data) {
+            tenantData.building = buildingResult.data
+          }
+        }
       }
 
       // Récupérer les interventions du locataire
-      tenantInterventions = await interventionService.getTenantInterventions(user.id)
+      // TODO: Adapter quand InterventionService sera prêt
+      // const interventionsResult = await interventionService.getTenantInterventions(user.id)
+      // tenantInterventions = interventionsResult.success ? interventionsResult.data : []
+      tenantInterventions = [] // Temporairement vide
 
       // Calculer les actions en attente
       pendingActions = tenantInterventions.filter(i =>

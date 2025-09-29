@@ -20,7 +20,7 @@ const CustomSelectItem = ({
   isSelected, 
   keepOpen = false,
   ...props 
-}: any) => {
+}: unknown) => {
   return (
     <div
       className={cn(
@@ -52,11 +52,11 @@ const CustomSelectItem = ({
 }
 
 interface ContactSelectorProps {
-  contacts: any[]
+  contacts: unknown[]
   selectedContactId?: string
   selectedContactIds?: string[]
-  onContactSelect: (contactId: string) => void
-  onContactCreated: (contact: any) => void
+  onContactSelect: (_contactId: string) => void
+  onContactCreated: (_contact: unknown) => void
   contactType: 'gestionnaire' | 'prestataire'
   placeholder: string
   isLoading?: boolean
@@ -77,7 +77,7 @@ const ContactSelector = ({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const handleSelectChange = (value: string) => {
+  const handleSelectChange = (_value: string) => {
     if (value === "create-new") {
       setIsModalOpen(true)
     } else {
@@ -86,16 +86,16 @@ const ContactSelector = ({
   }
 
   // Fonction pour vérifier si un contact est sélectionné
-  const isContactSelected = (contactId: string) => {
+  const isContactSelected = (_contactId: string) => {
     // Comportement unifié : tous les types utilisent maintenant selectedContactIds
     return selectedContactIds.map(id => String(id)).includes(String(contactId))
   }
 
-  const handleContactCreated = async (contactData: any) => {
+  const handleContactCreated = async (_contactData: unknown) => {
     try {
       console.log('🆕 Création d\'un contact:', contactData)
       
-      if (!teamId) {
+      if (!_teamId) {
         console.error("❌ No team found")
         return
       }

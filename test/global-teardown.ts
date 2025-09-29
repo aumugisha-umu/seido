@@ -95,7 +95,7 @@ async function generateSummaryReport(testDir: string, timestamp: string) {
   const reportPath = path.join(testDir, 'reports', `summary-${timestamp}.md`)
 
   // Lire les résultats JSON si disponibles
-  let testResults: any = {}
+  let testResults: unknown = {}
   const jsonPath = path.join(testDir, 'reports', 'test-results.json')
   if (fs.existsSync(jsonPath)) {
     testResults = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'))
@@ -154,7 +154,7 @@ ${roles.map(role => {
 }).filter(Boolean).join('\n')}
 
 ## Test Suites
-${testResults.results?.map((r: any) => `
+${testResults.results?.map((_r: unknown) => `
 ### ${r.suite}
 - Passed: ${r.passed}
 - Failed: ${r.failed}
@@ -211,7 +211,7 @@ function countFiles(dir: string, extension: string): number {
 /**
  * Nettoie les fichiers temporaires
  */
-function cleanupTempFiles(testDir: string) {
+function cleanupTempFiles(_testDir: string) {
   const tempPatterns = [
     '*.tmp',
     '*.log',
@@ -240,7 +240,7 @@ function cleanupTempFiles(testDir: string) {
 /**
  * Optimise les screenshots (compression)
  */
-async function optimizeScreenshots(testDir: string) {
+async function optimizeScreenshots(_testDir: string) {
   const screenshotDir = path.join(testDir, 'screenshots')
 
   if (!fs.existsSync(screenshotDir)) return
@@ -265,7 +265,7 @@ async function optimizeScreenshots(testDir: string) {
 /**
  * Calcule la taille d'un dossier
  */
-function getDirectorySize(dir: string): number {
+function getDirectorySize(_dir: string): number {
   if (!fs.existsSync(dir)) return 0
 
   let size = 0
@@ -288,7 +288,7 @@ function getDirectorySize(dir: string): number {
 /**
  * Vérifie l'espace disque et nettoie si nécessaire
  */
-async function checkAndCleanupDiskSpace(testDir: string) {
+async function checkAndCleanupDiskSpace(_testDir: string) {
   const archiveDir = path.join(testDir, 'archives')
 
   if (!fs.existsSync(archiveDir)) return

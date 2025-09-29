@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention to final status
-    const updateData: any = {
+    const updateData: unknown = {
       status: 'cloturee_par_gestionnaire' as Database['public']['Enums']['intervention_status'],
       manager_comment: updatedComment,
       finalized_date: new Date().toISOString(),

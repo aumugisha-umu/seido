@@ -34,7 +34,7 @@ function getDocumentType(mimeType: string, filename: string): string {
 }
 
 // Generate unique filename to avoid conflicts
-function generateUniqueFilename(originalFilename: string): string {
+function generateUniqueFilename(_originalFilename: string): string {
   const timestamp = Date.now()
   const randomString = Math.random().toString(36).substring(2, 8)
   const extension = originalFilename.split('.').pop()

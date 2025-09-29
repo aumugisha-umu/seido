@@ -89,7 +89,7 @@ export class AuthHelper {
     }
 
     // Remplir le mot de passe
-    const passwordFilled = await fillFirstAvailable(this.page, SELECTORS.auth.passwordInput, user.password)
+    const passwordFilled = await fillFirstAvailable(this.page, SELECTORS.auth.passwordInput, user._password)
     if (!passwordFilled) {
       throw new Error('Impossible de remplir le champ mot de passe')
     }

@@ -23,11 +23,11 @@ interface AuthContextType {
   signUp: (data: { email: string; password: string; name: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   completeProfile: (data: { firstName: string; lastName: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+  resetPassword: (_email: string) => Promise<{ error: AuthError | null }>
   updateProfile: (updates: Partial<AuthUser>) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   refreshUser: () => Promise<void>
-  resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>
-  getCurrentAuthSession: () => Promise<{ authUser: any | null; error: AuthError | null }>
+  resendConfirmation: (_email: string) => Promise<{ error: AuthError | null }>
+  getCurrentAuthSession: () => Promise<{ authUser: unknown | null; error: AuthError | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -314,7 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = async (_email: string) => {
     return await authService.resetPassword(email)
   }
 
@@ -330,7 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await getCurrentUser()
   }
 
-  const resendConfirmation = async (email: string) => {
+  const resendConfirmation = async (_email: string) => {
     return await authService.resendConfirmation(email)
   }
 

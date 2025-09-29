@@ -193,11 +193,11 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       let query = this.supabase
         .from('activity_logs')
         .select('action_type, entity_type, status, created_at, user_id')
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
         .gte('created_at', startDate.toISOString())
 
-      if (userId) {
-        query = query.eq('user_id', userId)
+      if (_userId) {
+        query = query.eq('user_id', _userId)
       }
 
       const { data, error } = await query
@@ -242,7 +242,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
           .sort((a, b) => a.date.localeCompare(b.date))
 
         stats.topUsers = Object.entries(userActivity)
-          .map(([userId, count]) => ({ userId, count }))
+          .map(([_userId, count]) => ({ _userId, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10)
 
@@ -268,7 +268,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
   /**
    * Get team statistics
    */
-  async getTeamStats(teamId: string): Promise<{ success: true; data: TeamStats }> {
+  async getTeamStats(_teamId: string): Promise<{ success: true; data: TeamStats }> {
     const cacheKey = `team_stats_${teamId}`
     const cached = this.getFromCache(cacheKey)
     if (cached) {
@@ -278,10 +278,10 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
     try {
       // Get team data with related counts
       const [teamResult, membersResult, buildingsResult, interventionsResult] = await Promise.all([
-        this.supabase.from('teams').select('*').eq('id', teamId).single(),
-        this.supabase.from('team_members').select('id, user_id').eq('team_id', teamId),
-        this.supabase.from('buildings').select('id').eq('team_id', teamId),
-        this.supabase.from('interventions').select('id, status, created_at, updated_at').eq('team_id', teamId)
+        this.supabase.from('teams').select('*').eq('id', _teamId).single(),
+        this.supabase.from('team_members').select('id, user_id').eq('team_id', _teamId),
+        this.supabase.from('buildings').select('id').eq('team_id', _teamId),
+        this.supabase.from('interventions').select('id, status, created_at, updated_at').eq('team_id', _teamId)
       ])
 
       if (teamResult.error) throw teamResult.error
@@ -310,13 +310,13 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       const { data: lastActivity } = await this.supabase
         .from('activity_logs')
         .select('created_at')
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
 
       const stats: TeamStats = {
-        teamId,
+        _teamId,
         memberCount: members.length,
         buildingsCount: buildings.length,
         interventionsCount: interventions.length,
@@ -338,7 +338,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
   /**
    * Get user statistics
    */
-  async getUserStats(userId: string): Promise<{ success: true; data: UserStats }> {
+  async getUserStats(_userId: string): Promise<{ success: true; data: UserStats }> {
     const cacheKey = `user_stats_${userId}`
     const cached = this.getFromCache(cacheKey)
     if (cached) {
@@ -350,7 +350,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       const { data: user, error: userError } = await this.supabase
         .from('users')
         .select('id, role, last_login_at')
-        .eq('id', userId)
+        .eq('id', _userId)
         .single()
 
       if (userError) throw userError
@@ -360,7 +360,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         this.supabase
           .from('interventions')
           .select('id', { count: 'exact' })
-          .eq('created_by', userId),
+          .eq('created_by', _userId),
         this.supabase
           .from('interventions')
           .select('id', { count: 'exact' })
@@ -369,7 +369,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         this.supabase
           .from('activity_logs')
           .select('id, created_at', { count: 'exact' })
-          .eq('user_id', userId)
+          .eq('user_id', _userId)
           .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       ])
 
@@ -377,10 +377,10 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       const { data: teamMemberships } = await this.supabase
         .from('team_members')
         .select('team_id')
-        .eq('user_id', userId)
+        .eq('user_id', _userId)
 
       const stats: UserStats = {
-        userId,
+        _userId,
         interventionsCreated: createdResult.count || 0,
         interventionsCompleted: completedResult.count || 0,
         avgResponseTime: 0, // Would need more detailed tracking
@@ -418,12 +418,12 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
       // Get activity stats
       const activityStatsResult = teamId
-        ? await this.getActivityStats(teamId)
+        ? await this.getActivityStats(_teamId)
         : await this.getActivityStats('global') // Global stats for admin
 
       // Get team stats (limited for performance)
       const teamsResult = teamId
-        ? [await this.getTeamStats(teamId)]
+        ? [await this.getTeamStats(_teamId)]
         : [] // For global dashboard, we'd need to implement top teams
 
       const dashboardStats: DashboardStats = {
@@ -465,7 +465,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
   /**
    * Private helper methods
    */
-  private getFromCache(key: string): any | null {
+  private getFromCache(_key: string): unknown | null {
     const cached = this.statsCache.get(key)
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
       return cached.data
@@ -474,7 +474,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
     return null
   }
 
-  private setToCache(key: string, data: any, ttl: number = this.DEFAULT_TTL) {
+  private setToCache(key: string, data: unknown, ttl: number = this.DEFAULT_TTL) {
     this.statsCache.set(key, {
       data,
       timestamp: Date.now(),
@@ -482,7 +482,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
     })
   }
 
-  private getRolePermissions(role: string): string[] {
+  private getRolePermissions(_role: string): string[] {
     const permissions: Record<string, string[]> = {
       admin: ['read', 'write', 'delete', 'manage_users', 'manage_teams', 'system_stats'],
       gestionnaire: ['read', 'write', 'manage_buildings', 'manage_interventions'],

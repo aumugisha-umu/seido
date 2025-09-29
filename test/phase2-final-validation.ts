@@ -56,7 +56,7 @@ function execCommand(command: string, silent: boolean = false): string {
       stdio: silent ? 'pipe' : 'inherit'
     });
     return output;
-  } catch (error: any) {
+  } catch (_error: unknown) {
     if (silent) {
       return error.stdout || error.message;
     }
@@ -189,7 +189,7 @@ function testPerformanceMetrics() {
       const serverPath = path.join(buildPath, 'server');
       const staticPath = path.join(buildPath, 'static');
 
-      const getDirectorySize = (dirPath: string): number => {
+      const getDirectorySize = (_dirPath: string): number => {
         let size = 0;
         if (fs.existsSync(dirPath)) {
           const files = fs.readdirSync(dirPath);
@@ -326,7 +326,7 @@ function testComponentHierarchy() {
   let clientComponents = 0;
   let serverComponents = 0;
 
-  function analyzeComponents(dir: string) {
+  function analyzeComponents(_dir: string) {
     if (fs.existsSync(dir)) {
       const files = fs.readdirSync(dir);
       files.forEach(file => {

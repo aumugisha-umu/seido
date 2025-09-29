@@ -45,7 +45,7 @@ export class ScreenshotHelper {
   /**
    * Capture d'écran automatique avant action critique
    */
-  async captureBeforeAction(actionDescription: string) {
+  async captureBeforeAction(_actionDescription: string) {
     await this.captureStep(`before_${actionDescription}`, {
       annotations: [{
         type: 'step',

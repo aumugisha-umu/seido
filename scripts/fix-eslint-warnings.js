@@ -23,20 +23,20 @@ function fixUnescapedEntities(content) {
   // This regex captures text between JSX tags
   fixed = fixed.replace(/>([^<{]+)</g, (match, text) => {
     // Skip if already contains escaped entities or JSX expressions
-    if (text.includes('&apos;') || text.includes('&quot;') ||
+    if (text.includes(''') || text.includes('"') ||
         text.includes('&lsquo;') || text.includes('&ldquo;')) {
       return match;
     }
 
     let newText = text;
-    // Replace single quotes with &apos;
+    // Replace single quotes with '
     if (text.includes("'")) {
-      newText = newText.replace(/'/g, "&apos;");
+      newText = newText.replace(/'/g, "'");
       changesMade++;
     }
-    // Replace double quotes with &quot;
+    // Replace double quotes with "
     if (text.includes('"')) {
-      newText = newText.replace(/"/g, "&quot;");
+      newText = newText.replace(/"/g, """);
       changesMade++;
     }
 

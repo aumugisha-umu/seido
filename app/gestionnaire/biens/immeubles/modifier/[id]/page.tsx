@@ -28,7 +28,7 @@ interface BuildingInfo {
 }
 
 export default function EditBuildingPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
+  const _router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const { teamStatus } = useTeamStatus()
@@ -306,7 +306,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       {/* Page Title */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          Modifier l&apos;immeuble
+          Modifier l'immeuble
         </h1>
         <p className="text-gray-600 mt-1">
           Modifiez les informations de l'immeuble "{building?.name}"
@@ -332,7 +332,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
 
         <Card>
           <CardHeader>
-            <CardTitle>Informations de l&apos;immeuble</CardTitle>
+            <CardTitle>Informations de l'immeuble</CardTitle>
           </CardHeader>
           <CardContent>
             {/* TODO: Migrer vers le nouveau système de building_contacts */}

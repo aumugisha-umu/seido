@@ -86,7 +86,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get intervention with all relations (lot, building, users, contacts, documents)
    */
-  async findByIdWithRelations(id: string) {
+  async findByIdWithRelations(_id: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -172,7 +172,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions by tenant (user who requested)
    */
-  async findByTenant(tenantId: string) {
+  async findByTenant(_tenantId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -183,7 +183,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         ),
         assigned_to_user:assigned_to(id, name, email, role, provider_category)
       `)
-      .eq('requested_by', tenantId)
+      .eq('requested_by', _tenantId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -196,7 +196,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions by lot
    */
-  async findByLot(lotId: string) {
+  async findByLot(_lotId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -208,7 +208,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         requested_by_user:requested_by(id, name, email, role),
         assigned_to_user:assigned_to(id, name, email, role, provider_category)
       `)
-      .eq('lot_id', lotId)
+      .eq('lot_id', _lotId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -221,7 +221,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions assigned to a provider
    */
-  async findByProvider(providerId: string) {
+  async findByProvider(_providerId: string) {
     // First find interventions directly assigned
     const directQuery = this.supabase
       .from(this.tableName)
@@ -304,12 +304,12 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions for a building (all lots in the building)
    */
-  async findByBuilding(buildingId: string) {
+  async findByBuilding(_buildingId: string) {
     // First get all lots for this building
     const { data: lots, error: lotsError } = await this.supabase
       .from('lots')
       .select('id')
-      .eq('building_id', buildingId)
+      .eq('building_id', _buildingId)
 
     if (lotsError) {
       return this.handleError(lotsError)
@@ -406,7 +406,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     // Also update the main assigned_to field if primary
-    if (isPrimary) {
+    if (_isPrimary) {
       await this.update(interventionId, { assigned_to: providerId })
     }
 
@@ -486,7 +486,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get documents for an intervention
    */
-  async getDocuments(interventionId: string) {
+  async getDocuments(_interventionId: string) {
     const { data, error } = await this.supabase
       .from('intervention_documents')
       .select(`

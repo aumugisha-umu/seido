@@ -22,7 +22,7 @@ export function ChatsCard({ chats }: ChatsCardProps) {
   const groupChat = chats.find((chat) => chat.type === "group")
   const individualChats = chats.filter((chat) => chat.type === "individual")
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (_role: string) => {
     switch (role) {
       case "Locataire":
         return "bg-green-100 text-green-800"

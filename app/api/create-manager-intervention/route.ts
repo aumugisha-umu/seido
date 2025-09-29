@@ -158,16 +158,16 @@ export async function POST(request: NextRequest) {
     if (selectedLotId) {
       // Lot-specific intervention
       lotId = selectedLotId.toString()
-      console.log("🏠 Creating lot-specific intervention for lot ID:", lotId)
+      console.log("🏠 Creating lot-specific intervention for lot ID:", _lotId)
       
-      if (!lotId) {
+      if (!_lotId) {
         return NextResponse.json({
           success: false,
           error: 'ID du lot invalide'
         }, { status: 400 })
       }
 
-      const lot = await lotService.getById(lotId)
+      const lot = await lotService.getById(_lotId)
       if (!lot) {
         return NextResponse.json({
           success: false,
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
             ),
             is_primary
           `)
-          .eq('lot_id', lotId)
+          .eq('lot_id', _lotId)
           .or('end_date.is.null,end_date.gt.now()') // Contacts actifs
 
         if (tenantContactData && tenantContactData.length > 0) {
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
           
           if (tenantContact?.user) {
             tenantId = tenantContact.user.id
-            console.log("✅ Found tenant from lot_contacts:", tenantId)
+            console.log("✅ Found tenant from lot_contacts:", _tenantId)
           } else {
             console.log("ℹ️ No tenant found in lot_contacts")
           }
@@ -222,16 +222,16 @@ export async function POST(request: NextRequest) {
     } else if (selectedBuildingId) {
       // Building-wide intervention
       buildingId = selectedBuildingId.toString()
-      console.log("🏢 Creating building-wide intervention for building ID:", buildingId)
+      console.log("🏢 Creating building-wide intervention for building ID:", _buildingId)
       
-      if (!buildingId) {
+      if (!_buildingId) {
         return NextResponse.json({
           success: false,
           error: "ID du bâtiment invalide"
         }, { status: 400 })
       }
 
-      const building = await buildingService.getById(buildingId)
+      const building = await buildingService.getById(_buildingId)
       if (!building) {
         return NextResponse.json({
           success: false,
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map frontend values to database enums
-    const mapInterventionType = (frontendType: string): Database['public']['Enums']['intervention_type'] => {
+    const mapInterventionType = (_frontendType: string): Database['public']['Enums']['intervention_type'] => {
       const typeMapping: Record<string, Database['public']['Enums']['intervention_type']> = {
         'maintenance': 'autre',
         'plumbing': 'plomberie',
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
       return typeMapping[frontendType] || 'autre'
     }
 
-    const mapUrgencyLevel = (frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
+    const mapUrgencyLevel = (_frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
       const urgencyMapping: Record<string, Database['public']['Enums']['intervention_urgency']> = {
         'low': 'basse',
         'medium': 'normale',
@@ -315,7 +315,7 @@ export async function POST(request: NextRequest) {
     console.log("🔍 Analyse des conditions pour déterminer le statut:", {
       hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
       expectsQuote,
-      hasTenant: !!tenantId,
+      hasTenant: !!_tenantId,
       onlyOneManager: selectedManagerIds.length === 1,
       noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
       schedulingType,
@@ -350,7 +350,7 @@ export async function POST(request: NextRequest) {
       type: mapInterventionType(type || ''),
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
-      tenant_id: tenantId, // Can be null for manager-created interventions
+      tenant_id: _tenantId, // Can be null for manager-created interventions
       // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
       team_id: interventionTeamId,
       status: interventionStatus, // ✅ NOUVEAU: Statut déterminé selon les règles métier
@@ -362,12 +362,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Add lot_id only if it exists (for lot-specific interventions)
-    if (lotId) {
+    if (_lotId) {
       interventionData.lot_id = lotId
     }
 
     // Add building_id only if it exists (for building-wide interventions)  
-    if (buildingId) {
+    if (_buildingId) {
       interventionData.building_id = buildingId
     }
 
@@ -552,7 +552,7 @@ export async function POST(request: NextRequest) {
 
     // Store additional metadata in manager_comment
     const managerCommentParts = []
-    if (buildingId && !lotId) managerCommentParts.push('Intervention sur bâtiment entier')
+    if (buildingId && !_lotId) managerCommentParts.push('Intervention sur bâtiment entier')
     if (location) managerCommentParts.push(`Localisation: ${location}`)
     if (expectsQuote) managerCommentParts.push('Devis requis')
     if (globalMessage) managerCommentParts.push(`Instructions: ${globalMessage}`)

@@ -32,7 +32,7 @@ class TestUserRepository extends BaseRepository<User, any, any> {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected async validate(data: any): Promise<void> {
+  protected async validate(_data: unknown): Promise<void> {
     validateRequired(data, ['email', 'name', 'role'])
     validateEmail(data.email)
   }

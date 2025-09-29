@@ -47,7 +47,7 @@ test.describe('Authentication Migration Validation', () => {
 
       // Step 2: Fill login form
       await page.fill('input[type="email"]', account.email);
-      await page.fill('input[type="password"]', account.password);
+      await page.fill('input[type="password"]', account._password);
 
       // Step 3: Submit and wait for redirect
       await Promise.all([
@@ -108,7 +108,7 @@ test.describe('Authentication Migration Validation', () => {
 
     // Cache endpoint is optional but should not error if present
     if (response.ok()) {
-      const data = await response.json();
+      const _data = await response.json();
       console.log('Cache metrics:', data);
     }
   });
@@ -133,7 +133,7 @@ test.describe('Dashboard Performance', () => {
       // Login first
       await page.goto('/auth/login');
       await page.fill('input[type="email"]', account.email);
-      await page.fill('input[type="password"]', account.password);
+      await page.fill('input[type="password"]', account._password);
 
       // Measure dashboard load time
       const startTime = Date.now();

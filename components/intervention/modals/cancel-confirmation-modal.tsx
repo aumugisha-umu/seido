@@ -12,9 +12,9 @@ interface CancelConfirmationModalProps {
   onConfirm: () => void
   intervention: InterventionAction | null
   cancellationReason: string
-  onCancellationReasonChange: (reason: string) => void
+  onCancellationReasonChange: (_reason: string) => void
   internalComment: string
-  onInternalCommentChange: (comment: string) => void
+  onInternalCommentChange: (_comment: string) => void
   isLoading?: boolean
   error?: string | null
 }

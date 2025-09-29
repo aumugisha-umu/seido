@@ -153,14 +153,14 @@ export async function POST(request: NextRequest) {
       if (tenantData?.team_id) {
         // First priority: direct team assignment on the lot
         teamId = tenantData.team_id
-        console.log("✅ Found team ID from lot:", teamId)
+        console.log("✅ Found team ID from lot:", _teamId)
       } else if (tenantData?.building_id) {
         // Second priority: team from building (for lots in buildings)
         try {
           const building = await buildingService.getById(tenantData.building_id)
           if (building?.team_id) {
             teamId = building.team_id
-            console.log("✅ Found team ID from building:", teamId)
+            console.log("✅ Found team ID from building:", _teamId)
           }
         } catch (error) {
           console.warn("⚠️ Could not get building details for team ID:", error)
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
           const userTeams = await teamService.getUserTeams(user.id)
           if (userTeams.length > 0) {
             teamId = userTeams[0].id
-            console.log("✅ Found team ID from user membership for independent lot:", teamId)
+            console.log("✅ Found team ID from user membership for independent lot:", _teamId)
           }
         } catch (error) {
           console.warn("⚠️ Could not get user teams for independent lot:", error)
@@ -184,16 +184,16 @@ export async function POST(request: NextRequest) {
       const userTeams = await teamService.getUserTeams(user.id)
       if (userTeams.length > 0) {
         teamId = userTeams[0].id
-        console.log("✅ Found team ID:", teamId)
+        console.log("✅ Found team ID:", _teamId)
       }
     }
 
-    if (!teamId) {
+    if (!_teamId) {
       console.warn("⚠️ No team found for user, intervention will be created without team association")
     }
 
     // Map frontend values to database enums
-    const mapInterventionType = (frontendType: string): Database['public']['Enums']['intervention_type'] => {
+    const mapInterventionType = (_frontendType: string): Database['public']['Enums']['intervention_type'] => {
       const typeMapping: Record<string, Database['public']['Enums']['intervention_type']> = {
         'maintenance': 'autre',
         'plumbing': 'plomberie',
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
       return typeMapping[frontendType] || 'autre'
     }
 
-    const mapUrgencyLevel = (frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
+    const mapUrgencyLevel = (_frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
       const urgencyMapping: Record<string, Database['public']['Enums']['intervention_urgency']> = {
         'low': 'basse',
         'medium': 'normale',
@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
       reference: generateReference(),
       lot_id,
       tenant_id: user.id, // Use the database user ID, not auth ID
-      team_id: teamId,
+      team_id: _teamId,
       status: 'demande' as Database['public']['Enums']['intervention_status']
     }
 
@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
     console.log("✅ Intervention created:", intervention.id)
 
     // Log successful intervention creation
-    if (teamId) {
+    if (_teamId) {
       try {
         const { activityLogger } = await import('@/lib/activity-logger')
         

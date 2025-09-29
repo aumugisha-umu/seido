@@ -101,7 +101,7 @@ export async function PUT(
 
     // Check if user has permission to select slot (tenant, assigned participants, or gestionnaire)
     const isUserTenant = intervention.lot?.lot_contacts?.some(
-      (contact: any) => contact.user_id === user.id
+      (_contact: unknown) => contact.user_id === user.id
     )
     console.log("👤 [SELECT-SLOT] User access check:", { userId: user.id, userRole: user.role, isUserTenant })
 
@@ -218,7 +218,7 @@ export async function PUT(
     const scheduledDateTime = `${selectedSlot.date}T${selectedSlot.startTime}:00.000Z`
 
     // Update the intervention with the selected slot
-    const updateData: any = {
+    const updateData: unknown = {
       status: 'planifiee' as Database['public']['Enums']['intervention_status'],
       scheduled_date: scheduledDateTime,
       updated_at: new Date().toISOString()
@@ -246,14 +246,14 @@ export async function PUT(
     const notificationPromises = []
 
     // Find tenant ID from lot_contacts for notifications
-    const tenantContact = intervention.lot?.lot_contacts?.find((contact: any) => contact.is_primary)
+    const tenantContact = intervention.lot?.lot_contacts?.find((_contact: unknown) => contact.is_primary)
     const tenantId = tenantContact?.user_id || intervention.tenant_id // fallback to old structure
 
     // Notify tenant if they're not the one who selected the slot
     if (tenantId && tenantId !== user.id) {
       notificationPromises.push(
         notificationService.createNotification({
-          userId: tenantId,
+          userId: _tenantId,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',

@@ -63,7 +63,7 @@ function execute(command: string, silent = false): string {
       encoding: 'utf-8'
     })
     return output.toString()
-  } catch (error: any) {
+  } catch (_error: unknown) {
     testResults.errors.push(`Command failed: ${command}`)
     if (!silent) {
       log(`Error: ${error.message}`, colors.red)
@@ -330,7 +330,7 @@ function generateBaselineReport() {
 }
 
 // Run specific workflow test
-async function runWorkflowTest(workflowName: string) {
+async function runWorkflowTest(_workflowName: string) {
   const workflow = TestingHelpers.getWorkflow(workflowName)
   if (!workflow) {
     log(`Workflow '${workflowName}' not found`, colors.red)
@@ -351,7 +351,7 @@ async function runWorkflowTest(workflowName: string) {
 }
 
 // Run tests for specific role
-async function runRoleTests(roleName: string) {
+async function runRoleTests(_roleName: string) {
   const roleConfig = TestingHelpers.getRoleConfig(roleName)
   if (!roleConfig) {
     log(`Role '${roleName}' not found`, colors.red)

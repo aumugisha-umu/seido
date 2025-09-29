@@ -127,7 +127,7 @@ class SefdoBackendTestRunner {
 
       console.log(`✅ Suite terminée: ${result.passed} passed, ${result.failed} failed`)
 
-    } catch (error: any) {
+    } catch (_error: unknown) {
       result.failed = 1
       result.errors.push(error.message || 'Test execution failed')
       console.error(`❌ Erreur: ${error.message}`)

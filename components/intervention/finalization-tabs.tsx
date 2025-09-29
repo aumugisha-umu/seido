@@ -59,7 +59,7 @@ interface FinalizationTabsProps {
   contextData: ContextData
   className?: string
   activeTab?: string
-  onTabChange?: (tab: string) => void
+  onTabChange?: (_tab: string) => void
 }
 
 export const FinalizationTabs = ({
@@ -528,7 +528,7 @@ export const FinalizationTabs = ({
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-amber-100 text-amber-700 font-semibold">
-                        {contextData.workCompletion.provider?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'P'}
+                        {contextData.workCompletion.provider?.name?.split(' ').map((_n: string) => n[0]).join('').toUpperCase() || 'P'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">

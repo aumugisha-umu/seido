@@ -26,7 +26,7 @@ interface DashboardClientProps {
  * - Pas de logique métier côté client
  */
 export function DashboardClient({ teamId }: DashboardClientProps) {
-  const router = useRouter()
+  const _router = useRouter()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
 
   const handleContactSubmit = async (contactData: CreateContactData) => {

@@ -76,7 +76,7 @@ export function TenantSlotConfirmationModal({
     return acc
   }, {} as Record<string, ProviderAvailability[]>)
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (_dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       weekday: 'long',
       year: 'numeric',
@@ -85,7 +85,7 @@ export function TenantSlotConfirmationModal({
     })
   }
 
-  const formatTime = (time: string) => {
+  const formatTime = (_time: string) => {
     return time.substring(0, 5) // Remove seconds if present
   }
 

@@ -92,7 +92,7 @@ export const DocumentViewerModal = ({
     
     try {
       const response = await fetch(`/api/view-intervention-document?documentId=${document.id}`)
-      const data = await response.json()
+      const _data = await response.json()
       
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors du chargement du document')
@@ -160,7 +160,7 @@ export const DocumentViewerModal = ({
     setRotation(0)
   }
 
-  const getDocumentTypeColor = (type: string) => {
+  const getDocumentTypeColor = (_type: string) => {
     switch (type) {
       case 'rapport': return 'bg-blue-100 text-blue-800'
       case 'photo_avant': 
@@ -174,7 +174,7 @@ export const DocumentViewerModal = ({
     }
   }
 
-  const getDocumentTypeLabel = (type: string) => {
+  const getDocumentTypeLabel = (_type: string) => {
     switch (type) {
       case 'rapport': return 'Rapport'
       case 'photo_avant': return 'Photo avant'
@@ -196,8 +196,8 @@ export const DocumentViewerModal = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
   }
 
-  const isImage = (mimeType: string) => mimeType.startsWith('image/')
-  const isPDF = (mimeType: string) => mimeType === 'application/pdf'
+  const isImage = (_mimeType: string) => mimeType.startsWith('image/')
+  const isPDF = (_mimeType: string) => mimeType === 'application/pdf'
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

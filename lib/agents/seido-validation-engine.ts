@@ -100,7 +100,7 @@ export class SEIDOValidationEngine {
   /**
    * Validate single file
    */
-  async validateFile(filePath: string): Promise<ValidationResult> {
+  async validateFile(_filePath: string): Promise<ValidationResult> {
     const content = readFileSync(filePath, 'utf-8')
     const role = this.extractRoleFromPath(filePath)
 
@@ -132,7 +132,7 @@ export class SEIDOValidationEngine {
   /**
    * Generate auto-fixes for file
    */
-  async generateAutoFixes(filePath: string): Promise<{
+  async generateAutoFixes(_filePath: string): Promise<{
     original: string
     fixed: string
     changes: Array<{ type: string; description: string }>
@@ -183,7 +183,7 @@ export class SEIDOValidationEngine {
   /**
    * Validate responsive design across breakpoints
    */
-  async validateResponsiveDesign(filePath: string): Promise<{
+  async validateResponsiveDesign(_filePath: string): Promise<{
     mobile: { score: number; issues: string[] }
     tablet: { score: number; issues: string[] }
     desktop: { score: number; issues: string[] }
@@ -202,7 +202,7 @@ export class SEIDOValidationEngine {
   /**
    * Validate accessibility compliance
    */
-  async validateAccessibility(filePath: string): Promise<{
+  async validateAccessibility(_filePath: string): Promise<{
     score: number
     violations: Array<{
       rule: string
@@ -320,7 +320,7 @@ export class SEIDOValidationEngine {
     const extensions = ['.tsx', '.ts', '.jsx', '.js']
     const excludeDirs = ['node_modules', '.next', 'dist', 'build']
 
-    const findFiles = (dir: string): string[] => {
+    const findFiles = (_dir: string): string[] => {
       const files: string[] = []
 
       try {
@@ -346,7 +346,7 @@ export class SEIDOValidationEngine {
     return findFiles(this.projectRoot)
   }
 
-  private extractRoleFromPath(filePath: string): string | undefined {
+  private extractRoleFromPath(_filePath: string): string | undefined {
     const roles = ['admin', 'gestionnaire', 'locataire', 'prestataire']
     return roles.find(role => filePath.includes(role))
   }
@@ -516,7 +516,7 @@ export class SEIDOValidationEngine {
     return 85
   }
 
-  private getAccessibilityRule(message: string): string {
+  private getAccessibilityRule(_message: string): string {
     // Map violation messages to WCAG rules
     if (message.includes('aria-label')) return 'WCAG 4.1.2'
     if (message.includes('contrast')) return 'WCAG 1.4.3'
@@ -551,7 +551,7 @@ export class SEIDOValidationEngine {
     return []
   }
 
-  private getRoleSpecificFiles(role: string): string[] {
+  private getRoleSpecificFiles(_role: string): string[] {
     return this.getProjectFiles().filter(file => file.includes(role))
   }
 

@@ -57,7 +57,7 @@ async function createTestUser(role, suffix, name) {
     // 1. Create auth user
     const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
       email: testUser.email,
-      password: testUser.password,
+      password: testUser._password,
       email_confirm: true
     });
 

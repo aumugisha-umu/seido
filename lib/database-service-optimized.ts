@@ -51,11 +51,11 @@ export const buildingServiceOptimized = {
    * Get all buildings for a team with optimized query
    * Supabase 2025 Best Practice: Select only needed columns
    */
-  async getTeamBuildings(teamId: string): Promise<Building[]> {
+  async getTeamBuildings(_teamId: string): Promise<Building[]> {
     const query = new QueryBuilder('getTeamBuildings')
 
     try {
-      console.log('🏢 [BUILDING-SERVICE] Getting buildings for team:', teamId)
+      console.log('🏢 [BUILDING-SERVICE] Getting buildings for team:', _teamId)
 
       // Best Practice: Use single query with proper joins
       const { data, error, count } = await supabase
@@ -85,7 +85,7 @@ export const buildingServiceOptimized = {
             )
           )
         `, { count: 'exact' })
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
         .order('name')
 
       query.logPerformance()
@@ -127,14 +127,14 @@ export const buildingServiceOptimized = {
    * Get building by ID with full details
    * Supabase 2025 Best Practice: Use RLS and single() for single records
    */
-  async getById(buildingId: string): Promise<Building | null> {
+  async getById(_buildingId: string): Promise<Building | null> {
     const query = new QueryBuilder('getBuildingById')
 
     try {
       const { data, error } = await supabase
         .from('buildings')
         .select('*')
-        .eq('id', buildingId)
+        .eq('id', _buildingId)
         .single()
 
       query.logPerformance()
@@ -167,7 +167,7 @@ export const lotServiceOptimized = {
    * Get lots by building ID with tenant information
    * Supabase 2025 Best Practice: Batch operations and relationship loading
    */
-  async getByBuildingId(buildingId: string): Promise<Lot[]> {
+  async getByBuildingId(_buildingId: string): Promise<Lot[]> {
     const query = new QueryBuilder('getLotsByBuilding')
 
     try {
@@ -188,7 +188,7 @@ export const lotServiceOptimized = {
             )
           )
         `)
-        .eq('building_id', buildingId)
+        .eq('building_id', _buildingId)
         .order('reference')
 
       query.logPerformance()
@@ -312,7 +312,7 @@ export const userServiceOptimized = {
       let queryBuilder = supabase
         .from('users')
         .select('*', { count: 'exact' })
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
 
       // Apply filters
       if (options?.role) {
@@ -397,7 +397,7 @@ export const interventionServiceOptimized = {
             )
           )
         `)
-        .eq('team_id', teamId)
+        .eq('team_id', _teamId)
 
       // Apply filters
       if (options?.status) {
@@ -444,7 +444,7 @@ export const interventionServiceOptimized = {
     teamId: string,
     callback: (payload: unknown) => void
   ) {
-    console.log('📡 [INTERVENTION-SERVICE] Setting up realtime subscription for team:', teamId)
+    console.log('📡 [INTERVENTION-SERVICE] Setting up realtime subscription for team:', _teamId)
 
     const channel = supabase
       .channel(`team-interventions-${teamId}`)
@@ -479,8 +479,8 @@ export const dashboardServiceOptimized = {
    * Load all dashboard data in parallel with proper error handling
    * Supabase 2025 Best Practice: Batch parallel queries for performance
    */
-  async loadDashboardData(teamId: string) {
-    console.log('📊 [DASHBOARD] Loading optimized dashboard data for team:', teamId)
+  async loadDashboardData(_teamId: string) {
+    console.log('📊 [DASHBOARD] Loading optimized dashboard data for team:', _teamId)
     const startTime = performance.now()
 
     try {
@@ -490,9 +490,9 @@ export const dashboardServiceOptimized = {
         usersResult,
         interventionsResult
       ] = await Promise.allSettled([
-        buildingServiceOptimized.getTeamBuildings(teamId),
-        userServiceOptimized.getTeamUsers(teamId),
-        interventionServiceOptimized.getTeamInterventions(teamId, { limit: 10 })
+        buildingServiceOptimized.getTeamBuildings(_teamId),
+        userServiceOptimized.getTeamUsers(_teamId),
+        interventionServiceOptimized.getTeamInterventions(_teamId, { limit: 10 })
       ])
 
       // Extract successful results

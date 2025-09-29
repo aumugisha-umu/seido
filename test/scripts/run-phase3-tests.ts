@@ -28,8 +28,8 @@ interface Phase3Report {
     overallCoverage: number
   }
   suites: TestResult[]
-  cacheMetrics?: any
-  performanceMetrics?: any
+  cacheMetrics?: unknown
+  performanceMetrics?: unknown
   timestamp: string
 }
 

@@ -33,7 +33,7 @@ async function loginWithMetrics(page: Page, email: string, password: string): Pr
   await page.waitForLoadState('networkidle')
 
   await page.fill('input[type="email"], input[name="email"], #email', email)
-  await page.fill('input[type="password"], input[name="password"], #password', password)
+  await page.fill('input[type="password"], input[name="password"], #password', _password)
   await page.click('button[type="submit"]')
 
   // Attendre la redirection
@@ -70,7 +70,7 @@ async function checkNoExcessiveTimeouts(page: Page): Promise<{ hasExcessiveTimeo
     // Observer pendant 2 secondes
     return new Promise((resolve) => {
       // @ts-ignore
-      window.setTimeout = function(callback: Function, delay: number, ...args: any[]) {
+      window.setTimeout = function(callback: Function, delay: number, ...args: unknown[]) {
         observedTimeouts.push(delay)
         if (delay > 3000) {
           hasExcessiveTimeouts = true
@@ -116,7 +116,7 @@ test.describe('Validation des Optimisations SEIDO', () => {
       const authTime = await loginWithMetrics(
         page,
         TEST_ACCOUNTS.gestionnaire.email,
-        TEST_ACCOUNTS.gestionnaire.password
+        TEST_ACCOUNTS.gestionnaire._password
       )
 
       console.log(`  Temps d'authentification: ${authTime}ms`)
@@ -163,7 +163,7 @@ test.describe('Validation des Optimisations SEIDO', () => {
       await loginWithMetrics(
         page,
         TEST_ACCOUNTS.gestionnaire.email,
-        TEST_ACCOUNTS.gestionnaire.password
+        TEST_ACCOUNTS.gestionnaire._password
       )
 
       // Vérifier les cookies
@@ -250,7 +250,7 @@ test.describe('Validation des Optimisations SEIDO', () => {
       await loginWithMetrics(
         page,
         TEST_ACCOUNTS.gestionnaire.email,
-        TEST_ACCOUNTS.gestionnaire.password
+        TEST_ACCOUNTS.gestionnaire._password
       )
 
       await page.waitForURL(TEST_ACCOUNTS.gestionnaire.dashboard)
@@ -326,7 +326,7 @@ test.describe('Validation des Optimisations SEIDO', () => {
       await loginWithMetrics(
         page,
         TEST_ACCOUNTS.gestionnaire.email,
-        TEST_ACCOUNTS.gestionnaire.password
+        TEST_ACCOUNTS.gestionnaire._password
       )
 
       await page.waitForURL(TEST_ACCOUNTS.gestionnaire.dashboard)
@@ -388,7 +388,7 @@ test.describe('Validation des Optimisations SEIDO', () => {
         // Tester la connexion
         await page.goto('/auth/login')
         await page.fill('input[type="email"]', TEST_ACCOUNTS.gestionnaire.email)
-        await page.fill('input[type="password"]', TEST_ACCOUNTS.gestionnaire.password)
+        await page.fill('input[type="password"]', TEST_ACCOUNTS.gestionnaire._password)
         await page.click('button[type="submit"]')
 
         // Attendre le dashboard
@@ -439,7 +439,7 @@ test.describe('Validation des Optimisations SEIDO', () => {
     const authTime = await loginWithMetrics(
       page,
       TEST_ACCOUNTS.gestionnaire.email,
-      TEST_ACCOUNTS.gestionnaire.password
+      TEST_ACCOUNTS.gestionnaire._password
     )
     results.phase1.authPerformance = authTime
 

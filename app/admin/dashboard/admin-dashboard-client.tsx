@@ -15,8 +15,8 @@ interface AdminDashboardClientProps {
  */
 export function AdminDashboardClient({ userId }: AdminDashboardClientProps) {
   // Supprimer l'unused variable warning
-  console.log('Admin dashboard client initialized for user:', userId)
-  const router = useRouter()
+  console.log('Admin dashboard client initialized for user:', _userId)
+  const _router = useRouter()
 
   // ✅ Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()

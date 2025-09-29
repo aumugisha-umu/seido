@@ -517,44 +517,37 @@ export default function NouvelleInterventionPage() {
       console.log("🚀 Starting intervention creation...")
       console.log("👤 Current user:", { id: user?.id, email: user?.email })
       console.log("🏗️ Current team:", { id: currentUserTeam?.id, name: currentUserTeam?.name })
-      
-      // Prepare data for API call
+
+      // Prepare data for API call using FormData (like the working locataire form)
       const interventionData = {
         // Basic intervention data
         title: formData.title,
         description: formData.description,
         type: formData.type,
         urgency: formData.urgency,
-        
+
         // Housing selection
         selectedLogement,
         selectedBuildingId,
         selectedLotId,
-        
+
         // Contact assignments
         selectedManagerIds,
         selectedProviderIds,
-        
+
         // Scheduling
         schedulingType,
         fixedDateTime,
         timeSlots,
-        
+
         // Messages
         messageType,
         globalMessage,
         individualMessages,
-        
+
         // Options
         expectsQuote,
-        
-        // Files (for now, we'll pass file names/metadata, actual upload to be implemented)
-        files: files.map(file => ({
-          name: file.name,
-          size: file.size,
-          type: file.type
-        })),
-        
+
         // Team context
         teamId: currentUserTeam?.id
       }
@@ -563,17 +556,37 @@ export default function NouvelleInterventionPage() {
       console.log("🔍 Detailed contact assignments:", {
         managersCount: selectedManagerIds.length,
         managerIds: selectedManagerIds,
-        providersCount: selectedProviderIds.length, 
+        providersCount: selectedProviderIds.length,
         providerIds: selectedProviderIds
       })
 
-      // Call the API
+      // Create FormData to handle files (like the working locataire form)
+      const formDataToSend = new FormData()
+
+      // Add intervention data as JSON
+      formDataToSend.append('interventionData', JSON.stringify(interventionData))
+
+      // Add files (the real File objects, not just metadata)
+      files.forEach((file, index) => {
+        formDataToSend.append(`file_${index}`, file)
+        // Also send metadata for each file
+        formDataToSend.append(`file_${index}_metadata`, JSON.stringify({
+          name: file.name,
+          size: file.size,
+          type: file.type
+        }))
+      })
+
+      // Add file count for easier processing on backend
+      formDataToSend.append('fileCount', files.length.toString())
+
+      console.log(`🔧 Sending intervention with ${files.length} files`)
+
+      // Call the API with FormData instead of JSON
       const response = await fetch('/api/create-manager-intervention', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(interventionData),
+        // Don't set Content-Type header - let browser set it with boundary for multipart/form-data
+        body: formDataToSend,
       })
 
       console.log("📡 API Response status:", response.status)
@@ -586,7 +599,7 @@ export default function NouvelleInterventionPage() {
 
       console.log("✅ Intervention created successfully:", result)
 
-      // Gérer le succès avec vidage du cache (la navigation forcera le rechargement)
+      // Gérer le succès avec vidage du cache
       await handleSuccess({
         successTitle: "Intervention créée avec succès",
         successDescription: `L'intervention "${result.intervention.title}" a été créée et assignée.`,

@@ -608,46 +608,41 @@ export async function POST(request: NextRequest) {
 
     // Handle file uploads if provided
     if (files && files.length > 0) {
-      console.log(`📎 Processing ${files.length} file(s) for intervention...`)
+      console.log(`📎 [MANAGER-UPLOAD-DEBUG] Processing ${files.length} file(s) for intervention...`)
+      console.log(`📎 [MANAGER-UPLOAD-DEBUG] Intervention ID: ${intervention.id}`)
+      console.log(`📎 [MANAGER-UPLOAD-DEBUG] Files details:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })))
 
       try {
-        const { fileService } = await import('@/lib/file-service')
+        // Import internal upload function from the working API
+        const { uploadDocumentInternal } = await import('@/lib/upload-service')
 
         let filesUploaded = 0
         const fileErrors: string[] = []
         const uploadedDocuments: unknown[] = []
 
-        // Process each file
+        // Process each file using internal upload function
         for (let i = 0; i < files.length; i++) {
           const file = files[i]
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const metadata = fileMetadata[i] || {}
 
           try {
-            console.log(`📎 Processing file ${i + 1}/${files.length}: ${file.name} (${file.size} bytes)`)
+            console.log(`📎 [MANAGER-UPLOAD-DEBUG] Processing file ${i + 1}/${files.length}: ${file.name} (${file.size} bytes)`)
 
-            // Validate file before upload
-            const validation = fileService.validateFile(file)
-            if (!validation.isValid) {
-              console.error(`❌ File validation failed for ${file.name}:`, validation.error)
-              fileErrors.push(`${file.name}: ${validation.error}`)
-              continue
-            }
-
-            // Upload file to storage and create database record
-            const uploadResult = await fileService.uploadInterventionDocument(supabase, file, {
+            // Use the internal upload function with our authenticated supabase client
+            const uploadResult = await uploadDocumentInternal({
+              file,
               interventionId: intervention.id,
-              uploadedBy: user.id, // Use database user ID
-              documentType: 'intervention_photo', // Could be made dynamic based on file type
-              description: `File uploaded during intervention creation: ${file.name}`
+              description: `Document ajouté lors de la création de l'intervention`,
+              uploadedBy: user.id,
+              supabaseClient: supabase
             })
 
-            console.log(`✅ File uploaded successfully: ${file.name}`)
-            uploadedDocuments.push(uploadResult.documentRecord)
+            console.log(`✅ [MANAGER-UPLOAD-DEBUG] File uploaded successfully: ${file.name}`)
+            console.log(`✅ [MANAGER-UPLOAD-DEBUG] Upload result:`, uploadResult)
+            uploadedDocuments.push(uploadResult.document)
             filesUploaded++
 
           } catch (fileError) {
-            console.error(`❌ Error uploading file ${file.name}:`, fileError)
+            console.error(`❌ [MANAGER-UPLOAD-DEBUG] Error uploading file ${file.name}:`, fileError)
             fileErrors.push(`Failed to upload ${file.name}: ${fileError instanceof Error ? fileError.message : String(fileError)}`)
           }
         }

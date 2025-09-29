@@ -291,6 +291,54 @@ Ce document liste toutes les modifications **UI, layout et design** appliquées 
 
 ---
 
+### **CORRECTIONS D'UPLOAD ET PROBLÈMES DE FICHIERS (29/12/2025) - 🔧 Fixes Techniques Majeurs**
+
+#### ✅ **Problème résolu: Upload de documents dans les formulaires**
+
+20. **lib/upload-service.ts** - Service d'upload interne (NOUVEAU)
+    - **Vue:** Service backend appelé par APIs de création
+    - **Path:** `lib/upload-service.ts`
+    - **Fonctionnalité:** Upload avec Service Role client pour contourner problèmes d'authentification
+    - **Fix technique:** Bypass RLS temporaire pour éviter la perte de contexte auth entre APIs
+
+21. **app/api/create-intervention/route.ts** - API création intervention locataire (MODIFIÉE)
+    - **Vue:** API appelée par formulaire de création locataire
+    - **Path:** `app/api/create-intervention/route.ts`
+    - **Fix majeur:** Utilisation d'`uploadDocumentInternal` au lieu d'appel HTTP fetch
+    - **Problème résolu:** Perte du contexte d'authentification lors d'appels backend-to-backend
+
+22. **app/api/create-manager-intervention/route.ts** - API création intervention gestionnaire (MODIFIÉE)
+    - **Vue:** API appelée par formulaire de création gestionnaire
+    - **Path:** `app/api/create-manager-intervention/route.ts`
+    - **Fix identique:** Même correction que pour l'API locataire
+
+23. **app/api/upload-intervention-document/route.ts** - Amélioration génération noms de fichiers (MODIFIÉE)
+    - **Vue:** API d'upload utilisée par modal d'exécution
+    - **Path:** `app/api/upload-intervention-document/route.ts`
+    - **Fix critique:** Fonction `generateUniqueFilename` améliorée pour gérer espaces et caractères spéciaux
+    - **Problème résolu:** Erreur "Storage key invalid" avec noms de fichiers contenant espaces/accents
+    - **Technique:** Remplacement caractères non-alphanumériques par `_`, suppression multiples `_`, nettoyage préfixes/suffixes
+
+#### 🎨 **Impact UI/UX des corrections:**
+- **Upload universel:** Fonctionnement identique dans formulaires ET modal d'exécution
+- **Gestion d'erreurs:** Messages d'erreur cohérents et informatifs
+- **Noms de fichiers:** Stockage propre sans caractères problématiques
+- **Performance:** Évitement des appels HTTP supplémentaires via service interne
+- **Stabilité:** Plus de perte de contexte d'authentification
+
+#### 📱 **Restauration UX - Redirections après formulaires**
+
+24. **app/locataire/interventions/nouvelle-demande/page.tsx** - Restauration redirections (MODIFIÉE)
+    - **Vue:** Formulaire de création de demande d'intervention locataire
+    - **Path:** `app/locataire/interventions/nouvelle-demande/page.tsx`
+    - **Fix UX:** Restauration de l'appel `handleSuccess()` pour redirection après création
+    - **Impact utilisateur:** Retour au parcours normal après création d'intervention
+
+25. **app/gestionnaire/interventions/nouvelle-intervention/page.tsx** - Restauration redirections (MODIFIÉE)
+    - **Vue:** Formulaire de création d'intervention gestionnaire
+    - **Path:** `app/gestionnaire/interventions/nouvelle-intervention/page.tsx`
+    - **Fix UX:** Même restauration que pour le formulaire locataire
+
 ## 📝 **TEMPLATE POUR FUTURES MODIFICATIONS UI/DESIGN**
 
 ```markdown

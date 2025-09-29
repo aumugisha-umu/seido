@@ -39,9 +39,18 @@ function generateUniqueFilename(originalFilename: string): string {
   const timestamp = Date.now()
   const randomString = Math.random().toString(36).substring(2, 8)
   const extension = originalFilename.split('.').pop()
+
+  // NETTOYER le nom : supprimer espaces, accents, caractères spéciaux
   const nameWithoutExt = originalFilename.split('.').slice(0, -1).join('.')
-  
-  return `${timestamp}-${randomString}-${nameWithoutExt}.${extension}`
+    .replace(/[^a-zA-Z0-9]/g, '_') // Remplacer tout caractère non alphanum par _
+    .replace(/_+/g, '_')          // Éviter les _ multiples
+    .replace(/^_|_$/g, '')        // Supprimer _ au début/fin
+    .toLowerCase()                 // Tout en minuscules
+
+  // Ensure we have a valid name
+  const cleanName = nameWithoutExt || 'document'
+
+  return `${timestamp}-${randomString}-${cleanName}.${extension}`
 }
 
 export async function POST(request: NextRequest) {

@@ -259,7 +259,9 @@ export default function NouvelleDemandePage() {
 
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
-      
+
+      console.log("✅ SUCCESS: Intervention créée avec ID:", result.intervention.id)
+
       // Gérer le succès avec la nouvelle stratégie
       await handleSuccess({
         successTitle: "Demande d'intervention créée avec succès",

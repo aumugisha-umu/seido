@@ -24,7 +24,6 @@ import { useTeamStatus } from "@/hooks/use-team-status"
 import { useContactsData } from "@/hooks/use-contacts-data"
 import { contactService, teamService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function ContactsPage() {
   const router = useRouter()
@@ -1360,8 +1359,6 @@ export default function ContactsPage() {
         defaultType="locataire"
       />
 
-      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
-      <NavigationDebugPanel />
     </div>
   )
 }

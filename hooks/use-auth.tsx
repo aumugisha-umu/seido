@@ -9,6 +9,7 @@ import type { AuthError } from '@supabase/supabase-js'
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
+  isReady: boolean
   signIn: (email: string, password: string) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   signUp: (data: { email: string; password: string; name: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   completeProfile: (data: { firstName: string; lastName: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
@@ -27,29 +28,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    console.log('🚀 [AUTH-PROVIDER-REFACTORED] Initializing simple auth system...')
+    console.log('🚀 [AUTH-PROVIDER-OPTIMIZED] Initializing optimized auth system...')
+
+    let isMounted = true
 
     // ✅ Récupération initiale de l'utilisateur
-    getCurrentUser()
+    const initializeAuth = async () => {
+      try {
+        const { user } = await authService.getCurrentUser()
 
-    // ✅ Écouter les changements d'état - version simplifiée
+        if (isMounted) {
+          setUser(user)
+          setLoading(false)
+          setIsReady(true) // ✅ NOUVEAU: Marquer comme prêt après initialisation
+          console.log('✅ [AUTH-PROVIDER-OPTIMIZED] Initial auth ready:', user ? `${user.name} (${user.role})` : 'none')
+        }
+      } catch (error) {
+        console.error('❌ [AUTH-PROVIDER-OPTIMIZED] Failed to initialize auth:', error)
+        if (isMounted) {
+          setUser(null)
+          setLoading(false)
+          setIsReady(true) // ✅ Toujours marquer comme prêt même en cas d'erreur
+        }
+      }
+    }
+
+    initializeAuth()
+
+    // ✅ Écouter les changements d'état - version optimisée
     const { data: { subscription } } = authService.onAuthStateChange((user) => {
-      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Auth state changed:', user ? `${user.name} (${user.role})` : 'null')
-      setUser(user)
-      setLoading(false)
+      if (isMounted) {
+        console.log('🔄 [AUTH-PROVIDER-OPTIMIZED] Auth state changed:', user ? `${user.name} (${user.role})` : 'null')
+        setUser(user)
+        setLoading(false)
+        setIsReady(true) // ✅ NOUVEAU: S'assurer que isReady=true après changement d'état
+      }
     })
 
     return () => {
+      isMounted = false
       subscription.unsubscribe()
     }
   }, [])
 
-  // ✅ REFACTORISÉ: Redirection centralisée avec gestion callback
+  // ✅ OPTIMISÉ: Redirection centralisée qui attend isReady
   useEffect(() => {
-    // Seulement si chargement terminé et pathname disponible
-    if (loading || !pathname) return
+    // ✅ NOUVEAU: Attendre que l'auth soit complètement prêt
+    if (loading || !pathname || !isReady) {
+      console.log('⏳ [AUTH-PROVIDER-OPTIMIZED] Waiting for auth to be ready...', { loading, pathname: !!pathname, isReady })
+      return
+    }
 
     // ✅ Détecter si on vient d'un callback invitation
     const handleInvitationCallback = async () => {
@@ -166,23 +197,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     })
-  }, [user, loading, pathname, router])
+  }, [user, loading, pathname, router, isReady])
 
   const getCurrentUser = async () => {
+    console.log('🔍 [AUTH-PROVIDER-OPTIMIZED] Refreshing current user...')
+
     try {
-      console.log('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...')
-
-      // ✅ SIMPLIFIÉ: Appel direct sans timeouts ni retries
       const { user } = await authService.getCurrentUser()
-
-      console.log('✅ [AUTH-PROVIDER-REFACTORED] User loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
-
+      console.log('✅ [AUTH-PROVIDER-OPTIMIZED] User refreshed:', user ? `${user.name} (${user.role})` : 'none')
     } catch (error) {
-      console.error('❌ [AUTH-PROVIDER-REFACTORED] Error getting user:', error)
+      console.error('❌ [AUTH-PROVIDER-OPTIMIZED] Error refreshing user:', error)
       setUser(null)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -275,6 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     loading,
+    isReady,
     signIn,
     signUp,
     completeProfile,

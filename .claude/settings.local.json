@@ -16,7 +16,8 @@
       "Bash(taskkill:*)",
       "Bash(npm run dev:*)",
       "Bash(npx tsx:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

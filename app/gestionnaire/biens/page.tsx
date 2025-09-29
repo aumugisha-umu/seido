@@ -2,7 +2,6 @@
 
 import { Plus, Building2, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
 import PropertySelector from "@/components/property-selector"
 import { useRouter } from "next/navigation"
 
@@ -52,8 +51,6 @@ export default function BiensPage() {
         />
       </main>
 
-      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
-      <NavigationDebugPanel />
     </div>
   )
 }

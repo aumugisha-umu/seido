@@ -18,7 +18,6 @@ import { ContactFormModal } from "@/components/contact-form-modal"
 import { useManagerStats, useContactStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
 import { InterventionsList } from "@/components/interventions/interventions-list"
 
 export default function DashboardGestionnaire() {
@@ -367,8 +366,6 @@ export default function DashboardGestionnaire() {
         defaultType="locataire"
       />
 
-      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
-      <NavigationDebugPanel />
     </div>
   )
 }

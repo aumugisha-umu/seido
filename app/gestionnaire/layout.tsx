@@ -5,7 +5,6 @@ import DashboardHeader from "@/components/dashboard-header"
 import AuthGuard from "@/components/auth-guard"
 import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
 import { GlobalLoadingIndicator } from "@/components/global-loading-indicator"
-import { EmergencyDebugButton } from "@/components/debug/emergency-debug-button"
 
 export default function GestionnaireLayout({
   children,
@@ -27,8 +26,6 @@ export default function GestionnaireLayout({
         {/* ✅ NOUVEAU: Indicateur de chargement global lors des navigations */}
         <GlobalLoadingIndicator />
         
-        {/* ✅ FIX: Bouton d'urgence pour le debug (toujours présent) */}
-        <EmergencyDebugButton />
       </div>
     </AuthGuard>
   )

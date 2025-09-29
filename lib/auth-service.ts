@@ -3,6 +3,7 @@ import { userService, teamService } from './database-service'
 import type { AuthError, AuthResponse, User as SupabaseUser } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 import { activityLogger } from './activity-logger'
+import { authCache } from './auth-cache'
 
 export interface AuthUser {
   id: string
@@ -292,9 +293,21 @@ class AuthService {
     }
   }
 
-  // Déconnexion
+  // ✅ OPTIMISÉ: Déconnexion avec invalidation cache
   async signOut(): Promise<{ error: AuthError | null }> {
+    console.log('🚪 [AUTH-SERVICE-OPTIMIZED] Signing out and clearing cache...')
+
+    // ✅ NOUVEAU: Invalider tout le cache lors de la déconnexion
+    authCache.invalidateAll()
+
     const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('❌ [AUTH-SERVICE-OPTIMIZED] SignOut error:', error.message)
+    } else {
+      console.log('✅ [AUTH-SERVICE-OPTIMIZED] SignOut successful, cache cleared')
+    }
+
     return { error }
   }
 
@@ -309,59 +322,70 @@ class AuthService {
     return { authUser, error: null }
   }
 
-  // ✅ REFACTORISÉ: getCurrentUser simplifié
+  // ✅ OPTIMISÉ: getCurrentUser avec cache intelligent
   async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      console.log('🔍 [AUTH-SERVICE-REFACTORED] Getting current user...')
+      console.log('🔍 [AUTH-SERVICE-OPTIMIZED] Getting current user with cache support...')
 
       // ✅ Récupération simple de l'utilisateur auth
       const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
       if (error) {
-        console.log('❌ [AUTH-SERVICE-REFACTORED] Auth error:', error.message)
+        console.log('❌ [AUTH-SERVICE-OPTIMIZED] Auth error:', error.message)
         throw new Error(`Auth error: ${error.message}`)
       }
 
       if (!authUser || !authUser.email_confirmed_at) {
-        console.log('ℹ️ [AUTH-SERVICE-REFACTORED] No confirmed auth user')
+        console.log('ℹ️ [AUTH-SERVICE-OPTIMIZED] No confirmed auth user')
         return { user: null, error: null }
       }
 
-      // ✅ Récupération du profil utilisateur
-      console.log('🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for:', authUser.id)
-
-      const { data: userProfile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_user_id', authUser.id)
-        .single()
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw new Error(`Profile query error: ${profileError.message}`)
+      // ✅ NOUVEAU: Vérifier le cache d'abord
+      let cachedUser = authCache.getUserProfile(authUser.id)
+      if (cachedUser) {
+        console.log('⚡ [AUTH-CACHE-HIT] getCurrentUser found cached profile, skipping DB query')
+        return { user: cachedUser, error: null }
       }
 
-      if (userProfile) {
+      // ✅ Cache miss : requête DB optimisée avec timeout
+      console.log('🔍 [AUTH-SERVICE-OPTIMIZED] Cache miss, querying database with 2s timeout...')
+
+      const profileResult = await Promise.race([
+        supabase
+          .from('users')
+          .select('*')
+          .eq('auth_user_id', authUser.id)
+          .single(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile query timeout')), 2000)
+        )
+      ])
+
+      if (profileResult.data) {
         const user: AuthUser = {
-          id: userProfile.id,
-          email: userProfile.email,
-          name: userProfile.name,
-          first_name: userProfile.first_name || undefined,
-          last_name: userProfile.last_name || undefined,
-          display_name: authUser.user_metadata?.display_name || userProfile.name,
-          role: userProfile.role,
-          team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
-          phone: userProfile.phone || undefined,
-          avatar_url: userProfile.avatar_url || undefined,
-          created_at: userProfile.created_at || undefined,
-          updated_at: userProfile.updated_at || undefined,
+          id: profileResult.data.id,
+          email: profileResult.data.email,
+          name: profileResult.data.name,
+          first_name: profileResult.data.first_name || undefined,
+          last_name: profileResult.data.last_name || undefined,
+          display_name: authUser.user_metadata?.display_name || profileResult.data.name,
+          role: profileResult.data.role,
+          team_id: profileResult.data.team_id,
+          phone: profileResult.data.phone || undefined,
+          avatar_url: profileResult.data.avatar_url || undefined,
+          created_at: profileResult.data.created_at || undefined,
+          updated_at: profileResult.data.updated_at || undefined,
         }
 
-        console.log('✅ [AUTH-SERVICE-REFACTORED] User profile found:', {
+        console.log('✅ [AUTH-SERVICE-OPTIMIZED] User profile found and cached:', {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role
         })
+
+        // ✅ NOUVEAU: Mettre en cache pour éviter futures requêtes
+        authCache.setUserProfile(authUser.id, user)
 
         return { user, error: null }
       }
@@ -586,65 +610,85 @@ class AuthService {
         try {
           console.log('🔍 [AUTH-STATE-CHANGE-REFACTORED] Processing auth state change...')
 
-          // ✅ Recherche du profil utilisateur avec timeout et fallback
+          // ✅ OPTIMISÉ: Recherche du profil avec cache intelligent et requêtes parallèles
+          console.log('🚀 [AUTH-STATE-CHANGE-OPTIMIZED] Starting optimized profile search...')
+
+          // 1. Vérifier le cache d'abord
+          let cachedUser = authCache.getUserProfile(session.user.id)
+          if (cachedUser) {
+            console.log('⚡ [AUTH-CACHE-HIT] User profile found in cache, skipping DB queries')
+            callback(cachedUser)
+            return
+          }
+
+          // 2. Cache miss : requêtes parallèles avec timeout réduit
           let userProfile = null
           let profileError = null
 
           try {
-            console.log('🔍 [AUTH-STATE-CHANGE-TIMEOUT] Searching user profile with 6s timeout...')
+            console.log('🔍 [AUTH-STATE-CHANGE-OPTIMIZED] Cache miss, running parallel queries with 2s timeout...')
 
-            // Promise.race pour timeout + fallback par email
-            const profileResult = await Promise.race([
-              // Requête principale par auth_user_id
-              supabase
-                .from('users')
-                .select('*')
-                .eq('auth_user_id', session.user.id)
-                .single(),
-              // Timeout de 6 secondes (plus réaliste pour Supabase distant)
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile query timeout')), 6000)
-              )
+            // Requêtes parallèles simultanées (plus rapide)
+            const [authResult, emailResult] = await Promise.allSettled([
+              // Requête par auth_user_id avec timeout 2s
+              Promise.race([
+                supabase
+                  .from('users')
+                  .select('*')
+                  .eq('auth_user_id', session.user.id)
+                  .single(),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('Auth query timeout')), 2000)
+                )
+              ]),
+              // Requête par email en parallèle avec timeout 2s
+              session.user.email ? Promise.race([
+                supabase
+                  .from('users')
+                  .select('*')
+                  .eq('email', session.user.email)
+                  .single(),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('Email query timeout')), 2000)
+                )
+              ]) : Promise.reject(new Error('No email available'))
             ])
 
-            userProfile = profileResult.data
-            profileError = profileResult.error
+            // Priorité à la requête auth_user_id si réussie
+            if (authResult.status === 'fulfilled' && authResult.value.data) {
+              userProfile = authResult.value.data
+              console.log('✅ [AUTH-STATE-CHANGE-OPTIMIZED] Profile found via auth_user_id')
+            }
+            // Sinon utiliser email fallback
+            else if (emailResult.status === 'fulfilled' && emailResult.value.data) {
+              userProfile = emailResult.value.data
+              console.log('✅ [AUTH-STATE-CHANGE-OPTIMIZED] Profile found via email fallback')
 
-          } catch (timeoutError) {
-            console.warn('⏰ [AUTH-STATE-CHANGE-TIMEOUT] Profile query timed out, trying email fallback...')
-
-            // Fallback : chercher par email si timeout
-            if (session.user.email) {
-              try {
-                const emailResult = await Promise.race([
-                  supabase
-                    .from('users')
-                    .select('*')
-                    .eq('email', session.user.email)
-                    .single(),
-                  new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Email fallback timeout')), 4000)
-                  )
-                ])
-
-                userProfile = emailResult.data
-                profileError = emailResult.error
-
-                if (userProfile && !userProfile.auth_user_id) {
-                  // Lier le profil trouvé par email à l'auth_user_id
-                  console.log('🔗 [AUTH-STATE-CHANGE-LINK] Linking profile found by email to auth_user_id...')
+              // Lier le profil trouvé par email si pas déjà lié
+              if (!userProfile.auth_user_id) {
+                console.log('🔗 [AUTH-STATE-CHANGE-LINK] Linking profile found by email to auth_user_id...')
+                try {
                   await supabase
                     .from('users')
                     .update({ auth_user_id: session.user.id })
                     .eq('id', userProfile.id)
-
                   console.log('✅ [AUTH-STATE-CHANGE-LINK] Profile linked successfully')
+                } catch (linkError) {
+                  console.warn('⚠️ [AUTH-STATE-CHANGE-LINK] Could not link profile:', linkError)
                 }
-              } catch (emailError) {
-                console.warn('⚠️ [AUTH-STATE-CHANGE-TIMEOUT] Email fallback also failed:', emailError)
-                profileError = emailError
               }
+            } else {
+              // Les deux requêtes ont échoué ou timeout
+              console.warn('⚠️ [AUTH-STATE-CHANGE-OPTIMIZED] Both parallel queries failed:', {
+                authResult: authResult.status === 'rejected' ? authResult.reason.message : 'no data',
+                emailResult: emailResult.status === 'rejected' ? emailResult.reason.message : 'no data'
+              })
+              profileError = new Error('Profile not found in parallel queries')
             }
+
+          } catch (error) {
+            console.warn('⚠️ [AUTH-STATE-CHANGE-OPTIMIZED] Parallel queries failed:', error)
+            profileError = error
           }
 
           if (userProfile) {
@@ -656,61 +700,26 @@ class AuthService {
               last_name: userProfile.last_name || undefined,
               display_name: session.user.user_metadata?.display_name || userProfile.name,
               role: userProfile.role,
-              team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
+              team_id: userProfile.team_id,
               phone: userProfile.phone || undefined,
               created_at: userProfile.created_at || undefined,
               updated_at: userProfile.updated_at || undefined,
             }
 
-            console.log('✅ [AUTH-STATE-CHANGE-REFACTORED] User profile found:', {
+            console.log('✅ [AUTH-STATE-CHANGE-OPTIMIZED] User profile found and cached:', {
               id: user.id,
               email: user.email,
               role: user.role
             })
 
+            // ✅ NOUVEAU: Mettre en cache pour les prochaines requêtes
+            authCache.setUserProfile(session.user.id, user)
+
             callback(user)
             return
           }
 
-          // ✅ Fallback : tentative de requête directe (4s max)
-          console.log('⚠️ [AUTH-STATE-CHANGE-FALLBACK] No profile found via timeout, trying quick direct query...')
-
-          try {
-            // Requête directe avec timeout de 4s
-            const directResult = await Promise.race([
-              supabase
-                .from('users')
-                .select('*')
-                .eq('auth_user_id', session.user.id)
-                .single(),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Direct query timeout')), 4000)
-              )
-            ])
-
-            if (directResult.data) {
-              console.log('✅ [AUTH-STATE-CHANGE-FALLBACK] Profile found via direct query!')
-
-              const user: AuthUser = {
-                id: directResult.data.id, // ✅ Utiliser le vrai ID du profil
-                email: directResult.data.email,
-                name: directResult.data.name,
-                first_name: directResult.data.first_name || undefined,
-                last_name: directResult.data.last_name || undefined,
-                display_name: session.user.user_metadata?.display_name || directResult.data.name,
-                role: directResult.data.role,
-                team_id: directResult.data.team_id, // ✅ Ajout du team_id manquant
-                phone: directResult.data.phone || undefined,
-                created_at: directResult.data.created_at || undefined,
-                updated_at: directResult.data.updated_at || undefined,
-              }
-
-              callback(user)
-              return
-            }
-          } catch (directError) {
-            console.warn('⚠️ [AUTH-STATE-CHANGE-FALLBACK] Direct query failed or timed out, proceeding with JWT-only:', directError.message)
-          }
+          // ✅ OPTIMISÉ: Plus besoin de fallback directe, les requêtes parallèles couvrent tous les cas
 
           // ✅ Fallback final : JWT metadata (mais sans ID de profil incorrect)
           console.log('⚠️ [AUTH-STATE-CHANGE-JWT-ONLY] Using JWT-only fallback')

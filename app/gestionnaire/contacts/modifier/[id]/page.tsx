@@ -23,7 +23,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { contactService, contactInvitationService } from '@/lib/services'
+import { createContactService, createContactInvitationService } from '@/lib/services'
 
 
 interface ContactData {
@@ -136,7 +136,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       setLoading(true)
       setError(null)
       console.log("📞 Loading contact:", resolvedParams.id)
-      
+
+      const contactService = createContactService()
       const contactData = await contactService.getById(resolvedParams.id)
       console.log("✅ Contact loaded:", contactData)
       
@@ -214,9 +215,9 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     try {
       setSaving(true)
       setError(null)
-      
+
       console.log("💾 Saving contact:", JSON.stringify(formData, null, 2))
-      
+
       // ✅ Préparer les données pour la mise à jour - nom généré automatiquement
       const updateData = {
         name: `${formData.first_name} ${formData.last_name}`.trim(), // Généré à partir prénom + nom
@@ -229,7 +230,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         speciality: formData.speciality || null,
         notes: formData.notes || null,
       }
-      
+
+      const contactService = createContactService()
       const updatedContact = await contactService.update(resolvedParams.id, updateData)
       console.log("✅ Contact updated:", updatedContact)
       
@@ -900,7 +902,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
                       {invitationStatus === 'accepted' ? 'Révocation...' : 'Annulation...'}
                     </>
                   ) : (
-                    invitationStatus === 'accepted' ? 'Révoquer l'accès' : 'Annuler l'invitation'
+                    invitationStatus === 'accepted' ? 'Révoquer l\'accès' : 'Annuler l\'invitation'
                   )}
                 </Button>
               </div>

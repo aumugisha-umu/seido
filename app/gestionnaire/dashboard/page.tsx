@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Building2, Home, Users, Wrench, BarChart3 } from "lucide-react"
 import { requireRole } from "@/lib/dal"
+import { createServerTeamService } from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
 
 
@@ -49,6 +50,7 @@ export default async function DashboardGestionnaire() {
   try {
     // Récupérer l'équipe de l'utilisateur
     console.log('🔍 [DASHBOARD] Getting teams for user:', user.id)
+    const teamService = await createServerTeamService()
     const teams = await teamService.getUserTeams(user.id)
     console.log('📦 [DASHBOARD] Teams returned:', teams)
     console.log('📦 [DASHBOARD] Teams count:', teams?.length || 0)
@@ -168,7 +170,8 @@ export default async function DashboardGestionnaire() {
   }
 
   // Récupérer l'équipe pour le composant client
-  const teams = await teamService.getUserTeams(user.id)
+  const teamService2 = await createServerTeamService()
+  const teams = await teamService2.getUserTeams(user.id)
   const userTeamId = teams && teams.length > 0 ? teams[0].id : ''
 
   return (

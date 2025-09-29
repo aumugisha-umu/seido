@@ -21,7 +21,7 @@ import { useContactsData } from "@/hooks/use-contacts-data"
 
 
 
-import { determineAssignmentType, contactService, contactInvitationService } from '@/lib/services'
+import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function ContactsPage() {
@@ -227,7 +227,8 @@ export default function ContactsPage() {
     try {
       setLoadingInvitations(true)
       console.log("📧 Loading invitations for team:", teamId)
-      
+
+      const contactInvitationService = createContactInvitationService()
       const invitations = await contactInvitationService.getPendingInvitations(teamId)
       console.log("✅ Invitations loaded:", invitations.length)
       // Note: maintenant les invitations sont gérées par useContactsData, 

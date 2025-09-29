@@ -248,7 +248,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     }
   }, [resolvedParams.id])
 
-  // Fonction pour récupérer les interventions d&apos;un contact
+  // Fonction pour récupérer les interventions d'un contact
   const getContactInterventions = useCallback(async (contactId: string, contactData?: ContactType | ContactData) => {
     try {
       const contactToUse = contactData || contact
@@ -431,7 +431,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       console.log("👤 Contact loaded:", contactData)
       setContact(contactData as ContactData)
 
-      // 2. Charger le statut d&apos;invitation
+      // 2. Charger le statut d'invitation
       await loadInvitationStatus()
 
       // 3. Charger les interventions liées au contact (passer les données du contact)
@@ -459,7 +459,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     }
   }, [resolvedParams.id, user?.id, loadContactData])
 
-  // Fonction pour obtenir le badge du statut d&apos;invitation
+  // Fonction pour obtenir le badge du statut d'invitation
   const getInvitationStatusBadge = () => {
     if (invitationLoading) {
       return (
@@ -757,12 +757,12 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-slate-800">
                       <AlertCircle className="h-5 w-5 text-slate-500" />
-                      <span>Statut d&apos;Accès</span>
+                      <span>Statut d'Accès</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600 text-sm">Statut d&apos;invitation</span>
+                      <span className="text-slate-600 text-sm">Statut d'invitation</span>
                       {getInvitationStatusBadge()}
                     </div>
 
@@ -770,7 +770,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {invitationStatus === 'accepted' && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                         <p className="text-sm text-green-800">
-                          ✅ Ce contact a accès à l&apos;application et peut se connecter
+                          ✅ Ce contact a accès à l'application et peut se connecter
                         </p>
                       </div>
                     )}
@@ -786,7 +786,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {invitationStatus === 'expired' && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                         <p className="text-sm text-amber-800">
-                          ⏰ L&apos;invitation de ce contact a expiré. Vous pouvez en envoyer une nouvelle depuis la page de modification.
+                          ⏰ L'invitation de ce contact a expiré. Vous pouvez en envoyer une nouvelle depuis la page de modification.
                         </p>
                       </div>
                     )}
@@ -794,7 +794,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {invitationStatus === 'cancelled' && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <p className="text-sm text-red-800">
-                          🚫 L&apos;invitation de ce contact a été annulée. Vous pouvez en envoyer une nouvelle depuis la page de modification.
+                          🚫 L'invitation de ce contact a été annulée. Vous pouvez en envoyer une nouvelle depuis la page de modification.
                         </p>
                       </div>
                     )}
@@ -802,7 +802,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     {!invitationStatus && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <p className="text-sm text-slate-600">
-                          👤 Ce contact existe dans votre base mais n&apos;a pas accès à l&apos;application
+                          👤 Ce contact existe dans votre base mais n'a pas accès à l'application
                         </p>
                       </div>
                     )}
@@ -813,7 +813,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                       className="w-full"
                       onClick={() => router.push(`/gestionnaire/contacts/modifier/${resolvedParams.id}`)}
                     >
-                      Gérer l&apos;accès
+                      Gérer l'accès
                     </Button>
                   </CardContent>
                 </Card>
@@ -870,7 +870,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                             variant="outline"
                             size="sm"
                             className="w-full"
-                            onClick={() => setActiveTab(&apos;interventions&apos;)}
+                            onClick={() => setActiveTab('interventions')}
                           >
                             <Wrench className="h-4 w-4 mr-2" />
                             Voir les interventions
@@ -881,7 +881,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                             variant="outline"
                             size="sm"
                             className="w-full"
-                            onClick={() => setActiveTab(&apos;properties&apos;)}
+                            onClick={() => setActiveTab('properties')}
                           >
                             <Home className="h-4 w-4 mr-2" />
                             Voir les biens
@@ -930,7 +930,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     <Wrench className="h-5 w-5 mr-2 text-slate-500" />
                     Interventions liées à {contact.name} ({interventions.length})
                   </h2>
-                  <Button onClick={() => router.push(&apos;/gestionnaire/interventions/nouvelle-intervention&apos;)}>
+                  <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}>
                     <Plus className="h-4 w-4 mr-2" />
                     Créer une intervention
                   </Button>
@@ -996,7 +996,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => router.push(&apos;/gestionnaire/biens/lots/nouveau&apos;)}
+                      onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Nouveau lot
@@ -1004,7 +1004,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => router.push(&apos;/gestionnaire/biens/immeubles/nouveau&apos;)}
+                      onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Nouvel immeuble

@@ -333,6 +333,37 @@ export class TeamService {
   }
 
   /**
+   * Ensure user has access to a team
+   * Returns team information or creates a default team if needed
+   */
+  async ensureUserHasTeam(userId: string): Promise<{ hasTeam: boolean; teamId?: string; error?: string }> {
+    try {
+      // Check if user already has teams
+      const teams = await this.getUserTeams(userId)
+
+      if (teams && teams.data && teams.data.length > 0) {
+        return {
+          hasTeam: true,
+          teamId: teams.data[0].id
+        }
+      }
+
+      // User has no teams - this might be a configuration issue
+      // For now, we return false and let the application handle it
+      return {
+        hasTeam: false,
+        error: 'Utilisateur sans équipe assignée. Contactez votre administrateur.'
+      }
+    } catch (error) {
+      console.error('❌ [TEAM-SERVICE] Error ensuring user has team:', error)
+      return {
+        hasTeam: false,
+        error: 'Erreur lors de la vérification de l\'équipe'
+      }
+    }
+  }
+
+  /**
    * Clear cache for specific user
    */
   clearUserCache(userId: string) {

@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Search, Filter, Home } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { contactService, buildingService, lotService, interventionService } from '@/lib/services'
+import { createContactService, createBuildingService, createLotService, createInterventionService } from '@/lib/services'
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -59,6 +59,11 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       setLoading(true)
       setError(null)
       console.log("🏢 Loading building data for ID:", resolvedParams.id)
+
+      // Initialize services
+      const buildingService = createBuildingService()
+      const lotService = createLotService()
+      const interventionService = createInterventionService()
 
       // 1. Charger les donnees de l'immeuble
       const buildingData = await buildingService.getById(resolvedParams.id)
@@ -144,7 +149,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     try {
       setIsDeleting(true)
       console.log("🗑️ Deleting building:", building.id)
-      
+
+      const buildingService = createBuildingService()
       await buildingService.delete(building.id)
       
       // Redirect to buildings list after successful deletion
@@ -185,9 +191,10 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
   const loadInterventionsWithDocuments = async () => {
     if (!resolvedParams.id) return
-    
+
     setLoadingDocs(true)
     try {
+      const interventionService = createInterventionService()
       const interventionsData = await interventionService.getInterventionsWithDocumentsByBuildingId(resolvedParams.id)
       setInterventionsWithDocs(interventionsData)
     } catch (error) {
@@ -448,7 +455,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
             {/* Statistiques d'Occupation */}
             <Card>
               <CardHeader>
-                <CardTitle>Statistiques d&apos;Occupation</CardTitle>
+                <CardTitle>Statistiques d'Occupation</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
@@ -464,7 +471,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                   <span className="font-medium text-red-600">{stats.vacantLots}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Taux d&apos;occupation</span>
+                  <span className="text-gray-600">Taux d'occupation</span>
                   <span className="font-medium">
                     <Badge variant={stats.occupancyRate >= 80 ? "default" : stats.occupancyRate >= 50 ? "secondary" : "destructive"}>
                       {stats.occupancyRate}%
@@ -545,7 +552,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
                 <Wrench className="h-5 w-5 mr-2 text-gray-400" />
                 Interventions ({interventions.length})
               </h2>
-              <Button onClick={() => router.push(&apos;/gestionnaire/interventions/nouvelle&apos;)}>
+              <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Créer une intervention
               </Button>
@@ -623,8 +630,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="text-center py-12">
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                <p className="text-gray-600 mb-4">Aucune intervention n&apos;a été créée pour cet immeuble.</p>
-                <Button onClick={() => router.push(&apos;/gestionnaire/interventions/nouvelle&apos;)}>
+                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour cet immeuble.</p>
+                <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
                 </Button>
@@ -637,7 +644,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">Liste des Lots ({lots.length})</h2>
-              <Button onClick={() => router.push(&apos;/gestionnaire/biens/lots/nouveau&apos;)}>
+              <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter un lot
               </Button>
@@ -659,8 +666,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="text-center py-12">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot</h3>
-                <p className="text-gray-600 mb-4">Cet immeuble n&apos;a pas encore de lots définis.</p>
-                <Button onClick={() => router.push(&apos;/gestionnaire/biens/lots/nouveau&apos;)}>
+                <p className="text-gray-600 mb-4">Cet immeuble n'a pas encore de lots définis.</p>
+                <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer le premier lot
                 </Button>
@@ -673,7 +680,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900">Documents de l&apos;immeuble</h2>
+                    <h2 className="text-lg font-medium text-gray-900">Documents de l'immeuble</h2>
                     <p className="text-sm text-gray-600 mt-1">
                       Documents liés aux interventions réalisées dans cet immeuble
                     </p>

@@ -35,6 +35,9 @@ class AuthCache {
   private readonly DEFAULT_TTL = 5 * 60 * 1000 // 5 minutes en millisecondes
   private readonly PERMISSION_TTL = 10 * 60 * 1000 // 10 minutes pour permissions (moins volatiles)
 
+  // ✅ PHASE 1.5: Protection de l'utilisateur actif
+  private activeUserId: string | null = null
+
   /**
    * Stocker un profil utilisateur dans le cache
    */
@@ -161,10 +164,18 @@ class AuthCache {
     const now = Date.now()
     let cleanedUsers = 0
     let cleanedPermissions = 0
+    let protectedUsers = 0
 
-    // Nettoyer profiles utilisateur
+    // ✅ PHASE 1.5: Nettoyer profiles utilisateur (sauf utilisateur actif)
     for (const [key, entry] of this.userProfileCache.entries()) {
       if (now > entry.expiry) {
+        // ✅ PROTECTION: Ne pas nettoyer l'utilisateur actif même s'il a expiré
+        if (key === this.activeUserId) {
+          console.log('🛡️ [AUTH-CACHE] Protected active user from cleanup:', key)
+          protectedUsers++
+          continue
+        }
+
         this.userProfileCache.delete(key)
         if (entry.email) {
           this.userEmailCache.delete(entry.email)
@@ -181,14 +192,31 @@ class AuthCache {
       }
     }
 
-    if (cleanedUsers > 0 || cleanedPermissions > 0) {
+    if (cleanedUsers > 0 || cleanedPermissions > 0 || protectedUsers > 0) {
       console.log('🧹 [AUTH-CACHE] Cleanup completed:', {
         expiredUsers: cleanedUsers,
+        protectedUsers: protectedUsers,
         expiredPermissions: cleanedPermissions,
         remainingUsers: this.userProfileCache.size,
         remainingPermissions: this.permissionCache.size
       })
     }
+  }
+
+  /**
+   * ✅ PHASE 1.5: Marquer un utilisateur comme actif (protégé du cleanup)
+   */
+  setActiveUser(authUserId: string): void {
+    this.activeUserId = authUserId
+    console.log('🛡️ [AUTH-CACHE] Active user set:', authUserId)
+  }
+
+  /**
+   * ✅ PHASE 1.5: Démarquer l'utilisateur actif
+   */
+  clearActiveUser(): void {
+    console.log('🛡️ [AUTH-CACHE] Active user cleared:', this.activeUserId)
+    this.activeUserId = null
   }
 
   /**

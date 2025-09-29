@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, BarChart3, UserPlus, Plus, ChevronDown } from "lucide-react"
+import { Building2, Home, Users, Euro, TrendingUp, AlertTriangle, Wrench, UserPlus, Plus, ChevronDown, PlusCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { useManagerStats, useContactStats } from "@/hooks/use-manager-stats"
@@ -108,84 +108,84 @@ export default function DashboardGestionnaire() {
             </div>
 
             {/* Actions rapides */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* Menu mobile compact */}
               <div className="sm:hidden w-full">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
-                      variant="outline" 
                       size="sm"
-                      className="w-full flex items-center justify-center gap-2 bg-transparent min-h-[44px]"
+                      className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium min-h-[44px] shadow-sm"
                     >
                       <Plus className="h-4 w-4" />
-                      <span>Ajouter</span>
+                      <span>Actions rapides</span>
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px]">
-                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")} className="flex items-center">
-                      <Building2 className="h-4 w-4 mr-3" />
-                      Ajouter un immeuble
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/biens/lots/nouveau")} className="flex items-center">
-                      <Home className="h-4 w-4 mr-3" />
-                      Ajouter un lot
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsContactModalOpen(true)} className="flex items-center">
-                      <UserPlus className="h-4 w-4 mr-3" />
-                      Ajouter un contact
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")} className="flex items-center">
-                      <Wrench className="h-4 w-4 mr-3" />
-                      Ajouter une intervention
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                   <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px]">
+                     <DropdownMenuItem onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")} className="flex items-center">
+                       <PlusCircle className="h-4 w-4 mr-3" />
+                       Ajouter une intervention
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")} className="flex items-center">
+                       <PlusCircle className="h-4 w-4 mr-3" />
+                       Ajouter un immeuble
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => router.push("/gestionnaire/biens/lots/nouveau")} className="flex items-center">
+                       <PlusCircle className="h-4 w-4 mr-3" />
+                       Ajouter un lot
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => setIsContactModalOpen(true)} className="flex items-center">
+                       <PlusCircle className="h-4 w-4 mr-3" />
+                       Ajouter un contact
+                     </DropdownMenuItem>
+                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
 
-              {/* Boutons séparés desktop */}
-              <div className="hidden sm:flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
-                >
-                  <Building2 className="h-4 w-4" />
-                  <span>Ajouter un immeuble</span>
-                </Button>
+               {/* Boutons séparés desktop */}
+               <div className="hidden sm:flex items-center gap-3">
+                 {/* Action principale - Intervention (plus fréquente) */}
+                 <Button
+                   size="sm"
+                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                   onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
+                 >
+                   <PlusCircle className="h-4 w-4" />
+                   <span>Ajouter une intervention</span>
+                 </Button>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
-                >
-                  <Home className="h-4 w-4" />
-                  <span>Ajouter un lot</span>
-                </Button>
+                 {/* Actions secondaires */}
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 font-medium"
+                   onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
+                 >
+                   <PlusCircle className="h-4 w-4" />
+                   <span>Ajouter un immeuble</span>
+                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => setIsContactModalOpen(true)}
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Ajouter un contact</span>
-                </Button>
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 font-medium"
+                   onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
+                 >
+                   <PlusCircle className="h-4 w-4" />
+                   <span>Ajouter un lot</span>
+                 </Button>
 
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
-                >
-                  <Wrench className="h-4 w-4" />
-                  <span>Ajouter une intervention</span>
-                </Button>
-              </div>
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 font-medium"
+                   onClick={() => setIsContactModalOpen(true)}
+                 >
+                   <PlusCircle className="h-4 w-4" />
+                   <span>Ajouter un contact</span>
+                 </Button>
+               </div>
             </div>
           </div>
 
@@ -292,41 +292,35 @@ export default function DashboardGestionnaire() {
         </div>
 
         {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Occupation Trends */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5" />
-                <span>Tendances d'occupation</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-48">
-                <div className="text-center">
-                  <div className="w-32 h-32 rounded-full border-8 border-gray-300 mx-auto mb-4 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-gray-400">0%</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-1">Aucune donnée d'occupation</p>
-                  <p className="text-xs text-gray-400">Ajoutez des biens pour voir les statistiques</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 gap-8 mb-8">
           {/* Interventions */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center space-x-2">
                   <Wrench className="h-5 w-5" />
                   <span>Interventions</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => router.push("/gestionnaire/interventions")}>
-                  Voir toutes →
-                </Button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                  <Button 
+                    size="sm" 
+                    onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
+                    className="flex items-center justify-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden min-[480px]:inline">Ajouter une intervention</span>
+                    <span className="min-[480px]:hidden">Ajouter</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => router.push("/gestionnaire/interventions")}
+                    className="flex items-center justify-center"
+                  >
+                    <span className="hidden min-[480px]:inline">Voir toutes →</span>
+                    <span className="min-[480px]:hidden">Toutes →</span>
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

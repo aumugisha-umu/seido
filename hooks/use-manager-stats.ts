@@ -34,26 +34,46 @@ export function useManagerStats() {
   const lastUserIdRef = useRef<string | null>(null)
   const mountedRef = useRef(true)
 
+  // ✅ PHASE 1.5: Anti-loop guard pour JWT-only users
+  const jwtOnlyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   const fetchStats = useCallback(async (userId: string, bypassCache = false) => {
-    // ✅ NOUVEAU: Skip pour les utilisateurs JWT-only
+    // ✅ PHASE 1.5: Skip pour les utilisateurs JWT-only avec debouncing
     if (userId.startsWith('jwt_')) {
-      console.log("⚠️ [MANAGER-STATS] JWT-only user detected, returning empty stats")
-      if (mountedRef.current) {
-        setData({
-          stats: {
-            buildingsCount: 0,
-            lotsCount: 0,
-            occupiedLotsCount: 0,
-            occupancyRate: 0,
-            contactsCount: 0,
-            documentsCount: 0,
-            recentActivities: []
-          }
-        })
-        setLoading(false)
-        setError(null)
-        lastUserIdRef.current = userId
+      console.log("⚠️ [MANAGER-STATS] JWT-only user detected, using stable empty stats")
+
+      // Éviter les appels répétés
+      if (lastUserIdRef.current === userId && data && !bypassCache) {
+        console.log("🔒 [MANAGER-STATS] JWT-only user already processed, skipping")
+        return
       }
+
+      // Clear any pending timeout
+      if (jwtOnlyTimeoutRef.current) {
+        clearTimeout(jwtOnlyTimeoutRef.current)
+      }
+
+      // Debounced setting of empty stats
+      jwtOnlyTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setData({
+            stats: {
+              buildingsCount: 0,
+              lotsCount: 0,
+              occupiedLotsCount: 0,
+              occupancyRate: 0,
+              contactsCount: 0,
+              documentsCount: 0,
+              recentActivities: []
+            }
+          })
+          setLoading(false)
+          setError(null)
+          lastUserIdRef.current = userId
+          console.log("📊 [MANAGER-STATS] Empty stats set for JWT-only user")
+        }
+      }, 100) // 100ms debounce
+
       return
     }
 
@@ -128,11 +148,16 @@ export function useManagerStats() {
     }
   }, [user?.id, fetchStats])
 
-  // Nettoyage au démontage
+  // ✅ PHASE 1.5: Nettoyage au démontage avec cleanup des timeouts
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      // Cleanup JWT-only timeout
+      if (jwtOnlyTimeoutRef.current) {
+        clearTimeout(jwtOnlyTimeoutRef.current)
+        jwtOnlyTimeoutRef.current = null
+      }
     }
   }, [])
 

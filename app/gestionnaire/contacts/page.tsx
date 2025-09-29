@@ -598,65 +598,67 @@ export default function ContactsPage() {
                       {filteredContacts.map((contact) => (
                         <div
                           key={contact.id}
-                          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow gap-4"
                         >
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <div className="flex items-start sm:items-center space-x-4 flex-1 min-w-0">
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                               <span className="text-blue-600 font-semibold text-lg">
                                 {contact.name?.charAt(0)?.toUpperCase() || '?'}
                               </span>
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-1">
-                                <h3 className="font-medium text-slate-900">{contact.name}</h3>
-                                {contact.role && (
-                                  <Badge 
-                                    variant="secondary" 
-                                    className={`${getContactTypeBadgeStyle(contact)} text-xs font-medium`}
-                                  >
-                                    {getContactTypeLabel(contact)}
-                                  </Badge>
-                                )}
-                                {getCurrentUserBadge(contact.email)}
-                                {getContactInvitationBadge(contact.email)}
-                                {contact.company && (
-                                  <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
-                                    {contact.company}
-                                  </Badge>
-                                )}
-                                {contact.speciality && (
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                                    {getSpecialityLabel(contact.speciality)}
-                                  </Badge>
-                                )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <h3 className="font-medium text-slate-900 truncate">{contact.name}</h3>
+                                <div className="flex flex-wrap gap-1">
+                                  {contact.role && (
+                                    <Badge 
+                                      variant="secondary" 
+                                      className={`${getContactTypeBadgeStyle(contact)} text-xs font-medium`}
+                                    >
+                                      {getContactTypeLabel(contact)}
+                                    </Badge>
+                                  )}
+                                  {getCurrentUserBadge(contact.email)}
+                                  {getContactInvitationBadge(contact.email)}
+                                  {contact.company && (
+                                    <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
+                                      {contact.company}
+                                    </Badge>
+                                  )}
+                                  {contact.speciality && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                      {getSpecialityLabel(contact.speciality)}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center space-x-4 text-sm text-slate-600">
-                                <div className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-1 text-sm text-slate-600">
+                                  <Mail className="h-3 w-3 flex-shrink-0" />
+                                  <span className="truncate">{contact.email}</span>
                                 </div>
                                 {contact.phone && (
-                                  <div className="flex items-center space-x-1">
-                                    <Phone className="h-3 w-3" />
-                                    <span>{contact.phone}</span>
+                                  <div className="flex items-center space-x-1 text-sm text-slate-600">
+                                    <Phone className="h-3 w-3 flex-shrink-0" />
+                                    <span className="truncate">{contact.phone}</span>
+                                  </div>
+                                )}
+                                {contact.address && (
+                                  <div className="flex items-center space-x-1 text-sm text-slate-500">
+                                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                                    <span className="truncate">{contact.address}</span>
+                                  </div>
+                                )}
+                                {contact.notes && (
+                                  <div className="text-sm text-slate-500">
+                                    <span className="truncate">{contact.notes}</span>
                                   </div>
                                 )}
                               </div>
-                              {contact.address && (
-                                <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>{contact.address}</span>
-                                </div>
-                              )}
-                              {contact.notes && (
-                                <div className="text-sm text-slate-500 mt-1">
-                                  <span>{contact.notes}</span>
-                                </div>
-                              )}
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-end sm:justify-start space-x-2 flex-shrink-0">
                             {/* Bouton Détails */}
                             <Button
                               size="sm"
@@ -664,8 +666,8 @@ export default function ContactsPage() {
                               className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                               onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
                             >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Détails
+                              <Eye className="h-4 w-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Détails</span>
                             </Button>
                             
                             {/* Menu contextuel */}

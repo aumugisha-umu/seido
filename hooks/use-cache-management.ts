@@ -29,6 +29,9 @@ class CacheManager {
   private lastProcessedRoute: string | null = null
   private routeChangeTimeout: NodeJS.Timeout | null = null
 
+  // ✅ PHASE 1.5: Debouncing pour éviter les refresh spam
+  private refreshTimeouts = new Map<string, NodeJS.Timeout>()
+
   static getInstance(): CacheManager {
     if (!CacheManager.instance) {
       CacheManager.instance = new CacheManager()
@@ -36,14 +39,25 @@ class CacheManager {
     return CacheManager.instance
   }
 
-  // Enregistrer un callback de refresh pour un composant/hook
+  // ✅ PHASE 1.5: Enregistrer un callback avec anti-spam protection
   registerRefreshCallback(key: string, callback: () => void) {
+    // Éviter les re-registrations inutiles
+    if (this.refreshCallbacks.has(key)) {
+      console.log(`🔒 [CACHE] Callback already registered for: ${key}`)
+      return
+    }
+
     this.refreshCallbacks.set(key, callback)
     console.log(`✅ [CACHE] Registered refresh callback for: ${key}`)
   }
 
-  // Désregistrer un callback
+  // ✅ PHASE 1.5: Désregistrer un callback avec vérification
   unregisterRefreshCallback(key: string) {
+    if (!this.refreshCallbacks.has(key)) {
+      console.log(`⚠️ [CACHE] No callback to unregister for: ${key}`)
+      return
+    }
+
     this.refreshCallbacks.delete(key)
     console.log(`🗑️ [CACHE] Unregistered refresh callback for: ${key}`)
   }
@@ -90,13 +104,26 @@ class CacheManager {
     console.log(`🧹 [CACHE] All cache invalidated`)
   }
 
-  // Déclencher un refresh pour des callbacks spécifiques
+  // ✅ PHASE 1.5: Déclencher un refresh avec debouncing pour éviter spam
   triggerRefresh(keys: string[]) {
     keys.forEach(key => {
       const callback = this.refreshCallbacks.get(key)
       if (callback) {
-        console.log(`🔄 [CACHE] Triggering refresh for: ${key}`)
-        callback()
+        // Clear existing timeout
+        const existingTimeout = this.refreshTimeouts.get(key)
+        if (existingTimeout) {
+          clearTimeout(existingTimeout)
+        }
+
+        // Debounce the refresh call
+        const timeout = setTimeout(() => {
+          console.log(`🔄 [CACHE] Triggering refresh for: ${key}`)
+          callback()
+          this.refreshTimeouts.delete(key)
+        }, 50) // 50ms debounce
+
+        this.refreshTimeouts.set(key, timeout)
+        console.log(`⏰ [CACHE] Debounced refresh scheduled for: ${key}`)
       }
     })
   }

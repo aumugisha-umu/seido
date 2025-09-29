@@ -41,6 +41,13 @@ export interface SignInData {
 }
 
 class AuthService {
+  // ✅ PHASE 1.5: Circuit breaker et recovery properties
+  private recoveryTimeouts: Map<string, NodeJS.Timeout> = new Map()
+  private failureCounts: Map<string, number> = new Map()
+  private lastFailureTime: Map<string, number> = new Map()
+  private readonly MAX_FAILURES = 3
+  private readonly CIRCUIT_BREAKER_TIMEOUT = 60000 // 1 minute
+
   // Inscription - Crée auth user + profil + équipe personnelle
   async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
@@ -626,11 +633,15 @@ class AuthService {
           let profileError = null
 
           try {
-            console.log('🔍 [AUTH-STATE-CHANGE-OPTIMIZED] Cache miss, running parallel queries with 2s timeout...')
+            console.log('🔍 [AUTH-STATE-CHANGE-OPTIMIZED] Cache miss, running parallel queries with 4s timeout...')
 
-            // Requêtes parallèles simultanées (plus rapide)
+            // ✅ PHASE 1.5: Timeouts augmentés pour plus de robustesse
+            const authTimeout = 4000 // 2s → 4s
+            const emailTimeout = 4000 // 2s → 4s
+
+            // Requêtes parallèles simultanées (plus robuste)
             const [authResult, emailResult] = await Promise.allSettled([
-              // Requête par auth_user_id avec timeout 2s
+              // Requête par auth_user_id avec timeout 4s
               Promise.race([
                 supabase
                   .from('users')
@@ -638,10 +649,10 @@ class AuthService {
                   .eq('auth_user_id', session.user.id)
                   .single(),
                 new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('Auth query timeout')), 2000)
+                  setTimeout(() => reject(new Error('Auth query timeout')), authTimeout)
                 )
               ]),
-              // Requête par email en parallèle avec timeout 2s
+              // Requête par email en parallèle avec timeout 4s
               session.user.email ? Promise.race([
                 supabase
                   .from('users')
@@ -649,7 +660,7 @@ class AuthService {
                   .eq('email', session.user.email)
                   .single(),
                 new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('Email query timeout')), 2000)
+                  setTimeout(() => reject(new Error('Email query timeout')), emailTimeout)
                 )
               ]) : Promise.reject(new Error('No email available'))
             ])
@@ -714,6 +725,8 @@ class AuthService {
 
             // ✅ NOUVEAU: Mettre en cache pour les prochaines requêtes
             authCache.setUserProfile(session.user.id, user)
+            // ✅ PHASE 1.5: Marquer comme utilisateur actif pour protection
+            authCache.setActiveUser(session.user.id)
 
             callback(user)
             return
@@ -721,8 +734,8 @@ class AuthService {
 
           // ✅ OPTIMISÉ: Plus besoin de fallback directe, les requêtes parallèles couvrent tous les cas
 
-          // ✅ Fallback final : JWT metadata (mais sans ID de profil incorrect)
-          console.log('⚠️ [AUTH-STATE-CHANGE-JWT-ONLY] Using JWT-only fallback')
+                  // ✅ PHASE 1.5: JWT-only fallback avec recovery mechanism
+          console.log('⚠️ [AUTH-STATE-CHANGE-JWT-ONLY] Using JWT-only fallback with recovery')
 
           const fallbackUser: AuthUser = {
             id: `jwt_${session.user.id}`, // ✅ CORRECTION: Préfixe pour éviter confusion avec IDs profil
@@ -736,6 +749,14 @@ class AuthService {
             created_at: undefined,
             updated_at: undefined,
           }
+
+          // ✅ NOUVEAU: Mettre en cache temporaire avec TTL court pour éviter boucles
+          authCache.setUserProfile(session.user.id, fallbackUser, 30000) // 30s TTL
+          // ✅ PHASE 1.5: Marquer comme utilisateur actif même en mode JWT-only
+          authCache.setActiveUser(session.user.id)
+
+          // ✅ NOUVEAU: Programmer une tentative de recovery après un délai
+          this.scheduleJWTRecovery(session.user.id, callback)
 
           callback(fallbackUser)
 
@@ -789,6 +810,126 @@ class AuthService {
         success: false, 
         error: 'Erreur lors de l\'envoi de l\'invitation' 
       }
+    }
+  }
+
+  // ✅ PHASE 1.5: Recovery mechanism pour JWT-only users
+  private scheduleJWTRecovery(authUserId: string, callback: (user: AuthUser | null) => void) {
+    // Éviter les tentatives multiples
+    if (this.recoveryTimeouts.has(authUserId)) {
+      console.log('🔄 [JWT-RECOVERY] Recovery already scheduled for:', authUserId)
+      return
+    }
+
+    // Vérifier circuit breaker
+    if (this.isCircuitBreakerOpen(authUserId)) {
+      console.log('🚫 [JWT-RECOVERY] Circuit breaker open, skipping recovery for:', authUserId)
+      return
+    }
+
+    console.log('⏰ [JWT-RECOVERY] Scheduling recovery attempt for:', authUserId)
+
+    const recoveryTimeout = setTimeout(async () => {
+      try {
+        console.log('🔄 [JWT-RECOVERY] Attempting profile recovery for:', authUserId)
+
+        // Tentative de recovery avec timeout plus long
+        const { data, error } = await Promise.race([
+          supabase
+            .from('users')
+            .select('*')
+            .eq('auth_user_id', authUserId)
+            .single(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Recovery timeout')), 6000)
+          )
+        ])
+
+        if (data && !error) {
+          console.log('✅ [JWT-RECOVERY] Profile recovery successful:', data.email)
+
+          // Reset failure count
+          this.failureCounts.delete(authUserId)
+          this.lastFailureTime.delete(authUserId)
+
+          // Create full user profile
+          const recoveredUser: AuthUser = {
+            id: data.id,
+            email: data.email,
+            name: data.name,
+            first_name: data.first_name || undefined,
+            last_name: data.last_name || undefined,
+            display_name: data.name,
+            role: data.role,
+            team_id: data.team_id,
+            phone: data.phone || undefined,
+            created_at: data.created_at || undefined,
+            updated_at: data.updated_at || undefined,
+          }
+
+          // Remplacer le cache JWT-only par le vrai profil
+          authCache.setUserProfile(authUserId, recoveredUser)
+          // ✅ PHASE 1.5: Maintenir la protection active user
+          authCache.setActiveUser(authUserId)
+
+          // Notifier la recovery
+          callback(recoveredUser)
+        } else {
+          this.handleRecoveryFailure(authUserId)
+        }
+      } catch (error) {
+        console.warn('⚠️ [JWT-RECOVERY] Recovery failed:', error)
+        this.handleRecoveryFailure(authUserId)
+      } finally {
+        this.recoveryTimeouts.delete(authUserId)
+      }
+    }, 5000) // Attendre 5s avant tentative
+
+    this.recoveryTimeouts.set(authUserId, recoveryTimeout)
+  }
+
+  // Circuit breaker logic
+  private isCircuitBreakerOpen(authUserId: string): boolean {
+    const failures = this.failureCounts.get(authUserId) || 0
+    const lastFailure = this.lastFailureTime.get(authUserId) || 0
+    const now = Date.now()
+
+    if (failures >= this.MAX_FAILURES) {
+      if (now - lastFailure < this.CIRCUIT_BREAKER_TIMEOUT) {
+        return true // Circuit ouvert
+      } else {
+        // Reset après timeout
+        this.failureCounts.delete(authUserId)
+        this.lastFailureTime.delete(authUserId)
+        return false
+      }
+    }
+
+    return false
+  }
+
+  private handleRecoveryFailure(authUserId: string) {
+    const currentFailures = this.failureCounts.get(authUserId) || 0
+    this.failureCounts.set(authUserId, currentFailures + 1)
+    this.lastFailureTime.set(authUserId, Date.now())
+
+    console.log(`⚠️ [JWT-RECOVERY] Failure count for ${authUserId}: ${currentFailures + 1}/${this.MAX_FAILURES}`)
+  }
+
+  // Cleanup recovery timeouts on logout
+  private cleanupRecovery(authUserId?: string) {
+    if (authUserId) {
+      const timeout = this.recoveryTimeouts.get(authUserId)
+      if (timeout) {
+        clearTimeout(timeout)
+        this.recoveryTimeouts.delete(authUserId)
+      }
+    } else {
+      // Cleanup all
+      for (const timeout of this.recoveryTimeouts.values()) {
+        clearTimeout(timeout)
+      }
+      this.recoveryTimeouts.clear()
     }
   }
 }

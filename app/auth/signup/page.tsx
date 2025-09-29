@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Building2, Eye, EyeOff, Check, CheckCircle, Mail, Phone } from "lucide-react"
+import { Building2, Eye, EyeOff, Check, CheckCircle, Mail, Phone } from "@/lib/icons"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function SignupPage() {

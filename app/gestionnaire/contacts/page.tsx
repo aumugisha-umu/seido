@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "lucide-react"
+import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "@/lib/icons"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
 import { ContactFormModal } from "@/components/contact-form-modal"

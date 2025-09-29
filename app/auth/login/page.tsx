@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, Eye, EyeOff, Mail, CheckCircle } from "lucide-react"
+import { Building2, Eye, EyeOff, Mail, CheckCircle } from "@/lib/icons"
 import { useAuth } from "@/hooks/use-auth"
 // Redirections supprimées - gérées par le middleware
 export default function LoginPage() {

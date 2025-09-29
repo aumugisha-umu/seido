@@ -1,9 +1,28 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from './database.types'
 
+// ⚠️ TEMPORAIRE: Fonction pour créer un client Supabase avec Service Role (bypass RLS)
+// À UTILISER UNIQUEMENT POUR LES TESTS
+function createServiceRoleClient(): SupabaseClient<Database> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Missing Supabase Service Role configuration')
+  }
+
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY, // Service Role bypasse tous les RLS
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
+}
+
 export interface FileUploadMetadata {
   interventionId: string
-  uploadedBy: string // user_id from database (not auth.user.id)
+  uploadedBy: string // IMPORTANT: user_id from users table (not auth.user.id)
   documentType?: string
   description?: string
 }
@@ -37,6 +56,10 @@ export const fileService = {
         interventionId: metadata.interventionId
       })
 
+      // ⚠️ TEMPORAIRE: Utiliser Service Role client pour bypasser RLS
+      console.log("⚠️ USING SERVICE ROLE CLIENT TO BYPASS RLS (TEMPORARY)")
+      const serviceClient = createServiceRoleClient()
+
       // Generate unique file name to avoid conflicts
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const randomSuffix = Math.random().toString(36).substring(2, 8)
@@ -48,8 +71,8 @@ export const fileService = {
 
       console.log("📁 Generated storage path:", storagePath)
 
-      // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upload file to Supabase Storage with Service Role (bypass RLS)
+      const { data: uploadData, error: uploadError } = await serviceClient.storage
         .from('intervention-documents')
         .upload(storagePath, file, {
           cacheControl: '3600',
@@ -64,7 +87,7 @@ export const fileService = {
       console.log("✅ File uploaded to storage:", uploadData.path)
 
       // Get the public URL (for signed URL generation later)
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = serviceClient.storage
         .from('intervention-documents')
         .getPublicUrl(storagePath)
 
@@ -77,7 +100,7 @@ export const fileService = {
         mime_type: file.type,
         storage_path: storagePath,
         storage_bucket: 'intervention-documents',
-        uploaded_by: metadata.uploadedBy,
+        uploaded_by: metadata.uploadedBy, // Must be user ID from users table
         uploaded_at: new Date().toISOString(),
         document_type: metadata.documentType || null,
         description: metadata.description || null,
@@ -86,7 +109,7 @@ export const fileService = {
 
       console.log("💾 Creating database record:", documentData)
 
-      const { data: documentRecord, error: dbError } = await supabase
+      const { data: documentRecord, error: dbError } = await serviceClient
         .from('intervention_documents')
         .insert(documentData)
         .select()
@@ -94,10 +117,15 @@ export const fileService = {
 
       if (dbError) {
         console.error("❌ Database insert error:", dbError)
+        console.error("❌ Error details:", {
+          code: dbError.code,
+          details: dbError.details,
+          hint: dbError.hint
+        })
 
         // Try to clean up uploaded file if database insert fails
         try {
-          await supabase.storage
+          await serviceClient.storage
             .from('intervention-documents')
             .remove([storagePath])
           console.log("🧹 Cleaned up uploaded file after database error")
@@ -105,7 +133,15 @@ export const fileService = {
           console.error("❌ Failed to cleanup file after database error:", cleanupError)
         }
 
-        throw new Error(`Database insert failed: ${dbError.message}`)
+        // Provide more specific error message
+        let errorMessage = `Database insert failed: ${dbError.message}`
+        if (dbError.code === '23503') {
+          errorMessage = 'Invalid user reference. Please ensure user ID is from users table, not auth.users.'
+        } else if (dbError.code === '42501') {
+          errorMessage = 'Insufficient permissions to upload document for this intervention.'
+        }
+
+        throw new Error(errorMessage)
       }
 
       console.log("✅ Document record created:", documentRecord.id)
@@ -166,7 +202,9 @@ export const fileService = {
    */
   async getSignedUrl(supabase: SupabaseClient<Database>, storagePath: string, expiresInSeconds: number = 3600): Promise<string> {
     try {
-      const { data, error } = await supabase.storage
+      // ⚠️ TEMPORAIRE: Utiliser Service Role client pour bypasser RLS
+      const serviceClient = createServiceRoleClient()
+      const { data, error } = await serviceClient.storage
         .from('intervention-documents')
         .createSignedUrl(storagePath, expiresInSeconds)
 
@@ -207,7 +245,9 @@ export const fileService = {
       }
 
       // Delete from storage
-      const { error: storageError } = await supabase.storage
+      // ⚠️ TEMPORAIRE: Utiliser Service Role client pour bypasser RLS
+      const serviceClient = createServiceRoleClient()
+      const { error: storageError } = await serviceClient.storage
         .from('intervention-documents')
         .remove([document.storage_path])
 

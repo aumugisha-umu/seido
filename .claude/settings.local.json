@@ -17,7 +17,10 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsx:*)",
       "Bash(test:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebSearch",
+      "Bash(git log:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

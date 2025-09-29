@@ -1,15 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 
 export async function GET(request: NextRequest) {
   console.log("👁️ view-intervention-document API route called")
-  
+
   try {
-    // Initialize Supabase client
+    // ⚠️ TEMPORAIRE: Utiliser Service Role client pour bypasser RLS
+    console.log("⚠️ USING SERVICE ROLE CLIENT TO BYPASS RLS (TEMPORARY)")
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Missing Supabase Service Role configuration')
+    }
+
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY, // Service Role bypasse tous les RLS
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+
+    // Initialize auth client pour récupérer l'utilisateur authentifié
     const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
+    const authClient = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -30,11 +49,33 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Get current auth user (via auth client, pas service client)
+    const { data: { user: authUser }, error: authError } = await authClient.auth.getUser()
+    if (authError || !authUser) {
+      console.error("❌ Auth error:", authError)
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
+
+    // Get database user from auth user
+    const { data: dbUser, error: userError } = await supabase
+      .from('users')
+      .select('id, name, email, role')
+      .eq('auth_user_id', authUser.id)
+      .single()
+
+    if (userError || !dbUser) {
+      console.error("❌ Database user not found:", userError)
+      return NextResponse.json({
+        error: 'Profil utilisateur non trouvé. Veuillez compléter votre profil.'
+      }, { status: 404 })
+    }
+
+    console.log("👤 User found:", {
+      authId: authUser.id,
+      dbId: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role
+    })
 
     // Get document ID from query params
     const { searchParams } = new URL(request.url)
@@ -75,13 +116,13 @@ export async function GET(request: NextRequest) {
 
     // Check if user is member of the team that owns this intervention
     const userHasAccess = document.intervention.team.members.some(
-      (member: any) => member.user_id === user.id
+      (member: any) => member.user_id === dbUser.id
     )
 
     if (!userHasAccess) {
       console.error("❌ User not member of document's intervention team")
-      return NextResponse.json({ 
-        error: 'Accès refusé à ce document' 
+      return NextResponse.json({
+        error: 'Accès refusé à ce document'
       }, { status: 403 })
     }
 

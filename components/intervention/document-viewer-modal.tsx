@@ -23,16 +23,25 @@ import {
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
-interface Document {
+// Unified Document interface matching InterventionDocument structure
+export interface Document {
   id: string
-  name: string
-  size: number
-  type: string
-  uploadedAt: string
-  uploadedBy?: {
+  original_filename: string  // Changed from 'name'
+  file_size: number          // Changed from 'size'
+  mime_type: string          // Changed from 'type'
+  uploaded_at: string        // Changed from 'uploadedAt'
+  document_type?: 'photo_avant' | 'photo_apres' | 'rapport' | 'facture' | 'devis' | 'autre'
+  description?: string
+  uploaded_by?: string
+  uploaded_by_user?: {       // Changed from 'uploadedBy'
+    id: string
     name: string
+    email: string
     role: string
   }
+  signed_url?: string
+  storage_path?: string
+  intervention_id?: string
 }
 
 interface DocumentViewerModalProps {
@@ -126,7 +135,7 @@ export const DocumentViewerModal = ({
           // Create a temporary link to trigger download
           const link = window.document.createElement('a')
           link.href = data.downloadUrl
-          link.download = data.document.filename
+          link.download = data.document?.filename || document?.original_filename || 'document'
           window.document.body.appendChild(link)
           link.click()
           window.document.body.removeChild(link)
@@ -199,7 +208,7 @@ export const DocumentViewerModal = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
   }
 
-  const isImage = (mimeType: string) => mimeType.startsWith('image/')
+  const isImage = (mimeType: string) => mimeType?.startsWith('image/') || false
   const isPDF = (mimeType: string) => mimeType === 'application/pdf'
 
   return (
@@ -209,9 +218,9 @@ export const DocumentViewerModal = ({
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
-                {document?.type?.startsWith('image/') ? (
+                {document?.mime_type?.startsWith('image/') ? (
                   <ImageIcon className="h-5 w-5 text-sky-600" />
-                ) : document?.type === 'application/pdf' ? (
+                ) : document?.mime_type === 'application/pdf' ? (
                   <File className="h-5 w-5 text-sky-600" />
                 ) : (
                   <FileText className="h-5 w-5 text-sky-600" />
@@ -219,7 +228,7 @@ export const DocumentViewerModal = ({
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-slate-900 truncate">
-                  {document?.name || 'Chargement...'}
+                  {document?.original_filename || 'Chargement...'}
                 </h3>
                 {interventionInfo && (
                   <p className="text-sm text-slate-600">
@@ -230,25 +239,30 @@ export const DocumentViewerModal = ({
             </div>
             <div className="flex items-center space-x-2">
               {documentInfo && (
-                <Badge className={getDocumentTypeColor(documentInfo.documentType)}>
-                  {getDocumentTypeLabel(documentInfo.documentType)}
+                <Badge className={getDocumentTypeColor(document?.document_type || documentInfo?.documentType || 'autre')}>
+                  {getDocumentTypeLabel(document?.document_type || documentInfo?.documentType || 'autre')}
                 </Badge>
               )}
             </div>
           </DialogTitle>
         </DialogHeader>
 
-        {/* Document Info Bar */}
-        {documentInfo && (
+        {/* Document Info Bar - Support both document and documentInfo data */}
+        {(document || documentInfo) && (
           <div className="flex-shrink-0 bg-slate-50 p-3 rounded-lg border">
             <div className="flex items-center justify-between text-sm text-slate-600">
-              <div className="flex items-center space-x-4">
-                <span>{formatFileSize(documentInfo.size)}</span>
+              <div className="flex items-center space-x-4 flex-wrap">
+                <span>{formatFileSize(document?.file_size || documentInfo?.size || 0)}</span>
                 <span>
-                  Ajouté le {format(new Date(documentInfo.uploadedAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                  Ajouté le {document?.uploaded_at ? format(new Date(document.uploaded_at), 'dd MMM yyyy à HH:mm', { locale: fr }) : documentInfo?.uploadedAt ? format(new Date(documentInfo.uploadedAt), 'dd MMM yyyy à HH:mm', { locale: fr }) : 'Date inconnue'}
                 </span>
-                {documentInfo.description && (
-                  <span className="italic">"{documentInfo.description}"</span>
+                {(document?.description || documentInfo?.description) && (
+                  <span className="italic">"{document?.description || documentInfo?.description}"</span>
+                )}
+                {document?.uploaded_by_user && (
+                  <span className="text-slate-500">
+                    Par {document.uploaded_by_user.name} ({document.uploaded_by_user.role})
+                  </span>
                 )}
               </div>
             </div>
@@ -258,7 +272,7 @@ export const DocumentViewerModal = ({
         {/* Action Bar */}
         <div className="flex-shrink-0 flex items-center justify-between p-2 bg-slate-50 rounded-lg border">
           <div className="flex items-center space-x-2">
-            {(isImage(document?.type || '') && viewUrl) && (
+            {(isImage(document?.mime_type || '') && viewUrl) && (
               <>
                 <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoom <= 50}>
                   <ZoomOut className="h-4 w-4" />
@@ -301,28 +315,43 @@ export const DocumentViewerModal = ({
             </div>
           ) : error ? (
             <div className="h-full flex items-center justify-center p-6">
-              <Alert className="max-w-md">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {error}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-3" 
+              <div className="text-center max-w-md">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">
+                  Erreur de prévisualisation
+                </h3>
+                <p className="text-slate-600 mb-6">{error}</p>
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
                     onClick={loadDocumentView}
+                    className="w-full"
                   >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
                     Réessayer
                   </Button>
-                </AlertDescription>
-              </Alert>
+                  <Button
+                    onClick={handleDownload}
+                    className="w-full"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Télécharger le fichier
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-4">
+                  Si le problème persiste, essayez de télécharger le fichier directement.
+                </p>
+              </div>
             </div>
           ) : viewUrl ? (
             <div className="h-full overflow-auto bg-slate-100 rounded-lg">
-              {isImage(document?.type || '') ? (
+              {isImage(document?.mime_type || '') ? (
                 <div className="h-full flex items-center justify-center p-4">
                   <img
                     src={viewUrl}
-                    alt={document?.name}
+                    alt={document?.original_filename}
                     className="max-w-full max-h-full object-contain transition-transform duration-200"
                     style={{
                       transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
@@ -331,29 +360,40 @@ export const DocumentViewerModal = ({
                     onError={() => setError('Erreur lors du chargement de l\'image')}
                   />
                 </div>
-              ) : isPDF(document?.type || '') ? (
+              ) : isPDF(document?.mime_type || '') ? (
                 <iframe
                   src={viewUrl}
                   className="w-full h-full border-0"
-                  title={document?.name}
+                  title={document?.original_filename}
                   onError={() => setError('Erreur lors du chargement du PDF')}
                 />
               ) : (
                 <div className="h-full flex items-center justify-center p-6">
                   <div className="text-center max-w-md">
-                    <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="h-8 w-8 text-slate-400" />
+                    </div>
                     <h3 className="text-lg font-medium text-slate-900 mb-2">
                       Aperçu non disponible
                     </h3>
                     <p className="text-slate-600 mb-4">
-                      Ce type de fichier ne peut pas être prévisualisé dans le navigateur.
+                      Ce type de fichier ({document?.mime_type || 'type inconnu'}) ne peut pas être prévisualisé directement dans le navigateur.
                     </p>
-                    <div className="space-y-2">
-                      <Button onClick={handleDownload}>
+                    <div className="space-y-3">
+                      <Button onClick={handleDownload} className="w-full">
                         <Download className="h-4 w-4 mr-2" />
                         Télécharger le fichier
                       </Button>
+                      {viewUrl && (
+                        <Button variant="outline" onClick={openInNewTab} className="w-full">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Ouvrir dans un nouvel onglet
+                        </Button>
+                      )}
                     </div>
+                    <p className="text-xs text-slate-500 mt-4">
+                      Types supportés pour la prévisualisation : Images (JPG, PNG, GIF, WebP) et PDF
+                    </p>
                   </div>
                 </div>
               )}

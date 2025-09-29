@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { IntegratedQuotesSection } from "@/components/quotes/integrated-quotes-section"
 import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availabilities-display"
+import { InterventionDocuments } from "@/components/intervention/intervention-documents"
 
 // Types pour les données d'intervention
 interface DatabaseContact {
@@ -280,7 +281,7 @@ export function InterventionDetailTabs({
         label: "Exécution",
         icon: PlayCircle,
         available: true,
-        badge: intervention.attachments?.length || 0,
+        badge: undefined, // Badge will be updated dynamically from API
       },
       {
         id: "conversations",
@@ -650,8 +651,18 @@ export function InterventionDetailTabs({
 
   const renderExecutionTab = () => (
     <TabsContent value="execution" className="space-y-6">
+      {/* Documents section - Full width */}
+      <div>
+        <InterventionDocuments
+          interventionId={intervention.id}
+          interventionStatus={intervention.status}
+          userRole={userRole}
+          userId={userId}
+        />
+      </div>
+
+      {/* Planification & Disponibilités - Below documents */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Planification & Disponibilités */}
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center space-x-2">
@@ -696,16 +707,16 @@ export function InterventionDetailTabs({
           </CardContent>
         </Card>
 
-        {/* Fichiers joints */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-gray-600" />
-              <span>Fichiers joints ({intervention.attachments.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {intervention.attachments.length > 0 ? (
+        {/* Legacy attachments - Keep for backward compatibility */}
+        {intervention.attachments && intervention.attachments.length > 0 && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-gray-600" />
+                <span>Pièces jointes initiales ({intervention.attachments.length})</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-2">
                 {intervention.attachments.map((file, index) => (
                   <div key={file.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -743,15 +754,9 @@ export function InterventionDetailTabs({
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium mb-2">Aucun fichier joint</p>
-                <p className="text-sm">Les documents liés à l'intervention apparaîtront ici</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </TabsContent>
   )

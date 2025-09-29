@@ -25,19 +25,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { DocumentViewerModal } from "./document-viewer-modal"
-
-interface Document {
-  id: string
-  name: string
-  size: number
-  type: string
-  uploadedAt: string
-  uploadedBy?: {
-    name: string
-    role: string
-  }
-}
+import { DocumentViewerModal, type Document } from "./document-viewer-modal"
 
 interface InterventionWithDocuments {
   id: string
@@ -87,8 +75,8 @@ export function DocumentsSection({
     const matchesSearch = !searchQuery || 
       intervention.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       intervention.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      intervention.documents.some(doc => 
-        doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+      intervention.documents.some(doc =>
+        (doc.original_filename || doc.name || '').toLowerCase().includes(searchQuery.toLowerCase())
       )
     
     const matchesStatus = statusFilter === "all" || intervention.status === statusFilter
@@ -105,8 +93,8 @@ export function DocumentsSection({
   }
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return FileImage
-    if (fileType.includes('spreadsheet') || fileType.includes('excel')) return FileSpreadsheet
+    if (fileType?.startsWith('image/')) return FileImage
+    if (fileType?.includes('spreadsheet') || fileType?.includes('excel')) return FileSpreadsheet
     if (fileType === 'application/pdf') return File
     return FileText
   }

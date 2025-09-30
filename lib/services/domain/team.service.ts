@@ -1,9 +1,11 @@
 /**
  * Team Service - Phase 3.2
  * Business logic for team management with permissions and member administration
+ * ✅ Updated for multi-team support with TeamMemberRepository
  */
 
 import { TeamRepository, createTeamRepository, createServerTeamRepository, type TeamInsert, type TeamUpdate, type TeamWithMembers } from '../repositories/team.repository'
+import { TeamMemberRepository, createTeamMemberRepository, createServerTeamMemberRepository, type UserTeamAssociation } from '../repositories/team-member.repository'
 import { UserService, createUserService, createServerUserService } from './user.service'
 import { ValidationException, ConflictException, NotFoundException } from '../core/error-handler'
 import type {
@@ -31,10 +33,12 @@ export interface UpdateTeamData {
 /**
  * Team Service
  * Manages team lifecycle with member administration and permissions
+ * ✅ Now uses TeamMemberRepository for proper multi-team support
  */
 export class TeamService {
   constructor(
     private repository: TeamRepository,
+    private memberRepository: TeamMemberRepository,
     private userService?: UserService
   ) {}
 
@@ -76,12 +80,16 @@ export class TeamService {
 
   /**
    * Get teams for a specific user
+   * ⚠️ TEMPORARY: Uses TeamRepository.findUserTeams (users.team_id approach)
+   * TODO: Migrate to TeamMemberRepository after DB migration
    */
   async getUserTeams(userId: string) {
     try {
+      // Utiliser l'ancienne méthode via TeamRepository
       const result = await this.repository.findUserTeams(userId)
       return result
     } catch (error) {
+      console.error('[TEAM-SERVICE] getUserTeams: Error', error)
       throw error
     }
   }
@@ -497,17 +505,20 @@ export class TeamService {
 // Factory functions for creating service instances
 export const createTeamService = (
   repository?: TeamRepository,
+  memberRepository?: TeamMemberRepository,
   userService?: UserService
 ) => {
   const repo = repository || createTeamRepository()
+  const memberRepo = memberRepository || createTeamMemberRepository()
   const users = userService || createUserService()
-  return new TeamService(repo, users)
+  return new TeamService(repo, memberRepo, users)
 }
 
 export const createServerTeamService = async () => {
-  const [repository, userService] = await Promise.all([
+  const [repository, memberRepository, userService] = await Promise.all([
     createServerTeamRepository(),
+    createServerTeamMemberRepository(),
     createServerUserService()
   ])
-  return new TeamService(repository, userService)
+  return new TeamService(repository, memberRepository, userService)
 }

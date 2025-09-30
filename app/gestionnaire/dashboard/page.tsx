@@ -58,11 +58,16 @@ export default async function DashboardGestionnaire() {
     const lotService = await createServerLotService()
     const statsService = await createServerStatsService()
 
-    // Récupérer l'équipe de l'utilisateur
+    // Récupérer l'équipe de l'utilisateur (structure actuelle: users.team_id)
     console.log('🔍 [DASHBOARD] Getting teams for user:', user.id)
-    const teams = await teamService.getUserTeams(user.id)
-    console.log('📦 [DASHBOARD] Teams returned:', teams)
-    console.log('📦 [DASHBOARD] Teams count:', teams?.length || 0)
+    const teamsResult = await teamService.getUserTeams(user.id)
+    console.log('📦 [DASHBOARD] Teams result:', teamsResult)
+
+    // Extraire les données selon le format RepositoryResult
+    const teams = teamsResult?.data || []
+    console.log('📦 [DASHBOARD] Teams array:', teams)
+    console.log('📦 [DASHBOARD] Teams count:', teams.length)
+
     if (teams && teams.length > 0) {
       console.log('📦 [DASHBOARD] First team:', teams[0])
       const userTeamId = teams[0].id

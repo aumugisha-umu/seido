@@ -47,6 +47,7 @@ type AuthActionResult = {
   data?: {
     message?: string
     email?: string
+    redirectTo?: string // Pour la navigation client-side post-authentification
     [key: string]: unknown
   }
 }
@@ -109,48 +110,6 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
 
   console.log('✅ [LOGIN-ACTION] User authenticated:', data.user.email)
 
-  // ✅ NOUVEAU: Attendre que la session soit bien établie côté serveur
-  console.log('⏳ [LOGIN-ACTION] Waiting for server-side session to be established...')
-
-  // Créer un nouveau client server pour vérifier la session
-  const sessionSupabase = await createServerSupabaseClient()
-  let sessionEstablished = false
-  let retryCount = 0
-  const maxRetries = 5
-
-  while (!sessionEstablished && retryCount < maxRetries) {
-    try {
-      const { data: sessionCheck, error: sessionError } = await sessionSupabase.auth.getUser()
-
-      if (!sessionError && sessionCheck.user && sessionCheck.user.id === data.user.id) {
-        console.log('✅ [LOGIN-ACTION] Server-side session confirmed')
-        sessionEstablished = true
-      } else {
-        console.log(`⏳ [LOGIN-ACTION] Session not ready, retry ${retryCount + 1}/${maxRetries}`)
-        retryCount++
-
-        if (retryCount < maxRetries) {
-          // Attendre un peu avant de retry
-          await new Promise(resolve => setTimeout(resolve, 200))
-        }
-      }
-    } catch (error) {
-      console.log(`⏳ [LOGIN-ACTION] Session check error, retry ${retryCount + 1}/${maxRetries}:`, error instanceof Error ? error.message : String(error))
-      retryCount++
-
-      if (retryCount < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-    }
-  }
-
-  if (!sessionEstablished) {
-    console.log('⚠️ [LOGIN-ACTION] Session not established after retries, proceeding anyway')
-  }
-
-  // ✅ CACHE: Invalider le cache selon les bonnes pratiques
-  revalidatePath('/', 'layout')
-
   // ✅ DÉTERMINER REDIRECTION: Selon le rôle utilisateur
   let dashboardPath = '/admin/dashboard' // Fallback par défaut
 
@@ -160,10 +119,9 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
 
     if (userResult.success && userResult.data && userResult.data.role) {
       dashboardPath = getDashboardPath(userResult.data.role)
-      console.log('🔄 [LOGIN-ACTION] Redirecting to role-specific dashboard:', {
+      console.log('🔄 [LOGIN-ACTION] Determined role-specific dashboard:', {
         role: userResult.data.role,
-        dashboard: dashboardPath,
-        sessionEstablished
+        dashboard: dashboardPath
       })
     } else {
       console.log('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
@@ -172,7 +130,16 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     console.log('⚠️ [LOGIN-ACTION] Error determining role, using fallback:', error)
   }
 
-  // ✅ PATTERN OFFICIEL: redirect() HORS de tout try/catch
+  // ✅ PATTERN OFFICIEL SUPABASE SSR + NEXT.JS 15
+  // Solution: Utiliser redirect() directement après signInWithPassword()
+  // Les cookies sont automatiquement propagés avec redirect()
+  // Pas besoin d'attendre ou de gérer côté client
+  console.log('🚀 [LOGIN-ACTION] Authentication successful, redirecting to dashboard')
+
+  // ✅ CACHE: Invalider le cache AVANT la redirection
+  revalidatePath('/', 'layout')
+
+  // ✅ REDIRECTION SERVER-SIDE: Pattern officiel Supabase
   redirect(dashboardPath)
 }
 
@@ -203,7 +170,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     const supabase = await createServerSupabaseClient()
     const { data, error } = await supabase.auth.signUp({
       email: validatedData.email,
-      password: validatedData._password,
+      password: validatedData.password, // ✅ FIXED: was validatedData._password (typo)
       options: {
         data: {
           first_name: validatedData.firstName,

@@ -202,6 +202,16 @@ export {
   type TeamWithMembers
 } from './repositories/team.repository'
 
+// Team Member Repository (for multi-team support)
+export {
+  TeamMemberRepository,
+  createTeamMemberRepository,
+  createServerTeamMemberRepository,
+  type TeamMember,
+  type TeamMemberWithDetails,
+  type UserTeamAssociation
+} from './repositories/team-member.repository'
+
 export {
   TeamService,
   createTeamService,

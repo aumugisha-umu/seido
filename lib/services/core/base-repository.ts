@@ -28,7 +28,7 @@ export abstract class BaseRepository<
   protected readonly supabase: SupabaseClient<Database>
   protected readonly tableName: string
   protected readonly cache = new Map<string, { data: unknown; timestamp: number }>()
-  protected readonly defaultCacheTTL = 300 // 5 minutes
+  protected readonly defaultCacheTTL = 30 // 30 seconds (réduit pour éviter état partagé entre tests)
 
   constructor(supabase: SupabaseClient<Database>, tableName: string) {
     this.supabase = supabase

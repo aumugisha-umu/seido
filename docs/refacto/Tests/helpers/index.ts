@@ -44,6 +44,18 @@ export {
 } from './navigation-helpers'
 
 // ============================================================================
+// Test Isolation Helpers
+// ============================================================================
+export {
+  cleanBrowserState,
+  waitForNetworkIdle,
+  setupTestIsolation,
+  teardownTestIsolation,
+  isPageHealthy,
+  resetApplicationState
+} from './test-isolation'
+
+// ============================================================================
 // Other Helpers (existing)
 // ============================================================================
 export { E2ETestLogger } from './e2e-test-logger'

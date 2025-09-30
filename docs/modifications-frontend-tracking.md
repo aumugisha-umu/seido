@@ -574,8 +574,167 @@ const addLot = () => {
 
 ---
 
-**📅 Dernière mise à jour:** 29 septembre 2025 (23:30)
-**📝 Version:** 1.3
+### **SESSION 30 SEPTEMBRE 2025 (MATIN) - 🎨 Refonte Interface Documents & Notifications Devis**
+
+#### ✅ **Onglet Exécution - Optimisation Layout Documents**
+
+41. **components/intervention/intervention-detail-tabs.tsx** - Suppression duplication & réorganisation (MODIFIÉE)
+    - **Vue:** Onglet Exécution détails intervention
+    - **Path:** `components/intervention/intervention-detail-tabs.tsx` (lignes 652-709)
+    - **Refonte majeure:**
+      - **Suppression duplication:** Retrait Card "Pièces jointes initiales" (lignes 710-759)
+      - **Réorganisation priorités:** Section "Planification & Disponibilités" remontée en première position
+      - **Section Documents** maintenant en deuxième position
+      - **Harmonisation visuelle:** Toutes sections dans des Cards blanches cohérentes
+    - **Impact UX:** Layout plus clair, hiérarchie de l'information respectée (planning avant documents)
+
+42. **components/intervention/intervention-documents.tsx** - Card blanche avec icône (MODIFIÉE)
+    - **Vue:** Section Documents dans onglet Exécution
+    - **Path:** `components/intervention/intervention-documents.tsx` (lignes 167-347)
+    - **Amélioration design:**
+      - Wrapping complet dans `<Card>` avec `<CardHeader>` et `<CardContent>`
+      - Ajout icône `FileText` bleue ciel (`text-sky-600`) pour cohérence avec Planification
+      - Titre dans `CardTitle` avec compteur de documents déplacé en sous-titre
+      - **Harmonisation:** Même structure visuelle que section Planification
+    - **Impact visuel:** Interface unifiée, design cohérent entre toutes les sections
+
+#### ✅ **Modale Upload - Amélioration Padding & Layout**
+
+43. **components/intervention/intervention-documents.tsx** - Padding modale responsive (MODIFIÉE)
+    - **Vue:** Modale "Ajouter des documents"
+    - **Path:** `components/intervention/intervention-documents.tsx` (lignes 218-232)
+    - **Fix UX:**
+      - **SheetContent:** Ajout `flex flex-col` pour layout vertical
+      - **Wrapper padding:** `px-5 md:px-10` (20px mobile, 40px desktop)
+      - **Structure flex:** `flex-1 flex flex-col min-h-0` pour propagation
+      - Ajout `overflow-y-auto` pour scroll si contenu déborde
+    - **Impact visuel:** Espacement cohérent sur tous les côtés, design professionnel
+
+44. **components/intervention/document-upload-zone.tsx** - Refonte complète aperçu fichiers (REFACTORED)
+    - **Vue:** Zone d'upload dans modale Exécution
+    - **Path:** `components/intervention/document-upload-zone.tsx` (lignes 52-423)
+    - **Refonte majeure:**
+      - **Interface `FileWithMetadata`:** Nouveau type associant `file`, `documentType`, `description`
+      - **Métadonnées individuelles:** Chaque fichier a son propre type et description
+      - **Layout aperçu:** Passage de grille 2/3 colonnes à liste verticale avec miniatures
+      - **Miniature 96x96px** à gauche avec bouton supprimer au hover
+      - **Champs formulaire:** Select type + Input description pour chaque fichier
+      - **Fonction `updateFileMetadata`:** Met à jour les métadonnées d'un fichier spécifique
+      - **Flexbox sticky:** Bouton "Télécharger" collé en bas avec padding responsive
+      - **Container flex:** `flex flex-col h-full` pour occuper toute hauteur disponible
+      - **Zone scrollable:** Liste fichiers avec `flex-1 overflow-y-auto`
+      - **Padding bouton:** `pt-4 pb-5 md:pb-10` (cohérent avec padding horizontal)
+    - **Impact UX:** Interface moderne, personnalisation par fichier, layout stable
+
+45. **components/intervention/document-upload-zone.tsx** - Gestion débordement noms longs (FIX)
+    - **Vue:** Aperçu fichiers sélectionnés
+    - **Path:** `components/intervention/document-upload-zone.tsx` (lignes 300-327)
+    - **Fix technique:**
+      - Remplacement `space-x-3` par `gap-3` pour layout plus fiable
+      - Ajout `min-w-0 flex-1` sur containers de texte
+      - Ajout `break-words` sur nom de fichier
+      - Ajout `flex-shrink-0` sur icône et bouton supprimer
+    - **Problème résolu:** Noms de fichiers longs ne cassent plus le layout, passent à la ligne
+
+#### ✅ **Notifications Devis - Toast & Soft Refresh**
+
+46. **hooks/use-intervention-quoting.ts** - Toast de succès + soft refresh (MODIFIÉE)
+    - **Vue:** Hook gestion demandes de devis
+    - **Path:** `hooks/use-intervention-quoting.ts` (lignes 1-398)
+    - **Améliorations:**
+      - **Import toast:** `import { toast } from "./use-toast"`
+      - **Interface options:** Nouveau paramètre `onActionComplete?: () => void`
+      - **Toast contextuel:** Message adapté selon nombre de prestataires
+        - 1 prestataire : "La demande a été envoyée avec succès à [nom]"
+        - Multiple : "La demande a été envoyée avec succès à X prestataires"
+      - **Soft refresh:** Appel `onActionComplete()` au lieu de `router.refresh()`
+      - **Délai 1.5s:** Temps pour visualiser modal de succès avant refresh
+    - **Impact UX:** Feedback immédiat, pas de rechargement complet de page
+
+47. **components/intervention/intervention-action-panel-header.tsx** - Passage callback (MODIFIÉE)
+    - **Vue:** Actions header interventions
+    - **Path:** `components/intervention/intervention-action-panel-header.tsx` (ligne 110)
+    - **Fix:** `useInterventionQuoting({ onActionComplete })` passe callback au hook
+    - **Impact:** Propagation du callback pour refresh après demande de devis
+
+#### 📊 **Métriques d'Amélioration Session**
+
+**Interface Documents:**
+- Duplication éliminée : 100% (retrait card pièces jointes legacy)
+- Harmonisation visuelle : Cards blanches cohérentes avec icônes
+- Hiérarchie information : Planning en 1er, Documents en 2e
+- Espacement modale : 20px mobile / 40px desktop (cohérent)
+
+**Upload Documents:**
+- Métadonnées : Individuelles par fichier (type + description)
+- Layout : Liste verticale au lieu de grille pour meilleure UX formulaire
+- Débordement texte : 100% des cas gérés avec break-words
+- Sticky button : Toujours visible en bas de modale
+
+**Notifications:**
+- Toast de succès : 100% des demandes de devis
+- Message contextuel : Adapté au nombre de prestataires
+- Soft refresh : Pas de rechargement complet (meilleure UX)
+- Délai visualisation : 1.5s pour voir modal avant refresh
+
+#### 🎨 **Classes Tailwind Critiques Ajoutées**
+
+**Card Documents Harmonisée:**
+```css
+/* Card wrapper complète */
+.Card className={className}
+  .CardHeader className="pb-4"
+    .CardTitle className="flex items-center space-x-2"
+      <FileText className="h-5 w-5 text-sky-600" />
+  .CardContent /* Contenu documents */
+```
+
+**Modale Upload Padding:**
+```css
+/* SheetContent flex layout */
+.flex flex-col
+
+/* Wrapper padding responsive */
+.px-5 md:px-10 flex-1 flex flex-col min-h-0
+```
+
+**Aperçu Fichiers Layout:**
+```css
+/* Container liste verticale */
+.space-y-4 flex-1 overflow-y-auto
+
+/* Card fichier */
+.border border-gray-200 rounded-lg p-4 space-y-3
+
+/* Miniature */
+.relative group w-24 h-24 bg-gray-50 rounded-lg overflow-hidden border
+
+/* Champs formulaire */
+.grid grid-cols-1 sm:grid-cols-2 gap-3
+```
+
+**Bouton Upload Sticky:**
+```css
+/* Padding responsive cohérent */
+.pt-4 pb-5 md:pb-10
+```
+
+**Gestion Débordement:**
+```css
+/* Container flex avec min-width */
+.flex items-center gap-3 min-w-0 flex-1
+
+/* Texte avec break */
+.font-medium text-sm break-words
+
+/* Icône/bouton fixe */
+.flex-shrink-0
+```
+
+---
+
+**📅 Dernière mise à jour:** 30 septembre 2025 (09:00)
+**📝 Version:** 1.4
 **🔄 Status:** Document vivant - à mettre à jour à chaque modification frontend
 
 ---

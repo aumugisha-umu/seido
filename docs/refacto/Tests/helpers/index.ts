@@ -56,6 +56,21 @@ export {
 } from './test-isolation'
 
 // ============================================================================
+// Debug Helpers
+// ============================================================================
+export {
+  captureDebugInfo,
+  printDebugSummary,
+  debugTestFailure,
+  assertPageHealthy,
+  type DebugInfo,
+  type ConsoleEntry,
+  type PendingRequest,
+  type HealthCheck,
+  type PerformanceMetrics
+} from './debug-helpers'
+
+// ============================================================================
 // Other Helpers (existing)
 // ============================================================================
 export { E2ETestLogger } from './e2e-test-logger'

@@ -12,7 +12,12 @@
  */
 
 import { test, expect, Page } from '@playwright/test'
-import { loginAsGestionnaire, navigateToBuildings } from '../../helpers'
+import {
+  loginAsGestionnaire,
+  navigateToBuildings,
+  setupTestIsolation,
+  teardownTestIsolation
+} from '../../helpers'
 import {
   BUILDINGS,
   generateBuilding,
@@ -28,14 +33,12 @@ test.setTimeout(90000) // 90 secondes pour tests E2E complets
 test.describe('🏢 Phase 2 - Buildings Management', () => {
 
   test.beforeEach(async ({ page }) => {
+    await setupTestIsolation(page)
     await loginAsGestionnaire(page)
   })
 
-  test.afterEach(async ({ page }) => {
-    await page.screenshot({
-      path: `test/e2e/screenshots/phase2-buildings-${test.info().title.replace(/\s+/g, '-')}.png`,
-      fullPage: true
-    })
+  test.afterEach(async ({ page }, testInfo) => {
+    await teardownTestIsolation(page, testInfo)
   })
 
   /**
@@ -365,6 +368,14 @@ test.describe('🏢 Phase 2 - Buildings Management', () => {
  * Test Suite: Multi-role access control
  */
 test.describe('🔒 Phase 2 - Buildings Access Control', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupTestIsolation(page)
+  })
+
+  test.afterEach(async ({ page }, testInfo) => {
+    await teardownTestIsolation(page, testInfo)
+  })
 
   test('gestionnaire should have full CRUD access to buildings', async ({ page }) => {
 

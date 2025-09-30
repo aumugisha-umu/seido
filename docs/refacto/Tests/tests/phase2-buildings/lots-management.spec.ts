@@ -14,7 +14,12 @@
  */
 
 import { test, expect, Page } from '@playwright/test'
-import { loginAsGestionnaire, navigateToLots } from "../../helpers"
+import {
+  loginAsGestionnaire,
+  navigateToLots,
+  setupTestIsolation,
+  teardownTestIsolation
+} from "../../helpers"
 import {
   BUILDINGS,
   LOTS,
@@ -36,14 +41,12 @@ test.setTimeout(90000) // 90 secondes pour tests E2E complets
 test.describe('🏠 Phase 2 - Lots Management', () => {
 
   test.beforeEach(async ({ page }) => {
+    await setupTestIsolation(page)
     await loginAsGestionnaire(page)
   })
 
-  test.afterEach(async ({ page }) => {
-    await page.screenshot({
-      path: `test/e2e/screenshots/phase2-lots-${test.info().title.replace(/\s+/g, '-')}.png`,
-      fullPage: true
-    })
+  test.afterEach(async ({ page }, testInfo) => {
+    await teardownTestIsolation(page, testInfo)
   })
 
   /**
@@ -447,7 +450,12 @@ test.describe('🏠 Phase 2 - Lots Management', () => {
 test.describe('🔍 Phase 2 - Lots Filtering', () => {
 
   test.beforeEach(async ({ page }) => {
+    await setupTestIsolation(page)
     await loginAsGestionnaire(page)
+  })
+
+  test.afterEach(async ({ page }, testInfo) => {
+    await teardownTestIsolation(page, testInfo)
   })
 
   test('should filter lots by occupancy status', async ({ page }) => {

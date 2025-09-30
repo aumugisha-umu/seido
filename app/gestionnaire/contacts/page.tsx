@@ -33,15 +33,19 @@ export default function ContactsPage() {
   const { teamStatus, hasTeam } = useTeamStatus()
   
   // ✅ NOUVEAU: Utiliser le hook optimisé avec système de cache
-  const { 
-    contacts, 
-    pendingInvitations, 
-    userTeam, 
-    contactsInvitationStatus, 
-    loading, 
-    error: contactsError, 
-    refetch: refetchContacts 
+  const {
+    contacts,
+    pendingInvitations,
+    userTeam,
+    contactsInvitationStatus,
+    loading,
+    error: contactsError,
+    refetch: refetchContacts
   } = useContactsData()
+
+  // ✅ Instancier les services nécessaires
+  const contactService = createContactService()
+  const contactInvitationService = createContactInvitationService()
   
   // ✅ Toujours appeler tous les hooks, indépendamment du return early
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
@@ -57,7 +61,7 @@ export default function ContactsPage() {
   const [isInvitationsExpanded, setIsInvitationsExpanded] = useState(true) // Pour stocker le statut d'invitation de chaque contact
 
   // Fonction pour obtenir le badge de statut d'invitation
-  const getStatusBadge = (_status: string) => {
+  const getStatusBadge = (status: string) => {
     const configs = {
       pending: { label: 'En attente', class: 'bg-orange-100 text-orange-800' },
       accepted: { label: 'Acceptée', class: 'bg-green-100 text-green-800' },
@@ -73,7 +77,7 @@ export default function ContactsPage() {
   }
 
   // ✅ Fonction pour obtenir le badge de statut d'invitation pour les contacts
-  const getContactInvitationBadge = (_email: string) => {
+  const getContactInvitationBadge = (email: string) => {
     const status = contactsInvitationStatus[email?.toLowerCase()]
     
     if (!status) {
@@ -97,7 +101,7 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour obtenir le badge "Vous" si c'est l'utilisateur connecté
-  const getCurrentUserBadge = (_email: string) => {
+  const getCurrentUserBadge = (email: string) => {
     if (!user?.email || !email) {
       return null
     }
@@ -226,13 +230,13 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour charger les invitations séparément
-  const loadPendingInvitations = async (_teamId: string) => {
+  const loadPendingInvitations = async (teamId: string) => {
     try {
       setLoadingInvitations(true)
-      console.log("📧 Loading invitations for team:", _teamId)
+      console.log("📧 Loading invitations for team:", teamId)
 
-      const contactInvitationService = createContactInvitationService()
-      const invitations = await contactInvitationService.getPendingInvitations(_teamId)
+      const contactInvitationServiceLocal = createContactInvitationService()
+      const invitations = await contactInvitationServiceLocal.getPendingInvitations(teamId)
       console.log("✅ Invitations loaded:", invitations.length)
       // Note: maintenant les invitations sont gérées par useContactsData, 
       // cette fonction est gardée pour les actions spéciales si nécessaire
@@ -244,10 +248,10 @@ export default function ContactsPage() {
   }
 
 
-  const handleResendInvitation = async (_contactId: string) => {
+  const handleResendInvitation = async (contactId: string) => {
     try {
       console.log("🔄 [CONTACTS-UI] Resending invitation for contact:", contactId)
-      
+
       // Marquer cette invitation comme en cours de renvoi
       setResendingInvitations(prev => ({ ...prev, [contactId]: true }))
       
@@ -307,14 +311,14 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour annuler une invitation
-  const handleCancelInvitation = async (_invitationId: string) => {
+  const handleCancelInvitation = async (invitationId: string) => {
     try {
       console.log("🚫 [CONTACTS-UI] Cancelling invitation:", invitationId)
-      
+
       // Trouver l'invitation dans la liste pour debug
       const invitationToCancel = pendingInvitations.find(inv => inv.id === invitationId)
       console.log("🔍 [CONTACTS-UI] Invitation details:", invitationToCancel)
-      
+
       // Marquer cette invitation comme en cours d'annulation
       setCancellingInvitations(prev => ({ ...prev, [invitationId]: true }))
       
@@ -350,9 +354,9 @@ export default function ContactsPage() {
         setError(`Erreur lors de l'annulation: ${errorMessage}`)
       }
       
-    } catch (_error: unknown) {
+    } catch (error: unknown) {
       console.error("❌ [CONTACTS-UI] Exception in cancel:", error)
-      const errorMessage = error?.message || "Erreur inconnue"
+      const errorMessage = (error as any)?.message || "Erreur inconnue"
       setError(`Erreur lors de l'annulation de l'invitation: ${errorMessage}`)
     } finally {
       // Enlever l'état de chargement
@@ -379,14 +383,14 @@ export default function ContactsPage() {
     }
   }
 
-  const handleCloseSuccessState = (_contactId: string) => {
+  const handleCloseSuccessState = (contactId: string) => {
     // Enlever l'état de succès pour revenir au bouton "Renvoyer"
     setResentInvitations(prev => {
       const newState = { ...prev }
       delete newState[contactId]
       return newState
     })
-    
+
     // Enlever aussi l'état de copie
     setCopiedLinks(prev => {
       const newState = { ...prev }
@@ -395,29 +399,29 @@ export default function ContactsPage() {
     })
   }
 
-  const handleContactSubmit = async (_contactData: unknown) => {
+  const handleContactSubmit = async (contactData: unknown) => {
     try {
       console.log("📞 [CONTACTS-PAGE] Creating contact:", contactData)
       console.log("📞 [CONTACTS-PAGE] User team:", userTeam)
-      
+
       if (!userTeam?.id) {
         console.error("❌ [CONTACTS-PAGE] No team found")
         setError("Aucune équipe trouvée pour créer le contact")
         return
       }
-      
+
       const dataWithTeam = {
         ...contactData,
         teamId: userTeam.id
       }
-      
+
       console.log("📞 [CONTACTS-PAGE] Calling service with:", dataWithTeam)
-      
+
       // Utiliser le service d'invitation qui gère la création du contact + invitation optionnelle
       const result = await contactInvitationService.createContactWithOptionalInvite(dataWithTeam)
-      
+
       console.log("✅ [CONTACTS-PAGE] Service completed, result:", result)
-      
+
       if (result.invitation) {
         if (result.invitation.success) {
           console.log("✅ [CONTACTS-PAGE] Invitation sent successfully to:", contactData.email)
@@ -426,13 +430,13 @@ export default function ContactsPage() {
           setError(`Contact créé mais l'invitation a échoué: ${result.invitation.error}`)
         }
       }
-      
+
       console.log("🔄 [CONTACTS-PAGE] Reloading contacts...")
       // ✅ NOUVEAU: Utiliser le refetch du hook optimisé
       await refetchContacts()
       console.log("✅ [CONTACTS-PAGE] Contacts reloaded, closing modal")
       setIsContactModalOpen(false)
-      
+
     } catch (error) {
       console.error("❌ [CONTACTS-PAGE] Error creating contact:", error)
       console.error("❌ [CONTACTS-PAGE] Error details:", {
@@ -445,21 +449,21 @@ export default function ContactsPage() {
     }
   }
 
-  const handleDeleteContact = async (_contactId: string) => {
+  const handleDeleteContact = async (contactId: string) => {
     try {
       console.log("🗑️ Deleting contact:", contactId)
       await contactService.delete(contactId)
-      
+
       // ✅ NOUVEAU: Utiliser le refetch du hook optimisé
       await refetchContacts()
-      
+
     } catch (error) {
       console.error("❌ Error deleting contact:", error)
       setError("Erreur lors de la suppression du contact")
     }
   }
 
-  const getSpecialityLabel = (_speciality: string) => {
+  const getSpecialityLabel = (speciality: string) => {
     const specialities = {
       'plomberie': 'Plomberie',
       'electricite': 'Électricité',
@@ -474,20 +478,20 @@ export default function ContactsPage() {
   }
 
   // Fonction pour obtenir le type d'assignation basé sur role/provider_category
-  const getAssignmentType = (_contact: unknown): string => {
+  const getAssignmentType = (contact: unknown): string => {
     if (!contact.role) return 'Non défini'
-    
+
     const assignmentUser = {
       id: contact.id,
       role: contact.role,
       provider_category: contact.provider_category,
       speciality: contact.speciality
     }
-    
+
     return determineAssignmentType(assignmentUser)
   }
 
-  const getContactTypeLabel = (_contact: unknown) => {
+  const getContactTypeLabel = (contact: unknown) => {
     const assignmentType = getAssignmentType(contact)
     
     const types = {
@@ -503,9 +507,9 @@ export default function ContactsPage() {
     return types[assignmentType as keyof typeof types] || 'Non défini'
   }
 
-  const getContactTypeBadgeStyle = (_contact: unknown) => {
+  const getContactTypeBadgeStyle = (contact: unknown) => {
     const assignmentType = getAssignmentType(contact)
-    
+
     const styles = {
       'tenant': 'bg-blue-100 text-blue-800',
       'owner': 'bg-emerald-100 text-emerald-800',

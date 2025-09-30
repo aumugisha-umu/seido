@@ -45,13 +45,16 @@ export function useContactsData() {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", _userId, bypassCache ? "(bypassing cache)" : "")
-      
+      console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
+
       // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
       let userTeams = []
       try {
         const teamService = createTeamService()
-        userTeams = await teamService.getUserTeams(_userId)
+        const teamsResult = await teamService.getUserTeams(userId)
+        userTeams = teamsResult?.data || []
+        console.log("📦 [CONTACTS-DATA] Teams result:", teamsResult)
+        console.log("📦 [CONTACTS-DATA] Teams extracted:", userTeams)
       } catch (teamError) {
         console.error("❌ [CONTACTS-DATA] Error fetching user teams:", teamError)
         setData({
@@ -109,7 +112,7 @@ export function useContactsData() {
           console.log("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
           
           // Marquer uniquement les contacts qui ont une invitation réelle
-          teamInvitations?.forEach((_invitation: unknown) => {
+          teamInvitations?.forEach((invitation: any) => {
             if (invitation.email) {
               contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
             }

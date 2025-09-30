@@ -1,0 +1,217 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
+    "rootDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test/reports/playwright-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "Mobile Safari",
+        "name": "Mobile Safari",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 6,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "stdout": "ignore",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "gestionnaire-invite-locataire.spec.ts",
+      "file": "gestionnaire-invite-locataire.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Workflow Invitation Locataire",
+          "file": "gestionnaire-invite-locataire.spec.ts",
+          "line": 24,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Doit gérer correctement une liste de contacts vide",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 22267,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🚀 Starting empty contacts list test\n"
+                        },
+                        {
+                          "text": "📌 Page contains \"Contacts\": \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "📌 Page title: Gestion des Contacts\n"
+                        },
+                        {
+                          "text": "🔍 Add contact buttons found: \u001b[33m2\u001b[39m\n"
+                        },
+                        {
+                          "text": "📊 Contacts tab found: \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "📭 Empty message found: \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "✅ Empty state properly displayed\n"
+                        },
+                        {
+                          "text": "✅ Contacts page accessibility test completed successfully\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-30T13:50:37.258Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b8b98ed64deada94ff1a-4e56150a281e2ce9f98a",
+              "file": "gestionnaire-invite-locataire.spec.ts",
+              "line": 251,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-09-30T13:50:21.087Z",
+    "duration": 39756.157,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

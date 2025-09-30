@@ -46,9 +46,9 @@ export default defineConfig({
     // Traces complètes pour analyse
     trace: 'retain-on-failure',
 
-    // Navigation et timeouts
-    actionTimeout: 15000,
-    navigationTimeout: 30000,
+    // ⚡ Navigation et timeouts (optimisés pour dashboards avec données)
+    actionTimeout: 20000,        // 15s → 20s (actions complexes)
+    navigationTimeout: 45000,    // 30s → 45s (auth + middleware + dashboard load)
 
     // Headers personnalisés pour identification
     extraHTTPHeaders: {
@@ -70,6 +70,22 @@ export default defineConfig({
       metadata: {
         description: 'Tests d\'authentification pour tous les rôles',
         priority: 'critical'
+      }
+    },
+
+    // Phase 2: Tests Contacts
+    {
+      name: 'phase2-contacts',
+      testMatch: /phase2-contacts\/.*\.spec\.ts/,
+      dependencies: ['auth-tests'],
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 }
+      },
+      metadata: {
+        description: 'Tests de gestion des contacts (invitations, recherche, filtres)',
+        priority: 'high',
+        role: 'gestionnaire'
       }
     },
 

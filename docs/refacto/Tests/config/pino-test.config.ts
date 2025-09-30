@@ -23,27 +23,8 @@ export const E2E_PINO_CONFIG = {
   // Timestamp ISO pour corrélation avec captures d'écran
   timestamp: pino.stdTimeFunctions.isoTime,
 
-  // Formatters personnalisés pour tests E2E
-  formatters: {
-    level: (label: string) => ({ level: label }),
-
-    // Enrichissement du contexte avec métadonnées E2E
-    log: (object: any) => {
-      const testContext = {
-        testId: object.testId || 'unknown',
-        testFile: object.testFile || '',
-        userRole: object.userRole || '',
-        stepNumber: object.stepNumber || 0,
-        screenshotPath: object.screenshotPath || '',
-        performanceMetrics: object.performanceMetrics || {}
-      }
-
-      return {
-        ...object,
-        testContext
-      }
-    }
-  },
+  // Note: formatters cannot be used with transport.targets
+  // Custom formatting is handled in the transport options instead
 
   // Configuration des transports multiples
   transport: {
@@ -55,13 +36,7 @@ export const E2E_PINO_CONFIG = {
           colorize: true,
           translateTime: 'SYS:standard',
           ignore: 'pid,hostname',
-          messageFormat: '[{testContext.testId}] [{testContext.userRole}] {msg}',
-          customPrettifiers: {
-            testContext: (testContext: any) => {
-              if (!testContext) return ''
-              return `Step ${testContext.stepNumber}`
-            }
-          }
+          messageFormat: '{msg}'
         },
         level: 'debug'
       }]),

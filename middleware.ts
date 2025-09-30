@@ -22,6 +22,7 @@ export async function middleware(request: NextRequest) {
     '/auth/reset-password',
     '/auth/update-password',
     '/auth/callback',
+    '/auth/logout',
     '/auth/unauthorized',
     '/'
   ]
@@ -36,7 +37,13 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
 
   if (isProtectedRoute) {
-    let response = NextResponse.next()
+    // ✅ PATTERN OFFICIEL SUPABASE SSR + NEXT.JS 15
+    // Créer la response en avance pour gérer correctement les cookies
+    let response = NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    })
 
     // ✅ PATTERN OFFICIEL SUPABASE: Créer client serveur pour middleware
     const supabase = createServerClient(
@@ -48,17 +55,13 @@ export async function middleware(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            // ✅ IMPORTANT: Propager les cookies vers le browser ET les Server Components
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Set cookie in the request for Server Components
               request.cookies.set(name, value)
-            )
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
-            cookiesToSet.forEach(({ name, value, options }) =>
+              // Set cookie in the response for the browser
               response.cookies.set(name, value, options)
-            )
+            })
           },
         },
       }

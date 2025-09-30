@@ -2,14 +2,43 @@
 
 ## 📋 Vue d'Ensemble
 
-Ce système de tests E2E avancé pour SEIDO combine **Playwright**, **Pino**, et un **Agent Debugger intelligent** pour fournir une suite de tests robuste avec analyse automatique des résultats.
+Ce système de tests E2E avancé pour SEIDO combine **Playwright**, **Pino**, un **Agent Debugger intelligent**, et un **Système Auto-Healing révolutionnaire** pour fournir une suite de tests avec analyse et correction automatiques.
 
-### 🌟 Caractéristiques Principales
+## 🆕 NOUVEAU : Système Auto-Healing (v1.0)
+
+**🤖 Correction Automatique des Tests - Révolutionnaire !**
+
+Le système Auto-Healing détecte automatiquement les erreurs de tests, analyse leur cause, applique des corrections au code source, et relance les tests jusqu'à résolution complète.
+
+### 🌟 Fonctionnalités Auto-Healing
+- ✅ **Détection automatique** d'erreurs (timeout, redirect, selectors, auth)
+- 🔍 **Analyse contextuelle** complète (DOM, logs, network, screenshots)
+- 🤖 **Correction automatique** du code source avec backup sécurisé
+- 🔄 **Retry intelligent** jusqu'à 5 tentatives par test
+- 📊 **Rapports détaillés** de chaque cycle de correction
+- 💾 **Rollback automatique** en cas d'échec
+- 🎯 **Confidence scoring** pour chaque correction
+
+### 🚀 Lancer le Démo Auto-Healing
+```bash
+# Windows
+docs\refacto\Tests\run-auto-healing-demo.bat
+
+# Manuel
+npx playwright test docs/refacto/Tests/auto-healing/demo-login-test.spec.ts --reporter=list --headed
+```
+
+**📚 Documentation Complète** : [SYSTEME-AUTO-HEALING.md](./SYSTEME-AUTO-HEALING.md)
+
+---
+
+## 🌟 Caractéristiques E2E Principales
 
 - ✅ **Tests multi-rôles** (Admin, Gestionnaire, Locataire, Prestataire)
 - 📸 **Screenshots automatiques** à chaque étape critique
 - 📊 **Logs structurés Pino** avec métadonnées enrichies
 - 🤖 **Agent Debugger intelligent** avec recommandations automatiques
+- 🔧 **Auto-Healing System** pour corrections automatiques
 - ⚡ **Monitoring de performance** temps réel
 - 🔄 **Intégration CI/CD** prête à l'emploi
 

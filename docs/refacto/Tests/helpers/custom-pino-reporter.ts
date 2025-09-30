@@ -237,7 +237,7 @@ export default class CustomPinoReporter implements Reporter {
   }
 
   private getRelativeTestPath(filePath: string): string {
-    if (!this.config) return filePath
+    if (!this.config || !this.config.testDir) return filePath
     return path.relative(this.config.testDir, filePath)
   }
 

@@ -136,10 +136,8 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   // Pas besoin d'attendre ou de gérer côté client
   console.log('🚀 [LOGIN-ACTION] Authentication successful, redirecting to dashboard')
 
-  // ✅ CACHE: Invalider le cache AVANT la redirection
-  revalidatePath('/', 'layout')
-
   // ✅ REDIRECTION SERVER-SIDE: Pattern officiel Supabase
+  // Note: revalidatePath retiré car redirect() force déjà un refresh complet
   redirect(dashboardPath)
 }
 
@@ -290,10 +288,9 @@ export async function logoutAction(): Promise<never> {
 
     console.log('✅ [LOGOUT-ACTION] User logged out successfully')
 
-    // ✅ CACHE: Invalider tout le cache auth
-    revalidatePath('/', 'layout')
-
     // ✅ REDIRECTION: Vers page de connexion
+    // Note: revalidatePath retiré car redirect() force déjà un refresh complet
+    // et Next.js 15 n'autorise pas revalidatePath dans un page component render
     redirect('/auth/login')
 
   } catch (error) {

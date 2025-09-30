@@ -29,41 +29,13 @@ export interface TestTeam {
 
 /**
  * Utilisateurs de test pour chaque rôle
- * Basés sur les comptes existants dans le système SEIDO
+ * ✅ COMPTES TESTS VALIDÉS - 3 RÔLES UNIQUEMENT
+ * Tous utilisent le même mot de passe: Wxcvbn123
  */
 export const TEST_USERS: Record<string, TestUser> = {
-  admin: {
-    email: 'arthur+admin@seido.pm',
-    password: 'Test123!@#',
-    role: 'admin',
-    name: 'Arthur Admin',
-    displayName: 'Admin SEIDO',
-    teamId: 'team-admin',
-    expectedDashboard: '/admin/dashboard',
-    permissions: [
-      'system:read',
-      'system:write',
-      'users:manage',
-      'teams:manage',
-      'buildings:manage',
-      'interventions:manage',
-      'stats:global'
-    ],
-    testContext: {
-      description: 'Administrateur système avec tous les droits',
-      priority: 'high',
-      workflows: [
-        'user-management',
-        'system-statistics',
-        'global-oversight',
-        'team-administration'
-      ]
-    }
-  },
-
   gestionnaire: {
     email: 'arthur@seido.pm',
-    password: 'Test123!@#',
+    password: 'Wxcvbn123',
     role: 'gestionnaire',
     name: 'Arthur Gestionnaire',
     displayName: 'Gestionnaire Principal',
@@ -95,35 +67,9 @@ export const TEST_USERS: Record<string, TestUser> = {
     }
   },
 
-  locataire: {
-    email: 'arthur+loc@seido.pm',
-    password: 'Test123!@#',
-    role: 'locataire',
-    name: 'Arthur Locataire',
-    displayName: 'Locataire Test',
-    lotId: 'lot-test-001',
-    expectedDashboard: '/locataire/dashboard',
-    permissions: [
-      'interventions:create',
-      'interventions:read:own',
-      'lot:read:own',
-      'building:read:limited'
-    ],
-    testContext: {
-      description: 'Locataire avec accès limité à ses propres interventions et informations logement',
-      priority: 'high',
-      workflows: [
-        'intervention-request',
-        'intervention-tracking',
-        'property-information',
-        'contact-manager'
-      ]
-    }
-  },
-
   prestataire: {
     email: 'arthur+prest@seido.pm',
-    password: 'Test123!@#',
+    password: 'Wxcvbn123',
     role: 'prestataire',
     name: 'Arthur Prestataire',
     displayName: 'Prestataire Test',
@@ -148,20 +94,40 @@ export const TEST_USERS: Record<string, TestUser> = {
         'status-updates'
       ]
     }
+  },
+
+  locataire: {
+    email: 'arthur+loc@seido.pm',
+    password: 'Wxcvbn123',
+    role: 'locataire',
+    name: 'Arthur Locataire',
+    displayName: 'Locataire Test',
+    lotId: 'lot-test-001',
+    expectedDashboard: '/locataire/dashboard',
+    permissions: [
+      'interventions:create',
+      'interventions:read:own',
+      'lot:read:own',
+      'building:read:limited'
+    ],
+    testContext: {
+      description: 'Locataire avec accès limité à ses propres interventions et informations logement',
+      priority: 'high',
+      workflows: [
+        'intervention-request',
+        'intervention-tracking',
+        'property-information',
+        'contact-manager'
+      ]
+    }
   }
 }
 
 /**
  * Équipes de test pour validation des relations
+ * ✅ Mises à jour pour les 3 comptes uniquement
  */
 export const TEST_TEAMS: Record<string, TestTeam> = {
-  'team-admin': {
-    id: 'team-admin',
-    name: 'Équipe Administration',
-    description: 'Équipe administrative système',
-    members: ['arthur+admin@seido.pm']
-  },
-
   'team-gestionnaire': {
     id: 'team-gestionnaire',
     name: 'Équipe Gestion Immobilière',
@@ -206,7 +172,7 @@ export const TEST_SCENARIOS = {
       },
       {
         email: 'nonexistent@example.com',
-        password: 'Test123!@#',
+        password: 'Wxcvbn123',
         expectedError: 'User not found'
       },
       {
@@ -260,7 +226,7 @@ export const TEST_SCENARIOS = {
  */
 export const SECURITY_CONFIG = {
   // Timeout pour les opérations d'auth
-  authTimeout: 10000, // 10 secondes
+  authTimeout: 45000, // 45 secondes (auth + middleware + redirect)
 
   // Retry pour les échecs d'auth intermittents
   authRetries: 2,
@@ -347,7 +313,8 @@ export function validateTestUsers(): { valid: boolean; errors: string[] } {
   const errors: string[] = []
 
   // Vérifier que tous les rôles ont un utilisateur
-  const requiredRoles: TestUser['role'][] = ['admin', 'gestionnaire', 'locataire', 'prestataire']
+  // ✅ Mis à jour pour 3 rôles uniquement (pas d'admin)
+  const requiredRoles: TestUser['role'][] = ['gestionnaire', 'prestataire', 'locataire']
   for (const role of requiredRoles) {
     if (!TEST_USERS[role]) {
       errors.push(`Missing user for role: ${role}`)

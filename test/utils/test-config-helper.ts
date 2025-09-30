@@ -81,7 +81,7 @@ export async function loginAsRole(
 
   // Remplir le formulaire
   await page.fill('input#email', account.email);
-  await page.fill('input#password', account._password);
+  await page.fill('input#password', account.password);
 
   // Soumettre
   await page.click('button[type="submit"]');

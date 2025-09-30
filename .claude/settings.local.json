@@ -24,7 +24,13 @@
       "WebFetch(domain:supabase.com)",
       "Bash(npx tsc:*)",
       "Bash(npm test:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx playwright:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(if [ ! -d \"test/e2e\" ])",
+      "Bash(then mkdir -p test/e2e)",
+      "Bash(fi)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

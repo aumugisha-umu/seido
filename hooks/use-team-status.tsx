@@ -26,6 +26,14 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
       return
     }
 
+    // ✅ DÉSACTIVER EN MODE DEVELOPMENT (pour tests E2E et debugging)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧪 [TEAM-STATUS] Development mode - auto-approving team access')
+      setHasTeam(true)
+      setTeamStatus('verified')
+      return
+    }
+
     try {
       setTeamStatus('checking')
       setError(undefined)

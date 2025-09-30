@@ -1,0 +1,324 @@
+{
+  "testRunId": "analysis-1759250361895",
+  "analysisTimestamp": "2025-09-30T16:39:21.896Z",
+  "summary": {
+    "totalTests": 2,
+    "successfulTests": 1,
+    "failedTests": 1,
+    "totalDuration": 49353,
+    "averageTestDuration": 24676.5
+  },
+  "errorPatterns": [],
+  "performanceIssues": [],
+  "stabilityMetrics": {
+    "overallSuccessRate": 50,
+    "flakyTests": [
+      {
+        "testName": "login-gestionnaire",
+        "failures": 20,
+        "total": 22,
+        "failureRate": 90.9090909090909
+      }
+    ],
+    "mostUnstableSteps": []
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "stability",
+      "description": "Taux de succès des tests inférieur à 80%",
+      "actionItems": [
+        "Identifier les tests les plus instables",
+        "Améliorer la sélection des éléments DOM",
+        "Ajouter des attentes explicites",
+        "Revoir les données de test"
+      ],
+      "estimatedImpact": "Réduction de 50% des échecs de tests"
+    }
+  ],
+  "screenshots": {
+    "errors": [],
+    "comparisons": []
+  },
+  "reportPaths": {
+    "html": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\debugger\\analysis-1759250361895-report.html",
+    "json": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\debugger\\analysis-1759250361895-report.json",
+    "detailed": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\debugger\\analysis-1759250361895-detailed.json"
+  },
+  "rawData": {
+    "testHistory": [
+      {
+        "testId": "login-gestionnaire-1759249237253-strmekrsy",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 6,
+        "totalDuration": 40021,
+        "successfulSteps": 5,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 31.833333333333332,
+          "totalDuration": 40021,
+          "memoryUsage": {
+            "rss": 104034304,
+            "heapTotal": 30466048,
+            "heapUsed": 26905296,
+            "external": 4482687,
+            "arrayBuffers": 5019110
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759249237253-strmekrsy.json",
+          "performance": "performance-login-gestionnaire-1759249237253-strmekrsy.log",
+          "errors": "errors-login-gestionnaire-1759249237253-strmekrsy.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759249300031-xaji4pid3",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 6,
+        "totalDuration": 51908,
+        "successfulSteps": 5,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 31.666666666666668,
+          "totalDuration": 51908,
+          "memoryUsage": {
+            "rss": 118333440,
+            "heapTotal": 41971712,
+            "heapUsed": 36112000,
+            "external": 9190815,
+            "arrayBuffers": 9729013
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759249300031-xaji4pid3.json",
+          "performance": "performance-login-gestionnaire-1759249300031-xaji4pid3.log",
+          "errors": "errors-login-gestionnaire-1759249300031-xaji4pid3.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759249308558-wms5rgna0",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 6,
+        "totalDuration": 47188,
+        "successfulSteps": 5,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 67.66666666666667,
+          "totalDuration": 47188,
+          "memoryUsage": {
+            "rss": 123891712,
+            "heapTotal": 67457024,
+            "heapUsed": 31534552,
+            "external": 4740345,
+            "arrayBuffers": 5270700
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759249308558-wms5rgna0.json",
+          "performance": "performance-login-gestionnaire-1759249308558-wms5rgna0.log",
+          "errors": "errors-login-gestionnaire-1759249308558-wms5rgna0.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759249912515-ao639x0ul",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 8,
+        "totalDuration": 38577,
+        "successfulSteps": 7,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 83.875,
+          "totalDuration": 38577,
+          "memoryUsage": {
+            "rss": 123121664,
+            "heapTotal": 65449984,
+            "heapUsed": 37248048,
+            "external": 11560468,
+            "arrayBuffers": 12096892
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759249912515-ao639x0ul.json",
+          "performance": "performance-login-gestionnaire-1759249912515-ao639x0ul.log",
+          "errors": "errors-login-gestionnaire-1759249912515-ao639x0ul.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759249977990-odbo8k3iv",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 8,
+        "totalDuration": 21967,
+        "successfulSteps": 7,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 38.125,
+          "totalDuration": 21967,
+          "memoryUsage": {
+            "rss": 142143488,
+            "heapTotal": 67022848,
+            "heapUsed": 36239712,
+            "external": 8692161,
+            "arrayBuffers": 9222517
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759249977990-odbo8k3iv.json",
+          "performance": "performance-login-gestionnaire-1759249977990-odbo8k3iv.log",
+          "errors": "errors-login-gestionnaire-1759249977990-odbo8k3iv.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759250059700-o80xkec77",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 10,
+        "totalDuration": 35776,
+        "successfulSteps": 9,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 95.7,
+          "totalDuration": 35776,
+          "memoryUsage": {
+            "rss": 136839168,
+            "heapTotal": 67547136,
+            "heapUsed": 33903296,
+            "external": 7079242,
+            "arrayBuffers": 7609598
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759250059700-o80xkec77.json",
+          "performance": "performance-login-gestionnaire-1759250059700-o80xkec77.log",
+          "errors": "errors-login-gestionnaire-1759250059700-o80xkec77.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759250125407-1raf4pumz",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 10,
+        "totalDuration": 19377,
+        "successfulSteps": 9,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 36.7,
+          "totalDuration": 19377,
+          "memoryUsage": {
+            "rss": 137191424,
+            "heapTotal": 67809280,
+            "heapUsed": 31011280,
+            "external": 4875211,
+            "arrayBuffers": 5405567
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759250125407-1raf4pumz.json",
+          "performance": "performance-login-gestionnaire-1759250125407-1raf4pumz.log",
+          "errors": "errors-login-gestionnaire-1759250125407-1raf4pumz.log"
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759250218802-ebovdjfdz",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 11,
+        "totalDuration": 35816,
+        "successfulSteps": 11,
+        "errorSteps": 0,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 55.27272727272727,
+          "totalDuration": 35816,
+          "memoryUsage": {
+            "rss": 110231552,
+            "heapTotal": 63877120,
+            "heapUsed": 32067040,
+            "external": 6429413,
+            "arrayBuffers": 6967610
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759250218802-ebovdjfdz.json",
+          "performance": "performance-login-gestionnaire-1759250218802-ebovdjfdz.log",
+          "errors": ""
+        }
+      },
+      {
+        "testId": "login-gestionnaire-1759250289279-frdve6s7v",
+        "testName": "login-gestionnaire",
+        "userRole": "gestionnaire",
+        "totalSteps": 11,
+        "totalDuration": 15823,
+        "successfulSteps": 11,
+        "errorSteps": 0,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 27.181818181818183,
+          "totalDuration": 15823,
+          "memoryUsage": {
+            "rss": 136847360,
+            "heapTotal": 65712128,
+            "heapUsed": 29217368,
+            "external": 4810774,
+            "arrayBuffers": 5341128
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-gestionnaire-1759250289279-frdve6s7v.json",
+          "performance": "performance-login-gestionnaire-1759250289279-frdve6s7v.log",
+          "errors": ""
+        }
+      },
+      {
+        "testId": "login-prestataire-1759250319743-ggnrmj33u",
+        "testName": "login-prestataire",
+        "userRole": "prestataire",
+        "totalSteps": 8,
+        "totalDuration": 33530,
+        "successfulSteps": 7,
+        "errorSteps": 1,
+        "screenshots": [],
+        "performanceReport": {
+          "stepDuration": 17,
+          "totalDuration": 33530,
+          "memoryUsage": {
+            "rss": 132673536,
+            "heapTotal": 64253952,
+            "heapUsed": 48516688,
+            "external": 11243944,
+            "arrayBuffers": 11782102
+          }
+        },
+        "logFiles": {
+          "structured": "structured-login-prestataire-1759250319743-ggnrmj33u.json",
+          "performance": "performance-login-prestataire-1759250319743-ggnrmj33u.log",
+          "errors": "errors-login-prestataire-1759250319743-ggnrmj33u.log"
+        }
+      }
+    ],
+    "environmentInfo": {
+      "nodeVersion": "v22.15.0",
+      "platform": "win32",
+      "memory": {
+        "rss": 107655168,
+        "heapTotal": 62304256,
+        "heapUsed": 34226072,
+        "external": 4096938,
+        "arrayBuffers": 439888
+      },
+      "timestamp": "2025-09-30T16:39:21.899Z"
+    }
+  }
+}

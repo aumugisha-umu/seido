@@ -73,66 +73,69 @@ export default async function DashboardGestionnaire() {
       const userTeamId = teams[0].id
       console.log('📦 [DASHBOARD] Using team ID:', userTeamId)
 
-      // Récupérer les statistiques avec sécurité RLS et logging détaillé
-      console.log('🏗️ [DASHBOARD] Starting data loading for team:', userTeamId)
+      // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
+      console.log('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', userTeamId)
 
+      // ⚡ Phase 1: Charger buildings et users en parallèle
+      const [buildingsResult, usersResult] = await Promise.allSettled([
+        buildingService.getBuildingsByTeam(userTeamId),
+        userService.getUsersByTeam(userTeamId)
+      ])
+
+      // Traiter résultats buildings
       let buildings = []
+      if (buildingsResult.status === 'fulfilled' && buildingsResult.value.success) {
+        buildings = buildingsResult.value.data || []
+        console.log('✅ [DASHBOARD] Buildings loaded:', buildings.length)
+      } else {
+        console.error('❌ [DASHBOARD] Error loading buildings:',
+          buildingsResult.status === 'rejected' ? buildingsResult.reason : 'No data')
+      }
+
+      // Traiter résultats users
       let users = []
-      let interventions = []
+      if (usersResult.status === 'fulfilled' && usersResult.value.success) {
+        users = usersResult.value.data || []
+        console.log('✅ [DASHBOARD] Users loaded:', users.length)
+      } else {
+        console.error('❌ [DASHBOARD] Error loading users:',
+          usersResult.status === 'rejected' ? usersResult.reason : 'No data')
+      }
 
-      try {
-        console.log('🏢 [DASHBOARD] Loading buildings...')
-        const buildingsResponse = await buildingService.findByTeam(userTeamId)
-        const buildingsData = buildingsResponse.success ? buildingsResponse.data : []
-        console.log('✅ [DASHBOARD] Buildings loaded - raw response:', buildingsData)
-        console.log('✅ [DASHBOARD] Buildings loaded - type:', typeof buildingsData)
-        console.log('✅ [DASHBOARD] Buildings loaded - is array:', Array.isArray(buildingsData))
-        console.log('✅ [DASHBOARD] Buildings loaded - length:', buildingsData?.length || 0)
-        if (buildingsData && buildingsData.length > 0) {
-          console.log('✅ [DASHBOARD] First building:', buildingsData[0])
+      // Interventions (temporairement vide)
+      const interventions = []
+      console.log('✅ [DASHBOARD] Interventions: 0 (not yet implemented)')
+
+      // ⚡ Phase 2: Charger TOUS les lots en parallèle
+      console.log('🏠 [DASHBOARD] Loading lots for', buildings.length, 'buildings IN PARALLEL')
+      const lotsPromises = buildings.map(building =>
+        lotService.getLotsByBuilding(building.id)
+          .then(response => ({
+            buildingId: building.id,
+            buildingName: building.name,
+            lots: response.success ? response.data : [],
+            success: true
+          }))
+          .catch(error => ({
+            buildingId: building.id,
+            buildingName: building.name,
+            lots: [],
+            success: false,
+            error
+          }))
+      )
+
+      const lotsResults = await Promise.all(lotsPromises)
+      const allLots = lotsResults.flatMap(result => {
+        if (result.success && result.lots) {
+          console.log(`✅ [DASHBOARD] Lots loaded for ${result.buildingName}:`, result.lots.length)
+          return result.lots
+        } else {
+          console.error(`❌ [DASHBOARD] Error loading lots for ${result.buildingName}:`, result.error)
+          return []
         }
-        buildings = buildingsData || []
-        console.log('✅ [DASHBOARD] Buildings variable after assignment:', buildings)
-      } catch (error) {
-        console.error('❌ [DASHBOARD] Error loading buildings:', error)
-        buildings = []
-      }
+      })
 
-      try {
-        console.log('👥 [DASHBOARD] Loading users...')
-        const usersResponse = await userService.getUsersByTeam(userTeamId)
-        users = usersResponse.success ? usersResponse.data : []
-        console.log('✅ [DASHBOARD] Users loaded:', users?.length || 0)
-      } catch (error) {
-        console.error('❌ [DASHBOARD] Error loading users:', error)
-        users = []
-      }
-
-      try {
-        console.log('🔧 [DASHBOARD] Loading interventions...')
-        // TODO: Remplacer par le service d'intervention une fois prêt
-        // const interventionsResponse = await interventionService.getTeamInterventions(userTeamId)
-        interventions = [] // Temporairement vide
-        console.log('✅ [DASHBOARD] Interventions loaded:', interventions?.length || 0)
-      } catch (error) {
-        console.error('❌ [DASHBOARD] Error loading interventions:', error)
-        interventions = []
-      }
-
-      // Récupérer tous les lots des buildings de l'équipe
-      console.log('🏠 [DASHBOARD] Loading lots for buildings:', buildings?.length || 0, 'buildings')
-      const allLots = []
-      for (const building of buildings || []) {
-        try {
-          console.log(`🏠 [DASHBOARD] Loading lots for building ${building.id} (${building.name})`)
-          const buildingLotsResponse = await lotService.findByBuilding(building.id)
-          const buildingLots = buildingLotsResponse.success ? buildingLotsResponse.data : []
-          console.log(`✅ [DASHBOARD] Lots loaded for building ${building.id}:`, buildingLots?.length || 0)
-          allLots.push(...(buildingLots || []))
-        } catch (error) {
-          console.error(`❌ [DASHBOARD] Error loading lots for building ${building.id}:`, error)
-        }
-      }
       console.log('🏠 [DASHBOARD] Total lots loaded:', allLots.length)
 
       // Calculer les statistiques
@@ -190,8 +193,9 @@ export default async function DashboardGestionnaire() {
 
   // Récupérer l'équipe pour le composant client
   const teamService2 = await createServerTeamService()
-  const teams = await teamService2.getUserTeams(user.id)
-  const userTeamId = teams && teams.length > 0 ? teams[0].id : ''
+  const teamsResult2 = await teamService2.getUserTeams(user.id)
+  const teams2 = teamsResult2?.data || []
+  const userTeamId = teams2.length > 0 ? teams2[0].id : ''
 
   return (
     <div className="min-h-screen bg-gray-50">

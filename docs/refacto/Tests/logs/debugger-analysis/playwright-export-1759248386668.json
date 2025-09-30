@@ -1,0 +1,213 @@
+{
+  "timestamp": "2025-09-30T16:06:26.668Z",
+  "suite": {
+    "status": "failed",
+    "duration": 111067,
+    "stats": {
+      "passed": 3,
+      "failed": 6,
+      "flaky": 0,
+      "skipped": 20,
+      "timedOut": 0,
+      "interrupted": 0
+    }
+  },
+  "projects": [
+    {
+      "name": "auth-tests",
+      "results": [
+        {
+          "status": "failed",
+          "duration": 6709,
+          "retry": 0,
+          "errors": [
+            "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31m\"\"\u001b[39m"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 9325,
+          "retry": 1,
+          "errors": [
+            "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31m\"\"\u001b[39m"
+          ]
+        },
+        {
+          "status": "passed",
+          "duration": 470,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "passed",
+          "duration": 333,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "passed",
+          "duration": 37807,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "failed",
+          "duration": 39846,
+          "retry": 0,
+          "errors": [
+            "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('[data-testid=\"user-menu\"], .user-menu, button:has-text(\"Arthur Gestionnaire\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-testid=\"user-menu\"], .user-menu, button:has-text(\"Arthur Gestionnaire\")').first()\u001b[22m\n"
+          ]
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "failed",
+          "duration": 38728,
+          "retry": 1,
+          "errors": [
+            "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('[data-testid=\"user-menu\"], .user-menu, button:has-text(\"Arthur Gestionnaire\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-testid=\"user-menu\"], .user-menu, button:has-text(\"Arthur Gestionnaire\")').first()\u001b[22m\n"
+          ]
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "mobile-critical",
+      "results": [
+        {
+          "status": "failed",
+          "duration": 33263,
+          "retry": 0,
+          "errors": [
+            "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('[data-testid=\"user-menu\"], .user-menu, button:has-text(\"Arthur Gestionnaire\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-testid=\"user-menu\"], .user-menu, button:has-text(\"Arthur Gestionnaire\")').first()\u001b[22m\n"
+          ]
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 0,
+          "errors": []
+        },
+        {
+          "status": "failed",
+          "duration": 46601,
+          "retry": 1,
+          "errors": [
+            "TimeoutError: page.waitForURL: Timeout 10000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/gestionnaire/dashboard**\" until \"load\"\n============================================================"
+          ]
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        },
+        {
+          "status": "skipped",
+          "duration": 0,
+          "retry": 1,
+          "errors": []
+        }
+      ]
+    }
+  ]
+}

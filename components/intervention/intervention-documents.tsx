@@ -165,179 +165,184 @@ export function InterventionDocuments({
   ).length
 
   return (
-    <div className={cn("space-y-4", className)}>
-      {/* Header with actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Documents de l'intervention</h3>
-          <p className="text-sm text-gray-500">
-            {totalCount} document{totalCount > 1 ? 's' : ''} au total
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {/* View mode toggle */}
-          <div className="flex items-center border rounded-lg">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="rounded-r-none"
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="rounded-l-none"
-            >
-              <List className="h-4 w-4" />
-            </Button>
+    <Card className={className}>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5 text-sky-600" />
+              <span>Documents de l'intervention</span>
+            </CardTitle>
           </div>
 
-          {/* Refresh button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchDocuments}
-            disabled={loading}
-          >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </Button>
+          <div className="flex items-center space-x-2">
+            {/* View mode toggle */}
+            <div className="flex items-center border rounded-lg">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="rounded-r-none"
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="rounded-l-none"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
 
-          {/* Upload button */}
-          {canUpload() && (
-            <Sheet open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-              <SheetTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter des documents
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-xl">
-                <SheetHeader>
-                  <SheetTitle>Ajouter des documents</SheetTitle>
-                  <SheetDescription>
-                    Téléchargez des photos, rapports ou factures liés à cette intervention
-                  </SheetDescription>
-                </SheetHeader>
-                <Separator className="my-4" />
-                <DocumentUploadZone
-                  interventionId={interventionId}
-                  onUploadComplete={handleUploadComplete}
-                />
-              </SheetContent>
-            </Sheet>
-          )}
+            {/* Refresh button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchDocuments}
+              disabled={loading}
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+
+            {/* Upload button */}
+            {canUpload() && (
+              <Sheet open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                <SheetTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter des documents
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-xl flex flex-col">
+                  <SheetHeader>
+                    <SheetTitle>Ajouter des documents</SheetTitle>
+                    <SheetDescription>
+                      Téléchargez des photos, rapports ou factures liés à cette intervention
+                    </SheetDescription>
+                  </SheetHeader>
+                  <Separator className="my-4" />
+                  <div className="px-5 md:px-10 flex-1 flex flex-col min-h-0">
+                    <DocumentUploadZone
+                      interventionId={interventionId}
+                      onUploadComplete={handleUploadComplete}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+          </div>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Document tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all" className="relative">
-            Tous
-            {totalCount > 0 && (
-              <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
-                {totalCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="photos" className="relative">
-            Photos
-            {photoCount > 0 && (
-              <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
-                {photoCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="relative">
-            Rapports
-            {reportCount > 0 && (
-              <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
-                {reportCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="invoices" className="relative">
-            Factures
-            {invoiceCount > 0 && (
-              <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
-                {invoiceCount}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+      <CardContent>
+        {/* Document tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all" className="relative">
+              Tous
+              {totalCount > 0 && (
+                <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
+                  {totalCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="photos" className="relative">
+              Photos
+              {photoCount > 0 && (
+                <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
+                  {photoCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="relative">
+              Rapports
+              {reportCount > 0 && (
+                <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
+                  {reportCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="invoices" className="relative">
+              Factures
+              {invoiceCount > 0 && (
+                <span className="ml-2 text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
+                  {invoiceCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all" className="mt-4">
-          <DocumentList
-            documents={getFilteredDocuments()}
-            loading={loading}
-            error={error}
-            userRole={userRole}
-            viewMode={viewMode}
-            showTypeFilter={false}
-            onView={handleViewDocument}
-            onDelete={canDelete ? handleDeleteDocument : undefined}
-            onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
-          />
-        </TabsContent>
+          <TabsContent value="all" className="mt-4">
+            <DocumentList
+              documents={getFilteredDocuments()}
+              loading={loading}
+              error={error}
+              userRole={userRole}
+              viewMode={viewMode}
+              showTypeFilter={false}
+              onView={handleViewDocument}
+              onDelete={canDelete ? handleDeleteDocument : undefined}
+              onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
+            />
+          </TabsContent>
 
-        <TabsContent value="photos" className="mt-4">
-          <DocumentList
-            documents={getFilteredDocuments()}
-            loading={loading}
-            error={error}
-            userRole={userRole}
-            viewMode={viewMode}
-            showTypeFilter={false}
-            onView={handleViewDocument}
-            onDelete={canDelete ? handleDeleteDocument : undefined}
-            onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
-          />
-        </TabsContent>
+          <TabsContent value="photos" className="mt-4">
+            <DocumentList
+              documents={getFilteredDocuments()}
+              loading={loading}
+              error={error}
+              userRole={userRole}
+              viewMode={viewMode}
+              showTypeFilter={false}
+              onView={handleViewDocument}
+              onDelete={canDelete ? handleDeleteDocument : undefined}
+              onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
+            />
+          </TabsContent>
 
-        <TabsContent value="reports" className="mt-4">
-          <DocumentList
-            documents={getFilteredDocuments()}
-            loading={loading}
-            error={error}
-            userRole={userRole}
-            viewMode={viewMode}
-            showTypeFilter={false}
-            onView={handleViewDocument}
-            onDelete={canDelete ? handleDeleteDocument : undefined}
-            onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
-          />
-        </TabsContent>
+          <TabsContent value="reports" className="mt-4">
+            <DocumentList
+              documents={getFilteredDocuments()}
+              loading={loading}
+              error={error}
+              userRole={userRole}
+              viewMode={viewMode}
+              showTypeFilter={false}
+              onView={handleViewDocument}
+              onDelete={canDelete ? handleDeleteDocument : undefined}
+              onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
+            />
+          </TabsContent>
 
-        <TabsContent value="invoices" className="mt-4">
-          <DocumentList
-            documents={getFilteredDocuments()}
-            loading={loading}
-            error={error}
-            userRole={userRole}
-            viewMode={viewMode}
-            showTypeFilter={false}
-            onView={handleViewDocument}
-            onDelete={canDelete ? handleDeleteDocument : undefined}
-            onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="invoices" className="mt-4">
+            <DocumentList
+              documents={getFilteredDocuments()}
+              loading={loading}
+              error={error}
+              userRole={userRole}
+              viewMode={viewMode}
+              showTypeFilter={false}
+              onView={handleViewDocument}
+              onDelete={canDelete ? handleDeleteDocument : undefined}
+              onTypeChange={userRole === 'gestionnaire' ? updateDocumentType : undefined}
+            />
+          </TabsContent>
+        </Tabs>
 
-      {/* Document viewer modal */}
-      <DocumentViewer
-        document={selectedDocument}
-        documents={getFilteredDocuments()}
-        isOpen={isViewerOpen}
-        onClose={() => {
-          setIsViewerOpen(false)
-          setSelectedDocument(null)
-        }}
-        onNavigate={handleNavigateDocument}
-      />
-    </div>
+        {/* Document viewer modal */}
+        <DocumentViewer
+          document={selectedDocument}
+          documents={getFilteredDocuments()}
+          isOpen={isViewerOpen}
+          onClose={() => {
+            setIsViewerOpen(false)
+            setSelectedDocument(null)
+          }}
+          onNavigate={handleNavigateDocument}
+        />
+      </CardContent>
+    </Card>
   )
 }

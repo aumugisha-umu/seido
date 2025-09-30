@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "./use-auth"
+import { toast } from "./use-toast"
 
 interface Provider {
   id: string
@@ -30,9 +31,14 @@ interface SuccessModal {
   interventionTitle: string
 }
 
-export const useInterventionQuoting = () => {
+interface UseInterventionQuotingOptions {
+  onActionComplete?: () => void
+}
+
+export const useInterventionQuoting = (options?: UseInterventionQuotingOptions) => {
   const router = useRouter()
   const { user } = useAuth()
+  const { onActionComplete } = options || {}
 
   // État des modals
   const [quoteRequestModal, setQuoteRequestModal] = useState<QuoteRequestModal>({
@@ -346,9 +352,25 @@ export const useInterventionQuoting = () => {
         interventionTitle: quoteRequestModal.intervention.title,
       })
 
-      // Rafraîchir la page après un délai
+      // Afficher un toast de succès
+      const providerCount = formData.selectedProviders.length
+      const providerText = providerCount === 1
+        ? formData.selectedProviders[0].name
+        : `${providerCount} prestataires`
+
+      toast({
+        title: "Demande de devis envoyée",
+        description: `La demande a été envoyée avec succès à ${providerText}.`,
+        variant: "default",
+      })
+
+      // Rafraîchir les données après un délai
       setTimeout(() => {
-        router.refresh()
+        if (onActionComplete) {
+          onActionComplete()
+        } else {
+          router.refresh()
+        }
       }, 1500)
 
     } catch (error) {

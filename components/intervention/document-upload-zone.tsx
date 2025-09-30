@@ -49,6 +49,12 @@ const DEFAULT_ACCEPTED_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]
 
+interface FileWithMetadata {
+  file: File
+  documentType: InterventionDocument['document_type']
+  description: string
+}
+
 export function DocumentUploadZone({
   interventionId,
   onUploadComplete,
@@ -58,9 +64,7 @@ export function DocumentUploadZone({
   className,
 }: DocumentUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [documentType, setDocumentType] = useState<InterventionDocument['document_type']>(defaultDocumentType)
-  const [description, setDescription] = useState("")
+  const [selectedFiles, setSelectedFiles] = useState<FileWithMetadata[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -77,7 +81,6 @@ export function DocumentUploadZone({
     interventionId,
     onUploadComplete: (documents) => {
       setSelectedFiles([])
-      setDescription("")
       onUploadComplete?.(documents)
       // Clear uploads after a delay to show completion
       setTimeout(() => {
@@ -108,7 +111,7 @@ export function DocumentUploadZone({
       }
 
       // Check for duplicates in current selection
-      if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+      if (selectedFiles.some(f => f.file.name === file.name && f.file.size === file.size)) {
         errors.push(`${file.name} est déjà sélectionné`)
         return
       }
@@ -133,7 +136,12 @@ export function DocumentUploadZone({
     }
 
     if (valid.length > 0) {
-      setSelectedFiles(prev => [...prev, ...valid])
+      const filesWithMetadata: FileWithMetadata[] = valid.map(file => ({
+        file,
+        documentType: defaultDocumentType,
+        description: ''
+      }))
+      setSelectedFiles(prev => [...prev, ...filesWithMetadata])
     }
   }
 
@@ -167,23 +175,21 @@ export function DocumentUploadZone({
     setSelectedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Update file metadata
+  const updateFileMetadata = (index: number, field: 'documentType' | 'description', value: string) => {
+    setSelectedFiles(prev => prev.map((item, i) =>
+      i === index ? { ...item, [field]: value } : item
+    ))
+  }
+
   // Start upload
   const handleStartUpload = async () => {
     if (selectedFiles.length === 0) return
 
-    // Prepare files with metadata
-    const filesWithMetadata = selectedFiles.map(file => {
-      // Create a new FormData for each file with metadata
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('document_type', documentType)
-      if (description) {
-        formData.append('description', description)
-      }
-      return file
-    })
+    // Extract just the File objects for upload
+    const files = selectedFiles.map(item => item.file)
 
-    await uploadFiles(selectedFiles)
+    await uploadFiles(files)
   }
 
   // Format file size
@@ -195,8 +201,16 @@ export function DocumentUploadZone({
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
   }
 
+  // Create preview URL for image files
+  const createPreviewUrl = (file: File): string | null => {
+    if (file.type.startsWith('image/')) {
+      return URL.createObjectURL(file)
+    }
+    return null
+  }
+
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("flex flex-col h-full space-y-4", className)}>
       {/* Drag and drop zone */}
       <div
         className={cn(
@@ -249,7 +263,7 @@ export function DocumentUploadZone({
 
       {/* Selected files */}
       {selectedFiles.length > 0 && !isUploading && (
-        <div className="space-y-4">
+        <div className="flex flex-col flex-1 space-y-4 min-h-0">
           <div className="flex items-center justify-between">
             <h3 className="font-medium">
               Fichiers sélectionnés ({selectedFiles.length})
@@ -263,77 +277,99 @@ export function DocumentUploadZone({
             </Button>
           </div>
 
-          {/* Document type selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="document-type">Type de document</Label>
-              <Select
-                value={documentType}
-                onValueChange={(value) => setDocumentType(value as InterventionDocument['document_type'])}
-              >
-                <SelectTrigger id="document-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="photo_avant">Photo avant</SelectItem>
-                  <SelectItem value="photo_apres">Photo après</SelectItem>
-                  <SelectItem value="rapport">Rapport</SelectItem>
-                  <SelectItem value="facture">Facture</SelectItem>
-                  <SelectItem value="devis">Devis</SelectItem>
-                  <SelectItem value="autre">Autre</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* File list with previews and individual metadata */}
+          <div className="space-y-4 flex-1 overflow-y-auto">
+            {selectedFiles.map((fileItem, index) => {
+              const previewUrl = createPreviewUrl(fileItem.file)
+              return (
+                <div
+                  key={`${fileItem.file.name}-${index}`}
+                  className="border border-gray-200 rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex gap-4">
+                    {/* Preview thumbnail */}
+                    <div className="relative group w-24 h-24 bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt={fileItem.file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileText className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
 
-            <div>
-              <Label htmlFor="description">Description (optionnel)</Label>
-              <Input
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ex: Photo de la fuite cuisine"
-              />
-            </div>
-          </div>
+                      {/* Remove button */}
+                      <button
+                        onClick={() => handleRemoveFile(index)}
+                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Supprimer"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
 
-          {/* File list */}
-          <div className="space-y-2">
-            {selectedFiles.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  {file.type.startsWith('image/') ? (
-                    <ImageIcon className="h-5 w-5 text-blue-500" />
-                  ) : (
-                    <FileText className="h-5 w-5 text-gray-500" />
-                  )}
-                  <div>
-                    <p className="font-medium text-sm">{file.name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                    {/* File info and metadata */}
+                    <div className="flex-1 space-y-3 min-w-0">
+                      <div>
+                        <p className="font-medium text-sm truncate">{fileItem.file.name}</p>
+                        <p className="text-xs text-gray-500">{formatFileSize(fileItem.file.size)}</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Document type */}
+                        <div>
+                          <Label htmlFor={`type-${index}`} className="text-xs">Type de document</Label>
+                          <Select
+                            value={fileItem.documentType}
+                            onValueChange={(value) => updateFileMetadata(index, 'documentType', value)}
+                          >
+                            <SelectTrigger id={`type-${index}`} className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="photo_avant">Photo avant</SelectItem>
+                              <SelectItem value="photo_apres">Photo après</SelectItem>
+                              <SelectItem value="rapport">Rapport</SelectItem>
+                              <SelectItem value="facture">Facture</SelectItem>
+                              <SelectItem value="devis">Devis</SelectItem>
+                              <SelectItem value="autre">Autre</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                          <Label htmlFor={`desc-${index}`} className="text-xs">Description (optionnel)</Label>
+                          <Input
+                            id={`desc-${index}`}
+                            value={fileItem.description}
+                            onChange={(e) => updateFileMetadata(index, 'description', e.target.value)}
+                            placeholder="Ex: Photo de la fuite cuisine"
+                            className="h-9"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveFile(index)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Upload button */}
-          <Button
-            onClick={handleStartUpload}
-            disabled={isUploading || selectedFiles.length === 0}
-            className="w-full"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Télécharger {selectedFiles.length} fichier{selectedFiles.length > 1 ? 's' : ''}
-          </Button>
+          <div className="pt-4 pb-5 md:pb-10">
+            <Button
+              onClick={handleStartUpload}
+              disabled={isUploading || selectedFiles.length === 0}
+              className="w-full"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Télécharger {selectedFiles.length} fichier{selectedFiles.length > 1 ? 's' : ''}
+            </Button>
+          </div>
         </div>
       )}
 

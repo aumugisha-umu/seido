@@ -651,7 +651,52 @@ export function InterventionDetailTabs({
 
   const renderExecutionTab = () => (
     <TabsContent value="execution" className="space-y-6">
-      {/* Documents section - Full width */}
+      {/* Planification & Disponibilités - First position */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center space-x-2">
+            <Calendar className="h-5 w-5 text-blue-600" />
+            <span>Planification & Disponibilités</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {intervention.scheduling.type === "fixed" && (
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">Date et heure fixe</h4>
+              <div className="flex items-center space-x-2 text-blue-800">
+                <Calendar className="h-4 w-4" />
+                <span>{intervention.scheduling.fixedDate}</span>
+                <Clock className="h-4 w-4 ml-2" />
+                <span>{intervention.scheduling.fixedTime}</span>
+              </div>
+            </div>
+          )}
+
+          {intervention.scheduling.type === "tbd" && (
+            <div className="p-3 bg-yellow-50 rounded-lg">
+              <h4 className="font-medium text-yellow-900">Horaire à définir</h4>
+              <p className="text-sm text-yellow-800 mt-1">La planification sera définie ultérieurement</p>
+              <UserAvailabilitiesDisplay
+                availabilities={intervention.availabilities}
+                quotes={intervention.quotes}
+                userRole={userRole}
+                showCard={false}
+                className="mt-3"
+              />
+            </div>
+          )}
+
+          {intervention.availabilities.length === 0 && intervention.scheduling.type === "tbd" && (
+            <div className="text-center py-8 text-gray-500">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium mb-2">Aucune disponibilité renseignée</p>
+              <p className="text-sm">Les disponibilités apparaîtront ici une fois communiquées</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Documents section - Below planning */}
       <div>
         <InterventionDocuments
           interventionId={intervention.id}
@@ -659,104 +704,6 @@ export function InterventionDetailTabs({
           userRole={userRole}
           userId={userId}
         />
-      </div>
-
-      {/* Planification & Disponibilités - Below documents */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              <span>Planification & Disponibilités</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {intervention.scheduling.type === "fixed" && (
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">Date et heure fixe</h4>
-                <div className="flex items-center space-x-2 text-blue-800">
-                  <Calendar className="h-4 w-4" />
-                  <span>{intervention.scheduling.fixedDate}</span>
-                  <Clock className="h-4 w-4 ml-2" />
-                  <span>{intervention.scheduling.fixedTime}</span>
-                </div>
-              </div>
-            )}
-
-            {intervention.scheduling.type === "tbd" && (
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <h4 className="font-medium text-yellow-900">Horaire à définir</h4>
-                <p className="text-sm text-yellow-800 mt-1">La planification sera définie ultérieurement</p>
-                <UserAvailabilitiesDisplay
-                  availabilities={intervention.availabilities}
-                  quotes={intervention.quotes}
-                  userRole={userRole}
-                  showCard={false}
-                  className="mt-3"
-                />
-              </div>
-            )}
-
-            {intervention.availabilities.length === 0 && intervention.scheduling.type === "tbd" && (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium mb-2">Aucune disponibilité renseignée</p>
-                <p className="text-sm">Les disponibilités apparaîtront ici une fois communiquées</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Legacy attachments - Keep for backward compatibility */}
-        {intervention.attachments && intervention.attachments.length > 0 && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-gray-600" />
-                <span>Pièces jointes initiales ({intervention.attachments.length})</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {intervention.attachments.map((file, index) => (
-                  <div key={file.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="font-medium text-gray-900">{file.name}</p>
-                        <div className="flex items-center space-x-3 text-sm text-gray-500">
-                          <span>{file.size}</span>
-                          <span>•</span>
-                          <span>{file.type}</span>
-                          {file.uploadedBy && (
-                            <>
-                              <span>•</span>
-                              <span>par {file.uploadedBy}</span>
-                            </>
-                          )}
-                          {file.uploadedAt && (
-                            <>
-                              <span>•</span>
-                              <span>{new Date(file.uploadedAt).toLocaleDateString('fr-FR')}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" title="Télécharger" onClick={() => onDownloadAttachment?.(file)}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" title="Voir">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </TabsContent>
   )

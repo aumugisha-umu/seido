@@ -50,10 +50,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
   prestataire: {
     title: "SEIDO Pro",
     subtitle: "Prestataire",
-    navigation: [
-      { href: "/prestataire/dashboard", label: "Dashboard", icon: Home },
-      { href: "/prestataire/interventions", label: "Mes Interventions", icon: Wrench },
-    ],
+    navigation: [],
     showUserElements: true,
   },
   locataire: {

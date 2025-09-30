@@ -107,7 +107,7 @@ export function InterventionActionPanelHeader({
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
 
   // Hooks for quote and planning management
-  const quoting = useInterventionQuoting()
+  const quoting = useInterventionQuoting({ onActionComplete })
   const planning = useInterventionPlanning()
   const { user } = useAuth()
 

@@ -398,11 +398,11 @@ export abstract class BaseRepository<
   }
 
   protected getFromCache(_key: string): unknown | null {
-    const entry = this.cache.get(key)
+    const entry = this.cache.get(_key)
     if (!entry) return null
 
     if (Date.now() > entry.timestamp) {
-      this.cache.delete(key)
+      this.cache.delete(_key)
       return null
     }
 
@@ -410,7 +410,7 @@ export abstract class BaseRepository<
   }
 
   protected clearCache(_key: string): void {
-    this.cache.delete(key)
+    this.cache.delete(_key)
   }
 
   protected clearTableCache(): void {

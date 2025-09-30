@@ -124,6 +124,16 @@ export const TEST_USERS: Record<string, TestUser> = {
 }
 
 /**
+ * Alias pour imports directs (compatibilité avec anciens tests)
+ */
+export const GESTIONNAIRE = TEST_USERS.gestionnaire
+export const PRESTATAIRE = TEST_USERS.prestataire
+export const LOCATAIRE = TEST_USERS.locataire
+
+// Alias for Phase 2 Contacts compatibility (as separate export, not in TEST_USERS)
+export const GESTIONNAIRE_ADMIN = TEST_USERS.gestionnaire
+
+/**
  * Équipes de test pour validation des relations
  * ✅ Mises à jour pour les 3 comptes uniquement
  */

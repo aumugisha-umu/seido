@@ -1480,5 +1480,83 @@
       "performance": "performance-login-performance-1759252123238-9je6khenu.log",
       "errors": ""
     }
+  },
+  {
+    "testId": "infrastructure-validation-1759263251397-fuohkyk18",
+    "testName": "infrastructure-validation",
+    "userRole": "admin",
+    "totalSteps": 8,
+    "totalDuration": 22001,
+    "successfulSteps": 8,
+    "errorSteps": 0,
+    "screenshots": [],
+    "performanceReport": {
+      "stepDuration": 37.25,
+      "totalDuration": 22001,
+      "memoryUsage": {
+        "rss": 136552448,
+        "heapTotal": 58748928,
+        "heapUsed": 51428152,
+        "external": 10903401,
+        "arrayBuffers": 11433725
+      }
+    },
+    "logFiles": {
+      "structured": "structured-infrastructure-validation-1759263251397-fuohkyk18.json",
+      "performance": "performance-infrastructure-validation-1759263251397-fuohkyk18.log",
+      "errors": ""
+    }
+  },
+  {
+    "testId": "login-gestionnaire-1759263251361-0xleqj5nr",
+    "testName": "login-gestionnaire",
+    "userRole": "gestionnaire",
+    "totalSteps": 5,
+    "totalDuration": 28023,
+    "successfulSteps": 4,
+    "errorSteps": 1,
+    "screenshots": [],
+    "performanceReport": {
+      "stepDuration": 33.8,
+      "totalDuration": 28023,
+      "memoryUsage": {
+        "rss": 118648832,
+        "heapTotal": 48672768,
+        "heapUsed": 31818480,
+        "external": 4491724,
+        "arrayBuffers": 5022079
+      }
+    },
+    "logFiles": {
+      "structured": "structured-login-gestionnaire-1759263251361-0xleqj5nr.json",
+      "performance": "performance-login-gestionnaire-1759263251361-0xleqj5nr.log",
+      "errors": "errors-login-gestionnaire-1759263251361-0xleqj5nr.log"
+    }
+  },
+  {
+    "testId": "login-gestionnaire-1759263297957-vqwot8apm",
+    "testName": "login-gestionnaire",
+    "userRole": "gestionnaire",
+    "totalSteps": 5,
+    "totalDuration": 26009,
+    "successfulSteps": 4,
+    "errorSteps": 1,
+    "screenshots": [],
+    "performanceReport": {
+      "stepDuration": 22,
+      "totalDuration": 26009,
+      "memoryUsage": {
+        "rss": 119869440,
+        "heapTotal": 49721344,
+        "heapUsed": 33378000,
+        "external": 5141940,
+        "arrayBuffers": 5672295
+      }
+    },
+    "logFiles": {
+      "structured": "structured-login-gestionnaire-1759263297957-vqwot8apm.json",
+      "performance": "performance-login-gestionnaire-1759263297957-vqwot8apm.log",
+      "errors": "errors-login-gestionnaire-1759263297957-vqwot8apm.log"
+    }
   }
 ]

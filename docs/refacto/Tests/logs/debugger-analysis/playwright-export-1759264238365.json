@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-09-30T20:30:38.364Z",
+  "suite": {
+    "status": "failed",
+    "duration": 17830,
+    "stats": {
+      "passed": 0,
+      "failed": 7,
+      "flaky": 0,
+      "skipped": 0,
+      "timedOut": 0,
+      "interrupted": 1
+    }
+  },
+  "projects": [
+    {
+      "name": "phase2-buildings",
+      "results": [
+        {
+          "status": "failed",
+          "duration": 1009,
+          "retry": 0,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 1015,
+          "retry": 0,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 1057,
+          "retry": 1,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 1065,
+          "retry": 1,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 897,
+          "retry": 0,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 829,
+          "retry": 0,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "failed",
+          "duration": 1029,
+          "retry": 1,
+          "errors": [
+            "TypeError: logger.testStart is not a function",
+            "TypeError: logger.testEnd is not a function"
+          ]
+        },
+        {
+          "status": "interrupted",
+          "duration": 856,
+          "retry": 1,
+          "errors": []
+        }
+      ]
+    }
+  ]
+}

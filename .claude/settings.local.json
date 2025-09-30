@@ -30,7 +30,9 @@
       "Bash(if [ ! -d \"test/e2e\" ])",
       "Bash(then mkdir -p test/e2e)",
       "Bash(fi)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(cmd.exe //c taskkill //PID 14884 //F)",
+      "Bash(cmd.exe //c taskkill //PID 16524 //F)"
     ],
     "deny": [],
     "ask": []

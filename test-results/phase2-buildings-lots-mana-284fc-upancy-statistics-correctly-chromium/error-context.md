@@ -1,0 +1,115 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - navigation [ref=e5]:
+        - link "SEIDO" [ref=e9] [cursor=pointer]:
+          - /url: /gestionnaire/dashboard
+          - img "SEIDO" [ref=e10] [cursor=pointer]
+        - generic [ref=e11]:
+          - link "Dashboard" [ref=e12] [cursor=pointer]:
+            - /url: /gestionnaire/dashboard
+            - img [ref=e13] [cursor=pointer]
+            - generic [ref=e16] [cursor=pointer]: Dashboard
+          - link "Biens" [ref=e17] [cursor=pointer]:
+            - /url: /gestionnaire/biens
+            - img [ref=e18] [cursor=pointer]
+            - generic [ref=e22] [cursor=pointer]: Biens
+          - link "Interventions" [ref=e23] [cursor=pointer]:
+            - /url: /gestionnaire/interventions
+            - img [ref=e24] [cursor=pointer]
+            - generic [ref=e26] [cursor=pointer]: Interventions
+          - link "Contacts" [ref=e27] [cursor=pointer]:
+            - /url: /gestionnaire/contacts
+            - img [ref=e28] [cursor=pointer]
+            - generic [ref=e33] [cursor=pointer]: Contacts
+        - generic [ref=e34]:
+          - link "Notifications" [ref=e35] [cursor=pointer]:
+            - /url: /gestionnaire/notifications
+            - img [ref=e36] [cursor=pointer]
+          - button "U Utilisateur Gestionnaire" [ref=e40]:
+            - generic [ref=e42]: U
+            - generic [ref=e43]:
+              - generic [ref=e44]: Utilisateur
+              - generic [ref=e45]: Gestionnaire
+            - img
+    - main [ref=e46]:
+      - generic [ref=e49]:
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - heading "Tableau de bord" [level=1] [ref=e53]
+            - paragraph [ref=e54]: Bienvenue, Arthur Umugisha (Gestionnaire)
+          - generic [ref=e56]:
+            - button "Ajouter un immeuble" [ref=e57]:
+              - img
+              - generic [ref=e58]: Ajouter un immeuble
+            - button "Ajouter un lot" [ref=e59]:
+              - img
+              - generic [ref=e60]: Ajouter un lot
+            - button "Ajouter un contact" [ref=e61]:
+              - img
+              - generic [ref=e62]: Ajouter un contact
+            - button "Ajouter une intervention" [ref=e63]:
+              - img
+              - generic [ref=e64]: Ajouter une intervention
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e68]:
+              - generic [ref=e69]: Immeubles
+              - img [ref=e70]
+            - generic [ref=e74]:
+              - generic [ref=e75]: "1"
+              - paragraph [ref=e76]: Propriétés gérées
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e79]: Lots
+              - img [ref=e80]
+            - generic [ref=e83]:
+              - generic [ref=e84]: "1"
+              - paragraph [ref=e85]: Logements totaux
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - generic [ref=e88]: Occupés
+              - img [ref=e89]
+            - generic [ref=e94]:
+              - generic [ref=e95]: 1/1
+              - generic [ref=e96]:
+                - progressbar [ref=e97]
+                - generic [ref=e99]: 100%
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - generic [ref=e102]: Contacts
+              - img [ref=e103]
+            - generic [ref=e108]:
+              - generic [ref=e109]: "5"
+              - generic [ref=e110]:
+                - paragraph [ref=e111]: 5 comptes actifs
+                - generic [ref=e112]:
+                  - generic [ref=e113]: "prestataire: 2"
+                  - generic [ref=e114]: "gestionnaire: 2"
+                  - generic [ref=e115]: "locataire: 1"
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - generic [ref=e119]:
+              - img [ref=e120]
+              - generic [ref=e122]: Tendances d'occupation
+            - generic [ref=e125]:
+              - generic [ref=e129]: 100%
+              - paragraph [ref=e130]: Taux d'occupation
+              - paragraph [ref=e131]: 1 sur 1 lots occupés
+          - generic [ref=e132]:
+            - generic [ref=e135]:
+              - img [ref=e136]
+              - generic [ref=e138]: Interventions récentes
+            - generic [ref=e140]:
+              - img [ref=e141]
+              - paragraph [ref=e143]: Aucune intervention
+              - paragraph [ref=e144]: Les interventions apparaîtront ici une fois créées
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e150] [cursor=pointer]:
+    - img [ref=e151] [cursor=pointer]
+  - alert [ref=e154]
+```

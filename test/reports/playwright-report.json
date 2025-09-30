@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 1
+      "actualWorkers": 6
     },
     "preserveOutput": "always",
     "reporter": [
@@ -37,7 +37,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "chromium",
         "name": "chromium",
@@ -53,7 +53,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "firefox",
         "name": "firefox",
@@ -69,7 +69,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "webkit",
         "name": "webkit",
@@ -85,7 +85,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
@@ -101,7 +101,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
@@ -129,25 +129,25 @@
   },
   "suites": [
     {
-      "title": "gestionnaire-invite-locataire.spec.ts",
-      "file": "gestionnaire-invite-locataire.spec.ts",
+      "title": "phase2-buildings\\lots-management.spec.ts",
+      "file": "phase2-buildings/lots-management.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Workflow Invitation Locataire",
-          "file": "gestionnaire-invite-locataire.spec.ts",
-          "line": 24,
+          "title": "🏠 Phase 2 - Lots Management",
+          "file": "phase2-buildings/lots-management.spec.ts",
+          "line": 41,
           "column": 6,
           "specs": [
             {
-              "title": "Doit gérer correctement une liste de contacts vide",
-              "ok": true,
+              "title": "should display lots list for a building with correct data",
+              "ok": false,
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 90000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -156,48 +156,735 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 22267,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "🚀 Starting empty contacts list test\n"
+                      "status": "failed",
+                      "duration": 21073,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:60:61",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 61,
+                          "line": 60
                         },
+                        "snippet": "\u001b[0m \u001b[90m 58 |\u001b[39m     \u001b[90m// Utiliser un bâtiment de test avec des lots connus\u001b[39m\n \u001b[90m 59 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 60 |\u001b[39m     \u001b[36mconst\u001b[39m testBuildingLots \u001b[33m=\u001b[39m getLotsByBuilding(testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m    |\u001b[39m                                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 61 |\u001b[39m\n \u001b[90m 62 |\u001b[39m\n \u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\u001b[0m"
+                      },
+                      "errors": [
                         {
-                          "text": "📌 Page contains \"Contacts\": \u001b[33mtrue\u001b[39m\n"
-                        },
-                        {
-                          "text": "📌 Page title: Gestion des Contacts\n"
-                        },
-                        {
-                          "text": "🔍 Add contact buttons found: \u001b[33m2\u001b[39m\n"
-                        },
-                        {
-                          "text": "📊 Contacts tab found: \u001b[33mtrue\u001b[39m\n"
-                        },
-                        {
-                          "text": "📭 Empty message found: \u001b[33mtrue\u001b[39m\n"
-                        },
-                        {
-                          "text": "✅ Empty state properly displayed\n"
-                        },
-                        {
-                          "text": "✅ Contacts page accessibility test completed successfully\n"
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 61,
+                            "line": 60
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  58 |     // Utiliser un bâtiment de test avec des lots connus\n  59 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 60 |     const testBuildingLots = getLotsByBuilding(testBuilding.id)\n     |                                                             ^\n  61 |\n  62 |\n  63 |     await navigateToLots(page, testBuilding.id)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:60:61"
                         }
                       ],
-                      "stderr": [],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274745169\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
                       "retry": 0,
-                      "startTime": "2025-09-30T13:50:37.258Z",
+                      "startTime": "2025-09-30T23:25:43.080Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 61,
+                        "line": 60
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
-              "id": "b8b98ed64deada94ff1a-4e56150a281e2ce9f98a",
-              "file": "gestionnaire-invite-locataire.spec.ts",
-              "line": 251,
+              "id": "372ca942c6c74b0166d3-1a265d5f757917ee8add",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 55,
+              "column": 7
+            },
+            {
+              "title": "should create a new lot in a building successfully",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 21021,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:105:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 105
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 103 |\u001b[39m\n \u001b[90m 104 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 105 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 106 |\u001b[39m\n \u001b[90m 107 |\u001b[39m     \u001b[90m// Ouvrir le formulaire de création\u001b[39m\n \u001b[90m 108 |\u001b[39m     \u001b[36mconst\u001b[39m addButton \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 105
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  103 |\n  104 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 105 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  106 |\n  107 |     // Ouvrir le formulaire de création\n  108 |     const addButton = page.locator(\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:105:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274745159\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:25:43.078Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 105
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-7cdbe376ec346c66da92",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 101,
+              "column": 7
+            },
+            {
+              "title": "should edit an existing lot",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 20735,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:191:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 191
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 189 |\u001b[39m\n \u001b[90m 190 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 191 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 192 |\u001b[39m\n \u001b[90m 193 |\u001b[39m     \u001b[90m// Attendre chargement des données\u001b[39m\n \u001b[90m 194 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 191
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  189 |\n  190 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 191 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  192 |\n  193 |     // Attendre chargement des données\n  194 |     await page.waitForTimeout(2000)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:191:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274745167\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:25:43.093Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-5e30c-should-edit-an-existing-lot-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-5e30c-should-edit-an-existing-lot-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-5e30c-should-edit-an-existing-lot-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 191
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-e7f34978bc6796cda686",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 187,
+              "column": 7
+            },
+            {
+              "title": "should assign a tenant to a vacant lot",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 20957,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:254:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 254
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 252 |\u001b[39m\n \u001b[90m 253 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 254 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 255 |\u001b[39m\n \u001b[90m 256 |\u001b[39m     \u001b[90m// Attendre chargement\u001b[39m\n \u001b[90m 257 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 254
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  252 |\n  253 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 254 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  255 |\n  256 |     // Attendre chargement\n  257 |     await page.waitForTimeout(2000)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:254:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274745164\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:25:43.097Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-db60c-gn-a-tenant-to-a-vacant-lot-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-db60c-gn-a-tenant-to-a-vacant-lot-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-db60c-gn-a-tenant-to-a-vacant-lot-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 254
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-5c7d644c0de263423a86",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 250,
+              "column": 7
+            },
+            {
+              "title": "should change lot occupancy status",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "failed",
+                      "duration": 20688,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:315:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 315
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 313 |\u001b[39m\n \u001b[90m 314 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 315 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 316 |\u001b[39m\n \u001b[90m 317 |\u001b[39m     \u001b[90m// Attendre chargement\u001b[39m\n \u001b[90m 318 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 315
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  313 |\n  314 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 315 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  316 |\n  317 |     // Attendre chargement\n  318 |     await page.waitForTimeout(2000)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:315:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274745164\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:25:43.158Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-8791e-change-lot-occupancy-status-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-8791e-change-lot-occupancy-status-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-8791e-change-lot-occupancy-status-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 315
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-6ab9370fcf169727e532",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 311,
+              "column": 7
+            },
+            {
+              "title": "should delete a lot with confirmation",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 5,
+                      "status": "failed",
+                      "duration": 20685,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:362:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 362
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 360 |\u001b[39m\n \u001b[90m 361 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 362 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 363 |\u001b[39m\n \u001b[90m 364 |\u001b[39m     \u001b[90m// Attendre chargement\u001b[39m\n \u001b[90m 365 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 362
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  360 |\n  361 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 362 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  363 |\n  364 |     // Attendre chargement\n  365 |     await page.waitForTimeout(2000)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:362:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274745170\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:25:43.146Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-0975d-ete-a-lot-with-confirmation-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-0975d-ete-a-lot-with-confirmation-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-0975d-ete-a-lot-with-confirmation-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 362
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-c0d73f96845beb9fc7c9",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 358,
+              "column": 7
+            },
+            {
+              "title": "should display occupancy statistics correctly",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 10510,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:417:57",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 57,
+                          "line": 417
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 415 |\u001b[39m\n \u001b[90m 416 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 417 |\u001b[39m     \u001b[36mconst\u001b[39m buildingLots \u001b[33m=\u001b[39m getLotsByBuilding(testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 418 |\u001b[39m     \u001b[36mconst\u001b[39m occupiedCount \u001b[33m=\u001b[39m getOccupiedLotsCount(testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m 419 |\u001b[39m     \u001b[36mconst\u001b[39m vacantLots \u001b[33m=\u001b[39m getVacantLots(testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m 420 |\u001b[39m     \u001b[36mconst\u001b[39m occupancyRate \u001b[33m=\u001b[39m calculateOccupancyRate(testBuilding\u001b[33m.\u001b[39mid)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 57,
+                            "line": 417
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  415 |\n  416 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 417 |     const buildingLots = getLotsByBuilding(testBuilding.id)\n      |                                                         ^\n  418 |     const occupiedCount = getOccupiedLotsCount(testBuilding.id)\n  419 |     const vacantLots = getVacantLots(testBuilding.id)\n  420 |     const occupancyRate = calculateOccupancyRate(testBuilding.id)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:417:57"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:44:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274768070\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:44:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:26:07.186Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-284fc-upancy-statistics-correctly-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-284fc-upancy-statistics-correctly-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-284fc-upancy-statistics-correctly-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 57,
+                        "line": 417
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-7647cd77a8b94bf2b4e8",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 413,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "🔍 Phase 2 - Lots Filtering",
+          "file": "phase2-buildings/lots-management.spec.ts",
+          "line": 450,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should filter lots by occupancy status",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 10493,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:465:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 465
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 463 |\u001b[39m\n \u001b[90m 464 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 465 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 466 |\u001b[39m\n \u001b[90m 467 |\u001b[39m     \u001b[90m// Attendre chargement\u001b[39m\n \u001b[90m 468 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 465
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  463 |\n  464 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 465 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  466 |\n  467 |     // Attendre chargement\n  468 |     await page.waitForTimeout(2000)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:465:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:453:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274767895\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:453:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:26:07.190Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-5c10d-er-lots-by-occupancy-status-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-5c10d-er-lots-by-occupancy-status-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-5c10d-er-lots-by-occupancy-status-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 465
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-9c417b323f379f9a5d56",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 461,
+              "column": 7
+            },
+            {
+              "title": "should filter lots by type (apartment, parking, etc.)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 8,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 10614,
+                      "error": {
+                        "message": "TypeError: Cannot read properties of undefined (reading 'id')",
+                        "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:510:45",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 45,
+                          "line": 510
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 508 |\u001b[39m\n \u001b[90m 509 |\u001b[39m     \u001b[36mconst\u001b[39m testBuilding \u001b[33m=\u001b[39m \u001b[33mBUILDINGS\u001b[39m\u001b[33m.\u001b[39m\u001b[33mRESIDENCE_CONVENTION\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 510 |\u001b[39m     \u001b[36mawait\u001b[39m navigateToLots(page\u001b[33m,\u001b[39m testBuilding\u001b[33m.\u001b[39mid)\n \u001b[90m     |\u001b[39m                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 511 |\u001b[39m\n \u001b[90m 512 |\u001b[39m     \u001b[90m// Attendre chargement\u001b[39m\n \u001b[90m 513 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 45,
+                            "line": 510
+                          },
+                          "message": "TypeError: Cannot read properties of undefined (reading 'id')\n\n  508 |\n  509 |     const testBuilding = BUILDINGS.RESIDENCE_CONVENTION\n> 510 |     await navigateToLots(page, testBuilding.id)\n      |                                             ^\n  511 |\n  512 |     // Attendre chargement\n  513 |     await page.waitForTimeout(2000)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts:510:45"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 Test step\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at cleanBrowserState \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:20:16\u001b[90m)\u001b[39m\n    at setupTestIsolation \u001b[90m(C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\helpers\\test-isolation.ts:90:3\u001b[90m)\u001b[39m\n    at \u001b[90mC:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\\u001b[39mtest\\e2e\\phase2-buildings\\lots-management.spec.ts:453:5 {\n  [\u001b[32mSymbol(step)\u001b[39m]: {\n    location: {\n      file: \u001b[32m'C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts'\u001b[39m,\n      line: \u001b[33m20\u001b[39m,\n      column: \u001b[33m16\u001b[39m,\n      function: \u001b[32m'cleanBrowserState'\u001b[39m\n    },\n    category: \u001b[32m'pw:api'\u001b[39m,\n    title: \u001b[32m'Evaluate'\u001b[39m,\n    apiName: \u001b[32m'page.evaluate'\u001b[39m,\n    params: {\n      expression: \u001b[32m'() => {\\n'\u001b[39m +\n        \u001b[32m'      localStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'      sessionStorage.clear();\\n'\u001b[39m +\n        \u001b[32m'    }'\u001b[39m,\n      isFunction: \u001b[33mtrue\u001b[39m,\n      arg: \u001b[36m[Object]\u001b[39m\n    },\n    group: \u001b[90mundefined\u001b[39m,\n    stepId: \u001b[32m'pw:api@38'\u001b[39m,\n    boxedStack: \u001b[90mundefined\u001b[39m,\n    steps: [],\n    attachmentIndices: [],\n    info: TestStepInfoImpl {\n      annotations: [],\n      _testInfo: \u001b[36m[TestInfoImpl]\u001b[39m,\n      _stepId: \u001b[32m'pw:api@38'\u001b[39m,\n      _title: \u001b[32m'Evaluate'\u001b[39m,\n      _parentStep: \u001b[36m[TestStepInfoImpl]\u001b[39m,\n      skip: \u001b[36m[Function (anonymous)]\u001b[39m\n    },\n    recoverFromStepError: \u001b[36m[AsyncFunction: recoverFromStepError]\u001b[39m,\n    complete: \u001b[36m[Function: complete]\u001b[39m,\n    endWallTime: \u001b[33m1759274768073\u001b[39m,\n    error: {\n      message: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'\u001b[39m,\n      stack: \u001b[32m\"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\\n\"\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.evaluate (<anonymous>:293:16)\\n'\u001b[39m +\n        \u001b[32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\\n'\u001b[39m +\n        \u001b[32m'    at cleanBrowserState (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:20:16)\\n'\u001b[39m +\n        \u001b[32m'    at setupTestIsolation (C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\helpers\\\\test-isolation.ts:90:3)\\n'\u001b[39m +\n        \u001b[32m'    at C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\test\\\\e2e\\\\phase2-buildings\\\\lots-management.spec.ts:453:5'\u001b[39m,\n      cause: \u001b[90mundefined\u001b[39m\n    }\n  }\n}\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-30T23:26:07.270Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-f2cac-type-apartment-parking-etc--chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-f2cac-type-apartment-parking-etc--chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\phase2-buildings-lots-mana-f2cac-type-apartment-parking-etc--chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 45,
+                        "line": 510
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-270009f5dd2de368cf5b",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 506,
               "column": 7
             }
           ]
@@ -207,11 +894,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-30T13:50:21.087Z",
-    "duration": 39756.157,
-    "expected": 1,
+    "startTime": "2025-09-30T23:25:39.712Z",
+    "duration": 38798.452000000005,
+    "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 9,
     "flaky": 0
   }
 }

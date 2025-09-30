@@ -181,24 +181,64 @@ const supabase = await createServerSupabaseClient()
 
 ## Testing & Quality Assurance
 
-### 🧪 **New Testing Strategy** (Following Official Best Practices)
-```bash
-# Infrastructure Tests (Phase 1 Complete)
-npm test lib/services/__tests__/phase1-infrastructure.test.ts
+### 🧪 **Testing Architecture Overview**
 
-# Service Tests (Phase 2+)
-npm test lib/services/__tests__/services/user.service.test.ts
+**All E2E tests are centralized in**: `docs/refacto/Tests/`
 
-# Build & Lint
-npm run build            # TypeScript compilation + Next.js build
-npm run lint             # ESLint validation
+```
+docs/refacto/Tests/
+├── helpers/                  # Modular test helpers (✅ Phase 2 Complete)
+│   ├── auth-helpers.ts      # Authentication helpers (login, logout)
+│   ├── navigation-helpers.ts # Navigation helpers (navigateTo, etc.)
+│   ├── test-isolation.ts    # ✅ Test isolation (prevents state leakage)
+│   ├── debug-helpers.ts     # ✅ Auto-healing debug system
+│   └── index.ts             # Unified exports
+├── fixtures/                 # Test data fixtures
+│   ├── users.fixture.ts     # Test users for all roles
+│   ├── buildings.fixture.ts # Test buildings data
+│   └── contacts.fixture.ts  # Test contacts data
+├── tests/                    # Organized test suites
+│   ├── phase1-auth/         # Authentication tests
+│   ├── phase2-contacts/     # Contacts CRUD (100% success)
+│   ├── phase2-buildings/    # Buildings CRUD (71.4% success)
+│   └── phase2-interventions/ # Interventions workflow
+└── HELPERS-GUIDE.md         # 📚 Complete testing documentation
+
+test/e2e/                     # Playwright test directory (mirrors docs/refacto/Tests)
+├── helpers/                  # Copied from docs/refacto/Tests/helpers
+├── fixtures/                 # Copied from docs/refacto/Tests/fixtures
+└── phase2-*/                 # Test suites
 ```
 
-### 📊 **Quality Standards**
-- ✅ **Test Coverage**: > 80% for all new services
-- ✅ **TypeScript**: 0 warnings for new architecture
-- ✅ **Performance**: < 100ms API response times
+### 🎯 **Test Quality Standards**
+- ✅ **E2E Coverage**: 100% for user-facing features
+- ✅ **Unit Coverage**: > 80% for services/repositories
+- ✅ **TypeScript**: 0 warnings, strict mode enabled
+- ✅ **Performance**: < 100ms API response, < 30s E2E tests
 - ✅ **Accessibility**: WCAG 2.1 AA compliance
+- ✅ **Auto-Healing**: Tests use isolation + debug helpers (Phase 2)
+
+### 📊 **Current Test Results**
+- **Phase 2 Contacts**: 100% success (7/7 tests) - Baseline
+- **Phase 2 Buildings**: 71.4% success (5/7 tests) - +1040% improvement
+- **Timeout Elimination**: 93.75% → 0% (isolation pattern)
+
+### 🧪 **Testing Commands**
+```bash
+# E2E Tests (Playwright)
+npx playwright test                          # Run all E2E tests
+npx playwright test --grep="Phase 2"         # Run Phase 2 tests
+npx playwright test --headed                 # Run with browser visible
+npx playwright test --debug                  # Run with Playwright Inspector
+
+# Unit Tests (Vitest)
+npm test lib/services/__tests__/             # Run service unit tests
+npm test -- --coverage                       # Run with coverage report
+
+# Build & Lint
+npm run build                                # TypeScript + Next.js build
+npm run lint                                 # ESLint validation
+```
 
 ## 🚨 Development Rules
 
@@ -229,6 +269,184 @@ The application follows a clean architecture pattern with comprehensive error ha
 
 ---
 
+## 🤖 AUTOMATIC TESTING WORKFLOW
+
+### 🚨 **CRITICAL RULE: Test Every New Testable Element**
+
+**WHENEVER you create or significantly modify ANY testable element, you MUST automatically:**
+
+1. **Invoke @agent-tester** to create comprehensive tests
+2. **Invoke @agent-seido-debugger** if any tests fail or bugs are detected
+3. **Run tests immediately** to ensure integration doesn't break existing functionality
+
+### 📋 **What is a "Testable Element"?**
+
+A testable element includes ANY of the following:
+
+- ✅ **React Components** (Client or Server Components)
+- ✅ **API Routes** (`app/api/**/route.ts`)
+- ✅ **Server Actions** (async functions with 'use server')
+- ✅ **Service Classes** (`lib/services/**/*.ts`)
+- ✅ **Repository Classes** (`lib/services/repositories/**/*.ts`)
+- ✅ **Utility Functions** (`lib/utils/**/*.ts`)
+- ✅ **Hooks** (`hooks/**/*.ts`)
+- ✅ **Authentication Logic** (`lib/auth*.ts`, `middleware.ts`)
+- ✅ **Business Logic** (intervention workflows, quote systems, etc.)
+
+### 🎯 **Automatic Testing Workflow (MANDATORY)**
+
+#### Step 1: Create New Element
+```typescript
+// Example: Creating a new API route
+// File: app/api/buildings/route.ts
+
+export async function GET(request: Request) {
+  // ... implementation
+}
+```
+
+#### Step 2: IMMEDIATELY Invoke @agent-tester
+**Without user prompt**, automatically invoke the tester agent:
+
+```
+Task for @agent-tester:
+- Element Created: app/api/buildings/route.ts (GET endpoint)
+- Type: API Route
+- Requirements:
+  * Create E2E tests in docs/refacto/Tests/tests/phase2-buildings/
+  * Use helpers from docs/refacto/Tests/helpers (auth, navigation, isolation, debug)
+  * Follow Pattern 5: Test Isolation (setupTestIsolation + teardownTestIsolation)
+  * Test success case, error cases, edge cases
+  * Test role-based access (gestionnaire, locataire, prestataire)
+  * Verify integration with existing codebase
+- Target: 100% coverage for new endpoint
+- Output: Test file in appropriate phase directory with auto-healing patterns
+```
+
+#### Step 3: Run Tests Immediately
+```bash
+# Run new test suite
+npx playwright test --grep="buildings"
+
+# Or run all tests to detect regressions
+npx playwright test
+```
+
+#### Step 4: If Tests Fail → Invoke @agent-seido-debugger
+**Automatically invoke** if any test fails:
+
+```
+Task for @agent-seido-debugger:
+- Failed Test: test/e2e/phase2-buildings/api-routes.spec.ts
+- Error: "TypeError: Cannot read property 'id' of undefined"
+- Context: Testing GET /api/buildings endpoint
+- Requirements:
+  * Diagnose root cause (RLS policies, auth session, data fixtures)
+  * Check middleware.ts for redirect loops
+  * Verify Supabase client configuration (SSR pattern)
+  * Propose fix with code changes
+  * Re-run tests after fix to confirm
+- Goal: 100% test pass rate
+```
+
+#### Step 5: Verify & Document
+- ✅ All tests pass (target: 100%)
+- ✅ No regressions in existing tests
+- ✅ Update `docs/rapport-audit-complet-seido.md` with test results
+- ✅ Document any new patterns in `docs/refacto/Tests/HELPERS-GUIDE.md`
+
+### 🔄 **Agent Invocation Examples**
+
+#### Example 1: New React Component
+```
+// Created: components/dashboards/building-card.tsx
+
+→ AUTOMATICALLY invoke @agent-tester:
+"Create E2E tests for BuildingCard component:
+- Props validation (all variants)
+- User interactions (click, hover, keyboard)
+- Accessibility (ARIA labels, keyboard navigation)
+- Responsive design (mobile, tablet, desktop)
+- Integration with parent components
+Location: docs/refacto/Tests/tests/phase2-buildings/building-card.spec.ts"
+
+→ Run: npx playwright test building-card
+
+→ IF FAILS: invoke @agent-seido-debugger with error details
+```
+
+#### Example 2: New Server Action
+```
+// Created: app/actions/create-building.ts
+
+→ AUTOMATICALLY invoke @agent-tester:
+"Create comprehensive tests for createBuilding server action:
+- Valid input → success case
+- Invalid input → validation errors
+- Missing auth → 401 Unauthorized
+- Wrong role → 403 Forbidden (locataire can't create buildings)
+- Database errors → proper error handling
+- RLS policies → team isolation verified
+Location: docs/refacto/Tests/tests/phase2-buildings/create-building.spec.ts"
+
+→ Run: npx playwright test create-building
+
+→ IF FAILS: invoke @agent-seido-debugger
+```
+
+#### Example 3: New Service Class
+```
+// Created: lib/services/domain/building.service.ts
+
+→ AUTOMATICALLY invoke @agent-tester:
+"Create unit + integration tests for BuildingService:
+Unit tests (lib/services/__tests__/services/building.service.test.ts):
+- Mock repository, test business logic in isolation
+- All methods, all branches, edge cases
+
+E2E tests (docs/refacto/Tests/tests/phase2-buildings/building-service-integration.spec.ts):
+- Real database operations
+- Multi-role access patterns
+- Cascade operations (building → lots → contacts)
+Coverage target: > 80%"
+
+→ Run: npm test building.service && npx playwright test building-service
+
+→ IF FAILS: invoke @agent-seido-debugger
+```
+
+### 📊 **Test Quality Checklist (Enforced by Agents)**
+
+Before completing any new feature, agents MUST verify:
+
+- [ ] **100% of new code paths are tested**
+- [ ] **No regression** in existing tests (all still pass)
+- [ ] **Test isolation** applied (setupTestIsolation + teardownTestIsolation)
+- [ ] **Auto-healing debug** on failures (captureDebugInfo in catch blocks)
+- [ ] **Multi-role testing** where applicable (gestionnaire, locataire, prestataire)
+- [ ] **Error boundaries** tested (network failures, invalid data, auth issues)
+- [ ] **Performance** verified (< 30s per E2E test, < 100ms API responses)
+- [ ] **Accessibility** validated (keyboard navigation, screen readers)
+- [ ] **Documentation** updated (HELPERS-GUIDE.md if new patterns, audit report)
+
+### 🚨 **MANDATORY: Never Skip Testing**
+
+**IMPORTANT**: Testing is NOT optional. Every new testable element MUST have tests before the feature is considered complete.
+
+If you find yourself thinking "I'll add tests later", STOP and invoke @agent-tester immediately.
+
+**Success Metric**: Codebase maintains > 80% coverage across all services and 100% coverage for critical user-facing features.
+
+### 🎓 **Testing Resources**
+
+- **Primary Guide**: `docs/refacto/Tests/HELPERS-GUIDE.md` (complete patterns + examples)
+- **Test Templates**: Found in HELPERS-GUIDE.md sections "Template Minimal" and "Template Complet"
+- **Validated Patterns**: Pattern 1-5 in HELPERS-GUIDE.md (all empirically validated)
+- **Fixtures**: `docs/refacto/Tests/fixtures/` (reusable test data)
+- **Auto-Healing**: `docs/refacto/Tests/helpers/debug-helpers.ts` (automatic debug capture)
+
+---
+
 ## 📚 Essential References
 
 ### 🔗 **Official Documentation** (Always Check First)
@@ -246,7 +464,22 @@ The application follows a clean architecture pattern with comprehensive error ha
 ### 📋 **Project Documentation**
 - **Refactoring Guide**: `docs/refacto/database-refactoring-guide.md`
 - **Services README**: `lib/services/README.md`
-- **Test Documentation**: `lib/services/__tests__/`
+- **Test Documentation**:
+  - **E2E Testing Guide**: `docs/refacto/Tests/HELPERS-GUIDE.md` (⭐ PRIMARY RESOURCE)
+  - **Unit Tests**: `lib/services/__tests__/`
+  - **Test Helpers**: `docs/refacto/Tests/helpers/`
+  - **Test Fixtures**: `docs/refacto/Tests/fixtures/`
+- **Audit Reports**: `docs/rapport-audit-complet-seido.md`
 
-### 🎯 **Key Principle**
-> When in doubt, official documentation trumps existing code patterns. The technology ecosystem evolves rapidly, and official docs reflect the latest best practices.
+### 🎯 **Key Principles**
+> **Official Docs First**: When in doubt, official documentation trumps existing code patterns. The technology ecosystem evolves rapidly, and official docs reflect the latest best practices.
+
+> **Test Everything**: Every new testable element MUST have comprehensive tests before the feature is complete. Use @agent-tester and @agent-seido-debugger proactively.
+
+> **Isolation is Critical**: All E2E tests MUST use Pattern 5 (Test Isolation) to prevent state leakage and achieve 100% reliability.
+
+---
+
+**Last Updated**: 2025-10-01
+**Status**: ✅ Phase 2 Complete (Test Isolation & Auto-Healing)
+**Next Phase**: Phase 3 - Complete E2E coverage for all features

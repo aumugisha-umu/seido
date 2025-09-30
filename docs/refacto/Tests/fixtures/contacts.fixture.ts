@@ -209,6 +209,57 @@ export const TEST_CONTACTS: Record<string, TestContact> = {
       useCase: ['team-collaboration', 'shared-management'],
       priority: 'low'
     }
+  },
+
+  // Contacts pour tests Phase 2 (nouveaux contacts à créer)
+  NEW_LOCATAIRE_1: {
+    email: 'nouveau.locataire.phase2@example.com',
+    firstName: 'Julien',
+    lastName: 'Nouveau',
+    phone: '+33678901234',
+    type: 'locataire',
+    invitationSent: false,
+    testContext: {
+      description: 'Nouveau locataire pour test workflow invitation complet',
+      useCase: ['contact-creation-workflow', 'invitation-send', 'contact-list-verification'],
+      priority: 'high'
+    }
+  },
+
+  NEW_PRESTATAIRE_1: {
+    email: 'nouveau.prestataire.phase2@example.com',
+    firstName: 'Marc',
+    lastName: 'Artisan',
+    phone: '+33689012345',
+    type: 'prestataire',
+    speciality: 'menuiserie',
+    companyName: 'Menuiserie Artisan',
+    siret: '11122233344455',
+    invitationSent: false,
+    testContext: {
+      description: 'Nouveau prestataire avec spécialité menuiserie',
+      useCase: ['provider-creation', 'speciality-assignment', 'invitation-workflow'],
+      priority: 'high'
+    }
+  },
+
+  // Contacts existants pour tests de validation
+  EXISTING_LOCATAIRE_1: {
+    id: 'contact-loc-001',
+    email: 'jean.dupont@example.com',
+    firstName: 'Jean',
+    lastName: 'Dupont',
+    phone: '+33612345678',
+    type: 'locataire',
+    lotId: 'lot-test-001',
+    buildingId: 'building-test-001',
+    notes: 'Locataire appartement 2A (utilisé pour test duplicate)',
+    invitationSent: true,
+    testContext: {
+      description: 'Locataire existant pour tests de validation email duplicate',
+      useCase: ['duplicate-validation', 'existing-contact-tests'],
+      priority: 'high'
+    }
   }
 }
 

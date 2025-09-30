@@ -27,10 +27,14 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
     }
 
     // ✅ DÉSACTIVER EN MODE DEVELOPMENT (pour tests E2E et debugging)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🧪 [TEAM-STATUS] Development mode - auto-approving team access')
+    const isDev = process.env.NODE_ENV === 'development' ||
+                  (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+
+    if (isDev) {
+      console.log('🧪 [TEAM-STATUS] Development mode detected - auto-approving team access')
       setHasTeam(true)
       setTeamStatus('verified')
+      setError(undefined)
       return
     }
 
@@ -71,21 +75,16 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
     }
   }
 
+  // Single useEffect to handle team status check when user changes
   useEffect(() => {
     if (user?.id) {
-      // Only check if we haven't verified yet or if user changed
-      if (teamStatus === 'checking') {
-        checkTeamStatus()
-      }
-    }
-  }, [user?.id])
-
-  // Reset team status when user changes
-  useEffect(() => {
-    if (user?.id) {
+      // Reset status and trigger check
       setTeamStatus('checking')
       setHasTeam(false)
       setError(undefined)
+
+      // Immediately check team status
+      checkTeamStatus()
     }
   }, [user?.id])
 

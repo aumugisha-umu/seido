@@ -217,13 +217,13 @@ export class BuildingService {
   async getBuildingsByTeam(teamId: string) {
     // Validate team exists
     if (this.userService) {
-      const teamExists = await this.validateTeamExists(_teamId)
+      const teamExists = await this.validateTeamExists(teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', _teamId)
+        throw new NotFoundException('Team not found', 'teams', teamId)
       }
     }
 
-    return this.repository.findByTeam(_teamId)
+    return this.repository.findByTeam(teamId)
   }
 
   /**
@@ -232,13 +232,13 @@ export class BuildingService {
   async getBuildingsByUser(userId: string) {
     // Validate user exists
     if (this.userService) {
-      const userResult = await this.userService.getById(_userId)
+      const userResult = await this.userService.getById(userId)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('User not found', 'users', _userId)
+        throw new NotFoundException('User not found', 'users', userId)
       }
     }
 
-    return this.repository.findByUser(_userId)
+    return this.repository.findByUser(userId)
   }
 
   /**

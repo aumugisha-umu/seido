@@ -73,11 +73,11 @@ const roleConfigs: Record<string, HeaderConfig> = {
 export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const config = roleConfigs[role] || roleConfigs.gestionnaire
-  const { user, signOut } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const pathname = usePathname()
   const _router = useRouter()
   const { unreadCount: globalUnreadCount } = useGlobalNotifications()
-  
+
   // Construction robuste du nom utilisateur avec multiples fallbacks
   const userName = user?.display_name ||
     user?.name ||
@@ -88,6 +88,11 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
       "Utilisateur"
     )
   const userInitial = userName.charAt(0).toUpperCase()
+
+  // ✅ 2025: Protection contre affichage avant chargement complet
+  // Si loading ou pas de user, utiliser des valeurs de fallback pour éviter UI vide
+  const displayName = loading || !user ? "Chargement..." : userName
+  const displayInitial = loading || !user ? "..." : userInitial
 
   const isActivePage = (href: string) => {
     // Correspondance exacte pour toutes les pages
@@ -222,10 +227,10 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
               {/* Menu utilisateur - caché sur mobile, visible sur desktop */}
               {config.showUserElements && (
                 <div className="hidden lg:block">
-                  <UserMenu 
-                    userName={userName} 
-                    userInitial={userInitial} 
-                    role={role} 
+                  <UserMenu
+                    userName={displayName}
+                    userInitial={displayInitial}
+                    role={role}
                   />
                 </div>
               )}
@@ -323,10 +328,10 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
                     {/* Informations utilisateur */}
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
                       <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-primary-foreground font-medium text-base">{userInitial}</span>
+                        <span className="text-primary-foreground font-medium text-base">{displayInitial}</span>
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-slate-900 font-semibold text-base leading-tight truncate">{userName}</span>
+                        <span className="text-slate-900 font-semibold text-base leading-tight truncate">{displayName}</span>
                         <span className="text-slate-600 text-sm leading-tight truncate">{getRoleDisplayName(role)}</span>
                       </div>
                     </div>

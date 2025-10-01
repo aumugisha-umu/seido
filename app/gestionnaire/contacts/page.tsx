@@ -29,7 +29,7 @@ import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 export default function ContactsPage() {
   const _router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   
   // ✅ NOUVEAU: Utiliser le hook optimisé avec système de cache
@@ -223,6 +223,27 @@ export default function ContactsPage() {
 
     setFilteredInvitations(filteredInvitationsResult)
   }, [contacts, pendingInvitations, searchTerm, filters, contactsInvitationStatus])
+
+  // ✅ 2025: Vérifier d'abord si l'auth est en cours de chargement
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              Chargement...
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   // ✅ Maintenant vérifier si on doit afficher la vérification d'équipe APRÈS tous les hooks
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {

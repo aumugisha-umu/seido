@@ -130,15 +130,26 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     console.log('⚠️ [LOGIN-ACTION] Error determining role, using fallback:', error)
   }
 
-  // ✅ PATTERN OFFICIEL SUPABASE SSR + NEXT.JS 15
-  // Solution: Utiliser redirect() directement après signInWithPassword()
-  // Les cookies sont automatiquement propagés avec redirect()
-  // Pas besoin d'attendre ou de gérer côté client
-  console.log('🚀 [LOGIN-ACTION] Authentication successful, redirecting to dashboard')
+  // ✅ WORKAROUND NEXT.JS 15 BUG #72842
+  // Issue: redirect() ne fonctionne pas correctement avec useActionState
+  // - Symptom: POST returns 303 but redirects to wrong path (/auth instead of /gestionnaire/dashboard)
+  // - Root Cause: Next.js 15.2.4 bug when combining redirect() + useActionState
+  // - Fix Merged: PR #73063 (not yet in 15.2.4)
+  // - Workaround: Return redirectTo path for client-side navigation
+  // - Refs: https://github.com/vercel/next.js/issues/72842
+  console.log('🚀 [LOGIN-ACTION] Authentication successful, returning redirect path')
 
-  // ✅ REDIRECTION SERVER-SIDE: Pattern officiel Supabase
-  // Note: revalidatePath retiré car redirect() force déjà un refresh complet
-  redirect(dashboardPath)
+  // ✅ ÉTAPE 1: Invalider le cache pour forcer refresh des données
+  revalidatePath('/', 'layout')
+
+  // ✅ ÉTAPE 2: Retourner le path de redirection (navigation sera gérée côté client)
+  return {
+    success: true,
+    data: {
+      message: 'Connexion réussie',
+      redirectTo: dashboardPath
+    }
+  }
 }
 
 /**

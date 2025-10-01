@@ -44,12 +44,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ✅ PATTERN OFFICIEL SUPABASE: Utiliser onAuthStateChange pour tous les événements
     const supabase = createClient()
 
+    // ✅ TIMEOUT DE SÉCURITÉ: Forcer loading = false après 3.5s max
+    // Délai ajusté à 3.5s (login-form attend 2.5s + marge 1s)
+    // Permet de détecter les sessions même si onAuthStateChange est lent
+    // Évite le blocage infini si onAuthStateChange ne se déclenche jamais
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⚠️ [AUTH-PROVIDER] Loading timeout reached (3.5s) - forcing loading = false')
+      setLoading(false)
+    }, 3500)
+
+    // ✅ OPTIMISATION: Check immédiat de session au mount (non-bloquant)
+    // Permet détection rapide mais ne doit PAS bloquer si pas de session
+    const checkInitialSession = async () => {
+      try {
+        console.log('🔍 [AUTH-PROVIDER] Checking initial session immediately...')
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (session?.user) {
+          console.log('✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...')
+          const { user } = await authService.getCurrentUser()
+          setUser(user)
+          setLoading(false)
+          clearTimeout(loadingTimeout) // Annuler le timeout si succès
+          return true
+        } else {
+          console.log('ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...')
+        }
+      } catch (error) {
+        console.error('❌ [AUTH-PROVIDER] Initial session check failed:', error)
+      }
+      // Note: NE PAS mettre setLoading(false) ici car onAuthStateChange va le gérer
+      return false
+    }
+
+    // Check immédiat (optimisation, mais pas bloquant)
+    checkInitialSession()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 [AUTH-STATE-CHANGE] Event:', event, 'Has session:', !!session)
 
       switch (event) {
         case 'INITIAL_SESSION':
           // Session initiale - récupérer le profil utilisateur si session exists
+          clearTimeout(loadingTimeout) // Annuler le timeout de sécurité
           if (session?.user) {
             console.log('🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...')
             try {
@@ -106,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
+      clearTimeout(loadingTimeout) // Cleanup du timeout de sécurité
       subscription.unsubscribe()
     }
   }, [])

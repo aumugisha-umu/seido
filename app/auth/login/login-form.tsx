@@ -1,14 +1,16 @@
 "use client"
 
 import type React from "react"
-import { useState, useActionState } from "react"
+import { useState, useActionState, useEffect } from "react"
 import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Mail } from "lucide-react"
 import { loginAction } from "@/app/actions/auth-actions"
+import { useAuth } from "@/hooks/use-auth"
 
 /**
  * 🚀 COMPOSANT CLIENT - LoginForm (Server Actions 2025)
@@ -37,11 +39,28 @@ export function LoginForm() {
   const [email, setEmail] = useState("")
 
   // ✅ 2025: useActionState pour gestion état Server Action
-  const [state, formAction] = useActionState(loginAction, { success: true })
+  const [state, formAction] = useActionState(loginAction, { success: false })
 
-  // ✅ PATTERN OFFICIEL SUPABASE SSR: La redirection est maintenant gérée côté serveur
-  // Le Server Action utilise redirect() qui propage automatiquement les cookies
-  // Plus besoin de gérer la navigation côté client
+  // ✅ WORKAROUND NEXT.JS 15 BUG #72842 - PISTE 1: window.location.href
+  // Issue: redirect() dans Server Action ne fonctionne pas avec useActionState
+  // Solution: Utiliser window.location.href pour forcer un vrai refresh de page
+  // Rationale: Force les composants à se monter avec les cookies déjà présents
+  // Refs: https://github.com/vercel/next.js/issues/72842
+  useEffect(() => {
+    if (state.success && state.data?.redirectTo) {
+      console.log('🚀 [LOGIN-FORM] Login successful, navigating in 1000ms to:', state.data.redirectTo)
+
+      // ✅ DÉLAI RÉDUIT: 1000ms (1s) car window.location.href force un vrai refresh
+      // Pas besoin d'attendre que AuthProvider charge le profil
+      // Le refresh complet garantit que les composants se montent avec les cookies
+      const timer = setTimeout(() => {
+        console.log('🔄 [LOGIN-FORM] Executing full page navigation with window.location.href...')
+        window.location.href = state.data.redirectTo
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [state])
 
   // ✅ LEGACY: Fonction de renvoi email (utilise ancien système pour compatibilité)
   const handleResendConfirmation = async () => {

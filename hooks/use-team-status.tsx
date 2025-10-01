@@ -19,7 +19,7 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
   const [hasTeam, setHasTeam] = useState(false)
   const [error, setError] = useState<string | undefined>()
 
-  const checkTeamStatus = async () => {
+  const checkTeamStatus = React.useCallback(async () => {
     if (!user?.id) {
       setTeamStatus('error')
       setError('Utilisateur non connecté')
@@ -29,6 +29,12 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
     // ✅ DÉSACTIVER EN MODE DEVELOPMENT (pour tests E2E et debugging)
     const isDev = process.env.NODE_ENV === 'development' ||
                   (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+
+    console.log('🧪 [TEAM-STATUS] Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      isDev,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A'
+    })
 
     if (isDev) {
       console.log('🧪 [TEAM-STATUS] Development mode detected - auto-approving team access')
@@ -56,7 +62,7 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
 
       const teamService = createTeamService()
       const result = await teamService.ensureUserHasTeam(userId)
-      
+
       if (result.hasTeam) {
         console.log('✅ [TEAM-STATUS] User has team access')
         setHasTeam(true)
@@ -73,7 +79,7 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
       setTeamStatus('error')
       setError('Erreur lors de la vérification de votre équipe.')
     }
-  }
+  }, [user?.id, user?.name])
 
   // Single useEffect to handle team status check when user changes
   useEffect(() => {
@@ -86,7 +92,7 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
       // Immediately check team status
       checkTeamStatus()
     }
-  }, [user?.id])
+  }, [user?.id, checkTeamStatus])
 
   const recheckTeamStatus = async () => {
     await checkTeamStatus()

@@ -23,12 +23,15 @@ SEIDO is a real estate management platform built with Next.js 15. It's a multi-r
 
 ## Common Development Commands
 
+Quand tu lances un server pour faire des tests mais que tu te rends compte que le port 3000 est utilisé, ferme le, clean le cache, et ensuite relance le
+
 ```bash
 # Development
 npm run dev              # Start development server
 npm run build            # Build for production
 npm run start            # Start production server
 npm run lint             # Lint code with ESLint
+
 
 # Supabase (for future backend integration)
 npm run supabase:types   # Generate TypeScript types

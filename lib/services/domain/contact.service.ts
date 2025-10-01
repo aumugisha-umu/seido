@@ -343,7 +343,8 @@ export class ContactService {
     try {
       // TODO: Implement team-based filtering in repository
       // For now, get all and filter by user team
-      const allContacts = await this.repository.findAll()
+      const allContactsResult = await this.repository.findAll()
+      const allContacts = allContactsResult.data || []
 
       // If UserService is available, filter by team
       if (this.userService) {
@@ -365,11 +366,20 @@ export class ContactService {
   }
 
   /**
+   * Get all contacts for a team (alias for getContactsByTeam)
+   * Provided for compatibility with legacy API
+   */
+  async getTeamContacts(teamId: string, role?: User['role']) {
+    return this.getContactsByTeam(teamId, role)
+  }
+
+  /**
    * Get contacts by role (tenants, owners, managers, etc.)
    */
   async getContactsByRole(role: User['role'], options?: { teamId?: string; buildingId?: string }) {
     try {
-      const allContacts = await this.repository.findAll()
+      const allContactsResult = await this.repository.findAll()
+      const allContacts = allContactsResult.data || []
 
       let filteredContacts = allContacts.filter(contact =>
         contact.user && contact.user.role === role
@@ -420,7 +430,8 @@ export class ContactService {
     try {
       // TODO: Implement emergency contact type in repository
       // For now, return contacts associated with the lot
-      const allContacts = await this.repository.findAll()
+      const allContactsResult = await this.repository.findAll()
+      const allContacts = allContactsResult.data || []
       const emergencyContacts = allContacts.filter(contact =>
         contact.lot_id === lotId
       )
@@ -436,7 +447,8 @@ export class ContactService {
    */
   async searchContacts(query: string, options?: { role?: User['role']; teamId?: string }) {
     try {
-      const allContacts = await this.repository.findAll()
+      const allContactsResult = await this.repository.findAll()
+      const allContacts = allContactsResult.data || []
 
       const filteredContacts = allContacts.filter(contact => {
         // Search in user name and email

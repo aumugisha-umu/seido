@@ -115,13 +115,15 @@ export default function NouvelleInterventionPage() {
     try {
       console.log("🔄 Chargement des données en cours...")
       // 1. Récupérer l'équipe de l'utilisateur
-      const teams = await teamService.getUserTeams(user.id)
+      const teamsResult = await teamService.getUserTeams(user.id)
+      const teams = teamsResult?.data || []
       const team = teams[0]
       if (team) {
         setCurrentUserTeam(team)
-        
+
         // 2. NOUVELLE LOGIQUE UNIFIÉE : Récupérer tous les contacts et filtrer
-        const contacts = await contactService.getTeamContacts(team.id)
+        const contactsResult = await contactService.getTeamContacts(team.id)
+        const contacts = contactsResult?.data || []
         console.log("📋 All team contacts:", contacts.map(c => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
         
         // Filtrer les gestionnaires avec la même logique que les prestataires

@@ -209,7 +209,7 @@ export class CacheManager {
       // Invalidate L1 cache
       let l1Count = 0
       for (const key of this.l1Cache.keys()) {
-        if (key.includes(pattern)) {
+        if (key.includes(_pattern)) {
           this.l1Cache.delete(key)
           l1Count++
         }
@@ -219,19 +219,19 @@ export class CacheManager {
       let l2Count = 0
       if (this.l2Cache && this.isRedisAvailable) {
         try {
-          const keys = await this.l2Cache.keys(`*${pattern}*`)
+          const keys = await this.l2Cache.keys(`*${_pattern}*`)
           if (keys.length > 0) {
             await this.l2Cache.del(...keys)
             l2Count = keys.length
           }
         } catch (redisError) {
-          console.warn(`⚠️ [CACHE-L2-INVALIDATE-ERROR] ${pattern}:`, redisError.message)
+          console.warn(`⚠️ [CACHE-L2-INVALIDATE-ERROR] ${_pattern}:`, redisError.message)
         }
       }
 
-      console.log(`🗑️ [CACHE-INVALIDATE] Pattern: ${pattern}, L1: ${l1Count}, L2: ${l2Count}`)
+      console.log(`🗑️ [CACHE-INVALIDATE] Pattern: ${_pattern}, L1: ${l1Count}, L2: ${l2Count}`)
     } catch (error) {
-      console.error(`❌ [CACHE-INVALIDATE-ERROR] Pattern: ${pattern}:`, error)
+      console.error(`❌ [CACHE-INVALIDATE-ERROR] Pattern: ${_pattern}:`, error)
     }
   }
 
@@ -298,7 +298,7 @@ export const cacheManager = new CacheManager()
 // Utility wrapper with automatic JSON handling
 export const cache = {
   async get<T>(_key: string): Promise<T | null> {
-    return await cacheManager.get<T>(key)
+    return await cacheManager.get<T>(_key)
   },
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -307,7 +307,7 @@ export const cache = {
   },
 
   async invalidate(_pattern: string): Promise<void> {
-    await cacheManager.invalidate(pattern)
+    await cacheManager.invalidate(_pattern)
   },
 
   async getOrSet<T>(

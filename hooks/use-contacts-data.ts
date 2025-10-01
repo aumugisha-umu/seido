@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { useDataRefresh } from "./use-cache-management"
-import { createContactService, createTeamService, createContactInvitationService } from "@/lib/services"
+import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
 
 export interface ContactsData {
   contacts: unknown[]
@@ -47,6 +47,9 @@ export function useContactsData() {
       setError(null)
       console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
 
+      // Initialiser le client Supabase
+      const supabase = createBrowserSupabaseClient()
+
       // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
       let userTeams = []
       try {
@@ -67,7 +70,7 @@ export function useContactsData() {
         setLoading(false)
         return
       }
-      
+
       if (!userTeams || userTeams.length === 0) {
         console.log("⚠️ [CONTACTS-DATA] No team found for user")
         setData({
@@ -79,21 +82,42 @@ export function useContactsData() {
         setLoading(false)
         return
       }
-      
+
       const team = userTeams[0]
       console.log("🏢 [CONTACTS-DATA] Found team:", team.id, team.name)
-      
-      // 2. Récupérer les contacts de l'équipe
-      const contactService = createContactService()
-      const teamContacts = await contactService.getTeamContacts(team.id)
-      console.log("✅ [CONTACTS-DATA] Contacts loaded:", teamContacts.length)
-      
-      // 3. Charger les invitations en attente
+
+      // 2. Récupérer les membres de l'équipe depuis la table users
+      const { data: teamMembers, error: membersError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('team_id', team.id)
+        .order('name')
+
+      if (membersError) {
+        console.error("❌ [CONTACTS-DATA] Error loading team members:", membersError)
+        throw new Error(`Failed to load team members: ${membersError.message}`)
+      }
+
+      const teamContacts = teamMembers || []
+      console.log("✅ [CONTACTS-DATA] Team members loaded:", teamContacts.length)
+
+      // 3. Charger les invitations en attente depuis user_invitations
       let invitations: unknown[] = []
       try {
-        const contactInvitationService = createContactInvitationService()
-        invitations = await contactInvitationService.getPendingInvitations(team.id)
-        console.log("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
+        const { data: invitationsData, error: invError } = await supabase
+          .from('user_invitations')
+          .select('*')
+          .eq('team_id', team.id)
+          .eq('status', 'pending')
+          .order('invited_at', { ascending: false })
+
+        if (invError) {
+          console.error("❌ [CONTACTS-DATA] Error loading invitations:", invError)
+          invitations = []
+        } else {
+          invitations = invitationsData || []
+          console.log("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
+        }
       } catch (invitationError) {
         console.error("❌ [CONTACTS-DATA] Error loading pending invitations:", invitationError)
         // Ne pas faire échouer le chargement principal pour les invitations

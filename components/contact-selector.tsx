@@ -121,11 +121,12 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       setIsLoadingContacts(true)
       try {
         console.log('📞 [ContactSelector] Loading contacts for team:', _teamId)
-        const teamContacts = await contactService.getTeamContacts(_teamId)
-        
+        const contactsResult = await contactService.getTeamContacts(_teamId)
+        const teamContacts = contactsResult?.data || []
+
         console.log('✅ [ContactSelector] Loaded', teamContacts?.length, 'contacts')
         console.log('📋 [ContactSelector] Sample contact:', JSON.stringify(teamContacts?.[0], null, 2))
-        
+
         // Filtrer selon le type de contact demandé (logique centralisée)
         const filteredContacts = teamContacts.filter(contact => {
           // Convertir les noms de rôles français (BDD) vers anglais (interface TypeScript)

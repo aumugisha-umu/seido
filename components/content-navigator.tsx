@@ -51,8 +51,8 @@ export default function ContentNavigator({
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
 
   const handleSearchChange = (_value: string) => {
-    setSearchValue(value)
-    onSearch?.(value)
+    setSearchValue(_value)
+    onSearch?.(_value)
   }
 
   const handleFilterChange = (filterId: string, value: string) => {
@@ -60,7 +60,7 @@ export default function ContentNavigator({
   }
 
   const handleTabChange = (_tabId: string) => {
-    setActiveTab(tabId)
+    setActiveTab(_tabId)
   }
 
   const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0]

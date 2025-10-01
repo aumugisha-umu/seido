@@ -315,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const resetPassword = async (_email: string) => {
-    return await authService.resetPassword(email)
+    return await authService.resetPassword(_email)
   }
 
   const updateProfile = async (updates: Partial<AuthUser>) => {
@@ -331,7 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const resendConfirmation = async (_email: string) => {
-    return await authService.resendConfirmation(email)
+    return await authService.resendConfirmation(_email)
   }
 
   const getCurrentAuthSession = async () => {

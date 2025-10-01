@@ -122,23 +122,23 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
   // Fonction pour valider un email
   const isValidEmail = (_email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email.trim())
+    return emailRegex.test(_email.trim())
   }
 
   // Fonction pour valider un numéro de téléphone français
   const isValidPhone = (_phone: string): boolean => {
-    if (!phone.trim()) return true // Le téléphone n'est pas obligatoire
+    if (!_phone.trim()) return true // Le téléphone n'est pas obligatoire
     const phoneRegex = /^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/
-    return phoneRegex.test(phone.replace(/\s/g, ''))
+    return phoneRegex.test(_phone.replace(/\s/g, ''))
   }
 
   // Fonction pour vérifier si l'email existe déjà
   const checkEmailExists = async (_email: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('users')
         .select('id')
-        .eq('email', email.trim().toLowerCase())
+        .eq('email', _email.trim().toLowerCase())
         .limit(1)
         .single()
 

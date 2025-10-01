@@ -358,7 +358,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       .from('team_members')
       .select('id, role')
       .eq('team_id', teamId)
-      .eq('user_id', _userId)
+      .eq('user_id', userId)
       .single()
 
     if (checkError) {
@@ -389,7 +389,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       .from('team_members')
       .delete()
       .eq('team_id', teamId)
-      .eq('user_id', _userId)
+      .eq('user_id', userId)
 
     if (error) {
       return this.handleError(error)
@@ -444,7 +444,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       .from('team_members')
       .update({ role })
       .eq('team_id', teamId)
-      .eq('user_id', _userId)
+      .eq('user_id', userId)
       .select(`
         *,
         user:user_id(id, name, email, role)

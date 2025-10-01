@@ -44,8 +44,8 @@ class ActivityLogger {
   async log(params: LogActivityParams): Promise<string | null> {
     try {
       const logData = {
-        team_id: params.teamId || this.context._teamId,
-        user_id: params.userId || this.context._userId,
+        team_id: params.teamId || this.context.teamId,
+        user_id: params.userId || this.context.userId,
         action_type: params.actionType,
         entity_type: params.entityType,
         entity_id: params.entityId || null,
@@ -121,7 +121,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'user',
-      entityId: _userId,
+      entityId: userId,
       entityName: userName,
       description,
       metadata: details,

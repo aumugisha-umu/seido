@@ -32,7 +32,8 @@
       "Bash(fi)",
       "Bash(timeout:*)",
       "Bash(cmd.exe //c taskkill //PID 14884 //F)",
-      "Bash(cmd.exe //c taskkill //PID 16524 //F)"
+      "Bash(cmd.exe //c taskkill //PID 16524 //F)",
+      "Bash(cmd.exe:*)"
     ],
     "deny": [],
     "ask": []

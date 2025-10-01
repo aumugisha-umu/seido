@@ -61,20 +61,20 @@ export async function POST(request: Request) {
       email,
       firstName,
       lastName,
-      role = 'gestionnaire', 
-      _teamId, 
+      role = 'gestionnaire',
+      teamId,
       phone,
       speciality, // ✅ AJOUT: Spécialité pour les prestataires
       shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
     } = body
 
-    console.log('📧 [INVITE-USER-SIMPLE] Creating contact:', { 
-      email, 
-      firstName, 
-      lastName, 
+    console.log('📧 [INVITE-USER-SIMPLE] Creating contact:', {
+      email,
+      firstName,
+      lastName,
       speciality,
       shouldInviteToApp,
-      teamId 
+      teamId
     })
 
     // ✅ LOGIQUE: Mapper les types de contacts vers role + provider_category
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         'autre': { role: 'prestataire', provider_category: 'autre' }
       }
       
-      return mapping[contactType] || { role: 'gestionnaire', provider_category: null }
+      return mapping[_contactType] || { role: 'gestionnaire', provider_category: null }
     }
 
     const { role: validUserRole, provider_category: providerCategory } = mapContactTypeToRoleAndCategory(role)
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
             display_name: `${firstName} ${lastName}`,
             role: validUserRole,
             provider_category: providerCategory,
-            team_id: _teamId,
+            team_id: teamId,
             invited: true
           },
           redirectTo: redirectTo
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
             display_name: `${firstName} ${lastName}`,
             role: validUserRole,
             provider_category: providerCategory,
-            team_id: _teamId,
+            team_id: teamId,
             invited: true
           },
           redirectTo: redirectTo
@@ -210,7 +210,7 @@ export async function POST(request: Request) {
           provider_category: providerCategory,
           speciality: speciality || null,
           phone: phone || null,
-          team_id: _teamId,
+          team_id: teamId,
           is_active: true,
           password_set: authUserId ? false : true // ✅ NOUVEAU: false si invitation (auth créé), true sinon
         })
@@ -233,9 +233,9 @@ export async function POST(request: Request) {
 
     // ÉTAPE 3: Ajouter à l'équipe
     try {
-      const addMemberResult = await teamService.addMember(_teamId, userProfile.id, 'member')
+      const addMemberResult = await teamService.addMember(teamId, userProfile.id, 'member')
       if (addMemberResult.success) {
-        console.log('✅ [STEP-3] User added to team:', _teamId)
+        console.log('✅ [STEP-3] User added to team:', teamId)
       } else {
         console.log('⚠️ [STEP-3] User might already be in team or team error:', addMemberResult.error)
       }
@@ -256,7 +256,7 @@ export async function POST(request: Request) {
             last_name: lastName,
             role: validUserRole,
             provider_category: providerCategory,
-            team_id: _teamId,
+            team_id: teamId,
             invited_by: currentUserProfile.id,
             invitation_code: authUserId, // Utiliser l'auth user ID comme code unique
             status: 'pending',
@@ -286,18 +286,19 @@ export async function POST(request: Request) {
 
     // Logging de l'activité
       try {
-        await activityLogger.logUserAction(
-          session.user.id,
-          _teamId,
-        shouldInviteToApp ? 'invite' : 'create',
-        'contact',
-        userProfile.id,
-        `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${firstName} ${lastName}${speciality ? ` (${speciality})` : ''}`,
-          'success',
-        { email, speciality, shouldInviteToApp }
-      )
+        await activityLogger.log({
+          teamId: teamId,
+          userId: session.user.id,
+          actionType: shouldInviteToApp ? 'invite' : 'create',
+          entityType: 'contact',
+          entityId: userProfile.id,
+          entityName: `${firstName} ${lastName}`,
+          description: `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${firstName} ${lastName}${speciality ? ` (${speciality})` : ''}`,
+          status: 'success',
+          metadata: { email, speciality, shouldInviteToApp }
+        })
       } catch (logError) {
-      console.warn('⚠️ Failed to log activity:', logError)
+        console.warn('⚠️ Failed to log activity:', logError)
       }
 
     console.log('🎉 [INVITE-USER-SIMPLE] Process completed successfully')

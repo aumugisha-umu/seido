@@ -105,6 +105,8 @@ export const verifySession = cache(async (): Promise<{ isValid: boolean; user: A
     console.log('✅ [DAL] Complete user profile loaded:', {
       id: authUser.id,
       email: authUser.email,
+      name: authUser.name,
+      display_name: authUser.display_name,
       role: authUser.role,
       team_id: authUser.team_id
     })

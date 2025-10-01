@@ -78,7 +78,15 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const _router = useRouter()
   const { unreadCount: globalUnreadCount } = useGlobalNotifications()
   
-  const userName = user?.display_name || user?.name || "Utilisateur"
+  // Construction robuste du nom utilisateur avec multiples fallbacks
+  const userName = user?.display_name ||
+    user?.name ||
+    (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` :
+      user?.first_name ||
+      user?.last_name ||
+      user?.email?.split('@')[0] ||
+      "Utilisateur"
+    )
   const userInitial = userName.charAt(0).toUpperCase()
 
   const isActivePage = (href: string) => {

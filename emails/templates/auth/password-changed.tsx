@@ -24,15 +24,11 @@ export const PasswordChangedEmail = ({
 
   return (
     <EmailLayout preview="Votre mot de passe SEIDO a été modifié">
-      {/* Header */}
-      <EmailHeader title="Sécurité du compte" />
+      {/* Header avec sujet */}
+      <EmailHeader subject="Mot de passe modifié" />
 
       {/* Contenu principal */}
       <Section className="bg-white px-8 py-8">
-        {/* Titre */}
-        <Heading className="text-gray-900 text-3xl font-bold mb-6 mt-0">
-          Mot de passe modifié ✓
-        </Heading>
 
         {/* Message principal */}
         <Text className="text-gray-700 text-base leading-relaxed mb-5">

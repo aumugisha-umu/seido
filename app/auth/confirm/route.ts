@@ -135,13 +135,6 @@ export async function GET(request: NextRequest) {
           // Créer le profil directement (pattern recommandé 2025)
           console.log('🔨 [AUTH-CONFIRM] Creating profile server-side...')
 
-          // Extraire les métadonnées
-          const firstName = user.raw_user_meta_data?.first_name || 'Utilisateur'
-          const lastName = user.raw_user_meta_data?.last_name || ''
-          const fullName = user.raw_user_meta_data?.full_name || `${firstName} ${lastName}`.trim()
-          userRole = (user.raw_user_meta_data?.role || 'gestionnaire') as typeof userRole
-          const phone = user.raw_user_meta_data?.phone
-
           // ⚠️ IMPORTANT: Utiliser le client ADMIN pour bypass RLS
           // Le UserService utilise le client server (avec session user) qui est bloqué par RLS
           // Car les policies nécessitent que l'utilisateur existe déjà dans public.users (chicken and egg!)
@@ -156,6 +149,52 @@ export async function GET(request: NextRequest) {
             }
           )
 
+          // 🔍 ÉTAPE 1: Récupérer le profil complet avec métadonnées depuis Supabase Auth
+          console.log('🔍 [AUTH-CONFIRM] Fetching full user profile with metadata...')
+          const { data: fullUserData, error: userFetchError } = await supabaseAdmin.auth.admin.getUserById(user.id)
+
+          // Utiliser fullUserData.user au lieu de user pour les métadonnées
+          const userWithMetadata = fullUserData?.user || user
+
+          console.log('🔍 [AUTH-CONFIRM] Full user metadata:', {
+            raw_user_meta_data: userWithMetadata.raw_user_meta_data,
+            user_metadata: userWithMetadata.user_metadata,
+            email: userWithMetadata.email
+          })
+
+          // 🔍 ÉTAPE 2: Extraire les métadonnées avec fallback intelligent sur email
+          const emailUsername = userWithMetadata.email?.split('@')[0] || 'Utilisateur'
+
+          const firstName = userWithMetadata.raw_user_meta_data?.first_name ||
+                            userWithMetadata.user_metadata?.first_name ||
+                            emailUsername  // ← Fallback sur email au lieu de 'Utilisateur'
+
+          const lastName = userWithMetadata.raw_user_meta_data?.last_name ||
+                           userWithMetadata.user_metadata?.last_name ||
+                           ''
+
+          const fullName = userWithMetadata.raw_user_meta_data?.full_name ||
+                           userWithMetadata.user_metadata?.full_name ||
+                           `${firstName} ${lastName}`.trim() ||
+                           userWithMetadata.email  // ← Fallback final sur email complet
+
+          userRole = (userWithMetadata.raw_user_meta_data?.role ||
+                      userWithMetadata.user_metadata?.role ||
+                      'gestionnaire') as typeof userRole
+
+          const phone = userWithMetadata.raw_user_meta_data?.phone ||
+                        userWithMetadata.user_metadata?.phone
+
+          console.log('📝 [AUTH-CONFIRM] Extracted metadata:', {
+            firstName,
+            lastName,
+            fullName,
+            userRole,
+            phone,
+            source: userWithMetadata.raw_user_meta_data?.first_name ? 'metadata' : 'email_fallback'
+          })
+
+          // 🔍 ÉTAPE 3: Créer le profil utilisateur avec first_name/last_name
           // 1. Créer le profil utilisateur (team_id NULL temporairement) avec admin client
           const { data: newProfile, error: profileError } = await supabaseAdmin
             .from('users')
@@ -163,6 +202,8 @@ export async function GET(request: NextRequest) {
               auth_user_id: user.id,
               email: user.email!,
               name: fullName || user.email!,
+              first_name: firstName !== emailUsername ? firstName : null,  // Ne stocker que si vrai prénom
+              last_name: lastName || null,
               role: userRole,
               phone: phone || null,
               is_active: true,
@@ -186,9 +227,11 @@ export async function GET(request: NextRequest) {
             email: user.email
           })
 
+          // 🔍 ÉTAPE 4: Créer équipe avec nom basé sur email
           // 2. Créer équipe si gestionnaire (owner de sa propre équipe)
           if (userRole === 'gestionnaire' && userProfileId) {
-            const teamName = `Équipe de ${firstName}`
+            // Toujours utiliser l'email (partie avant @)
+            const teamName = `Équipe de ${emailUsername}`
 
             const { data: newTeam, error: teamError } = await supabaseAdmin
               .from('teams')
@@ -209,7 +252,8 @@ export async function GET(request: NextRequest) {
               console.log('✅ [AUTH-CONFIRM] Team created:', {
                 teamId,
                 teamName,
-                createdBy: userProfileId
+                createdBy: userProfileId,
+                source: 'email_username'
               })
 
               // 3. Mettre à jour le profil avec team_id
@@ -222,6 +266,22 @@ export async function GET(request: NextRequest) {
                 console.warn('⚠️ [AUTH-CONFIRM] Failed to update profile with team_id (non-blocking):', updateError)
               } else {
                 console.log('✅ [AUTH-CONFIRM] Profile updated with team_id:', teamId)
+              }
+
+              // 4. Ajouter l'utilisateur comme admin de son équipe dans team_members
+              const { error: memberError } = await supabaseAdmin
+                .from('team_members')
+                .insert({
+                  team_id: teamId,
+                  user_id: userProfileId,
+                  role: 'admin',
+                  joined_at: new Date().toISOString()
+                })
+
+              if (memberError) {
+                console.warn('⚠️ [AUTH-CONFIRM] Failed to add user to team_members (non-blocking):', memberError)
+              } else {
+                console.log('✅ [AUTH-CONFIRM] User added to team_members as admin')
               }
             }
           }
@@ -236,11 +296,11 @@ export async function GET(request: NextRequest) {
       // Envoyer email de bienvenue via Resend
       try {
         const firstName = user.raw_user_meta_data?.first_name || user.email?.split('@')[0] || 'Utilisateur'
-        const dashboardUrl = `${EMAIL_CONFIG.appUrl}/dashboard/${userRole}`
+        const dashboardUrl = `${EMAIL_CONFIG.appUrl}/${userRole}/dashboard`
 
         const emailResult = await emailService.sendWelcomeEmail(user.email!, {
           firstName,
-          confirmationUrl: dashboardUrl,
+          dashboardUrl,
           role: userRole,
         })
 
@@ -255,7 +315,7 @@ export async function GET(request: NextRequest) {
 
       // ✅ REDIRECTION DIRECTE VERS DASHBOARD (2025-10-03)
       // L'utilisateur est déjà connecté après verifyOtp() → pas besoin de login
-      const dashboardPath = `/dashboard/${userRole}`
+      const dashboardPath = `/${userRole}/dashboard`
       console.log(`✅ [AUTH-CONFIRM] User authenticated and profile created, redirecting to: ${dashboardPath}`)
 
       return NextResponse.redirect(

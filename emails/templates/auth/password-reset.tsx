@@ -20,18 +20,13 @@ export const PasswordResetEmail = ({
 }: PasswordResetEmailProps) => {
   return (
     <EmailLayout preview="Réinitialisez votre mot de passe SEIDO">
-      {/* Header */}
-      <EmailHeader title="Sécurité du compte" />
+      {/* Header avec sujet */}
+      <EmailHeader subject="Réinitialisation de mot de passe" />
 
       {/* Contenu principal */}
       <Section className="bg-white px-8 py-8">
-        {/* Titre */}
-        <Heading className="text-gray-900 text-3xl font-bold mb-6 mt-0">
-          Réinitialisation de mot de passe 🔐
-        </Heading>
-
         {/* Message principal */}
-        <Text className="text-gray-700 text-base leading-relaxed mb-5">
+        <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
           Bonjour {firstName},
         </Text>
 

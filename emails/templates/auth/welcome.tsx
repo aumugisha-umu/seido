@@ -1,8 +1,8 @@
 /**
- * 📧 Template Email - Bienvenue & Confirmation Email
+ * 📧 Template Email - Bienvenue (Après Confirmation)
  *
- * Envoyé lors de l'inscription d'un nouvel utilisateur
- * Objectif: Confirmer l'email et activer le compte
+ * Envoyé APRÈS la confirmation d'email
+ * Objectif: Accueillir l'utilisateur et le diriger vers son dashboard
  */
 
 import * as React from 'react'
@@ -15,7 +15,7 @@ import type { WelcomeEmailProps } from '@/emails/utils/types'
 
 export const WelcomeEmail = ({
   firstName,
-  confirmationUrl,
+  dashboardUrl,
   role,
 }: WelcomeEmailProps) => {
   // Messages personnalisés selon le rôle
@@ -26,53 +26,83 @@ export const WelcomeEmail = ({
     locataire: 'Vous pouvez soumettre des demandes d\'intervention pour votre logement.',
   }
 
+  const roleLabels = {
+    admin: 'Administrateur',
+    gestionnaire: 'Gestionnaire',
+    prestataire: 'Prestataire',
+    locataire: 'Locataire',
+  }
+
   return (
-    <EmailLayout preview="Bienvenue sur SEIDO - Confirmez votre email">
-      {/* Header */}
-      <EmailHeader title="Gestion immobilière simplifiée" />
+    <EmailLayout preview="Bienvenue sur SEIDO - Votre compte est activé !">
+      {/* Header avec sujet */}
+      <EmailHeader subject="Bienvenue sur SEIDO !" />
 
       {/* Contenu principal */}
       <Section className="bg-white px-8 py-8">
-        {/* Titre */}
-        <Heading className="text-gray-900 text-3xl font-bold mb-6 mt-0">
-          Bienvenue sur SEIDO ! 🎉
-        </Heading>
-
         {/* Message personnalisé */}
-        <Text className="text-gray-700 text-base leading-relaxed mb-5">
+        <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
           Bonjour {firstName},
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-5">
-          Merci de vous être inscrit sur SEIDO ! Pour finaliser votre inscription et
-          accéder à votre compte, veuillez confirmer votre adresse email en cliquant
-          sur le bouton ci-dessous.
+          Votre compte SEIDO est maintenant <strong>activé</strong> ! Vous pouvez dès à présent
+          accéder à votre tableau de bord et commencer à utiliser toutes les fonctionnalités
+          de la plateforme.
         </Text>
 
         {/* Message selon rôle */}
         <div className="bg-blue-50 border-l-4 border-primary p-4 rounded mb-6">
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
-            <strong>Votre rôle :</strong> {role === 'admin' ? 'Administrateur' : role === 'gestionnaire' ? 'Gestionnaire' : role === 'prestataire' ? 'Prestataire' : 'Locataire'}
+            <strong>Votre rôle :</strong> {roleLabels[role]}
             <br />
             {roleMessages[role]}
           </Text>
         </div>
 
         {/* Bouton CTA */}
-        <EmailButton href={confirmationUrl}>
-          Confirmer mon email
+        <EmailButton href={dashboardUrl}>
+          Accéder à mon tableau de bord
         </EmailButton>
 
-        {/* Lien de secours */}
-        <Text className="text-gray-600 text-sm leading-relaxed mb-6">
-          Si le bouton ne fonctionne pas, vous pouvez copier et coller ce lien dans votre navigateur :
-        </Text>
-
-        <Text className="text-primary text-sm break-all mb-8">
-          <Link href={confirmationUrl} className="text-primary no-underline">
-            {confirmationUrl}
-          </Link>
-        </Text>
+        {/* Prochaines étapes */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg mb-6 mt-8">
+          <Text className="text-gray-900 font-semibold text-base mb-3 mt-0">
+            🚀 Prochaines étapes
+          </Text>
+          {role === 'gestionnaire' && (
+            <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
+              <li>Créez vos premiers biens immobiliers</li>
+              <li>Ajoutez des locataires et prestataires</li>
+              <li>Gérez vos interventions en temps réel</li>
+              <li>Invitez des membres à rejoindre votre équipe</li>
+            </ul>
+          )}
+          {role === 'prestataire' && (
+            <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
+              <li>Complétez votre profil professionnel</li>
+              <li>Consultez vos demandes d'intervention</li>
+              <li>Soumettez vos devis rapidement</li>
+              <li>Gérez vos disponibilités</li>
+            </ul>
+          )}
+          {role === 'locataire' && (
+            <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
+              <li>Consultez les informations de votre logement</li>
+              <li>Soumettez des demandes d'intervention</li>
+              <li>Suivez l'état de vos demandes</li>
+              <li>Communiquez avec votre gestionnaire</li>
+            </ul>
+          )}
+          {role === 'admin' && (
+            <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
+              <li>Accédez au tableau de bord administrateur</li>
+              <li>Gérez les utilisateurs et équipes</li>
+              <li>Supervisez l'activité de la plateforme</li>
+              <li>Configurez les paramètres système</li>
+            </ul>
+          )}
+        </div>
 
         {/* Section aide */}
         <div className="bg-gray-50 p-5 rounded-lg mb-6">
@@ -80,7 +110,7 @@ export const WelcomeEmail = ({
             Besoin d'aide ?
           </Text>
           <Text className="text-gray-600 text-sm leading-relaxed m-0">
-            Notre équipe support est disponible pour vous accompagner.
+            Notre équipe support est disponible pour vous accompagner dans vos premiers pas.
             Contactez-nous à{' '}
             <Link href="mailto:support@seido.app" className="text-primary no-underline">
               support@seido.app
@@ -88,9 +118,9 @@ export const WelcomeEmail = ({
           </Text>
         </div>
 
-        {/* Note sécurité */}
-        <Text className="text-gray-500 text-xs leading-relaxed m-0">
-          Si vous n'êtes pas à l'origine de cette inscription, vous pouvez ignorer cet email en toute sécurité.
+        {/* Message de bienvenue final */}
+        <Text className="text-gray-600 text-sm leading-relaxed text-center m-0">
+          Merci de faire confiance à SEIDO pour simplifier votre gestion immobilière ! 🏠
         </Text>
       </Section>
 
@@ -103,7 +133,7 @@ export const WelcomeEmail = ({
 // Props par défaut pour prévisualisation
 WelcomeEmail.PreviewProps = {
   firstName: 'Marie',
-  confirmationUrl: 'https://seido.app/auth/confirm?token=abc123',
+  dashboardUrl: 'https://seido.app/gestionnaire/dashboard',
   role: 'gestionnaire',
 } as WelcomeEmailProps
 

@@ -33,8 +33,8 @@ export interface SignupConfirmationEmailProps extends BaseEmailProps {
  * Props pour le template de bienvenue (après confirmation email)
  */
 export interface WelcomeEmailProps extends BaseEmailProps {
-  /** URL de confirmation d'email */
-  confirmationUrl: string
+  /** URL du tableau de bord de l'utilisateur */
+  dashboardUrl: string
   /** Rôle de l'utilisateur */
   role: UserRole
 }

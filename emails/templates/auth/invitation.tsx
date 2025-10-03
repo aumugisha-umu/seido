@@ -49,18 +49,13 @@ export const InvitationEmail = ({
 
   return (
     <EmailLayout preview={`${inviterName} vous invite à rejoindre ${teamName} sur SEIDO`}>
-      {/* Header */}
-      <EmailHeader title="Invitation équipe" />
+      {/* Header avec sujet */}
+      <EmailHeader subject={`Invitation de ${inviterName}`} />
 
       {/* Contenu principal */}
       <Section className="bg-white px-8 py-8">
-        {/* Titre */}
-        <Heading className="text-gray-900 text-3xl font-bold mb-6 mt-0">
-          Vous êtes invité ! 🎉
-        </Heading>
-
         {/* Message principal */}
-        <Text className="text-gray-700 text-base leading-relaxed mb-5">
+        <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
           Bonjour {firstName},
         </Text>
 

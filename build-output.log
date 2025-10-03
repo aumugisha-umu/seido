@@ -1,0 +1,51 @@
+
+> seido-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.2.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (108kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+Failed to compile.
+
+app\auth\callback\page.tsx
+You cannot have two parallel pages that resolve to the same path. Please check /auth/callback/page and /auth/callback/route. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups
+
+./app/api/invite-user/route.ts
+Error:   [31mx[0m Expected a semicolon
+     ,-[[36;1;4mc:\Users\arthu\Desktop\Coding\Seido-app\app\api\invite-user\route.ts[0m:326:1]
+ [2m323[0m |       invitation: invitationResult
+ [2m324[0m |     })
+ [2m325[0m | 
+ [2m326[0m |   } catch (error) {
+     : [35;1m    ^^^^^[0m
+ [2m327[0m |     console.error('❌ [INVITE-USER-SIMPLE] Unexpected error:', error)
+ [2m328[0m |     return NextResponse.json(
+ [2m328[0m |       { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
+     `----
+  [31mx[0m Expected a semicolon
+     ,-[[36;1;4mc:\Users\arthu\Desktop\Coding\Seido-app\app\api\invite-user\route.ts[0m:333:1]
+ [2m330[0m |       { status: 500 }
+ [2m331[0m |     )
+ [2m332[0m |   }
+ [2m333[0m | }
+     : [35;1m ^[0m
+     `----
+  [31mx[0m Expected '}', got '<eof>'
+     ,-[[36;1;4mc:\Users\arthu\Desktop\Coding\Seido-app\app\api\invite-user\route.ts[0m:333:1]
+ [2m330[0m |       { status: 500 }
+ [2m331[0m |     )
+ [2m332[0m |   }
+ [2m333[0m | }
+     : [35;1m^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/api/invite-user/route.ts
+
+
+> Build failed because of webpack errors

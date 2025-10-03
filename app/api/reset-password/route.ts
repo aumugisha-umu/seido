@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { Database } from "@/lib/database.types"
+import { emailService } from "@/lib/email/email-service"
+import { EMAIL_CONFIG } from "@/lib/email/resend-client"
 
 /**
  * POST /api/reset-password
@@ -162,60 +164,45 @@ export async function POST(request: NextRequest) {
       createdAt: userExists.created_at
     })
 
-    // ÉTAPE 2: Envoyer l'email de réinitialisation via Service Role Key
-    console.log('📧 [RESET-PASSWORD-API] Sending password reset email via admin API...')
-    
-    // Déterminer l'URL de base selon l'environnement
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-    const redirectUrl = `${baseUrl}/auth/update-password`
+    // ÉTAPE 2: Générer token de réinitialisation et envoyer email via Resend
+    console.log('📧 [RESET-PASSWORD-API] Generating reset token and sending email via Resend...')
+
+    const redirectUrl = `${EMAIL_CONFIG.appUrl}/auth/update-password`
     console.log('🔧 [RESET-PASSWORD-API] Reset email config:', {
       email: email,
       redirectTo: redirectUrl,
-      method: 'admin.resetPasswordForEmail'
+      method: 'Resend with React template'
     })
-    
+
     try {
-      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+      // Générer le lien de réinitialisation via Supabase
+      const { data: resetData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email: email,
       })
 
-      console.log('🔧 [RESET-PASSWORD-API] Reset email attempt result:', {
-        hasError: !!resetError,
-        errorMessage: resetError?.message,
-        errorStatus: resetError?.status,
-        errorName: resetError?.name
-      })
+      if (resetError || !resetData) {
+        console.error('❌ [RESET-PASSWORD-API] Failed to generate reset link:', resetError)
 
-      if (resetError) {
-        console.error('❌ [RESET-PASSWORD-API] Reset email failed:', {
-          message: resetError.message,
-          status: resetError.status,
-          name: resetError.name,
-          email: email,
-          redirectUrl: redirectUrl
-        })
-        
         // Gestion d'erreurs spécifiques
-        let errorMessage = 'Erreur lors de l\'envoi de l\'email de réinitialisation'
-        
-        if (resetError.message.includes('rate limit')) {
+        let errorMessage = 'Erreur lors de la génération du lien de réinitialisation'
+
+        if (resetError?.message.includes('rate limit')) {
           errorMessage = 'Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.'
-        } else if (resetError.message.includes('User not found')) {
+        } else if (resetError?.message.includes('User not found')) {
           errorMessage = 'Aucun compte n\'est associé à cette adresse email'
-        } else if (resetError.message.includes('Email not confirmed')) {
+        } else if (resetError?.message.includes('Email not confirmed')) {
           errorMessage = 'L\'email de ce compte n\'a pas encore été confirmé'
         }
-        
+
         return NextResponse.json(
-          { 
+          {
             success: false,
             error: errorMessage,
-            details: resetError.message,
+            details: resetError?.message,
             debugInfo: {
               email: email,
               redirectUrl: redirectUrl,
-              errorStatus: resetError.status,
               hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
               supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
             }
@@ -224,10 +211,32 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      console.log('✅ [RESET-PASSWORD-API] Password reset email sent successfully!')
+      // ✅ NOUVEAU: Envoyer l'email via Resend avec template React
+      const resetUrl = resetData.properties.action_link
+      const firstName = userExists.user_metadata?.first_name || userExists.email?.split('@')[0] || 'Utilisateur'
+
+      const emailResult = await emailService.sendPasswordResetEmail(email, {
+        firstName,
+        resetUrl,
+        expiresIn: 60, // 60 minutes
+      })
+
+      if (!emailResult.success) {
+        console.error('❌ [RESET-PASSWORD-API] Failed to send email via Resend:', emailResult.error)
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Erreur lors de l\'envoi de l\'email de réinitialisation',
+            details: emailResult.error,
+          },
+          { status: 500 }
+        )
+      }
+
+      console.log('✅ [RESET-PASSWORD-API] Password reset email sent successfully via Resend!')
       console.log('🔧 [RESET-PASSWORD-API] Success details:', {
         email: email,
-        redirectUrl: redirectUrl,
+        emailId: emailResult.emailId,
         userConfirmed: userExists.email_confirmed_at,
         userId: userExists.id
       })
@@ -241,12 +250,13 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json(
-        { 
+        {
           success: true,
           message: 'Email de réinitialisation envoyé avec succès',
           data: {
             email: email,
             resetEmailSent: true,
+            emailId: emailResult.emailId,
             redirectUrl: redirectUrl,
             userConfirmed: !!userExists.email_confirmed_at
           },
@@ -257,7 +267,8 @@ export async function POST(request: NextRequest) {
             supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
             hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
             serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
-            appUrl: process.env.NEXT_PUBLIC_APP_URL
+            appUrl: process.env.NEXT_PUBLIC_APP_URL,
+            emailProvider: 'Resend'
           } : undefined
         },
         { status: 200 }

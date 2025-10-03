@@ -416,8 +416,21 @@ class AuthService {
         return { user, error: null }
       }
 
-      // ✅ Fallback vers JWT metadata
-      console.log('⚠️ [AUTH-SERVICE-REFACTORED] No profile found, using JWT fallback')
+      // ⚠️ FALLBACK JWT (2025-10-03): Profile manquant en DB
+      // Ceci peut arriver si:
+      // 1. Le trigger PostgreSQL a échoué (avant migration 20251003000001)
+      // 2. La création server-side dans /auth/confirm a échoué
+      // 3. L'utilisateur a été créé manuellement sans profil
+      console.warn('⚠️ [AUTH-SERVICE-REFACTORED] CRITICAL: No profile in DB, using JWT fallback', {
+        authUserId: authUser.id,
+        email: authUser.email,
+        emailConfirmed: authUser.email_confirmed_at ? 'YES' : 'NO',
+        timestamp: new Date().toISOString(),
+        suggestion: 'Profile should be created in /auth/confirm or via heal script'
+      })
+
+      // TODO: Considérer ajouter une métrique/alert ici pour monitorer ces cas en production
+      // TODO: Optionnel - créer le profil manquant à la volée (pattern "self-healing")
 
       const user: AuthUser = {
         id: authUser.id,
@@ -426,7 +439,7 @@ class AuthService {
         first_name: authUser.user_metadata?.first_name || undefined,
         last_name: authUser.user_metadata?.last_name || undefined,
         display_name: authUser.user_metadata?.display_name || undefined,
-        role: 'gestionnaire',
+        role: 'gestionnaire', // ⚠️ Default role - real role unknown without DB profile
         team_id: undefined, // ✅ Pas de team_id disponible dans JWT fallback
         phone: undefined,
         avatar_url: undefined,

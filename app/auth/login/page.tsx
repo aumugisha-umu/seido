@@ -17,6 +17,8 @@ interface LoginPageProps {
   searchParams: Promise<{
     confirmed?: string
     message?: string
+    reason?: string
+    error?: string
   }>
 }
 
@@ -25,12 +27,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams
   const showConfirmationSuccess = params.confirmed === 'true' || params.message === 'password-updated'
   const showSessionRequired = params.message === 'session-required'
+  const showEmailNotConfirmed = params.reason === 'email_not_confirmed'
+  const showSessionExpired = params.reason === 'session_expired'
+  const showConfirmationError = params.error && ['expired_token', 'invalid_token', 'confirmation_failed'].includes(params.error)
 
   console.log('🔄 [LOGIN-SERVER] Login page rendered server-side', {
     confirmed: params.confirmed,
     message: params.message,
+    reason: params.reason,
+    error: params.error,
     showConfirmationSuccess,
-    showSessionRequired
+    showSessionRequired,
+    showEmailNotConfirmed,
+    showSessionExpired,
+    showConfirmationError
   })
 
 
@@ -79,6 +89,35 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>
                   Vous devez être connecté pour accéder à la configuration du mot de passe
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {showEmailNotConfirmed && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>
+                  <strong>Email non confirmé</strong><br />
+                  Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {showSessionExpired && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>
+                  <strong>Session expirée</strong><br />
+                  Votre session a expiré. Veuillez vous reconnecter.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {showConfirmationError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>
+                  <strong>Erreur de confirmation</strong><br />
+                  {params.error === 'expired_token' && 'Le lien de confirmation a expiré. Veuillez vous inscrire à nouveau.'}
+                  {params.error === 'invalid_token' && 'Le lien de confirmation est invalide.'}
+                  {params.error === 'confirmation_failed' && 'Erreur lors de la confirmation. Veuillez réessayer.'}
                 </AlertDescription>
               </Alert>
             )}

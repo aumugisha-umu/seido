@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
-    "rootDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+    "configFile": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
+    "rootDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 5
+      "actualWorkers": 1
     },
     "preserveOutput": "always",
     "reporter": [
@@ -33,84 +33,84 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 5
+          "actualWorkers": 1
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
-        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 5
+          "actualWorkers": 1
         },
         "id": "firefox",
         "name": "firefox",
-        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
-        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 5
+          "actualWorkers": 1
         },
         "id": "webkit",
         "name": "webkit",
-        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
-        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 5
+          "actualWorkers": 1
         },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
-        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
-        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 5
+          "actualWorkers": 1
         },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
-        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       }
     ],
     "shard": null,
@@ -129,363 +129,257 @@
   },
   "suites": [
     {
-      "title": "quick-auth-test.spec.ts",
-      "file": "quick-auth-test.spec.ts",
+      "title": "phase1-auth\\signup-complete-autohealing.spec.ts",
+      "file": "phase1-auth/signup-complete-autohealing.spec.ts",
       "column": 0,
       "line": 0,
-      "specs": [
+      "specs": [],
+      "suites": [
         {
-          "title": "Test rapide: Connexion avec les vraies credentials",
-          "ok": false,
-          "tags": [],
-          "tests": [
+          "title": "🚀 Phase 1 - Signup Complet E2E avec Auto-Healing",
+          "file": "phase1-auth/signup-complete-autohealing.spec.ts",
+          "line": 55,
+          "column": 6,
+          "specs": [
             {
-              "timeout": 30000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
+              "title": "✅ Signup → Confirm → Login → Dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
                 {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "timedOut",
-                  "duration": 31003,
-                  "error": {
-                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                  },
-                  "errors": [
-                    {
-                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "Test de connexion avec les vraies credentials...\n"
-                    },
-                    {
-                      "text": "URL actuelle après connexion: http://localhost:3000/auth/login\n"
-                    },
-                    {
-                      "text": "❌ Toujours sur la page de login - Connexion échouée\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-01T17:02:34.011Z",
+                  "timeout": 60000,
                   "annotations": [],
-                  "attachments": [
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-chromium\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-chromium\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-chromium\\error-context.md"
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 27077,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n======================================================================\n"
+                        },
+                        {
+                          "text": "🧪 TEST E2E COMPLET - SIGNUP → LOGIN → DASHBOARD\n"
+                        },
+                        {
+                          "text": "======================================================================\n"
+                        },
+                        {
+                          "text": "📧 Email: arthur+test-1759446207864-147@seido.pm\n"
+                        },
+                        {
+                          "text": "🔑 Password: TestComplete2025!\n"
+                        },
+                        {
+                          "text": "======================================================================\n\n"
+                        },
+                        {
+                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "📍 ÉTAPE 1: SIGNUP - Création du compte\n"
+                        },
+                        {
+                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "  ✅ Page signup chargée\n"
+                        },
+                        {
+                          "text": "  ✅ Email: arthur+test-1759446207864-147@seido.pm\n"
+                        },
+                        {
+                          "text": "  ✅ Password: ********\n"
+                        },
+                        {
+                          "text": "  ✅ Password confirmation: ********\n"
+                        },
+                        {
+                          "text": "  ✅ First name: Test\n"
+                        },
+                        {
+                          "text": "  ✅ Last name: Complete\n"
+                        },
+                        {
+                          "text": "  ✅ Terms accepted (set hidden input + clicked checkbox)\n"
+                        },
+                        {
+                          "text": "  ℹ️  Submit button enabled: true\n"
+                        },
+                        {
+                          "text": "  ✅ Formulaire soumis\n"
+                        },
+                        {
+                          "text": "  ✅ Redirection vers /auth/signup-success\n"
+                        },
+                        {
+                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "📍 ÉTAPE 2: Récupération du lien de confirmation\n"
+                        },
+                        {
+                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "\n  🔍 Récupération du token de confirmation depuis Supabase...\n"
+                        },
+                        {
+                          "text": "  🔧 [DEBUG] Supabase URL: SET\n"
+                        },
+                        {
+                          "text": "  🔧 [DEBUG] Service Key: SET (length: 219)\n"
+                        },
+                        {
+                          "text": "  ✅ User trouvé: 2b39b7e1-44e7-4adf-8d8d-ca64391e2912\n"
+                        },
+                        {
+                          "text": "  📧 Email: arthur+test-1759446207864-147@seido.pm\n"
+                        },
+                        {
+                          "text": "  ✅ Confirmé: NON\n"
+                        },
+                        {
+                          "text": "  ℹ️  Génération d'un nouveau lien de confirmation...\n"
+                        },
+                        {
+                          "text": "  ✅ Token récupéré depuis Supabase\n"
+                        },
+                        {
+                          "text": "  🔗 URL de confirmation: http://localhost:3000/auth/confirm?token_hash=32d786b252ad45b8f994e6ec4e4cd67d73d7d7651fad63967ee07c0e&type=email\n"
+                        },
+                        {
+                          "text": "  ✅ Lien de confirmation visité\n"
+                        },
+                        {
+                          "text": "📋 [CLIENT] ✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...\n"
+                        },
+                        {
+                          "text": "📋 [CLIENT] ✅ [AUTH-SERVICE-REFACTORED] User profile found: {id: 67749c58-27ec-4b03-9ba5-256c359f91ff, email: arthur+test-1759446207864-147@seido.pm, name: Utilisateur, role: gestionnaire}\n"
+                        },
+                        {
+                          "text": "📋 [CLIENT] ✅ [AUTH-SERVICE-REFACTORED] User profile found: {id: 67749c58-27ec-4b03-9ba5-256c359f91ff, email: arthur+test-1759446207864-147@seido.pm, name: Utilisateur, role: gestionnaire}\n"
+                        },
+                        {
+                          "text": "  ✅ Redirection directe vers /dashboard (user déjà connecté)\n"
+                        },
+                        {
+                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "📍 ÉTAPE 3: Vérification création profil server-side\n"
+                        },
+                        {
+                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "  ✅ Utilisateur confirmé, profil créé server-side, redirigé vers dashboard\n"
+                        },
+                        {
+                          "text": "  🔍 Vérification profil en DB avec service role key\n"
+                        },
+                        {
+                          "text": "  ✅ ✅ ✅ PROFIL UTILISATEUR CRÉÉ SERVER-SIDE! ✅ ✅ ✅\n"
+                        },
+                        {
+                          "text": "  🎉 NOUVEAU PATTERN FONCTIONNE!\n"
+                        },
+                        {
+                          "text": "     - ID: 67749c58-27ec-4b03-9ba5-256c359f91ff\n"
+                        },
+                        {
+                          "text": "     - Email: arthur+test-1759446207864-147@seido.pm\n"
+                        },
+                        {
+                          "text": "     - Role: gestionnaire\n"
+                        },
+                        {
+                          "text": "     - Team ID: 2c7d8897-ee5d-470c-bf02-22c5a6c126c5\n"
+                        },
+                        {
+                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "📍 ÉTAPE 4: DASHBOARD - Vérification accès (déjà connecté)\n"
+                        },
+                        {
+                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        },
+                        {
+                          "text": "  📍 URL actuelle: http://localhost:3000/dashboard/gestionnaire\n"
+                        },
+                        {
+                          "text": "  ✅ URL correcte: /dashboard/gestionnaire\n"
+                        },
+                        {
+                          "text": "  ✅ Dashboard page loaded, header: \"404\"\n"
+                        },
+                        {
+                          "text": "  ✅ Aucun message d'erreur\n"
+                        },
+                        {
+                          "text": "\n======================================================================\n"
+                        },
+                        {
+                          "text": "✅ TEST E2E COMPLET RÉUSSI !\n"
+                        },
+                        {
+                          "text": "======================================================================\n"
+                        },
+                        {
+                          "text": "📧 Compte créé: arthur+test-1759446207864-147@seido.pm\n"
+                        },
+                        {
+                          "text": "✅ Email confirmé\n"
+                        },
+                        {
+                          "text": "✅ Profil créé (trigger)\n"
+                        },
+                        {
+                          "text": "✅ Login réussi\n"
+                        },
+                        {
+                          "text": "✅ Dashboard accessible\n"
+                        },
+                        {
+                          "text": "======================================================================\n\n"
+                        },
+                        {
+                          "text": "⏸️  Pause de 5s pour observer le dashboard...\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-02T23:03:27.847Z",
+                      "annotations": [],
+                      "attachments": []
                     }
-                  ]
+                  ],
+                  "status": "expected"
                 }
               ],
-              "status": "unexpected"
+              "id": "9ec67fbf7c60ab248215-628ebffb494b5e3350ae",
+              "file": "phase1-auth/signup-complete-autohealing.spec.ts",
+              "line": 73,
+              "column": 7
             }
-          ],
-          "id": "029a1ca554d1f1414c4e-5a40b53dac89be8d432f",
-          "file": "quick-auth-test.spec.ts",
-          "line": 7,
-          "column": 5
-        },
-        {
-          "title": "Test rapide: Connexion avec les vraies credentials",
-          "ok": false,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 30000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "firefox",
-              "projectName": "firefox",
-              "results": [
-                {
-                  "workerIndex": 1,
-                  "parallelIndex": 1,
-                  "status": "timedOut",
-                  "duration": 30335,
-                  "error": {
-                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                  },
-                  "errors": [
-                    {
-                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                    },
-                    {
-                      "location": {
-                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\quick-auth-test.spec.ts",
-                        "column": 14,
-                        "line": 31
-                      },
-                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  29 |\n  30 |   // Attendre un peu pour voir ce qui se passe\n> 31 |   await page.waitForTimeout(5000)\n     |              ^\n  32 |\n  33 |   // Screenshot après tentative de connexion\n  34 |   await page.screenshot({ path: 'test/test-results/quick-auth-after.png' })\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\quick-auth-test.spec.ts:31:14"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "Test de connexion avec les vraies credentials...\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-01T17:02:33.999Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-firefox\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-firefox\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-firefox\\error-context.md"
-                    }
-                  ]
-                }
-              ],
-              "status": "unexpected"
-            }
-          ],
-          "id": "029a1ca554d1f1414c4e-11ee2ac59cd831e4d724",
-          "file": "quick-auth-test.spec.ts",
-          "line": 7,
-          "column": 5
-        },
-        {
-          "title": "Test rapide: Connexion avec les vraies credentials",
-          "ok": false,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 30000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "webkit",
-              "projectName": "webkit",
-              "results": [
-                {
-                  "workerIndex": 2,
-                  "parallelIndex": 2,
-                  "status": "timedOut",
-                  "duration": 31166,
-                  "error": {
-                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                  },
-                  "errors": [
-                    {
-                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "Test de connexion avec les vraies credentials...\n"
-                    },
-                    {
-                      "text": "URL actuelle après connexion: http://localhost:3000/auth/login\n"
-                    },
-                    {
-                      "text": "❌ Toujours sur la page de login - Connexion échouée\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-01T17:02:33.996Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-webkit\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-webkit\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-webkit\\error-context.md"
-                    }
-                  ]
-                }
-              ],
-              "status": "unexpected"
-            }
-          ],
-          "id": "029a1ca554d1f1414c4e-df54cfc19a2a0280ff3d",
-          "file": "quick-auth-test.spec.ts",
-          "line": 7,
-          "column": 5
-        },
-        {
-          "title": "Test rapide: Connexion avec les vraies credentials",
-          "ok": false,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 30000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "Mobile Chrome",
-              "projectName": "Mobile Chrome",
-              "results": [
-                {
-                  "workerIndex": 3,
-                  "parallelIndex": 3,
-                  "status": "timedOut",
-                  "duration": 30973,
-                  "error": {
-                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                  },
-                  "errors": [
-                    {
-                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "Test de connexion avec les vraies credentials...\n"
-                    },
-                    {
-                      "text": "URL actuelle après connexion: http://localhost:3000/auth/login\n"
-                    },
-                    {
-                      "text": "❌ Toujours sur la page de login - Connexion échouée\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-01T17:02:33.998Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-Mobile-Chrome\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-Mobile-Chrome\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-Mobile-Chrome\\error-context.md"
-                    }
-                  ]
-                }
-              ],
-              "status": "unexpected"
-            }
-          ],
-          "id": "029a1ca554d1f1414c4e-eb72e80b27207051186f",
-          "file": "quick-auth-test.spec.ts",
-          "line": 7,
-          "column": 5
-        },
-        {
-          "title": "Test rapide: Connexion avec les vraies credentials",
-          "ok": false,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 30000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "Mobile Safari",
-              "projectName": "Mobile Safari",
-              "results": [
-                {
-                  "workerIndex": 4,
-                  "parallelIndex": 4,
-                  "status": "timedOut",
-                  "duration": 31280,
-                  "error": {
-                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                  },
-                  "errors": [
-                    {
-                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "Test de connexion avec les vraies credentials...\n"
-                    },
-                    {
-                      "text": "URL actuelle après connexion: http://localhost:3000/auth/login\n"
-                    },
-                    {
-                      "text": "❌ Toujours sur la page de login - Connexion échouée\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-01T17:02:33.969Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-Mobile-Safari\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-Mobile-Safari\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\quick-auth-test-Test-rapid-0aced-avec-les-vraies-credentials-Mobile-Safari\\error-context.md"
-                    }
-                  ]
-                }
-              ],
-              "status": "unexpected"
-            }
-          ],
-          "id": "029a1ca554d1f1414c4e-ecc43664d5c2c145213c",
-          "file": "quick-auth-test.spec.ts",
-          "line": 7,
-          "column": 5
+          ]
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-01T17:02:26.666Z",
-    "duration": 43048.138,
-    "expected": 0,
+    "startTime": "2025-10-02T23:03:16.797Z",
+    "duration": 39457.252,
+    "expected": 1,
     "skipped": 0,
-    "unexpected": 5,
+    "unexpected": 0,
     "flaky": 0
   }
 }

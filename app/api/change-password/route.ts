@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
+import { emailService } from "@/lib/email/email-service"
 
 /**
  * POST /api/change-password
@@ -96,9 +97,27 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ [CHANGE-PASSWORD] Password updated successfully")
 
+    // ✅ NOUVEAU: Envoyer email de confirmation via Resend
+    try {
+      const firstName = authUser.user_metadata?.first_name || authUser.email?.split('@')[0] || 'Utilisateur'
+      const emailResult = await emailService.sendPasswordChangedEmail(authUser.email!, {
+        firstName,
+        changeDate: new Date(),
+      })
+
+      if (emailResult.success) {
+        console.log('✅ [CHANGE-PASSWORD] Confirmation email sent via Resend:', emailResult.emailId)
+      } else {
+        console.warn('⚠️ [CHANGE-PASSWORD] Failed to send confirmation email:', emailResult.error)
+      }
+    } catch (emailError) {
+      // Ne pas bloquer le changement de mot de passe si l'email échoue
+      console.error('❌ [CHANGE-PASSWORD] Email sending error:', emailError)
+    }
+
     // Retourner le succès
-    return NextResponse.json({ 
-      message: "Mot de passe modifié avec succès" 
+    return NextResponse.json({
+      message: "Mot de passe modifié avec succès"
     }, { status: 200 })
 
   } catch (error) {

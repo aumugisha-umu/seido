@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState, useActionState } from "react"
+import { useState, useActionState, useEffect } from "react"
 import { useFormStatus } from "react-dom"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -47,12 +48,32 @@ export function SignupForm() {
 
   // ✅ 2025: useActionState pour gestion état Server Action
   const [state, formAction] = useActionState(signupAction, { success: true })
+  const router = useRouter()
+
+  // ✅ Gérer la redirection après signup réussi
+  // Pattern: Identique à login-form.tsx (workaround bug Next.js 15 #72842)
+  // Issue: redirect() dans Server Action ne fonctionne pas avec useActionState
+  // Solution: Utiliser window.location.href pour forcer un vrai refresh de page
+  // Refs: https://github.com/vercel/next.js/issues/72842
+  useEffect(() => {
+    if (state.success && state.data?.redirectTo) {
+      console.log('🚀 [SIGNUP-FORM] Signup successful, navigating in 500ms to:', state.data.redirectTo)
+
+      // ✅ DÉLAI: 500ms pour afficher le message de succès
+      const timer = setTimeout(() => {
+        console.log('🔄 [SIGNUP-FORM] Executing navigation with window.location.href...')
+        window.location.href = state.data.redirectTo
+      }, 500)
+
+      return () => clearTimeout(timer)
+    }
+  }, [state.success, state.data?.redirectTo])
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
-    { text: "Une majuscule", met: /[A-Z]/.test(formData._password) },
-    { text: "Une minuscule", met: /[a-z]/.test(formData._password) },
-    { text: "Un chiffre", met: /\d/.test(formData._password) },
+    { text: "Une majuscule", met: /[A-Z]/.test(formData.password) },
+    { text: "Une minuscule", met: /[a-z]/.test(formData.password) },
+    { text: "Un chiffre", met: /\d/.test(formData.password) },
   ]
 
   const isPasswordValid = passwordRequirements.every(req => req.met)
@@ -72,6 +93,17 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* ✅ Message de succès avant redirection */}
+      {state.success && !state.error && state.data?.redirectTo && (
+        <Alert className="border-green-200 bg-green-50">
+          <Check className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>✅ Compte créé avec succès !</strong><br />
+            Redirection en cours...
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ✅ 2025: Affichage erreurs depuis Server Action */}
       {!state.success && state.error && (
         <Alert variant="destructive">
@@ -233,18 +265,28 @@ export function SignupForm() {
         <div className="flex items-start space-x-3">
           <Checkbox
             id="terms"
-            name="acceptTerms"
             checked={formData.acceptTerms}
             onCheckedChange={(checked) => handleInputChange("acceptTerms", checked as boolean)}
             className="mt-0.5 h-5 w-5 border-2 border-muted-foreground/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground"
           />
+          {/* Hidden input for form submission */}
+          <input type="hidden" name="acceptTerms" value={formData.acceptTerms ? "true" : "false"} />
           <div className="flex-1">
-            <Label htmlFor="terms" className="text-sm text-foreground leading-relaxed cursor-pointer">
+            <div
+              className="text-sm text-foreground leading-relaxed cursor-pointer"
+              onClick={(e) => {
+                // Ne pas déclencher si on clique sur un lien
+                if ((e.target as HTMLElement).tagName !== 'A') {
+                  handleInputChange("acceptTerms", !formData.acceptTerms)
+                }
+              }}
+            >
               <div>
                 En créant mon compte, j'accepte les{" "}
                 <Link
                   href="/terms"
                   className="text-primary hover:text-primary/80 underline decoration-primary/60 underline-offset-2 font-medium transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   conditions d'utilisation
                 </Link>
@@ -254,12 +296,13 @@ export function SignupForm() {
                 <Link
                   href="/privacy"
                   className="text-primary hover:text-primary/80 underline decoration-primary/60 underline-offset-2 font-medium transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   politique de confidentialité
                 </Link>{" "}
                 de SEIDO.
               </div>
-            </Label>
+            </div>
           </div>
         </div>
       </div>

@@ -1,0 +1,1195 @@
+
+> seido-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.2.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (108kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+
+[2m[3978.36ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[   0.17ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 537.71ms][22m  [2m ↳ [22mSetup compiler
+[2m[   1.17ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 536.49ms][22m    [2m ↳ [22mCreate compiler
+[2m[   0.50ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[   2.54ms][22m  [2m ↳ [22mSetup scanner
+[2m[1105.52ms][22m  [2m ↳ [22mScan for candidates
+[2m[1862.09ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 221.52ms][22m  [2m ↳ [22mBuild utilities
+[2m[ 200.81ms][22m  [2m ↳ [22mOptimization
+[2m[   8.91ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 135.51ms][22m    [2m ↳ [22mLightning CSS
+[2m[  56.31ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  46.28ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+ ⚠ Compiled with warnings
+
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+A Node.js API is used (process.versions at line: 34) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+./node_modules/@supabase/realtime-js/dist/module/index.js
+./node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+A Node.js API is used (process.versions at line: 35) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+./node_modules/@supabase/realtime-js/dist/module/index.js
+./node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+A Node.js API is used (process.versions at line: 36) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+./node_modules/@supabase/realtime-js/dist/module/index.js
+./node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+
+./node_modules/@supabase/supabase-js/dist/module/index.js
+A Node.js API is used (process.version at line: 24) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/@supabase/ssr/dist/module/index.js
+
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./app/actions/auth-actions.ts
+18:35  Warning: 'createServerTeamService' is defined but never used.  @typescript-eslint/no-unused-vars
+22:15  Warning: 'Database' is defined but never used.  @typescript-eslint/no-unused-vars
+258:38  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+259:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/admin/dashboard/admin-dashboard-client.tsx
+16:40  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+19:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/admin/dashboard/page.tsx
+173:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/admin/notifications/page.tsx
+62:30  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/activity-logs/route.ts
+10:11  Warning: 'teamId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+11:11  Warning: 'userId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/activity-stats/route.ts
+10:11  Warning: 'teamId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/check-active-users/route.ts
+19:21  Warning: 'teamId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/create-intervention/route.ts
+197:34  Warning: '_frontendType' is defined but never used.  @typescript-eslint/no-unused-vars
+221:30  Warning: '_frontendUrgency' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/create-manager-intervention/route.ts
+253:34  Warning: '_frontendType' is defined but never used.  @typescript-eslint/no-unused-vars
+277:30  Warning: '_frontendUrgency' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/intervention/[id]/availabilities/route.ts
+154:13  Warning: 'userId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/intervention/[id]/match-availabilities/route.ts
+327:24  Warning: '_time' is defined but never used.  @typescript-eslint/no-unused-vars
+338:21  Warning: '_dateStr' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/invite-user/route.ts
+198:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/api/upload-intervention-document/route.ts
+37:33  Warning: '_originalFilename' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/auth/callback/page.tsx
+114:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+126:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+206:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/auth/confirm/route.ts
+51:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+60:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+64:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/auth/login/login-form.tsx
+6:10  Warning: 'useRouter' is defined but never used.  @typescript-eslint/no-unused-vars
+13:10  Warning: 'useAuth' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/auth/reset-password/reset-password-form.tsx
+51:50  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+59:74  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+61:21  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+103:48  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/auth/set-password/page.tsx
+38:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+90:6  Warning: React Hook useEffect has an unnecessary dependency: 'router'. Either exclude it or remove the dependency array. Outer scope values like 'router' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
+101:6  Warning: React Hook useEffect has a missing dependency: '_password'. Either include it or remove the dependency array. Outer scope values like 'password' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
+199:64  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+385:82  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/auth/signup/signup-form.tsx
+51:9  Warning: 'router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+285:40  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+291:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/auth/signup-success/page.tsx
+50:43  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+60:20  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/auth/unauthorized/page.tsx
+22:19  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+29:61  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+29:66  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+29:73  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+36:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/auth/update-password/page.tsx
+26:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/debug/data/page.tsx
+48:17  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+48:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+109:63  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+173:33  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+174:38  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+174:50  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+174:55  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+174:62  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+183:44  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+195:92  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+196:71  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/debug/page.tsx
+209:45  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+209:64  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/biens/immeubles/modifier/[id]/page.tsx
+31:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+61:6  Warning: React Hook useEffect has a missing dependency: 'loadBuildingData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+309:21  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+312:41  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+312:51  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+312:68  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+335:41  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/biens/immeubles/nouveau/page-refactored.tsx
+35:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/gestionnaire/biens/immeubles/nouveau/page.tsx
+107:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+167:10  Warning: 'buildingService' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+250:6  Warning: React Hook useEffect has missing dependencies: 'teamService', 'user.email', 'user.name', and 'user.role'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+269:6  Warning: React Hook useEffect has a missing dependency: 'lotService'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+299:6  Warning: React Hook useEffect has a missing dependency: 'assignedManagers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+353:6  Warning: React Hook useEffect has a missing dependency: 'lots'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+353:7  Warning: React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.  react-hooks/exhaustive-deps
+386:22  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+394:31  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+401:25  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+471:57  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+482:9  Warning: '_removeContact' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+482:27  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+523:30  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+763:32  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+967:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1099:79  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1156:107  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1235:28  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1258:87  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1259:86  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1293:90  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1344:104  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1376:90  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1575:113  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1611:124  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/biens/immeubles/[id]/page.tsx
+14:10  Warning: 'createContactService' is defined but never used.  @typescript-eslint/no-unused-vars
+26:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+32:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+55:6  Warning: React Hook useEffect has a missing dependency: 'loadBuildingData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+64:13  Warning: '_buildingService' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+175:31  Warning: '_actionKey' is defined but never used.  @typescript-eslint/no-unused-vars
+212:6  Warning: React Hook useEffect has a missing dependency: 'loadInterventionsWithDocuments'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+227:47  Warning: '_doc' is defined but never used.  @typescript-eslint/no-unused-vars
+241:31  Warning: '_document' is defined but never used.  @typescript-eslint/no-unused-vars
+247:35  Warning: '_document' is defined but never used.  @typescript-eslint/no-unused-vars
+458:42  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+474:57  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+633:72  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+669:65  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+683:85  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/biens/lots/modifier/[id]/page.tsx
+34:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+37:23  Warning: 'hasTeam' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+40:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+56:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+68:6  Warning: React Hook useEffect has a missing dependency: 'loadLotData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+314:44  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+314:61  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+318:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+318:37  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+318:57  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+363:81  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+369:39  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+369:66  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/biens/lots/nouveau/page-refactored.tsx
+33:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/gestionnaire/biens/lots/nouveau/page.tsx
+95:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+331:13  Error: 'TeamCheckModal' is not defined.  react/jsx-no-undef
+456:21  Warning: 'isPrimary' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+679:16  Error: 'Building2' is not defined.  react/jsx-no-undef
+698:94  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+698:116  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+701:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+701:53  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+707:24  Error: 'Building2' is not defined.  react/jsx-no-undef
+751:30  Error: 'Building2' is not defined.  react/jsx-no-undef
+835:16  Error: 'Building2' is not defined.  react/jsx-no-undef
+836:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+847:33  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+847:47  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+850:37  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+850:45  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+850:94  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+851:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+851:97  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+868:39  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+868:73  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+868:81  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+868:109  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+878:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+878:53  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+895:108  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1056:29  Warning: '_managerId' is defined but never used.  @typescript-eslint/no-unused-vars
+1080:18  Error: 'Building2' is not defined.  react/jsx-no-undef
+1081:63  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1113:28  Error: 'Badge' is not defined.  react/jsx-no-undef
+1115:26  Error: 'Badge' is not defined.  react/jsx-no-undef
+1143:91  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1184:20  Error: 'Building2' is not defined.  react/jsx-no-undef
+1216:24  Error: 'Building2' is not defined.  react/jsx-no-undef
+1382:28  Error: 'Badge' is not defined.  react/jsx-no-undef
+1487:16  Error: 'Check' is not defined.  react/jsx-no-undef
+1502:111  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1536:34  Error: 'Badge' is not defined.  react/jsx-no-undef
+1539:34  Error: 'Badge' is not defined.  react/jsx-no-undef
+1539:122  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/biens/lots/[id]/page.tsx
+57:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+79:9  Warning: The 'loadLotData' function makes the dependencies of useEffect Hook (at line 77) change on every render. Move it inside the useEffect callback. Alternatively, wrap the definition of 'loadLotData' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+150:9  Warning: The 'loadInterventionsWithDocuments' function makes the dependencies of useEffect Hook (at line 169) change on every render. Move it inside the useEffect callback. Alternatively, wrap the definition of 'loadInterventionsWithDocuments' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+332:31  Warning: '_actionKey' is defined but never used.  @typescript-eslint/no-unused-vars
+434:61  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+451:59  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+703:72  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/contacts/details/[id]/page.tsx
+85:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+114:41  Warning: '_action' is defined but never used.  @typescript-eslint/no-unused-vars
+624:26  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+628:37  Warning: '_category' is defined but never used.  @typescript-eslint/no-unused-vars
+632:31  Warning: '_speciality' is defined but never used.  @typescript-eslint/no-unused-vars
+760:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+765:72  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+773:51  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+789:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+797:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+805:70  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+805:86  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+816:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/contacts/modifier/[id]/page.tsx
+18:3  Warning: 'Check' is defined but never used.  @typescript-eslint/no-unused-vars
+23:32  Warning: 'createContactInvitationService' is defined but never used.  @typescript-eslint/no-unused-vars
+69:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+403:7  Warning: 'result' is never reassigned. Use 'const' instead.  prefer-const
+446:10  Error: 'Badge' is not defined.  react/jsx-no-undef
+462:8  Error: 'Badge' is not defined.  react/jsx-no-undef
+474:14  Error: 'Skeleton' is not defined.  react/jsx-no-undef
+475:14  Error: 'Skeleton' is not defined.  react/jsx-no-undef
+479:16  Error: 'Skeleton' is not defined.  react/jsx-no-undef
+485:22  Error: 'Skeleton' is not defined.  react/jsx-no-undef
+486:22  Error: 'Skeleton' is not defined.  react/jsx-no-undef
+707:33  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+714:32  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+717:58  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+733:35  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+745:34  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+766:47  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+782:26  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+790:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+798:66  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+798:82  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+874:118  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+937:124  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/contacts/page.tsx
+31:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+380:38  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+473:9  Warning: 'handleDeleteContact' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+797:71  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+801:102  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+843:41  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1075:67  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1079:98  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1121:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/dashboard/dashboard-client.tsx
+29:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/gestionnaire/dashboard/page.tsx
+59:11  Warning: 'statsService' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+282:33  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+303:34  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+321:67  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/interventions/nouvelle-intervention/page.tsx
+34:10  Warning: 'useToast' is defined but never used.  @typescript-eslint/no-unused-vars
+55:60  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+90:58  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+92:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+131:20  Warning: '_contact' is defined but never used.  @typescript-eslint/no-unused-vars
+132:17  Warning: '_contact' is defined but never used.  @typescript-eslint/no-unused-vars
+144:20  Warning: '_contact' is defined but never used.  @typescript-eslint/no-unused-vars
+145:17  Warning: '_contact' is defined but never used.  @typescript-eslint/no-unused-vars
+206:34  Warning: '_lotIdentifier' is defined but never used.  @typescript-eslint/no-unused-vars
+235:6  Warning: React Hook useEffect has missing dependencies: 'loadRealData' and 'user?.email'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+259:13  Warning: 'tenantId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+275:6  Warning: React Hook useEffect has missing dependencies: 'isPreFilled' and 'searchParams'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+277:9  Warning: 'getRelatedContacts' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+314:32  Warning: '_managerId' is defined but never used.  @typescript-eslint/no-unused-vars
+334:33  Warning: '_providerId' is defined but never used.  @typescript-eslint/no-unused-vars
+355:33  Warning: '_newContact' is defined but never used.  @typescript-eslint/no-unused-vars
+439:9  Warning: 'addAvailability' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+484:9  Warning: 'handleSubmit' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+620:29  Warning: '_path' is defined but never used.  @typescript-eslint/no-unused-vars
+682:65  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+686:59  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+857:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+862:60  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1085:94  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1196:26  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1220:103  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1233:85  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1277:82  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1342:83  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1411:79  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1553:97  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1560:95  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1564:32  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1564:87  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1601:34  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+1639:40  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/interventions/page.tsx
+30:3  Warning: 'getInterventionLocationText' is defined but never used.  @typescript-eslint/no-unused-vars
+31:3  Warning: 'getInterventionLocationIcon' is defined but never used.  @typescript-eslint/no-unused-vars
+32:3  Warning: 'isBuildingWideIntervention' is defined but never used.  @typescript-eslint/no-unused-vars
+33:3  Warning: 'getStatusColor' is defined but never used.  @typescript-eslint/no-unused-vars
+34:3  Warning: 'getStatusLabel' is defined but never used.  @typescript-eslint/no-unused-vars
+35:3  Warning: 'getPriorityColor' is defined but never used.  @typescript-eslint/no-unused-vars
+36:3  Warning: 'getPriorityLabel' is defined but never used.  @typescript-eslint/no-unused-vars
+41:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/gestionnaire/interventions/[id]/page.tsx
+154:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+169:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+190:31  Warning: '_action' is defined but never used.  @typescript-eslint/no-unused-vars
+478:67  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+508:46  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+508:70  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+508:86  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/gestionnaire/notifications/page.tsx
+61:21  Warning: '_dateString' is defined but never used.  @typescript-eslint/no-unused-vars
+299:52  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+374:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+484:28  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/locataire/dashboard/locataire-dashboard-client.tsx
+13:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/locataire/dashboard/page.tsx
+37:9  Warning: 'interventionService' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/locataire/interventions/nouvelle-demande/page.tsx
+40:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+165:100  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+181:33  Warning: '_logementId' is defined but never used.  @typescript-eslint/no-unused-vars
+304:23  Warning: '_fileId' is defined but never used.  @typescript-eslint/no-unused-vars
+367:84  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+554:82  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+628:93  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+773:40  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/locataire/interventions/page.tsx
+13:24  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+28:25  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+65:25  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+102:27  Warning: '_priority' is defined but never used.  @typescript-eslint/no-unused-vars
+116:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+119:30  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+147:61  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+162:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+259:85  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+260:54  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+260:88  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/locataire/interventions/[id]/page.tsx
+20:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+40:13  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+332:31  Warning: '_action' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/locataire/notifications/page.tsx
+26:30  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+45:21  Warning: '_dateString' is defined but never used.  @typescript-eslint/no-unused-vars
+56:27  Warning: '_priority' is defined but never used.  @typescript-eslint/no-unused-vars
+96:35  Warning: '_notificationId' is defined but never used.  @typescript-eslint/no-unused-vars
+107:37  Warning: '_notificationId' is defined but never used.  @typescript-eslint/no-unused-vars
+118:31  Warning: '_notificationId' is defined but never used.  @typescript-eslint/no-unused-vars
+296:48  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/page.tsx
+59:20  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+143:33  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/prestataire/interventions/[id]/page.tsx
+173:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+475:68  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+505:47  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+505:71  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+505:87  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+526:31  Warning: '_action' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/prestataire/notifications/page.tsx
+64:30  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+192:48  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./app/test-finalization-mobile/page.tsx
+164:31  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+164:43  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./components/activity-log.tsx
+181:29  Warning: '_dateString' is defined but never used.  @typescript-eslint/no-unused-vars
+202:26  Warning: '_name' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/auth-guard.tsx
+9:32  Warning: '_userRole' is defined but never used.  @typescript-eslint/no-unused-vars
+29:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+119:6  Warning: React Hook useEffect has an unnecessary dependency: 'router'. Either exclude it or remove the dependency array. Outer scope values like 'router' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
+
+./components/availability/availability-manager.tsx
+110:53  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+118:29  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+127:32  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+243:50  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+243:77  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./components/availability/integrated-availability-card.tsx
+134:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/building-info-form.tsx
+289:23  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/contact-detail-header.tsx
+74:26  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/contact-form-modal.tsx
+497:49  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+500:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+500:58  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/contact-selector.tsx
+113:9  Warning: The 'handleOpenContactModal' function makes the dependencies of useImperativeHandle Hook (at line 193) change on every render. To fix this, wrap the definition of 'handleOpenContactModal' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+113:41  Warning: '_contactType' is defined but never used.  @typescript-eslint/no-unused-vars
+198:33  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+306:38  Warning: '_contactType' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/dashboard-header.tsx
+111:31  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/dashboards/admin-dashboard.tsx
+68:73  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/dashboards/gestionnaire-dashboard.tsx
+6:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+13:10  Warning: 'useAuth' is defined but never used.  @typescript-eslint/no-unused-vars
+24:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+171:32  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+182:84  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/dashboards/locataire-dashboard.tsx
+18:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+58:36  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+181:51  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+220:73  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+312:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+328:29  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+346:25  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/dashboards/prestataire-dashboard.tsx
+3:29  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+4:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/debug/navigation-debug.tsx
+399:113  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+467:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/debug/seido-debug-panel.tsx
+29:45  Warning: '_userId' is defined but never used.  @typescript-eslint/no-unused-vars
+83:29  Warning: '_message' is defined but never used.  @typescript-eslint/no-unused-vars
+88:27  Warning: '_message' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/demo/quote-workflow-demo.tsx
+93:25  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/chats-card.tsx
+25:25  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/document-viewer-modal.tsx
+87:9  Warning: The 'loadDocumentView' function makes the dependencies of useEffect Hook (at line 85) change on every render. To fix this, wrap the definition of 'loadDocumentView' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+95:13  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+163:33  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+177:33  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+199:20  Warning: '_mimeType' is defined but never used.  @typescript-eslint/no-unused-vars
+200:18  Warning: '_mimeType' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/documents-section.tsx
+96:39  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+104:24  Warning: '_fileType' is defined but never used.  @typescript-eslint/no-unused-vars
+111:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+120:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+156:15  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/finalization-decision.tsx
+47:9  Warning: 'estimatedCost' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/finalization-header.tsx
+33:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+68:28  Warning: '_urgency' is defined but never used.  @typescript-eslint/no-unused-vars
+199:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+231:23  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/finalization-tabs.tsx
+152:29  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+286:27  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+322:86  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+351:33  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+531:85  Warning: '_n' is defined but never used.  @typescript-eslint/no-unused-vars
+826:35  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+839:41  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/intervention-action-panel-header.tsx
+500:32  Warning: '_actionKey' is defined but never used.  @typescript-eslint/no-unused-vars
+688:14  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+727:14  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+755:14  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+976:25  Warning: '_additionalNotes' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/intervention-action-panel.tsx
+458:32  Warning: '_actionKey' is defined but never used.  @typescript-eslint/no-unused-vars
+927:25  Warning: '_additionalNotes' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/intervention-card.tsx
+107:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+110:31  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+137:36  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+341:25  Warning: '_actionType' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/intervention-detail-header.tsx
+70:29  Warning: '_urgency' is defined but never used.  @typescript-eslint/no-unused-vars
+95:28  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+174:32  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+406:35  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/intervention-detail-tabs.tsx
+312:35  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+323:75  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+378:43  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+750:62  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/intervention-details-card.tsx
+21:29  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/intervention-logement-card.tsx
+27:29  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/approval-modal.tsx
+50:34  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+54:50  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+54:90  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+143:78  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+233:26  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/approve-confirmation-modal.tsx
+53:51  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/base-confirmation-modal.tsx
+34:9  Warning: 'getIcon' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/modals/cancel-confirmation-modal.tsx
+69:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+78:25  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+110:53  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+130:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/confirmation-modal.tsx
+33:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/external-quote-request-modal.tsx
+119:43  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+119:92  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+262:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+262:62  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/multi-quote-request-modal.tsx
+3:10  Warning: 'useState' is defined but never used.  @typescript-eslint/no-unused-vars
+69:32  Warning: '_contactId' is defined but never used.  @typescript-eslint/no-unused-vars
+200:63  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+200:71  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/programming-modal.tsx
+51:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+59:74  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+127:96  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+156:80  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/quote-request-modal.tsx
+208:42  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+215:106  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+215:144  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/quote-request-success-modal.tsx
+37:19  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+37:41  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+37:61  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+47:22  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+47:52  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+47:69  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+56:14  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/reject-confirmation-modal.tsx
+87:53  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/modals/success-modal.tsx
+37:39  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/provider-availability-selection.tsx
+10:10  Warning: 'Input' is defined but never used.  @typescript-eslint/no-unused-vars
+11:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+12:10  Warning: 'Dialog' is defined but never used.  @typescript-eslint/no-unused-vars
+12:18  Warning: 'DialogContent' is defined but never used.  @typescript-eslint/no-unused-vars
+12:33  Warning: 'DialogDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+12:52  Warning: 'DialogHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+12:66  Warning: 'DialogTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+24:11  Warning: 'TenantCounterProposal' is defined but never used.  @typescript-eslint/no-unused-vars
+63:24  Warning: '_slotId' is defined but never used.  @typescript-eslint/no-unused-vars
+75:32  Warning: '_time' is defined but never used.  @typescript-eslint/no-unused-vars
+409:29  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+605:67  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/quote-submission-form.tsx
+14:3  Warning: 'Download' is defined but never used.  @typescript-eslint/no-unused-vars
+91:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+230:29  Warning: '_startTime' is defined but never used.  @typescript-eslint/no-unused-vars
+392:23  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+494:34  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+547:69  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+567:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+691:94  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+771:77  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/quotes-comparison.tsx
+11:3  Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+12:3  Warning: 'Star' is defined but never used.  @typescript-eslint/no-unused-vars
+15:3  Warning: 'Info' is defined but never used.  @typescript-eslint/no-unused-vars
+16:3  Warning: 'MessageSquare' is defined but never used.  @typescript-eslint/no-unused-vars
+22:10  Warning: 'Separator' is defined but never used.  @typescript-eslint/no-unused-vars
+26:10  Warning: 'Alert' is defined but never used.  @typescript-eslint/no-unused-vars
+26:17  Warning: 'AlertDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+78:3  Warning: 'intervention' is defined but never used.  @typescript-eslint/no-unused-vars
+228:21  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+282:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/simple-work-completion-modal.tsx
+15:10  Warning: 'Input' is defined but never used.  @typescript-eslint/no-unused-vars
+118:23  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/simplified-finalization-modal.tsx
+385:57  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+455:24  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/tenant-availability-input.tsx
+119:13  Warning: '_error' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+158:45  Warning: '_date' is defined but never used.  @typescript-eslint/no-unused-vars
+178:26  Warning: '_time' is defined but never used.  @typescript-eslint/no-unused-vars
+222:66  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+256:29  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+256:55  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+358:79  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/tenant-slot-confirmation-modal.tsx
+79:23  Warning: '_dateString' is defined but never used.  @typescript-eslint/no-unused-vars
+88:23  Warning: '_time' is defined but never used.  @typescript-eslint/no-unused-vars
+101:54  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+101:68  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+101:88  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./components/intervention/tenant-validation-form.tsx
+114:23  Warning: '_issues' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+536:65  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/intervention/user-availabilities-display.tsx
+48:10  Warning: '_showFilterDetails' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+48:30  Warning: '_setShowFilterDetails' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+141:30  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/intervention/work-completion-report.tsx
+454:42  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/interventions/interventions-list.tsx
+56:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/interventions/interventions-navigator.tsx
+68:37  Warning: '_tabId' is defined but never used.  @typescript-eslint/no-unused-vars
+123:36  Warning: '_tabId' is defined but never used.  @typescript-eslint/no-unused-vars
+217:25  Warning: '_value' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/lot-card.tsx
+55:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/lot-contacts-list.tsx
+84:6  Warning: React Hook useCallback has a missing dependency: '_lotId'. Either include it or remove the dependency array. Outer scope values like 'lotId' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
+160:32  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+174:31  Warning: '_speciality' is defined but never used.  @typescript-eslint/no-unused-vars
+265:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+362:34  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/notifications/quote-notifications.tsx
+227:3  Warning: '_userId' is defined but never used.  @typescript-eslint/no-unused-vars
+233:23  Warning: '_notificationId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/profile-page.tsx
+36:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+195:13  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+402:67  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/properties/properties-list.tsx
+68:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+71:34  Warning: '_type' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/properties/properties-navigator.tsx
+106:33  Warning: '_tabId' is defined but never used.  @typescript-eslint/no-unused-vars
+193:25  Warning: '_value' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/property-creation/atoms/form-fields/PropertyNameInput.tsx
+33:9  Warning: 'entityLabel' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+69:34  Warning: '_suggestion' is defined but never used.  @typescript-eslint/no-unused-vars
+148:89  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/property-creation/atoms/selectors/BuildingSelector.tsx
+13:29  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+13:41  Warning: 'CardTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+16:42  Warning: 'Plus' is defined but never used.  @typescript-eslint/no-unused-vars
+78:21  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+78:44  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+95:42  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+95:56  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+103:59  Warning: '_lot' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/property-creation/composed/forms/PropertyInfoForm.tsx
+53:20  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+54:20  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+56:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+159:29  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/property-creation/context.tsx
+36:35  Warning: 'step' is defined but never used.  @typescript-eslint/no-unused-vars
+36:49  Warning: 'validation' is defined but never used.  @typescript-eslint/no-unused-vars
+41:27  Warning: 'updates' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/property-creation/optimized/LazyWizardComponents.tsx
+114:69  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+184:3  Warning: 'onLoaded' is defined but never used.  @typescript-eslint/no-unused-vars
+187:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/property-creation/pages/BuildingCreationWizard.tsx
+20:27  Warning: 'ContactSelectorRef' is defined but never used.  @typescript-eslint/no-unused-vars
+29:33  Warning: 'actions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+29:42  Warning: 'teamData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+35:9  Warning: 'buildingData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+100:31  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+115:6  Warning: React Hook React.useEffect has a missing dependency: 'buildingData.lots'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+188:3  Warning: 'categoryCountsByTeam' is defined but never used.  @typescript-eslint/no-unused-vars
+368:77  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+369:76  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+430:80  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/property-creation/pages/LotCreationWizard.tsx
+12:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+15:10  Warning: 'Button' is defined but never used.  @typescript-eslint/no-unused-vars
+16:27  Warning: 'Search' is defined but never used.  @typescript-eslint/no-unused-vars
+16:42  Warning: 'MapPin' is defined but never used.  @typescript-eslint/no-unused-vars
+16:50  Warning: 'FileText' is defined but never used.  @typescript-eslint/no-unused-vars
+29:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+30:33  Warning: 'actions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+30:42  Warning: 'teamData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+97:21  Warning: 'actions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+212:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+223:33  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+223:47  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+226:37  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+226:45  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+226:94  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+227:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+247:108  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/property-selector.tsx
+47:16  Warning: '_showActions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+49:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+56:33  Warning: '_error' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+67:25  Warning: '_value' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/quotes/integrated-quotes-card.tsx
+108:15  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+227:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+239:9  Warning: '_rejectedQuotes' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+400:35  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+473:72  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+473:96  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./components/quotes/quote-approval-modal.tsx
+70:13  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+126:37  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+127:14  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+133:77  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+136:22  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+136:54  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+136:68  Warning: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./components/quotes/quote-cancellation-modal.tsx
+47:65  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/quotes/quote-card.tsx
+63:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+77:27  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+91:26  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+273:19  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/quotes/quote-rejection-modal.tsx
+62:13  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+109:14  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/quotes/quote-validation-modal.tsx
+38:14  Warning: '_isLoading' is defined but never used.  @typescript-eslint/no-unused-vars
+101:54  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+163:87  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/shared/pending-actions-card.tsx
+75:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/team-check-modal.tsx
+76:66  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/ui/contact-selector.tsx
+98:31  Warning: '_value' is defined but never used.  @typescript-eslint/no-unused-vars
+107:30  Warning: '_contactId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/ui/lot-category-selector.tsx
+49:33  Warning: '_categoryKey' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/ui/security-modals.tsx
+107:13  Warning: '_data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+295:25  Warning: '_email' is defined but never used.  @typescript-eslint/no-unused-vars
+379:22  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+443:25  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./components/ui/use-toast.ts
+21:7  Warning: '_actionTypes' is assigned a value but only used as a type.  @typescript-eslint/no-unused-vars
+28:6  Warning: 'ActionType' is defined but never used.  @typescript-eslint/no-unused-vars
+63:27  Warning: '_toastId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/user-menu.tsx
+23:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+50:31  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/agents/seido-design-validator.ts
+410:35  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+560:40  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+596:27  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+600:25  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+604:25  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+608:26  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+612:38  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+618:32  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+624:34  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+628:26  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+632:36  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+637:32  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+642:32  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+646:31  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+651:35  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+656:27  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+661:34  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/agents/seido-refactoring-patterns.ts
+807:22  Warning: '_filePath' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/agents/seido-refactoring-specialist.ts
+390:28  Warning: '_taskId' is defined but never used.  @typescript-eslint/no-unused-vars
+455:34  Warning: '_task' is defined but never used.  @typescript-eslint/no-unused-vars
+460:34  Warning: '_task' is defined but never used.  @typescript-eslint/no-unused-vars
+465:33  Warning: '_task' is defined but never used.  @typescript-eslint/no-unused-vars
+470:31  Warning: '_task' is defined but never used.  @typescript-eslint/no-unused-vars
+475:38  Warning: '_task' is defined but never used.  @typescript-eslint/no-unused-vars
+504:37  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+596:44  Warning: '_context' is defined but never used.  @typescript-eslint/no-unused-vars
+612:49  Warning: '_context' is defined but never used.  @typescript-eslint/no-unused-vars
+628:50  Warning: '_context' is defined but never used.  @typescript-eslint/no-unused-vars
+644:43  Warning: '_context' is defined but never used.  @typescript-eslint/no-unused-vars
+666:50  Warning: '_s' is defined but never used.  @typescript-eslint/no-unused-vars
+667:54  Warning: '_s' is defined but never used.  @typescript-eslint/no-unused-vars
+673:55  Warning: '_s' is defined but never used.  @typescript-eslint/no-unused-vars
+674:49  Warning: '_s' is defined but never used.  @typescript-eslint/no-unused-vars
+725:49  Warning: '_taskId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/agents/seido-refactoring-tools.ts
+379:14  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+435:14  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+441:27  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+451:41  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+477:25  Warning: '_code' is defined but never used.  @typescript-eslint/no-unused-vars
+502:38  Warning: '_code' is defined but never used.  @typescript-eslint/no-unused-vars
+524:32  Warning: '_code' is defined but never used.  @typescript-eslint/no-unused-vars
+550:37  Warning: '_code' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/agents/seido-validation-engine.ts
+103:22  Warning: '_filePath' is defined but never used.  @typescript-eslint/no-unused-vars
+135:27  Warning: '_filePath' is defined but never used.  @typescript-eslint/no-unused-vars
+186:34  Warning: '_filePath' is defined but never used.  @typescript-eslint/no-unused-vars
+205:31  Warning: '_filePath' is defined but never used.  @typescript-eslint/no-unused-vars
+323:24  Warning: '_dir' is defined but never used.  @typescript-eslint/no-unused-vars
+339:16  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+349:31  Warning: '_filePath' is defined but never used.  @typescript-eslint/no-unused-vars
+354:63  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+509:30  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+509:48  Warning: '_breakpoint' is defined but never used.  @typescript-eslint/no-unused-vars
+514:36  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+519:32  Warning: '_message' is defined but never used.  @typescript-eslint/no-unused-vars
+549:32  Warning: '_content' is defined but never used.  @typescript-eslint/no-unused-vars
+554:32  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+558:29  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+563:36  Warning: '_files' is defined but never used.  @typescript-eslint/no-unused-vars
+563:54  Warning: '_guideline' is defined but never used.  @typescript-eslint/no-unused-vars
+568:34  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+568:49  Warning: '_files' is defined but never used.  @typescript-eslint/no-unused-vars
+573:45  Warning: '_violations' is defined but never used.  @typescript-eslint/no-unused-vars
+578:49  Warning: '_violations' is defined but never used.  @typescript-eslint/no-unused-vars
+583:52  Warning: '_violations' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/auth-router.ts
+81:34  Warning: '_userRole' is defined but never used.  @typescript-eslint/no-unused-vars
+137:41  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+233:36  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+261:38  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+316:36  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/auth-service.ts
+275:25  Warning: 'password' is defined but never used.  @typescript-eslint/no-unused-vars
+446:23  Warning: '_email' is defined but never used.  @typescript-eslint/no-unused-vars
+529:28  Warning: '_email' is defined but never used.  @typescript-eslint/no-unused-vars
+662:13  Warning: 'profileError' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/cache/cache-manager.ts
+21:16  Warning: 'loadRedis' is defined but never used.  @typescript-eslint/no-unused-vars
+140:16  Warning: '_key' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/dal.ts
+206:43  Warning: '_permission' is defined but never used.  @typescript-eslint/no-unused-vars
+214:47  Warning: '_permission' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/database/query-optimizer.ts
+171:17  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+195:25  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+216:21  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+343:24  Warning: '_teamId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/database-service-compat.ts
+217:16  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+230:21  Warning: '_email' is defined but never used.  @typescript-eslint/no-unused-vars
+248:26  Warning: '_authUserId' is defined but never used.  @typescript-eslint/no-unused-vars
+332:17  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+350:16  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+374:17  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+392:16  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+487:43  Warning: '_frontendType' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/intervention-actions-service.ts
+383:13  Warning: '_error' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/intervention-utils.ts
+25:32  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+62:32  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+99:34  Warning: '_urgency' is defined but never used.  @typescript-eslint/no-unused-vars
+114:34  Warning: '_urgency' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/logger.ts
+13:15  Warning: '_label' is defined but never used.  @typescript-eslint/no-unused-vars
+31:20  Warning: '_timestamp' is defined but never used.  @typescript-eslint/no-unused-vars
+32:21  Warning: '_level' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/notification-service.ts
+195:17  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+198:41  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/quote-status-mapper.ts
+15:31  Warning: '_uiStatus' is defined but never used.  @typescript-eslint/no-unused-vars
+59:33  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+66:33  Warning: '_status' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/seido-debugger.ts
+177:34  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+271:46  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/core/base-repository.ts
+44:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+45:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+307:16  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+339:16  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/core/error-handler.ts
+256:31  Warning: '_email' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/core/test-compilation.ts
+35:28  Warning: '_data' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/building.service.ts
+424:26  Warning: 'teamId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/composite.service.ts
+578:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+779:18  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+805:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+831:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/contact.service.ts
+170:25  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+218:56  Warning: 'isPrimary' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+251:66  Warning: 'isPrimary' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+284:30  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+284:45  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+301:35  Warning: 'buildingId' is defined but never used.  @typescript-eslint/no-unused-vars
+301:55  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+599:5  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/intervention.service.ts
+150:57  Warning: 'updatedBy' is defined but never used.  @typescript-eslint/no-unused-vars
+217:21  Warning: 'tenantId' is defined but never used.  @typescript-eslint/no-unused-vars
+229:18  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+241:23  Warning: 'buildingId' is defined but never used.  @typescript-eslint/no-unused-vars
+471:86  Warning: 'isPrimary' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/lot.service.ts
+443:31  Warning: 'teamId' is defined but never used.  @typescript-eslint/no-unused-vars
+450:22  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+450:37  Warning: 'tenantId' is defined but never used.  @typescript-eslint/no-unused-vars
+466:22  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+466:37  Warning: 'tenantId' is defined but never used.  @typescript-eslint/no-unused-vars
+487:28  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/stats.service.ts
+385:28  Warning: 'user' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/team.service.ts
+8:99  Warning: 'UserTeamAssociation' is defined but never used.  @typescript-eslint/no-unused-vars
+388:18  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+467:37  Warning: 'teamId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/domain/user.service.ts
+265:44  Warning: 'password' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/repositories/building.repository.ts
+172:20  Warning: '_userId' is defined but never used.  @typescript-eslint/no-unused-vars
+214:31  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+257:35  Warning: '_lot' is defined but never used.  @typescript-eslint/no-unused-vars
+297:26  Warning: 'teamId' is defined but never used.  @typescript-eslint/no-unused-vars
+322:41  Warning: '_lot' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/repositories/contact.repository.ts
+50:31  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+173:20  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+173:36  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+173:52  Warning: 'buildingId' is defined but never used.  @typescript-eslint/no-unused-vars
+187:13  Warning: 'data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+243:72  Warning: 'isPrimary' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+265:82  Warning: 'isPrimary' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/repositories/intervention.repository.ts
+89:31  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+224:24  Warning: '_providerId' is defined but never used.  @typescript-eslint/no-unused-vars
+348:69  Warning: '_updatedBy' is defined but never used.  @typescript-eslint/no-unused-vars
+489:22  Warning: '_interventionId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/repositories/lot.repository.ts
+24:11  Warning: 'LotWithContacts' is defined but never used.  @typescript-eslint/no-unused-vars
+196:31  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+235:30  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+288:13  Warning: 'data' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+333:22  Warning: 'buildingId' is defined but never used.  @typescript-eslint/no-unused-vars
+361:20  Warning: 'buildingId' is defined but never used.  @typescript-eslint/no-unused-vars
+385:49  Warning: '_contact' is defined but never used.  @typescript-eslint/no-unused-vars
+489:46  Warning: 'buildingId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/repositories/stats.repository.ts
+468:24  Warning: '_key' is defined but never used.  @typescript-eslint/no-unused-vars
+485:30  Warning: '_role' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/repositories/team-member.repository.ts
+138:74  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+189:47  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/services/utils/assignment-utils.ts
+59:46  Warning: '_assignmentType' is defined but never used.  @typescript-eslint/no-unused-vars
+105:37  Warning: '_frontendRole' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/services/__tests__/setup.ts
+21:16  Warning: '_table' is defined but never used.  @typescript-eslint/no-unused-vars
+34:33  Warning: '_table' is defined but never used.  @typescript-eslint/no-unused-vars
+78:30  Warning: '_table' is defined but never used.  @typescript-eslint/no-unused-vars
+167:36  Warning: '_table' is defined but never used.  @typescript-eslint/no-unused-vars
+268:37  Warning: '_operation' is defined but never used.  @typescript-eslint/no-unused-vars
+269:9  Warning: '_error' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/session-cleanup.ts
+240:47  Warning: 'options' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/supabase-logger.ts
+5:11  Warning: '_SupabaseOperationOptions' is defined but never used.  @typescript-eslint/no-unused-vars
+23:11  Warning: 'AuthError' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules

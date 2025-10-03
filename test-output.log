@@ -1,0 +1,184 @@
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[1537.35ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[   0.08ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  37.21ms][22m  [2m ↳ [22mSetup compiler
+[2m[WebServer] [22m[2m[   0.58ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[WebServer] [22m[2m[  36.60ms][22m    [2m ↳ [22mCreate compiler
+[2m[WebServer] [22m[2m[   0.28ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[   1.59ms][22m  [2m ↳ [22mSetup scanner
+[2m[WebServer] [22m[2m[ 515.89ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[ 838.04ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[ 107.93ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[  17.52ms][22m  [2m ↳ [22mTransform Tailwind CSS AST into PostCSS AST
+[2m[WebServer] [22m[2m[  18.28ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[dotenv@17.2.3] injecting env (8) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+
+Running 1 test using 1 worker
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[719.00ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  0.22ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[355.81ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[338.96ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[  4.47ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[ 19.27ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[1A[2K[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+
+[1A[2K[1/1] [chromium] › test\e2e\phase1-auth\signup-complete-autohealing.spec.ts:73:7 › 🚀 Phase 1 - Signup Complet E2E avec Auto-Healing › ✅ Signup → Confirm → Login → Dashboard
+[1A[2K[chromium] › test\e2e\phase1-auth\signup-complete-autohealing.spec.ts:73:7 › 🚀 Phase 1 - Signup Complet E2E avec Auto-Healing › ✅ Signup → Confirm → Login → Dashboard
+
+======================================================================
+
+[1A[2K🧪 TEST E2E COMPLET - SIGNUP → LOGIN → DASHBOARD
+
+[1A[2K======================================================================
+
+[1A[2K📧 Email: arthur+test-1759445257908-480@seido.pm
+
+[1A[2K🔑 Password: TestComplete2025!
+
+[1A[2K======================================================================
+
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[730.76ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  0.20ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[394.20ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[319.05ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[  2.60ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[ 14.60ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[1A[2K
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K📍 ÉTAPE 1: SIGNUP - Création du compte
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[771.09ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  0.36ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[378.04ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[371.41ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[  2.74ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[ 18.40ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[765.82ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  0.26ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[394.95ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[351.63ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[  2.70ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[ 16.17ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[1A[2K  ✅ Page signup chargée
+
+[1A[2K  ✅ Email: arthur+test-1759445257908-480@seido.pm
+
+[1A[2K  ✅ Password: ********
+
+[1A[2K  ✅ Password confirmation: ********
+
+[1A[2K  ✅ First name: Test
+
+[1A[2K  ✅ Last name: Complete
+
+[1A[2K  ✅ Terms accepted
+
+[1A[2K  ℹ️  Submit button enabled: false
+
+[1A[2K  ✅ Formulaire soumis
+
+[1A[2K  ⚠️  Pas de redirection automatique, URL actuelle: http://localhost:3000/auth/signup
+
+[1A[2K  ⚠️  Pas de message de succès visible, continuons quand même...
+
+[1A[2K
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K📍 ÉTAPE 2: Récupération du lien de confirmation
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K
+  🔍 Récupération du token de confirmation depuis Supabase...
+
+[1A[2K  🔧 [DEBUG] Supabase URL: SET
+
+[1A[2K  🔧 [DEBUG] Service Key: SET (length: 219)
+
+[1A[2K  ❌ User non trouvé avec email: arthur+test-1759445257908-480@seido.pm
+
+[1A[2K  Total users: 50
+
+[1A[2K
+❌ TEST ÉCHOUÉ
+
+[1A[2K======================================================================
+
+[1A[2K
+📊 Erreur: Error: User not found in Supabase
+
+[1A[2K  - URL actuelle: http://localhost:3000/auth/signup
+
+[1A[2K  📸 Screenshot sauvegardé dans test-results/
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[911.22ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  0.43ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[440.14ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[435.77ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[  7.19ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[ 27.57ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m[2m[763.56ms][22m [@tailwindcss/postcss] app\globals.css
+[2m[WebServer] [22m[2m[  0.02ms][22m  [2m ↳ [22mQuick bail check
+[2m[WebServer] [22m[2m[  0.27ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[WebServer] [22m[2m[360.69ms][22m  [2m ↳ [22mScan for candidates
+[2m[WebServer] [22m[2m[377.97ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[WebServer] [22m[2m[  7.31ms][22m  [2m ↳ [22mBuild utilities
+[2m[WebServer] [22m[2m[ 17.20ms][22m  [2m ↳ [22mUpdate PostCSS AST
+[2m[WebServer] [22m
+
+[1A[2K  1) [chromium] › test\e2e\phase1-auth\signup-complete-autohealing.spec.ts:73:7 › 🚀 Phase 1 - Signup Complet E2E avec Auto-Healing › ✅ Signup → Confirm → Login → Dashboard 
+
+    Error: User not found in Supabase
+
+      194 |         console.error(`  ❌ User non trouvé avec email: ${testEmail}`)
+      195 |         console.error(`  Total users: ${usersData.users.length}`)
+    > 196 |         throw new Error('User not found in Supabase')
+          |               ^
+      197 |       }
+      198 |
+      199 |       console.log(`  ✅ User trouvé: ${user.id}`)
+        at c:\Users\arthu\Desktop\Coding\Seido-app\test\e2e\phase1-auth\signup-complete-autohealing.spec.ts:196:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\phase1-auth-signup-complet-eca16-Confirm-→-Login-→-Dashboard-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\phase1-auth-signup-complet-eca16-Confirm-→-Login-→-Dashboard-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\phase1-auth-signup-complet-eca16-Confirm-→-Login-→-Dashboard-chromium\error-context.md
+
+
+[1A[2K  1 failed
+    [chromium] › test\e2e\phase1-auth\signup-complete-autohealing.spec.ts:73:7 › 🚀 Phase 1 - Signup Complet E2E avec Auto-Healing › ✅ Signup → Confirm → Login → Dashboard 
+
+[36m  Serving HTML report at http://localhost:63997. Press Ctrl+C to quit.[39m

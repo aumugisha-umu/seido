@@ -10,7 +10,7 @@ import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function AuthCallback() {
-  const _router = useRouter()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
@@ -109,6 +109,40 @@ export default function AuthCallback() {
     if (!loading && user) {
       console.log('✅ [AUTH-CALLBACK-DELEGATED] User loaded by AuthProvider:', user.name, user.role)
       setStatus('success')
+
+      // ✅ Vérifier si c'est une nouvelle confirmation email (email_confirmed_at récent)
+      const emailConfirmedAt = (user as any).email_confirmed_at
+      const isNewConfirmation = emailConfirmedAt &&
+        (Date.now() - new Date(emailConfirmedAt).getTime()) < 120000 // < 2 minutes
+
+      if (isNewConfirmation) {
+        console.log('📧 [AUTH-CALLBACK] New email confirmation detected, sending welcome email...')
+        setMessage(`✅ Email confirmé avec succès ! Envoi de l'email de bienvenue...`)
+
+        // ✅ Envoyer email de bienvenue (non-bloquant)
+        fetch('/api/send-welcome-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: (user as any).id })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            console.log('✅ [AUTH-CALLBACK] Welcome email sent successfully')
+          } else {
+            console.warn('⚠️ [AUTH-CALLBACK] Welcome email failed (non-blocking):', data.error)
+          }
+        })
+        .catch(err => console.warn('⚠️ [AUTH-CALLBACK] Welcome email failed (non-blocking):', err))
+
+        // ✅ Rediriger vers login avec message de succès
+        setTimeout(() => {
+          console.log('🔄 [AUTH-CALLBACK] Redirecting to login page...')
+          window.location.href = '/auth/login?confirmed=true'
+        }, 2000)
+
+        return
+      }
 
       // ✅ Message adapté selon si on va vers set-password ou dashboard
       const callbackContext = sessionStorage.getItem('auth_callback_context')

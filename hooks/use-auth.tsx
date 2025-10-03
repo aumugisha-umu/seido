@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
 import { createClient } from '@/utils/supabase/client'
@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const isRedirectingRef = useRef(false) // Prevent infinite redirect loop
 
   useEffect(() => {
     console.log('🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...')
@@ -263,11 +264,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ✅ CORRECTION: Rediriger immédiatement si déjà authentifié sur page auth
         if (user && pathname.startsWith('/auth/') &&
             !pathname.includes('/callback') &&
-            !pathname.includes('/reset-password')) {
+            !pathname.includes('/reset-password') &&
+            !isRedirectingRef.current) { // ✅ Prevent infinite loop
 
           const redirectPath = getSimpleRedirectPath(user.role)
           console.log('🚀 [AUTH-PROVIDER] User already authenticated, redirecting immediately to:', redirectPath)
+          isRedirectingRef.current = true // Mark as redirecting
           router.push(redirectPath)
+
+          // Reset flag after navigation completes (allow retries if navigation fails)
+          setTimeout(() => {
+            isRedirectingRef.current = false
+          }, 2000)
           return
         }
       }

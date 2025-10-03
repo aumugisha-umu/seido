@@ -33,7 +33,15 @@
       "Bash(timeout:*)",
       "Bash(cmd.exe //c taskkill //PID 14884 //F)",
       "Bash(cmd.exe //c taskkill //PID 16524 //F)",
-      "Bash(cmd.exe:*)"
+      "Bash(cmd.exe:*)",
+      "Bash(for:*)",
+      "Bash(grep:*)",
+      "Bash(done)",
+      "Bash(npx supabase db push:*)",
+      "Bash(tee:*)",
+      "Bash(if [ -f .env.local ])",
+      "Bash(then echo \"=== RESEND CONFIG ===\")",
+      "Bash(else echo \"❌ .env.local not found\")"
     ],
     "deny": [],
     "ask": []

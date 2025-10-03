@@ -4,6 +4,8 @@ import { activityLogger } from '@/lib/activity-logger'
 import { getServerSession } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
+import { emailService } from '@/lib/email/email-service'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -110,7 +112,7 @@ export async function POST(request: Request) {
 
       try {
         // Créer l'invitation Supabase Auth EN PREMIER
-        const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+        const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm`
 
         // Générer le magic link pour créer l'auth user
         const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
@@ -124,7 +126,8 @@ export async function POST(request: Request) {
             role: validUserRole,
             provider_category: providerCategory,
             team_id: teamId,
-            invited: true
+            invited: 'true',       // ✅ String pour metadata JSON
+            skip_password: 'true'  // ✅ Redirection vers set-password après confirmation
           },
           redirectTo: redirectTo
         })
@@ -137,33 +140,30 @@ export async function POST(request: Request) {
         authUserId = linkData.user.id
         console.log('✅ [STEP-1] Auth user created first:', authUserId)
 
-        // Envoyer l'email d'invitation
-        const { error: emailError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-          data: {
-            full_name: `${firstName} ${lastName}`,
-            first_name: firstName,
-            last_name: lastName,
-            display_name: `${firstName} ${lastName}`,
-            role: validUserRole,
-            provider_category: providerCategory,
-            team_id: teamId,
-            invited: true
-          },
-          redirectTo: redirectTo
+        // ✅ NOUVEAU: Envoyer l'email d'invitation via Resend avec template React
+        const invitationUrl = linkData?.properties?.action_link || `${EMAIL_CONFIG.appUrl}/auth/callback?token=${authUserId}`
+
+        const emailResult = await emailService.sendInvitationEmail(email, {
+          firstName,
+          inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
+          teamName: teamId, // TODO: Récupérer le vrai nom de l'équipe
+          role: validUserRole,
+          invitationUrl,
+          expiresIn: 7,
         })
 
-        if (emailError) {
-          console.warn('⚠️ [STEP-1] Failed to send email, but auth created:', emailError.message)
+        if (!emailResult.success) {
+          console.warn('⚠️ [STEP-1] Failed to send email via Resend, but auth created:', emailResult.error)
         } else {
-          console.log('✅ [STEP-1] Invitation email sent successfully')
+          console.log('✅ [STEP-1] Invitation email sent successfully via Resend:', emailResult.emailId)
         }
 
         invitationResult = {
           success: true,
           authUserId: authUserId,
-          invitationSent: true,
-          magicLink: linkData?.properties?.action_link,
-          message: 'Email d\'invitation envoyé avec succès'
+          invitationSent: emailResult.success,
+          magicLink: invitationUrl,
+          message: emailResult.success ? 'Email d\'invitation envoyé avec succès' : 'Auth créé mais email non envoyé'
         }
 
       } catch (inviteError) {
@@ -175,61 +175,73 @@ export async function POST(request: Request) {
       }
     }
 
-    // ÉTAPE 2: CRÉER USER (avec auth_user_id si invitation, sinon null)
-    console.log('👤 [STEP-2] Creating user profile...')
+    // ÉTAPE 2: CRÉER USER PROFILE
+    // ✅ NOUVEAU: Si invitation app (shouldInviteToApp), le Database Trigger créera le profil
+    // Sinon (simple contact), créer le profil manuellement sans auth
 
-    try {
-      // Vérifier si l'utilisateur existe déjà
-      const existingUserResult = await userService.getByEmail(email)
-      const existingUser = existingUserResult.success ? existingUserResult.data : null
+    if (shouldInviteToApp) {
+      // ✅ INVITATION APP: Le trigger créera le profil après confirmation email
+      console.log('🔄 [STEP-2] Skipping manual profile creation - trigger will handle it after email confirmation')
+      console.log('📍 [STEP-2] User profile will be created by database trigger on_auth_user_confirmed')
 
-      if (existingUser) {
-        console.log('✅ [STEP-2] User already exists:', existingUser.id)
-        userProfile = existingUser
+      // Pour la compatibilité avec le reste du code, on retourne un objet minimal
+      // Le vrai profil sera créé par le trigger
+      userProfile = {
+        id: authUserId!, // Temporaire, le vrai ID sera généré par le trigger
+        auth_user_id: authUserId,
+        email: email,
+        name: `${firstName} ${lastName}`,
+        first_name: firstName,
+        last_name: lastName,
+        role: validUserRole,
+        team_id: teamId,
+      } as any
 
-        // Si on a créé un auth et que le user n'a pas encore d'auth_user_id, le lier
-        if (authUserId && !existingUser.auth_user_id) {
-          const linkResult = await userService.update(existingUser.id, {
-            auth_user_id: authUserId
+    } else {
+      // ✅ SIMPLE CONTACT: Créer le profil sans auth (comportement classique)
+      console.log('👤 [STEP-2] Creating contact profile (no auth)...')
+
+      try {
+        // Vérifier si l'utilisateur existe déjà
+        const existingUserResult = await userService.getByEmail(email)
+        const existingUser = existingUserResult.success ? existingUserResult.data : null
+
+        if (existingUser) {
+          console.log('✅ [STEP-2] User already exists:', existingUser.id)
+          userProfile = existingUser
+        } else {
+          // Créer nouveau contact sans auth
+          const createUserResult = await userService.create({
+            auth_user_id: null, // Pas d'auth pour simple contact
+            email: email,
+            name: `${firstName} ${lastName}`,
+            first_name: firstName,
+            last_name: lastName,
+            role: validUserRole,
+            provider_category: providerCategory,
+            speciality: speciality || null,
+            phone: phone || null,
+            team_id: teamId,
+            is_active: true,
+            password_set: false // Contact sans auth = pas de password
           })
-          if (linkResult.success) {
-            console.log('✅ [STEP-2] Linked existing user to new auth:', authUserId)
-          } else {
-            console.error('❌ [STEP-2] Failed to link existing user to auth:', linkResult.error)
+
+          if (!createUserResult.success || !createUserResult.data) {
+            console.error('❌ [STEP-2] Contact creation failed:', createUserResult.error)
+            throw new Error('Failed to create contact: ' + (createUserResult.error?.message || 'Unknown error'))
           }
-        }
-      } else {
-        // Créer nouveau user avec auth_user_id déjà défini si invitation
-        const createUserResult = await userService.create({
-          auth_user_id: authUserId, // ✅ DÉJÀ DÉFINI si invitation, null sinon
-          email: email,
-          name: `${firstName} ${lastName}`,
-          first_name: firstName,
-          last_name: lastName,
-          role: validUserRole,
-          provider_category: providerCategory,
-          speciality: speciality || null,
-          phone: phone || null,
-          team_id: teamId,
-          is_active: true,
-          password_set: authUserId ? false : true // ✅ NOUVEAU: false si invitation (auth créé), true sinon
-        })
 
-        if (!createUserResult.success || !createUserResult.data) {
-          console.error('❌ [STEP-2] User creation failed:', createUserResult.error)
-          throw new Error('Failed to create user: ' + (createUserResult.error?.message || 'Unknown error'))
+          userProfile = createUserResult.data
+          console.log('✅ [STEP-2] Contact profile created (no auth):', userProfile.id)
         }
-
-        userProfile = createUserResult.data
-        console.log('✅ [STEP-2] User profile created with auth_user_id:', authUserId || 'null')
-      }
-    } catch (userError) {
+      } catch (userError) {
       console.error('❌ [STEP-2] Failed to create user:', userError)
       return NextResponse.json(
         { error: 'Erreur lors de la création du contact: ' + (userError instanceof Error ? userError.message : String(userError)) },
         { status: 500 }
       )
     }
+    } // ✅ Fermeture du bloc else (ligne 200)
 
     // ÉTAPE 3: Ajouter à l'équipe
     try {

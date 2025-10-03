@@ -71,9 +71,15 @@ export async function middleware(request: NextRequest) {
       // ✅ AUTHENTIFICATION RÉELLE: Vérifier et rafraîchir la session
       const { data: { user }, error } = await supabase.auth.getUser()
 
-      if (error || !user || !user.email_confirmed_at) {
-        console.log('🚫 [MIDDLEWARE] Authentication failed:', error?.message || 'No confirmed user')
+      if (error || !user) {
+        console.log('🚫 [MIDDLEWARE] Authentication failed:', error?.message || 'No user')
         return NextResponse.redirect(new URL('/auth/login?reason=session_expired', request.url))
+      }
+
+      // ✅ VÉRIFICATION EMAIL CONFIRMÉ
+      if (!user.email_confirmed_at) {
+        console.log('📧 [MIDDLEWARE] Email not confirmed for user:', user.email)
+        return NextResponse.redirect(new URL('/auth/login?reason=email_not_confirmed', request.url))
       }
 
       console.log('✅ [MIDDLEWARE] User authenticated:', user.id)

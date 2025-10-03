@@ -83,8 +83,9 @@ CREATE TRIGGER on_auth_user_created
 COMMENT ON FUNCTION public.handle_new_user() IS
   'Trigger function pour créer automatiquement un profil utilisateur dans public.users après signup. Pattern officiel Supabase.';
 
-COMMENT ON TRIGGER on_auth_user_created ON auth.users IS
-  'Auto-création du profil utilisateur après inscription via Supabase Auth.';
+-- COMMENT ON TRIGGER on_auth_user_created ON auth.users IS
+--   'Auto-création du profil utilisateur après inscription via Supabase Auth.';
+-- Note: Permissions insuffisantes pour commenter sur auth.users, commenté pour éviter l'erreur
 
 -- =============================================================================
 -- VALIDATION

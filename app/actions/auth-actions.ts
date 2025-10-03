@@ -13,9 +13,13 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
+import { getSupabaseAdmin, isAdminConfigured } from '@/lib/services/core/supabase-admin'
 import { requireGuest, invalidateAuth, getDashboardPath } from '@/lib/auth-dal'
-import { createServerUserService } from '@/lib/services'
+import { createServerUserService, createServerTeamService } from '@/lib/services'
 import { z } from 'zod'
+import { emailService } from '@/lib/email/email-service'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
+import type { Database } from '@/lib/database.types'
 
 // ✅ VALIDATION: Schemas Zod pour sécurité server-side
 const LoginSchema = z.object({
@@ -154,6 +158,21 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
 
 /**
  * ✅ SERVER ACTION: Inscription utilisateur
+ *
+ * NOUVEAU FLUX (Resend emails) :
+ * 1. Validation des données
+ * 2. admin.generateLink() crée user SANS email automatique
+ * 3. emailService.sendSignupConfirmationEmail() via Resend
+ *    → Lien envoyé: `/auth/confirm?token_hash=...&type=email` (interne)
+ *    → Pourquoi: éviter les incohérences `redirect_to` de Supabase et unifier le flow
+ * 4. User confirme → verifyOtp() (dans route `/auth/confirm`) → Trigger crée profile + team
+ * 5. emailService.sendWelcomeEmail() après confirmation
+ *
+ * Notes pour repreneur:
+ * - Référence détaillée: `docs/refacto/signup-fix.md`
+ * - On NE redirige plus via `action_link` Supabase (qui peut contenir `type=signup` et un `redirect_to`
+ *   divergents). On construit désormais un lien interne basé sur `hashed_token` et `type=email`.
+ * - Fallback: si `hashed_token` est indisponible (cas anormal), on retombe sur `properties.action_link`.
  */
 export async function signupAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
   console.log('🚀 [SIGNUP-ACTION] Starting server-side signup...')
@@ -175,43 +194,119 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     const validatedData = SignupSchema.parse(rawData)
     console.log('📝 [SIGNUP-ACTION] Data validated for:', validatedData.email)
 
-    // ✅ AUTHENTIFICATION: Utiliser client server Supabase
-    const supabase = await createServerSupabaseClient()
-    const { data, error } = await supabase.auth.signUp({
+    // ✅ VÉRIFIER: Service admin disponible
+    if (!isAdminConfigured()) {
+      console.error('❌ [SIGNUP-ACTION] Admin service not configured - SERVICE_ROLE_KEY missing')
+      return {
+        success: false,
+        error: 'Service d\'inscription non configuré. Veuillez contacter l\'administrateur.'
+      }
+    }
+
+    const supabaseAdmin = getSupabaseAdmin()!
+
+    // ✅ NOUVELLE APPROCHE: Utiliser admin.generateLink() pour créer user SANS email automatique
+    console.log('🔧 [SIGNUP-ACTION] Using admin.generateLink() to create user without automatic email')
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
       email: validatedData.email,
-      password: validatedData.password, // ✅ FIXED: was validatedData._password (typo)
+      password: validatedData.password,
       options: {
         data: {
           first_name: validatedData.firstName,
           last_name: validatedData.lastName,
           phone: validatedData.phone,
+          role: validatedData.role || 'gestionnaire', // ✅ AJOUT: role requis pour le trigger
           full_name: `${validatedData.firstName} ${validatedData.lastName}`
         }
       }
     })
 
-    if (error) {
-      console.log('❌ [SIGNUP-ACTION] Signup failed:', error.message)
+    if (linkError || !linkData) {
+      console.error('❌ [SIGNUP-ACTION] Failed to generate signup link:', linkError)
 
       // ✅ GESTION ERREURS: Messages utilisateur-friendly
-      if (error.message.includes('User already registered')) {
+      if (linkError?.message.includes('User already registered')) {
         return { success: false, error: 'Un compte existe déjà avec cette adresse email' }
       }
-      return { success: false, error: 'Erreur lors de la création du compte : ' + error.message }
+      if (linkError?.message.includes('rate limit')) {
+        return { success: false, error: 'Trop de tentatives. Veuillez patienter quelques minutes.' }
+      }
+      return {
+        success: false,
+        error: 'Erreur lors de la création du compte : ' + (linkError?.message || 'Unknown error')
+      }
     }
 
-    if (!data.user) {
-      return { success: false, error: 'Erreur de création de compte inattendue' }
+    console.log('✅ [SIGNUP-ACTION] User created in auth.users:', {
+      userId: linkData.user.id,
+      email: linkData.user.email,
+      hasActionLink: !!linkData.properties.action_link,
+      properties: linkData.properties // 🔍 DEBUG: Voir toutes les propriétés disponibles
+    })
+
+    // ✅ UTILISER NOTRE ROUTE /auth/confirm AVEC token_hash
+    // Objectif: éviter les incohérences de redirect_to côté Supabase et unifier le flow
+    // Détail: Supabase renvoie `properties.hashed_token` et `properties.action_link`.
+    //  - Nous privilégions `hashed_token` pour construire un lien interne:
+    //      `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=...&type=email`
+    //  - Cela garantit l'usage de verifyOtp(type='email') dans notre route dédiée.
+    //  - En fallback (rare), on réutilise `action_link` tel quel.
+    console.log('📧 [SIGNUP-ACTION] Preparing confirmation email via Resend...')
+
+    const hashedToken = (linkData as any)?.properties?.hashed_token as string | undefined
+    const fallbackActionLink = (linkData as any)?.properties?.action_link as string | undefined
+
+    // Construire l'URL interne de confirmation lorsque possible
+    const internalConfirmUrl = hashedToken
+      ? `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=email`
+      : undefined
+
+    const confirmationUrl = internalConfirmUrl || fallbackActionLink
+
+    console.log('🔗 [SIGNUP-ACTION] Built confirmation URL:', {
+      internalConfirmUrl,
+      usingInternal: !!internalConfirmUrl,
+      hasFallbackActionLink: !!fallbackActionLink
+    })
+
+    const emailResult = await emailService.sendSignupConfirmationEmail(validatedData.email, {
+      firstName: validatedData.firstName,
+      confirmationUrl: confirmationUrl!,
+      expiresIn: 60, // 60 minutes
+    })
+
+    if (!emailResult.success) {
+      console.error('❌ [SIGNUP-ACTION] Failed to send confirmation email:', emailResult.error)
+      // ⚠️ Ne pas bloquer l'inscription si l'email échoue - user existe déjà dans auth.users
+      console.warn('⚠️ [SIGNUP-ACTION] User created but email failed - manual intervention required')
+    } else {
+      console.log('✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend:', emailResult.emailId)
     }
 
-    console.log('✅ [SIGNUP-ACTION] User created:', data.user.email)
+    // ✅ NOTE: Le profil et l'équipe seront créés automatiquement par le Database Trigger
+    // après que l'utilisateur confirme son email. Voir migration 20251002000001_fix_profile_creation_timing.sql
+    console.log('📍 [SIGNUP-ACTION] Profile creation will be handled by database trigger after email confirmation')
 
-    // ✅ CACHE: Invalider le cache des données auth
+    // ✅ WORKAROUND NEXT.JS 15 BUG #72842
+    // Issue: redirect() ne fonctionne pas correctement avec useActionState
+    // Solution: Retourner redirectTo pour navigation client-side (pattern identique à loginAction)
+    // Refs: https://github.com/vercel/next.js/issues/72842
+    console.log('🚀 [SIGNUP-ACTION] Signup successful, returning redirect path')
+
+    // ✅ ÉTAPE 1: Invalider le cache pour forcer refresh des données
     revalidatePath('/', 'layout')
 
-    // ✅ REDIRECTION: Vers page de confirmation email
-    console.log('📧 [SIGNUP-ACTION] Redirecting to email confirmation page')
-    redirect('/auth/signup-success?email=' + encodeURIComponent(validatedData.email))
+    // ✅ ÉTAPE 2: Retourner le path de redirection (navigation sera gérée côté client)
+    return {
+      success: true,
+      data: {
+        message: 'Compte créé avec succès',
+        email: validatedData.email,
+        redirectTo: '/auth/signup-success?email=' + encodeURIComponent(validatedData.email)
+      }
+    }
 
   } catch (error) {
     console.error('❌ [SIGNUP-ACTION] Exception:', error)

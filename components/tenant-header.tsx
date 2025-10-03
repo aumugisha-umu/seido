@@ -20,15 +20,24 @@ import { useGlobalNotifications } from "@/hooks/use-global-notifications"
 
 interface TenantHeaderProps {
   className?: string
+  userName?: string
+  userInitials?: string
+  userEmail?: string
 }
 
-export default function TenantHeader({ className }: TenantHeaderProps) {
+export default function TenantHeader({
+  className,
+  userName: serverUserName,
+  userInitials: serverUserInitials,
+  userEmail: serverUserEmail
+}: TenantHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { user, signOut } = useAuth()
   const { unreadCount: globalUnreadCount } = useGlobalNotifications()
-  
-  const userName = user?.display_name || user?.name || "Marie Dupont"
-  const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+
+  // ✅ Utiliser les props du serveur en priorité pour éviter hydration mismatch
+  const displayName = serverUserName || user?.name || user?.email?.split('@')[0] || "Utilisateur"
+  const displayInitials = serverUserInitials || displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   const handleLogout = async () => {
     try {
@@ -112,16 +121,16 @@ export default function TenantHeader({ className }: TenantHeaderProps) {
                     className="flex items-center space-x-3 h-auto px-3 py-2 hover:bg-slate-100 rounded-lg"
                   >
                     <div className="w-8 h-8 bg-sky-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-sm">{userInitials}</span>
+                      <span className="text-white font-semibold text-sm">{displayInitials}</span>
                     </div>
-                    <span className="text-slate-900 font-medium text-sm">{userName}</span>
+                    <span className="text-slate-900 font-medium text-sm">{displayName}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 
                 <DropdownMenuContent align="end" className="w-56 mt-2">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none text-slate-900">{userName}</p>
+                      <p className="text-sm font-medium leading-none text-slate-900">{displayName}</p>
                       <p className="text-xs leading-none text-slate-600">Locataire</p>
                     </div>
                   </DropdownMenuLabel>
@@ -195,10 +204,10 @@ export default function TenantHeader({ className }: TenantHeaderProps) {
                 <div className="flex items-center justify-between px-4 py-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold">{userInitials}</span>
+                      <span className="text-white font-semibold">{displayInitials}</span>
                     </div>
                     <div>
-                      <p className="text-slate-900 font-medium">{userName}</p>
+                      <p className="text-slate-900 font-medium">{displayName}</p>
                       <p className="text-slate-600 text-sm">Locataire</p>
                     </div>
                   </div>

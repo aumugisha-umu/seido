@@ -25,6 +25,9 @@ interface HeaderConfig {
 
 interface DashboardHeaderProps {
   role: string
+  userName?: string
+  userInitial?: string
+  userEmail?: string
 }
 
 const roleConfigs: Record<string, HeaderConfig> = {
@@ -70,29 +73,22 @@ const roleConfigs: Record<string, HeaderConfig> = {
   },
 }
 
-export default function DashboardHeader({ role }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  role,
+  userName: serverUserName,
+  userInitial: serverUserInitial,
+  userEmail: serverUserEmail
+}: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const config = roleConfigs[role] || roleConfigs.gestionnaire
-  const { user, loading, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const pathname = usePathname()
-  const _router = useRouter()
   const { unreadCount: globalUnreadCount } = useGlobalNotifications()
 
-  // Construction robuste du nom utilisateur avec multiples fallbacks
-  const userName = user?.display_name ||
-    user?.name ||
-    (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` :
-      user?.first_name ||
-      user?.last_name ||
-      user?.email?.split('@')[0] ||
-      "Utilisateur"
-    )
-  const userInitial = userName.charAt(0).toUpperCase()
-
-  // ✅ 2025: Protection contre affichage avant chargement complet
-  // Si loading ou pas de user, utiliser des valeurs de fallback pour éviter UI vide
-  const displayName = loading || !user ? "Chargement..." : userName
-  const displayInitial = loading || !user ? "..." : userInitial
+  // ✅ Utiliser les props du serveur en priorité pour éviter hydration mismatch
+  // Fallback sur useAuth() seulement si props non fournies (backward compatibility)
+  const displayName = serverUserName || user?.name || user?.email?.split('@')[0] || "Utilisateur"
+  const displayInitial = serverUserInitial || displayName.charAt(0).toUpperCase()
 
   const isActivePage = (href: string) => {
     // Correspondance exacte pour toutes les pages

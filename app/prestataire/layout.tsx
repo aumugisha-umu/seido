@@ -19,12 +19,21 @@ export default async function PrestataireLayout({
 }) {
   // ✅ AUTHENTIFICATION SERVEUR: Le middleware a déjà vérifié l'auth
   // requireRole() valide en plus le rôle spécifique côté serveur
-  await requireRole('prestataire')
+  const user = await requireRole('prestataire')
+
+  // Préparer les données utilisateur pour éviter hydration mismatch
+  const userName = user.name || user.email?.split('@')[0] || 'Utilisateur'
+  const userInitial = userName.charAt(0).toUpperCase()
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header centralisé avec toutes les améliorations */}
-      <DashboardHeader role="prestataire" />
+      <DashboardHeader
+        role="prestataire"
+        userName={userName}
+        userInitial={userInitial}
+        userEmail={user.email || ''}
+      />
 
       {/* Contenu principal */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

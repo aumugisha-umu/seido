@@ -13,6 +13,7 @@ import { chromium, FullConfig } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 import { execSync, spawn, ChildProcess } from 'child_process'
+import { logger, logError } from '@/lib/logger'
 
 // Global variable to store dev server process
 let devServerProcess: ChildProcess | null = null

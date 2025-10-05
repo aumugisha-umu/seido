@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
-
+import { logger, logError } from '@/lib/logger'
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  console.log("📅 GET availabilities API called for intervention:", id)
+  logger.info("📅 GET availabilities API called for intervention:", id)
 
   try {
     // Initialize Supabase client
@@ -117,7 +116,7 @@ export async function GET(
       .order('date', { ascending: true })
 
     if (availError) {
-      console.error("❌ Error fetching availabilities:", availError)
+      logger.error("❌ Error fetching availabilities:", availError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -132,7 +131,7 @@ export async function GET(
       .order('slot_date', { ascending: true })
 
     if (timeSlotsError) {
-      console.warn("⚠️ Error fetching time slots:", timeSlotsError)
+      logger.warn("⚠️ Error fetching time slots:", timeSlotsError)
     }
 
     // Get existing matches (résultats du matching automatique)
@@ -143,7 +142,7 @@ export async function GET(
       .order('match_score', { ascending: false })
 
     if (matchesError) {
-      console.warn("⚠️ Error fetching matches:", matchesError)
+      logger.warn("⚠️ Error fetching matches:", matchesError)
     }
 
     // Group availabilities by user
@@ -224,7 +223,7 @@ export async function GET(
       ['planification', 'approuvee'].includes(intervention.status)
     )
 
-    console.log(`✅ Retrieved availabilities: ${stats.total_availability_slots} slots from ${stats.participants_with_availabilities} users`)
+    logger.info(`✅ Retrieved availabilities: ${stats.total_availability_slots} slots from ${stats.participants_with_availabilities} users`)
 
     return NextResponse.json({
       success: true,
@@ -251,7 +250,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error("❌ Error in availabilities GET API:", error)
+    logger.error("❌ Error in availabilities GET API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la récupération des disponibilités'

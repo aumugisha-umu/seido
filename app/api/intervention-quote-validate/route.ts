@@ -4,14 +4,14 @@ import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
 
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-quote-validate API route called")
+  logger.info("✅ intervention-quote-validate API route called")
 
   try {
     // Initialize Supabase client
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log(`📝 ${action === 'approve' ? 'Approving' : 'Rejecting'} quote:`, quoteId)
+    logger.info(`📝 ${action === 'approve' ? 'Approving' : 'Rejecting'} quote:`, quoteId)
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (quoteError || !quote) {
-      console.error("❌ Quote not found:", quoteError)
+      logger.error("❌ Quote not found:", quoteError)
       return NextResponse.json({
         success: false,
         error: 'Devis non trouvé'
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Quote validation checks could be added here if needed
 
-    console.log(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
+    logger.info(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
 
     // Prepare update data
     const updateData = {
@@ -160,18 +160,18 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (updateError) {
-      console.error("❌ Error updating quote:", updateError)
+      logger.error("❌ Error updating quote:", updateError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du devis'
       }, { status: 500 })
     }
 
-    console.log(`✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
+    logger.info(`✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
 
     // If quote is approved, update intervention status and reject other pending quotes
     if (action === 'approve') {
-      console.log("🔄 Updating intervention status to 'planifiee'...")
+      logger.info("🔄 Updating intervention status to 'planifiee'...")
 
       // Update intervention status
       await interventionService.update(quote.intervention_id, {
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Automatically reject other pending quotes for this intervention
-      console.log("🔄 Rejecting other pending quotes for this intervention...")
+      logger.info("🔄 Rejecting other pending quotes for this intervention...")
 
       const { data: otherQuotes } = await supabase
         .from('intervention_quotes')
@@ -226,12 +226,12 @@ export async function POST(request: NextRequest) {
               relatedEntityId: quote.intervention_id
             })
           } catch (notifError) {
-            console.warn(`⚠️ Could not send rejection notification to provider ${otherQuote.provider.id}:`, notifError)
+            logger.warn(`⚠️ Could not send rejection notification to provider ${otherQuote.provider.id}:`, notifError)
           }
         })
 
         await Promise.all(rejectPromises)
-        console.log(`✅ Rejected ${otherQuotes.length} other pending quote(s)`)
+        logger.info(`✅ Rejected ${otherQuotes.length} other pending quote(s)`)
       }
     }
 
@@ -262,9 +262,9 @@ export async function POST(request: NextRequest) {
       }
 
       await notificationService.createNotification(notificationData)
-      console.log(`📧 Quote validation notification sent to provider`)
+      logger.info(`📧 Quote validation notification sent to provider`)
     } catch (notifError) {
-      console.warn("⚠️ Could not send quote validation notification:", notifError)
+      logger.warn("⚠️ Could not send quote validation notification:", notifError)
       // Don't fail the validation for notification errors
     }
 
@@ -277,9 +277,9 @@ export async function POST(request: NextRequest) {
           'planifiee',
           user.id
         )
-        console.log("📧 Intervention status change notifications sent")
+        logger.info("📧 Intervention status change notifications sent")
       } catch (notifError) {
-        console.warn("⚠️ Could not send status change notifications:", notifError)
+        logger.warn("⚠️ Could not send status change notifications:", notifError)
       }
     }
 
@@ -305,8 +305,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-quote-validate API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in intervention-quote-validate API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

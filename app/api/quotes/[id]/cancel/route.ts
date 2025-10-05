@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-
+import { logger, logError } from '@/lib/logger'
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -26,7 +26,7 @@ export async function PATCH(
       .single()
 
     if (userError || !localUser) {
-      console.error('❌ Local user not found for auth user:', authUser.id, userError)
+      logger.error('❌ Local user not found for auth user:', authUser.id, userError)
       return NextResponse.json(
         { error: 'Utilisateur non trouvé' },
         { status: 404 }
@@ -37,7 +37,7 @@ export async function PATCH(
     const resolvedParams = await params
     const quoteId = resolvedParams.id
 
-    console.log('🔍 [QUOTE-CANCEL] Attempting to cancel quote:', quoteId, 'for user:', localUser.id)
+    logger.info('🔍 [QUOTE-CANCEL] Attempting to cancel quote:', quoteId, 'for user:', localUser.id)
 
     // Vérifier que le devis existe et appartient à l'utilisateur actuel
     const { data: quote, error: fetchError } = await supabase
@@ -69,7 +69,7 @@ export async function PATCH(
       .single()
 
     if (fetchError || !quote) {
-      console.log('❌ [QUOTE-CANCEL] Quote not found or unauthorized:', {
+      logger.info('❌ [QUOTE-CANCEL] Quote not found or unauthorized:', {
         quoteId,
         userId: localUser.id,
         fetchError,
@@ -81,7 +81,7 @@ export async function PATCH(
       )
     }
 
-    console.log('✅ [QUOTE-CANCEL] Quote found:', {
+    logger.info('✅ [QUOTE-CANCEL] Quote found:', {
       quoteId: quote.id,
       status: quote.status,
       providerId: quote.provider_id,
@@ -106,7 +106,7 @@ export async function PATCH(
       .eq('id', quoteId)
 
     if (updateError) {
-      console.error('❌ Error cancelling quote:', updateError)
+      logger.error('❌ Error cancelling quote:', updateError)
       return NextResponse.json(
         { error: 'Erreur lors de l\'annulation du devis' },
         { status: 500 }
@@ -169,10 +169,10 @@ export async function PATCH(
         .insert(notificationsToCreate)
 
       if (notificationError) {
-        console.error('❌ Error creating notifications:', notificationError)
+        logger.error('❌ Error creating notifications:', notificationError)
         // Ne pas faire échouer la requête pour les notifications
       } else {
-        console.log('✅ Notifications sent to', notificationsToCreate.length, 'managers')
+        logger.info('✅ Notifications sent to', notificationsToCreate.length, 'managers')
       }
     }
 
@@ -192,7 +192,7 @@ export async function PATCH(
         created_at: new Date().toISOString()
       })
 
-    console.log('✅ Quote cancelled successfully:', quoteId)
+    logger.info('✅ Quote cancelled successfully:', quoteId)
 
     return NextResponse.json(
       { 
@@ -203,7 +203,7 @@ export async function PATCH(
     )
 
   } catch (error) {
-    console.error('❌ Error in quote cancellation:', error)
+    logger.error('❌ Error in quote cancellation:', error)
     return NextResponse.json(
       { error: 'Erreur serveur lors de l\'annulation du devis' },
       { status: 500 }

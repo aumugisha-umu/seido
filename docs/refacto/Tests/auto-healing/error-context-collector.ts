@@ -7,6 +7,7 @@ import { Page } from '@playwright/test'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { ErrorContext } from './config'
+import { logger, logError } from '@/lib/logger'
 
 export class ErrorContextCollector {
   private artifactsDir: string

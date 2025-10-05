@@ -13,7 +13,7 @@ import { cache } from 'react'
 import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
 import { createServerUserService } from '@/lib/services'
 import type { User } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * ✅ PATTERN 2025: getUser() avec cache React et retry logic
  * Fonction centrale pour toute vérification auth server-side
@@ -33,10 +33,10 @@ export const getUser = cache(async () => {
 
       if (error) {
         if (retryCount === maxRetries) {
-          console.log('❌ [AUTH-DAL] Error getting user after retries:', error.message)
+          logger.info('❌ [AUTH-DAL] Error getting user after retries:', error.message)
           return null
         }
-        console.log(`⏳ [AUTH-DAL] Error getting user, retry ${retryCount + 1}/${maxRetries}:`, error.message)
+        logger.info(`⏳ [AUTH-DAL] Error getting user, retry ${retryCount + 1}/${maxRetries}:`, error.message)
         retryCount++
         await new Promise(resolve => setTimeout(resolve, 100))
         continue
@@ -44,23 +44,23 @@ export const getUser = cache(async () => {
 
       if (!user) {
         if (retryCount === maxRetries) {
-          console.log('🔍 [AUTH-DAL] No authenticated user found after retries')
+          logger.info('🔍 [AUTH-DAL] No authenticated user found after retries')
           return null
         }
-        console.log(`⏳ [AUTH-DAL] No user found, retry ${retryCount + 1}/${maxRetries}`)
+        logger.info(`⏳ [AUTH-DAL] No user found, retry ${retryCount + 1}/${maxRetries}`)
         retryCount++
         await new Promise(resolve => setTimeout(resolve, 100))
         continue
       }
 
-      console.log('✅ [AUTH-DAL] User authenticated:', user.email)
+      logger.info('✅ [AUTH-DAL] User authenticated:', user.email)
       return user
     } catch (error) {
       if (retryCount === maxRetries) {
-        console.error('❌ [AUTH-DAL] Exception in getUser after retries:', error)
+        logger.error('❌ [AUTH-DAL] Exception in getUser after retries:', error)
         return null
       }
-      console.log(`⏳ [AUTH-DAL] Exception in getUser, retry ${retryCount + 1}/${maxRetries}:`, error)
+      logger.info(`⏳ [AUTH-DAL] Exception in getUser, retry ${retryCount + 1}/${maxRetries}:`, error)
       retryCount++
       await new Promise(resolve => setTimeout(resolve, 100))
     }
@@ -80,7 +80,7 @@ export const getSession = cache(async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
 
     if (error) {
-      console.log('❌ [AUTH-DAL] Error getting session:', error.message)
+      logger.info('❌ [AUTH-DAL] Error getting session:', error.message)
       return null
     }
 
@@ -88,14 +88,14 @@ export const getSession = cache(async () => {
     if (session?.user) {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
-        console.log('⚠️ [AUTH-DAL] Session exists but user validation failed')
+        logger.info('⚠️ [AUTH-DAL] Session exists but user validation failed')
         return null
       }
     }
 
     return session
   } catch (error) {
-    console.error('❌ [AUTH-DAL] Exception in getSession:', error)
+    logger.error('❌ [AUTH-DAL] Exception in getSession:', error)
     return null
   }
 })
@@ -108,7 +108,7 @@ export async function requireAuth(redirectTo: string = '/auth/login') {
   const user = await getUser()
 
   if (!user) {
-    console.log('🚫 [AUTH-DAL] Authentication required, redirecting to:', redirectTo)
+    logger.info('🚫 [AUTH-DAL] Authentication required, redirecting to:', redirectTo)
     redirect(redirectTo)
   }
 
@@ -127,7 +127,7 @@ export async function requireRole(allowedRoles: string[], redirectTo: string = '
   const userRole = 'admin' // Placeholder - à implémenter selon votre logique
 
   if (!allowedRoles.includes(userRole)) {
-    console.log('🚫 [AUTH-DAL] Insufficient permissions. Required:', allowedRoles, 'Got:', userRole)
+    logger.info('🚫 [AUTH-DAL] Insufficient permissions. Required:', allowedRoles, 'Got:', userRole)
     redirect(redirectTo)
   }
 
@@ -143,7 +143,7 @@ export async function requireGuest(redirectTo: string = '/dashboard') {
 
   if (user) {
     // TODO: Déterminer redirection selon le rôle
-    console.log('🔄 [AUTH-DAL] User already authenticated, redirecting to:', redirectTo)
+    logger.info('🔄 [AUTH-DAL] User already authenticated, redirecting to:', redirectTo)
     redirect(redirectTo)
   }
 
@@ -167,13 +167,13 @@ export const getUserProfile = cache(async () => {
     const userResult = await userService.getByAuthUserId(supabaseUser.id)
 
     if (!userResult.success || !userResult.data) {
-      console.log('⚠️ [AUTH-DAL] Supabase user exists but no profile found in users table:', supabaseUser.email)
+      logger.info('⚠️ [AUTH-DAL] Supabase user exists but no profile found in users table:', supabaseUser.email)
       return null
     }
 
     const userProfile = userResult.data
 
-    console.log('✅ [AUTH-DAL] Complete user profile loaded:', {
+    logger.info('✅ [AUTH-DAL] Complete user profile loaded:', {
       email: userProfile.email,
       role: userProfile.role,
       id: userProfile.id
@@ -184,7 +184,7 @@ export const getUserProfile = cache(async () => {
       profile: userProfile
     }
   } catch (error) {
-    console.error('❌ [AUTH-DAL] Error loading user profile:', error)
+    logger.error('❌ [AUTH-DAL] Error loading user profile:', error)
     return null
   }
 })
@@ -231,9 +231,9 @@ export async function invalidateAuth() {
 
   try {
     await supabase.auth.signOut()
-    console.log('✅ [AUTH-DAL] Session invalidated successfully')
+    logger.info('✅ [AUTH-DAL] Session invalidated successfully')
   } catch (error) {
-    console.error('❌ [AUTH-DAL] Error invalidating session:', error)
+    logger.error('❌ [AUTH-DAL] Error invalidating session:', error)
     throw error
   }
 }

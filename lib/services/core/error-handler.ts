@@ -1,6 +1,6 @@
 import type { PostgrestError } from '@supabase/supabase-js'
 import type { RepositoryError } from './service-types'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Custom error classes for better error handling
  */
@@ -217,14 +217,14 @@ export function handleError(error: unknown, context?: string): RepositoryError {
   // Handle Supabase PostgrestError
   if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
     const repositoryError = transformSupabaseError(error as PostgrestError)
-    console.error(`${contextMessage}Supabase error:`, repositoryError)
+    logger.error(`${contextMessage}Supabase error:`, repositoryError)
     return repositoryError
   }
 
   // Handle JavaScript Error
   if (error instanceof Error) {
     const repositoryError = transformError(error)
-    console.error(`${contextMessage}Error:`, repositoryError)
+    logger.error(`${contextMessage}Error:`, repositoryError)
     return repositoryError
   }
 
@@ -235,7 +235,7 @@ export function handleError(error: unknown, context?: string): RepositoryError {
     details: error
   }
 
-  console.error(`${contextMessage}Unknown error:`, unknownError)
+  logger.error(`${contextMessage}Unknown error:`, unknownError)
   return unknownError
 }
 

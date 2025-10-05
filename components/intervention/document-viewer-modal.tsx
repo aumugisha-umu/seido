@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-
+import { logger, logError } from '@/lib/logger'
 interface Document {
   id: string
   name: string
@@ -92,18 +92,18 @@ export const DocumentViewerModal = ({
     
     try {
       const response = await fetch(`/api/view-intervention-document?documentId=${document.id}`)
-      const _data = await response.json()
-      
+      const data = await response.json()
+
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors du chargement du document')
       }
-      
+
       setViewUrl(data.viewUrl)
       setDocumentInfo(data.document)
       setInterventionInfo(data.intervention)
       
     } catch (error) {
-      console.error("❌ Error loading document view:", error)
+      logger.error("❌ Error loading document view:", error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue')
     } finally {
       setLoading(false)
@@ -131,7 +131,7 @@ export const DocumentViewerModal = ({
           throw new Error(data.error || 'Erreur lors du téléchargement')
         }
       } catch (error) {
-        console.error("❌ Error downloading document:", error)
+        logger.error("❌ Error downloading document:", error)
         setError(error instanceof Error ? error.message : 'Erreur de téléchargement')
       }
     }
@@ -160,7 +160,7 @@ export const DocumentViewerModal = ({
     setRotation(0)
   }
 
-  const getDocumentTypeColor = (_type: string) => {
+  const getDocumentTypeColor = (type: string) => {
     switch (type) {
       case 'rapport': return 'bg-blue-100 text-blue-800'
       case 'photo_avant': 
@@ -174,7 +174,7 @@ export const DocumentViewerModal = ({
     }
   }
 
-  const getDocumentTypeLabel = (_type: string) => {
+  const getDocumentTypeLabel = (type: string) => {
     switch (type) {
       case 'rapport': return 'Rapport'
       case 'photo_avant': return 'Photo avant'
@@ -196,8 +196,8 @@ export const DocumentViewerModal = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
   }
 
-  const isImage = (_mimeType: string) => mimeType.startsWith('image/')
-  const isPDF = (_mimeType: string) => mimeType === 'application/pdf'
+  const isImage = (mimeType: string) => mimeType.startsWith('image/')
+  const isPDF = (mimeType: string) => mimeType === 'application/pdf'
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

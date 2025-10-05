@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Lock, 
-  Mail, 
-  Eye, 
-  EyeOff, 
-  CheckCircle, 
-  AlertCircle, 
+import { logger, logError } from '@/lib/logger'
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
   Shield,
 } from "lucide-react"
 
@@ -104,7 +105,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
         }),
       })
 
-      const _data = await response.json()
+      const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || "Erreur lors du changement de mot de passe")
@@ -119,7 +120,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
       handleClose()
 
     } catch (error) {
-      console.error("Error changing password:", error)
+      logger.error("Error changing password:", error)
       setError(error instanceof Error ? error.message : "Erreur inconnue")
     } finally {
       setIsLoading(false)
@@ -363,7 +364,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
       }, 1000)
 
     } catch (error) {
-      console.error("Error changing email:", error)
+      logger.error("Error changing email:", error)
       setError(error instanceof Error ? error.message : "Erreur inconnue")
     } finally {
       setIsLoading(false)

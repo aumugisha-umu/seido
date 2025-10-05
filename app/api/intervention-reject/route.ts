@@ -4,14 +4,14 @@ import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
 
 
 export async function POST(request: NextRequest) {
-  console.log("❌ intervention-reject API route called")
+  logger.info("❌ intervention-reject API route called")
   
   try {
     // Initialize Supabase client
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Rejecting intervention:", interventionId, "Reason:", rejectionReason)
+    logger.info("📝 Rejecting intervention:", interventionId, "Reason:", rejectionReason)
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error("❌ Intervention not found:", interventionError)
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("🔄 Updating intervention status to 'rejetee'...")
+    logger.info("🔄 Updating intervention status to 'rejetee'...")
 
     // Build manager comment with rejection reason and internal comment
     const managerCommentParts = [`REJETÉ: ${rejectionReason}`]
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     })
 
-    console.log("❌ Intervention rejected successfully")
+    logger.info("❌ Intervention rejected successfully")
 
     // Send notifications with proper logic (personal/team)
     try {
@@ -142,9 +142,9 @@ export async function POST(request: NextRequest) {
         user.id,
         rejectionReason // Pass the rejection reason
       )
-      console.log("📧 Rejection notifications sent with proper logic")
+      logger.info("📧 Rejection notifications sent with proper logic")
     } catch (notifError) {
-      console.warn("⚠️ Could not send notifications:", notifError)
+      logger.warn("⚠️ Could not send notifications:", notifError)
       // Don't fail the rejection for notification errors
     }
 
@@ -161,8 +161,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-reject API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in intervention-reject API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

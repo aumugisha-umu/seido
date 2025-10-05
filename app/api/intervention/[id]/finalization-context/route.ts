@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -64,7 +64,7 @@ export async function GET(
       }, { status: 403 })
     }
 
-    console.log(`📊 Fetching finalization context for intervention:`, interventionId)
+    logger.info(`📊 Fetching finalization context for intervention:`, interventionId)
 
     // Fetch intervention with basic info
     const { data: intervention, error: interventionError } = await supabase
@@ -132,7 +132,7 @@ export async function GET(
       .maybeSingle()
 
     if (workError) {
-      console.warn('⚠️ Error fetching work completion:', workError)
+      logger.warn('⚠️ Error fetching work completion:', workError)
     }
 
     // Fetch tenant validation if exists
@@ -145,7 +145,7 @@ export async function GET(
       .maybeSingle()
 
     if (validationError) {
-      console.warn('⚠️ Error fetching tenant validation:', validationError)
+      logger.warn('⚠️ Error fetching tenant validation:', validationError)
     }
 
     // Fetch selected quote if exists
@@ -166,7 +166,7 @@ export async function GET(
       .limit(1)
 
     if (quotesError) {
-      console.warn('⚠️ Error fetching quotes:', quotesError)
+      logger.warn('⚠️ Error fetching quotes:', quotesError)
     }
 
     const selectedQuote = quotes && quotes.length > 0 ? quotes[0] : null
@@ -188,7 +188,7 @@ export async function GET(
       .eq('intervention_id', interventionId)
 
     if (contactsError) {
-      console.warn('⚠️ Error fetching contacts:', contactsError)
+      logger.warn('⚠️ Error fetching contacts:', contactsError)
     }
 
     // Check if there's already a finalization record
@@ -201,7 +201,7 @@ export async function GET(
       .maybeSingle()
 
     if (finalizationError) {
-      console.warn('⚠️ Error checking existing finalization:', finalizationError)
+      logger.warn('⚠️ Error checking existing finalization:', finalizationError)
     }
 
     // Build response data
@@ -271,8 +271,8 @@ export async function GET(
       } : null
     }
 
-    console.log(`✅ Finalization context fetched successfully`)
-    console.log(`📋 Context includes: intervention=${!!responseData.intervention}, workCompletion=${!!responseData.workCompletion}, tenantValidation=${!!responseData.tenantValidation}, quote=${!!responseData.selectedQuote}`)
+    logger.info(`✅ Finalization context fetched successfully`)
+    logger.info(`📋 Context includes: intervention=${!!responseData.intervention}, workCompletion=${!!responseData.workCompletion}, tenantValidation=${!!responseData.tenantValidation}, quote=${!!responseData.selectedQuote}`)
 
     return NextResponse.json({
       success: true,
@@ -280,7 +280,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error("❌ Error in finalization context API:", error)
+    logger.error("❌ Error in finalization context API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

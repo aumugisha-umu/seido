@@ -4,14 +4,14 @@ import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
 
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-approve API route called")
+  logger.info("✅ intervention-approve API route called")
   
   try {
     // Initialize Supabase client
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Approving intervention:", interventionId)
+    logger.info("📝 Approving intervention:", interventionId)
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error("❌ Intervention not found:", interventionError)
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("🔄 Updating intervention status to 'approuvee'...")
+    logger.info("🔄 Updating intervention status to 'approuvee'...")
 
     // Update intervention status and add internal comment
     const updatedIntervention = await interventionService.update(interventionId, {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     })
 
-    console.log("✅ Intervention approved successfully")
+    logger.info("✅ Intervention approved successfully")
 
     // Send notifications with proper logic (personal/team)
     try {
@@ -133,9 +133,9 @@ export async function POST(request: NextRequest) {
         'approuvee', 
         user.id
       )
-      console.log("📧 Notifications sent with proper logic")
+      logger.info("📧 Notifications sent with proper logic")
     } catch (notifError) {
-      console.warn("⚠️ Could not send notifications:", notifError)
+      logger.warn("⚠️ Could not send notifications:", notifError)
       // Don't fail the approval for notification errors
     }
 
@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-approve API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in intervention-approve API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

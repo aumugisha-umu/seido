@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🎛️ COMPOSANT CLIENT - Locataire Dashboard (Interactions)
  * Seulement les parties interactives du dashboard locataire
@@ -16,7 +16,7 @@ export function LocataireDashboardClient() {
   useDashboardSessionTimeout()
 
   const handleNewIntervention = () => {
-    console.log('📝 [LOCATAIRE-CLIENT] Creating new intervention...')
+    logger.info('📝 [LOCATAIRE-CLIENT] Creating new intervention...')
     router.push('/locataire/interventions/nouvelle-demande')
   }
 

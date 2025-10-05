@@ -36,6 +36,7 @@ import { contactService, interventionService, lotService, buildingService, deter
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
 import { ContactDetailHeader } from "@/components/contact-detail-header"
+import { logger, logError } from '@/lib/logger'
 
 interface ContactData {
   id: string

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2 } from "lucide-react"
 import { SignupForm } from "./signup-form"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 PAGE SIGNUP - SERVER COMPONENT (Migration Server Components)
  *
@@ -13,7 +13,7 @@ import { SignupForm } from "./signup-form"
  */
 
 export default function SignupPage() {
-  console.log('🔄 [SIGNUP-SERVER] Signup page rendered server-side')
+  logger.info('🔄 [SIGNUP-SERVER] Signup page rendered server-side')
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

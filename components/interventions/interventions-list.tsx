@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
 import type { InterventionWithRelations } from "@/lib/services"
-
+import { logger, logError } from '@/lib/logger'
 interface EmptyStateConfig {
   title: string
   description: string
@@ -61,7 +61,7 @@ export function InterventionsList({
   // Handle action completion callback
   const handleActionComplete = () => {
     // Could trigger a refresh of the interventions list if needed
-    console.log('[InterventionsList] Action completed, list may need refresh')
+    logger.info('[InterventionsList] Action completed, list may need refresh')
   }
 
   // Compact rendering for dashboard

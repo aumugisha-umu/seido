@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from './database.types'
 import { createServerUserService } from './services'
-
+import { logger, logError } from '@/lib/logger'
 export interface AuthUser {
   id: string
   email: string
@@ -70,11 +70,11 @@ export const verifySession = cache(async (): Promise<{ isValid: boolean; user: A
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
-      console.log('🚫 [DAL] No valid session found:', error?.message || 'No user')
+      logger.info('🚫 [DAL] No valid session found:', error?.message || 'No user')
       return { isValid: false, user: null }
     }
 
-    console.log('✅ [DAL] Valid session found for user:', user.id)
+    logger.info('✅ [DAL] Valid session found for user:', user.id)
 
     // Récupérer le profil utilisateur complet depuis la base de données
     const userService = await createServerUserService()
@@ -82,7 +82,7 @@ export const verifySession = cache(async (): Promise<{ isValid: boolean; user: A
     const userProfile = result.success ? result.data : null
 
     if (!userProfile) {
-      console.log('⚠️ [DAL] User authenticated but no profile found')
+      logger.info('⚠️ [DAL] User authenticated but no profile found')
       return { isValid: false, user: null }
     }
 
@@ -102,7 +102,7 @@ export const verifySession = cache(async (): Promise<{ isValid: boolean; user: A
       updated_at: userProfile.updated_at
     }
 
-    console.log('✅ [DAL] Complete user profile loaded:', {
+    logger.info('✅ [DAL] Complete user profile loaded:', {
       id: authUser.id,
       email: authUser.email,
       name: authUser.name,
@@ -113,7 +113,7 @@ export const verifySession = cache(async (): Promise<{ isValid: boolean; user: A
 
     return { isValid: true, user: authUser }
   } catch (error) {
-    console.error('❌ [DAL] Session verification failed:', error)
+    logger.error('❌ [DAL] Session verification failed:', error)
     return { isValid: false, user: null }
   }
 })
@@ -126,7 +126,7 @@ export const getAuthenticatedUser = cache(async (): Promise<AuthUser> => {
   const { isValid, user } = await verifySession()
 
   if (!isValid || !user) {
-    console.log('🚫 [DAL] Unauthenticated user detected, redirecting to login')
+    logger.info('🚫 [DAL] Unauthenticated user detected, redirecting to login')
     redirect('/auth/login?reason=session_invalid')
   }
 
@@ -140,7 +140,7 @@ export const requireRole = cache(async (requiredRole: Database['public']['Enums'
   const user = await getAuthenticatedUser()
 
   if (user.role !== requiredRole) {
-    console.log(`🚫 [DAL] User ${user.id} has role ${user.role}, required: ${requiredRole}`)
+    logger.info(`🚫 [DAL] User ${user.id} has role ${user.role}, required: ${requiredRole}`)
     redirect('/auth/unauthorized')
   }
 
@@ -154,7 +154,7 @@ export const requireAnyRole = cache(async (allowedRoles: Database['public']['Enu
   const user = await getAuthenticatedUser()
 
   if (!allowedRoles.includes(user.role)) {
-    console.log(`🚫 [DAL] User ${user.id} has role ${user.role}, allowed: [${allowedRoles.join(', ')}]`)
+    logger.info(`🚫 [DAL] User ${user.id} has role ${user.role}, allowed: [${allowedRoles.join(', ')}]`)
     redirect('/auth/unauthorized')
   }
 
@@ -216,7 +216,7 @@ export const requirePermission = cache(async (_permission: string): Promise<Auth
   const userHasPermission = await hasPermission(permission)
 
   if (!userHasPermission) {
-    console.log(`🚫 [DAL] User ${user.id} lacks permission: ${permission}`)
+    logger.info(`🚫 [DAL] User ${user.id} lacks permission: ${permission}`)
     redirect('/auth/unauthorized')
   }
 

@@ -99,7 +99,7 @@ describe('InterventionWorkflow', () => {
 
       mockHandleScheduling.mockResolvedValue({
         ...intervention,
-        status: 'programmee',
+        status: 'planifiee',
         scheduled_date: '2024-09-26T00:00:00Z',
         scheduled_start_time: '09:00:00',
         scheduled_end_time: '12:00:00',
@@ -108,7 +108,7 @@ describe('InterventionWorkflow', () => {
 
       const result = await mockHandleScheduling(intervention.id, schedulingData)
 
-      expect(result.status).toBe('programmee')
+      expect(result.status).toBe('planifiee')
       expect(result.scheduled_date).toBe('2024-09-26T00:00:00Z')
       expect(result.scheduled_start_time).toBe('09:00:00')
     })
@@ -147,7 +147,7 @@ describe('InterventionWorkflow', () => {
 
   describe('handleExecution', () => {
     it('should start intervention execution', async () => {
-      const intervention = createMockIntervention('programmee')
+      const intervention = createMockIntervention('planifiee')
       const executionData = {
         action: 'start' as const,
         comment: 'Starting work now',
@@ -169,7 +169,7 @@ describe('InterventionWorkflow', () => {
     })
 
     it('should cancel intervention', async () => {
-      const intervention = createMockIntervention('programmee')
+      const intervention = createMockIntervention('planifiee')
       const executionData = {
         action: 'cancel' as const,
         comment: 'Unable to access property',
@@ -195,9 +195,9 @@ describe('InterventionWorkflow', () => {
     const validTransitions = [
       { from: 'nouvelle-demande', to: 'approuvee', action: 'approve' },
       { from: 'nouvelle-demande', to: 'rejetee', action: 'reject' },
-      { from: 'approuvee', to: 'programmee', action: 'schedule' },
+      { from: 'approuvee', to: 'planifiee', action: 'schedule' },
       { from: 'approuvee', to: 'devis-a-fournir', action: 'require_quote' },
-      { from: 'programmee', to: 'en-cours', action: 'start' },
+      { from: 'planifiee', to: 'en-cours', action: 'start' },
       { from: 'en-cours', to: 'paiement-a-recevoir', action: 'complete' },
       { from: 'paiement-a-recevoir', to: 'terminee', action: 'finalize' }
     ]

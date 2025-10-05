@@ -44,6 +44,7 @@ import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
+import { logger, logError } from '@/lib/logger'
 
 export default function NouvelleInterventionPage() {
   console.log("🚀 NouvelleInterventionPage - Composant initialisé")

@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/modal"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
+import { logger, logError } from '@/lib/logger'
 interface Quote {
   id: string
   provider: {
@@ -54,7 +54,7 @@ export function QuoteValidationModal({
       setComments('')
       onClose()
     } catch (error) {
-      console.error('Error validating quote:', error)
+      logger.error('Error validating quote:', error)
     } finally {
       setIsSubmitting(false)
     }

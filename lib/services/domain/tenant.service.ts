@@ -7,7 +7,7 @@ import { UserService, createUserService, createServerUserService } from './user.
 import { LotService, createLotService, createServerLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService } from './contact.service'
 import type { ServiceResult, User, Lot, Intervention } from '../core/service-types'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Tenant data with related information
  */
@@ -38,24 +38,24 @@ export class TenantService {
    * Get comprehensive tenant data by user ID
    */
   async getTenantData(_userId: string): Promise<TenantData | null> {
-    console.log("👤 getTenantData called for userId:", _userId)
+    logger.info("👤 getTenantData called for userId:", _userId)
 
     try {
       // Handle JWT-only IDs
-      let actualUserId = userId
-      if (userId.startsWith('jwt_')) {
-        const authUserId = userId.replace('jwt_', '')
+      let actualUserId = _userId
+      if (_userId.startsWith('jwt_')) {
+        const authUserId = _userId.replace('jwt_', '')
         const userResult = await this.userService.getByAuthUserId?.(authUserId)
 
         if (userResult?.success && userResult.data) {
           actualUserId = userResult.data.id
-          console.log("🔄 [TENANT-SERVICE] Resolved JWT user ID:", {
+          logger.info("🔄 [TENANT-SERVICE] Resolved JWT user ID:", {
             original: _userId,
             authUserId,
             actualUserId: actualUserId
           })
         } else {
-          console.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", _userId)
+          logger.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", _userId)
           return null
         }
       }
@@ -63,7 +63,7 @@ export class TenantService {
       // Get user data
       const userResult = await this.userService.getById(actualUserId)
       if (!userResult.success) {
-        console.error("❌ [TENANT-SERVICE] User not found:", actualUserId)
+        logger.error("❌ [TENANT-SERVICE] User not found:", actualUserId)
         return null
       }
 
@@ -91,7 +91,7 @@ export class TenantService {
       }
 
     } catch (error) {
-      console.error("❌ [TENANT-SERVICE] Error getting tenant data:", error)
+      logger.error("❌ [TENANT-SERVICE] Error getting tenant data:", error)
       return null
     }
   }
@@ -108,7 +108,7 @@ export class TenantService {
     try {
       // This would require integration with contact service to get lot_contacts
       // For now, we'll return an empty array and implement proper logic later
-      console.log("🏠 [TENANT-SERVICE] Getting lots for tenant:", _userId)
+      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant:", _userId)
 
       // Get all lots and filter by tenant assignments
       const lotsResult = await this.lotService.getAll()
@@ -127,11 +127,11 @@ export class TenantService {
           end_date: undefined
         }))
 
-      console.log("✅ [TENANT-SERVICE] Found tenant lots:", tenantLots.length)
+      logger.info("✅ [TENANT-SERVICE] Found tenant lots:", tenantLots.length)
       return tenantLots
 
     } catch (error) {
-      console.error("❌ [TENANT-SERVICE] Error getting tenant lots:", error)
+      logger.error("❌ [TENANT-SERVICE] Error getting tenant lots:", error)
       return []
     }
   }
@@ -141,14 +141,14 @@ export class TenantService {
    */
   private async getTenantInterventions(_userId: string): Promise<Intervention[]> {
     try {
-      console.log("🔧 [TENANT-SERVICE] Getting interventions for tenant:", _userId)
+      logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", _userId)
 
       // This would require intervention service integration
       // For now, return empty array and implement proper logic later
       return []
 
     } catch (error) {
-      console.error("❌ [TENANT-SERVICE] Error getting tenant interventions:", error)
+      logger.error("❌ [TENANT-SERVICE] Error getting tenant interventions:", error)
       return []
     }
   }
@@ -167,7 +167,7 @@ export class TenantService {
       return user.role === 'locataire' || user.role === 'tenant'
 
     } catch (error) {
-      console.error("❌ [TENANT-SERVICE] Error validating tenant:", error)
+      logger.error("❌ [TENANT-SERVICE] Error validating tenant:", error)
       return false
     }
   }

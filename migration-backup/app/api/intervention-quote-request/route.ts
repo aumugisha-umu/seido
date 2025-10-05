@@ -4,6 +4,7 @@ import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis

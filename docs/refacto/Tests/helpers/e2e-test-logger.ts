@@ -7,6 +7,7 @@ import { Page } from '@playwright/test'
 import pino from 'pino'
 import path from 'path'
 import { createE2ELogger, logPerformanceMetrics, logTestError } from '../config/pino-test.config'
+import { logger, logError } from '@/lib/logger'
 
 export interface TestStep {
   name: string

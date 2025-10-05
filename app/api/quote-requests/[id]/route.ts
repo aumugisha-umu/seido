@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -16,7 +16,7 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("✅ quote-requests/[id] GET API route called for ID:", resolvedParams.id)
+  logger.info("✅ quote-requests/[id] GET API route called for ID:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (quoteRequestError || !quoteRequest) {
-      console.error("❌ Quote request not found:", quoteRequestError)
+      logger.error("❌ Quote request not found:", quoteRequestError)
       return NextResponse.json({
         success: false,
         error: 'Demande de devis non trouvée'
@@ -94,9 +94,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })
 
       if (markViewedError) {
-        console.warn("⚠️ Could not mark quote request as viewed:", markViewedError)
+        logger.warn("⚠️ Could not mark quote request as viewed:", markViewedError)
       } else {
-        console.log("✅ Quote request marked as viewed")
+        logger.info("✅ Quote request marked as viewed")
       }
     }
 
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error("❌ Error in quote-requests/[id] GET API:", error)
+    logger.error("❌ Error in quote-requests/[id] GET API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération de la demande de devis'
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("✅ quote-requests/[id] PATCH API route called for ID:", resolvedParams.id)
+  logger.info("✅ quote-requests/[id] PATCH API route called for ID:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -230,7 +230,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (updateError) {
-      console.error("❌ Error updating quote request:", updateError)
+      logger.error("❌ Error updating quote request:", updateError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la modification de la demande de devis'
@@ -248,7 +248,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error("❌ Error in quote-requests/[id] PATCH API:", error)
+    logger.error("❌ Error in quote-requests/[id] PATCH API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la modification de la demande de devis'
@@ -258,7 +258,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("✅ quote-requests/[id] DELETE API route called for ID:", resolvedParams.id)
+  logger.info("✅ quote-requests/[id] DELETE API route called for ID:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -342,7 +342,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('id', resolvedParams.id)
 
     if (deleteError) {
-      console.error("❌ Error deleting quote request:", deleteError)
+      logger.error("❌ Error deleting quote request:", deleteError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la suppression de la demande de devis'
@@ -355,7 +355,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error("❌ Error in quote-requests/[id] DELETE API:", error)
+    logger.error("❌ Error in quote-requests/[id] DELETE API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la suppression de la demande de devis'

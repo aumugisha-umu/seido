@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AlertTriangle } from "lucide-react"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
-
+import { logger, logError } from '@/lib/logger'
 interface CancelConfirmationModalProps {
   isOpen: boolean
   onClose: () => void
@@ -39,7 +39,7 @@ export const CancelConfirmationModal = ({
       onConfirm()
     } else {
       // Forcer l'affichage de l'erreur si le formulaire n'est pas valide
-      console.log('Form validation failed:', { 
+      logger.info('Form validation failed:', { 
         cancellationReason, 
         trimmed: cancellationReason.trim(), 
         length: cancellationReason.trim().length,

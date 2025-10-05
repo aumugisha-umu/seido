@@ -10,12 +10,11 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTenantData } from "@/hooks/use-tenant-data"
 
-const getStatusIcon = (_status: string) => {
+const getStatusIcon = (status: string) => {
   switch (status) {
-    case "nouvelle_demande":
-    case "en_attente_validation":
+    case "demande":
       return <Clock className="h-4 w-4" />
-    case "validee":
+    case "approuvee":
     case "en_cours":
       return <AlertTriangle className="h-4 w-4" />
     case "terminee":
@@ -25,7 +24,7 @@ const getStatusIcon = (_status: string) => {
   }
 }
 
-const getStatusColor = (_status: string) => {
+const getStatusColor = (status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -62,7 +61,7 @@ const getStatusColor = (_status: string) => {
   }
 }
 
-const getStatusLabel = (_status: string) => {
+const getStatusLabel = (status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -99,7 +98,7 @@ const getStatusLabel = (_status: string) => {
   }
 }
 
-const getPriorityColor = (_priority: string) => {
+const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "critique":
       return "bg-red-100 text-red-800"
@@ -113,10 +112,10 @@ const getPriorityColor = (_priority: string) => {
 }
 
 export default function LocataireInterventionsPage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { tenantInterventions, loading, error } = useTenantData()
 
-  const handleViewDetails = (_interventionId: string) => {
+  const handleViewDetails = (interventionId: string) => {
     router.push(`/locataire/interventions/${interventionId}`)
   }
 
@@ -234,7 +233,10 @@ export default function LocataireInterventionsPage() {
 
                       <div className="mt-2 text-sm text-gray-500">
                         <span>
-                          <strong>Assignée à:</strong> {intervention.assigned_to || "En attente d'assignation"}
+                          <strong>Assignée à:</strong> {
+                            intervention.intervention_contacts?.find(c => c.role === 'prestataire' && c.is_primary)?.user?.name
+                            || "En attente d'assignation"
+                          }
                         </span>
                       </div>
                     </div>

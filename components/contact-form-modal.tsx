@@ -12,7 +12,7 @@ import { Building2, Mail, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 import { supabase } from "@/lib/supabase"
-
+import { logger, logError } from '@/lib/logger'
 interface ContactFormModalProps {
   isOpen: boolean
   onClose: () => void
@@ -27,7 +27,6 @@ interface ContactFormData {
   lastName: string
   email: string
   phone: string
-  address: string
   speciality?: string
   notes: string
   inviteToApp: boolean
@@ -100,7 +99,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
     lastName: "",
     email: "",
     phone: "",
-    address: "",
     speciality: "",
     notes: "",
     inviteToApp: shouldInviteByDefault(defaultType),
@@ -143,13 +141,13 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         .single()
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Erreur lors de la vérification de l\'email:', error)
+        logger.error('Erreur lors de la vérification de l\'email:', error)
         return false
       }
 
       return data !== null
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'email:', error)
+      logger.error('Erreur lors de la vérification de l\'email:', error)
       return false
     }
   }
@@ -202,19 +200,19 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (isSubmitting) return
 
     setIsSubmitting(true)
     setErrors({})
-    
+
     try {
       // Validation complète du formulaire
       const validation = await validateForm()
-      
+
       if (!validation.isValid) {
         setErrors(validation.errors)
-        
+
         // Afficher un toast d'erreur général
         const firstError = Object.values(validation.errors)[0]
         toast({
@@ -222,9 +220,8 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
           description: firstError || "Veuillez corriger les erreurs dans le formulaire",
           variant: "destructive"
         })
-        
-        setIsSubmitting(false)
-        return
+
+        return // ✅ FIX: Pas besoin de setIsSubmitting(false) ici, le finally le fera
       }
 
       // Appeler la fonction onSubmit et attendre sa completion
@@ -232,7 +229,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
 
       // Construire le message de succès adapté selon l'invitation
       const contactName = `${formData.firstName} ${formData.lastName}`
-      const invitationMessage = formData.inviteToApp 
+      const invitationMessage = formData.inviteToApp
         ? "Une invitation à rejoindre l'application a été envoyée par email."
         : "Aucune invitation n'a été envoyée."
 
@@ -250,7 +247,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         lastName: "",
         email: "",
         phone: "",
-        address: "",
         speciality: "",
         notes: "",
         inviteToApp: shouldInviteByDefault(defaultType),
@@ -265,13 +261,13 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         try {
           await onSuccess()
         } catch (refreshError) {
-          console.error('❌ Erreur lors du rafraîchissement des données:', refreshError)
+          logger.error('❌ Erreur lors du rafraîchissement des données:', refreshError)
           // Le toast de succès a déjà été affiché, on n'affiche pas d'erreur pour ne pas confuser l'utilisateur
         }
       }
 
     } catch (error: unknown) {
-      console.error('❌ Erreur lors de la création du contact:', error)
+      logger.error('❌ Erreur lors de la création du contact:', error)
       
       // Gestion des erreurs spécifiques
       let errorMessage = "Une erreur est survenue lors de la création du contact. Veuillez réessayer."
@@ -305,7 +301,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
       lastName: "",
       email: "",
       phone: "",
-      address: "",
       speciality: "",
       notes: "",
       inviteToApp: shouldInviteByDefault(defaultType),

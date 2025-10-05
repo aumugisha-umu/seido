@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { notificationService } from '@/lib/notification-service'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -132,7 +132,7 @@ export async function POST(
       }, { status: 403 })
     }
 
-    console.log(`📝 Processing tenant validation (${validationType}) for intervention:`, interventionId)
+    logger.info(`📝 Processing tenant validation (${validationType}) for intervention:`, interventionId)
 
     // TODO: Handle issue photos upload to Supabase Storage
     const processedIssuePhotos = issues?.photos || []
@@ -164,7 +164,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      console.error("❌ Error creating tenant validation record:", insertError)
+      logger.error("❌ Error creating tenant validation record:", insertError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde de la validation'
@@ -182,14 +182,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      console.error("❌ Error updating intervention status:", updateError)
+      logger.error("❌ Error updating intervention status:", updateError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    console.log(`✅ Tenant validation (${validationType}) submitted successfully`)
+    logger.info(`✅ Tenant validation (${validationType}) submitted successfully`)
 
     // Send notifications
     try {
@@ -234,9 +234,9 @@ export async function POST(
       }) || []
 
       await Promise.all(notificationPromises)
-      console.log(`📧 Tenant validation notifications sent for ${validationType}`)
+      logger.info(`📧 Tenant validation notifications sent for ${validationType}`)
     } catch (notifError) {
-      console.warn("⚠️ Could not send tenant validation notifications:", notifError)
+      logger.warn("⚠️ Could not send tenant validation notifications:", notifError)
     }
 
     return NextResponse.json({
@@ -253,7 +253,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error("❌ Error in tenant validation API:", error)
+    logger.error("❌ Error in tenant validation API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

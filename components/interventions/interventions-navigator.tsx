@@ -65,7 +65,7 @@ export function InterventionsNavigator({
   })
 
   // Filter function for interventions based on tab (NOUVEAU WORKFLOW)
-  const getFilteredInterventions = (_tabId: string) => {
+  const getFilteredInterventions = (tabId: string) => {
     let baseInterventions = interventions
 
     if (tabId === "toutes") {
@@ -120,7 +120,7 @@ export function InterventionsNavigator({
   }
 
   // Function to render interventions list
-  const renderInterventionsList = (_tabId: string) => {
+  const renderInterventionsList = (tabId: string) => {
     const filteredData = getFilteredInterventions(tabId)
     
     const defaultEmptyConfig = {
@@ -214,7 +214,7 @@ export function InterventionsNavigator({
     }
   ] : []
 
-  const handleSearch = (_value: string) => {
+  const handleSearch = (value: string) => {
     setSearchTerm(value)
   }
 

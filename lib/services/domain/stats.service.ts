@@ -14,9 +14,10 @@ import {
   type DashboardStats
 } from '../repositories/stats.repository'
 import { UserService, createUserService, createServerUserService } from './user.service'
+import { InterventionRepository, createInterventionRepository } from '../repositories/intervention.repository'
 import { ValidationException, PermissionException } from '../core/error-handler'
 import type { User, ServiceResult } from '../core/service-types'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Stats query options
  */
@@ -56,7 +57,8 @@ export interface StatsExport {
 export class StatsService {
   constructor(
     private repository: StatsRepository,
-    private userService?: UserService
+    private userService?: UserService,
+    private interventionRepository?: InterventionRepository
   ) {}
 
   /**
@@ -545,16 +547,112 @@ export class StatsService {
       .map(([key, value]) => `${key},${value}`)
       .join('\n')
   }
+
+  /**
+   * Get manager-specific stats with recent interventions
+   */
+  async getManagerStats(userId: string): Promise<any> {
+    try {
+      // Get user's team ID
+      const user = this.userService ? await this.userService.getById(userId) : null
+      const teamId = user?.data?.team_id
+
+      if (!teamId) {
+        // Return empty stats if no team
+        return {
+          stats: {
+            buildingsCount: 0,
+            lotsCount: 0,
+            occupiedLotsCount: 0,
+            occupancyRate: 0,
+            contactsCount: 0,
+            interventionsCount: 0
+          },
+          buildings: [],
+          lots: [],
+          contacts: [],
+          interventions: [],
+          recentInterventions: []
+        }
+      }
+
+      // Get team stats which includes building/lot counts
+      const teamStatsResult = await this.repository.getTeamStats(teamId)
+
+      // Fetch recent interventions requiring manager action
+      let recentInterventions: any[] = []
+      if (this.interventionRepository) {
+        try {
+          // Get all interventions with relations
+          const interventionsResult = await this.interventionRepository.findAllWithRelations({ limit: 100 })
+
+          if (interventionsResult.success && interventionsResult.data) {
+            // Filter interventions for this team and requiring manager action, then limit to 10 most recent
+            recentInterventions = interventionsResult.data
+              .filter((intervention: any) => {
+                // Check if intervention belongs to this team (via building relationship)
+                const belongsToTeam = intervention.building?.team_id === teamId
+
+                // Check if intervention requires manager action
+                const requiresAction = [
+                  'demande',
+                  'approuvee',
+                  'demande_de_devis',
+                  'planification',
+                  'planifiee',
+                  'en_cours'
+                ].includes(intervention.status)
+
+                return belongsToTeam && requiresAction
+              })
+              .sort((a: any, b: any) => {
+                // Sort by created_at descending (most recent first)
+                const dateA = new Date(a.created_at).getTime()
+                const dateB = new Date(b.created_at).getTime()
+                return dateB - dateA
+              })
+              .slice(0, 10) // Limit to 10 most recent
+          }
+        } catch (interventionError) {
+          logger.error('⚠️ Error fetching recent interventions:', interventionError)
+          // Continue with empty array if intervention fetch fails
+        }
+      }
+
+      const result = {
+        stats: {
+          buildingsCount: teamStatsResult.data.buildingCount || 0,
+          lotsCount: teamStatsResult.data.lotCount || 0,
+          occupiedLotsCount: teamStatsResult.data.occupiedLots || 0,
+          occupancyRate: teamStatsResult.data.occupancyRate || 0,
+          contactsCount: teamStatsResult.data.contactCount || 0,
+          interventionsCount: teamStatsResult.data.interventionCount || 0
+        },
+        buildings: [],
+        lots: [],
+        contacts: [],
+        interventions: [],
+        recentInterventions
+      }
+
+      return result
+    } catch (error) {
+      logger.error('❌ Error getting manager stats:', error)
+      throw error
+    }
+  }
 }
 
 // Factory functions for creating service instances
 export const createStatsService = (
   repository?: StatsRepository,
-  userService?: UserService
+  userService?: UserService,
+  interventionRepository?: InterventionRepository
 ) => {
   const repo = repository || createStatsRepository()
   const users = userService || createUserService()
-  return new StatsService(repo, users)
+  const interventions = interventionRepository || createInterventionRepository()
+  return new StatsService(repo, users, interventions)
 }
 
 export const createServerStatsService = async () => {
@@ -562,5 +660,7 @@ export const createServerStatsService = async () => {
     createServerStatsRepository(),
     createServerUserService()
   ])
-  return new StatsService(repository, userService)
+  // Note: Server intervention repository would need async creation
+  const interventionRepo = createInterventionRepository()
+  return new StatsService(repository, userService, interventionRepo)
 }

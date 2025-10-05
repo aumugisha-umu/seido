@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-
+import { logger, logError } from '@/lib/logger'
 export interface UserAvailability {
   id?: string
   date: string
@@ -153,7 +153,7 @@ export const useAvailabilityManagement = (_interventionId: string) => {
       })))
 
     } catch (err) {
-      console.error('Error loading availabilities:', err)
+      logger.error('Error loading availabilities:', err)
       setError(err instanceof Error ? err.message : 'Erreur de chargement')
     } finally {
       setIsLoading(false)
@@ -194,7 +194,7 @@ export const useAvailabilityManagement = (_interventionId: string) => {
       return true
 
     } catch (err) {
-      console.error('Error saving availabilities:', err)
+      logger.error('Error saving availabilities:', err)
       setError(err instanceof Error ? err.message : 'Erreur de sauvegarde')
       return false
     } finally {
@@ -232,7 +232,7 @@ export const useAvailabilityManagement = (_interventionId: string) => {
       return true
 
     } catch (err) {
-      console.error('Error running matching:', err)
+      logger.error('Error running matching:', err)
       setError(err instanceof Error ? err.message : 'Erreur de matching')
       return false
     } finally {
@@ -278,7 +278,7 @@ export const useAvailabilityManagement = (_interventionId: string) => {
       return true
 
     } catch (err) {
-      console.error('Error selecting slot:', err)
+      logger.error('Error selecting slot:', err)
       setError(err instanceof Error ? err.message : 'Erreur de sélection')
       return false
     } finally {

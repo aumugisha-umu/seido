@@ -1,5 +1,6 @@
 import { supabaseLogger, logSupabaseOperation } from './logger'
 import type { SupabaseClient, ServerSupabaseClient } from './services/core/supabase-client'
+import { logger, logError } from '@/lib/logger'
 
 // Types for Supabase operations
 interface _SupabaseOperationOptions {

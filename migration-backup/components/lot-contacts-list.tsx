@@ -11,6 +11,7 @@ import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, Al
 import { contactService, determineAssignmentType } from "@/lib/database-service"
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
+import { logger, logError } from '@/lib/logger'
 
 interface LotContactsListProps {
   lotId: string

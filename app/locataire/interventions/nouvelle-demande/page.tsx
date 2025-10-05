@@ -27,7 +27,7 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useTenantData } from "@/hooks/use-tenant-data"
 import { useAuth } from "@/hooks/use-auth"
-
+import { logger, logError } from '@/lib/logger'
 interface UploadedFile {
   id: string
   name: string
@@ -99,7 +99,7 @@ export default function NouvelleDemandePage() {
         const lots = await tenantService.getAllTenantLots(user.id)
         setAllTenantLots(lots || [])
       } catch (err) {
-        console.error('Error fetching tenant lots:', err)
+        logger.error('Error fetching tenant lots:', err)
         setAllTenantLots([])
       } finally {
         setLotsLoading(false)
@@ -214,7 +214,7 @@ export default function NouvelleDemandePage() {
         lot_id: selectedLogement, // Use the selected lot ID
       }
 
-      console.log("🔧 Creating intervention with data:", interventionData)
+      logger.info("🔧 Creating intervention with data:", interventionData)
 
       // Create FormData to handle files
       const formDataToSend = new FormData()
@@ -237,7 +237,7 @@ export default function NouvelleDemandePage() {
       // Add file count for easier processing on backend
       formDataToSend.append('fileCount', uploadedFiles.length.toString())
 
-      console.log(`🔧 Sending intervention with ${uploadedFiles.length} files`)
+      logger.info(`🔧 Sending intervention with ${uploadedFiles.length} files`)
 
       // Call the API to create the intervention
       const response = await fetch('/api/create-intervention', {
@@ -252,7 +252,7 @@ export default function NouvelleDemandePage() {
         throw new Error(result.error || `API returned ${response.status}`)
       }
 
-      console.log("✅ Intervention created successfully:", result.intervention)
+      logger.info("✅ Intervention created successfully:", result.intervention)
 
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
@@ -266,7 +266,7 @@ export default function NouvelleDemandePage() {
       })
 
     } catch (error) {
-      console.error("❌ Error creating intervention:", error)
+      logger.error("❌ Error creating intervention:", error)
       
       // Store error message to display in UI
       setCreationError(error instanceof Error ? error.message : 'Erreur inconnue lors de la création')

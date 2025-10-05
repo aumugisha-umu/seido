@@ -20,7 +20,7 @@ import { z } from 'zod'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // ✅ VALIDATION: Schemas Zod pour sécurité server-side
 const LoginSchema = z.object({
   email: z.string().email('Email invalide').min(1, 'Email requis'),
@@ -60,14 +60,14 @@ type AuthActionResult = {
  * ✅ SERVER ACTION: Connexion utilisateur
  */
 export async function loginAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
-  console.log('🚀 [LOGIN-ACTION] Starting server-side login...')
+  logger.info('🚀 [LOGIN-ACTION] Starting server-side login...')
 
   // ✅ PATTERN OFFICIEL NEXT.JS 15: Gestion d'erreur AVANT le try/catch principal
   try {
     await requireGuest()
   } catch {
     // Utilisateur déjà connecté - retourner succès
-    console.log('🔄 [LOGIN-ACTION] User already authenticated')
+    logger.info('🔄 [LOGIN-ACTION] User already authenticated')
     return { success: true, data: { message: 'Already authenticated' } }
   }
 
@@ -79,7 +79,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
       password: formData.get('password') as string
     }
     validatedData = LoginSchema.parse(rawData)
-    console.log('📝 [LOGIN-ACTION] Data validated for:', validatedData.email)
+    logger.info('📝 [LOGIN-ACTION] Data validated for:', validatedData.email)
   } catch (error) {
     if (error instanceof z.ZodError) {
       const firstError = error.errors[0]
@@ -96,7 +96,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   })
 
   if (error) {
-    console.log('❌ [LOGIN-ACTION] Authentication failed:', error.message)
+    logger.info('❌ [LOGIN-ACTION] Authentication failed:', error.message)
 
     // ✅ GESTION ERREURS: Messages utilisateur-friendly
     if (error.message.includes('Invalid login credentials')) {
@@ -112,7 +112,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     return { success: false, error: 'Erreur de connexion inattendue' }
   }
 
-  console.log('✅ [LOGIN-ACTION] User authenticated:', data.user.email)
+  logger.info('✅ [LOGIN-ACTION] User authenticated:', data.user.email)
 
   // ✅ DÉTERMINER REDIRECTION: Selon le rôle utilisateur
   let dashboardPath = '/admin/dashboard' // Fallback par défaut
@@ -123,15 +123,15 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
 
     if (userResult.success && userResult.data && userResult.data.role) {
       dashboardPath = getDashboardPath(userResult.data.role)
-      console.log('🔄 [LOGIN-ACTION] Determined role-specific dashboard:', {
+      logger.info('🔄 [LOGIN-ACTION] Determined role-specific dashboard:', {
         role: userResult.data.role,
         dashboard: dashboardPath
       })
     } else {
-      console.log('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
+      logger.info('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
     }
   } catch (error) {
-    console.log('⚠️ [LOGIN-ACTION] Error determining role, using fallback:', error)
+    logger.info('⚠️ [LOGIN-ACTION] Error determining role, using fallback:', error)
   }
 
   // ✅ WORKAROUND NEXT.JS 15 BUG #72842
@@ -141,7 +141,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   // - Fix Merged: PR #73063 (not yet in 15.2.4)
   // - Workaround: Return redirectTo path for client-side navigation
   // - Refs: https://github.com/vercel/next.js/issues/72842
-  console.log('🚀 [LOGIN-ACTION] Authentication successful, returning redirect path')
+  logger.info('🚀 [LOGIN-ACTION] Authentication successful, returning redirect path')
 
   // ✅ ÉTAPE 1: Invalider le cache pour forcer refresh des données
   revalidatePath('/', 'layout')
@@ -175,7 +175,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
  * - Fallback: si `hashed_token` est indisponible (cas anormal), on retombe sur `properties.action_link`.
  */
 export async function signupAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
-  console.log('🚀 [SIGNUP-ACTION] Starting server-side signup...')
+  logger.info('🚀 [SIGNUP-ACTION] Starting server-side signup...')
 
   try {
     // ✅ SÉCURITÉ: Vérifier que l'utilisateur n'est pas déjà connecté
@@ -192,11 +192,11 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     }
 
     const validatedData = SignupSchema.parse(rawData)
-    console.log('📝 [SIGNUP-ACTION] Data validated for:', validatedData.email)
+    logger.info('📝 [SIGNUP-ACTION] Data validated for:', validatedData.email)
 
     // ✅ VÉRIFIER: Service admin disponible
     if (!isAdminConfigured()) {
-      console.error('❌ [SIGNUP-ACTION] Admin service not configured - SERVICE_ROLE_KEY missing')
+      logger.error('❌ [SIGNUP-ACTION] Admin service not configured - SERVICE_ROLE_KEY missing')
       return {
         success: false,
         error: 'Service d\'inscription non configuré. Veuillez contacter l\'administrateur.'
@@ -206,7 +206,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     const supabaseAdmin = getSupabaseAdmin()!
 
     // ✅ NOUVELLE APPROCHE: Utiliser admin.generateLink() pour créer user SANS email automatique
-    console.log('🔧 [SIGNUP-ACTION] Using admin.generateLink() to create user without automatic email')
+    logger.info('🔧 [SIGNUP-ACTION] Using admin.generateLink() to create user without automatic email')
 
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
@@ -224,7 +224,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     })
 
     if (linkError || !linkData) {
-      console.error('❌ [SIGNUP-ACTION] Failed to generate signup link:', linkError)
+      logger.error('❌ [SIGNUP-ACTION] Failed to generate signup link:', linkError)
 
       // ✅ GESTION ERREURS: Messages utilisateur-friendly
       if (linkError?.message.includes('User already registered')) {
@@ -239,7 +239,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
       }
     }
 
-    console.log('✅ [SIGNUP-ACTION] User created in auth.users:', {
+    logger.info('✅ [SIGNUP-ACTION] User created in auth.users:', {
       userId: linkData.user.id,
       email: linkData.user.email,
       hasActionLink: !!linkData.properties.action_link,
@@ -253,7 +253,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     //      `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=...&type=email`
     //  - Cela garantit l'usage de verifyOtp(type='email') dans notre route dédiée.
     //  - En fallback (rare), on réutilise `action_link` tel quel.
-    console.log('📧 [SIGNUP-ACTION] Preparing confirmation email via Resend...')
+    logger.info('📧 [SIGNUP-ACTION] Preparing confirmation email via Resend...')
 
     const hashedToken = (linkData as any)?.properties?.hashed_token as string | undefined
     const fallbackActionLink = (linkData as any)?.properties?.action_link as string | undefined
@@ -265,7 +265,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
 
     const confirmationUrl = internalConfirmUrl || fallbackActionLink
 
-    console.log('🔗 [SIGNUP-ACTION] Built confirmation URL:', {
+    logger.info('🔗 [SIGNUP-ACTION] Built confirmation URL:', {
       internalConfirmUrl,
       usingInternal: !!internalConfirmUrl,
       hasFallbackActionLink: !!fallbackActionLink
@@ -278,22 +278,22 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     })
 
     if (!emailResult.success) {
-      console.error('❌ [SIGNUP-ACTION] Failed to send confirmation email:', emailResult.error)
+      logger.error('❌ [SIGNUP-ACTION] Failed to send confirmation email:', emailResult.error)
       // ⚠️ Ne pas bloquer l'inscription si l'email échoue - user existe déjà dans auth.users
-      console.warn('⚠️ [SIGNUP-ACTION] User created but email failed - manual intervention required')
+      logger.warn('⚠️ [SIGNUP-ACTION] User created but email failed - manual intervention required')
     } else {
-      console.log('✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend:', emailResult.emailId)
+      logger.info('✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend:', emailResult.emailId)
     }
 
     // ✅ NOTE: Le profil et l'équipe seront créés automatiquement par le Database Trigger
     // après que l'utilisateur confirme son email. Voir migration 20251002000001_fix_profile_creation_timing.sql
-    console.log('📍 [SIGNUP-ACTION] Profile creation will be handled by database trigger after email confirmation')
+    logger.info('📍 [SIGNUP-ACTION] Profile creation will be handled by database trigger after email confirmation')
 
     // ✅ WORKAROUND NEXT.JS 15 BUG #72842
     // Issue: redirect() ne fonctionne pas correctement avec useActionState
     // Solution: Retourner redirectTo pour navigation client-side (pattern identique à loginAction)
     // Refs: https://github.com/vercel/next.js/issues/72842
-    console.log('🚀 [SIGNUP-ACTION] Signup successful, returning redirect path')
+    logger.info('🚀 [SIGNUP-ACTION] Signup successful, returning redirect path')
 
     // ✅ ÉTAPE 1: Invalider le cache pour forcer refresh des données
     revalidatePath('/', 'layout')
@@ -309,7 +309,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     }
 
   } catch (error) {
-    console.error('❌ [SIGNUP-ACTION] Exception:', error)
+    logger.error('❌ [SIGNUP-ACTION] Exception:', error)
 
     // ✅ GESTION: Erreurs de validation Zod
     if (error instanceof z.ZodError) {
@@ -325,7 +325,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
  * ✅ SERVER ACTION: Réinitialisation mot de passe
  */
 export async function resetPasswordAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
-  console.log('🚀 [RESET-PASSWORD-ACTION] Starting server-side reset...')
+  logger.info('🚀 [RESET-PASSWORD-ACTION] Starting server-side reset...')
 
   try {
     // ✅ SÉCURITÉ: Vérifier que l'utilisateur n'est pas déjà connecté
@@ -337,7 +337,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     }
 
     const validatedData = ResetPasswordSchema.parse(rawData)
-    console.log('📝 [RESET-PASSWORD-ACTION] Data validated for:', validatedData.email)
+    logger.info('📝 [RESET-PASSWORD-ACTION] Data validated for:', validatedData.email)
 
     // ✅ AUTHENTIFICATION: Utiliser client server Supabase
     const supabase = await createServerSupabaseClient()
@@ -346,7 +346,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     })
 
     if (error) {
-      console.log('❌ [RESET-PASSWORD-ACTION] Reset failed:', error.message)
+      logger.info('❌ [RESET-PASSWORD-ACTION] Reset failed:', error.message)
 
       // ✅ GESTION ERREURS: Messages utilisateur-friendly
       if (error.message.includes('User not found')) {
@@ -358,7 +358,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
       return { success: false, error: 'Erreur lors de l\'envoi de l\'email : ' + error.message }
     }
 
-    console.log('✅ [RESET-PASSWORD-ACTION] Reset email sent to:', validatedData.email)
+    logger.info('✅ [RESET-PASSWORD-ACTION] Reset email sent to:', validatedData.email)
 
     // ✅ SUCCÈS: Retourner succès sans redirection
     return {
@@ -370,7 +370,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     }
 
   } catch (error) {
-    console.error('❌ [RESET-PASSWORD-ACTION] Exception:', error)
+    logger.error('❌ [RESET-PASSWORD-ACTION] Exception:', error)
 
     // ✅ GESTION: Erreurs de validation Zod
     if (error instanceof z.ZodError) {
@@ -386,13 +386,13 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
  * ✅ SERVER ACTION: Déconnexion utilisateur
  */
 export async function logoutAction(): Promise<never> {
-  console.log('🚀 [LOGOUT-ACTION] Starting server-side logout...')
+  logger.info('🚀 [LOGOUT-ACTION] Starting server-side logout...')
 
   try {
     // ✅ AUTHENTIFICATION: Invalider session
     await invalidateAuth()
 
-    console.log('✅ [LOGOUT-ACTION] User logged out successfully')
+    logger.info('✅ [LOGOUT-ACTION] User logged out successfully')
 
     // ✅ REDIRECTION: Vers page de connexion
     // Note: revalidatePath retiré car redirect() force déjà un refresh complet
@@ -400,7 +400,7 @@ export async function logoutAction(): Promise<never> {
     redirect('/auth/login')
 
   } catch (error) {
-    console.error('❌ [LOGOUT-ACTION] Exception:', error)
+    logger.error('❌ [LOGOUT-ACTION] Exception:', error)
 
     // ✅ FALLBACK: Redirection même en cas d'erreur
     redirect('/auth/login')

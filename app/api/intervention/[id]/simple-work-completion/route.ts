@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { notificationService } from '@/lib/notification-service'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -125,7 +125,7 @@ export async function POST(
       }, { status: 403 })
     }
 
-    console.log(`📝 Processing simple work completion report for intervention: ${interventionId} by ${user.role}: ${user.name}`)
+    logger.info(`📝 Processing simple work completion report for intervention: ${interventionId} by ${user.role}: ${user.name}`)
 
     // Process media files (simplified - just store references)
     const processedMediaFiles = mediaFiles || []
@@ -163,7 +163,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      console.error("❌ Error creating simple work completion record:", insertError)
+      logger.error("❌ Error creating simple work completion record:", insertError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde du rapport'
@@ -180,14 +180,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      console.error("❌ Error updating intervention status:", updateError)
+      logger.error("❌ Error updating intervention status:", updateError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    console.log("✅ Simple work completion report submitted successfully")
+    logger.info("✅ Simple work completion report submitted successfully")
 
     // Send notifications (same as complex version)
     try {
@@ -241,9 +241,9 @@ export async function POST(
       ) || []
 
       await Promise.all([tenantNotificationPromise, ...managerNotificationPromises])
-      console.log("📧 Simple work completion notifications sent")
+      logger.info("📧 Simple work completion notifications sent")
     } catch (notifError) {
-      console.warn("⚠️ Could not send work completion notifications:", notifError)
+      logger.warn("⚠️ Could not send work completion notifications:", notifError)
     }
 
     return NextResponse.json({
@@ -257,7 +257,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error("❌ Error in simple work completion API:", error)
+    logger.error("❌ Error in simple work completion API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

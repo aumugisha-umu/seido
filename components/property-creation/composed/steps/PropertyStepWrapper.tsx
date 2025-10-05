@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * PropertyStepWrapper - Generic step wrapper component
  *
@@ -5,7 +7,6 @@
  * Handles step transitions, validation display, and loading states.
  */
 
-"use client"
 
 import React, { ReactNode } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

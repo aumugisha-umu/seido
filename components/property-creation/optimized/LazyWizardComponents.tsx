@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * Lazy Wizard Components - Next.js 15+ optimized components
  *
@@ -5,7 +7,6 @@
  * for optimal performance and user experience.
  */
 
-"use client"
 
 import React, { Suspense, lazy } from "react"
 import { ErrorBoundary } from "react-error-boundary"

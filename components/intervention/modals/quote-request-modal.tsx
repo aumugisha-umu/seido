@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { logger, logError } from '@/lib/logger'
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -98,7 +99,7 @@ export const QuoteRequestModal = ({
 
     // Logique de fallback : si aucun prestataire ne correspond au filtrage, afficher tous les prestataires
     if (relevantProviders.length === 0 && providers.length > 0) {
-      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+      logger.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
       setFilteredProviders(providers)
     } else {
       setFilteredProviders(relevantProviders)

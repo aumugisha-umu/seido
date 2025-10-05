@@ -68,7 +68,7 @@ export const getAssignmentTypeDisplayName = (_assignmentType: string): string =>
     'other': 'Autre'
   }
 
-  return displayNames[assignmentType] || assignmentType
+  return displayNames[_assignmentType] || _assignmentType
 }
 
 /**
@@ -120,7 +120,7 @@ export const mapFrontendToDbRole = (_frontendRole: string): { role: string; prov
     'proprietaire': { role: 'gestionnaire' }
   }
 
-  return mapping[frontendRole.toLowerCase()] || { role: 'locataire' }
+  return mapping[_frontendRole.toLowerCase()] || { role: 'locataire' }
 }
 
 /**

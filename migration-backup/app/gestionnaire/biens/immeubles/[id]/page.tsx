@@ -20,6 +20,7 @@ import LotCard from "@/components/lot-card"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
+import { logger, logError } from '@/lib/logger'
 
 export default function BuildingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Bouton d'urgence pour forcer l'affichage du debug panel
  * Ce composant très simple s'affiche toujours et permet de débugger
@@ -25,7 +25,7 @@ export function EmergencyDebugButton() {
       if (event.altKey && event.shiftKey && event.key === 'D') {
         event.preventDefault()
         forceActivateDebugPanel()
-        console.log('🚨 [EMERGENCY] Emergency debug activation triggered')
+        logger.info('🚨 [EMERGENCY] Emergency debug activation triggered')
       }
     }
 
@@ -51,9 +51,9 @@ export function EmergencyDebugButton() {
         window.location.reload()
       }, 1000)
       
-      console.log('🚨 [EMERGENCY] Debug panel forced open, reloading page...')
+      logger.info('🚨 [EMERGENCY] Debug panel forced open, reloading page...')
     } catch (error) {
-      console.error('❌ [EMERGENCY] Error forcing debug panel:', error)
+      logger.error('❌ [EMERGENCY] Error forcing debug panel:', error)
       alert('🚨 Erreur critique. Rechargez la page manuellement (F5)')
     }
   }

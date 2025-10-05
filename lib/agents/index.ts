@@ -88,6 +88,7 @@ for (const task of highPriorityTasks) {
     hookUsage: `
 // React hook usage
 import { useRefactoringSpecialist } from '@/lib/agents'
+import { logger, logError } from '@/lib/logger'
 
 const RefactoringDashboard = () => {
   const { specialist, analyzeCodebase, executeRefactoring, isAnalyzing } = useRefactoringSpecialist(context)

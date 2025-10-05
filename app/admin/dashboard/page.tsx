@@ -10,7 +10,7 @@ import {
 } from '@/lib/services'
 import type { Intervention } from '@/lib/services/core/service-types'
 import { AdminDashboardClient } from "./admin-dashboard-client"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 DASHBOARD ADMIN - SERVER COMPONENT (Migration Server Components)
  *
@@ -45,7 +45,7 @@ export default async function AdminDashboard() {
 
   try {
     // Utiliser StatsService pour les statistiques système
-    console.log('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
+    logger.info('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
 
     const systemStatsResult = await statsService.getSystemStats(user)
 
@@ -62,7 +62,7 @@ export default async function AdminDashboard() {
       }
     } else {
       // Fallback: récupérer les données directement si StatsService échoue
-      console.log('📊 [ADMIN-DASHBOARD] Using fallback stats calculation...')
+      logger.info('📊 [ADMIN-DASHBOARD] Using fallback stats calculation...')
 
       const [usersResult, buildingsResult, interventionsResult] = await Promise.all([
         userService.getAll(),
@@ -91,9 +91,9 @@ export default async function AdminDashboard() {
       }
     }
 
-    console.log('✅ [ADMIN-DASHBOARD] System stats loaded:', systemStats)
+    logger.info('✅ [ADMIN-DASHBOARD] System stats loaded:', systemStats)
   } catch (error) {
-    console.error('❌ [ADMIN-DASHBOARD] Error loading system stats:', error)
+    logger.error('❌ [ADMIN-DASHBOARD] Error loading system stats:', error)
     // Les stats par défaut restent (valeurs 0)
   }
 

@@ -1,3 +1,5 @@
+import { logger, logError } from '@/lib/logger'
+
 /**
  * 🛠️ Test Helpers - Central Export File
  *

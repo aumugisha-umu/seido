@@ -1,11 +1,7 @@
 import { getServerSession } from '@/lib/supabase-server'
+import { createServerUserService } from '@/lib/services'
 import { NextResponse } from 'next/server'
-
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
-
-
+import { logger, logError } from '@/lib/logger'
 export async function PATCH(request: Request) {
   try {
     // Vérifier l'authentification
@@ -17,23 +13,28 @@ export async function PATCH(request: Request) {
       )
     }
 
+    // Initialiser le service utilisateur
+    const userService = await createServerUserService()
+
     // Récupérer le profil utilisateur pour avoir le bon ID
-    const currentUserProfile = await userService.findByAuthUserId(session.user.id)
-    if (!currentUserProfile) {
+    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
+    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
       return NextResponse.json(
         { error: 'Profil utilisateur non trouvé' },
         { status: 404 }
       )
     }
 
+    const currentUserProfile = currentUserProfileResult.data
+
     const body = await request.json()
     const { password_set } = body
 
-    console.log('🔐 [UPDATE-USER-PROFILE] Updating password_set for user:', currentUserProfile.email, 'to:', password_set)
+    logger.info('🔐 [UPDATE-USER-PROFILE] Updating password_set for user:', currentUserProfile.email, 'to:', password_set)
 
     // ✅ SÉCURITÉ: Vérifier que l'utilisateur a vraiment besoin de définir son mot de passe
     if (password_set === true && currentUserProfile.password_set === true) {
-      console.log('⚠️ [UPDATE-USER-PROFILE] User already has password_set=true, rejecting update')
+      logger.info('⚠️ [UPDATE-USER-PROFILE] User already has password_set=true, rejecting update')
       return NextResponse.json(
         { error: 'Le mot de passe a déjà été configuré' },
         { status: 400 }
@@ -41,19 +42,27 @@ export async function PATCH(request: Request) {
     }
 
     // Mettre à jour le champ password_set
-    const updatedUser = await userService.update(currentUserProfile.id, {
+    const updateResult = await userService.update(currentUserProfile.id, {
       password_set: password_set
     })
 
-    console.log('✅ [UPDATE-USER-PROFILE] User profile updated successfully')
+    if (!updateResult.success) {
+      logger.error('❌ [UPDATE-USER-PROFILE] Failed to update user:', updateResult.error)
+      return NextResponse.json(
+        { error: 'Erreur lors de la mise à jour du profil' },
+        { status: 500 }
+      )
+    }
+
+    logger.info('✅ [UPDATE-USER-PROFILE] User profile updated successfully')
 
     return NextResponse.json({
       success: true,
-      user: updatedUser
+      user: updateResult.data
     })
 
   } catch (error) {
-    console.error('❌ [UPDATE-USER-PROFILE] Error:', error)
+    logger.error('❌ [UPDATE-USER-PROFILE] Error:', error)
     return NextResponse.json(
       { error: 'Erreur serveur lors de la mise à jour du profil' },
       { status: 500 }

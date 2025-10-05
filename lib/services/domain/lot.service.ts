@@ -18,6 +18,7 @@ import type {
   LotInsert,
   LotUpdate
 } from '../core/service-types'
+import { logger, logError } from '@/lib/logger'
 import {
   ValidationException,
   ConflictException,
@@ -739,7 +740,7 @@ export class LotService {
    */
   private async logLotCreation(lot: Lot) {
     // In production, this would use the activity-logger service
-    console.log('Lot created:', lot.id, lot.reference)
+    logger.info('Lot created:', lot.id, lot.reference)
   }
 
   /**
@@ -747,7 +748,7 @@ export class LotService {
    */
   private async logLotUpdate(lot: Lot, changes: LotUpdate) {
     // In production, this would use the activity-logger service
-    console.log('Lot updated:', lot.id, changes)
+    logger.info('Lot updated:', lot.id, changes)
   }
 
   /**
@@ -755,7 +756,7 @@ export class LotService {
    */
   private async logLotDeletion(lot: Lot) {
     // In production, this would use the activity-logger service
-    console.log('Lot deleted:', lot.id, lot.reference)
+    logger.info('Lot deleted:', lot.id, lot.reference)
   }
 
   /**

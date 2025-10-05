@@ -34,7 +34,7 @@ import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig } from "@/lib/quote-state-utils"
 import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
-
+import { logger, logError } from '@/lib/logger'
 interface InterventionActionPanelProps {
   intervention: {
     id: string
@@ -577,7 +577,7 @@ export function InterventionActionPanel({
       }
 
     } catch (err) {
-      console.error('Error executing action:', err)
+      logger.error('Error executing action:', err)
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
     } finally {
       setIsProcessing(false)

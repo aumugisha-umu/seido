@@ -4,6 +4,7 @@
 
 import { authCacheManager } from '../lib/auth-cache-manager'
 import { clientCache } from '../lib/cache/client-cache'
+import { logger, logError } from '@/lib/logger'
 
 console.log('🧪 Validation de l\'intégration du cache SSR SEIDO\n')
 console.log('=' .repeat(50))

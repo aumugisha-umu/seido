@@ -1,0 +1,21 @@
+# Logs générés par les tests
+logs/
+*.log
+
+# Screenshots
+screenshots/
+
+# Emails capturés
+emails/
+
+# Rapports Playwright
+playwright-report/
+test-results/
+test-results.json
+
+# Cache Playwright
+.cache/
+
+# Fichiers temporaires
+*.tmp
+*.temp

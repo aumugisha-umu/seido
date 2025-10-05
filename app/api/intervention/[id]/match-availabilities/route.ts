@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 interface RouteParams {
   params: Promise<{
     id: string
@@ -42,7 +42,7 @@ interface MatchingResult {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("🔄 match-availabilities API route called for intervention:", resolvedParams.id)
+  logger.info("🔄 match-availabilities API route called for intervention:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .order('start_time', { ascending: true })
 
     if (availError) {
-      console.error("❌ Error fetching availabilities:", availError)
+      logger.error("❌ Error fetching availabilities:", availError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    console.log("📅 Processing availabilities:", allAvailabilities.length)
+    logger.info("📅 Processing availabilities:", allAvailabilities.length)
 
     // Group availabilities by user role
     const tenantAvailabilities = allAvailabilities.filter(avail => avail.user.role === 'locataire')
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    console.log("🏠 Tenant availabilities:", tenantAvailabilities.length)
-    console.log("🔧 Provider availabilities:", providerAvailabilities.length)
+    logger.info("🏠 Tenant availabilities:", tenantAvailabilities.length)
+    logger.info("🔧 Provider availabilities:", providerAvailabilities.length)
 
     // Perform matching algorithm
     const matchingResult = performAvailabilityMatching(tenantAvailabilities, providerAvailabilities)
@@ -172,13 +172,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             .insert(matchesToSave)
 
           if (saveError) {
-            console.warn("⚠️ Could not save matches to database:", saveError)
+            logger.warn("⚠️ Could not save matches to database:", saveError)
           } else {
-            console.log("✅ Saved", matchesToSave.length, "matches to database")
+            logger.info("✅ Saved", matchesToSave.length, "matches to database")
           }
         }
       } catch (saveError) {
-        console.warn("⚠️ Error saving matches:", saveError)
+        logger.warn("⚠️ Error saving matches:", saveError)
         // Don't fail the whole operation for this
       }
     }
@@ -186,8 +186,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(matchingResult)
 
   } catch (error) {
-    console.error("❌ Error in match-availabilities API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in match-availabilities API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })
@@ -205,7 +205,7 @@ function performAvailabilityMatching(
 ): MatchingResult {
   const matches: MatchedSlot[] = []
 
-  console.log("🔍 Starting availability matching algorithm...")
+  logger.info("🔍 Starting availability matching algorithm...")
 
   // For each tenant availability, find overlapping provider availabilities
   for (const tenantAvail of tenantAvailabilities) {
@@ -232,7 +232,7 @@ function performAvailabilityMatching(
           score: score
         })
 
-        console.log(`✨ Found overlap on ${tenantAvail.date}: ${overlap.duration} minutes (score: ${score})`)
+        logger.info(`✨ Found overlap on ${tenantAvail.date}: ${overlap.duration} minutes (score: ${score})`)
       }
     }
   }
@@ -256,7 +256,7 @@ function performAvailabilityMatching(
     message = 'Aucun créneau compatible trouvé, veuillez ajuster vos disponibilités'
   }
 
-  console.log("📊 Matching results:", {
+  logger.info("📊 Matching results:", {
     perfectMatch: !!perfectMatch,
     partialMatches: partialMatches.length,
     suggestions: suggestions.length,

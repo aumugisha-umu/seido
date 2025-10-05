@@ -16,7 +16,7 @@ import { useQuoteCancellation } from "@/hooks/use-quote-cancellation"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
-
+import { logger, logError } from '@/lib/logger'
 // Réutiliser les types du composant principal
 interface DatabaseContact {
   id: string
@@ -202,7 +202,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     setError(null)
 
     try {
-      console.log('🔍 [Provider] Fetching intervention details for ID:', resolvedParams.id)
+      logger.info('🔍 [Provider] Fetching intervention details for ID:', resolvedParams.id)
 
       // Récupérer l'intervention avec les données relationnelles
       const interventionData = await interventionService.getById(resolvedParams.id)
@@ -211,7 +211,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         throw new Error('Intervention non trouvée')
       }
 
-      console.log('✅ [Provider] Intervention data loaded:', interventionData)
+      logger.info('✅ [Provider] Intervention data loaded:', interventionData)
 
       // Vérifier si le prestataire a un devis accepté pour cette intervention
       const providerQuote = interventionData.intervention_quotes?.find(
@@ -219,7 +219,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
       )
       const hasAcceptedQuote = providerQuote?.status === 'approved'
 
-      console.log('📋 [Provider] Quote status check:', {
+      logger.info('📋 [Provider] Quote status check:', {
         providerId: user.id,
         hasQuote: !!providerQuote,
         quoteStatus: providerQuote?.status,
@@ -232,12 +232,12 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         'planifiee',
         'en_cours',
         'terminee',
-        'validee',
+        'approuvee',
         'cloturee'
       ]
       const isInPlanificationPhase = planificationStatuses.includes(interventionData.status?.toLowerCase())
 
-      console.log('📅 [Provider] Status check:', {
+      logger.info('📅 [Provider] Status check:', {
         currentStatus: interventionData.status,
         isInPlanificationPhase,
         hasAcceptedQuote
@@ -251,7 +251,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
       }
 
       if (isInPlanificationPhase && hasAcceptedQuote) {
-        console.log('✅ [Provider] Planification phase + accepted quote, fetching full contacts')
+        logger.info('✅ [Provider] Planification phase + accepted quote, fetching full contacts')
 
         let allContacts = []
 
@@ -259,11 +259,11 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         if (interventionData.lot_id) {
           // Intervention sur lot spécifique
           allContacts = await contactService.getLotContacts(interventionData.lot_id)
-          console.log('📍 [Provider] Lot contacts loaded:', allContacts.length)
+          logger.info('📍 [Provider] Lot contacts loaded:', allContacts.length)
         } else if (interventionData.building_id) {
           // Intervention sur bâtiment entier
           allContacts = await contactService.getBuildingContacts(interventionData.building_id)
-          console.log('🏢 [Provider] Building contacts loaded:', allContacts.length)
+          logger.info('🏢 [Provider] Building contacts loaded:', allContacts.length)
         }
 
         // Récupérer aussi les autres prestataires avec devis accepté
@@ -271,7 +271,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           ?.filter((quote: InterventionQuote) => quote.status === 'approved')
           ?.map((quote: InterventionQuote) => quote.provider_id) || []
 
-        console.log('👥 [Provider] Providers with accepted quotes:', acceptedProviderIds)
+        logger.info('👥 [Provider] Providers with accepted quotes:', acceptedProviderIds)
 
         // Organiser les contacts par catégorie
         organizedContacts = {
@@ -322,18 +322,18 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
           syndics: []
         }
 
-        console.log('📊 [Provider] Organized contacts:', {
+        logger.info('📊 [Provider] Organized contacts:', {
           locataires: organizedContacts.locataires.length,
           autres: organizedContacts.autres.length,
           syndics: organizedContacts.syndics.length
         })
       } else {
         if (!isInPlanificationPhase) {
-          console.log('📋 [Provider] Intervention not in planification phase, using minimal contacts')
+          logger.info('📋 [Provider] Intervention not in planification phase, using minimal contacts')
         } else if (!hasAcceptedQuote) {
-          console.log('🔒 [Provider] No accepted quote, using minimal contacts')
+          logger.info('🔒 [Provider] No accepted quote, using minimal contacts')
         } else {
-          console.log('❓ [Provider] Other condition failed, using minimal contacts')
+          logger.info('❓ [Provider] Other condition failed, using minimal contacts')
         }
         // Si conditions non remplies, seul le gestionnaire est accessible via les props individuelles
       }
@@ -450,11 +450,11 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         }
       }
 
-      console.log('✅ [Provider] Transformed intervention data:', transformedIntervention)
+      logger.info('✅ [Provider] Transformed intervention data:', transformedIntervention)
       setIntervention(transformedIntervention)
 
     } catch (error) {
-      console.error('❌ [Provider] Error fetching intervention data:', error)
+      logger.error('❌ [Provider] Error fetching intervention data:', error)
       setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l\'intervention')
     } finally {
       setLoading(false)
@@ -520,12 +520,12 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
 
   const handleArchive = () => {
     // Pas d'archivage pour les prestataires
-    console.log('Archive not available for providers')
+    logger.info('Archive not available for providers')
   }
 
   const handleStatusAction = (_action: string) => {
     // Actions gérées par le panel d'actions
-    console.log('Status action:', action)
+    logger.info('Status action:', action)
   }
 
   return (
@@ -584,7 +584,7 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
         userId={user?.id || ""}
         onDataChange={fetchInterventionData}
         onDownloadAttachment={(attachment) => {
-          console.log('Download attachment:', attachment)
+          logger.info('Download attachment:', attachment)
           // TODO: Implémenter le téléchargement des pièces jointes
         }}
         onCancel={quoteCancellation.handleCancelRequest}

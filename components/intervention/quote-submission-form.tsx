@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { useQuoteToast } from "@/hooks/use-quote-toast"
+import { logger, logError } from '@/lib/logger'
 import {
   getInterventionLocationText,
   getPriorityColor,
@@ -107,7 +108,7 @@ export function QuoteSubmissionForm({
   // Mettre à jour le formulaire quand existingQuote change
   useEffect(() => {
     if (existingQuote) {
-      console.log('📝 [QuoteForm] Pré-remplissage avec devis existant:', existingQuote)
+      logger.info('📝 [QuoteForm] Pré-remplissage avec devis existant:', existingQuote)
       setFormData({
         laborCost: existingQuote.laborCost?.toString() || '',
         materialsCost: existingQuote.materialsCost?.toString() || '0',
@@ -122,7 +123,7 @@ export function QuoteSubmissionForm({
   // Marquer la quote_request comme consultée lors du chargement du formulaire
   useEffect(() => {
     if (quoteRequest && quoteRequest.status === 'sent') {
-      console.log('👁️ [QuoteForm] Marquage de la demande comme consultée:', quoteRequest.id)
+      logger.info('👁️ [QuoteForm] Marquage de la demande comme consultée:', quoteRequest.id)
 
       // Marquer comme vue via l'API
       fetch(`/api/quote-requests/${quoteRequest.id}`, {
@@ -134,7 +135,7 @@ export function QuoteSubmissionForm({
           action: 'view'
         })
       }).catch(error => {
-        console.warn('⚠️ [QuoteForm] Impossible de marquer la demande comme consultée:', error)
+        logger.warn('⚠️ [QuoteForm] Impossible de marquer la demande comme consultée:', error)
         // Ne pas bloquer l'utilisateur si cette action échoue
       })
     }
@@ -364,7 +365,7 @@ export function QuoteSubmissionForm({
       }, 2000)
 
     } catch (error) {
-      console.error('Error submitting quote:', error)
+      logger.error('Error submitting quote:', error)
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
       setError(errorMessage)
 

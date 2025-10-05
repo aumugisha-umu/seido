@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Mail, CheckCircle } from "lucide-react"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 📧 PAGE SIGNUP SUCCESS - SERVER COMPONENT
  * Page de confirmation d'inscription avec instructions email
@@ -19,7 +19,7 @@ export default async function SignupSuccessPage({ searchParams }: SignupSuccessP
   const params = await searchParams
   const email = params.email
 
-  console.log('📧 [SIGNUP-SUCCESS-SERVER] Page rendered for email:', email)
+  logger.info('📧 [SIGNUP-SUCCESS-SERVER] Page rendered for email:', email)
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

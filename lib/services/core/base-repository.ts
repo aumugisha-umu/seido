@@ -15,6 +15,11 @@ import {
   validateUUID,
   NotFoundException
 } from './error-handler'
+import {
+  convertStatusToDb,
+  convertStatusFromDb,
+  convertStatusArrayFromDb
+} from '../utils/status-converter'
 
 /**
  * Base repository class providing common CRUD operations
@@ -40,9 +45,14 @@ export abstract class BaseRepository<
    */
   async create(data: TInsert): Promise<RepositoryResponse<TRow>> {
     try {
+      // Convert French status to English for database if this is an intervention
+      const dataToInsert = this.tableName === 'interventions'
+        ? convertStatusToDb(data)
+        : data
+
       const { data: result, error } = await this.supabase
         .from(this.tableName as any)
-        .insert(data as any)
+        .insert(dataToInsert as any)
         .select()
         .single()
 
@@ -53,7 +63,12 @@ export abstract class BaseRepository<
       // Clear cache for this table
       this.clearTableCache()
 
-      return createSuccessResponse(result as unknown as TRow)
+      // Convert English status back to French for frontend
+      const resultToReturn = this.tableName === 'interventions'
+        ? convertStatusFromDb(result)
+        : result
+
+      return createSuccessResponse(resultToReturn as unknown as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:create`))
     }
@@ -87,12 +102,17 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(error, `${this.tableName}:findById`))
       }
 
+      // Convert English status to French for frontend if this is an intervention
+      const dataToReturn = this.tableName === 'interventions' && data
+        ? convertStatusFromDb(data)
+        : data
+
       // Cache the result
-      if (useCache && data) {
-        this.setCache(`${this.tableName}:${id}`, data)
+      if (useCache && dataToReturn) {
+        this.setCache(`${this.tableName}:${id}`, dataToReturn)
       }
 
-      return createSuccessResponse(data as TRow)
+      return createSuccessResponse(dataToReturn as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:findById`))
     }
@@ -138,11 +158,16 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(error, `${this.tableName}:findAll`))
       }
 
+      // Convert English status to French for frontend if this is an intervention
+      const dataToReturn = this.tableName === 'interventions' && data
+        ? convertStatusArrayFromDb(data)
+        : data
+
       return {
-        data: (data || []) as TRow[],
+        data: (dataToReturn || []) as TRow[],
         error: null,
         success: true,
-        count: data?.length || 0
+        count: dataToReturn?.length || 0
       }
     } catch (error) {
       return {
@@ -280,9 +305,14 @@ export abstract class BaseRepository<
         return existsResult
       }
 
+      // Convert French status to English for database if this is an intervention
+      const dataToUpdate = this.tableName === 'interventions'
+        ? convertStatusToDb(data)
+        : data
+
       const { data: result, error } = await this.supabase
         .from(this.tableName as keyof Database['public']['Tables'])
-        .update(data)
+        .update(dataToUpdate)
         .eq('id', id)
         .select()
         .single()
@@ -295,7 +325,12 @@ export abstract class BaseRepository<
       this.clearCache(`${this.tableName}:${id}`)
       this.clearTableCache()
 
-      return createSuccessResponse(result as unknown as TRow)
+      // Convert English status back to French for frontend
+      const resultToReturn = this.tableName === 'interventions'
+        ? convertStatusFromDb(result)
+        : result
+
+      return createSuccessResponse(resultToReturn as unknown as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:update`))
     }
@@ -306,10 +341,10 @@ export abstract class BaseRepository<
    */
   async delete(_id: string): Promise<RepositoryResponse<boolean>> {
     try {
-      validateUUID(id)
+      validateUUID(_id)
 
       // First check if record exists
-      const existsResult = await this.findById(id, false)
+      const existsResult = await this.findById(_id, false)
       if (!existsResult.success) {
         return createErrorResponse(existsResult.error!)
       }
@@ -317,14 +352,14 @@ export abstract class BaseRepository<
       const { error } = await this.supabase
         .from(this.tableName as keyof Database['public']['Tables'])
         .delete()
-        .eq('id', id)
+        .eq('id', _id)
 
       if (error) {
         return createErrorResponse(handleError(error, `${this.tableName}:delete`))
       }
 
       // Clear cache
-      this.clearCache(`${this.tableName}:${id}`)
+      this.clearCache(`${this.tableName}:${_id}`)
       this.clearTableCache()
 
       return createSuccessResponse(true)
@@ -338,12 +373,12 @@ export abstract class BaseRepository<
    */
   async exists(_id: string): Promise<RepositoryResponse<boolean>> {
     try {
-      validateUUID(id)
+      validateUUID(_id)
 
       const { data, error } = await this.supabase
         .from(this.tableName as keyof Database['public']['Tables'])
         .select('id')
-        .eq('id', id)
+        .eq('id', _id)
         .single()
 
       if (error) {

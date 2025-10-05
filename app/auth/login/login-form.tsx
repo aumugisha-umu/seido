@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Mail } from "lucide-react"
 import { loginAction } from "@/app/actions/auth-actions"
 import { useAuth } from "@/hooks/use-auth"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🚀 COMPOSANT CLIENT - LoginForm (Server Actions 2025)
  * Utilise les Server Actions pour authentification server-side sécurisée
@@ -48,13 +48,13 @@ export function LoginForm() {
   // Refs: https://github.com/vercel/next.js/issues/72842
   useEffect(() => {
     if (state.success && state.data?.redirectTo) {
-      console.log('🚀 [LOGIN-FORM] Login successful, navigating in 1000ms to:', state.data.redirectTo)
+      logger.info('🚀 [LOGIN-FORM] Login successful, navigating in 1000ms to:', state.data.redirectTo)
 
       // ✅ DÉLAI RÉDUIT: 1000ms (1s) car window.location.href force un vrai refresh
       // Pas besoin d'attendre que AuthProvider charge le profil
       // Le refresh complet garantit que les composants se montent avec les cookies
       const timer = setTimeout(() => {
-        console.log('🔄 [LOGIN-FORM] Executing full page navigation with window.location.href...')
+        logger.info('🔄 [LOGIN-FORM] Executing full page navigation with window.location.href...')
         window.location.href = state.data.redirectTo
       }, 1000)
 
@@ -73,11 +73,11 @@ export function LoginForm() {
 
     try {
       // TODO: Migrer vers Server Action
-      console.log('📧 [LOGIN-FORM] Resending confirmation for:', email)
+      logger.info('📧 [LOGIN-FORM] Resending confirmation for:', email)
       await new Promise(resolve => setTimeout(resolve, 2000))
       setResendSuccess(true)
     } catch (error) {
-      console.error('Erreur lors du renvoi de confirmation:', error)
+      logger.error('Erreur lors du renvoi de confirmation:', error)
     } finally {
       setResendLoading(false)
     }

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 // Removed unused Separator import
 import ContactSelector from "@/components/ui/contact-selector"
+import { logger, logError } from '@/lib/logger'
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -76,7 +77,7 @@ export const MultiQuoteRequestModal = ({
   // Callback pour la création d'un nouveau contact
   const handleContactCreated = (contact: { id: string; name: string; [key: string]: unknown }) => {
     // Pour l'instant, nous ne gérons pas la création depuis la modale de devis
-    console.log('Nouveau contact créé:', contact)
+    logger.info('Nouveau contact créé:', contact)
     // TODO: Ajouter le nouveau prestataire à la liste des providers
   }
 
@@ -114,7 +115,7 @@ export const MultiQuoteRequestModal = ({
     const finalProviders = relevantProviders.length === 0 && providers.length > 0 ? providers : relevantProviders
 
     if (relevantProviders.length === 0 && providers.length > 0) {
-      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+      logger.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
     }
 
     setFilteredProviders(finalProviders)

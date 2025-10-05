@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 // Client admin pour les opérations privilégiées
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!_teamId) {
+    if (!teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
       )
     }
 
-    console.log('👥 [CHECK-ACTIVE-USERS] Checking', emails.length, 'emails for team:', _teamId)
+    logger.info('👥 [CHECK-ACTIVE-USERS] Checking', emails.length, 'emails for team:', teamId)
 
     // Vérifier quels emails correspondent à des utilisateurs actifs
     // Un utilisateur est "actif" s'il existe dans la table users avec cet email
@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
       .from('users')
       .select('email')
       .in('email', emails.map(email => email.toLowerCase()))
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
 
     if (error) {
-      console.error('❌ [CHECK-ACTIVE-USERS] Database error:', error)
+      logger.error('❌ [CHECK-ACTIVE-USERS] Database error:', error)
       return NextResponse.json(
         { error: 'Erreur lors de la vérification des utilisateurs actifs' },
         { status: 500 }
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const activeEmails = activeUsers?.map(user => user.email) || []
-    console.log('✅ [CHECK-ACTIVE-USERS] Found', activeEmails.length, 'active users')
+    logger.info('✅ [CHECK-ACTIVE-USERS] Found', activeEmails.length, 'active users')
 
     return NextResponse.json({
       success: true,
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('❌ [CHECK-ACTIVE-USERS] Unexpected error:', error)
+    logger.error('❌ [CHECK-ACTIVE-USERS] Unexpected error:', error)
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

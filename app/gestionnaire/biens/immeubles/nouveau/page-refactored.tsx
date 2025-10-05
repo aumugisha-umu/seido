@@ -15,6 +15,7 @@ import React from "react"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { logger, logError } from '@/lib/logger'
 import {
   PropertyCreationProvider,
   BuildingCreationWizard,
@@ -47,11 +48,11 @@ export default function NewBuildingPage() {
     enableValidationOnChange: true,
     onSuccess: (result) => {
       // Custom success handling could be implemented here
-      console.log('Building creation succeeded:', result)
+      logger.info('Building creation succeeded:', result)
     },
     onError: (error) => {
       // Custom error handling could be implemented here
-      console.error('Building creation failed:', error)
+      logger.error('Building creation failed:', error)
     }
   }
 

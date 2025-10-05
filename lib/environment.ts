@@ -1,3 +1,5 @@
+import { logger, logError } from '@/lib/logger'
+
 /**
  * ✅ UTILITAIRE CENTRALISÉ - DÉTECTION D'ENVIRONNEMENT
  * 
@@ -48,7 +50,7 @@ export const detectEnvironment = (): boolean => {
 export const getEnvironmentConfig = (): EnvironmentConfig => {
   const isProduction = detectEnvironment()
   
-  console.log(`🌍 [ENV-CONFIG] Environment detected: ${isProduction ? 'PRODUCTION/STAGING' : 'DEVELOPMENT'}`)
+  logger.info(`🌍 [ENV-CONFIG] Environment detected: ${isProduction ? 'PRODUCTION/STAGING' : 'DEVELOPMENT'}`)
   
   if (isProduction) {
     // Configuration pour production/staging
@@ -123,7 +125,7 @@ export const calculateRetryDelay = (attempt: number, baseDelay: number = ENV_CON
  */
 export const logEnvironmentInfo = () => {
   if (typeof window !== 'undefined') {
-    console.log('🌍 [ENV-INFO] Environment Configuration:', {
+    logger.info('🌍 [ENV-INFO] Environment Configuration:', {
       hostname: window.location.hostname,
       nodeEnv: process.env.NODE_ENV,
       isProduction: ENV_CONFIG.isProduction,

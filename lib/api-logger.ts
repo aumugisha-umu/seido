@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger, logError } from '@/lib/logger'
 import { logger, logApiCall, logError } from './logger'
 
 // Types pour les handlers API
 type ApiHandler = (req: NextRequest, ...args: unknown[]) => Promise<NextResponse> | NextResponse
 
-// Middleware pour logger les requêtes API
+// Middleware pour logger les requêtes API (version améliorée)
 export const withApiLogger = (handler: ApiHandler) => {
   return async (req: NextRequest, ...args: unknown[]) => {
     const startTime = Date.now()
@@ -13,15 +14,18 @@ export const withApiLogger = (handler: ApiHandler) => {
     const endpoint = new URL(url).pathname
 
     try {
-      // Logger la requête entrante
-      logger.info({
-        type: 'api_request',
+      // Logger la requête entrante (niveau debug pour éviter le spam)
+      logger.debug({
+        type: 'api_request_start',
         method,
         endpoint,
         url,
-        headers: Object.fromEntries(req.headers.entries()),
+        headers: {
+          'user-agent': req.headers.get('user-agent'),
+          'content-type': req.headers.get('content-type')
+        },
         timestamp: new Date().toISOString()
-      }, `🌐 API Request: ${method} ${endpoint}`)
+      }, `🌐 ${method} ${endpoint}`)
 
       // Exécuter le handler
       const response = await handler(req, ...args)
@@ -37,7 +41,7 @@ export const withApiLogger = (handler: ApiHandler) => {
       return response
     } catch (error) {
       const duration = Date.now() - startTime
-      
+
       logError(error as Error, 'api_handler', {
         method,
         endpoint,
@@ -47,7 +51,11 @@ export const withApiLogger = (handler: ApiHandler) => {
 
       // Retourner une réponse d'erreur
       return NextResponse.json(
-        { error: 'Internal Server Error' },
+        {
+          success: false,
+          error: 'Internal Server Error',
+          message: error instanceof Error ? error.message : String(error)
+        },
         { status: 500 }
       )
     }

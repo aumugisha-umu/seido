@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { userService } from '@/lib/database-service'
+import { logger, logError } from '@/lib/logger'
 
 export async function POST(
   request: NextRequest,

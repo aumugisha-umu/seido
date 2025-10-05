@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Check, Phone } from "lucide-react"
 import { signupAction } from "@/app/actions/auth-actions"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🚀 COMPOSANT CLIENT - SignupForm (Server Actions 2025)
  * Utilise les Server Actions pour inscription server-side sécurisée
@@ -57,11 +57,11 @@ export function SignupForm() {
   // Refs: https://github.com/vercel/next.js/issues/72842
   useEffect(() => {
     if (state.success && state.data?.redirectTo) {
-      console.log('🚀 [SIGNUP-FORM] Signup successful, navigating in 500ms to:', state.data.redirectTo)
+      logger.info('🚀 [SIGNUP-FORM] Signup successful, navigating in 500ms to:', state.data.redirectTo)
 
       // ✅ DÉLAI: 500ms pour afficher le message de succès
       const timer = setTimeout(() => {
-        console.log('🔄 [SIGNUP-FORM] Executing navigation with window.location.href...')
+        logger.info('🔄 [SIGNUP-FORM] Executing navigation with window.location.href...')
         window.location.href = state.data.redirectTo
       }, 500)
 

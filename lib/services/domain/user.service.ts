@@ -88,6 +88,7 @@ export class UserService {
 
     // Set default values
     processedData.is_active = processedData.is_active ?? true
+    processedData.password_set = processedData.password_set ?? false
     processedData.created_at = processedData.created_at || new Date().toISOString()
     processedData.updated_at = new Date().toISOString()
 

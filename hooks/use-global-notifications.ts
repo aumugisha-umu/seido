@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTeamStatus } from '@/hooks/use-team-status'
-
+import { logger, logError } from '@/lib/logger'
 interface UseGlobalNotificationsReturn {
   unreadCount: number
   loading: boolean
@@ -29,12 +29,12 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
         setUserTeamId(teams[0].id)
       }
     } catch (error) {
-      console.error('Error fetching user team:', error)
+      logger.error('Error fetching user team:', error)
     }
   }
 
   const fetchUnreadCount = async () => {
-    console.log('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
+    logger.info('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
       userId: user?.id,
       teamStatus,
       hasTeam,
@@ -42,7 +42,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
     })
     
     if (!user?.id || teamStatus !== 'verified' || !hasTeam || !userTeamId) {
-      console.log('❌ [GLOBAL-NOTIFICATIONS] Conditions not met, skipping fetch')
+      logger.info('❌ [GLOBAL-NOTIFICATIONS] Conditions not met, skipping fetch')
       setUnreadCount(0)
       setLoading(false)
       return
@@ -67,7 +67,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
         read: 'false'
       })
 
-      console.log('📡 [GLOBAL-NOTIFICATIONS] Fetching notifications with params:', {
+      logger.info('📡 [GLOBAL-NOTIFICATIONS] Fetching notifications with params:', {
         personalUrl: `/api/notifications?${personalParams}`,
         teamUrl: `/api/notifications?${teamParams}`
       })
@@ -86,7 +86,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
         teamResponse.json()
       ])
 
-      console.log('📬 [GLOBAL-NOTIFICATIONS] API responses:', {
+      logger.info('📬 [GLOBAL-NOTIFICATIONS] API responses:', {
         personalResult,
         teamResult,
         personalStatus: personalResponse.status,
@@ -96,7 +96,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
       const personalCount = personalResult.success ? (personalResult.data || []).length : 0
       const teamCount = teamResult.success ? (teamResult.data || []).length : 0
       
-      console.log('📊 [GLOBAL-NOTIFICATIONS] Notification counts:', {
+      logger.info('📊 [GLOBAL-NOTIFICATIONS] Notification counts:', {
         personalCount,
         teamCount,
         total: personalCount + teamCount

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Mail } from "lucide-react"
 import { loginAction } from "@/app/actions/auth-actions"
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🚀 COMPOSANT CLIENT - LoginForm (Server Actions 2025)

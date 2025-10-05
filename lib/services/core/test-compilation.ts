@@ -17,7 +17,8 @@ import {
   PermissionException
 } from './error-handler'
 import type {
-  User
+import { logger, logError } from '@/lib/logger'
+User
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 } from './service-types'
 
@@ -116,7 +117,7 @@ async function testAsyncFunctions() {
   return { serverClient, result, userResult, allUsers, paginatedUsers }
 }
 
-console.log('✅ Phase 1 infrastructure compilation test passed')
+logger.info('✅ Phase 1 infrastructure compilation test passed')
 
 export {
   TestUserRepository,

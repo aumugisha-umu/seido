@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * PropertyInfoForm - Composed form component for property information
  *
@@ -5,7 +7,6 @@
  * Handles both building and independent lot scenarios with context-aware validation.
  */
 
-"use client"
 
 import React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,7 +24,7 @@ import {
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { usePropertyCreationContext } from "../../context"
 import type { BuildingInfo, LotInfo, AddressInfo } from "../../types"
-
+import { logger, logError } from '@/lib/logger'
 interface PropertyInfoFormProps {
   mode: 'building' | 'independent-lot'
   className?: string
@@ -263,7 +264,7 @@ export function PropertyInfoForm({
               onManagerSelect={actions.selectManager}
               onCreateManager={() => {
                 // This would trigger a modal or navigation to create manager
-                console.log("Create manager action triggered")
+                logger.info("Create manager action triggered")
               }}
               userTeam={teamData.userTeam}
               isLoading={teamData.isLoading}

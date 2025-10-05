@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ArrowLeft,
   User,
@@ -21,8 +23,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { createContactService, createContactInvitationService } from '@/lib/services'
-
-
+import { logger, logError } from '@/lib/logger'
 interface ContactData {
   id: string
   name: string // Généré automatiquement à partir de first_name + last_name
@@ -103,7 +104,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   const loadInvitationStatus = useCallback(async () => {
     try {
       setInvitationLoading(true)
-      console.log("🔍 Loading invitation status for contact:", resolvedParams.id)
+      logger.info("🔍 Loading invitation status for contact:", resolvedParams.id)
       
       // Récupérer le statut d'invitation via l'API
       const response = await fetch(`/api/contact-invitation-status?contactId=${resolvedParams.id}`)
@@ -112,15 +113,15 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         const { status, invitationId: apiInvitationId } = await response.json()
         setInvitationStatus(status)
         setInvitationId(apiInvitationId || null) // ✅ Stocker l'ID de l'invitation
-        console.log("✅ Invitation status loaded:", status, "ID:", apiInvitationId)
+        logger.info("✅ Invitation status loaded:", status, "ID:", apiInvitationId)
       } else {
-        console.log("ℹ️ No invitation found for this contact")
+        logger.info("ℹ️ No invitation found for this contact")
         setInvitationStatus(null)
         setInvitationId(null)
       }
       
     } catch (error) {
-      console.error("❌ Error loading invitation status:", error)
+      logger.error("❌ Error loading invitation status:", error)
       // Ne pas afficher d'erreur pour le statut d'invitation
       setInvitationStatus(null)
     } finally {
@@ -132,11 +133,11 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     try {
       setLoading(true)
       setError(null)
-      console.log("📞 Loading contact:", resolvedParams.id)
+      logger.info("📞 Loading contact:", resolvedParams.id)
 
       const contactService = createContactService()
       const contactData = await contactService.getById(resolvedParams.id)
-      console.log("✅ Contact loaded:", contactData)
+      logger.info("✅ Contact loaded:", contactData)
       
       setContact(contactData as ContactData)
       setFormData({
@@ -154,7 +155,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       })
       
     } catch (error) {
-      console.error("❌ Error loading contact:", error)
+      logger.error("❌ Error loading contact:", error)
       setError("Erreur lors du chargement du contact")
     } finally {
       setLoading(false)
@@ -213,7 +214,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       setSaving(true)
       setError(null)
 
-      console.log("💾 Saving contact:", JSON.stringify(formData, null, 2))
+      logger.info("💾 Saving contact:", JSON.stringify(formData, null, 2))
 
       // ✅ Préparer les données pour la mise à jour - nom généré automatiquement
       const updateData = {
@@ -230,7 +231,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
 
       const contactService = createContactService()
       const updatedContact = await contactService.update(resolvedParams.id, updateData)
-      console.log("✅ Contact updated:", updatedContact)
+      logger.info("✅ Contact updated:", updatedContact)
       
       toast({
         title: "Contact modifié",
@@ -241,7 +242,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       router.push("/gestionnaire/contacts")
       
     } catch (error) {
-      console.error("❌ Error saving contact:", error)
+      logger.error("❌ Error saving contact:", error)
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de la sauvegarde"
       setError(errorMessage)
       toast({
@@ -310,7 +311,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   const handleRevokeInvitation = async () => {
     try {
       setRevoking(true)
-      console.log("🚫 Revoking invitation for contact:", contact?.email)
+      logger.info("🚫 Revoking invitation for contact:", contact?.email)
       
       const response = await fetch('/api/revoke-invitation', {
         method: 'POST',
@@ -326,7 +327,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       const result = await response.json()
       
       if (response.ok && result.success) {
-        console.log("✅ Invitation/Access revoked successfully")
+        logger.info("✅ Invitation/Access revoked successfully")
         
         // ✅ Réinitialiser le statut selon l'action effectuée
         const wasPending = invitationStatus === 'pending'
@@ -342,7 +343,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       }
       
     } catch (error) {
-      console.error("❌ Error revoking invitation:", error)
+      logger.error("❌ Error revoking invitation:", error)
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de la révocation"
       
       toast({
@@ -361,13 +362,13 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     
     try {
       setResending(true)
-      console.log("📧 Resending invitation for contact:", contact.email, "InvitationId:", invitationId)
+      logger.info("📧 Resending invitation for contact:", contact.email, "InvitationId:", invitationId)
       
       let response, result
       
       // ✅ Si une invitation existe déjà (même annulée), utiliser resend-invitation
       if (invitationId) {
-        console.log("🔄 Using resend-invitation API for existing invitation")
+        logger.info("🔄 Using resend-invitation API for existing invitation")
         response = await fetch('/api/resend-invitation', {
           method: 'POST',
           headers: {
@@ -380,7 +381,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       } 
       // ✅ Sinon, créer une nouvelle invitation avec invite-user
       else {
-        console.log("🆕 Using invite-user API for new invitation")
+        logger.info("🆕 Using invite-user API for new invitation")
         response = await fetch('/api/invite-user', {
           method: 'POST',
           headers: {
@@ -403,7 +404,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       result = await response.json()
       
       if (response.ok && result.success) {
-        console.log("✅ Invitation sent successfully")
+        logger.info("✅ Invitation sent successfully")
         
         // Recharger le statut d'invitation
         await loadInvitationStatus()
@@ -418,7 +419,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       }
       
     } catch (error) {
-      console.error("❌ Error resending invitation:", error)
+      logger.error("❌ Error resending invitation:", error)
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'envoi de l'invitation"
       
       toast({

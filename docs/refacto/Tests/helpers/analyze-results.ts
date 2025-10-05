@@ -8,6 +8,7 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { SeidoDebuggerAgent, createSeidoDebugger } from './seido-debugger-agent'
+import { logger, logError } from '@/lib/logger'
 import { TestExecutionSummary } from './e2e-test-logger'
 
 interface AnalysisOptions {

@@ -1,0 +1,82 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - navigation [ref=e5]:
+        - link "SEIDO" [ref=e9]:
+          - /url: /gestionnaire/dashboard
+          - img "SEIDO" [ref=e10]
+        - generic [ref=e11]:
+          - link "Notifications" [ref=e12]:
+            - /url: /gestionnaire/notifications
+            - img [ref=e13]
+          - button "Menu de navigation" [ref=e16]:
+            - img [ref=e17]
+    - main [ref=e18]:
+      - generic [ref=e21]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - heading "Tableau de bord" [level=1] [ref=e25]
+            - paragraph [ref=e26]: Bienvenue, Arthur Umugisha (Gestionnaire)
+          - button "Ajouter" [ref=e29]:
+            - img
+            - generic [ref=e30]: Ajouter
+            - img
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]:
+              - generic [ref=e35]: Immeubles
+              - img [ref=e36]
+            - generic [ref=e40]:
+              - generic [ref=e41]: "2"
+              - paragraph [ref=e42]: Propriétés gérées
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - generic [ref=e45]: Lots
+              - img [ref=e46]
+            - generic [ref=e49]:
+              - generic [ref=e50]: "8"
+              - paragraph [ref=e51]: Logements totaux
+          - generic [ref=e52]:
+            - generic [ref=e53]:
+              - generic [ref=e54]: Occupés
+              - img [ref=e55]
+            - generic [ref=e60]:
+              - generic [ref=e61]: 2/8
+              - generic [ref=e62]:
+                - progressbar [ref=e63]
+                - generic [ref=e65]: 25%
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - generic [ref=e68]: Contacts
+              - img [ref=e69]
+            - generic [ref=e74]:
+              - generic [ref=e75]: "5"
+              - generic [ref=e76]:
+                - paragraph [ref=e77]: 5 comptes actifs
+                - generic [ref=e78]:
+                  - generic [ref=e79]: "gestionnaire: 2"
+                  - generic [ref=e80]: "locataire: 2"
+                  - generic [ref=e81]: "prestataire: 1"
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - generic [ref=e85]:
+              - img [ref=e86]
+              - generic [ref=e88]: Tendances d'occupation
+            - generic [ref=e91]:
+              - generic [ref=e95]: 25%
+              - paragraph [ref=e96]: Taux d'occupation
+              - paragraph [ref=e97]: 2 sur 8 lots occupés
+          - generic [ref=e98]:
+            - generic [ref=e101]:
+              - img [ref=e102]
+              - generic [ref=e104]: Interventions récentes
+            - generic [ref=e106]:
+              - img [ref=e107]
+              - paragraph [ref=e109]: Aucune intervention
+              - paragraph [ref=e110]: Les interventions apparaîtront ici une fois créées
+  - region "Notifications (F8)":
+    - list
+```

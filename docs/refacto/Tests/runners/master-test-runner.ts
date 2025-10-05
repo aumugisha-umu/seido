@@ -25,6 +25,7 @@ import { AgentCoordinator, type AgentTask, type DebuggerAnalysis, type AgentExec
 import type { ErrorContext, AutoFixResult } from '../auto-healing/config'
 import * as fs from 'fs'
 import * as path from 'path'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Configuration du Master Runner

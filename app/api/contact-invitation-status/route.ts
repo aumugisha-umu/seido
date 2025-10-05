@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * GET /api/contact-invitation-status
  * Récupère le statut d'invitation d'un contact spécifique
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "ID du contact requis" }, { status: 400 })
     }
 
-    console.log("🔍 Checking invitation status for contact:", contactId)
+    logger.info("🔍 Checking invitation status for contact:", contactId)
 
     // D'abord, vérifier que le contact existe et appartient au gestionnaire
     const { data: contact, error: contactError } = await supabase
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (contactError || !contact) {
-      console.log("❌ Contact not found:", contactError)
+      logger.info("❌ Contact not found:", contactError)
       return NextResponse.json({ error: "Contact non trouvé" }, { status: 404 })
     }
 
@@ -79,11 +79,11 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (!managerTeam || contact.team_id !== managerTeam.team_id) {
-      console.log("❌ Contact not in same team as manager")
+      logger.info("❌ Contact not in same team as manager")
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
     }
 
-    console.log("🔍 Contact details:", {
+    logger.info("🔍 Contact details:", {
       email: contact.email,
       hasAuthUserId: !!contact.auth_user_id,
       authUserId: contact.auth_user_id
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (invitationError && invitationError.code !== 'PGRST116') {
-      console.error("❌ Error fetching invitation:", invitationError)
+      logger.error("❌ Error fetching invitation:", invitationError)
       return NextResponse.json({ error: "Erreur lors de la récupération" }, { status: 500 })
     }
 
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      console.log("✅ Invitation found with status:", status)
+      logger.info("✅ Invitation found with status:", status)
 
     return NextResponse.json({
       status,
@@ -139,11 +139,11 @@ export async function GET(request: NextRequest) {
 
     // ✅ LOGIQUE SIMPLIFIÉE : Si pas d'invitation trouvée, toujours "pas de compte"
     // Seules les invitations avec status="accepted" indiquent un compte réellement actif
-    console.log("ℹ️ No invitation found for contact, treating as no account:", contact.email)
+    logger.info("ℹ️ No invitation found for contact, treating as no account:", contact.email)
     return NextResponse.json({ status: null }, { status: 200 })
 
   } catch (error) {
-    console.error("❌ Error in contact-invitation-status API:", error)
+    logger.error("❌ Error in contact-invitation-status API:", error)
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }

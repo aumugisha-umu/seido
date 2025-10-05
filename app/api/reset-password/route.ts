@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { Database } from "@/lib/database.types"
 import { emailService } from "@/lib/email/email-service"
 import { EMAIL_CONFIG } from "@/lib/email/resend-client"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * POST /api/reset-password
  * Envoi d'email de réinitialisation de mot de passe via Service Role Key
@@ -13,7 +13,7 @@ import { EMAIL_CONFIG } from "@/lib/email/resend-client"
 // Client admin Supabase avec permissions élevées (même config que invitations)
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
-  console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - password reset will be disabled')
+  logger.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - password reset will be disabled')
 }
 
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -29,8 +29,8 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔄 [RESET-PASSWORD-API] Processing password reset request...')
-    console.log('🔧 [RESET-PASSWORD-API] Environment check:', {
+    logger.info('🔄 [RESET-PASSWORD-API] Processing password reset request...')
+    logger.info('🔧 [RESET-PASSWORD-API] Environment check:', {
       hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 
     // Vérifier si le service est disponible (même check que invitations)
     if (!supabaseAdmin) {
-      console.error('❌ [RESET-PASSWORD-API] Service not configured - SUPABASE_SERVICE_ROLE_KEY missing')
-      console.error('❌ [RESET-PASSWORD-API] Available env vars:', {
+      logger.error('❌ [RESET-PASSWORD-API] Service not configured - SUPABASE_SERVICE_ROLE_KEY missing')
+      logger.error('❌ [RESET-PASSWORD-API] Available env vars:', {
         hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
         hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -87,11 +87,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('📧 [RESET-PASSWORD-API] Processing reset for email:', email)
+    logger.info('📧 [RESET-PASSWORD-API] Processing reset for email:', email)
 
     // ÉTAPE 1: Vérifier que l'utilisateur existe dans auth.users
-    console.log('🔍 [RESET-PASSWORD-API] Checking if user exists in auth system...')
-    console.log('🔧 [RESET-PASSWORD-API] Using supabaseAdmin client:', {
+    logger.info('🔍 [RESET-PASSWORD-API] Checking if user exists in auth system...')
+    logger.info('🔧 [RESET-PASSWORD-API] Using supabaseAdmin client:', {
       hasClient: !!supabaseAdmin,
       clientAuth: !!supabaseAdmin?.auth,
       clientAdmin: !!supabaseAdmin?.auth.admin
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     
     const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
     
-    console.log('🔧 [RESET-PASSWORD-API] List users result:', {
+    logger.info('🔧 [RESET-PASSWORD-API] List users result:', {
       hasData: !!authUsers,
       userCount: authUsers?.users?.length || 0,
       hasError: !!listError,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     })
     
     if (listError) {
-      console.error('❌ [RESET-PASSWORD-API] Error listing users:', {
+      logger.error('❌ [RESET-PASSWORD-API] Error listing users:', {
         message: listError.message,
         status: listError.status,
         name: listError.name
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     const userExists = authUsers.users.find(user => user.email?.toLowerCase() === email.toLowerCase())
     
-    console.log('🔧 [RESET-PASSWORD-API] User search details:', {
+    logger.info('🔧 [RESET-PASSWORD-API] User search details:', {
       searchEmail: email.toLowerCase(),
       totalUsers: authUsers.users.length,
       userEmails: authUsers.users.map(u => u.email?.toLowerCase()).filter(Boolean),
@@ -138,8 +138,8 @@ export async function POST(request: NextRequest) {
     })
     
     if (!userExists) {
-      console.log('❌ [RESET-PASSWORD-API] User not found in auth system:', email)
-      console.log('🔧 [RESET-PASSWORD-API] Available users in system:', 
+      logger.info('❌ [RESET-PASSWORD-API] User not found in auth system:', email)
+      logger.info('🔧 [RESET-PASSWORD-API] Available users in system:', 
         authUsers.users.map(u => ({ email: u.email, id: u.id, confirmed: u.email_confirmed_at }))
       )
       return NextResponse.json(
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ [RESET-PASSWORD-API] User found in auth system:', {
+    logger.info('✅ [RESET-PASSWORD-API] User found in auth system:', {
       id: userExists.id,
       email: userExists.email,
       confirmed: userExists.email_confirmed_at,
@@ -165,10 +165,10 @@ export async function POST(request: NextRequest) {
     })
 
     // ÉTAPE 2: Générer token de réinitialisation et envoyer email via Resend
-    console.log('📧 [RESET-PASSWORD-API] Generating reset token and sending email via Resend...')
+    logger.info('📧 [RESET-PASSWORD-API] Generating reset token and sending email via Resend...')
 
     const redirectUrl = `${EMAIL_CONFIG.appUrl}/auth/update-password`
-    console.log('🔧 [RESET-PASSWORD-API] Reset email config:', {
+    logger.info('🔧 [RESET-PASSWORD-API] Reset email config:', {
       email: email,
       redirectTo: redirectUrl,
       method: 'Resend with React template'
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (resetError || !resetData) {
-        console.error('❌ [RESET-PASSWORD-API] Failed to generate reset link:', resetError)
+        logger.error('❌ [RESET-PASSWORD-API] Failed to generate reset link:', resetError)
 
         // Gestion d'erreurs spécifiques
         let errorMessage = 'Erreur lors de la génération du lien de réinitialisation'
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!emailResult.success) {
-        console.error('❌ [RESET-PASSWORD-API] Failed to send email via Resend:', emailResult.error)
+        logger.error('❌ [RESET-PASSWORD-API] Failed to send email via Resend:', emailResult.error)
         return NextResponse.json(
           {
             success: false,
@@ -233,8 +233,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      console.log('✅ [RESET-PASSWORD-API] Password reset email sent successfully via Resend!')
-      console.log('🔧 [RESET-PASSWORD-API] Success details:', {
+      logger.info('✅ [RESET-PASSWORD-API] Password reset email sent successfully via Resend!')
+      logger.info('🔧 [RESET-PASSWORD-API] Success details:', {
         email: email,
         emailId: emailResult.emailId,
         userConfirmed: userExists.email_confirmed_at,
@@ -243,10 +243,10 @@ export async function POST(request: NextRequest) {
       
       // ÉTAPE 3: Logs d'activité (optionnel, similaire aux invitations)
       try {
-        console.log('📝 [RESET-PASSWORD-API] Logging password reset activity...')
+        logger.info('📝 [RESET-PASSWORD-API] Logging password reset activity...')
         // Ici on pourrait logger l'activité si nécessaire
       } catch (logError) {
-        console.warn('⚠️ [RESET-PASSWORD-API] Failed to log activity (non-blocking):', logError)
+        logger.warn('⚠️ [RESET-PASSWORD-API] Failed to log activity (non-blocking):', logError)
       }
 
       return NextResponse.json(
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
       )
 
     } catch (sendError) {
-      console.error('❌ [RESET-PASSWORD-API] Unexpected error sending reset email:', sendError)
+      logger.error('❌ [RESET-PASSWORD-API] Unexpected error sending reset email:', sendError)
       return NextResponse.json(
         { 
           success: false,
@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('❌ [RESET-PASSWORD-API] Unexpected error in reset password API:', error)
+    logger.error('❌ [RESET-PASSWORD-API] Unexpected error in reset password API:', error)
     return NextResponse.json(
       { 
         success: false,

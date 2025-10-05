@@ -5,6 +5,7 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { logger, logError } from '@/lib/logger'
 import { TestExecutionSummary, TestStep } from './e2e-test-logger'
 
 export interface ErrorPattern {

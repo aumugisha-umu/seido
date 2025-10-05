@@ -5,8 +5,8 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from './database.types'
 import { userService, teamService } from './database-service'
+import { logger, logError } from '@/lib/logger'
 import { activityLogger } from './activity-logger'
-
 export interface SignUpData {
   email: string
   password: string
@@ -64,7 +64,7 @@ function createServerSupabaseClient() {
             })
           } catch {
             // Ignore l'erreur de set cookies depuis Server Action
-            console.log('Note: Cookie setting ignored in Server Action context')
+            logger.info('Note: Cookie setting ignored in Server Action context')
           }
         },
       },
@@ -93,7 +93,7 @@ export async function signInAction(formData: FormData) {
     })
 
     if (error) {
-      console.log('❌ [AUTH-ACTION] Sign in failed:', error.message)
+      logger.info('❌ [AUTH-ACTION] Sign in failed:', error.message)
       return { error: 'Email ou mot de passe incorrect' }
     }
 
@@ -101,7 +101,7 @@ export async function signInAction(formData: FormData) {
       return { error: 'Erreur de connexion' }
     }
 
-    console.log('✅ [AUTH-ACTION] User signed in:', data.user.id)
+    logger.info('✅ [AUTH-ACTION] User signed in:', data.user.id)
 
     // Vérifier que l'utilisateur a un profil
     const userProfile = await userService.getByAuthUserId(data.user.id)
@@ -122,7 +122,7 @@ export async function signInAction(formData: FormData) {
     const redirectPath = dashboardRoutes[userProfile.role] || '/auth/login'
     redirect(redirectPath)
   } catch (error) {
-    console.error('❌ [AUTH-ACTION] Sign in error:', error)
+    logger.error('❌ [AUTH-ACTION] Sign in error:', error)
     return { error: 'Erreur de connexion' }
   }
 }
@@ -160,7 +160,7 @@ export async function signUpAction(formData: FormData) {
     })
 
     if (authError || !authData.user) {
-      console.log('❌ [AUTH-ACTION] Sign up failed:', authError?.message)
+      logger.info('❌ [AUTH-ACTION] Sign up failed:', authError?.message)
       return { error: authError?.message || 'Erreur création compte' }
     }
 
@@ -211,10 +211,10 @@ export async function signUpAction(formData: FormData) {
         }
       )
     } catch (logError) {
-      console.warn('⚠️ [AUTH-ACTION] Activity logging failed:', logError)
+      logger.warn('⚠️ [AUTH-ACTION] Activity logging failed:', logError)
     }
 
-    console.log('✅ [AUTH-ACTION] User signed up:', authData.user.id)
+    logger.info('✅ [AUTH-ACTION] User signed up:', authData.user.id)
 
     // Si email confirmé, rediriger vers dashboard
     if (authData.user.email_confirmed_at) {
@@ -224,7 +224,7 @@ export async function signUpAction(formData: FormData) {
       redirect('/auth/signup-success')
     }
   } catch (error) {
-    console.error('❌ [AUTH-ACTION] Sign up error:', error)
+    logger.error('❌ [AUTH-ACTION] Sign up error:', error)
     return { error: 'Erreur création compte' }
   }
 }
@@ -237,9 +237,9 @@ export async function signOutAction() {
 
   try {
     await supabase.auth.signOut()
-    console.log('✅ [AUTH-ACTION] User signed out')
+    logger.info('✅ [AUTH-ACTION] User signed out')
   } catch (error) {
-    console.error('❌ [AUTH-ACTION] Sign out error:', error)
+    logger.error('❌ [AUTH-ACTION] Sign out error:', error)
   }
 
   redirect('/auth/login')
@@ -263,14 +263,14 @@ export async function resetPasswordAction(formData: FormData) {
     })
 
     if (error) {
-      console.log('❌ [AUTH-ACTION] Password reset failed:', error.message)
+      logger.info('❌ [AUTH-ACTION] Password reset failed:', error.message)
       return { error: 'Erreur envoi email de réinitialisation' }
     }
 
-    console.log('✅ [AUTH-ACTION] Password reset email sent to:', email)
+    logger.info('✅ [AUTH-ACTION] Password reset email sent to:', email)
     return { success: 'Email de réinitialisation envoyé' }
   } catch (error) {
-    console.error('❌ [AUTH-ACTION] Password reset error:', error)
+    logger.error('❌ [AUTH-ACTION] Password reset error:', error)
     return { error: 'Erreur envoi email' }
   }
 }
@@ -302,14 +302,14 @@ export async function updatePasswordAction(formData: FormData) {
     })
 
     if (error) {
-      console.log('❌ [AUTH-ACTION] Password update failed:', error.message)
+      logger.info('❌ [AUTH-ACTION] Password update failed:', error.message)
       return { error: 'Erreur mise à jour mot de passe' }
     }
 
-    console.log('✅ [AUTH-ACTION] Password updated successfully')
+    logger.info('✅ [AUTH-ACTION] Password updated successfully')
     redirect('/auth/login?message=Mot de passe mis à jour avec succès')
   } catch (error) {
-    console.error('❌ [AUTH-ACTION] Password update error:', error)
+    logger.error('❌ [AUTH-ACTION] Password update error:', error)
     return { error: 'Erreur mise à jour mot de passe' }
   }
 }

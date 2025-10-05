@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Edge Runtime Compatible Middleware for Supabase Auth

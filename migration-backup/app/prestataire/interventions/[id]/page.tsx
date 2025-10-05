@@ -15,6 +15,7 @@ import { useQuoteCancellation } from "@/hooks/use-quote-cancellation"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
+import { logger, logError } from '@/lib/logger'
 
 // Réutiliser les types du composant principal
 interface DatabaseContact {

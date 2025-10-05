@@ -13,6 +13,7 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, extname } from 'path'
 import { SEIDODesignValidator, type DesignViolation } from './seido-design-validator'
 import { SEIDORefactoringTools } from './seido-refactoring-tools'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Validation Results Interface

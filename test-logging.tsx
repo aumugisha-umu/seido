@@ -1,17 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { 
-  logger, 
-  authLogger, 
-  supabaseLogger, 
-  logUserAction, 
-  logError 
+import {
+  logger,
+  authLogger,
+  supabaseLogger,
+  logUserAction,
+  logError
 } from '@/lib/logger'
-import { 
-  useComponentLogger, 
-  useInteractionLogger, 
-  usePerformanceLogger 
+import {
+  useComponentLogger,
+  useInteractionLogger,
+  usePerformanceLogger
 } from '@/lib/react-logger'
 
 export default function TestLogging() {

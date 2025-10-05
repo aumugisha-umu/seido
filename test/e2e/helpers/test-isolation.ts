@@ -94,13 +94,15 @@ export async function setupTestIsolation(page: Page): Promise<void> {
  * Teardown complet après test
  * Usage dans afterEach
  */
-export async function teardownTestIsolation(page: Page, testInfo: any): Promise<void> {
+export async function teardownTestIsolation(page: Page, testInfo?: any): Promise<void> {
   // Screenshot seulement si échec (économise espace disque)
-  if (testInfo.status === 'failed') {
+  if (testInfo?.status === 'failed') {
     await page.screenshot({
       path: `test/e2e/screenshots/${testInfo.title.replace(/\s+/g, '-')}.png`,
       fullPage: true
     })
+  } else if (!testInfo) {
+    console.log('⚠️ [TEARDOWN] testInfo not provided, skipping conditional screenshot')
   }
 
   // Attendre requêtes réseau

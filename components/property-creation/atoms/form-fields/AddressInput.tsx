@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * AddressInput - Atomic component for address input with validation
  *
@@ -5,7 +7,6 @@
  * selection. Includes built-in validation and error states.
  */
 
-"use client"
 
 import React from "react"
 import { Input } from "@/components/ui/input"

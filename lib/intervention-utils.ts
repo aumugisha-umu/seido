@@ -22,7 +22,7 @@ export const isBuildingWideIntervention = (intervention: InterventionAction): bo
   return !!(intervention.building && !intervention.lot)
 }
 
-export const getStatusColor = (_status: string) => {
+export const getStatusColor = (status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -59,7 +59,7 @@ export const getStatusColor = (_status: string) => {
   }
 }
 
-export const getStatusLabel = (_status: string) => {
+export const getStatusLabel = (status: string) => {
   switch (status) {
     // Phase 1: Demande
     case "demande":
@@ -96,7 +96,7 @@ export const getStatusLabel = (_status: string) => {
   }
 }
 
-export const getPriorityColor = (_urgency: string) => {
+export const getPriorityColor = (urgency: string) => {
   switch (urgency) {
     case "urgente":
       return "bg-red-100 text-red-800"
@@ -111,7 +111,7 @@ export const getPriorityColor = (_urgency: string) => {
   }
 }
 
-export const getPriorityLabel = (_urgency: string) => {
+export const getPriorityLabel = (urgency: string) => {
   switch (urgency) {
     case "urgente":
       return "Urgente"
@@ -145,8 +145,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
       case "planification":
         return "Vous devez planifier l'intervention"
       case "planifiee":
-      case "programmee":
-        return "Intervention programmée - Vous pouvez commencer"
+        return "Intervention planifiée - Vous pouvez commencer"
       case "en_cours":
         return "Intervention en cours - Terminez quand c'est fait"
 
@@ -222,8 +221,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
     case "planification":
       return "En attente des disponibilités du locataire et prestataire"
     case "planifiee":
-    case "programmee":
-      return "Intervention programmée"
+      return "Intervention planifiée"
     case "en_cours":
       return "Intervention en cours d'exécution"
 

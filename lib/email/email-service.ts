@@ -16,6 +16,7 @@ import type {
   SendEmailOptions,
 } from '@/emails/utils/types'
 import { renderEmail } from '@/emails/utils/render'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Options de retry pour l'envoi d'emails

@@ -9,7 +9,8 @@
  */
 
 import {
-  createServerUserService,
+import { logger, logError } from '@/lib/logger'
+createServerUserService,
   createServerBuildingService,
   createServerLotService,
   type User,
@@ -116,7 +117,7 @@ export const userService = {
     // Ensure ID is a string (matching legacy behavior)
     const userId = typeof id === 'string' ? id : String(id)
 
-    console.log('🔍 [DATABASE-SERVICE-COMPAT] Getting user by ID:', {
+    logger.info('🔍 [DATABASE-SERVICE-COMPAT] Getting user by ID:', {
       requestedId: userId,
       originalType: typeof id,
       timestamp: new Date().toISOString()
@@ -125,7 +126,7 @@ export const userService = {
     // Validate input
     if (!userId) {
       const error = new Error('User ID is required')
-      console.error('❌ [DATABASE-SERVICE-COMPAT] Missing user ID')
+      logger.error('❌ [DATABASE-SERVICE-COMPAT] Missing user ID')
       throw error
     }
 
@@ -134,7 +135,7 @@ export const userService = {
       const response = await service.getById(userId)
 
       if (!response.success) {
-        console.error('❌ [DATABASE-SERVICE-COMPAT] Service error in getById:', {
+        logger.error('❌ [DATABASE-SERVICE-COMPAT] Service error in getById:', {
           message: response.error?.message || 'Unknown error',
           code: response.error?.code || 'NO_CODE',
           userId: userId
@@ -148,11 +149,11 @@ export const userService = {
 
       if (!response.data) {
         const notFoundError = new Error(`User not found with ID: ${userId}`)
-        console.error('❌ User not found:', { userId: userId })
+        logger.error('❌ User not found:', { userId: userId })
         throw notFoundError
       }
 
-      console.log('✅ [DATABASE-SERVICE-COMPAT] User found:', {
+      logger.info('✅ [DATABASE-SERVICE-COMPAT] User found:', {
         name: response.data?.name || 'Unknown name',
         id: response.data?.id,
         email: response.data?.email,
@@ -162,7 +163,7 @@ export const userService = {
 
       return response.data
     } catch (error) {
-      console.error('❌ Exception in userService.getById:', {
+      logger.error('❌ Exception in userService.getById:', {
         userId: userId,
         errorType: error?.constructor?.name || 'Unknown',
         message: error instanceof Error ? error.message : String(error)
@@ -187,16 +188,16 @@ export const userService = {
   },
 
   async create(user: Database['public']['Tables']['users']['Insert']) {
-    console.log('🔄 Creating user in database (compat layer):', user)
+    logger.info('🔄 Creating user in database (compat layer):', user)
 
     const service = await getUserService()
     const response = await service.create(user)
 
     if (!response.success) {
-      console.error('❌ Database error creating user:')
-      console.error('Error message:', response.error?.message)
-      console.error('Error code:', response.error?.code)
-      console.error('User data:', user)
+      logger.error('❌ Database error creating user:')
+      logger.error('Error message:', response.error?.message)
+      logger.error('Error code:', response.error?.code)
+      logger.error('User data:', user)
       const error = new Error(response.error?.message || 'Failed to create user')
       if (response.error?.code) {
         (error as Error & { code?: string }).code = response.error.code
@@ -204,7 +205,7 @@ export const userService = {
       throw error
     }
 
-    console.log('✅ User successfully created in database (compat layer):', response.data)
+    logger.info('✅ User successfully created in database (compat layer):', response.data)
     return response.data
   },
 
@@ -228,12 +229,12 @@ export const userService = {
   },
 
   async findByEmail(_email: string) {
-    console.log('🔍 [USER-SERVICE-COMPAT] Finding user by email:', email)
+    logger.info('🔍 [USER-SERVICE-COMPAT] Finding user by email:', email)
     const service = await getUserService()
     const response = await service.getByEmail(email)
 
     if (!response.success && response.error?.code !== 'NOT_FOUND') {
-      console.error('❌ [USER-SERVICE-COMPAT] Error finding user by email:', response.error)
+      logger.error('❌ [USER-SERVICE-COMPAT] Error finding user by email:', response.error)
       const error = new Error(response.error?.message || 'Database error')
       if (response.error?.code) {
         (error as Error & { code?: string }).code = response.error.code
@@ -241,17 +242,17 @@ export const userService = {
       throw error
     }
 
-    console.log('✅ [USER-SERVICE-COMPAT] User found:', response.data ? 'yes' : 'no')
+    logger.info('✅ [USER-SERVICE-COMPAT] User found:', response.data ? 'yes' : 'no')
     return response.data || null
   },
 
   async findByAuthUserId(_authUserId: string) {
-    console.log('🔍 [USER-SERVICE-COMPAT] Finding user by auth_user_id:', authUserId)
+    logger.info('🔍 [USER-SERVICE-COMPAT] Finding user by auth_user_id:', authUserId)
     const service = await getUserService()
     const response = await service.getByAuthUserId(authUserId)
 
     if (!response.success && response.error?.code !== 'NOT_FOUND') {
-      console.error('❌ [USER-SERVICE-COMPAT] Error finding user by auth_user_id:', response.error)
+      logger.error('❌ [USER-SERVICE-COMPAT] Error finding user by auth_user_id:', response.error)
       const error = new Error(response.error?.message || 'Database error')
       if (response.error?.code) {
         (error as Error & { code?: string }).code = response.error.code
@@ -259,17 +260,17 @@ export const userService = {
       throw error
     }
 
-    console.log('✅ [USER-SERVICE-COMPAT] User found by auth_user_id:', response.data ? 'yes' : 'no')
+    logger.info('✅ [USER-SERVICE-COMPAT] User found by auth_user_id:', response.data ? 'yes' : 'no')
     return response.data || null
   },
 
   async getTeamUsers(_teamId: string) {
-    console.log('🔍 [USER-SERVICE-COMPAT] Getting users for team:', _teamId)
+    logger.info('🔍 [USER-SERVICE-COMPAT] Getting users for team:', _teamId)
     const service = await getUserService()
     const response = await service.getUsersByTeam(_teamId)
 
     if (!response.success) {
-      console.error('❌ [USER-SERVICE-COMPAT] Error getting team users:', response.error)
+      logger.error('❌ [USER-SERVICE-COMPAT] Error getting team users:', response.error)
       const error = new Error(response.error?.message || 'Database error')
       if (response.error?.code) {
         (error as Error & { code?: string }).code = response.error.code
@@ -277,7 +278,7 @@ export const userService = {
       throw error
     }
 
-    console.log('✅ [USER-SERVICE-COMPAT] Team users found:', response.data?.length || 0)
+    logger.info('✅ [USER-SERVICE-COMPAT] Team users found:', response.data?.length || 0)
     return response.data || []
   }
 }
@@ -305,13 +306,13 @@ export const _buildingService = {
   },
 
   async getTeamBuildings(_teamId: string) {
-    console.log('🏢 [BUILDING-SERVICE-COMPAT] Getting buildings for team:', _teamId)
+    logger.info('🏢 [BUILDING-SERVICE-COMPAT] Getting buildings for team:', _teamId)
 
     const service = await getBuildingService()
     const response = await service.getByTeam(_teamId)
 
     if (!response.success) {
-      console.error('❌ [BUILDING-SERVICE-COMPAT] Error getting team buildings:', response.error)
+      logger.error('❌ [BUILDING-SERVICE-COMPAT] Error getting team buildings:', response.error)
       const error = new Error(response.error?.message || 'Database error')
       if (response.error?.code) {
         (error as Error & { code?: string }).code = response.error.code
@@ -319,7 +320,7 @@ export const _buildingService = {
       throw error
     }
 
-    console.log('✅ [BUILDING-SERVICE-COMPAT] Buildings found:', response.data?.length || 0)
+    logger.info('✅ [BUILDING-SERVICE-COMPAT] Buildings found:', response.data?.length || 0)
 
     // TODO: Add post-processing for complex joins when implemented
     return (response.data || []).map(building => ({

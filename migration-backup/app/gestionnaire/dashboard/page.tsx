@@ -5,6 +5,7 @@ import { Building2, Home, Users, Wrench, BarChart3 } from "lucide-react"
 import { requireRole, getUserBasicInfo } from "@/lib/dal"
 import { DashboardClient } from "./dashboard-client"
 import { userService, teamService, interventionService, buildingService, lotService } from "@/lib/database-service"
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🔐 DASHBOARD GESTIONNAIRE - SERVER COMPONENT (Bonnes Pratiques 2025)

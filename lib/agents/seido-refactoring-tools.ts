@@ -11,6 +11,7 @@
 import { execSync } from 'child_process'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * TypeScript AST-based refactoring utilities

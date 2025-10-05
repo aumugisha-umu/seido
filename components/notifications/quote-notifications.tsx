@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { FileText, Euro, CheckCircle, XCircle, Bell, Clock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-
+import { logger, logError } from '@/lib/logger'
 export interface QuoteNotification {
   id: string
   type: 'quote_request' | 'quote_submitted' | 'quote_approved' | 'quote_rejected'
@@ -75,7 +75,7 @@ export function QuoteNotifications({
 
         setNotifications(mockNotifications)
       } catch (error) {
-        console.error('Error fetching notifications:', error)
+        logger.error('Error fetching notifications:', error)
       } finally {
         setIsLoading(false)
       }

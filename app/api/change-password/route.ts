@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
 import { emailService } from "@/lib/email/email-service"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * POST /api/change-password
  * Permet à un utilisateur authentifié de changer son mot de passe
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("🔒 [CHANGE-PASSWORD] Validating current password for user:", authUser.email)
+    logger.info("🔒 [CHANGE-PASSWORD] Validating current password for user:", authUser.email)
 
     // Étape 1: Vérifier le mot de passe actuel en tentant une connexion
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -74,28 +74,28 @@ export async function POST(request: NextRequest) {
     })
 
     if (signInError) {
-      console.log("❌ [CHANGE-PASSWORD] Current password validation failed:", signInError.message)
+      logger.info("❌ [CHANGE-PASSWORD] Current password validation failed:", signInError.message)
       return NextResponse.json({ 
         error: "Le mot de passe actuel est incorrect" 
       }, { status: 400 })
     }
 
-    console.log("✅ [CHANGE-PASSWORD] Current password validated successfully")
+    logger.info("✅ [CHANGE-PASSWORD] Current password validated successfully")
 
     // Étape 2: Mettre à jour le mot de passe avec Supabase Auth
-    console.log("🔄 [CHANGE-PASSWORD] Updating password...")
+    logger.info("🔄 [CHANGE-PASSWORD] Updating password...")
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword
     })
 
     if (updateError) {
-      console.error("❌ [CHANGE-PASSWORD] Error updating password:", updateError.message)
+      logger.error("❌ [CHANGE-PASSWORD] Error updating password:", updateError.message)
       return NextResponse.json({ 
         error: "Erreur lors de la mise à jour du mot de passe: " + updateError.message 
       }, { status: 500 })
     }
 
-    console.log("✅ [CHANGE-PASSWORD] Password updated successfully")
+    logger.info("✅ [CHANGE-PASSWORD] Password updated successfully")
 
     // ✅ NOUVEAU: Envoyer email de confirmation via Resend
     try {
@@ -106,13 +106,13 @@ export async function POST(request: NextRequest) {
       })
 
       if (emailResult.success) {
-        console.log('✅ [CHANGE-PASSWORD] Confirmation email sent via Resend:', emailResult.emailId)
+        logger.info('✅ [CHANGE-PASSWORD] Confirmation email sent via Resend:', emailResult.emailId)
       } else {
-        console.warn('⚠️ [CHANGE-PASSWORD] Failed to send confirmation email:', emailResult.error)
+        logger.warn('⚠️ [CHANGE-PASSWORD] Failed to send confirmation email:', emailResult.error)
       }
     } catch (emailError) {
       // Ne pas bloquer le changement de mot de passe si l'email échoue
-      console.error('❌ [CHANGE-PASSWORD] Email sending error:', emailError)
+      logger.error('❌ [CHANGE-PASSWORD] Email sending error:', emailError)
     }
 
     // Retourner le succès
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     }, { status: 200 })
 
   } catch (error) {
-    console.error("❌ [CHANGE-PASSWORD] Unexpected error:", error)
+    logger.error("❌ [CHANGE-PASSWORD] Unexpected error:", error)
     return NextResponse.json({ 
       error: "Erreur interne du serveur" 
     }, { status: 500 })

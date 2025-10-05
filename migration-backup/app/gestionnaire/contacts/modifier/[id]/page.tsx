@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { contactService } from "@/lib/database-service"
+import { logger, logError } from '@/lib/logger'
 
 interface ContactData {
   id: string

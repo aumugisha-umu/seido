@@ -30,8 +30,7 @@ import { useActivityLogs } from "@/hooks/use-activity-logs"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useToast } from "@/hooks/use-toast"
-
-
+import { logger, logError } from '@/lib/logger'
 function getNotificationIcon(type: string, priority?: string) {
   const isUrgent = priority === 'urgent' || priority === 'high'
   const className = isUrgent ? "h-5 w-5 text-red-500" : "h-5 w-5 text-blue-500"
@@ -135,7 +134,7 @@ export default function NotificationsPage() {
           setUserTeam(teams[0])
         }
       } catch (error) {
-        console.error('Error fetching user team:', error)
+        logger.error('Error fetching user team:', error)
       }
     }
 
@@ -179,7 +178,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      console.error('Error toggling notification read status:', error)
+      logger.error('Error toggling notification read status:', error)
       toast({
         title: "❌ Erreur",
         description: "Impossible de modifier le statut de la notification. Veuillez réessayer.",
@@ -211,7 +210,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+      logger.error('Error marking all notifications as read:', error)
       
       // Show error toast
       toast({
@@ -258,7 +257,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      console.error('Error archiving notification:', error)
+      logger.error('Error archiving notification:', error)
       toast({
         title: "❌ Erreur",
         description: "Impossible d'archiver la notification. Veuillez réessayer.",

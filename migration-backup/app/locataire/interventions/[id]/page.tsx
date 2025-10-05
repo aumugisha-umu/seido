@@ -12,6 +12,7 @@ import { InterventionActionPanelHeader } from "@/components/intervention/interve
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
 import { interventionService, contactService, determineAssignmentType } from "@/lib/database-service"
+import { logger, logError } from '@/lib/logger'
 
 interface InterventionDetailsProps {
   params: {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-
+import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     // Validation des paramètres obligatoires
-    if (!_teamId) {
+    if (!teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('activity_logs_with_user')
       .select('*')
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
       .order('created_at', { ascending: false })
 
     // Application des filtres optionnels
-    if (_userId) {
-      query = query.eq('user_id', _userId)
+    if (userId) {
+      query = query.eq('user_id', userId)
     }
 
     if (entityType) {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching activity logs:', error)
+      logger.error('Error fetching activity logs:', error)
       return NextResponse.json(
         { error: 'Failed to fetch activity logs', details: error.message, code: error.code },
         { status: 500 }
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     const { count } = await supabase
       .from('activity_logs')
       .select('*', { count: 'exact', head: true })
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
 
     return NextResponse.json({
       data: data || [],
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Unexpected error in activity-logs API:', error)
+    logger.error('Unexpected error in activity-logs API:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
 
     // Validation des champs obligatoires
     const {
-      _teamId,
-      _userId,
+      teamId,
+      userId,
       actionType,
       entityType,
       entityId,
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     if (!teamId || !userId || !actionType || !entityType || !description) {
       return NextResponse.json(
-        { error: 'Missing required fields: _teamId, _userId, actionType, entityType, description' },
+        { error: 'Missing required fields: teamId, userId, actionType, entityType, description' },
         { status: 400 }
       )
     }
@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('activity_logs')
       .insert({
-        team_id: _teamId,
-        user_id: _userId,
+        team_id: teamId,
+        user_id: userId,
         action_type: actionType,
         entity_type: entityType,
         entity_id: entityId || null,
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creating activity log:', error)
+      logger.error('Error creating activity log:', error)
       return NextResponse.json(
         { error: 'Failed to create activity log' },
         { status: 500 }
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data })
 
   } catch (error) {
-    console.error('Unexpected error in activity-logs POST:', error)
+    logger.error('Unexpected error in activity-logs POST:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

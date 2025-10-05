@@ -16,7 +16,7 @@ export function useUser(userId?: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!_userId) {
+    if (!userId) {
       setLoading(false)
       return
     }
@@ -24,7 +24,7 @@ export function useUser(userId?: string) {
     async function fetchUser() {
       try {
         setLoading(true)
-        const userData = await userService.getById(_userId)
+        const userData = await userService.getById(userId)
         setUser(userData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching user')
@@ -176,7 +176,7 @@ export function useLotsByBuilding(buildingId?: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!_buildingId) {
+    if (!buildingId) {
       setLoading(false)
       return
     }
@@ -184,7 +184,7 @@ export function useLotsByBuilding(buildingId?: string) {
     async function fetchLots() {
       try {
         setLoading(true)
-        const lotData = await lotService.getByBuildingId(_buildingId)
+        const lotData = await lotService.getByBuildingId(buildingId)
         setLots(lotData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching lots')

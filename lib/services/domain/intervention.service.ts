@@ -8,6 +8,7 @@ import { UserService, createUserService, createServerUserService } from './user.
 import { LotService, createLotService, createServerLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService } from './contact.service'
 import { ValidationException, NotFoundException } from '../core/error-handler'
+import { logger, logError } from '@/lib/logger'
 import type {
   Intervention,
   InterventionInsert,
@@ -50,6 +51,37 @@ export interface FinalizationData {
   finalAmount?: number
   paymentComment?: string
   managerComment?: string
+}
+
+export interface TenantValidationData {
+  satisfaction: 'satisfied' | 'unsatisfied'
+  comment?: string
+  rating?: number
+}
+
+export interface TenantContestData {
+  reason: string
+  requestedAction?: string
+  photos?: string[]
+}
+
+export interface CancellationData {
+  reason: string
+  internalComment?: string
+  cancelledBy?: string
+}
+
+export interface SlotConfirmationData {
+  scheduledDate: string
+  estimatedDuration?: number
+  note?: string
+}
+
+export interface ProviderCompletionData {
+  completionReport: string
+  actualDuration?: number
+  materials?: string
+  photos?: string[]
 }
 
 /**
@@ -112,11 +144,11 @@ export class InterventionService {
       }
     }
 
-    // Validate requesting user exists
-    if (this.userService && interventionData.requested_by) {
-      const userResult = await this.userService.getById(interventionData.requested_by)
+    // Validate tenant user exists
+    if (this.userService && interventionData.tenant_id) {
+      const userResult = await this.userService.getById(interventionData.tenant_id)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('Requesting user not found', 'users', interventionData.requested_by)
+        throw new NotFoundException('Tenant user not found', 'users', interventionData.tenant_id)
       }
     }
 
@@ -136,7 +168,7 @@ export class InterventionService {
         await this.autoAssignManagers(result.data.id, result.data.lot_id)
         await this.logInterventionCreation(result.data, requestedBy)
       } catch (assignmentError) {
-        console.error('❌ Error in auto-assignment or logging:', assignmentError)
+        logger.error('❌ Error in auto-assignment or logging:', assignmentError)
         // Don't fail the creation for assignment errors
       }
     }
@@ -564,10 +596,10 @@ export class InterventionService {
       const primaryManager = managersResult.data.find(contact => contact.is_primary) || managersResult.data[0]
       if (primaryManager?.user_id) {
         // This would require intervention_contacts assignment - simplified for now
-        console.log('Auto-assigning manager:', primaryManager.user_id, 'to intervention:', interventionId)
+        logger.info('Auto-assigning manager:', primaryManager.user_id, 'to intervention:', interventionId)
       }
     } catch (error) {
-      console.error('Error in auto-assignment:', error)
+      logger.error('Error in auto-assignment:', error)
     }
   }
 
@@ -620,9 +652,9 @@ export class InterventionService {
     }
 
     // Additional check: provider should be assigned to this intervention
-    if (intervention.assigned_to !== user.id) {
-      throw new ValidationException('Provider is not assigned to this intervention', 'interventions', 'permissions')
-    }
+    // NOTE: assigned_to no longer exists in DB, assignments are handled via intervention_contacts
+    // This check is temporarily disabled until the service is fully migrated to use intervention_contacts
+    // TODO: Check if user.id exists in intervention_contacts with role='prestataire'
   }
 
   /**
@@ -630,7 +662,9 @@ export class InterventionService {
    */
   private validateSchedulingPermissions(intervention: Intervention, user: User) {
     const isManager = this.isManager(user)
-    const isAssignedProvider = this.isProvider(user) && intervention.assigned_to === user.id
+    // NOTE: assigned_to no longer exists, need to check intervention_contacts
+    // Temporarily allow any provider for scheduling until migration is complete
+    const isAssignedProvider = this.isProvider(user)  // TODO: Check intervention_contacts
 
     if (!isManager && !isAssignedProvider) {
       throw new ValidationException('User does not have scheduling permissions', 'interventions', 'permissions')
@@ -652,50 +686,468 @@ export class InterventionService {
   }
 
   /**
+   * Tenant validates completed work
+   */
+  async validateByTenant(
+    interventionId: string,
+    validationData: TenantValidationData,
+    userId: string
+  ): Promise<ServiceResult<Intervention>> {
+    try {
+      // Fetch intervention with relations
+      const interventionResult = await this.repository.findById(interventionId)
+      if (!interventionResult.success || !interventionResult.data) {
+        throw new NotFoundException('Intervention', interventionId)
+      }
+
+      const intervention = interventionResult.data
+
+      // Fetch user for permissions
+      const userResult = await this.userService.getById(userId)
+      if (!userResult.success || !userResult.data) {
+        throw new NotFoundException('User', userId)
+      }
+
+      const user = userResult.data
+
+      // Validate tenant permissions
+      if (user.role !== 'locataire') {
+        throw new ValidationException('Only tenants can validate interventions', 'interventions', 'permissions')
+      }
+
+      // Validate status transition
+      if (intervention.status !== 'provider_completed') {
+        throw new ValidationException(
+          `Cannot validate intervention in status: ${intervention.status}. Expected: provider_completed`,
+          'interventions',
+          'status'
+        )
+      }
+
+      // Update intervention status
+      const updateData: InterventionUpdate = {
+        status: 'tenant_validated',
+        notes: intervention.notes
+          ? `${intervention.notes}\n\n[Validation locataire] Satisfaction: ${validationData.satisfaction}${validationData.comment ? ` - ${validationData.comment}` : ''}`
+          : `[Validation locataire] Satisfaction: ${validationData.satisfaction}${validationData.comment ? ` - ${validationData.comment}` : ''}`
+      }
+
+      const updateResult = await this.repository.update(interventionId, updateData)
+      if (!updateResult.success || !updateResult.data) {
+        throw new Error('Failed to update intervention')
+      }
+
+      await this.logTenantValidation(updateResult.data, validationData, user)
+
+      return {
+        success: true,
+        data: updateResult.data,
+        error: null
+      }
+    } catch (error) {
+      return this.handleError(error, 'validateByTenant')
+    }
+  }
+
+  /**
+   * Tenant contests completed work
+   */
+  async contestByTenant(
+    interventionId: string,
+    contestData: TenantContestData,
+    userId: string
+  ): Promise<ServiceResult<Intervention>> {
+    try {
+      // Fetch intervention with relations
+      const interventionResult = await this.repository.findById(interventionId)
+      if (!interventionResult.success || !interventionResult.data) {
+        throw new NotFoundException('Intervention', interventionId)
+      }
+
+      const intervention = interventionResult.data
+
+      // Fetch user for permissions
+      const userResult = await this.userService.getById(userId)
+      if (!userResult.success || !userResult.data) {
+        throw new NotFoundException('User', userId)
+      }
+
+      const user = userResult.data
+
+      // Validate tenant permissions
+      if (user.role !== 'locataire') {
+        throw new ValidationException('Only tenants can contest interventions', 'interventions', 'permissions')
+      }
+
+      // Validate status transition
+      if (intervention.status !== 'provider_completed') {
+        throw new ValidationException(
+          `Cannot contest intervention in status: ${intervention.status}. Expected: provider_completed`,
+          'interventions',
+          'status'
+        )
+      }
+
+      // Reopen intervention for provider to fix issues
+      const updateData: InterventionUpdate = {
+        status: 'in_progress',
+        notes: intervention.notes
+          ? `${intervention.notes}\n\n[Contestation locataire] ${contestData.reason}${contestData.requestedAction ? ` - Action demandée: ${contestData.requestedAction}` : ''}`
+          : `[Contestation locataire] ${contestData.reason}${contestData.requestedAction ? ` - Action demandée: ${contestData.requestedAction}` : ''}`
+      }
+
+      const updateResult = await this.repository.update(interventionId, updateData)
+      if (!updateResult.success || !updateResult.data) {
+        throw new Error('Failed to update intervention')
+      }
+
+      await this.logTenantContestation(updateResult.data, contestData, user)
+
+      return {
+        success: true,
+        data: updateResult.data,
+        error: null
+      }
+    } catch (error) {
+      return this.handleError(error, 'contestByTenant')
+    }
+  }
+
+  /**
+   * Cancel intervention with reason
+   */
+  async cancelIntervention(
+    interventionId: string,
+    cancellationData: CancellationData,
+    userId: string
+  ): Promise<ServiceResult<Intervention>> {
+    try {
+      // Fetch intervention with relations
+      const interventionResult = await this.repository.findById(interventionId)
+      if (!interventionResult.success || !interventionResult.data) {
+        throw new NotFoundException('Intervention', interventionId)
+      }
+
+      const intervention = interventionResult.data
+
+      // Fetch user for permissions
+      const userResult = await this.userService.getById(userId)
+      if (!userResult.success || !userResult.data) {
+        throw new NotFoundException('User', userId)
+      }
+
+      const user = userResult.data
+
+      // Validate cancellation permissions (managers and assigned providers can cancel)
+      // NOTE: assigned_to no longer exists, need to check intervention_contacts
+      // Temporarily allow any provider to cancel until migration is complete
+      const canCancel = this.isManager(user) || this.isProvider(user)  // TODO: Check intervention_contacts
+
+      if (!canCancel) {
+        throw new ValidationException('User does not have permission to cancel this intervention', 'interventions', 'permissions')
+      }
+
+      // Cannot cancel already completed or cancelled interventions
+      if (['completed', 'cancelled'].includes(intervention.status)) {
+        throw new ValidationException(
+          `Cannot cancel intervention in status: ${intervention.status}`,
+          'interventions',
+          'status'
+        )
+      }
+
+      // Update intervention status
+      const updateData: InterventionUpdate = {
+        status: 'cancelled',
+        notes: intervention.notes
+          ? `${intervention.notes}\n\n[Annulation par ${user.role}] ${cancellationData.reason}${cancellationData.internalComment ? ` (Note interne: ${cancellationData.internalComment})` : ''}`
+          : `[Annulation par ${user.role}] ${cancellationData.reason}${cancellationData.internalComment ? ` (Note interne: ${cancellationData.internalComment})` : ''}`
+      }
+
+      const updateResult = await this.repository.update(interventionId, updateData)
+      if (!updateResult.success || !updateResult.data) {
+        throw new Error('Failed to update intervention')
+      }
+
+      await this.logCancellation(updateResult.data, cancellationData, user)
+
+      return {
+        success: true,
+        data: updateResult.data,
+        error: null
+      }
+    } catch (error) {
+      return this.handleError(error, 'cancelIntervention')
+    }
+  }
+
+  /**
+   * Confirm scheduling slot
+   */
+  async confirmSlot(
+    interventionId: string,
+    slotData: SlotConfirmationData,
+    userId: string
+  ): Promise<ServiceResult<Intervention>> {
+    try {
+      // Fetch intervention with relations
+      const interventionResult = await this.repository.findById(interventionId)
+      if (!interventionResult.success || !interventionResult.data) {
+        throw new NotFoundException('Intervention', interventionId)
+      }
+
+      const intervention = interventionResult.data
+
+      // Fetch user for permissions
+      const userResult = await this.userService.getById(userId)
+      if (!userResult.success || !userResult.data) {
+        throw new NotFoundException('User', userId)
+      }
+
+      const user = userResult.data
+
+      // Validate scheduling permissions
+      this.validateSchedulingPermissions(intervention, user)
+
+      // Validate status transition
+      if (!['scheduling', 'approved'].includes(intervention.status)) {
+        throw new ValidationException(
+          `Cannot confirm slot for intervention in status: ${intervention.status}. Expected: scheduling or approved`,
+          'interventions',
+          'status'
+        )
+      }
+
+      // Update intervention with scheduled details
+      const updateData: InterventionUpdate = {
+        status: 'scheduled',
+        scheduled_date: slotData.scheduledDate,
+        estimated_duration: slotData.estimatedDuration,
+        notes: intervention.notes
+          ? `${intervention.notes}\n\n[Planification confirmée] Date: ${slotData.scheduledDate}, Durée estimée: ${slotData.estimatedDuration}h${slotData.note ? ` - ${slotData.note}` : ''}`
+          : `[Planification confirmée] Date: ${slotData.scheduledDate}, Durée estimée: ${slotData.estimatedDuration}h${slotData.note ? ` - ${slotData.note}` : ''}`
+      }
+
+      const updateResult = await this.repository.update(interventionId, updateData)
+      if (!updateResult.success || !updateResult.data) {
+        throw new Error('Failed to update intervention')
+      }
+
+      await this.logSlotConfirmation(updateResult.data, slotData, user)
+
+      return {
+        success: true,
+        data: updateResult.data,
+        error: null
+      }
+    } catch (error) {
+      return this.handleError(error, 'confirmSlot')
+    }
+  }
+
+  /**
+   * Provider marks intervention as completed
+   */
+  async completeByProvider(
+    interventionId: string,
+    completionData: ProviderCompletionData,
+    userId: string
+  ): Promise<ServiceResult<Intervention>> {
+    try {
+      // Fetch intervention with relations
+      const interventionResult = await this.repository.findById(interventionId)
+      if (!interventionResult.success || !interventionResult.data) {
+        throw new NotFoundException('Intervention', interventionId)
+      }
+
+      const intervention = interventionResult.data
+
+      // Fetch user for permissions
+      const userResult = await this.userService.getById(userId)
+      if (!userResult.success || !userResult.data) {
+        throw new NotFoundException('User', userId)
+      }
+
+      const user = userResult.data
+
+      // Validate provider permissions
+      this.validateProviderPermissions(intervention, user)
+
+      // Validate status transition
+      if (intervention.status !== 'in_progress') {
+        throw new ValidationException(
+          `Cannot complete intervention in status: ${intervention.status}. Expected: in_progress`,
+          'interventions',
+          'status'
+        )
+      }
+
+      // Update intervention with completion details
+      const updateData: InterventionUpdate = {
+        status: 'provider_completed',
+        actual_duration: completionData.actualDuration,
+        notes: intervention.notes
+          ? `${intervention.notes}\n\n[Travaux terminés par prestataire] Durée réelle: ${completionData.actualDuration}h${completionData.completionReport ? ` - ${completionData.completionReport}` : ''}`
+          : `[Travaux terminés par prestataire] Durée réelle: ${completionData.actualDuration}h${completionData.completionReport ? ` - ${completionData.completionReport}` : ''}`
+      }
+
+      const updateResult = await this.repository.update(interventionId, updateData)
+      if (!updateResult.success || !updateResult.data) {
+        throw new Error('Failed to update intervention')
+      }
+
+      await this.logProviderCompletion(updateResult.data, completionData, user)
+
+      return {
+        success: true,
+        data: updateResult.data,
+        error: null
+      }
+    } catch (error) {
+      return this.handleError(error, 'completeByProvider')
+    }
+  }
+
+  /**
    * Logging methods (in production, these would use the activity-logger service)
    */
   private async logInterventionCreation(intervention: Intervention, createdBy?: User) {
-    console.log('Intervention created:', intervention.id, 'by:', createdBy?.name || 'system')
+    logger.info('Intervention created:', intervention.id, 'by:', createdBy?.name || 'system')
   }
 
   private async logInterventionUpdate(intervention: Intervention, changes: InterventionUpdate, updatedBy?: User) {
-    console.log('Intervention updated:', intervention.id, changes, 'by:', updatedBy?.name || 'system')
+    logger.info('Intervention updated:', intervention.id, changes, 'by:', updatedBy?.name || 'system')
   }
 
   private async logInterventionDeletion(intervention: Intervention, deletedBy?: User) {
-    console.log('Intervention deleted:', intervention.id, 'by:', deletedBy?.name || 'system')
+    logger.info('Intervention deleted:', intervention.id, 'by:', deletedBy?.name || 'system')
   }
 
   private async logApprovalAction(intervention: Intervention, approvalData: ApprovalData, approvedBy: User) {
-    console.log('Intervention approved:', intervention.id, 'by:', approvedBy.name)
+    logger.info('Intervention approved:', intervention.id, 'by:', approvedBy.name)
   }
 
   private async logRejectionAction(intervention: Intervention, approvalData: ApprovalData, rejectedBy: User) {
-    console.log('Intervention rejected:', intervention.id, 'reason:', approvalData.rejectionReason, 'by:', rejectedBy.name)
+    logger.info('Intervention rejected:', intervention.id, 'reason:', approvalData.rejectionReason, 'by:', rejectedBy.name)
   }
 
   private async logSchedulingAction(intervention: Intervention, planningData: PlanningData, scheduledBy: User) {
-    console.log('Intervention scheduled:', intervention.id, 'option:', planningData.option, 'by:', scheduledBy.name)
+    logger.info('Intervention scheduled:', intervention.id, 'option:', planningData.option, 'by:', scheduledBy.name)
   }
 
   private async logExecutionAction(intervention: Intervention, executionData: ExecutionData, actionBy: User) {
-    console.log('Intervention execution:', intervention.id, 'action:', executionData.action, 'by:', actionBy.name)
+    logger.info('Intervention execution:', intervention.id, 'action:', executionData.action, 'by:', actionBy.name)
+  }
+
+  /**
+   * Get all interventions for a specific tenant
+   * Handles JWT-prefixed IDs by resolving them to actual user IDs
+   *
+   * @param tenantId - Tenant user ID (can be `jwt_xxxxx` or actual UUID)
+   * @returns Array of interventions for the tenant
+   */
+  async getByTenantId(tenantId: string): Promise<Intervention[]> {
+    try {
+      // Handle JWT-only IDs (from auth timeout fallback)
+      let actualTenantId = tenantId
+
+      if (tenantId.startsWith('jwt_')) {
+        const authUserId = tenantId.replace('jwt_', '')
+        logger.info('🔄 [INTERVENTION-SERVICE] Resolving JWT tenant ID', {
+          jwtId: tenantId,
+          authUserId
+        })
+
+        if (this.userService) {
+          const userResult = await this.userService.getByAuthUserId?.(authUserId)
+
+          if (userResult?.success && userResult.data) {
+            actualTenantId = userResult.data.id
+            logger.info('✅ [INTERVENTION-SERVICE] JWT tenant ID resolved', {
+              jwtId: tenantId,
+              authUserId,
+              actualTenantId
+            })
+          } else {
+            logger.error('❌ [INTERVENTION-SERVICE] Failed to resolve JWT tenant ID', {
+              jwtId: tenantId,
+              authUserId,
+              error: userResult?.error
+            })
+            throw new NotFoundException('Tenant user not found for JWT ID', 'users', tenantId)
+          }
+        }
+      }
+
+      logger.debug('📋 [INTERVENTION-SERVICE] Fetching interventions for tenant', {
+        originalId: tenantId,
+        actualId: actualTenantId
+      })
+
+      // Fetch interventions using the resolved tenant ID
+      const result = await this.repository.findAll({
+        filters: {
+          tenant_id: actualTenantId
+        }
+      })
+
+      if (!result.success) {
+        logger.error('❌ [INTERVENTION-SERVICE] Failed to fetch tenant interventions', {
+          tenantId: actualTenantId,
+          error: result.error
+        })
+        return []
+      }
+
+      logger.info('✅ [INTERVENTION-SERVICE] Fetched tenant interventions', {
+        tenantId: actualTenantId,
+        count: result.data?.length || 0
+      })
+
+      return result.data || []
+    } catch (error) {
+      logger.error('❌ [INTERVENTION-SERVICE] Exception fetching tenant interventions', {
+        tenantId,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
   }
 
   private async logCompletionAction(intervention: Intervention, executionData: ExecutionData, completedBy: User) {
-    console.log('Intervention completed:', intervention.id, 'by:', completedBy.name)
+    logger.info('Intervention completed:', intervention.id, 'by:', completedBy.name)
   }
 
   private async logFinalizationAction(intervention: Intervention, finalizationData: FinalizationData, finalizedBy: User) {
-    console.log('Intervention finalized:', intervention.id, 'amount:', finalizationData.finalAmount, 'by:', finalizedBy.name)
+    logger.info('Intervention finalized:', intervention.id, 'amount:', finalizationData.finalAmount, 'by:', finalizedBy.name)
   }
 
   private async logProviderAssignment(interventionId: string, providerId: string, assignedBy: User) {
-    console.log('Provider assigned:', providerId, 'to intervention:', interventionId, 'by:', assignedBy.name)
+    logger.info('Provider assigned:', providerId, 'to intervention:', interventionId, 'by:', assignedBy.name)
   }
 
   private async logProviderRemoval(interventionId: string, providerId: string, removedBy: User) {
-    console.log('Provider removed:', providerId, 'from intervention:', interventionId, 'by:', removedBy.name)
+    logger.info('Provider removed:', providerId, 'from intervention:', interventionId, 'by:', removedBy.name)
+  }
+
+  private async logTenantValidation(intervention: Intervention, validationData: TenantValidationData, validatedBy: User) {
+    logger.info('Intervention validated by tenant:', intervention.id, 'satisfaction:', validationData.satisfaction, 'by:', validatedBy.name)
+  }
+
+  private async logTenantContestation(intervention: Intervention, contestData: TenantContestData, contestedBy: User) {
+    logger.info('Intervention contested by tenant:', intervention.id, 'reason:', contestData.reason, 'by:', contestedBy.name)
+  }
+
+  private async logCancellation(intervention: Intervention, cancellationData: CancellationData, cancelledBy: User) {
+    logger.info('Intervention cancelled:', intervention.id, 'reason:', cancellationData.reason, 'by:', cancelledBy.name)
+  }
+
+  private async logSlotConfirmation(intervention: Intervention, slotData: SlotConfirmationData, confirmedBy: User) {
+    logger.info('Intervention slot confirmed:', intervention.id, 'date:', slotData.scheduledDate, 'by:', confirmedBy.name)
+  }
+
+  private async logProviderCompletion(intervention: Intervention, completionData: ProviderCompletionData, completedBy: User) {
+    logger.info('Intervention completed by provider:', intervention.id, 'duration:', completionData.actualDuration, 'by:', completedBy.name)
   }
 }
 

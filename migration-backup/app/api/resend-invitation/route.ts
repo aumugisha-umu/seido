@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getServerSession } from '@/lib/supabase-server'
 import { userService } from '@/lib/database-service'
+import { logger, logError } from '@/lib/logger'
 
 // Client admin Supabase pour les opérations privilégiées
 const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(

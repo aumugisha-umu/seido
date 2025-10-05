@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { FinalizationTabs } from "./finalization-tabs"
 import { FinalizationDecision } from "./finalization-decision"
 import { FinalizationConfirmationModal } from "./finalization-confirmation-modal"
-
+import { logger, logError } from '@/lib/logger'
 interface SimplifiedFinalizationModalProps {
   interventionId: string
   isOpen: boolean
@@ -229,7 +229,7 @@ export function SimplifiedFinalizationModal({
 
       setContextData(result.data)
     } catch (err) {
-      console.error('Error fetching finalization context:', err)
+      logger.error('Error fetching finalization context:', err)
       setError(err instanceof Error ? err.message : 'Erreur de chargement')
     } finally {
       setLoading(false)
@@ -335,7 +335,7 @@ export function SimplifiedFinalizationModal({
       onComplete?.()
 
     } catch (err) {
-      console.error('Error submitting finalization:', err)
+      logger.error('Error submitting finalization:', err)
       toast({
         title: "Erreur",
         description: err instanceof Error ? err.message : 'Erreur lors de la finalisation',

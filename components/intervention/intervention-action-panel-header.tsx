@@ -35,7 +35,7 @@ import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shou
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
-
+import { logger, logError } from '@/lib/logger'
 interface InterventionActionPanelHeaderProps {
   intervention: {
     id: string
@@ -636,7 +636,7 @@ export function InterventionActionPanelHeader({
       }
 
     } catch (err) {
-      console.error('Error executing action:', err)
+      logger.error('Error executing action:', err)
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
     } finally {
       setIsProcessing(false)

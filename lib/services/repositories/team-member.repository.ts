@@ -7,7 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import type { RepositoryResult } from '../core/service-types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Team Member Type (from database)
  */
@@ -327,7 +327,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       if (error) throw error
       return count || 0
     } catch (error) {
-      console.error('[TEAM-MEMBER-REPO] Error counting members:', error)
+      logger.error('[TEAM-MEMBER-REPO] Error counting members:', error)
       return 0
     }
   }
@@ -345,7 +345,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       if (error) throw error
       return count || 0
     } catch (error) {
-      console.error('[TEAM-MEMBER-REPO] Error counting user teams:', error)
+      logger.error('[TEAM-MEMBER-REPO] Error counting user teams:', error)
       return 0
     }
   }

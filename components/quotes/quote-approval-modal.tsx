@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Check, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-
+import { logger, logError } from '@/lib/logger'
 interface QuoteApprovalModalProps {
   isOpen: boolean
   onClose: () => void
@@ -37,24 +37,24 @@ export function QuoteApprovalModal({
   const { toast } = useToast()
 
   const handleApprove = async () => {
-    console.log('🚀 [APPROVAL] Starting quote approval process')
-    console.log('📋 [APPROVAL] Quote data:', {
+    logger.info('🚀 [APPROVAL] Starting quote approval process')
+    logger.info('📋 [APPROVAL] Quote data:', {
       id: quote.id,
       providerName: quote.providerName,
       totalAmount: quote.totalAmount
     })
-    console.log('💬 [APPROVAL] Comments:', comments.trim() || null)
+    logger.info('💬 [APPROVAL] Comments:', comments.trim() || null)
 
     setIsLoading(true)
 
     try {
       const apiUrl = `/api/quotes/${quote.id}/approve`
-      console.log('🌐 [APPROVAL] Calling API:', apiUrl)
+      logger.info('🌐 [APPROVAL] Calling API:', apiUrl)
 
       const requestBody = {
         comments: comments.trim() || null
       }
-      console.log('📤 [APPROVAL] Request body:', requestBody)
+      logger.info('📤 [APPROVAL] Request body:', requestBody)
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -64,37 +64,37 @@ export function QuoteApprovalModal({
         body: JSON.stringify(requestBody)
       })
 
-      console.log('📥 [APPROVAL] Response status:', response.status)
-      console.log('📥 [APPROVAL] Response ok:', response.ok)
+      logger.info('📥 [APPROVAL] Response status:', response.status)
+      logger.info('📥 [APPROVAL] Response ok:', response.ok)
 
-      const _data = await response.json()
-      console.log('📄 [APPROVAL] Response data:', data)
+      const data = await response.json()
+      logger.info('📄 [APPROVAL] Response data:', data)
 
       if (!response.ok) {
-        console.error('❌ [APPROVAL] API error:', data.error)
+        logger.error('❌ [APPROVAL] API error:', data.error)
         if (data.debug) {
-          console.error('🐛 [APPROVAL] Debug info from API:', data.debug)
+          logger.error('🐛 [APPROVAL] Debug info from API:', data.debug)
         }
         throw new Error(data.error || 'Erreur lors de l\'approbation')
       }
 
-      console.log('✅ [APPROVAL] Success! Showing toast notification')
+      logger.info('✅ [APPROVAL] Success! Showing toast notification')
       toast({
         title: "Devis approuvé",
         description: "Le devis a été approuvé avec succès. L'intervention passe en phase de planification.",
         variant: "default",
       })
 
-      console.log('🔄 [APPROVAL] Calling onSuccess callback')
+      logger.info('🔄 [APPROVAL] Calling onSuccess callback')
       setComments("")
       onClose()
       onSuccess()
 
     } catch (error) {
-      console.error('❌ [APPROVAL] Error caught:', error)
-      console.error('❌ [APPROVAL] Error type:', typeof error)
-      console.error('❌ [APPROVAL] Error message:', error instanceof Error ? error.message : 'Unknown error')
-      console.error('❌ [APPROVAL] Full error object:', error)
+      logger.error('❌ [APPROVAL] Error caught:', error)
+      logger.error('❌ [APPROVAL] Error type:', typeof error)
+      logger.error('❌ [APPROVAL] Error message:', error instanceof Error ? error.message : 'Unknown error')
+      logger.error('❌ [APPROVAL] Full error object:', error)
 
       toast({
         title: "Erreur",
@@ -102,7 +102,7 @@ export function QuoteApprovalModal({
         variant: "destructive",
       })
     } finally {
-      console.log('🏁 [APPROVAL] Process completed, setting loading to false')
+      logger.info('🏁 [APPROVAL] Process completed, setting loading to false')
       setIsLoading(false)
     }
   }

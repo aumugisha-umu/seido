@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * LotCreationWizard - Wizard component for lot creation
  *
@@ -5,7 +7,6 @@
  * the lot creation flow using the same atomic and composed components.
  */
 
-"use client"
 
 import React, { Suspense } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,7 +25,7 @@ import { NavigationControls } from "../composed/navigation/NavigationControls"
 import { BuildingSelector } from "../atoms"
 import ContactSelector from "@/components/contact-selector"
 import type { LotFormData } from "../types"
-
+import { logger, logError } from '@/lib/logger'
 export function LotCreationWizard() {
   const _router = useRouter()
   const { formData, navigation, actions, teamData } = usePropertyCreationContext()
@@ -104,7 +105,7 @@ function BuildingAssociationStep() {
   const handleAssociationChange = (value: "existing" | "new" | "independent") => {
     // Update the building association in form data
     // This would need to be implemented in the hook
-    console.log("Building association changed to:", value)
+    logger.info("Building association changed to:", value)
   }
 
   return (
@@ -189,7 +190,7 @@ function BuildingAssociationStep() {
               selectedBuildingId={lotData.selectedBuilding}
               onBuildingSelect={(_buildingId) => {
                 // Update selected building in form data
-                console.log("Building selected:", _buildingId)
+                logger.info("Building selected:", _buildingId)
               }}
               searchQuery={buildingSearchQuery}
               onSearchChange={setBuildingSearchQuery}

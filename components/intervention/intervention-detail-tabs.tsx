@@ -218,7 +218,7 @@ export function InterventionDetailTabs({
       'planifiee',
       'en_cours',
       'terminee',
-      'validee',
+      'approuvee',
       'cloturee'
     ]
 

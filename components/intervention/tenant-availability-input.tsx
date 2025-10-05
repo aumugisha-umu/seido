@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-
+import { logger, logError } from '@/lib/logger'
 interface TenantAvailability {
   date: string
   startTime: string
@@ -57,7 +57,7 @@ export function TenantAvailabilityInput({
         }
       }
     } catch (error) {
-      console.warn("Could not load existing availabilities:", error)
+      logger.warn("Could not load existing availabilities:", error)
     } finally {
       setLoadingExisting(false)
     }
@@ -148,7 +148,7 @@ export function TenantAvailabilityInput({
       }, 2000)
 
     } catch (error) {
-      console.error('Error saving tenant availabilities:', error)
+      logger.error('Error saving tenant availabilities:', error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue')
     } finally {
       setIsLoading(false)

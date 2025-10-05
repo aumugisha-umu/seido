@@ -10,6 +10,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { cn } from "@/lib/utils"
 import ContactFormModal from "@/components/contact-form-modal"
 import { contactInvitationService } from "@/lib/database-service"
+import { logger, logError } from '@/lib/logger'
 
 // Composant SelectItem personnalisé avec bouton au lieu du checkmark
 const CustomSelectItem = ({ 

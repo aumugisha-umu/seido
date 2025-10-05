@@ -6,6 +6,7 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { ErrorContext, AutoFixResult } from './config'
+import { logger, logError } from '@/lib/logger'
 
 export class AutoFixAgent {
   private projectRoot: string

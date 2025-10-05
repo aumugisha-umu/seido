@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
-
+import { logger, logError } from '@/lib/logger'
 interface SimpleWorkCompletionModalProps {
   intervention: {
     id: string
@@ -93,7 +93,7 @@ export function SimpleWorkCompletionModal({
       }
     } catch (err) {
       setError("Une erreur inattendue s'est produite")
-      console.error("Erreur lors de la soumission:", err)
+      logger.error("Erreur lors de la soumission:", err)
     }
   }
 

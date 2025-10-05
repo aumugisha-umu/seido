@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { BuildingInfoForm } from "@/components/building-info-form"
-
+import { logger, logError } from '@/lib/logger'
 interface BuildingInfo {
   name: string
   address: string
@@ -72,7 +72,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         const userTeams = await teamService.getUserTeams(user.id)
         
         if (userTeams.length === 0) {
-          console.warn('No teams found for user')
+          logger.warn('No teams found for user')
           return
         }
         
@@ -86,12 +86,12 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
           teamMembers = await teamService.getMembers(primaryTeam.id)
           setTeamManagers(teamMembers)
         } catch (membersError) {
-          console.error("Error loading team members:", membersError)
+          logger.error("Error loading team members:", membersError)
           setTeamManagers([])
         }
         
       } catch (error) {
-        console.error('Error loading team and managers:', error)
+        logger.error('Error loading team and managers:', error)
         setTeamManagers([])
       }
     }
@@ -105,7 +105,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       setError(null)
 
       const buildingData = await buildingService.getById(resolvedParams.id)
-      console.log("🏢 Building loaded for edit:", buildingData)
+      logger.info("🏢 Building loaded for edit:", buildingData)
       
       setBuilding(buildingData)
       
@@ -125,7 +125,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       // setSelectedManagerId(buildingData.manager_id || "")
 
     } catch (error) {
-      console.error("❌ Error loading building data:", error)
+      logger.error("❌ Error loading building data:", error)
       setError("Erreur lors du chargement des données de l'immeuble")
     } finally {
       setLoading(false)
@@ -182,7 +182,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       }, 2000)
 
     } catch (error) {
-      console.error("❌ Error updating building:", error)
+      logger.error("❌ Error updating building:", error)
       setError("Erreur lors de la modification de l'immeuble")
     } finally {
       setSaving(false)

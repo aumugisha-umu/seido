@@ -11,7 +11,7 @@ import { QuoteRequestModal } from "@/components/intervention/modals/quote-reques
 import { QuoteValidationModal } from "@/components/quotes/quote-validation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useQuoteToast } from "@/hooks/use-quote-toast"
-
+import { logger, logError } from '@/lib/logger'
 interface Quote {
   id: string
   intervention_id: string
@@ -105,14 +105,14 @@ export function IntegratedQuotesCard({
       const response = await fetch(`/api/intervention/${interventionId}/quotes`)
 
       if (response.ok) {
-        const _data = await response.json()
+        const data = await response.json()
         setQuotes(data.quotes || [])
       } else {
         const errorData = await response.json()
         setError(errorData.error || 'Erreur lors du chargement des devis')
       }
     } catch (err) {
-      console.error('Error fetching quotes:', err)
+      logger.error('Error fetching quotes:', err)
       setError('Erreur de connexion')
     } finally {
       setIsLoading(false)
@@ -179,7 +179,7 @@ export function IntegratedQuotesCard({
         quoteToast.quoteError(errorMessage, 'l\'approbation du devis')
       }
     } catch (err) {
-      console.error('Error approving quote:', err)
+      logger.error('Error approving quote:', err)
       setError('Erreur lors de l\'approbation du devis')
     } finally {
       setIsSubmitting(false)
@@ -216,7 +216,7 @@ export function IntegratedQuotesCard({
         quoteToast.quoteError(errorMessage, 'le rejet du devis')
       }
     } catch (err) {
-      console.error('Error rejecting quote:', err)
+      logger.error('Error rejecting quote:', err)
       setError('Erreur lors du rejet du devis')
     } finally {
       setIsSubmitting(false)

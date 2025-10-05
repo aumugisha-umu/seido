@@ -11,6 +11,7 @@ import React from "react"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { logger, logError } from '@/lib/logger'
 import {
   PropertyCreationProvider,
   LotCreationWizard,
@@ -44,10 +45,10 @@ export default function NewLotPage() {
     enableAutoSave: true,
     enableValidationOnChange: true,
     onSuccess: (result) => {
-      console.log('Lot creation succeeded:', result)
+      logger.info('Lot creation succeeded:', result)
     },
     onError: (error) => {
-      console.error('Lot creation failed:', error)
+      logger.error('Lot creation failed:', error)
     }
   }
 

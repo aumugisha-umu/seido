@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * NavigationControls - Composed navigation component for property creation steps
  *
@@ -5,7 +7,6 @@
  * and context-aware button labels. Handles both building and lot creation flows.
  */
 
-"use client"
 
 import React from "react"
 import { Button } from "@/components/ui/button"

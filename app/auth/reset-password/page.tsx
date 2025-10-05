@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, ArrowLeft } from "lucide-react"
 import { ResetPasswordForm } from "./reset-password-form"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 PAGE RESET PASSWORD - SERVER COMPONENT (Migration Server Components)
  *
@@ -13,7 +13,7 @@ import { ResetPasswordForm } from "./reset-password-form"
  */
 
 export default function ResetPasswordPage() {
-  console.log('🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side')
+  logger.info('🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side')
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

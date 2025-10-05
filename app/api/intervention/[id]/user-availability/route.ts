@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -13,7 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const resolvedParams = await params
-  console.log("📅 POST user-availability API called for intervention:", resolvedParams.id)
+  logger.info("📅 POST user-availability API called for intervention:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -170,7 +170,7 @@ export async function POST(
       })
     }
 
-    console.log(`📝 Validated ${validatedAvailabilities.length} availabilities for user ${user.id}`)
+    logger.info(`📝 Validated ${validatedAvailabilities.length} availabilities for user ${user.id}`)
 
     // Delete existing availabilities for this user and intervention
     const { error: deleteError } = await supabase
@@ -180,7 +180,7 @@ export async function POST(
       .eq('intervention_id', interventionId)
 
     if (deleteError) {
-      console.error("❌ Error deleting existing availabilities:", deleteError)
+      logger.error("❌ Error deleting existing availabilities:", deleteError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la suppression des anciennes disponibilités'
@@ -195,14 +195,14 @@ export async function POST(
         .select()
 
       if (insertError) {
-        console.error("❌ Error inserting availabilities:", insertError)
+        logger.error("❌ Error inserting availabilities:", insertError)
         return NextResponse.json({
           success: false,
           error: 'Erreur lors de la sauvegarde des disponibilités'
         }, { status: 500 })
       }
 
-      console.log(`✅ Successfully saved ${insertedAvailabilities.length} availabilities`)
+      logger.info(`✅ Successfully saved ${insertedAvailabilities.length} availabilities`)
 
       return NextResponse.json({
         success: true,
@@ -210,7 +210,7 @@ export async function POST(
         availabilities: insertedAvailabilities
       })
     } else {
-      console.log("✅ Successfully cleared all availabilities (empty array provided)")
+      logger.info("✅ Successfully cleared all availabilities (empty array provided)")
 
       return NextResponse.json({
         success: true,
@@ -220,7 +220,7 @@ export async function POST(
     }
 
   } catch (error) {
-    console.error("❌ Error in user-availability POST API:", error)
+    logger.error("❌ Error in user-availability POST API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la sauvegarde des disponibilités'
@@ -233,7 +233,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const resolvedParams = await params
-  console.log("📅 GET user-availability API called for intervention:", resolvedParams.id)
+  logger.info("📅 GET user-availability API called for intervention:", resolvedParams.id)
 
   try {
     // Initialize Supabase client
@@ -288,7 +288,7 @@ export async function GET(
       .order('date', { ascending: true })
 
     if (userAvailError) {
-      console.error("❌ Error fetching user availabilities:", userAvailError)
+      logger.error("❌ Error fetching user availabilities:", userAvailError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -334,7 +334,7 @@ export async function GET(
       }
     }
 
-    console.log(`✅ Retrieved ${userAvailabilities.length} user availabilities and ${allAvailabilities.length} total availabilities`)
+    logger.info(`✅ Retrieved ${userAvailabilities.length} user availabilities and ${allAvailabilities.length} total availabilities`)
 
     return NextResponse.json({
       success: true,
@@ -344,7 +344,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error("❌ Error in user-availability GET API:", error)
+    logger.error("❌ Error in user-availability GET API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la récupération des disponibilités'

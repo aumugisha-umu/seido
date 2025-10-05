@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { type InterventionAction, InterventionActionsService, type CancellationData } from "@/lib/intervention-actions-service"
-
+import { logger, logError } from '@/lib/logger'
 interface CancellationModal {
   isOpen: boolean
   intervention: InterventionAction | null
@@ -52,7 +52,7 @@ export const useInterventionCancellation = () => {
     
     // Validation renforcée avec logs de debug
     const trimmedReason = cancellationReason.trim()
-    console.log('🔍 [CANCELLATION] Validation check:', {
+    logger.info('🔍 [CANCELLATION] Validation check:', {
       original: cancellationReason,
       trimmed: trimmedReason,
       length: trimmedReason.length,
@@ -106,7 +106,7 @@ export const useInterventionCancellation = () => {
       }, 1000)
 
     } catch (error) {
-      console.error("Error cancelling intervention:", error)
+      logger.error("Error cancelling intervention:", error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue lors de l\'annulation')
     } finally {
       setIsLoading(false)

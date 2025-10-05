@@ -3,14 +3,14 @@ import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
 
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-quote-submit API route called")
+  logger.info("✅ intervention-quote-submit API route called")
 
   try {
     // Initialize Supabase client
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Submitting quote for intervention:", interventionId)
+    logger.info("📝 Submitting quote for intervention:", interventionId)
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error("❌ Intervention not found:", interventionError)
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       .eq('role', 'prestataire')
       .maybeSingle()
 
-    console.log("✅ Quote request found:", {
+    logger.info("✅ Quote request found:", {
       id: quoteRequest.id,
       status: quoteRequest.status,
       deadline: quoteRequest.deadline,
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("💰 Quote details:", {
+    logger.info("💰 Quote details:", {
       laborCost: laborCostNum,
       materialsCost: materialsCostNum,
       totalAmount: laborCostNum + materialsCostNum
@@ -216,14 +216,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (quoteError) {
-      console.error("❌ Error creating/updating quote:", quoteError)
+      logger.error("❌ Error creating/updating quote:", quoteError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la soumission du devis'
       }, { status: 500 })
     }
 
-    console.log("✅ Quote submitted successfully:", quote.id)
+    logger.info("✅ Quote submitted successfully:", quote.id)
 
     // Update quote request status to "responded" (this is also handled by the database trigger)
     const { error: updateRequestError } = await supabase
@@ -236,15 +236,15 @@ export async function POST(request: NextRequest) {
       .eq('id', quoteRequest.id)
 
     if (updateRequestError) {
-      console.warn("⚠️ Could not update quote request status:", updateRequestError)
+      logger.warn("⚠️ Could not update quote request status:", updateRequestError)
       // Don't fail the quote submission for this
     } else {
-      console.log("✅ Quote request status updated to 'responded'")
+      logger.info("✅ Quote request status updated to 'responded'")
     }
 
     // Save provider availabilities linked to the quote and quote request
     if (providerAvailabilities && providerAvailabilities.length > 0) {
-      console.log("📅 Saving provider availabilities:", providerAvailabilities.length)
+      logger.info("📅 Saving provider availabilities:", providerAvailabilities.length)
 
       // Strategy: Remove existing availabilities for this provider/quote_request combination
       // This way we preserve availabilities from other quote requests by the same provider
@@ -257,10 +257,10 @@ export async function POST(request: NextRequest) {
         .or(`quote_id.eq.${quote.id},and(quote_request_id.eq.${quoteRequest.id},quote_id.is.null)`)
 
       if (deleteError) {
-        console.warn("⚠️ Could not delete existing provider availabilities for this quote submission:", deleteError)
+        logger.warn("⚠️ Could not delete existing provider availabilities for this quote submission:", deleteError)
         // Don't fail the quote submission for this
       } else {
-        console.log("✅ Cleaned up existing availabilities for this provider/quote combination")
+        logger.info("✅ Cleaned up existing availabilities for this provider/quote combination")
       }
 
       // Insert new availabilities linked to both quote and quote request
@@ -279,14 +279,14 @@ export async function POST(request: NextRequest) {
         .insert(availabilityData)
 
       if (availError) {
-        console.warn("⚠️ Could not save provider availabilities:", availError)
-        console.warn("⚠️ Availability data that failed to insert:", availabilityData)
+        logger.warn("⚠️ Could not save provider availabilities:", availError)
+        logger.warn("⚠️ Availability data that failed to insert:", availabilityData)
         // Don't fail the quote submission for this
       } else {
-        console.log(`✅ ${availabilityData.length} provider availabilities saved successfully for quote:`, quote.id)
+        logger.info(`✅ ${availabilityData.length} provider availabilities saved successfully for quote:`, quote.id)
       }
     } else {
-      console.log("ℹ️ No provider availabilities provided with quote submission")
+      logger.info("ℹ️ No provider availabilities provided with quote submission")
     }
 
     // Send notification to gestionnaires responsible for this intervention
@@ -324,10 +324,10 @@ export async function POST(request: NextRequest) {
         })
 
         await Promise.all(notificationPromises)
-        console.log(`📧 Quote submission notifications sent to ${responsibleManagers.length} gestionnaire(s)`)
+        logger.info(`📧 Quote submission notifications sent to ${responsibleManagers.length} gestionnaire(s)`)
       }
     } catch (notifError) {
-      console.warn("⚠️ Could not send quote submission notifications:", notifError)
+      logger.warn("⚠️ Could not send quote submission notifications:", notifError)
       // Don't fail the submission for notification errors
     }
 
@@ -351,8 +351,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-quote-submit API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in intervention-quote-submit API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

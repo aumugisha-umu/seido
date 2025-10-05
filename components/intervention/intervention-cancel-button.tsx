@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 import { useInterventionCancellationContext } from "@/contexts/intervention-cancellation-context"
-
+import { logger, logError } from '@/lib/logger'
 interface InterventionCancelButtonProps {
   intervention: InterventionAction
   variant?: "button" | "dropdown-item"
@@ -53,7 +53,7 @@ export const InterventionCancelButton = ({
     
     // Vérifier que le hook est bien connecté
     if (!cancellationHook) {
-      console.error("❌ cancellationHook is not available")
+      logger.error("❌ cancellationHook is not available")
       return
     }
     

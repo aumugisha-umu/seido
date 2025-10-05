@@ -6,6 +6,7 @@
  */
 
 import { Page } from '@playwright/test'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Nettoie complètement l'état du navigateur

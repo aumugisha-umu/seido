@@ -18,7 +18,7 @@ import { InterventionsList } from "@/components/interventions/interventions-list
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { PendingActionsCard } from "@/components/shared/pending-actions-card"
-
+import { logger, logError } from '@/lib/logger'
 export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
@@ -96,7 +96,7 @@ export default function PrestataireDashboard() {
         "demande_de_devis",          // Demandes de devis (nouvellement ajouté)
         "devis-a-fournir",           // Devis à fournir (mappé depuis demande_de_devis)
         "planification",             // Phase de planification des dates
-        "programmee",                // Dates planifiées, prêt à exécuter (mappé depuis planifiee)
+        "planifiee",                 // Dates planifiées, prêt à exécuter
         "en_cours"                   // Intervention en cours d'exécution
       ].includes(i.status))
     } else if (tabId === "cloturees") {
@@ -157,7 +157,7 @@ export default function PrestataireDashboard() {
         "devis-a-fournir",
         "demande_de_devis",
         "planification",
-        "programmee",
+        "planifiee",
         "en_cours"
       ].includes(intervention.status))
       .map((intervention) => ({
@@ -225,7 +225,7 @@ export default function PrestataireDashboard() {
             tabs={interventionsTabsConfig}
             defaultTab="en_cours"
             searchPlaceholder="Rechercher par titre, description, ou référence..."
-            onSearch={(value) => console.log("Recherche:", value)}
+            onSearch={(value) => logger.info("Recherche:", value)}
           />
         </section>
       </div>

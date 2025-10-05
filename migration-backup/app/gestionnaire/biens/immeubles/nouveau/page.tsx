@@ -49,6 +49,7 @@ import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
+import { logger, logError } from '@/lib/logger'
 
 interface BuildingInfo {
   name: string

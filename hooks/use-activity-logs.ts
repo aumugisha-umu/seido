@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-
+import { logger, logError } from '@/lib/logger'
 export interface ActivityLog {
   id: string
   team_id: string
@@ -56,8 +56,8 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   const [stats, setStats] = useState<any>(null)
 
   const {
-    _teamId,
-    _userId,
+    teamId,
+    userId,
     entityType,
     actionType,
     status,
@@ -69,7 +69,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   } = options
 
   const fetchActivityLogs = async () => {
-    if (!user?.id || !_teamId) {
+    if (!user?.id || !teamId) {
       setLoading(false)
       return
     }
@@ -81,8 +81,8 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
         limit: limit.toString(),
       })
       
-      if (_teamId) params.append('teamId', _teamId)
-      if (_userId) params.append('userId', _userId)
+      if (teamId) params.append('teamId', teamId)
+      if (userId) params.append('userId', userId)
       if (entityType) params.append('entityType', entityType)
       if (actionType) params.append('actionType', actionType)
       if (status) params.append('status', status)
@@ -106,14 +106,14 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
-      console.error('Error fetching activity logs:', err)
+      logger.error('Error fetching activity logs:', err)
     } finally {
       setLoading(false)
     }
   }
 
   const fetchStats = async () => {
-    if (!_teamId) return
+    if (!teamId) return
 
     try {
       const response = await fetch(`/api/activity-stats?teamId=${teamId}&period=7d`)
@@ -128,17 +128,17 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
         setStats(result.data)
       }
     } catch (err) {
-      console.error('Error fetching activity stats:', err)
+      logger.error('Error fetching activity stats:', err)
     }
   }
 
   // Fetch initial data
   useEffect(() => {
     fetchActivityLogs()
-    if (_teamId) {
+    if (teamId) {
       fetchStats()
     }
-  }, [user?.id, _teamId, _userId, entityType, actionType, status, startDate, endDate, limit])
+  }, [user?.id, teamId, userId, entityType, actionType, status, startDate, endDate, limit])
 
   // Auto-refresh
   useEffect(() => {
@@ -146,13 +146,13 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
 
     const interval = setInterval(() => {
       fetchActivityLogs()
-      if (_teamId) {
+      if (teamId) {
         fetchStats()
       }
     }, refreshInterval)
     
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, _teamId, _userId, entityType, actionType, status, startDate, endDate, limit])
+  }, [autoRefresh, refreshInterval, user?.id, teamId, userId, entityType, actionType, status, startDate, endDate, limit])
 
   return {
     activities,

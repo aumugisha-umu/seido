@@ -9,8 +9,7 @@ import { Users, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import ContactFormModal from "@/components/contact-form-modal"
 import { createContactInvitationService } from "@/lib/services"
-
-
+import { logger, logError } from '@/lib/logger'
 // Composant SelectItem personnalisé avec bouton au lieu du checkmark
 const CustomSelectItem = ({ 
   className, 
@@ -24,7 +23,7 @@ const CustomSelectItem = ({
   className?: string
   children: React.ReactNode
   value: string
-  onSelect: (_value: string) => void
+  onSelect: (value: string) => void
   isSelected: boolean
   keepOpen?: boolean
   [key: string]: unknown
@@ -68,7 +67,7 @@ interface ContactSelectorProps {
     provider_category?: string
   }>
   selectedContactIds?: string[]
-  onContactSelect: (_contactId: string) => void
+  onContactSelect: (contactId: string) => void
   onContactCreated: (contact: {
     id: string
     name: string
@@ -95,7 +94,7 @@ const ContactSelector = ({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const handleSelectChange = (_value: string) => {
+  const handleSelectChange = (value: string) => {
     if (value === "create-new") {
       setIsModalOpen(true)
     } else {
@@ -104,7 +103,7 @@ const ContactSelector = ({
   }
 
   // Fonction pour vérifier si un contact est sélectionné
-  const isContactSelected = (_contactId: string) => {
+  const isContactSelected = (contactId: string) => {
     // Comportement unifié : tous les types utilisent maintenant selectedContactIds
     return selectedContactIds.map(id => String(id)).includes(String(contactId))
   }
@@ -121,10 +120,10 @@ const ContactSelector = ({
     inviteToApp?: boolean
   }) => {
     try {
-      console.log('🆕 Création d\'un contact:', contactData)
+      logger.info('🆕 Création d\'un contact:', contactData)
       
-      if (!_teamId) {
-        console.error("❌ No team found")
+      if (!teamId) {
+        logger.error("❌ No team found")
         return
       }
 
@@ -143,7 +142,7 @@ const ContactSelector = ({
         teamId: teamId
       })
 
-      console.log("✅ Contact créé avec succès:", result.contact)
+      logger.info("✅ Contact créé avec succès:", result.contact)
       
       setIsModalOpen(false)
       
@@ -152,13 +151,13 @@ const ContactSelector = ({
       
       // Afficher un message si une invitation a été envoyée
       if (result.invitation?.success) {
-        console.log("📧 Invitation envoyée avec succès à:", contactData.email)
+        logger.info("📧 Invitation envoyée avec succès à:", contactData.email)
       } else if (result.invitation?.error) {
-        console.warn("⚠️ Contact créé mais invitation échouée:", result.invitation.error)
+        logger.warn("⚠️ Contact créé mais invitation échouée:", result.invitation.error)
       }
       
     } catch (error) {
-      console.error("❌ Erreur lors de la création du contact:", error)
+      logger.error("❌ Erreur lors de la création du contact:", error)
     }
   }
 

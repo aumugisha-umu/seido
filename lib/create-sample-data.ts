@@ -6,7 +6,7 @@
  */
 
 import { supabase } from './supabase'
-
+import { logger, logError } from '@/lib/logger'
 export interface CreateSampleDataOptions {
   teamId: string
   force?: boolean // Force la création même si des données existent
@@ -24,7 +24,7 @@ export async function createSampleBuildingsForTeam({
   force = false
 }: CreateSampleDataOptions): Promise<SampleDataResult> {
   try {
-    console.log('🏗️ [SAMPLE-DATA] Creating sample buildings for team:', _teamId)
+    logger.info('🏗️ [SAMPLE-DATA] Creating sample buildings for team:', _teamId)
 
     // Vérifier d'abord s'il y a déjà des buildings
     const { data: existingBuildings, error: checkError } = await supabase
@@ -33,12 +33,12 @@ export async function createSampleBuildingsForTeam({
       .eq('team_id', _teamId)
 
     if (checkError) {
-      console.error('❌ [SAMPLE-DATA] Error checking existing buildings:', checkError)
+      logger.error('❌ [SAMPLE-DATA] Error checking existing buildings:', checkError)
       return { success: false, buildings: 0, lots: 0, error: checkError.message }
     }
 
     if (existingBuildings && existingBuildings.length > 0 && !force) {
-      console.log('ℹ️ [SAMPLE-DATA] Buildings already exist for team, skipping creation')
+      logger.info('ℹ️ [SAMPLE-DATA] Buildings already exist for team, skipping creation')
       return { success: true, buildings: existingBuildings.length, lots: 0 }
     }
 
@@ -68,11 +68,11 @@ export async function createSampleBuildingsForTeam({
       .select('id, name')
 
     if (buildingsError) {
-      console.error('❌ [SAMPLE-DATA] Error creating buildings:', buildingsError)
+      logger.error('❌ [SAMPLE-DATA] Error creating buildings:', buildingsError)
       return { success: false, buildings: 0, lots: 0, error: buildingsError.message }
     }
 
-    console.log('✅ [SAMPLE-DATA] Buildings created:', buildings?.length || 0)
+    logger.info('✅ [SAMPLE-DATA] Buildings created:', buildings?.length || 0)
 
     // Créer des lots pour chaque building
     let totalLots = 0
@@ -125,14 +125,14 @@ export async function createSampleBuildingsForTeam({
         .select('id')
 
       if (lotsError) {
-        console.error('❌ [SAMPLE-DATA] Error creating lots for building', building.name, ':', lotsError)
+        logger.error('❌ [SAMPLE-DATA] Error creating lots for building', building.name, ':', lotsError)
       } else {
         totalLots += lots?.length || 0
-        console.log('✅ [SAMPLE-DATA] Lots created for', building.name, ':', lots?.length || 0)
+        logger.info('✅ [SAMPLE-DATA] Lots created for', building.name, ':', lots?.length || 0)
       }
     }
 
-    console.log('🎉 [SAMPLE-DATA] Sample data creation completed:', {
+    logger.info('🎉 [SAMPLE-DATA] Sample data creation completed:', {
       buildings: buildings?.length || 0,
       lots: totalLots
     })
@@ -144,7 +144,7 @@ export async function createSampleBuildingsForTeam({
     }
 
   } catch (error) {
-    console.error('❌ [SAMPLE-DATA] Unexpected error:', error)
+    logger.error('❌ [SAMPLE-DATA] Unexpected error:', error)
     return {
       success: false,
       buildings: 0,
@@ -169,7 +169,7 @@ export async function checkTeamDataStatus(_teamId: string) {
       hasError: !!(buildingsResult.error || usersResult.error || interventionsResult.error)
     }
   } catch (error) {
-    console.error('❌ [SAMPLE-DATA] Error checking team data status:', error)
+    logger.error('❌ [SAMPLE-DATA] Error checking team data status:', error)
     return { buildings: 0, users: 0, interventions: 0, hasError: true }
   }
 }

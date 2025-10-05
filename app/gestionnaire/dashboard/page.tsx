@@ -11,13 +11,7 @@ import {
   createServerStatsService
 } from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
-
-
-
-
-
-
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 DASHBOARD GESTIONNAIRE - SERVER COMPONENT (Bonnes Pratiques 2025)
  *
@@ -59,22 +53,22 @@ export default async function DashboardGestionnaire() {
     const statsService = await createServerStatsService()
 
     // Récupérer l'équipe de l'utilisateur (structure actuelle: users.team_id)
-    console.log('🔍 [DASHBOARD] Getting teams for user:', user.id)
+    logger.info('🔍 [DASHBOARD] Getting teams for user:', user.id)
     const teamsResult = await teamService.getUserTeams(user.id)
-    console.log('📦 [DASHBOARD] Teams result:', teamsResult)
+    logger.info('📦 [DASHBOARD] Teams result:', teamsResult)
 
     // Extraire les données selon le format RepositoryResult
     const teams = teamsResult?.data || []
-    console.log('📦 [DASHBOARD] Teams array:', teams)
-    console.log('📦 [DASHBOARD] Teams count:', teams.length)
+    logger.info('📦 [DASHBOARD] Teams array:', teams)
+    logger.info('📦 [DASHBOARD] Teams count:', teams.length)
 
     if (teams && teams.length > 0) {
-      console.log('📦 [DASHBOARD] First team:', teams[0])
+      logger.info('📦 [DASHBOARD] First team:', teams[0])
       const userTeamId = teams[0].id
-      console.log('📦 [DASHBOARD] Using team ID:', userTeamId)
+      logger.info('📦 [DASHBOARD] Using team ID:', userTeamId)
 
       // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
-      console.log('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', userTeamId)
+      logger.info('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', userTeamId)
 
       // ⚡ Phase 1: Charger buildings et users en parallèle
       const [buildingsResult, usersResult] = await Promise.allSettled([
@@ -86,9 +80,9 @@ export default async function DashboardGestionnaire() {
       let buildings = []
       if (buildingsResult.status === 'fulfilled' && buildingsResult.value.success) {
         buildings = buildingsResult.value.data || []
-        console.log('✅ [DASHBOARD] Buildings loaded:', buildings.length)
+        logger.info('✅ [DASHBOARD] Buildings loaded:', buildings.length)
       } else {
-        console.error('❌ [DASHBOARD] Error loading buildings:',
+        logger.error('❌ [DASHBOARD] Error loading buildings:',
           buildingsResult.status === 'rejected' ? buildingsResult.reason : 'No data')
       }
 
@@ -96,18 +90,18 @@ export default async function DashboardGestionnaire() {
       let users = []
       if (usersResult.status === 'fulfilled' && usersResult.value.success) {
         users = usersResult.value.data || []
-        console.log('✅ [DASHBOARD] Users loaded:', users.length)
+        logger.info('✅ [DASHBOARD] Users loaded:', users.length)
       } else {
-        console.error('❌ [DASHBOARD] Error loading users:',
+        logger.error('❌ [DASHBOARD] Error loading users:',
           usersResult.status === 'rejected' ? usersResult.reason : 'No data')
       }
 
       // Interventions (temporairement vide)
       const interventions = []
-      console.log('✅ [DASHBOARD] Interventions: 0 (not yet implemented)')
+      logger.info('✅ [DASHBOARD] Interventions: 0 (not yet implemented)')
 
       // ⚡ Phase 2: Charger TOUS les lots en parallèle
-      console.log('🏠 [DASHBOARD] Loading lots for', buildings.length, 'buildings IN PARALLEL')
+      logger.info('🏠 [DASHBOARD] Loading lots for', buildings.length, 'buildings IN PARALLEL')
       const lotsPromises = buildings.map(building =>
         lotService.getLotsByBuilding(building.id)
           .then(response => ({
@@ -128,22 +122,22 @@ export default async function DashboardGestionnaire() {
       const lotsResults = await Promise.all(lotsPromises)
       const allLots = lotsResults.flatMap(result => {
         if (result.success && result.lots) {
-          console.log(`✅ [DASHBOARD] Lots loaded for ${result.buildingName}:`, result.lots.length)
+          logger.info(`✅ [DASHBOARD] Lots loaded for ${result.buildingName}:`, result.lots.length)
           return result.lots
         } else {
-          console.error(`❌ [DASHBOARD] Error loading lots for ${result.buildingName}:`, result.error)
+          logger.error(`❌ [DASHBOARD] Error loading lots for ${result.buildingName}:`, result.error)
           return []
         }
       })
 
-      console.log('🏠 [DASHBOARD] Total lots loaded:', allLots.length)
+      logger.info('🏠 [DASHBOARD] Total lots loaded:', allLots.length)
 
       // Calculer les statistiques
-      console.log('📊 [DASHBOARD] Calculating stats with:')
-      console.log('  - buildings array:', buildings)
-      console.log('  - buildings length:', buildings?.length || 0)
-      console.log('  - allLots length:', allLots?.length || 0)
-      console.log('  - interventions length:', interventions?.length || 0)
+      logger.info('📊 [DASHBOARD] Calculating stats with:')
+      logger.info('  - buildings array:', buildings)
+      logger.info('  - buildings length:', buildings?.length || 0)
+      logger.info('  - allLots length:', allLots?.length || 0)
+      logger.info('  - interventions length:', interventions?.length || 0)
 
       const occupiedLots = allLots.filter(lot => lot.is_occupied || lot.tenant)
 
@@ -155,8 +149,8 @@ export default async function DashboardGestionnaire() {
         interventionsCount: interventions?.length || 0
       }
 
-      console.log('📊 [DASHBOARD] Final stats calculated:', stats)
-      console.log('📊 [DASHBOARD] Stats object structure:', JSON.stringify(stats, null, 2))
+      logger.info('📊 [DASHBOARD] Final stats calculated:', stats)
+      logger.info('📊 [DASHBOARD] Stats object structure:', JSON.stringify(stats, null, 2))
 
       // Statistiques contacts
       const activeUsers = users.filter(u => u.auth_user_id)
@@ -183,11 +177,11 @@ export default async function DashboardGestionnaire() {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 3)
     } else {
-      console.log('⚠️ [DASHBOARD] No teams found for user:', user.id)
-      console.log('⚠️ [DASHBOARD] Using default stats (all zeros)')
+      logger.info('⚠️ [DASHBOARD] No teams found for user:', user.id)
+      logger.info('⚠️ [DASHBOARD] Using default stats (all zeros)')
     }
   } catch (error) {
-    console.error('❌ [DASHBOARD] Error loading data:', error)
+    logger.error('❌ [DASHBOARD] Error loading data:', error)
     // Les stats par défaut restent (valeurs 0)
   }
 

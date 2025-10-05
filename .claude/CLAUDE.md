@@ -25,14 +25,24 @@ SEIDO is a comprehensive real estate management platform built with Next.js 15. 
 
 ## Common Development Commands
 
-Quand tu lances un server pour faire des tests mais que tu te rends compte que le port 3000 est utilisé, ferme le, clean le cache, et ensuite relance le
+Quand tu lances un server pour faire des tests mais que tu te rends compte que le port 3000 est utilisé, ferme tous les processus en cours sauf claude, clean le cache, et ensuite relance le.
+
+Et pour les tests à créer et faire, réfère toi toujours au dossier C:\Users\arthu\Desktop\Coding\Seido-app\tests-new et assure toi que ce dossier reste bien structuré
 
 ```bash
 # Development
-npm run dev              # Start development server
+npm run dev              # Start development server (JSON structured logs)
+npm run dev:pretty       # Start dev server with colored pretty logs (recommended for development)
+npm run dev:pretty:full  # Start dev server with simplified pretty logs (message only)
+npm run dev:json         # Alias for npm run dev (JSON logs for parsing/debugging)
 npm run build            # Build for production
 npm run start            # Start production server
 npm run lint             # Lint code with ESLint
+
+# Logging Options
+# - dev:pretty       → Colored logs with metadata visible (best for development)
+# - dev:pretty:full  → Colored logs, message only (simplified view)
+# - dev / dev:json   → Raw JSON logs (for grep, jq, or log parsers)
 
 # Testing - Unit Tests (Vitest)
 npm test                 # Run all tests

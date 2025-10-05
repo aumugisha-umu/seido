@@ -6,34 +6,65 @@ export type { Database } from '../../database.types'
 // Temporary types for Phase 1 - will be replaced with generated types from Supabase
 export interface User {
   id: string
-  auth_user_id: string
+  auth_user_id: string | null
   email: string
   name: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
   role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  provider_category?: string | null
+  speciality?: string | null
   status: 'active' | 'inactive' | 'pending'
   phone?: string | null
   avatar_url?: string | null
+  notes?: string | null
+  team_id?: string | null
+  is_active: boolean
+  password_set: boolean
   created_at: string
   updated_at: string
 }
 
 export interface UserInsert {
-  auth_user_id?: string
+  auth_user_id?: string | null
   email: string
   name: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
   role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  provider_category?: string | null
+  speciality?: string | null
   status?: 'active' | 'inactive' | 'pending'
   phone?: string | null
   avatar_url?: string | null
+  notes?: string | null
+  team_id?: string | null
+  is_active?: boolean
+  password_set?: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export interface UserUpdate {
+  auth_user_id?: string | null
   email?: string
   name?: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
   role?: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  provider_category?: string | null
+  speciality?: string | null
   status?: 'active' | 'inactive' | 'pending'
   phone?: string | null
   avatar_url?: string | null
+  notes?: string | null
+  team_id?: string | null
+  is_active?: boolean
+  password_set?: boolean
+  updated_at?: string
 }
 
 export interface Building {
@@ -98,59 +129,144 @@ export interface LotUpdate {
   description?: string | null
 }
 
+/**
+ * Intervention Status (11 states - English for DB, French for display)
+ * DB stores English, UI displays localized labels
+ */
+export type InterventionStatus =
+  | 'pending'              // demande (initial request)
+  | 'rejected'             // rejetee (manager rejection)
+  | 'approved'             // approuvee (manager approval)
+  | 'quote_requested'      // demande_de_devis (waiting for quote)
+  | 'scheduling'           // planification (finding slot)
+  | 'scheduled'            // planifiee (slot confirmed)
+  | 'in_progress'          // en_cours (work started)
+  | 'provider_completed'   // cloturee_par_prestataire (provider finished)
+  | 'tenant_validated'     // cloturee_par_locataire (tenant approved)
+  | 'completed'            // cloturee_par_gestionnaire (manager finalized)
+  | 'cancelled'            // annulee (cancelled)
+
+/**
+ * Legacy French status → New English status mapping
+ * Used for migration and backward compatibility
+ */
+export const STATUS_MAPPING = {
+  'demande': 'pending',
+  'rejetee': 'rejected',
+  'approuvee': 'approved',
+  'demande_de_devis': 'quote_requested',
+  'planification': 'scheduling',
+  'planifiee': 'scheduled',
+  'en_cours': 'in_progress',
+  'cloturee_par_prestataire': 'provider_completed',
+  'cloturee_par_locataire': 'tenant_validated',
+  'cloturee_par_gestionnaire': 'completed',
+  'annulee': 'cancelled'
+} as const
+
+/**
+ * French labels for intervention status display
+ * Use with getStatusLabel() utility
+ */
+export const STATUS_LABELS_FR: Record<InterventionStatus, string> = {
+  pending: "En attente",
+  rejected: "Rejetée",
+  approved: "Approuvée",
+  quote_requested: "Devis demandé",
+  scheduling: "Planification",
+  scheduled: "Planifiée",
+  in_progress: "En cours",
+  provider_completed: "Clôturée par prestataire",
+  tenant_validated: "Clôturée par locataire",
+  completed: "Terminée",
+  cancelled: "Annulée"
+}
+
 export interface Intervention {
   id: string
-  lot_id: string
+  lot_id?: string | null
+  building_id?: string | null
   title: string
   description: string
-  status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  category: string
-  requested_by: string
-  assigned_to?: string | null
+  status: InterventionStatus
+  urgency?: 'low' | 'normal' | 'urgent' | 'critical'
+  type?: string
+  reference: string
+  tenant_id?: string | null  // Replaces requested_by
+  team_id?: string | null
   scheduled_date?: string | null
   completed_date?: string | null
-  estimated_duration?: number | null
-  actual_duration?: number | null
-  notes?: string | null
-  attachments?: string[] | null
-  quote_amount?: number | null
-  final_amount?: number | null
-  created_at: string
-  updated_at: string
+  requested_date?: string | null
+  finalized_at?: string | null
+  estimated_cost?: number | null
+  final_cost?: number | null
+  tenant_comment?: string | null
+  manager_comment?: string | null
+  provider_comment?: string | null
+  specific_location?: string | null
+  requires_quote?: boolean | null
+  quote_deadline?: string | null
+  quote_notes?: string | null
+  selected_quote_id?: string | null
+  has_attachments?: boolean | null
+  scheduling_type?: string | null
+  created_at?: string
+  updated_at?: string
+  // Legacy field names (for backward compatibility in business logic)
+  priority?: 'low' | 'medium' | 'high' | 'urgent'  // Maps to urgency
+  category?: string  // Maps to type
 }
 
 export interface InterventionInsert {
-  lot_id: string
+  lot_id?: string | null
+  building_id?: string | null
   title: string
   description: string
-  status?: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  category: string
-  requested_by: string
-  assigned_to?: string | null
+  reference: string
+  status?: InterventionStatus
+  urgency?: 'low' | 'normal' | 'urgent' | 'critical'
+  type?: string
+  tenant_id?: string | null  // Replaces requested_by
+  team_id?: string | null
   scheduled_date?: string | null
-  estimated_duration?: number | null
-  notes?: string | null
-  attachments?: string[] | null
-  quote_amount?: number | null
+  requested_date?: string | null
+  estimated_cost?: number | null
+  tenant_comment?: string | null
+  manager_comment?: string | null
+  provider_comment?: string | null
+  specific_location?: string | null
+  requires_quote?: boolean | null
+  quote_deadline?: string | null
+  quote_notes?: string | null
+  has_attachments?: boolean | null
+  scheduling_type?: string | null
 }
 
 export interface InterventionUpdate {
   title?: string
   description?: string
-  status?: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
-  priority?: 'low' | 'medium' | 'high' | 'urgent'
-  category?: string
-  assigned_to?: string | null
+  status?: InterventionStatus
+  urgency?: 'low' | 'normal' | 'urgent' | 'critical'
+  type?: string
+  tenant_id?: string | null  // Replaces requested_by
+  team_id?: string | null
   scheduled_date?: string | null
   completed_date?: string | null
-  estimated_duration?: number | null
-  actual_duration?: number | null
-  notes?: string | null
-  attachments?: string[] | null
-  quote_amount?: number | null
-  final_amount?: number | null
+  requested_date?: string | null
+  finalized_at?: string | null
+  estimated_cost?: number | null
+  final_cost?: number | null
+  tenant_comment?: string | null
+  manager_comment?: string | null
+  provider_comment?: string | null
+  specific_location?: string | null
+  requires_quote?: boolean | null
+  quote_deadline?: string | null
+  quote_notes?: string | null
+  selected_quote_id?: string | null
+  has_attachments?: boolean | null
+  scheduling_type?: string | null
+  updated_at?: string
 }
 
 export interface Contact {
@@ -328,23 +444,26 @@ export interface UpdateLotDTO {
 }
 
 export interface CreateInterventionDTO {
-  lot_id: string
+  lot_id?: string | null
+  building_id?: string | null
   title: string
   description: string
-  priority: Intervention['priority']
-  category: string
-  requested_by: string
+  urgency?: 'low' | 'normal' | 'urgent' | 'critical'
+  type?: string
+  tenant_id?: string | null  // Replaces requested_by
+  reference: string
 }
 
 export interface UpdateInterventionDTO {
   title?: string
   description?: string
-  priority?: Intervention['priority']
-  status?: Intervention['status']
-  category?: string
-  assigned_to?: string
-  scheduled_date?: string
-  completed_date?: string
+  urgency?: 'low' | 'normal' | 'urgent' | 'critical'
+  status?: InterventionStatus
+  type?: string
+  tenant_id?: string | null  // Replaces requested_by
+  scheduled_date?: string | null
+  completed_date?: string | null
+  finalized_at?: string | null
 }
 
 export interface CreateContactDTO {
@@ -452,8 +571,13 @@ export interface LotWithRelations extends Lot {
 
 export interface InterventionWithRelations extends Intervention {
   lot?: LotWithRelations
-  requested_by_user?: User
-  assigned_to_user?: User
+  tenant?: User  // The user who requested (tenant_id relationship)
+  intervention_contacts?: Array<{
+    role: 'gestionnaire' | 'prestataire' | 'superviseur'
+    is_primary: boolean
+    user: User
+    individual_message?: string
+  }>
 }
 
 export interface ContactWithRelations extends Contact {

@@ -34,7 +34,7 @@ async function analyzeTestResults(options: AnalysisOptions = {}) {
 
   try {
     // Initialiser l'agent debugger
-    const debugger = createSeidoDebugger()
+    const seidoDebugger = createSeidoDebugger()
 
     // Collecter les résultats de tests récents
     const testSummaries = await collectRecentTestResults(reportsDir, daysBack)
@@ -49,7 +49,7 @@ async function analyzeTestResults(options: AnalysisOptions = {}) {
 
     // Exécuter l'analyse avec l'agent debugger
     console.log('🤖 Running intelligent analysis...')
-    const analysis = await debugger.analyzeTestRun(testSummaries)
+    const analysis = await seidoDebugger.analyzeTestRun(testSummaries)
 
     // Afficher les résultats selon le format demandé
     await displayAnalysis(analysis, outputFormat, verbose)

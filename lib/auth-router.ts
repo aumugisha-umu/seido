@@ -11,7 +11,7 @@
 
 import type { Database } from './database.types'
 import type { AuthUser } from './auth-service'
-
+import { logger, logError } from '@/lib/logger'
 // Types pour les fonctions DAL
 interface DalFunctions {
   verifySession: () => Promise<{ isValid: boolean; user?: AuthUser }>;
@@ -244,7 +244,7 @@ export const logRoutingDecision = (
   user: AuthUser | null,
   context: Record<string, unknown>
 ) => {
-  console.log('🎯 [AUTH-ROUTER] Redirection decision:', {
+  logger.info('🎯 [AUTH-ROUTER] Redirection decision:', {
     strategy: decision.strategy,
     targetPath: decision.targetPath,
     reason: decision.reason,
@@ -272,7 +272,7 @@ export async function canAccessRoute(_pathname: string): Promise<{ canAccess: bo
 
     // Vérification côté serveur uniquement
     if (typeof window !== 'undefined' || !dalFunctions) {
-      console.log('🚫 [AUTH-ROUTER] Client-side access check not supported')
+      logger.info('🚫 [AUTH-ROUTER] Client-side access check not supported')
       return { canAccess: false, redirectTo: '/auth/login' }
     }
 
@@ -280,14 +280,14 @@ export async function canAccessRoute(_pathname: string): Promise<{ canAccess: bo
     const { isValid, user } = await dalFunctions.verifySession()
 
     if (!isValid || !user) {
-      console.log(`🚫 [AUTH-ROUTER] No valid session for ${pathname}`)
+      logger.info(`🚫 [AUTH-ROUTER] No valid session for ${pathname}`)
       return { canAccess: false, redirectTo: '/auth/login' }
     }
 
     // Vérifier les permissions pour la route
     const userRoleConfig = ROLE_ROUTES[user.role]
     if (!userRoleConfig) {
-      console.log(`🚫 [AUTH-ROUTER] Unknown role ${user.role} for ${pathname}`)
+      logger.info(`🚫 [AUTH-ROUTER] Unknown role ${user.role} for ${pathname}`)
       return { canAccess: false, redirectTo: '/auth/unauthorized' }
     }
 
@@ -297,15 +297,15 @@ export async function canAccessRoute(_pathname: string): Promise<{ canAccess: bo
     )
 
     if (!hasAccess) {
-      console.log(`🚫 [AUTH-ROUTER] User ${user.role} cannot access ${pathname}`)
+      logger.info(`🚫 [AUTH-ROUTER] User ${user.role} cannot access ${pathname}`)
       const redirectTo = userRoleConfig.default
       return { canAccess: false, redirectTo, user }
     }
 
-    console.log(`✅ [AUTH-ROUTER] User ${user.role} can access ${pathname}`)
+    logger.info(`✅ [AUTH-ROUTER] User ${user.role} can access ${pathname}`)
     return { canAccess: true, user }
   } catch (error) {
-    console.error('❌ [AUTH-ROUTER] Route access check failed:', error)
+    logger.error('❌ [AUTH-ROUTER] Route access check failed:', error)
     return { canAccess: false, redirectTo: '/auth/login' }
   }
 }
@@ -321,7 +321,7 @@ export async function protectRoute(_pathname: string): Promise<{ user: AuthUser 
   const { canAccess, redirectTo, user } = await canAccessRoute(pathname)
 
   if (!canAccess && redirectTo && dalFunctions) {
-    console.log(`🔄 [AUTH-ROUTER] Redirecting ${pathname} → ${redirectTo}`)
+    logger.info(`🔄 [AUTH-ROUTER] Redirecting ${pathname} → ${redirectTo}`)
     dalFunctions.redirect(redirectTo)
   }
 
@@ -335,18 +335,18 @@ export function getPostAuthRedirect(role: UserRole, intendedPath?: string): stri
   const roleConfig = ROLE_ROUTES[role]
 
   if (!roleConfig) {
-    console.warn(`⚠️ [AUTH-ROUTER] Unknown role ${role}, using default`)
+    logger.warn(`⚠️ [AUTH-ROUTER] Unknown role ${role}, using default`)
     return '/auth/login'
   }
 
   // Si l'utilisateur avait une destination prévue ET qu'il peut y accéder
   if (intendedPath && roleConfig.allowed.some(allowed => intendedPath.startsWith(allowed))) {
-    console.log(`📍 [AUTH-ROUTER] Redirecting ${role} to intended path: ${intendedPath}`)
+    logger.info(`📍 [AUTH-ROUTER] Redirecting ${role} to intended path: ${intendedPath}`)
     return intendedPath
   }
 
   // Sinon, redirection vers dashboard par défaut
-  console.log(`📍 [AUTH-ROUTER] Redirecting ${role} to default dashboard: ${roleConfig.default}`)
+  logger.info(`📍 [AUTH-ROUTER] Redirecting ${role} to default dashboard: ${roleConfig.default}`)
   return roleConfig.default
 }
 

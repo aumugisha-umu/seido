@@ -1,0 +1,22 @@
+{
+  "testName": "contact-creation-without-invite-failed",
+  "timestamp": 1759551401395,
+  "screenshot": "test\\e2e\\screenshots\\debug\\contact-creation-without-invite-failed-1759551401395.png",
+  "finalUrl": "about:blank",
+  "consoleLog": [],
+  "errors": [],
+  "pendingRequests": [],
+  "domSnapshot": "<html><head></head><body></body></html>",
+  "pageHealth": {
+    "readyState": "complete",
+    "nextJsHydrated": false,
+    "hasJsErrors": false,
+    "errorCount": 0
+  },
+  "performanceMetrics": {
+    "domContentLoaded": 0,
+    "loadComplete": 0,
+    "firstPaint": 0,
+    "largestContentfulPaint": 0
+  }
+}

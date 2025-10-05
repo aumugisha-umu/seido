@@ -48,6 +48,7 @@ const countries = [
 ]
 
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { logger, logError } from '@/lib/logger'
 
 interface LotData {
   // Step 1: Building Association

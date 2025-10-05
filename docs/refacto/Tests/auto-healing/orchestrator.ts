@@ -15,6 +15,7 @@ import * as path from 'path'
 import { ErrorContextCollector } from './error-context-collector'
 import { AgentCoordinator, type AgentExecutionResult } from './agent-coordinator'
 import {
+import { logger, logError } from '@/lib/logger'
   AutoHealingConfig,
   DEFAULT_AUTO_HEALING_CONFIG,
   type ErrorContext,

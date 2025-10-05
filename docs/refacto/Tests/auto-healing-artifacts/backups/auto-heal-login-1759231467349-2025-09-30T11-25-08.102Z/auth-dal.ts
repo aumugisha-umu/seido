@@ -13,6 +13,7 @@ import { cache } from 'react'
 import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
 import { createServerUserService } from '@/lib/services'
 import type { User } from '@supabase/supabase-js'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * ✅ PATTERN 2025: getUser() avec cache React et retry logic

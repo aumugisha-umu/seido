@@ -1,7 +1,7 @@
 {
   "config": {
     "configFile": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
-    "rootDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+    "rootDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 1
+      "actualWorkers": 6
     },
     "preserveOutput": "always",
     "reporter": [
@@ -37,80 +37,80 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "firefox",
         "name": "firefox",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "webkit",
         "name": "webkit",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       },
       {
         "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 6
         },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 60000
+        "timeout": 30000
       }
     ],
     "shard": null,
@@ -129,25 +129,25 @@
   },
   "suites": [
     {
-      "title": "phase1-auth\\signup-complete-autohealing.spec.ts",
-      "file": "phase1-auth/signup-complete-autohealing.spec.ts",
+      "title": "contacts\\invitation-flow-simple.spec.ts",
+      "file": "contacts/invitation-flow-simple.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "🚀 Phase 1 - Signup Complet E2E avec Auto-Healing",
-          "file": "phase1-auth/signup-complete-autohealing.spec.ts",
-          "line": 55,
+          "title": "🔐 Invitation Flow - Simplified E2E",
+          "file": "contacts/invitation-flow-simple.spec.ts",
+          "line": 35,
           "column": 6,
           "specs": [
             {
-              "title": "✅ Signup → Confirm → Login → Dashboard",
-              "ok": true,
+              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
+              "ok": false,
               "tags": [],
               "tests": [
                 {
-                  "timeout": 60000,
+                  "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -156,216 +156,863 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 27077,
-                      "errors": [],
+                      "status": "timedOut",
+                      "duration": 60027,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 8,
+                            "line": 40
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"afterEach\" hook.\u001b[39m\n\n  38 |   })\n  39 |\n> 40 |   test.afterEach(async ({ page }) => {\n     |        ^\n  41 |     await teardownTestIsolation(page)\n  42 |   })\n  43 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:40:8"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts",
+                            "column": 14,
+                            "line": 337
+                          },
+                          "message": "Error: page.goto: net::ERR_ABORTED; maybe frame was detached?\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/login\", waiting until \"networkidle\"\u001b[22m\n\n\n   at helpers\\auth-helpers.ts:337\n\n  335 |\n  336 |   // Naviguer vers login\n> 337 |   await page.goto(`${TEST_CONFIG.baseURL}/auth/login`, { waitUntil: 'networkidle' })\n      |              ^\n  338 |\n  339 |   // Remplir et soumettre le formulaire\n  340 |   await fillLoginForm(page, credentials)\n    at login (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:337:14)\n    at loginAsGestionnaire (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:353:9)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:55:30"
+                        }
+                      ],
                       "stdout": [
                         {
-                          "text": "\n======================================================================\n"
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
                         },
                         {
-                          "text": "🧪 TEST E2E COMPLET - SIGNUP → LOGIN → DASHBOARD\n"
+                          "text": "✅ [SETUP] Test isolation ready\n"
                         },
                         {
-                          "text": "======================================================================\n"
+                          "text": "📧 Testing invitation for: test-invite-1759681796547-h3p953@seido.pm\n"
                         },
                         {
-                          "text": "📧 Email: arthur+test-1759446207864-147@seido.pm\n"
+                          "text": "📍 STEP 1: Login as gestionnaire\n"
                         },
                         {
-                          "text": "🔑 Password: TestComplete2025!\n"
+                          "text": "🔐 Logging in as: arthur@seido.pm\n"
                         },
                         {
-                          "text": "======================================================================\n\n"
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
                         },
                         {
-                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "📍 ÉTAPE 1: SIGNUP - Création du compte\n"
-                        },
-                        {
-                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "  ✅ Page signup chargée\n"
-                        },
-                        {
-                          "text": "  ✅ Email: arthur+test-1759446207864-147@seido.pm\n"
-                        },
-                        {
-                          "text": "  ✅ Password: ********\n"
-                        },
-                        {
-                          "text": "  ✅ Password confirmation: ********\n"
-                        },
-                        {
-                          "text": "  ✅ First name: Test\n"
-                        },
-                        {
-                          "text": "  ✅ Last name: Complete\n"
-                        },
-                        {
-                          "text": "  ✅ Terms accepted (set hidden input + clicked checkbox)\n"
-                        },
-                        {
-                          "text": "  ℹ️  Submit button enabled: true\n"
-                        },
-                        {
-                          "text": "  ✅ Formulaire soumis\n"
-                        },
-                        {
-                          "text": "  ✅ Redirection vers /auth/signup-success\n"
-                        },
-                        {
-                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "📍 ÉTAPE 2: Récupération du lien de confirmation\n"
-                        },
-                        {
-                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "\n  🔍 Récupération du token de confirmation depuis Supabase...\n"
-                        },
-                        {
-                          "text": "  🔧 [DEBUG] Supabase URL: SET\n"
-                        },
-                        {
-                          "text": "  🔧 [DEBUG] Service Key: SET (length: 219)\n"
-                        },
-                        {
-                          "text": "  ✅ User trouvé: 2b39b7e1-44e7-4adf-8d8d-ca64391e2912\n"
-                        },
-                        {
-                          "text": "  📧 Email: arthur+test-1759446207864-147@seido.pm\n"
-                        },
-                        {
-                          "text": "  ✅ Confirmé: NON\n"
-                        },
-                        {
-                          "text": "  ℹ️  Génération d'un nouveau lien de confirmation...\n"
-                        },
-                        {
-                          "text": "  ✅ Token récupéré depuis Supabase\n"
-                        },
-                        {
-                          "text": "  🔗 URL de confirmation: http://localhost:3000/auth/confirm?token_hash=32d786b252ad45b8f994e6ec4e4cd67d73d7d7651fad63967ee07c0e&type=email\n"
-                        },
-                        {
-                          "text": "  ✅ Lien de confirmation visité\n"
-                        },
-                        {
-                          "text": "📋 [CLIENT] ✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...\n"
-                        },
-                        {
-                          "text": "📋 [CLIENT] ✅ [AUTH-SERVICE-REFACTORED] User profile found: {id: 67749c58-27ec-4b03-9ba5-256c359f91ff, email: arthur+test-1759446207864-147@seido.pm, name: Utilisateur, role: gestionnaire}\n"
-                        },
-                        {
-                          "text": "📋 [CLIENT] ✅ [AUTH-SERVICE-REFACTORED] User profile found: {id: 67749c58-27ec-4b03-9ba5-256c359f91ff, email: arthur+test-1759446207864-147@seido.pm, name: Utilisateur, role: gestionnaire}\n"
-                        },
-                        {
-                          "text": "  ✅ Redirection directe vers /dashboard (user déjà connecté)\n"
-                        },
-                        {
-                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "📍 ÉTAPE 3: Vérification création profil server-side\n"
-                        },
-                        {
-                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "  ✅ Utilisateur confirmé, profil créé server-side, redirigé vers dashboard\n"
-                        },
-                        {
-                          "text": "  🔍 Vérification profil en DB avec service role key\n"
-                        },
-                        {
-                          "text": "  ✅ ✅ ✅ PROFIL UTILISATEUR CRÉÉ SERVER-SIDE! ✅ ✅ ✅\n"
-                        },
-                        {
-                          "text": "  🎉 NOUVEAU PATTERN FONCTIONNE!\n"
-                        },
-                        {
-                          "text": "     - ID: 67749c58-27ec-4b03-9ba5-256c359f91ff\n"
-                        },
-                        {
-                          "text": "     - Email: arthur+test-1759446207864-147@seido.pm\n"
-                        },
-                        {
-                          "text": "     - Role: gestionnaire\n"
-                        },
-                        {
-                          "text": "     - Team ID: 2c7d8897-ee5d-470c-bf02-22c5a6c126c5\n"
-                        },
-                        {
-                          "text": "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "📍 ÉTAPE 4: DASHBOARD - Vérification accès (déjà connecté)\n"
-                        },
-                        {
-                          "text": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        },
-                        {
-                          "text": "  📍 URL actuelle: http://localhost:3000/dashboard/gestionnaire\n"
-                        },
-                        {
-                          "text": "  ✅ URL correcte: /dashboard/gestionnaire\n"
-                        },
-                        {
-                          "text": "  ✅ Dashboard page loaded, header: \"404\"\n"
-                        },
-                        {
-                          "text": "  ✅ Aucun message d'erreur\n"
-                        },
-                        {
-                          "text": "\n======================================================================\n"
-                        },
-                        {
-                          "text": "✅ TEST E2E COMPLET RÉUSSI !\n"
-                        },
-                        {
-                          "text": "======================================================================\n"
-                        },
-                        {
-                          "text": "📧 Compte créé: arthur+test-1759446207864-147@seido.pm\n"
-                        },
-                        {
-                          "text": "✅ Email confirmé\n"
-                        },
-                        {
-                          "text": "✅ Profil créé (trigger)\n"
-                        },
-                        {
-                          "text": "✅ Login réussi\n"
-                        },
-                        {
-                          "text": "✅ Dashboard accessible\n"
-                        },
-                        {
-                          "text": "======================================================================\n\n"
-                        },
-                        {
-                          "text": "⏸️  Pause de 5s pour observer le dashboard...\n"
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-02T23:03:27.847Z",
+                      "startTime": "2025-10-05T16:29:47.983Z",
                       "annotations": [],
                       "attachments": []
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
-              "id": "9ec67fbf7c60ab248215-628ebffb494b5e3350ae",
-              "file": "phase1-auth/signup-complete-autohealing.spec.ts",
-              "line": 73,
+              "id": "5be33770058e02c8c5cc-1def25e4231ad5fca109",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "timedOut",
+                      "duration": 60023,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 8,
+                            "line": 40
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"afterEach\" hook.\u001b[39m\n\n  38 |   })\n  39 |\n> 40 |   test.afterEach(async ({ page }) => {\n     |        ^\n  41 |     await teardownTestIsolation(page)\n  42 |   })\n  43 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:40:8"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 16,
+                            "line": 167
+                          },
+                          "message": "Error: page.goto: net::ERR_ABORTED; maybe frame was detached?\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/callback\", waiting until \"load\"\u001b[22m\n\n\n  165 |\n  166 |     // Navigate to callback without valid session\n> 167 |     await page.goto('http://localhost:3000/auth/callback')\n      |                ^\n  168 |\n  169 |     // Wait 3 seconds and check URL\n  170 |     await page.waitForTimeout(3000)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:167:16"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "📍 TEST: Validating redirect loop detection\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:29:48.000Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-668df5d8de62c0a9f79e",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 161,
+              "column": 7
+            },
+            {
+              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "timedOut",
+                      "duration": 38092,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                          "column": 8,
+                          "line": 36
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 8,
+                            "line": 36
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts",
+                            "column": 14,
+                            "line": 95
+                          },
+                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/\", waiting until \"load\"\u001b[22m\n\n\n   at helpers\\index.ts:95\n\n  93 |   console.log('🧹 [SETUP] Cleaning browser state...')\n  94 |   await cleanBrowserState(page)\n> 95 |   await page.goto('http://localhost:3000')\n     |              ^\n  96 |   await waitForNetworkIdle(page)\n  97 |   console.log('✅ [SETUP] Test isolation ready')\n  98 | }\n    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts:95:14)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:37:5"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:29:48.041Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-firefox\\video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                        "column": 8,
+                        "line": 36
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-2c3345cc72bdaa3fb05b",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "timedOut",
+                      "duration": 38715,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                          "column": 8,
+                          "line": 36
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 8,
+                            "line": 36
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts",
+                            "column": 14,
+                            "line": 95
+                          },
+                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/\", waiting until \"load\"\u001b[22m\n\n\n   at helpers\\index.ts:95\n\n  93 |   console.log('🧹 [SETUP] Cleaning browser state...')\n  94 |   await cleanBrowserState(page)\n> 95 |   await page.goto('http://localhost:3000')\n     |              ^\n  96 |   await waitForNetworkIdle(page)\n  97 |   console.log('✅ [SETUP] Test isolation ready')\n  98 | }\n    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts:95:14)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:37:5"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:29:48.008Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--firefox\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--firefox\\video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                        "column": 8,
+                        "line": 36
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-06c7756a93e9450ba836",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 161,
+              "column": 7
+            },
+            {
+              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "timedOut",
+                      "duration": 34107,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts",
+                            "column": 14,
+                            "line": 337
+                          },
+                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/login\", waiting until \"networkidle\"\u001b[22m\n\n\n   at helpers\\auth-helpers.ts:337\n\n  335 |\n  336 |   // Naviguer vers login\n> 337 |   await page.goto(`${TEST_CONFIG.baseURL}/auth/login`, { waitUntil: 'networkidle' })\n      |              ^\n  338 |\n  339 |   // Remplir et soumettre le formulaire\n  340 |   await fillLoginForm(page, credentials)\n    at login (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:337:14)\n    at loginAsGestionnaire (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:353:9)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:55:30"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "📧 Testing invitation for: test-invite-1759681797847-t967q8@seido.pm\n"
+                        },
+                        {
+                          "text": "📍 STEP 1: Login as gestionnaire\n"
+                        },
+                        {
+                          "text": "🔐 Logging in as: arthur@seido.pm\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:29:48.046Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-webkit\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-webkit\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-webkit\\error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-df63e8a6981ee12c7786",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 5,
+                      "status": "timedOut",
+                      "duration": 33749,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 16,
+                            "line": 167
+                          },
+                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/callback\", waiting until \"load\"\u001b[22m\n\n\n  165 |\n  166 |     // Navigate to callback without valid session\n> 167 |     await page.goto('http://localhost:3000/auth/callback')\n      |                ^\n  168 |\n  169 |     // Wait 3 seconds and check URL\n  170 |     await page.waitForTimeout(3000)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:167:16"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "📍 TEST: Validating redirect loop detection\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:29:47.998Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--webkit\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--webkit\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--webkit\\error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-d3320ae3deedce79109f",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 161,
+              "column": 7
+            },
+            {
+              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 5,
+                      "status": "timedOut",
+                      "duration": 35588,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                          "column": 8,
+                          "line": 36
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 8,
+                            "line": 36
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:30:31.990Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Chrome\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Chrome\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Chrome\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                        "column": 8,
+                        "line": 36
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-78001a806e51c40b2aa6",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 4,
+                      "status": "timedOut",
+                      "duration": 35678,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                          "column": 8,
+                          "line": 36
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 8,
+                            "line": 36
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:30:32.262Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Chrome\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Chrome\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Chrome\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                        "column": 8,
+                        "line": 36
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-dfdcd5039e425fed40f6",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 161,
+              "column": 7
+            },
+            {
+              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [
+                    {
+                      "workerIndex": 8,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 28481,
+                      "error": {
+                        "message": "Error: page.goto: Navigation to \"http://localhost:3000/gestionnaire/contacts\" is interrupted by another navigation to \"http://localhost:3000/gestionnaire/dashboard\"\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/contacts\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: Navigation to \"http://localhost:3000/gestionnaire/contacts\" is interrupted by another navigation to \"http://localhost:3000/gestionnaire/dashboard\"\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/contacts\", waiting until \"load\"\u001b[22m\n\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:60:16",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                          "column": 16,
+                          "line": 60
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 58 |\u001b[39m     \u001b[90m// STEP 2: Navigate to contacts page and open form\u001b[39m\n \u001b[90m 59 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'📍 STEP 2: Navigate to contacts and open invitation form'\u001b[39m)\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 60 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3000/gestionnaire/contacts'\u001b[39m)\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 61 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\n \u001b[90m 62 |\u001b[39m\n \u001b[90m 63 |\u001b[39m     \u001b[36mconst\u001b[39m addContactButton \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'button:has-text(\"Ajouter un contact\")'\u001b[39m)\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 16,
+                            "line": 60
+                          },
+                          "message": "Error: page.goto: Navigation to \"http://localhost:3000/gestionnaire/contacts\" is interrupted by another navigation to \"http://localhost:3000/gestionnaire/dashboard\"\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/contacts\", waiting until \"load\"\u001b[22m\n\n\n  58 |     // STEP 2: Navigate to contacts page and open form\n  59 |     console.log('📍 STEP 2: Navigate to contacts and open invitation form')\n> 60 |     await page.goto('http://localhost:3000/gestionnaire/contacts')\n     |                ^\n  61 |     await page.waitForLoadState('networkidle')\n  62 |\n  63 |     const addContactButton = page.locator('button:has-text(\"Ajouter un contact\")')\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:60:16"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "📧 Testing invitation for: test-invite-1759681864385-y16k23@seido.pm\n"
+                        },
+                        {
+                          "text": "📍 STEP 1: Login as gestionnaire\n"
+                        },
+                        {
+                          "text": "🔐 Logging in as: arthur@seido.pm\n"
+                        },
+                        {
+                          "text": "📝 Filling login form... { email: \u001b[32m'arthur@seido.pm'\u001b[39m }\n"
+                        },
+                        {
+                          "text": "✅ Login form filled\n"
+                        },
+                        {
+                          "text": "🚀 Submitting login form...\n"
+                        },
+                        {
+                          "text": "✅ Login form submitted\n"
+                        },
+                        {
+                          "text": "✅ Logged in successfully as: arthur@seido.pm\n"
+                        },
+                        {
+                          "text": "📍 STEP 2: Navigate to contacts and open invitation form\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:30:53.620Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Safari\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Safari\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Safari\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                        "column": 16,
+                        "line": 60
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-7b62463dce1b7f433182",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 3,
+                      "status": "failed",
+                      "duration": 18226,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"/auth/callback\"\u001b[39m\nReceived string:        \u001b[31m\"http://localhost:3000\u001b[7m/auth/callback\u001b[27m\"\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"/auth/callback\"\u001b[39m\nReceived string:        \u001b[31m\"http://localhost:3000\u001b[7m/auth/callback\u001b[27m\"\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:176:26",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                          "column": 26,
+                          "line": 176
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 174 |\u001b[39m\n \u001b[90m 175 |\u001b[39m     \u001b[90m// Should redirect to login or show error, NOT stay on callback\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m     expect(finalURL)\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoContain(\u001b[32m'/auth/callback'\u001b[39m)\n \u001b[90m     |\u001b[39m                          \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'✅ No infinite redirect loop detected (as expected)'\u001b[39m)\n \u001b[90m 178 |\u001b[39m   })\n \u001b[90m 179 |\u001b[39m })\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "column": 26,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"/auth/callback\"\u001b[39m\nReceived string:        \u001b[31m\"http://localhost:3000\u001b[7m/auth/callback\u001b[27m\"\u001b[39m\n\n  174 |\n  175 |     // Should redirect to login or show error, NOT stay on callback\n> 176 |     expect(finalURL).not.toContain('/auth/callback')\n      |                          ^\n  177 |     console.log('✅ No infinite redirect loop detected (as expected)')\n  178 |   })\n  179 | })\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:176:26"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                        },
+                        {
+                          "text": "✅ [SETUP] Test isolation ready\n"
+                        },
+                        {
+                          "text": "📍 TEST: Validating redirect loop detection\n"
+                        },
+                        {
+                          "text": "Final URL after 3s: http://localhost:3000/auth/callback\n"
+                        },
+                        {
+                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                        },
+                        {
+                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-05T16:30:54.222Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Safari\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Safari\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Safari\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                        "column": 26,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "5be33770058e02c8c5cc-fd5acfb30fa42596c3c5",
+              "file": "contacts/invitation-flow-simple.spec.ts",
+              "line": 161,
               "column": 7
             }
           ]
@@ -375,11 +1022,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-02T23:03:16.797Z",
-    "duration": 39457.252,
-    "expected": 1,
+    "startTime": "2025-10-05T16:29:25.469Z",
+    "duration": 116965.997,
+    "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 10,
     "flaky": 0
   }
 }

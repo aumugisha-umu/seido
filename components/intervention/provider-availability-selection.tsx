@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
+import { logger, logError } from '@/lib/logger'
 interface ProviderAvailability {
   person: string
   role: string
@@ -84,7 +84,7 @@ export function ProviderAvailabilitySelection({
     const normalizedStartTime = normalizeTimeFormat(slotData.startTime)
     const normalizedEndTime = normalizeTimeFormat(slotData.endTime)
 
-    console.log('🔧 [SLOT-VALIDATION] Normalizing times:', {
+    logger.info('🔧 [SLOT-VALIDATION] Normalizing times:', {
       original: { startTime: slotData.startTime, endTime: slotData.endTime },
       normalized: { startTime: normalizedStartTime, endTime: normalizedEndTime }
     })
@@ -127,19 +127,19 @@ export function ProviderAvailabilitySelection({
 
   const handleSubmit = async () => {
     if (!selectedSlot) {
-      console.warn('🚫 [SLOT-SELECTION] No slot selected')
+      logger.warn('🚫 [SLOT-SELECTION] No slot selected')
       return
     }
 
     // Validate intervention ID
     if (!interventionId || typeof interventionId !== 'string') {
-      console.error('❌ [SLOT-SELECTION] Invalid intervention ID:', interventionId)
+      logger.error('❌ [SLOT-SELECTION] Invalid intervention ID:', interventionId)
       setErrorMessage('Erreur: identifiant d\'intervention invalide')
       return
     }
 
-    console.log('🚀 [SLOT-SELECTION] Starting submission for intervention:', interventionId)
-    console.log('📅 [SLOT-SELECTION] Selected slot:', selectedSlot)
+    logger.info('🚀 [SLOT-SELECTION] Starting submission for intervention:', interventionId)
+    logger.info('📅 [SLOT-SELECTION] Selected slot:', selectedSlot)
 
     setErrorMessage('') // Clear previous errors
     setIsSubmitting(true)
@@ -147,12 +147,12 @@ export function ProviderAvailabilitySelection({
       if (selectedSlot === 'reject') {
         // Validate reject message
         if (!rejectMessage || rejectMessage.trim().length < 10) {
-          console.error('❌ [SLOT-SELECTION] Reject message too short:', rejectMessage)
+          logger.error('❌ [SLOT-SELECTION] Reject message too short:', rejectMessage)
           setErrorMessage('Le message de rejet doit contenir au moins 10 caractères')
           return
         }
 
-        console.log('❌ [SLOT-SELECTION] Rejecting all propositions with message:', rejectMessage)
+        logger.info('❌ [SLOT-SELECTION] Rejecting all propositions with message:', rejectMessage)
 
         const requestBody = {
           responseType: 'reject',
@@ -160,7 +160,7 @@ export function ProviderAvailabilitySelection({
           selectedSlots: [],
           counterProposals: []
         }
-        console.log('📤 [SLOT-SELECTION] Reject request body:', requestBody)
+        logger.info('📤 [SLOT-SELECTION] Reject request body:', requestBody)
 
         const response = await fetch(`/api/intervention/${interventionId}/availability-response`, {
           method: 'POST',
@@ -170,14 +170,14 @@ export function ProviderAvailabilitySelection({
           body: JSON.stringify(requestBody)
         })
 
-        console.log('📥 [SLOT-SELECTION] Reject response status:', response.status)
+        logger.info('📥 [SLOT-SELECTION] Reject response status:', response.status)
 
         if (response.ok) {
-          console.log('✅ [SLOT-SELECTION] Rejection successful')
+          logger.info('✅ [SLOT-SELECTION] Rejection successful')
 
           // Show success toast notification and hide modification mode
           if (isScheduled && showModificationMode) {
-            console.log('🎉 [SLOT-SELECTION] Slot rejection successful')
+            logger.info('🎉 [SLOT-SELECTION] Slot rejection successful')
             // Hide modification mode
             setShowModificationMode(false)
             setSelectedSlot('')
@@ -188,7 +188,7 @@ export function ProviderAvailabilitySelection({
           onResponse()
         } else {
           const errorData = await response.text()
-          console.error('❌ [SLOT-SELECTION] Error rejecting availability:', {
+          logger.error('❌ [SLOT-SELECTION] Error rejecting availability:', {
             status: response.status,
             statusText: response.statusText,
             body: errorData
@@ -205,10 +205,10 @@ export function ProviderAvailabilitySelection({
       } else {
         // Sélectionner un créneau spécifique
         const slotData = parseSlotId(selectedSlot)
-        console.log('🔍 [SLOT-SELECTION] Parsed slot data:', slotData)
+        logger.info('🔍 [SLOT-SELECTION] Parsed slot data:', slotData)
 
         if (!slotData) {
-          console.error('❌ [SLOT-SELECTION] Could not parse slot ID:', selectedSlot)
+          logger.error('❌ [SLOT-SELECTION] Could not parse slot ID:', selectedSlot)
           setErrorMessage('Erreur: impossible de traiter le créneau sélectionné')
           return
         }
@@ -216,11 +216,11 @@ export function ProviderAvailabilitySelection({
         // Valider les données du créneau
         const validationErrors = validateSlotData(slotData)
         if (validationErrors.length > 0) {
-          console.error('❌ [SLOT-SELECTION] Slot data validation failed:', validationErrors)
+          logger.error('❌ [SLOT-SELECTION] Slot data validation failed:', validationErrors)
           setErrorMessage(`Données invalides: ${validationErrors.join(', ')}`)
           return
         }
-        console.log('✅ [SLOT-SELECTION] Slot data validation passed')
+        logger.info('✅ [SLOT-SELECTION] Slot data validation passed')
 
         // Normaliser les heures avant envoi à l'API
         const normalizedSlotData = {
@@ -233,8 +233,8 @@ export function ProviderAvailabilitySelection({
           selectedSlot: normalizedSlotData,
           comment: `Créneau choisi par le locataire`
         }
-        console.log('📤 [SLOT-SELECTION] Normalized slot data for API:', normalizedSlotData)
-        console.log('📤 [SLOT-SELECTION] Select request body:', requestBody)
+        logger.info('📤 [SLOT-SELECTION] Normalized slot data for API:', normalizedSlotData)
+        logger.info('📤 [SLOT-SELECTION] Select request body:', requestBody)
 
         const response = await fetch(`/api/intervention/${interventionId}/select-slot`, {
           method: 'PUT',
@@ -244,16 +244,16 @@ export function ProviderAvailabilitySelection({
           body: JSON.stringify(requestBody)
         })
 
-        console.log('📥 [SLOT-SELECTION] Select response status:', response.status)
+        logger.info('📥 [SLOT-SELECTION] Select response status:', response.status)
 
         if (response.ok) {
           const responseData = await response.json()
-          console.log('✅ [SLOT-SELECTION] Slot selection successful:', responseData)
+          logger.info('✅ [SLOT-SELECTION] Slot selection successful:', responseData)
 
           // Show success toast notification
           if (isScheduled && showModificationMode) {
             // For modifications
-            console.log('🎉 [SLOT-SELECTION] Slot modification successful')
+            logger.info('🎉 [SLOT-SELECTION] Slot modification successful')
             // Hide modification mode
             setShowModificationMode(false)
             setSelectedSlot('')
@@ -264,7 +264,7 @@ export function ProviderAvailabilitySelection({
           onResponse()
         } else {
           const errorData = await response.text()
-          console.error('❌ [SLOT-SELECTION] Error selecting slot:', {
+          logger.error('❌ [SLOT-SELECTION] Error selecting slot:', {
             status: response.status,
             statusText: response.statusText,
             body: errorData,
@@ -296,12 +296,12 @@ export function ProviderAvailabilitySelection({
         }
       }
     } catch (error) {
-      console.error('💥 [SLOT-SELECTION] Unexpected error submitting choice:', error)
-      console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available')
+      logger.error('💥 [SLOT-SELECTION] Unexpected error submitting choice:', error)
+      logger.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available')
       setErrorMessage('Erreur inattendue. Veuillez réessayer ou contacter le support.')
     } finally {
       setIsSubmitting(false)
-      console.log('🏁 [SLOT-SELECTION] Submission process completed')
+      logger.info('🏁 [SLOT-SELECTION] Submission process completed')
     }
   }
 

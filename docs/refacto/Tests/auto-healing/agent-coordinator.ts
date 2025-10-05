@@ -10,6 +10,7 @@
 
 import { Page } from '@playwright/test'
 import type { ErrorContext, AutoFixResult } from './config'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Types d'agents disponibles

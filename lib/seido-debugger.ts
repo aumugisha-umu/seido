@@ -5,7 +5,7 @@
 
 import { UserRole } from './auth'
 import * as React from 'react'
-
+import { logger, logError } from '@/lib/logger'
 type LogLevel = 'info' | 'warn' | 'error' | 'debug'
 type SEIDOComponent = 'AUTH' | 'INTERVENTION' | 'DASHBOARD' | 'NOTIFICATION' | 'DATABASE' | 'PERMISSION' | 'DEBUG'
 
@@ -183,7 +183,7 @@ export class SEIDODebugger {
     const events = await this.getInterventionEvents(interventionId)
 
     events.forEach(event => {
-      console.log(`📍 ${event.timestamp} | ${event.userRole} | ${event.action}`, event.data)
+      logger.info(`📍 ${event.timestamp} | ${event.userRole} | ${event.action}`, event.data)
     })
 
     console.groupEnd()
@@ -244,22 +244,22 @@ export class SEIDODebugger {
 
     try {
       // Test auth
-      console.log('Testing auth...')
+      logger.info('Testing auth...')
       // const { data: { user } } = await supabase.auth.getUser()
-      console.log('✅ Auth service accessible')
+      logger.info('✅ Auth service accessible')
 
       // Test database
-      console.log('Testing database...')
+      logger.info('Testing database...')
       // const { data } = await supabase.from('users').select('count')
-      console.log('✅ Database accessible')
+      logger.info('✅ Database accessible')
 
       // Test real-time
-      console.log('Testing real-time...')
+      logger.info('Testing real-time...')
       // Test de subscription
-      console.log('✅ Real-time service accessible')
+      logger.info('✅ Real-time service accessible')
 
     } catch (error) {
-      console.error('❌ Connectivity test failed:', error)
+      logger.error('❌ Connectivity test failed:', error)
     }
 
     console.groupEnd()

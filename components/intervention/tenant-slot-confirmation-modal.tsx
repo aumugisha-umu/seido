@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
+import { logger, logError } from '@/lib/logger'
 interface ProviderAvailability {
   person: string
   role: string
@@ -56,7 +56,7 @@ export function TenantSlotConfirmationModal({
       setComment('')
       onClose()
     } catch (error) {
-      console.error('Erreur lors de la confirmation du créneau:', error)
+      logger.error('Erreur lors de la confirmation du créneau:', error)
     }
   }
 

@@ -43,14 +43,19 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 
 
 
-import { determineAssignmentType } from '@/lib/services'
+import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService } from '@/lib/services'
+
+const teamService = createTeamService()
+const contactService = createContactService()
+const tenantService = createTenantService()
+const lotService = createLotService()
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
-
+import { logger, logError } from '@/lib/logger'
 export default function NouvelleInterventionPage() {
-  console.log("🚀 NouvelleInterventionPage - Composant initialisé")
+  logger.info("🚀 NouvelleInterventionPage - Composant initialisé")
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
@@ -96,7 +101,7 @@ export default function NouvelleInterventionPage() {
   const { user } = useAuth()
   
   // Log simplifié maintenant que le problème est résolu
-  console.log("🔍 États:", { 
+  logger.info("🔍 États:", { 
     managers: managers.length, 
     providers: providers.length, 
     selectedManagers: selectedManagerIds.length,
@@ -105,15 +110,15 @@ export default function NouvelleInterventionPage() {
 
   // Fonction pour charger les données réelles depuis la DB avec logique unifiée
   const loadRealData = async () => {
-    console.log("📡 loadRealData démarré avec user:", user?.id)
+    logger.info("📡 loadRealData démarré avec user:", user?.id)
     if (!user?.id) {
-      console.log("⚠️ Pas d'utilisateur, arrêt de loadRealData")
+      logger.info("⚠️ Pas d'utilisateur, arrêt de loadRealData")
       return
     }
 
     setLoading(true)
     try {
-      console.log("🔄 Chargement des données en cours...")
+      logger.info("🔄 Chargement des données en cours...")
       // 1. Récupérer l'équipe de l'utilisateur
       const teamsResult = await teamService.getUserTeams(user.id)
       const teams = teamsResult?.data || []
@@ -124,12 +129,12 @@ export default function NouvelleInterventionPage() {
         // 2. NOUVELLE LOGIQUE UNIFIÉE : Récupérer tous les contacts et filtrer
         const contactsResult = await contactService.getTeamContacts(team.id)
         const contacts = contactsResult?.data || []
-        console.log("📋 All team contacts:", contacts.map(c => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
+        logger.info("📋 All team contacts:", contacts.map(c => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
         
         // Filtrer les gestionnaires avec la même logique que les prestataires
         const managersData = contacts
-          .filter((_contact: unknown) => determineAssignmentType(contact) === 'manager')
-          .map((_contact: unknown) => ({
+          .filter((contact: unknown) => determineAssignmentType(contact) === 'manager')
+          .map((contact: unknown) => ({
             id: contact.id,
             name: contact.name,
             role: "Gestionnaire",
@@ -141,8 +146,8 @@ export default function NouvelleInterventionPage() {
         
         // Filtrer les prestataires avec la même logique
         const providersData = contacts
-          .filter((_contact: unknown) => determineAssignmentType(contact) === 'provider')
-          .map((_contact: unknown) => ({
+          .filter((contact: unknown) => determineAssignmentType(contact) === 'provider')
+          .map((contact: unknown) => ({
             id: contact.id,
             name: contact.name,
             role: "Prestataire",
@@ -153,8 +158,8 @@ export default function NouvelleInterventionPage() {
             type: "prestataire",
           }))
 
-        console.log("👥 Managers filtrés:", managersData.map(m => ({ id: m.id, name: m.name, email: m.email, isCurrentUser: m.isCurrentUser })))
-        console.log("🔧 Providers filtrés:", providersData.map(p => ({ id: p.id, name: p.name, email: p.email })))
+        logger.info("👥 Managers filtrés:", managersData.map(m => ({ id: m.id, name: m.name, email: m.email, isCurrentUser: m.isCurrentUser })))
+        logger.info("🔧 Providers filtrés:", providersData.map(p => ({ id: p.id, name: p.name, email: p.email })))
         
         setManagers(managersData)
         setProviders(providersData)
@@ -162,22 +167,22 @@ export default function NouvelleInterventionPage() {
         // Pré-sélectionner l'utilisateur connecté comme gestionnaire
         const currentManager = managersData.find(manager => manager.isCurrentUser)
         if (currentManager && selectedManagerIds.length === 0) {
-          console.log("🏠 Pré-sélection du gestionnaire connecté:", { id: currentManager.id, name: currentManager.name })
+          logger.info("🏠 Pré-sélection du gestionnaire connecté:", { id: currentManager.id, name: currentManager.name })
           setSelectedManagerIds([String(currentManager.id)])
         }
       }
     } catch (error) {
-      console.error("Erreur lors du chargement des données:", error)
+      logger.error("Erreur lors du chargement des données:", error)
     } finally {
       setLoading(false)
     }
   }
 
   // Load tenant's assigned lots
-  const loadTenantLots = async (_tenantId: string) => {
+  const loadTenantLots = async (tenantId: string) => {
     try {
-      const lots = await tenantService.getAllTenantLots(_tenantId)
-      console.log("📍 Tenant lots loaded:", lots)
+      const lots = await tenantService.getAllTenantLots(tenantId)
+      logger.info("📍 Tenant lots loaded:", lots)
       
       if (lots.length > 0) {
         // If tenant has only one lot, auto-select it
@@ -198,16 +203,16 @@ export default function NouvelleInterventionPage() {
         // If multiple lots, let user choose in step 1
       }
     } catch (error) {
-      console.error("❌ Error loading tenant lots:", error)
+      logger.error("❌ Error loading tenant lots:", error)
     }
   }
 
   // Load specific lot by ID or reference
-  const loadSpecificLot = async (_lotIdentifier: string) => {
+  const loadSpecificLot = async (lotIdentifier: string) => {
     try {
       // Try to get lot by ID first, then by reference if needed
       const lot = await lotService.getById(lotIdentifier)
-      console.log("📍 Specific lot loaded:", lot)
+      logger.info("📍 Specific lot loaded:", lot)
       
       if (lot) {
         setSelectedLogement({
@@ -223,14 +228,14 @@ export default function NouvelleInterventionPage() {
         setCurrentStep(2) // Skip to step 2 since lot is pre-selected
       }
     } catch (error) {
-      console.error("❌ Error loading specific lot:", error)
+      logger.error("❌ Error loading specific lot:", error)
       // If lot not found, don't pre-select anything, let user choose in step 1
     }
   }
 
   // Charger les données au montage du composant
   useEffect(() => {
-    console.log("🔄 Chargement des contacts pour user:", user?.email)
+    logger.info("🔄 Chargement des contacts pour user:", user?.email)
     loadRealData()
   }, [user?.id])
 
@@ -257,9 +262,9 @@ export default function NouvelleInterventionPage() {
 
       // Pre-select lot based on tenant or location info
       const tenantId = searchParams.get("tenantId")
-      if (_tenantId) {
+      if (tenantId) {
         // For tenant-initiated interventions, get their assigned lots
-        loadTenantLots(_tenantId)
+        loadTenantLots(tenantId)
       } else if (tenantLocation.includes("Lot")) {
         // Parse location to extract lot info and load real lot data
         const lotMatch = tenantLocation.match(/Lot(\d+)/)
@@ -287,7 +292,7 @@ export default function NouvelleInterventionPage() {
       if (manager) {
         contacts.push(manager)
       } else {
-        console.warn("⚠️ Gestionnaire non trouvé:", { 
+        logger.warn("⚠️ Gestionnaire non trouvé:", { 
           managerId, 
           availableManagers: managers.map(m => ({ id: m.id, name: m.name }))
         })
@@ -300,7 +305,7 @@ export default function NouvelleInterventionPage() {
       if (provider) {
         contacts.push(provider)
       } else {
-        console.warn("⚠️ Prestataire non trouvé:", { 
+        logger.warn("⚠️ Prestataire non trouvé:", { 
           providerId, 
           availableProviders: providers.map(p => ({ id: p.id, name: p.name }))
         })
@@ -312,41 +317,41 @@ export default function NouvelleInterventionPage() {
 
   // Fonctions de gestion des contacts
   const handleManagerSelect = (_managerId: string) => {
-    console.log("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
+    logger.info("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
     const normalizedManagerId = String(managerId)
     setSelectedManagerIds(prevIds => {
-      console.log("👤 IDs gestionnaires actuels:", prevIds)
+      logger.info("👤 IDs gestionnaires actuels:", prevIds)
       const normalizedPrevIds = prevIds.map(id => String(id))
       if (normalizedPrevIds.includes(normalizedManagerId)) {
         // Si déjà sélectionné, le retirer
         const newIds = normalizedPrevIds.filter(id => id !== normalizedManagerId)
-        console.log("👤 Gestionnaire retiré, nouveaux IDs:", newIds)
+        logger.info("👤 Gestionnaire retiré, nouveaux IDs:", newIds)
         return newIds
       } else {
         // Sinon l'ajouter
         const newIds = [...normalizedPrevIds, normalizedManagerId]
-        console.log("👤 Gestionnaire ajouté, nouveaux IDs:", newIds)
+        logger.info("👤 Gestionnaire ajouté, nouveaux IDs:", newIds)
         return newIds
       }
     })
   }
 
   const handleProviderSelect = (_providerId: string) => {
-    console.log("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
-    console.log("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
+    logger.info("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
+    logger.info("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
     const normalizedProviderId = String(providerId)
     setSelectedProviderIds(prevIds => {
-      console.log("🔧 IDs prestataires actuels:", prevIds)
+      logger.info("🔧 IDs prestataires actuels:", prevIds)
       const normalizedPrevIds = prevIds.map(id => String(id))
       if (normalizedPrevIds.includes(normalizedProviderId)) {
         // Si déjà sélectionné, le retirer
         const newIds = normalizedPrevIds.filter(id => id !== normalizedProviderId)
-        console.log("🔧 Prestataire retiré, nouveaux IDs:", newIds)
+        logger.info("🔧 Prestataire retiré, nouveaux IDs:", newIds)
         return newIds
       } else {
         // Sinon l'ajouter
         const newIds = [...normalizedPrevIds, normalizedProviderId]
-        console.log("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
+        logger.info("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
         return newIds
       }
     })
@@ -354,9 +359,9 @@ export default function NouvelleInterventionPage() {
 
   const handleContactCreated = (_newContact: unknown) => {
     // Ajouter le nouveau contact à la liste appropriée (nouvelle architecture)
-    console.log("🆕 Contact créé:", { id: newContact.id, name: newContact.name, role: newContact.role, provider_category: newContact.provider_category })
+    logger.info("🆕 Contact créé:", { id: newContact.id, name: newContact.name, role: newContact.role, provider_category: newContact.provider_category })
     const assignmentType = determineAssignmentType(newContact)
-    console.log("🔍 AssignmentType déterminé:", assignmentType)
+    logger.info("🔍 AssignmentType déterminé:", assignmentType)
     
     if (assignmentType === 'manager') {
       const managerData = {
@@ -368,7 +373,7 @@ export default function NouvelleInterventionPage() {
         isCurrentUser: newContact.email === user?.email,
         type: "gestionnaire",
       }
-      console.log("➕ Ajout du gestionnaire à la liste:", managerData.name)
+      logger.info("➕ Ajout du gestionnaire à la liste:", managerData.name)
       setManagers((prev) => [...prev, managerData])
     } else if (assignmentType === 'provider') {
       const providerData = {
@@ -381,10 +386,10 @@ export default function NouvelleInterventionPage() {
         isCurrentUser: false,
         type: "prestataire",
       }
-      console.log("➕ Ajout du prestataire à la liste:", providerData.name)
+      logger.info("➕ Ajout du prestataire à la liste:", providerData.name)
       setProviders((prev) => [...prev, providerData])
     } else {
-      console.log("⚠️ Contact créé mais pas ajouté aux listes (assignmentType non géré):", assignmentType)
+      logger.info("⚠️ Contact créé mais pas ajouté aux listes (assignmentType non géré):", assignmentType)
     }
   }
 
@@ -392,7 +397,7 @@ export default function NouvelleInterventionPage() {
   const handleBuildingSelect = (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    if (_buildingId) {
+    if (buildingId) {
       setSelectedLogement({ type: "building", id: buildingId })
     } else {
       setSelectedLogement(null)
@@ -400,7 +405,7 @@ export default function NouvelleInterventionPage() {
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
-    if (!_lotId) {
+    if (!lotId) {
       setSelectedLotId(undefined)
       setSelectedBuildingId(buildingId || undefined)
       setSelectedLogement(null)
@@ -408,8 +413,8 @@ export default function NouvelleInterventionPage() {
     }
     try {
       // Load real lot data when selecting a lot
-      const lot = await lotService.getById(_lotId)
-      
+      const lot = await lotService.getById(lotId)
+
       if (lot) {
         setSelectedLogement({
           id: lot.id,
@@ -423,16 +428,16 @@ export default function NouvelleInterventionPage() {
         setSelectedBuildingId(lot.building_id)
       } else {
         // Fallback to minimal data if lot not found
-        setSelectedLotId(_lotId)
-        setSelectedBuildingId(_buildingId)
-        setSelectedLogement({ type: "lot", id: _lotId, buildingId })
+        setSelectedLotId(lotId)
+        setSelectedBuildingId(buildingId)
+        setSelectedLogement({ type: "lot", id: lotId, buildingId })
       }
     } catch (error) {
-      console.error("❌ Error loading lot data:", error)
+      logger.error("❌ Error loading lot data:", error)
       // Fallback to minimal data
-      setSelectedLotId(_lotId)
-      setSelectedBuildingId(_buildingId)
-      setSelectedLogement({ type: "lot", id: _lotId, buildingId })
+      setSelectedLotId(lotId)
+      setSelectedBuildingId(buildingId)
+      setSelectedLogement({ type: "lot", id: lotId, buildingId })
     }
   }
 
@@ -482,7 +487,7 @@ export default function NouvelleInterventionPage() {
   }
 
   const handleSubmit = () => {
-    console.log("Intervention créée:", {
+    logger.info("Intervention créée:", {
       selectedLogement,
       formData,
       files,
@@ -520,9 +525,9 @@ export default function NouvelleInterventionPage() {
     setError("")
 
     try {
-      console.log("🚀 Starting intervention creation...")
-      console.log("👤 Current user:", { id: user?.id, email: user?.email })
-      console.log("🏗️ Current team:", { id: currentUserTeam?.id, name: currentUserTeam?.name })
+      logger.info("🚀 Starting intervention creation...")
+      logger.info("👤 Current user:", { id: user?.id, email: user?.email })
+      logger.info("🏗️ Current team:", { id: currentUserTeam?.id, name: currentUserTeam?.name })
       
       // Prepare data for API call
       const interventionData = {
@@ -565,8 +570,8 @@ export default function NouvelleInterventionPage() {
         teamId: currentUserTeam?.id
       }
 
-      console.log("📝 Sending intervention data:", interventionData)
-      console.log("🔍 Detailed contact assignments:", {
+      logger.info("📝 Sending intervention data:", interventionData)
+      logger.info("🔍 Detailed contact assignments:", {
         managersCount: selectedManagerIds.length,
         managerIds: selectedManagerIds,
         providersCount: selectedProviderIds.length, 
@@ -582,15 +587,15 @@ export default function NouvelleInterventionPage() {
         body: JSON.stringify(interventionData),
       })
 
-      console.log("📡 API Response status:", response.status)
+      logger.info("📡 API Response status:", response.status)
       const result = await response.json()
 
       if (!response.ok) {
-        console.error("❌ API Error response:", result)
+        logger.error("❌ API Error response:", result)
         throw new Error(result.error || 'Erreur lors de la création de l\'intervention')
       }
 
-      console.log("✅ Intervention created successfully:", result)
+      logger.info("✅ Intervention created successfully:", result)
 
       // Gérer le succès avec vidage du cache (la navigation forcera le rechargement)
       await handleSuccess({
@@ -601,7 +606,7 @@ export default function NouvelleInterventionPage() {
           // Vider le cache pour forcer le rechargement des interventions lors de la navigation
           // const { createServerStatsService } = await import("@/lib/services")
           if (user?.id) {
-            console.log("Cache clearing for user:", user.id)
+            logger.info("Cache clearing for user:", user.id)
             // Stats service cache clearing functionality would be handled by new architecture
           }
         },
@@ -609,7 +614,7 @@ export default function NouvelleInterventionPage() {
       })
 
     } catch (error) {
-      console.error("❌ Error creating intervention:", error)
+      logger.error("❌ Error creating intervention:", error)
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
       setError(errorMessage)
     } finally {
@@ -910,7 +915,7 @@ export default function NouvelleInterventionPage() {
                       Personnes assignées ({getSelectedContacts().length})
                     </h5>
                     {/* Debug info */}
-                    {console.log("🔍 État de sélection:", { 
+                    {logger.info("🔍 État de sélection:", { 
                       selectedManagerIds, 
                       selectedProviderIds, 
                       selectedContactsCount: getSelectedContacts().length 

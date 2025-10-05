@@ -5,6 +5,7 @@ import { SimplifiedFinalizationModal } from "@/components/intervention/simplifie
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Smartphone, Tablet, Monitor, CheckCircle2, XCircle, AlertTriangle } from "lucide-react"
+import { logger, logError } from '@/lib/logger'
 
 export default function TestFinalizationMobilePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -188,7 +189,7 @@ export default function TestFinalizationMobilePage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onComplete={() => {
-          console.log('Finalization completed')
+          logger.info('Finalization completed')
           setIsModalOpen(false)
         }}
       />

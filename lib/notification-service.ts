@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import type { Building, Lot, Intervention, Contact, User } from './database-service'
-
+import { logger, logError } from '@/lib/logger'
 type NotificationType = Database['public']['Enums']['notification_type']
 type NotificationPriority = Database['public']['Enums']['notification_priority']
 
@@ -89,8 +89,8 @@ class NotificationService {
    * Créer une notification pour un utilisateur
    */
   async createNotification({
-    _userId,
-    _teamId,
+    userId,
+    teamId,
     createdBy,
     type,
     priority = 'normal',
@@ -102,19 +102,19 @@ class NotificationService {
     relatedEntityId
   }: CreateNotificationParams) {
     try {
-      console.log('📬 [NOTIFICATION-SERVICE] Creating notification:', { 
-        _userId, 
-        _teamId, 
-        createdBy, 
-        type, 
-        title, 
+      logger.info('📬 [NOTIFICATION-SERVICE] Creating notification:', {
+        userId,
+        teamId,
+        createdBy,
+        type,
+        title,
         isPersonal,
-        priority 
+        priority
       })
 
       const notificationData = {
-        user_id: _userId,
-        team_id: _teamId,
+        user_id: userId,
+        team_id: teamId,
         created_by: createdBy,
         type,
         priority,
@@ -126,7 +126,7 @@ class NotificationService {
         related_entity_id: relatedEntityId
       }
 
-      console.log('📬 [NOTIFICATION-SERVICE] Inserting notification data:', notificationData)
+      logger.info('📬 [NOTIFICATION-SERVICE] Inserting notification data:', notificationData)
 
       const { data, error } = await supabase
         .from('notifications')
@@ -135,11 +135,11 @@ class NotificationService {
         .single()
 
       if (error) {
-        console.error('❌ [NOTIFICATION-SERVICE] Error creating notification:', error)
+        logger.error('❌ [NOTIFICATION-SERVICE] Error creating notification:', error)
         return null
       }
 
-      console.log('✅ [NOTIFICATION-SERVICE] Notification created successfully:', {
+      logger.info('✅ [NOTIFICATION-SERVICE] Notification created successfully:', {
         id: data.id,
         user_id: data.user_id,
         team_id: data.team_id,
@@ -148,7 +148,7 @@ class NotificationService {
       })
       return data
     } catch (error) {
-      console.error('❌ Exception creating notification:', error)
+      logger.error('❌ Exception creating notification:', error)
       return null
     }
   }
@@ -157,7 +157,7 @@ class NotificationService {
    * Créer des notifications pour tous les membres d'une équipe
    */
   async createTeamNotification({
-    _teamId,
+    teamId,
     createdBy,
     type,
     priority = 'normal',
@@ -171,33 +171,33 @@ class NotificationService {
     excludeUsers?: string[]
   }) {
     try {
-      console.log('📬 Creating team notification for team:', _teamId)
+      logger.info('📬 Creating team notification for team:', teamId)
 
       // Récupérer tous les membres de l'équipe
       const { data: teamMembers, error: membersError } = await supabase
         .from('team_members')
         .select('user_id')
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
 
       if (membersError) {
-        console.error('❌ Error fetching team members:', membersError)
+        logger.error('❌ Error fetching team members:', membersError)
         return []
       }
 
       if (!teamMembers || teamMembers.length === 0) {
-        console.log('⚠️ No team members found for team:', _teamId)
+        logger.info('⚠️ No team members found for team:', teamId)
         return []
       }
 
       // Filtrer les utilisateurs exclus
       const userIds = teamMembers
         .map(member => member.user_id)
-        .filter(userId => !excludeUsers.includes(_userId))
+        .filter(userId => !excludeUsers.includes(userId))
 
       // Créer une notification pour chaque membre
       const notifications = userIds.map(userId => ({
-        user_id: _userId,
-        team_id: _teamId,
+        user_id: userId,
+        team_id: teamId,
         created_by: createdBy,
         type,
         priority,
@@ -214,14 +214,14 @@ class NotificationService {
         .select('*')
 
       if (error) {
-        console.error('❌ Error creating team notifications:', error)
+        logger.error('❌ Error creating team notifications:', error)
         return []
       }
 
-      console.log('✅ Created team notifications:', data.length)
+      logger.info('✅ Created team notifications:', data.length)
       return data
     } catch (error) {
-      console.error('❌ Exception creating team notifications:', error)
+      logger.error('❌ Exception creating team notifications:', error)
       return []
     }
   }
@@ -232,11 +232,11 @@ class NotificationService {
   async notifyInterventionCreated({
     interventionId,
     interventionTitle,
-    _teamId,
+    teamId,
     createdBy,
     assignedTo,
     managerId,
-    _lotId,
+    lotId,
     lotReference,
     urgency = 'normal'
   }: {
@@ -255,7 +255,7 @@ class NotificationService {
       let buildingManagerIds: string[] = []
       let lotManagerIds: string[] = []
       
-      if (_lotId) {
+      if (lotId) {
         // Récupérer le lot avec son immeuble parent
         const { data: lotData } = await supabase
           .from('lots')
@@ -264,7 +264,7 @@ class NotificationService {
             reference,
             building:buildings(id, name)
           `)
-          .eq('id', _lotId)
+          .eq('id', lotId)
           .single()
         
         // Récupérer les gestionnaires du bâtiment via building_contacts
@@ -273,7 +273,7 @@ class NotificationService {
         }
 
         // Récupérer les gestionnaires spécifiquement assignés au lot
-        lotManagerIds = await this.getLotManagers(_lotId)
+        lotManagerIds = await this.getLotManagers(lotId)
       }
 
       // Récupérer tous les gestionnaires de l'équipe
@@ -283,7 +283,7 @@ class NotificationService {
           user_id,
           user:users(id, name, role)
         `)
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
 
       if (!teamMembers) return []
 
@@ -320,7 +320,7 @@ class NotificationService {
           // Notification personnelle pour les gestionnaires directement responsables
           const notification = await this.createNotification({
             userId: manager.user_id,
-            _teamId,
+            teamId,
             createdBy,
             type: 'intervention',
             priority: urgency === 'normal' ? 'high' : urgency,
@@ -339,7 +339,7 @@ class NotificationService {
           // Notification d'équipe pour les autres gestionnaires
           const notification = await this.createNotification({
             userId: manager.user_id,
-            _teamId,
+            teamId,
             createdBy,
             type: 'intervention',
             priority: 'normal',
@@ -364,12 +364,12 @@ class NotificationService {
         assignedTo && assignedTo !== createdBy ? 'assignee' : null
       ].filter(Boolean).join(', ')
 
-      console.log(`📬 Intervention creation notifications sent to ${allManagers.length} gestionnaires`)
-      console.log(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
-      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      logger.info(`📬 Intervention creation notifications sent to ${allManagers.length} gestionnaires`)
+      logger.info(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
+      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
       return notifications
     } catch (error) {
-      console.error('❌ Failed to notify intervention created:', error)
+      logger.error('❌ Failed to notify intervention created:', error)
       return []
     }
   }
@@ -382,11 +382,11 @@ class NotificationService {
     interventionTitle,
     oldStatus,
     newStatus,
-    _teamId,
+    teamId,
     changedBy,
     assignedTo,
     managerId,
-    _lotId,
+    lotId,
     lotReference
   }: {
     interventionId: string
@@ -426,7 +426,7 @@ class NotificationService {
       let buildingManagerIds: string[] = []
       let lotManagerIds: string[] = []
       
-      if (_lotId) {
+      if (lotId) {
         // Récupérer le lot avec son immeuble parent
         const { data: lotData } = await supabase
           .from('lots')
@@ -435,7 +435,7 @@ class NotificationService {
             reference,
             building:buildings(id, name)
           `)
-          .eq('id', _lotId)
+          .eq('id', lotId)
           .single()
         
         // Récupérer les gestionnaires du bâtiment via building_contacts
@@ -444,7 +444,7 @@ class NotificationService {
         }
 
         // Récupérer les gestionnaires spécifiquement assignés au lot
-        lotManagerIds = await this.getLotManagers(_lotId)
+        lotManagerIds = await this.getLotManagers(lotId)
       }
 
       // Récupérer tous les gestionnaires de l'équipe
@@ -454,7 +454,7 @@ class NotificationService {
           user_id,
           user:users(id, name, role)
         `)
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
 
       if (!teamMembers) return []
 
@@ -494,10 +494,10 @@ class NotificationService {
           // Notification personnelle pour les gestionnaires directement responsables
           const notification = await this.createNotification({
             userId: manager.user_id,
-            _teamId,
+            teamId,
             createdBy: changedBy,
             type: 'status_change',
-            priority: newStatus === 'validee' ? 'high' : 'normal',
+            priority: newStatus === 'approuvee' ? 'high' : 'normal',
             title: 'Statut d\'intervention sous votre responsabilité modifié',
             message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} qui vous concerne est passée de "${oldLabel}" à "${newLabel}"`,
             metadata: { 
@@ -515,7 +515,7 @@ class NotificationService {
           // Notification d'équipe pour les autres gestionnaires
           const notification = await this.createNotification({
             userId: manager.user_id,
-            _teamId,
+            teamId,
             createdBy: changedBy,
             type: 'status_change',
             priority: 'normal',
@@ -542,12 +542,12 @@ class NotificationService {
         assignedTo && assignedTo !== changedBy ? 'assignee' : null
       ].filter(Boolean).join(', ')
 
-      console.log(`📬 Intervention status change notifications sent to ${allManagers.length} gestionnaires`)
-      console.log(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
-      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      logger.info(`📬 Intervention status change notifications sent to ${allManagers.length} gestionnaires`)
+      logger.info(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
+      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
       return notifications
     } catch (error) {
-      console.error('❌ Failed to notify intervention status change:', error)
+      logger.error('❌ Failed to notify intervention status change:', error)
       return []
     }
   }
@@ -558,7 +558,7 @@ class NotificationService {
   async notifyDocumentUploaded({
     documentId,
     documentName,
-    _teamId,
+    teamId,
     uploadedBy,
     relatedEntityType,
     relatedEntityId,
@@ -578,7 +578,7 @@ class NotificationService {
     if (assignedTo && assignedTo !== uploadedBy) {
       const assigneeNotification = await this.createNotification({
         userId: assignedTo,
-        _teamId,
+        teamId,
         createdBy: uploadedBy,
         type: 'document',
         priority: 'normal',
@@ -603,8 +603,8 @@ class NotificationService {
    * Notifications pour les invitations d'équipe
    */
   async notifyTeamInvitation({
-    _userId,
-    _teamId,
+    userId,
+    teamId,
     teamName,
     invitedBy,
     role
@@ -616,8 +616,8 @@ class NotificationService {
     role: string
   }) {
     return this.createNotification({
-      _userId,
-      _teamId,
+      userId,
+      teamId,
       createdBy: invitedBy,
       type: 'team_invite',
       priority: 'high',
@@ -633,7 +633,7 @@ class NotificationService {
    * Notifications système
    */
   async notifySystemMaintenance({
-    _teamId,
+    teamId,
     title,
     message,
     scheduledFor
@@ -644,7 +644,7 @@ class NotificationService {
     scheduledFor: string
   }) {
     return this.createTeamNotification({
-      _teamId,
+      teamId,
       type: 'system',
       priority: 'normal',
       title,
@@ -657,8 +657,8 @@ class NotificationService {
    * Notifications de rappel
    */
   async notifyReminder({
-    _userId,
-    _teamId,
+    userId,
+    teamId,
     createdBy,
     title,
     message,
@@ -676,8 +676,8 @@ class NotificationService {
     relatedEntityId?: string
   }) {
     return this.createNotification({
-      _userId,
-      _teamId,
+      userId,
+      teamId,
       createdBy,
       type: 'reminder',
       priority: 'normal',
@@ -696,7 +696,7 @@ class NotificationService {
     try {
       if (!building.team_id || !createdBy) return
 
-      console.log('📬 Notifying building created:', { buildingId: building.id, teamId: building.team_id })
+      logger.info('📬 Notifying building created:', { buildingId: building.id, teamId: building.team_id })
 
       // Récupérer tous les gestionnaires de l'équipe
       const { data: teamMembers } = await supabase
@@ -779,9 +779,9 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
+      logger.info(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
-      console.error('❌ Failed to notify building created:', error)
+      logger.error('❌ Failed to notify building created:', error)
     }
   }
 
@@ -872,9 +872,9 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
+      logger.info(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
-      console.error('❌ Failed to notify building updated:', error)
+      logger.error('❌ Failed to notify building updated:', error)
     }
   }
 
@@ -962,9 +962,9 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
+      logger.info(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
-      console.error('❌ Failed to notify building deleted:', error)
+      logger.error('❌ Failed to notify building deleted:', error)
     }
   }
 
@@ -1107,14 +1107,14 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Lot creation notifications sent to ${allManagers.length} gestionnaires`)
-      console.log(`📬   - ${directResponsibles.size} personal notifications`)
-      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
-      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
-      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
-      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      logger.info(`📬 Lot creation notifications sent to ${allManagers.length} gestionnaires`)
+      logger.info(`📬   - ${directResponsibles.size} personal notifications`)
+      logger.info(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      logger.info(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      logger.info(`📬     • ${buildingPrimaryManagers.size} building manager`)
+      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
-      console.error('❌ Failed to notify lot created:', error)
+      logger.error('❌ Failed to notify lot created:', error)
     }
   }
 
@@ -1257,14 +1257,14 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Lot update notifications sent to ${allManagers.length} gestionnaires`)
-      console.log(`📬   - ${directResponsibles.size} personal notifications`)
-      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
-      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
-      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
-      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      logger.info(`📬 Lot update notifications sent to ${allManagers.length} gestionnaires`)
+      logger.info(`📬   - ${directResponsibles.size} personal notifications`)
+      logger.info(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      logger.info(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      logger.info(`📬     • ${buildingPrimaryManagers.size} building manager`)
+      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
-      console.error('❌ Failed to notify lot updated:', error)
+      logger.error('❌ Failed to notify lot updated:', error)
     }
   }
 
@@ -1403,14 +1403,14 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Lot deletion notifications sent to ${allManagers.length} gestionnaires`)
-      console.log(`📬   - ${directResponsibles.size} personal notifications`)
-      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
-      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
-      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
-      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      logger.info(`📬 Lot deletion notifications sent to ${allManagers.length} gestionnaires`)
+      logger.info(`📬   - ${directResponsibles.size} personal notifications`)
+      logger.info(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      logger.info(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      logger.info(`📬     • ${buildingPrimaryManagers.size} building manager`)
+      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
-      console.error('❌ Failed to notify lot deleted:', error)
+      logger.error('❌ Failed to notify lot deleted:', error)
     }
   }
 
@@ -1486,16 +1486,16 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Contact creation notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+      logger.info(`📬 Contact creation notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
-      console.error('❌ Failed to notify contact created:', error)
+      logger.error('❌ Failed to notify contact created:', error)
     }
   }
 
   /**
    * Récupérer les gestionnaires spécifiquement assignés à un lot
    */
-  private async getLotManagers(_lotId: string): Promise<string[]> {
+  private async getLotManagers(lotId: string): Promise<string[]> {
     try {
       const { data: lotContacts } = await supabase
         .from('lot_contacts')
@@ -1506,7 +1506,7 @@ class NotificationService {
             provider_category
           )
         `)
-        .eq('lot_id', _lotId)
+        .eq('lot_id', lotId)
         .is('end_date', null) // Only active assignments
 
       // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
@@ -1517,7 +1517,7 @@ class NotificationService {
 
       return managers
     } catch (error) {
-      console.error('Error getting lot managers:', error)
+      logger.error('Error getting lot managers:', error)
       return []
     }
   }
@@ -1547,7 +1547,7 @@ class NotificationService {
 
       return managers
     } catch (error) {
-      console.error('Error getting building managers:', error)
+      logger.error('Error getting building managers:', error)
       return []
     }
   }
@@ -1686,7 +1686,7 @@ class NotificationService {
         }
       }
     } catch (error) {
-      console.error('Error getting contact direct responsibles:', error)
+      logger.error('Error getting contact direct responsibles:', error)
     }
 
     return directResponsibles
@@ -1763,9 +1763,9 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Contact update notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+      logger.info(`📬 Contact update notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
-      console.error('❌ Failed to notify contact updated:', error)
+      logger.error('❌ Failed to notify contact updated:', error)
     }
   }
 
@@ -1838,9 +1838,9 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      console.log(`📬 Contact deletion notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+      logger.info(`📬 Contact deletion notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
-      console.error('❌ Failed to notify contact deleted:', error)
+      logger.error('❌ Failed to notify contact deleted:', error)
     }
   }
 
@@ -2017,19 +2017,19 @@ class NotificationService {
       const providerCount = 0
       try {
         // TODO: Implémenter les notifications prestataires quand le schema sera corrigé
-        console.log("📧 Provider notifications skipped (schema issues)")
+        logger.info("📧 Provider notifications skipped (schema issues)")
       } catch (error) {
-        console.warn("⚠️ Error getting provider contacts:", error)
+        logger.warn("⚠️ Error getting provider contacts:", error)
       }
 
       const directCount = directResponsibles.size
       const teamCount = allManagers.length - directCount
       const tenantCount = intervention.tenant_id && intervention.tenant_id !== changedBy ? 1 : 0
       
-      console.log(`📬 Intervention status change notifications sent: ${directCount} personal managers, ${teamCount} team managers, ${tenantCount} tenant, ${providerCount} providers`)
+      logger.info(`📬 Intervention status change notifications sent: ${directCount} personal managers, ${teamCount} team managers, ${tenantCount} tenant, ${providerCount} providers`)
 
     } catch (error) {
-      console.error('❌ Failed to notify intervention status changed:', error)
+      logger.error('❌ Failed to notify intervention status changed:', error)
     }
   }
 
@@ -2061,10 +2061,10 @@ class NotificationService {
         relatedEntityId: intervention.id
       })
 
-      console.log(`📬 Quote request notification sent to provider ${provider.name} (${provider.id})`)
+      logger.info(`📬 Quote request notification sent to provider ${provider.name} (${provider.id})`)
 
     } catch (error) {
-      console.error('❌ Failed to notify quote request:', error)
+      logger.error('❌ Failed to notify quote request:', error)
     }
   }
 
@@ -2077,7 +2077,7 @@ class NotificationService {
     responseType,
     tenantName,
     message = '',
-    _teamId,
+    teamId,
     lotReference
   }: {
     interventionId: string
@@ -2089,9 +2089,9 @@ class NotificationService {
     lotReference?: string
   }) {
     try {
-      if (!_teamId) return
+      if (!teamId) return
 
-      console.log('📬 Notifying availability response:', {
+      logger.info('📬 Notifying availability response:', {
         interventionId,
         responseType,
         tenantName,
@@ -2109,7 +2109,7 @@ class NotificationService {
         .eq('intervention_id', interventionId)
 
       if (!interventionContacts || interventionContacts.length === 0) {
-        console.warn('No contacts found for intervention:', interventionId)
+        logger.warn('No contacts found for intervention:', interventionId)
         return
       }
 
@@ -2157,7 +2157,7 @@ class NotificationService {
       const managerPromises = managers.map(manager =>
         this.createNotification({
           userId: manager.user_id,
-          _teamId,
+          teamId,
           type: 'intervention',
           priority,
           title: managerTitle,
@@ -2180,7 +2180,7 @@ class NotificationService {
       const providerPromises = providers.map(provider =>
         this.createNotification({
           userId: provider.user_id,
-          _teamId,
+          teamId,
           type: 'intervention',
           priority,
           title: providerTitle,
@@ -2202,10 +2202,10 @@ class NotificationService {
       // Envoyer toutes les notifications
       await Promise.all([...managerPromises, ...providerPromises])
 
-      console.log(`📬 Availability response notifications sent: ${managers.length} managers, ${providers.length} providers`)
+      logger.info(`📬 Availability response notifications sent: ${managers.length} managers, ${providers.length} providers`)
 
     } catch (error) {
-      console.error('❌ Failed to notify availability response:', error)
+      logger.error('❌ Failed to notify availability response:', error)
       throw error
     }
   }

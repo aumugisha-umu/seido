@@ -51,7 +51,7 @@ import {
   getStatusActionMessage
 } from "@/lib/intervention-utils"
 import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
-
+import { logger, logError } from '@/lib/logger'
 interface InterventionCardProps {
   intervention: {
     id: string
@@ -339,7 +339,7 @@ export function InterventionCard({
 
   // Handle action clicks
   const handleAction = (_actionType: string) => {
-    console.log(`[InterventionCard] Action: ${actionType} for intervention ${intervention.id}`)
+    logger.info(`[InterventionCard] Action: ${actionType} for intervention ${intervention.id}`)
 
     // Route to specific actions based on type
     switch (actionType) {
@@ -383,7 +383,7 @@ export function InterventionCard({
         break
       case 'delete':
         // Handle delete confirmation
-        console.log(`Delete intervention ${intervention.id}`)
+        logger.info(`Delete intervention ${intervention.id}`)
         break
       default:
         // Default to opening details page

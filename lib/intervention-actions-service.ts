@@ -1,3 +1,5 @@
+import { logger, logError } from '@/lib/logger'
+
 // import { useRouter } from "next/navigation"
 
 // Types pour les actions d'intervention
@@ -79,7 +81,7 @@ export class InterventionActionsService {
    */
   // Nouvelles méthodes simplifiées pour le workflow
   async approveIntervention(intervention: InterventionAction): Promise<APIResponse> {
-    console.log(`✅ Approving intervention ${intervention.id}`)
+    logger.info(`✅ Approving intervention ${intervention.id}`)
 
     const response = await fetch('/api/intervention-approve', {
       method: 'POST',
@@ -97,13 +99,13 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de l'approbation: ${response.status}`)
     }
 
-    console.log(`✅ Intervention approved successfully: ${result.intervention.id}`)
+    logger.info(`✅ Intervention approved successfully: ${result.intervention.id}`)
     return result
   }
 
   async rejectIntervention(intervention: InterventionAction, reason: string): Promise<APIResponse> {
-    console.log(`❌ Rejecting intervention ${intervention.id}`)
-    console.log(`📝 Rejection reason: ${reason}`)
+    logger.info(`❌ Rejecting intervention ${intervention.id}`)
+    logger.info(`📝 Rejection reason: ${reason}`)
 
     if (!reason) {
       throw new Error('Le motif de rejet est requis')
@@ -126,12 +128,12 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors du rejet: ${response.status}`)
     }
 
-    console.log(`❌ Intervention rejected successfully: ${result.intervention.id}`)
+    logger.info(`❌ Intervention rejected successfully: ${result.intervention.id}`)
     return result
   }
 
   async startIntervention(intervention: InterventionAction): Promise<APIResponse> {
-    console.log(`🚀 Starting intervention ${intervention.id}`)
+    logger.info(`🚀 Starting intervention ${intervention.id}`)
 
     const response = await fetch('/api/intervention-start', {
       method: 'POST',
@@ -149,12 +151,12 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors du démarrage: ${response.status}`)
     }
 
-    console.log("🚀 Intervention started successfully:", result.intervention.id)
+    logger.info("🚀 Intervention started successfully:", result.intervention.id)
     return result
   }
 
   async completeByProvider(intervention: InterventionAction, report: string): Promise<APIResponse> {
-    console.log(`✅ Completing intervention ${intervention.id} by provider`)
+    logger.info(`✅ Completing intervention ${intervention.id} by provider`)
 
     const response = await fetch('/api/intervention-complete-provider', {
       method: 'POST',
@@ -173,12 +175,12 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la finalisation: ${response.status}`)
     }
 
-    console.log("✅ Intervention completed by provider:", result.intervention.id)
+    logger.info("✅ Intervention completed by provider:", result.intervention.id)
     return result
   }
 
   async validateByTenant(intervention: InterventionAction): Promise<APIResponse> {
-    console.log(`✅ Validating intervention ${intervention.id} by tenant`)
+    logger.info(`✅ Validating intervention ${intervention.id} by tenant`)
 
     const response = await fetch('/api/intervention-validate-tenant', {
       method: 'POST',
@@ -196,12 +198,12 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la validation: ${response.status}`)
     }
 
-    console.log("✅ Intervention validated by tenant:", result.intervention.id)
+    logger.info("✅ Intervention validated by tenant:", result.intervention.id)
     return result
   }
 
   async contestByTenant(intervention: InterventionAction, contestReason: string): Promise<APIResponse> {
-    console.log(`⚠️ Contesting intervention ${intervention.id} by tenant`)
+    logger.info(`⚠️ Contesting intervention ${intervention.id} by tenant`)
 
     const response = await fetch('/api/intervention-contest-tenant', {
       method: 'POST',
@@ -220,12 +222,12 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la contestation: ${response.status}`)
     }
 
-    console.log("⚠️ Intervention contested by tenant:", result.intervention.id)
+    logger.info("⚠️ Intervention contested by tenant:", result.intervention.id)
     return result
   }
 
   async finalizeByManager(intervention: InterventionAction): Promise<APIResponse> {
-    console.log(`🏁 Finalizing intervention ${intervention.id} by manager`)
+    logger.info(`🏁 Finalizing intervention ${intervention.id} by manager`)
 
     const response = await fetch('/api/intervention-finalize-manager', {
       method: 'POST',
@@ -243,7 +245,7 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la finalisation: ${response.status}`)
     }
 
-    console.log("🏁 Intervention finalized by manager:", result.intervention.id)
+    logger.info("🏁 Intervention finalized by manager:", result.intervention.id)
     return result
   }
 
@@ -252,7 +254,7 @@ export class InterventionActionsService {
       throw new Error("Le motif d'annulation est requis")
     }
 
-    console.log(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
+    logger.info(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
 
     const response = await fetch('/api/intervention-cancel', {
       method: 'POST',
@@ -271,13 +273,13 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de l'annulation: ${response.status}`)
     }
 
-    console.log(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
+    logger.info(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
     return result
   }
 
   async confirmSlot(interventionId: string, slotData: { date: string; startTime: string; endTime: string; }, comment?: string): Promise<APIResponse> {
-    console.log(`📅 Confirming slot for intervention ${interventionId}`)
-    console.log(`🕐 Selected slot: ${slotData.date} ${slotData.startTime}-${slotData.endTime}`)
+    logger.info(`📅 Confirming slot for intervention ${interventionId}`)
+    logger.info(`🕐 Selected slot: ${slotData.date} ${slotData.startTime}-${slotData.endTime}`)
 
     const response = await fetch(`/api/intervention/${interventionId}/select-slot`, {
       method: 'PUT',
@@ -296,14 +298,14 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la confirmation du créneau: ${response.status}`)
     }
 
-    console.log(`✅ Slot confirmed successfully for intervention: ${result.intervention?.id}`)
+    logger.info(`✅ Slot confirmed successfully for intervention: ${result.intervention?.id}`)
     return result
   }
 
   // Méthodes héritées (garder pour compatibilité)
   async approveInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<void> {
-    console.log(`✅ Approving intervention ${intervention.id}`)
-    console.log(`📝 Internal comment: ${data.internalComment}`)
+    logger.info(`✅ Approving intervention ${intervention.id}`)
+    logger.info(`📝 Internal comment: ${data.internalComment}`)
     
     const response = await fetch('/api/intervention-approve', {
       method: 'POST',
@@ -322,14 +324,14 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de l'approbation: ${response.status}`)
     }
 
-    console.log(`✅ Intervention approved successfully: ${result.intervention.id}`)
+    logger.info(`✅ Intervention approved successfully: ${result.intervention.id}`)
     return result
   }
 
   async rejectIntervention(intervention: InterventionAction, data: ApprovalData): Promise<void> {
-    console.log(`❌ Rejecting intervention ${intervention.id}`)
-    console.log(`📝 Rejection reason: ${data.rejectionReason}`)
-    console.log(`📝 Internal comment: ${data.internalComment}`)
+    logger.info(`❌ Rejecting intervention ${intervention.id}`)
+    logger.info(`📝 Rejection reason: ${data.rejectionReason}`)
+    logger.info(`📝 Internal comment: ${data.internalComment}`)
     
     if (!data.rejectionReason) {
       throw new Error('Le motif de rejet est requis')
@@ -353,7 +355,7 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors du rejet: ${response.status}`)
     }
 
-    console.log(`❌ Intervention rejected successfully: ${result.intervention.id}`)
+    logger.info(`❌ Intervention rejected successfully: ${result.intervention.id}`)
     return result
   }
 
@@ -365,7 +367,7 @@ export class InterventionActionsService {
       throw new Error("Le motif d'annulation est requis")
     }
 
-    console.log(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
+    logger.info(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
 
     const response = await fetch('/api/intervention-cancel', {
       method: 'POST',
@@ -385,7 +387,7 @@ export class InterventionActionsService {
     }
 
     const result = await response.json()
-    console.log(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
+    logger.info(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
     return result
   }
 
@@ -393,12 +395,12 @@ export class InterventionActionsService {
    * Actions de programmation
    */
   async programIntervention(intervention: InterventionAction, data: PlanningData): Promise<void> {
-    console.log("📅 Programming intervention with option:", data.option)
+    logger.info("📅 Programming intervention with option:", data.option)
     
     if (data.option === "direct") {
-      console.log("📅 Direct schedule:", data.directSchedule)
+      logger.info("📅 Direct schedule:", data.directSchedule)
     } else if (data.option === "propose") {
-      console.log("📅 Proposed slots:", data.proposedSlots)
+      logger.info("📅 Proposed slots:", data.proposedSlots)
     }
 
     const response = await fetch('/api/intervention-schedule', {
@@ -421,7 +423,7 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la planification: ${response.status}`)
     }
 
-    console.log("📅 Intervention scheduled successfully:", result.intervention.id)
+    logger.info("📅 Intervention scheduled successfully:", result.intervention.id)
     return result
   }
 
@@ -429,10 +431,10 @@ export class InterventionActionsService {
    * Actions d'exécution
    */
   async executeIntervention(intervention: InterventionAction, data: ExecutionData): Promise<void> {
-    console.log(`🚀 ${data.action === 'start' ? 'Starting' : 'Cancelling'} intervention ${intervention.id}`)
-    console.log(`📝 Comment: ${data.comment}`)
-    console.log(`📝 Internal comment: ${data.internalComment}`)
-    console.log(`📁 Files: ${data.files.length}`)
+    logger.info(`🚀 ${data.action === 'start' ? 'Starting' : 'Cancelling'} intervention ${intervention.id}`)
+    logger.info(`📝 Comment: ${data.comment}`)
+    logger.info(`📝 Internal comment: ${data.internalComment}`)
+    logger.info(`📁 Files: ${data.files.length}`)
 
     if (data.action === 'start') {
       const response = await fetch('/api/intervention-start', {
@@ -453,12 +455,12 @@ export class InterventionActionsService {
         throw new Error(result.error || `Erreur lors du démarrage: ${response.status}`)
       }
 
-      console.log("🚀 Intervention started successfully:", result.intervention.id)
+      logger.info("🚀 Intervention started successfully:", result.intervention.id)
       return result
 
     } else if (data.action === 'cancel') {
       // Cancel functionality to be implemented later
-      console.log("❌ Cancel functionality not implemented yet")
+      logger.info("❌ Cancel functionality not implemented yet")
       throw new Error("Fonctionnalité d'annulation non encore implémentée")
     } else {
       throw new Error(`Action d'exécution non reconnue: ${data.action}`)
@@ -469,9 +471,9 @@ export class InterventionActionsService {
    * Actions de finalisation
    */
   async finalizeIntervention(intervention: InterventionAction, data: FinalizationData): Promise<void> {
-    console.log(`🏁 Finalizing intervention ${intervention.id}`)
-    console.log(`💰 Final amount: ${data.finalAmount || 'Same as quote'}`)
-    console.log(`📝 Payment comment: ${data.paymentComment}`)
+    logger.info(`🏁 Finalizing intervention ${intervention.id}`)
+    logger.info(`💰 Final amount: ${data.finalAmount || 'Same as quote'}`)
+    logger.info(`📝 Payment comment: ${data.paymentComment}`)
 
     const response = await fetch('/api/intervention-finalize', {
       method: 'POST',
@@ -494,7 +496,7 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la finalisation: ${response.status}`)
     }
 
-    console.log("🏁 Intervention finalized successfully:", result.intervention.id)
+    logger.info("🏁 Intervention finalized successfully:", result.intervention.id)
     return result
   }
 
@@ -507,9 +509,9 @@ export class InterventionActionsService {
     finalCost?: number,
     workDescription?: string
   }): Promise<void> {
-    console.log(`✅ Completing intervention ${intervention.id}`)
-    console.log(`📝 Work description: ${data.workDescription}`)
-    console.log(`💰 Final cost: ${data.finalCost}€`)
+    logger.info(`✅ Completing intervention ${intervention.id}`)
+    logger.info(`📝 Work description: ${data.workDescription}`)
+    logger.info(`💰 Final cost: ${data.finalCost}€`)
 
     const response = await fetch('/api/intervention-complete', {
       method: 'POST',
@@ -531,7 +533,7 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la completion: ${response.status}`)
     }
 
-    console.log("✅ Intervention completed successfully:", result.intervention.id)
+    logger.info("✅ Intervention completed successfully:", result.intervention.id)
     return result
   }
 
@@ -544,8 +546,8 @@ export class InterventionActionsService {
     contestReason?: string,
     satisfactionRating?: number
   }): Promise<void> {
-    console.log(`👍 Tenant validating intervention ${intervention.id}`)
-    console.log(`📝 Status: ${data.validationStatus}`)
+    logger.info(`👍 Tenant validating intervention ${intervention.id}`)
+    logger.info(`📝 Status: ${data.validationStatus}`)
 
     const response = await fetch('/api/intervention-validate-tenant', {
       method: 'POST',
@@ -567,7 +569,7 @@ export class InterventionActionsService {
       throw new Error(result.error || `Erreur lors de la validation: ${response.status}`)
     }
 
-    console.log("👍 Intervention validated by tenant successfully:", result.intervention.id)
+    logger.info("👍 Intervention validated by tenant successfully:", result.intervention.id)
     return result
   }
 
@@ -575,7 +577,7 @@ export class InterventionActionsService {
    * Actions sur les devis
    */
   async acceptQuote(quoteId: string, interventionId: string): Promise<void> {
-    console.log(`[v0] Accepting quote ${quoteId} for intervention ${interventionId}`)
+    logger.info(`[v0] Accepting quote ${quoteId} for intervention ${interventionId}`)
     
     // Ici on appellerait l'API réelle
     // await fetch('/api/quotes/accept', { ... })
@@ -584,7 +586,7 @@ export class InterventionActionsService {
   }
 
   async rejectQuote(quoteId: string, interventionId: string): Promise<void> {
-    console.log(`[v0] Rejecting quote ${quoteId} for intervention ${interventionId}`)
+    logger.info(`[v0] Rejecting quote ${quoteId} for intervention ${interventionId}`)
     
     // Ici on appellerait l'API réelle
     // await fetch('/api/quotes/reject', { ... })

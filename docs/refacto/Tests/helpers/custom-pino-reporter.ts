@@ -7,6 +7,7 @@ import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult, Tes
 import pino from 'pino'
 import { createE2ELogger } from '../config/pino-test.config'
 import path from 'path'
+import { logger, logError } from '@/lib/logger'
 
 export default class CustomPinoReporter implements Reporter {
   private logger: pino.Logger

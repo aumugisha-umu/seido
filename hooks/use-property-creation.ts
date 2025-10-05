@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * usePropertyCreation Hook - Centralized state management for property creation
  *
@@ -5,7 +7,6 @@
  * providing a clean interface for components while maintaining type safety.
  */
 
-"use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
@@ -22,7 +23,8 @@ import {
 } from "@/lib/services"
 import { getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import type {
-  PropertyMode,
+import { logger, logError } from '@/lib/logger'
+PropertyMode,
   PropertyFormData,
   BuildingFormData,
   LotFormData,
@@ -69,7 +71,7 @@ const DEFAULT_CONTACT_ASSIGNMENTS = {
 }
 
 export function usePropertyCreation(config: PropertyCreationConfig): UsePropertyCreationReturn {
-  const _router = useRouter()
+  const router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
@@ -165,7 +167,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
         try {
           teamMembers = await services.team.getMembers(primaryTeam.id)
         } catch (membersError) {
-          console.warn("Could not load team members:", membersError)
+          logger.warn("Could not load team members:", membersError)
           teamMembers = []
         }
 
@@ -197,7 +199,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
         try {
           categoryCountsByTeam = await services.lot.getCountByCategory(primaryTeam.id)
         } catch (error) {
-          console.warn("Could not load category counts:", error)
+          logger.warn("Could not load category counts:", error)
         }
 
         // Select default manager
@@ -221,7 +223,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
         }
 
       } catch (err) {
-        console.error('Error loading team data:', err)
+        logger.error('Error loading team data:', err)
         setError('Erreur lors du chargement des gestionnaires')
         setTeamData(prev => ({ ...prev, isLoading: false }))
       }
@@ -297,7 +299,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     const warnings: Record<string, string> = {}
 
     if (config.mode === 'building' && formData.mode === 'building') {
-      const _data = formData as BuildingFormData
+      const data = formData as BuildingFormData
 
       switch (step) {
         case 1:
@@ -725,7 +727,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
       }
 
     } catch (err) {
-      console.error("Error creating property:", err)
+      logger.error("Error creating property:", err)
       const errorMessage = err instanceof Error
         ? `Erreur lors de la création : ${err.message}`
         : "Une erreur est survenue lors de la création"

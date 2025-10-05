@@ -4,7 +4,7 @@
 **Version analysée :** Branche `optimization` (Commit actuel)
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 1er octobre 2025 - 00:10 CET (Phase 2 Isolation - Amélioration +1040%)
+**Dernière mise à jour :** 4 octobre 2025 - 18:30 CET (RLS Policies Complètes - Contact Creation Fixed)
 
 ---
 
@@ -169,6 +169,126 @@ const emptyState = page.locator('text=/no buildings|aucun.*bâtiment|aucun.*bien
 - ✅ **Authentification corrigée:** Login fonctionne en isolation
 - ⚠️ **Problème de stabilité:** Tests timeout dans suite complète (état partagé entre tests)
 - ⚠️ **UI manquante:** Fonctionnalités CRUD (création/édition/suppression) pas encore implémentées dans l'interface
+
+---
+
+## 🔐 CORRECTION COMPLÈTE RLS - CRÉATION DE CONTACTS (4 octobre 2025 - 18:30)
+
+### ✅ PROBLÈME RÉSOLU : ERREURS RLS BLOQUANT LA CRÉATION DE CONTACTS
+
+#### 🎯 Contexte
+La création de contacts échouait avec plusieurs erreurs RLS critiques :
+- Violation de policy lors de l'INSERT users
+- Contacts créés mais invisibles (team_members non créé)
+- Spinner infini (enum provider_category invalide)
+- Permissions trop restrictives (gestionnaires bloqués)
+
+#### 🔧 Solutions Implémentées (7 Migrations)
+
+##### 1. **INSERT Policy pour Users** (`20251004140000_add_users_insert_policy.sql`)
+```sql
+CREATE POLICY "team_members_insert_users"
+ON public.users FOR INSERT TO authenticated
+WITH CHECK (team_id IN (SELECT get_user_teams_v2()));
+```
+**Impact** : Membres peuvent créer contacts pour leurs équipes ✅
+
+##### 2. **Fix TeamRepository** (`lib/services/repositories/team.repository.ts`)
+- **Bug** : `this.handleError is not a function` (18 occurrences)
+- **Fix** : Import `handleError` correctement + format réponse standardisé
+```typescript
+return { success: false as const, error: handleError(error, 'team:addMember') }
+```
+**Impact** : Team member creation fonctionne ✅
+
+##### 3. **Fix Enum Provider Category** (`lib/services/domain/contact-invitation.service.ts`)
+- **Bug** : Mappings invalides ('legal', 'insurance', 'service' n'existent pas)
+- **Fix** : Valeurs correctes ('notaire', 'assurance', 'prestataire')
+**Impact** : Spinner infini résolu, création réussie ✅
+
+##### 4. **Policies Granulaires** (`20251004150000_fix_rls_policies_complete.sql`)
+Remplacement de `team_members_manage_team_members` FOR ALL par policies séparées :
+- **INSERT** : Membres → locataires/presta | Admin → tous
+- **UPDATE** : Admin uniquement (corrigé ensuite)
+- **DELETE** : Admin uniquement (corrigé ensuite)
+
+Ajout policies pour `user_invitations` (4 policies) et `activity_logs` (2 policies)
+
+##### 5. **Permissions Gestionnaires** (`20251004160000_fix_gestionnaire_permissions.sql`)
+**Feedback utilisateur** : "Gestionnaires doivent pouvoir UPDATE/DELETE locataires/prestataires"
+
+**Correction** :
+```sql
+-- Gestionnaires → locataires/prestataires ✅
+-- Admin → gestionnaires ✅
+AND (
+  EXISTS (SELECT 1 FROM users u WHERE u.auth_user_id = auth.uid() AND u.role = 'gestionnaire')
+  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = target AND u.role = 'gestionnaire')
+  OR
+  EXISTS (SELECT 1 FROM team_members WHERE role = 'admin' AND ...)
+)
+```
+**Note** : Fix erreur SQL `current_user` → `u_current` (mot réservé)
+
+##### 6. **Vérification UPDATE Profil** (`20251004170000_verify_users_update_policy.sql`)
+**Validation** : Policy `users_can_update_own_profile` existe et fonctionne ✅
+```sql
+USING (auth_user_id = auth.uid())
+WITH CHECK (auth_user_id = auth.uid())
+```
+
+##### 7. **DELETE Policy Users** (`20251004180000_add_users_delete_policy.sql`)
+Complétion table users avec logic team_members :
+```sql
+CREATE POLICY "users_delete_team_contacts"
+ON public.users FOR DELETE TO authenticated
+USING (
+  team_id IN (SELECT get_user_teams_v2())
+  AND auth_user_id != auth.uid()  -- Protection auto-suppression
+  AND (
+    (role IN ('locataire', 'prestataire') AND EXISTS (...gestionnaire...))
+    OR
+    (EXISTS (...admin...))
+  )
+);
+```
+
+#### 📊 État Final des Policies RLS
+
+**Table `users`** (6 policies) :
+- INSERT : team_members_insert_users
+- SELECT : users_select_authenticated, users_select_postgres, users_select_service_role
+- UPDATE : users_can_update_own_profile
+- DELETE : users_delete_team_contacts ✅
+
+**Table `team_members`** (5 policies) :
+- SELECT, INSERT, UPDATE, DELETE (granulaire avec role-based access)
+
+**Table `user_invitations`** (4 policies) :
+- SELECT, INSERT, UPDATE, DELETE (gestionnaires)
+
+**Table `activity_logs`** (2 policies) :
+- SELECT, INSERT
+
+#### 🎯 Matrice de Permissions Finale
+
+| Rôle | users DELETE | team_members UPDATE/DELETE | user_invitations DELETE |
+|------|-------------|---------------------------|------------------------|
+| **Admin équipe** | ✅ Tous (sauf soi) | ✅ Tous | ✅ Oui |
+| **Gestionnaire** | ✅ Locataires/Presta | ✅ Locataires/Presta | ✅ Oui |
+| **Locataire/Presta** | ❌ Non | ❌ Non | ❌ Non |
+
+#### 🔒 Protections de Sécurité
+- ✅ Isolation par équipe (`get_user_teams_v2()`)
+- ✅ Auto-suppression bloquée (`auth_user_id != auth.uid()`)
+- ✅ Contrôle basé sur rôle (gestionnaire vs admin)
+- ✅ Protection des gestionnaires (seul admin peut modifier/supprimer)
+- ✅ Validation enum provider_category
+
+#### 📁 Documentation
+**Rapport détaillé** : `docs/rapport-rls-contact-creation-fix.md` (comprehensive guide with SQL, TypeScript fixes, permission matrix)
+
+**Résultat** : ✅ **Contact Creation End-to-End Fonctionnel**
 
 ---
 

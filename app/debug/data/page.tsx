@@ -6,7 +6,7 @@ import Link from "next/link"
 import { requireRole } from "@/lib/dal"
 import { createServerTeamService } from "@/lib/services"
 import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-sample-data"
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -20,9 +20,9 @@ import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-
  */
 
 async function createSampleData(_teamId: string) {
-  console.log('🔧 [DEBUG] Creating sample data for team:', _teamId)
+  logger.info('🔧 [DEBUG] Creating sample data for team:', _teamId)
   const result = await createSampleBuildingsForTeam({ _teamId, force: false })
-  console.log('🔧 [DEBUG] Sample data creation result:', result)
+  logger.info('🔧 [DEBUG] Sample data creation result:', result)
   return result
 }
 
@@ -89,7 +89,7 @@ export default async function DebugDataPage() {
       })) || []
     }
   } catch (error) {
-    console.error('❌ [DEBUG] Error during diagnostic:', error)
+    logger.error('❌ [DEBUG] Error during diagnostic:', error)
     diagnosticDetails.error = error instanceof Error ? error.message : 'Unknown error'
   }
 

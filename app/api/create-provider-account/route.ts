@@ -3,8 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
-
-
+import { logger, logError } from '@/lib/logger'
 // Admin client for creating auth users
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -19,7 +18,7 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 ) : null
 
 export async function POST(request: NextRequest) {
-  console.log("✅ create-provider-account API route called")
+  logger.info("✅ create-provider-account API route called")
 
   try {
     if (!supabaseAdmin) {
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Creating provider account for:", email)
+    logger.info("📝 Creating provider account for:", email)
 
     // Verify magic link exists and is valid
     const { data: magicLink, error: magicLinkError } = await supabase
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (magicLinkError || !magicLink) {
-      console.error("❌ Magic link not found:", magicLinkError)
+      logger.error("❌ Magic link not found:", magicLinkError)
       return NextResponse.json({
         success: false,
         error: 'Lien magique invalide ou expiré'
@@ -133,7 +132,7 @@ export async function POST(request: NextRequest) {
     // Generate a temporary password for the account
     const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
 
-    console.log("🔑 Creating auth user...")
+    logger.info("🔑 Creating auth user...")
 
     // Create auth user with admin client
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -150,14 +149,14 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError || !authData.user) {
-      console.error("❌ Error creating auth user:", authError)
+      logger.error("❌ Error creating auth user:", authError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la création du compte: ' + (authError?.message || 'Unknown error')
       }, { status: 500 })
     }
 
-    console.log("✅ Auth user created:", authData.user.id)
+    logger.info("✅ Auth user created:", authData.user.id)
 
     // Create user profile in our database
     const userProfile = await userService.create({
@@ -170,7 +169,7 @@ export async function POST(request: NextRequest) {
       is_active: true
     })
 
-    console.log("✅ User profile created:", userProfile.id)
+    logger.info("✅ User profile created:", userProfile.id)
 
     // Update magic link with provider ID
     await supabase
@@ -194,7 +193,7 @@ export async function POST(request: NextRequest) {
         onConflict: 'intervention_id,user_id,role'
       })
 
-    console.log("✅ Provider added to intervention contacts")
+    logger.info("✅ Provider added to intervention contacts")
 
     // Send magic link for password setup (they can change password later)
     try {
@@ -205,12 +204,12 @@ export async function POST(request: NextRequest) {
       })
 
       if (magicLinkError) {
-        console.warn("⚠️ Could not generate password reset link:", magicLinkError)
+        logger.warn("⚠️ Could not generate password reset link:", magicLinkError)
       } else {
-        console.log("✅ Password reset link generated")
+        logger.info("✅ Password reset link generated")
       }
     } catch (linkError) {
-      console.warn("⚠️ Error generating password reset link:", linkError)
+      logger.warn("⚠️ Error generating password reset link:", linkError)
     }
 
     return NextResponse.json({
@@ -223,8 +222,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in create-provider-account API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in create-provider-account API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

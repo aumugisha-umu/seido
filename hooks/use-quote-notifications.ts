@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { QuoteNotification } from "@/components/notifications/quote-notifications"
-
+import { logger, logError } from '@/lib/logger'
 interface UseQuoteNotificationsProps {
   userId: string
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
@@ -95,7 +95,7 @@ export function useQuoteNotifications({
 
       setNotifications(mockNotifications)
     } catch (err) {
-      console.error('Error fetching quote notifications:', err)
+      logger.error('Error fetching quote notifications:', err)
       setError('Erreur lors du chargement des notifications')
     } finally {
       setIsLoading(false)
@@ -116,7 +116,7 @@ export function useQuoteNotifications({
         )
       )
     } catch (err) {
-      console.error('Error marking notification as read:', err)
+      logger.error('Error marking notification as read:', err)
     }
   }, [])
 
@@ -130,7 +130,7 @@ export function useQuoteNotifications({
         prev.map(notification => ({ ...notification, read: true }))
       )
     } catch (err) {
-      console.error('Error marking all notifications as read:', err)
+      logger.error('Error marking all notifications as read:', err)
     }
   }, [])
 

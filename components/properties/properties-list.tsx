@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { logger, logError } from '@/lib/logger'
 import {
   Eye,
   MoreVertical,
@@ -133,7 +134,7 @@ export function PropertiesList({
       {
         label: "Supprimer",
         icon: Trash2,
-        onClick: () => console.log(`[PropertiesList] Delete ${property.type} ${property.id}`),
+        onClick: () => logger.info(`[PropertiesList] Delete ${property.type} ${property.id}`),
         className: "text-red-600 hover:text-red-800",
       },
     ]

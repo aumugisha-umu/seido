@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 // Types pour le système de logging
 type ActivityActionType = Database['public']['Enums']['activity_action_type']

@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * BuildingSelector - Atomic component for selecting existing buildings
  *
@@ -5,7 +7,6 @@
  * and create building action. Optimized for large building lists.
  */
 
-"use client"
 
 import React from "react"
 import { Input } from "@/components/ui/input"

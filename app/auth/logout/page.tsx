@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react"
 import { logoutAction } from "@/app/actions/auth-actions"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🚪 PAGE LOGOUT - SERVER COMPONENT (Déconnexion automatique)
  *
@@ -17,7 +17,7 @@ import { logoutAction } from "@/app/actions/auth-actions"
  */
 
 export default async function LogoutPage() {
-  console.log('🚪 [LOGOUT-PAGE] Logout page accessed, triggering server-side logout...')
+  logger.info('🚪 [LOGOUT-PAGE] Logout page accessed, triggering server-side logout...')
 
   // ✅ PATTERN OFFICIEL: Appeler directement la Server Action
   // logoutAction() va :

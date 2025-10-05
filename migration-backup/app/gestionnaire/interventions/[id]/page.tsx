@@ -38,6 +38,7 @@ import { UserAvailabilitiesDisplay } from "@/components/intervention/user-availa
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { CancelConfirmationModal } from "@/components/intervention/modals/cancel-confirmation-modal"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
+import { logger, logError } from '@/lib/logger'
 
 // Types basés sur la structure de la base de données
 interface DatabaseContact {

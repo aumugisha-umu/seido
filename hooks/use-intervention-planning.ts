@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { 
-  interventionActionsService, 
-  type InterventionAction, 
-  type PlanningData 
+import { logger, logError } from '@/lib/logger'
+import {
+  interventionActionsService,
+  type InterventionAction,
+  type PlanningData
 } from "@/lib/intervention-actions-service"
 
 interface PlanningModal {
@@ -102,7 +103,7 @@ export const useInterventionPlanning = () => {
 
       resetPlanningState()
     } catch (error) {
-      console.error("Error planning intervention:", error)
+      logger.error("Error planning intervention:", error)
       // TODO: Handle error state
     }
   }
@@ -139,7 +140,7 @@ export const useInterventionPlanning = () => {
 
       resetProgrammingState()
     } catch (error) {
-      console.error("Error programming intervention:", error)
+      logger.error("Error programming intervention:", error)
       // TODO: Handle error state
     }
   }

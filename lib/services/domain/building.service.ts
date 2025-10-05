@@ -18,6 +18,7 @@ import type {
   BuildingInsert,
   BuildingUpdate,
 } from '../core/service-types'
+import { logger, logError } from '@/lib/logger'
 import {
   ValidationException,
   ConflictException,
@@ -580,7 +581,7 @@ export class BuildingService {
    */
   private async logBuildingCreation(building: Building) {
     // In production, this would use the activity-logger service
-    console.log('Building created:', building.id, building.name)
+    logger.info('Building created:', building.id, building.name)
   }
 
   /**
@@ -588,7 +589,7 @@ export class BuildingService {
    */
   private async logBuildingUpdate(building: Building, changes: BuildingUpdate) {
     // In production, this would use the activity-logger service
-    console.log('Building updated:', building.id, changes)
+    logger.info('Building updated:', building.id, changes)
   }
 
   /**
@@ -596,7 +597,7 @@ export class BuildingService {
    */
   private async logBuildingDeletion(building: Building) {
     // In production, this would use the activity-logger service
-    console.log('Building deleted:', building.id, building.name)
+    logger.info('Building deleted:', building.id, building.name)
   }
 }
 

@@ -2,63 +2,44 @@ import pino from 'pino'
 
 // Configuration du logger pour différents environnements
 const createLogger = () => {
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined
   const isTest = process.env.NODE_ENV === 'test'
-  
-  // Configuration de base
-  const baseConfig = {
-    level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-    timestamp: pino.stdTimeFunctions.isoTime,
-    formatters: {
-      level: (_label: string) => {
-        return { level: label }
-      }
-    }
-  }
+  const isBrowser = typeof window !== 'undefined'
 
-  // Configuration pour le développement (avec pino-pretty)
-  if (isDevelopment) {
+  // Browser-side: use simple console wrapper (no Pino serialization issues)
+  if (isBrowser) {
     return pino({
-      ...baseConfig,
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'SYS:standard',
-          ignore: 'pid,hostname',
-          messageFormat: '[{level}] {msg}',
-          customPrettifiers: {
-            time: (_timestamp: string) => `🕐 ${timestamp}`,
-            level: (_level: string) => {
-              const levelEmojis: Record<string, string> = {
-                '10': '🔍', // trace
-                '20': '🐛', // debug
-                '30': 'ℹ️',  // info
-                '40': '⚠️',  // warn
-                '50': '❌',  // error
-                '60': '💀'   // fatal
-              }
-              return levelEmojis[level] || '📝'
-            }
-          }
+      level: isDevelopment ? 'debug' : 'info',
+      browser: {
+        asObject: true,
+        write: {
+          info: (obj: Record<string, unknown>) => console.info(obj),
+          error: (obj: Record<string, unknown>) => console.error(obj),
+          warn: (obj: Record<string, unknown>) => console.warn(obj),
+          debug: (obj: Record<string, unknown>) => console.debug(obj),
         }
       }
     })
   }
 
-  // Configuration pour les tests (logs minimaux)
+  // Server-side configuration
+  const baseConfig = {
+    level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
+    timestamp: pino.stdTimeFunctions.isoTime,
+  }
+
+  // Configuration pour le développement
+  // Note: pino-pretty transport uses worker threads which are incompatible with Next.js Edge Runtime
+  // Solution: Use JSON output + pipe to pino-pretty in package.json scripts (external process)
+  if (isDevelopment) {
+    return pino(baseConfig)
+  }
+
+  // Configuration pour les tests (logs désactivés)
   if (isTest) {
     return pino({
       ...baseConfig,
-      level: 'warn',
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: false,
-          translateTime: false,
-          ignore: 'pid,hostname,time'
-        }
-      }
+      level: 'silent', // Pas de logs pendant les tests
     })
   }
 
@@ -87,7 +68,7 @@ export const logUserAction = (action: string, userId?: string, metadata?: Record
   logger.info({
     type: 'user_action',
     action,
-    _userId,
+    userId,
     metadata
   }, `👤 User action: ${action}`)
 }

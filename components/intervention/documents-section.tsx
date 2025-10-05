@@ -23,7 +23,7 @@ import {
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { DocumentViewerModal } from "./document-viewer-modal"
-
+import { logger, logError } from '@/lib/logger'
 interface Document {
   id: string
   name: string
@@ -93,7 +93,7 @@ export function DocumentsSection({
     return matchesSearch && matchesStatus
   })
 
-  const toggleInterventionExpanded = (_interventionId: string) => {
+  const toggleInterventionExpanded = (interventionId: string) => {
     setExpandedInterventions(prev =>
       prev.includes(interventionId)
         ? prev.filter(id => id !== interventionId)
@@ -101,14 +101,14 @@ export function DocumentsSection({
     )
   }
 
-  const getFileIcon = (_fileType: string) => {
+  const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) return FileImage
     if (fileType.includes('spreadsheet') || fileType.includes('excel')) return FileSpreadsheet
     if (fileType === 'application/pdf') return File
     return FileText
   }
 
-  const getStatusColor = (_status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800'
       case 'in_progress': return 'bg-blue-100 text-blue-800'
@@ -153,8 +153,8 @@ export function DocumentsSection({
       // Use built-in download functionality
       try {
         const response = await fetch(`/api/download-intervention-document?documentId=${document.id}`)
-        const _data = await response.json()
-        
+        const data = await response.json()
+
         if (response.ok && data.downloadUrl) {
           // Create a temporary link to trigger download
           const link = window.document.createElement('a')
@@ -164,11 +164,11 @@ export function DocumentsSection({
           link.click()
           window.document.body.removeChild(link)
         } else {
-          console.error("Erreur de téléchargement:", data.error)
+          logger.error("Erreur de téléchargement:", data.error)
           // Could show a toast notification here
         }
       } catch (error) {
-        console.error("Erreur lors du téléchargement:", error)
+        logger.error("Erreur lors du téléchargement:", error)
         // Could show a toast notification here
       }
     }

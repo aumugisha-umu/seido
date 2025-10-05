@@ -11,7 +11,7 @@
 
 import { supabase } from './supabase'
 import type { Database } from './database.types'
-
+import { logger, logError } from '@/lib/logger'
 // Type aliases for better readability
 type Tables = Database['public']['Tables']
 type Building = Tables['buildings']['Row']
@@ -41,7 +41,7 @@ class QueryBuilder {
 
   logPerformance() {
     const duration = performance.now() - this.startTime
-    console.log(`⚡ [QUERY-PERF] ${this.queryName}: ${duration.toFixed(2)}ms`)
+    logger.info(`⚡ [QUERY-PERF] ${this.queryName}: ${duration.toFixed(2)}ms`)
   }
 }
 
@@ -55,7 +55,7 @@ export const buildingServiceOptimized = {
     const query = new QueryBuilder('getTeamBuildings')
 
     try {
-      console.log('🏢 [BUILDING-SERVICE] Getting buildings for team:', _teamId)
+      logger.info('🏢 [BUILDING-SERVICE] Getting buildings for team:', _teamId)
 
       // Best Practice: Use single query with proper joins
       const { data, error, count } = await supabase
@@ -91,7 +91,7 @@ export const buildingServiceOptimized = {
       query.logPerformance()
 
       if (error) {
-        console.error('❌ [BUILDING-SERVICE] Query error:', error)
+        logger.error('❌ [BUILDING-SERVICE] Query error:', error)
         throw new DatabaseError(
           'Failed to fetch team buildings',
           error.code || 'UNKNOWN',
@@ -99,7 +99,7 @@ export const buildingServiceOptimized = {
         )
       }
 
-      console.log(`✅ [BUILDING-SERVICE] Found ${count || 0} buildings`)
+      logger.info(`✅ [BUILDING-SERVICE] Found ${count || 0} buildings`)
 
       // Post-process with manager extraction
       const processed = (data || []).map(building => ({
@@ -114,7 +114,7 @@ export const buildingServiceOptimized = {
       // Best Practice: Proper error propagation
       if (error instanceof DatabaseError) throw error
 
-      console.error('❌ [BUILDING-SERVICE] Unexpected error:', error)
+      logger.error('❌ [BUILDING-SERVICE] Unexpected error:', error)
       throw new DatabaseError(
         'Unexpected error fetching buildings',
         'INTERNAL_ERROR',
@@ -155,7 +155,7 @@ export const buildingServiceOptimized = {
     } catch (error) {
       if (error instanceof DatabaseError) throw error
 
-      console.error('❌ [BUILDING-SERVICE] Error:', error)
+      logger.error('❌ [BUILDING-SERVICE] Error:', error)
       return null
     }
   }
@@ -218,7 +218,7 @@ export const lotServiceOptimized = {
     } catch (error) {
       if (error instanceof DatabaseError) throw error
 
-      console.error('❌ [LOT-SERVICE] Error:', error)
+      logger.error('❌ [LOT-SERVICE] Error:', error)
       return []
     }
   },
@@ -286,7 +286,7 @@ export const lotServiceOptimized = {
     } catch (error) {
       if (error instanceof DatabaseError) throw error
 
-      console.error('❌ [LOT-SERVICE] Bulk fetch error:', error)
+      logger.error('❌ [LOT-SERVICE] Bulk fetch error:', error)
       return {}
     }
   }
@@ -351,7 +351,7 @@ export const userServiceOptimized = {
     } catch (error) {
       if (error instanceof DatabaseError) throw error
 
-      console.error('❌ [USER-SERVICE] Error:', error)
+      logger.error('❌ [USER-SERVICE] Error:', error)
       return { users: [], total: 0 }
     }
   }
@@ -425,13 +425,13 @@ export const interventionServiceOptimized = {
         )
       }
 
-      console.log(`✅ [INTERVENTION-SERVICE] Found ${data?.length || 0} interventions`)
+      logger.info(`✅ [INTERVENTION-SERVICE] Found ${data?.length || 0} interventions`)
 
       return data || []
     } catch (error) {
       if (error instanceof DatabaseError) throw error
 
-      console.error('❌ [INTERVENTION-SERVICE] Error:', error)
+      logger.error('❌ [INTERVENTION-SERVICE] Error:', error)
       return []
     }
   },
@@ -444,7 +444,7 @@ export const interventionServiceOptimized = {
     teamId: string,
     callback: (payload: unknown) => void
   ) {
-    console.log('📡 [INTERVENTION-SERVICE] Setting up realtime subscription for team:', _teamId)
+    logger.info('📡 [INTERVENTION-SERVICE] Setting up realtime subscription for team:', _teamId)
 
     const channel = supabase
       .channel(`team-interventions-${teamId}`)
@@ -457,17 +457,17 @@ export const interventionServiceOptimized = {
           filter: `team_id=eq.${teamId}`
         },
         (payload) => {
-          console.log('🔄 [INTERVENTION-SERVICE] Realtime update received:', payload.eventType)
+          logger.info('🔄 [INTERVENTION-SERVICE] Realtime update received:', payload.eventType)
           callback(payload)
         }
       )
       .subscribe((status) => {
-        console.log('📡 [INTERVENTION-SERVICE] Subscription status:', status)
+        logger.info('📡 [INTERVENTION-SERVICE] Subscription status:', status)
       })
 
     // Return cleanup function
     return () => {
-      console.log('🔌 [INTERVENTION-SERVICE] Cleaning up subscription')
+      logger.info('🔌 [INTERVENTION-SERVICE] Cleaning up subscription')
       supabase.removeChannel(channel)
     }
   }
@@ -480,7 +480,7 @@ export const dashboardServiceOptimized = {
    * Supabase 2025 Best Practice: Batch parallel queries for performance
    */
   async loadDashboardData(_teamId: string) {
-    console.log('📊 [DASHBOARD] Loading optimized dashboard data for team:', _teamId)
+    logger.info('📊 [DASHBOARD] Loading optimized dashboard data for team:', _teamId)
     const startTime = performance.now()
 
     try {
@@ -502,13 +502,13 @@ export const dashboardServiceOptimized = {
 
       // Log any failures
       if (buildingsResult.status === 'rejected') {
-        console.error('❌ [DASHBOARD] Failed to load buildings:', buildingsResult.reason)
+        logger.error('❌ [DASHBOARD] Failed to load buildings:', buildingsResult.reason)
       }
       if (usersResult.status === 'rejected') {
-        console.error('❌ [DASHBOARD] Failed to load users:', usersResult.reason)
+        logger.error('❌ [DASHBOARD] Failed to load users:', usersResult.reason)
       }
       if (interventionsResult.status === 'rejected') {
-        console.error('❌ [DASHBOARD] Failed to load interventions:', interventionsResult.reason)
+        logger.error('❌ [DASHBOARD] Failed to load interventions:', interventionsResult.reason)
       }
 
       // Bulk load lots for all buildings
@@ -534,8 +534,8 @@ export const dashboardServiceOptimized = {
       }
 
       const duration = performance.now() - startTime
-      console.log(`✅ [DASHBOARD] Data loaded in ${duration.toFixed(2)}ms`)
-      console.log('📊 [DASHBOARD] Stats:', stats)
+      logger.info(`✅ [DASHBOARD] Data loaded in ${duration.toFixed(2)}ms`)
+      logger.info('📊 [DASHBOARD] Stats:', stats)
 
       return {
         buildings,
@@ -545,7 +545,7 @@ export const dashboardServiceOptimized = {
         stats
       }
     } catch (error) {
-      console.error('❌ [DASHBOARD] Critical error:', error)
+      logger.error('❌ [DASHBOARD] Critical error:', error)
 
       // Return empty data structure on critical failure
       return {

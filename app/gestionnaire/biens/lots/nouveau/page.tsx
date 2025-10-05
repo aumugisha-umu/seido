@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, Search, User, MapPin, FileText } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, Search, User, MapPin, FileText, Building2, Check } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import ContactFormModal from "@/components/contact-form-modal"
@@ -17,6 +18,7 @@ import ContactSelector, { ContactSelectorRef } from "@/components/contact-select
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
+import { TeamCheckModal } from "@/components/team-check-modal"
 
 
 
@@ -29,7 +31,7 @@ import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
 
 
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
-
+import { logger, logError } from '@/lib/logger'
 interface TeamManager {
   user: {
     id: string
@@ -155,22 +157,22 @@ export default function NewLotPage() {
 
   // Charger l'équipe de l'utilisateur et ses gestionnaires
   useEffect(() => {
-    console.log("🔐 useAuth hook user state:", user)
+    logger.info("🔐 useAuth hook user state:", user)
     
     const loadUserTeamAndManagers = async () => {
       if (!user?.id || teamStatus !== 'verified') {
-        console.log("⚠️ User ID not found or team not verified, skipping team loading")
+        logger.info("⚠️ User ID not found or team not verified, skipping team loading")
         return
       }
 
       try {
-        console.log("📡 Loading user teams for user:", user.id)
+        logger.info("📡 Loading user teams for user:", user.id)
         setIsLoading(true)
         setError("")
         
         // 1. Récupérer les équipes de l'utilisateur
         const userTeams = await teamService.getUserTeams(user.id)
-        console.log("✅ User teams loaded:", userTeams)
+        logger.info("✅ User teams loaded:", userTeams)
         setTeams(userTeams)
         
         if (userTeams.length === 0) {
@@ -181,16 +183,16 @@ export default function NewLotPage() {
         // 2. Prendre la première équipe (un gestionnaire n'a normalement qu'une équipe)
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
-        console.log("🏢 Primary team:", primaryTeam.name)
+        logger.info("🏢 Primary team:", primaryTeam.name)
         
         // 3. Récupérer les membres de cette équipe
-        console.log("👥 Loading team members for team:", primaryTeam.id)
+        logger.info("👥 Loading team members for team:", primaryTeam.id)
         let teamMembers = []
         try {
           teamMembers = await teamService.getMembers(primaryTeam.id)
-          console.log("✅ Team members loaded:", teamMembers)
+          logger.info("✅ Team members loaded:", teamMembers)
         } catch (membersError) {
-          console.error("❌ Error loading team members:", membersError)
+          logger.error("❌ Error loading team members:", membersError)
           teamMembers = [] // Continue avec un tableau vide
         }
         
@@ -198,7 +200,7 @@ export default function NewLotPage() {
         const managers = teamMembers.filter((member: TeamManager) => 
           member.user && member.user.role === 'gestionnaire'
         )
-        console.log("👑 Managers in team:", managers)
+        logger.info("👑 Managers in team:", managers)
         
         // 5. TOUJOURS s'assurer que l'utilisateur actuel est disponible s'il est gestionnaire
         const currentUserExists = managers.find((member: TeamManager) => 
@@ -206,7 +208,7 @@ export default function NewLotPage() {
         )
         
         if (!currentUserExists && user.role === 'gestionnaire') {
-          console.log("🔧 Adding current user as available manager (creator/admin)")
+          logger.info("🔧 Adding current user as available manager (creator/admin)")
           const currentUserAsManager = {
             user: {
               id: user.id,
@@ -219,7 +221,7 @@ export default function NewLotPage() {
           managers.push(currentUserAsManager)
         }
         
-        console.log("📋 Final managers list:", managers)
+        logger.info("📋 Final managers list:", managers)
         setTeamManagers(managers)
         
         // 6. Sélectionner l'utilisateur actuel par défaut s'il est gestionnaire
@@ -228,16 +230,16 @@ export default function NewLotPage() {
         )
         
         if (currentUserAsMember) {
-          console.log("🎯 Auto-selecting current user as manager:", user.id)
+          logger.info("🎯 Auto-selecting current user as manager:", user.id)
           setSelectedManagerId(user.id)
         } else if (managers.length > 0) {
-          console.log("🎯 Auto-selecting first available manager:", managers[0].user.id)
+          logger.info("🎯 Auto-selecting first available manager:", managers[0].user.id)
           setSelectedManagerId(managers[0].user.id)
         }
         
       } catch (err) {
-        console.error('❌ Error loading teams and managers:', err)
-        console.error('❌ Full error object:', JSON.stringify(err, null, 2))
+        logger.error('❌ Error loading teams and managers:', err)
+        logger.error('❌ Full error object:', JSON.stringify(err, null, 2))
         setError('Erreur lors du chargement des gestionnaires')
       } finally {
         setIsLoading(false)
@@ -251,17 +253,17 @@ export default function NewLotPage() {
   useEffect(() => {
     const loadCategoryCountsByTeam = async () => {
       if (!userTeam?.id) {
-        console.log("⚠️ No team available, skipping category counts loading")
+        logger.info("⚠️ No team available, skipping category counts loading")
         return
       }
 
       try {
-        console.log("📊 Loading lot counts by category for team:", userTeam.id)
+        logger.info("📊 Loading lot counts by category for team:", userTeam.id)
         const counts = await lotService.getCountByCategory(userTeam.id)
-        console.log("✅ Category counts loaded:", counts)
+        logger.info("✅ Category counts loaded:", counts)
         setCategoryCountsByTeam(counts)
       } catch (error) {
-        console.error("❌ Error loading category counts:", error)
+        logger.error("❌ Error loading category counts:", error)
         setCategoryCountsByTeam({}) // Valeur par défaut en cas d'erreur
       }
     }
@@ -357,7 +359,7 @@ export default function NewLotPage() {
   const handleNext = () => {
     // Si on est à l'étape 1 et qu'on a choisi de créer un nouvel immeuble, rediriger
     if (currentStep === 1 && lotData.buildingAssociation === "new") {
-      console.log("🏗️ Redirecting to building creation...")
+      logger.info("🏗️ Redirecting to building creation...")
       router.push("/gestionnaire/biens/immeubles/nouveau")
       return
     }
@@ -376,17 +378,17 @@ export default function NewLotPage() {
 
   const handleFinish = async () => {
     if (!user?.id) {
-      console.error("User not found")
+      logger.error("User not found")
       return
     }
 
     if (!userTeam?.id) {
-      console.error("User team not found")
+      logger.error("User team not found")
       return
     }
 
     try {
-      console.log("🚀 Creating lot with data:", lotData)
+      logger.info("🚀 Creating lot with data:", lotData)
       
       const lotDataToCreate = {
         reference: lotData.buildingAssociation === "independent" 
@@ -411,24 +413,24 @@ export default function NewLotPage() {
       // Créer le lot
       const result = await lotService.create(lotDataToCreate)
       
-      console.log("✅ Lot created successfully:", result)
+      logger.info("✅ Lot created successfully:", result)
 
       // Assigner les gestionnaires au lot via lot_contacts si des gestionnaires ont été sélectionnés
       if (lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) {
-        console.log("👥 Assigning managers to lot via lot_contacts:", lotData.assignedLotManagers)
+        logger.info("👥 Assigning managers to lot via lot_contacts:", lotData.assignedLotManagers)
         
         // Assigner tous les gestionnaires via lot_contacts
         const managerAssignmentPromises = lotData.assignedLotManagers.map(async (manager, index) => {
           try {
             const isPrincipal = index === 0
-            console.log(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${result.id} as ${isPrincipal ? 'principal' : 'additional'}`)
+            logger.info(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${result.id} as ${isPrincipal ? 'principal' : 'additional'}`)
             return await contactService.addContactToLot(
               result.id,
               manager.id,
               isPrincipal // Le premier est principal, les autres sont additionnels
             )
           } catch (error) {
-            console.error(`❌ Error assigning manager ${manager.name} to lot:`, error)
+            logger.error(`❌ Error assigning manager ${manager.name} to lot:`, error)
             return null
           }
         })
@@ -436,7 +438,7 @@ export default function NewLotPage() {
         const assignmentResults = await Promise.all(managerAssignmentPromises)
         const successfulAssignments = assignmentResults.filter((result: unknown) => result !== null)
         
-        console.log("✅ Manager assignments completed:", {
+        logger.info("✅ Manager assignments completed:", {
           total: lotData.assignedLotManagers.length,
           successful: successfulAssignments.length,
           principalManager: lotData.assignedLotManagers[0].name,
@@ -447,21 +449,21 @@ export default function NewLotPage() {
       // Assigner les contacts sélectionnés au lot
       const totalContacts = Object.values(lotData.assignedContacts).flat().length
       if (totalContacts > 0) {
-        console.log("👥 Assigning selected contacts to lot:", totalContacts, "contacts")
+        logger.info("👥 Assigning selected contacts to lot:", totalContacts, "contacts")
         
         // Créer les promesses d'assignation pour tous les types de contacts
         const contactAssignmentPromises = Object.entries(lotData.assignedContacts).flatMap(([contactType, contacts]) => 
           contacts.map(async (contact, index) => {
             try {
               const isPrimary = index === 0 // Le premier contact de chaque type est principal
-              console.log(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${result.id}`)
+              logger.info(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${result.id}`)
               return await contactService.addContactToLot(
                 result.id,
                 contact.id,
                 _isPrimary
               )
             } catch (error) {
-              console.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
+              logger.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
               return null
             }
           })
@@ -470,7 +472,7 @@ export default function NewLotPage() {
         const contactAssignmentResults = await Promise.all(contactAssignmentPromises)
         const successfulContactAssignments = contactAssignmentResults.filter((result: unknown) => result !== null)
         
-        console.log("✅ Contact assignments completed:", {
+        logger.info("✅ Contact assignments completed:", {
           total: totalContacts,
           successful: successfulContactAssignments.length,
           failed: totalContacts - successfulContactAssignments.length
@@ -486,7 +488,7 @@ export default function NewLotPage() {
       })
       
     } catch (error) {
-      console.error("❌ Error creating lot:", error)
+      logger.error("❌ Error creating lot:", error)
       toast({
         title: "Erreur lors de la création",
         description: "Une erreur est survenue lors de la création du lot. Veuillez réessayer.",
@@ -503,10 +505,10 @@ export default function NewLotPage() {
   // Fonction pour gérer la création d'un nouveau gestionnaire
   const handleGestionnaireCreated = async (contactData: CreateContactData) => {
     try {
-      console.log("🆕 Création d'un nouveau gestionnaire:", contactData)
+      logger.info("🆕 Création d'un nouveau gestionnaire:", contactData)
       
       if (!userTeam?.id) {
-        console.error("❌ No team found for user")
+        logger.error("❌ No team found for user")
         return
       }
 
@@ -539,10 +541,10 @@ export default function NewLotPage() {
       setTeamManagers([...teamManagers, newManager])
       setIsGestionnaireModalOpen(false)
       
-      console.log("✅ Gestionnaire créé avec succès, ID:", result.contact.id)
+      logger.info("✅ Gestionnaire créé avec succès, ID:", result.contact.id)
       
     } catch (error) {
-      console.error("❌ Erreur lors de la création du gestionnaire:", error)
+      logger.error("❌ Erreur lors de la création du gestionnaire:", error)
     }
   }
 
@@ -998,7 +1000,7 @@ export default function NewLotPage() {
 
   // Callbacks pour le composant ContactSelector - Interface mise à jour
   const handleContactSelected = (contact: Contact, contactType: string) => {
-    console.log('✅ Contact selected:', contact.name, 'type:', contactType)
+    logger.info('✅ Contact selected:', contact.name, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
       assignedContacts: {
@@ -1009,7 +1011,7 @@ export default function NewLotPage() {
   }
 
   const handleContactRemoved = (contactId: string, contactType: string) => {
-    console.log('🗑️ Contact removed:', contactId, 'type:', contactType)
+    logger.info('🗑️ Contact removed:', contactId, 'type:', contactType)
     setLotData((prev) => ({
       ...prev,
       assignedContacts: {
@@ -1022,7 +1024,7 @@ export default function NewLotPage() {
   }
 
   const handleContactCreated = (contact: Contact, contactType: string) => {
-    console.log('🆕 Contact created:', contact.name, 'type:', contactType)
+    logger.info('🆕 Contact created:', contact.name, 'type:', contactType)
     // Le contact créé est automatiquement ajouté par handleContactSelected
   }
 

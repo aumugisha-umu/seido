@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/dal'
 import { createServerContactInvitationService } from '@/lib/services'
 import { createServerTeamService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🔐 DASHBOARD ACTIONS (Bonnes Pratiques 2025)

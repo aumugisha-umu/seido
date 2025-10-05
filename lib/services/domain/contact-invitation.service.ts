@@ -5,7 +5,7 @@
 
 import { ContactService, createContactService, createServerContactService } from './contact.service'
 import type { ServiceResult, Contact, User } from '../core/service-types'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Contact data for invitation flow
  */
@@ -15,7 +15,6 @@ export interface ContactInvitationData {
   lastName: string
   email: string
   phone?: string
-  address?: string
   speciality?: string
   notes?: string
   inviteToApp: boolean
@@ -46,7 +45,7 @@ export class ContactInvitationService {
     invitationSent?: boolean
   }>> {
     try {
-      console.log('🚀 [CONTACT-INVITATION-SERVICE] Starting with data:', contactData)
+      logger.info('🚀 [CONTACT-INVITATION-SERVICE] Starting with data:', contactData)
 
       if (contactData.inviteToApp) {
         // Use the invite-user API for full user creation
@@ -63,6 +62,7 @@ export class ContactInvitationService {
             providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
             teamId: contactData.teamId,
             phone: contactData.phone,
+            notes: contactData.notes,
             speciality: contactData.speciality,
             shouldInviteToApp: contactData.inviteToApp
           })
@@ -74,36 +74,188 @@ export class ContactInvitationService {
           throw new Error(result.error || `API returned ${response.status}`)
         }
 
-        console.log('✅ [CONTACT-INVITATION-SERVICE] Process completed:', result)
+        logger.info('✅ [CONTACT-INVITATION-SERVICE] Process completed:', result)
         return { success: true, data: result }
       } else {
-        // Create contact only without user invitation
-        const contactResult = await this.contactService.create({
+        // Create contact/user WITHOUT app invitation
+        // Use the same invite-user API but with skipInvitation flag
+
+        // ✅ FIX: Ajouter timeout de 30s pour éviter spinner infini
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 secondes
+
+        logger.info('📡 [CONTACT-INVITATION-SERVICE] Sending request to /api/invite-user with data:', {
           email: contactData.email,
-          first_name: contactData.firstName,
-          last_name: contactData.lastName,
-          phone: contactData.phone,
           role: this.mapFrontendTypeToUserRole(contactData.type).role,
-          team_id: contactData.teamId,
-          created_by: 'system', // Would be replaced with actual user ID
-          invitation_status: 'not_invited',
-          is_active: true
+          providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
+          shouldInviteToApp: false
         })
 
-        if (!contactResult.success) {
-          throw new Error(contactResult.error || 'Failed to create contact')
+        const response = await fetch('/api/invite-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: contactData.email,
+            firstName: contactData.firstName,
+            lastName: contactData.lastName,
+            role: this.mapFrontendTypeToUserRole(contactData.type).role,
+            providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
+            teamId: contactData.teamId,
+            phone: contactData.phone,
+            notes: contactData.notes,
+            speciality: contactData.speciality,
+            shouldInviteToApp: false // ✅ Skip the Supabase auth invitation
+          }),
+          signal: controller.signal // ✅ Ajouter le signal pour timeout
+        }).finally(() => clearTimeout(timeoutId)) // ✅ Nettoyer le timeout
+
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || `API returned ${response.status}`)
         }
 
-        console.log('✅ [CONTACT-INVITATION-SERVICE] Contact created without invitation:', contactResult.data)
-        return { success: true, data: contactResult.data }
+        logger.info('✅ [CONTACT-INVITATION-SERVICE] Contact created without invitation:', result)
+        return { success: true, data: result }
       }
 
     } catch (error) {
-      console.error('❌ [CONTACT-INVITATION-SERVICE] Error:', error)
+      logger.error('❌ [CONTACT-INVITATION-SERVICE] Error:', error)
+
+      // ✅ FIX: Gestion spécifique du timeout
+      if (error instanceof Error && error.name === 'AbortError') {
+        return {
+          success: false,
+          error: 'La création du contact a pris trop de temps (timeout 30s). Veuillez réessayer.'
+        }
+      }
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       }
+    }
+  }
+
+  /**
+   * Resend an invitation for a contact
+   * Returns a flattened response for UI compatibility
+   */
+  async resendInvitation(contactId: string): Promise<{
+    success: boolean
+    magicLink?: string
+    message?: string
+    emailSent?: boolean
+    error?: string
+  }> {
+    try {
+      logger.info('🔄 [CONTACT-INVITATION-SERVICE] Resending invitation for contact:', contactId)
+
+      const response = await fetch('/api/resend-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          invitationId: contactId
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        logger.error('❌ [CONTACT-INVITATION-SERVICE] Failed to resend:', result)
+        throw new Error(result.error || `API returned ${response.status}`)
+      }
+
+      logger.info('✅ [CONTACT-INVITATION-SERVICE] Invitation resent successfully:', result)
+      // ✅ Retourner structure aplatie pour compatibilité UI
+      return {
+        success: true,
+        magicLink: result.magicLink,
+        message: result.message,
+        emailSent: result.emailSent
+      }
+
+    } catch (error) {
+      logger.error('❌ [CONTACT-INVITATION-SERVICE] Error resending invitation:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to resend invitation'
+      }
+    }
+  }
+
+  /**
+   * Cancel an invitation for a contact
+   * Returns a flattened response for UI compatibility
+   */
+  async cancelInvitation(invitationId: string): Promise<{
+    success: boolean
+    message?: string
+    authDeleted?: boolean
+    error?: string
+  }> {
+    try {
+      logger.info('🚫 [CONTACT-INVITATION-SERVICE] Cancelling invitation:', invitationId)
+
+      const response = await fetch('/api/cancel-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          invitationId
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        logger.error('❌ [CONTACT-INVITATION-SERVICE] Failed to cancel:', result)
+        throw new Error(result.error || `API returned ${response.status}`)
+      }
+
+      logger.info('✅ [CONTACT-INVITATION-SERVICE] Invitation cancelled successfully:', result)
+      // ✅ Retourner structure aplatie pour compatibilité UI
+      return {
+        success: true,
+        message: result.message,
+        authDeleted: result.authDeleted
+      }
+
+    } catch (error) {
+      logger.error('❌ [CONTACT-INVITATION-SERVICE] Error cancelling invitation:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to cancel invitation'
+      }
+    }
+  }
+
+  /**
+   * Get pending invitations for a team
+   */
+  async getPendingInvitations(teamId: string): Promise<any[]> {
+    try {
+      logger.info('📋 [CONTACT-INVITATION-SERVICE] Fetching pending invitations for team:', teamId)
+
+      const response = await fetch(`/api/team-invitations?teamId=${teamId}&status=pending`)
+
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`)
+      }
+
+      const result = await response.json()
+      logger.info('✅ [CONTACT-INVITATION-SERVICE] Found pending invitations:', result.length || 0)
+
+      return result.invitations || []
+
+    } catch (error) {
+      logger.error('❌ [CONTACT-INVITATION-SERVICE] Error fetching invitations:', error)
+      return []
     }
   }
 
@@ -116,12 +268,12 @@ export class ContactInvitationService {
       'locataire': { role: 'locataire' },
       'manager': { role: 'gestionnaire' },
       'gestionnaire': { role: 'gestionnaire' },
-      'provider': { role: 'prestataire', provider_category: 'service' },
-      'prestataire': { role: 'prestataire', provider_category: 'service' },
+      'provider': { role: 'prestataire', provider_category: 'prestataire' },
+      'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
       'syndic': { role: 'prestataire', provider_category: 'syndic' },
-      'insurance': { role: 'prestataire', provider_category: 'insurance' },
+      'insurance': { role: 'prestataire', provider_category: 'assurance' },
       'assurance': { role: 'prestataire', provider_category: 'assurance' },
-      'notary': { role: 'prestataire', provider_category: 'legal' },
+      'notary': { role: 'prestataire', provider_category: 'notaire' },
       'notaire': { role: 'prestataire', provider_category: 'notaire' },
       'owner': { role: 'gestionnaire' },
       'proprietaire': { role: 'gestionnaire' }

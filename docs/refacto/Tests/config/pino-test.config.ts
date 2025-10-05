@@ -6,6 +6,7 @@
 import pino from 'pino'
 import path from 'path'
 import { existsSync, mkdirSync } from 'fs'
+import { logger, logError } from '@/lib/logger'
 
 // Ensure logs directory exists
 const LOGS_DIR = process.env.PINO_TEST_DIR || path.resolve(__dirname, '../logs')

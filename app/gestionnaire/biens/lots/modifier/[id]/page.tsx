@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import { LotCategory } from "@/lib/lot-types"
-
+import { logger, logError } from '@/lib/logger'
 interface LotInfo {
   name: string
   address: string
@@ -79,7 +79,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
         const userTeams = await teamService.getUserTeams(user.id)
         
         if (userTeams.length === 0) {
-          console.warn('No teams found for user')
+          logger.warn('No teams found for user')
           return
         }
         
@@ -93,12 +93,12 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
           teamMembers = await teamService.getMembers(primaryTeam.id)
           setTeamManagers(teamMembers)
         } catch (membersError) {
-          console.error("Error loading team members:", membersError)
+          logger.error("Error loading team members:", membersError)
           setTeamManagers([])
         }
         
       } catch (error) {
-        console.error('Error loading team and managers:', error)
+        logger.error('Error loading team and managers:', error)
         setTeamManagers([])
       }
     }
@@ -112,7 +112,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       setError(null)
 
       const lotData = await lotService.getById(resolvedParams.id)
-      console.log("🏠 Lot loaded for edit:", lotData)
+      logger.info("🏠 Lot loaded for edit:", lotData)
       
       setLot(lotData)
       
@@ -135,7 +135,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       // setSelectedManagerId(lotData.manager_id || "")
 
     } catch (error) {
-      console.error("❌ Error loading lot data:", error)
+      logger.error("❌ Error loading lot data:", error)
       setError("Erreur lors du chargement des données du lot")
     } finally {
       setLoading(false)
@@ -184,7 +184,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       }, 2000)
 
     } catch (error) {
-      console.error("❌ Error updating lot:", error)
+      logger.error("❌ Error updating lot:", error)
       setError("Erreur lors de la modification du lot")
     } finally {
       setSaving(false)

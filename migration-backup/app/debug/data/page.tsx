@@ -5,6 +5,7 @@ import Link from "next/link"
 import { requireRole } from "@/lib/dal"
 import { teamService, buildingService, userService, interventionService } from "@/lib/database-service"
 import { createSampleBuildingsForTeam, checkTeamDataStatus } from "@/lib/create-sample-data"
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🐛 PAGE DE DEBUG DATA

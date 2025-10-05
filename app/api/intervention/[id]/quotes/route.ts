@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
@@ -57,7 +57,7 @@ export async function GET(
       }, { status: 404 })
     }
 
-    console.log("🔍 Getting quotes for intervention:", interventionId, "by user:", user.role)
+    logger.info("🔍 Getting quotes for intervention:", interventionId, "by user:", user.role)
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
@@ -149,14 +149,14 @@ export async function GET(
     const { data: quotes, error: quotesError } = await quotesQuery
 
     if (quotesError) {
-      console.error('❌ Error fetching quotes:', quotesError)
+      logger.error('❌ Error fetching quotes:', quotesError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des devis'
       }, { status: 500 })
     }
 
-    console.log(`✅ Found ${quotes?.length || 0} quotes for intervention ${interventionId}`)
+    logger.info(`✅ Found ${quotes?.length || 0} quotes for intervention ${interventionId}`)
 
     // Parse attachments JSON
     const quotesWithParsedAttachments = quotes?.map(quote => ({
@@ -177,7 +177,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('❌ Error in intervention quotes API:', error)
+    logger.error('❌ Error in intervention quotes API:', error)
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

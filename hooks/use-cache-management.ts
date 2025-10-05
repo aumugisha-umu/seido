@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
-
+import { logger, logError } from '@/lib/logger'
 // Types pour la gestion du cache
 export interface CacheEntry {
   key: string
@@ -39,13 +39,13 @@ class EnhancedCacheManager {
   // Enregistrer un callback de refresh pour un composant/hook
   registerRefreshCallback(key: string, callback: () => void) {
     this.refreshCallbacks.set(key, callback)
-    console.log(`✅ [CACHE] Registered refresh callback for: ${key}`)
+    logger.info(`✅ [CACHE] Registered refresh callback for: ${key}`)
   }
 
   // Désregistrer un callback
   unregisterRefreshCallback(key: string) {
     this.refreshCallbacks.delete(key)
-    console.log(`🗑️ [CACHE] Unregistered refresh callback for: ${key}`)
+    logger.info(`🗑️ [CACHE] Unregistered refresh callback for: ${key}`)
   }
 
   // Marquer une entrée de cache comme valide
@@ -55,7 +55,7 @@ class EnhancedCacheManager {
       lastFetched: Date.now(),
       ttl
     })
-    console.log(`💾 [CACHE] Cache entry set for: ${key}`)
+    logger.info(`💾 [CACHE] Cache entry set for: ${key}`)
   }
 
   // Vérifier si une entrée de cache est valide
@@ -68,7 +68,7 @@ class EnhancedCacheManager {
       const isExpired = Date.now() - entry.lastFetched > entry.ttl
       if (isExpired) {
         this.localCache.delete(key)
-        console.log(`⏰ [CACHE] Cache expired for: ${key}`)
+        logger.info(`⏰ [CACHE] Cache expired for: ${key}`)
         return false
       }
     }
@@ -80,7 +80,7 @@ class EnhancedCacheManager {
   async invalidateCache(keys: string[]) {
     keys.forEach(key => {
       this.localCache.delete(key)
-      console.log(`🗑️ [CACHE-LOCAL] Cache invalidated for: ${key}`)
+      logger.info(`🗑️ [CACHE-LOCAL] Cache invalidated for: ${key}`)
     })
 
     // Invalider aussi dans le cache L1/L2
@@ -90,21 +90,21 @@ class EnhancedCacheManager {
         await cache.invalidate(key)
       }
     } catch (error) {
-      console.warn('[CACHE] Failed to invalidate cache:', error)
+      logger.warn('[CACHE] Failed to invalidate cache:', error)
     }
   }
 
   // Invalider tout le cache
   async invalidateAllCache() {
     this.localCache.clear()
-    console.log(`🧹 [CACHE-LOCAL] All local cache invalidated`)
+    logger.info(`🧹 [CACHE-LOCAL] All local cache invalidated`)
 
     // Invalider aussi dans le cache L1/L2
     try {
       const { cache } = await import('../lib/cache/cache-manager')
       await cache.invalidate('*')
     } catch (error) {
-      console.warn('[CACHE] Failed to invalidate all cache:', error)
+      logger.warn('[CACHE] Failed to invalidate all cache:', error)
     }
   }
 
@@ -115,19 +115,19 @@ class EnhancedCacheManager {
       for (const key of keys) {
         const callback = this.refreshCallbacks.get(key)
         if (callback) {
-          console.log(`🔄 [CACHE] Triggering refresh for: ${key}`)
+          logger.info(`🔄 [CACHE] Triggering refresh for: ${key}`)
           callback()
           // Invalider aussi dans le cache L1/L2
           await cache.invalidate(key)
         }
       }
     } catch (error) {
-      console.warn('[CACHE] Failed to trigger refresh:', error)
+      logger.warn('[CACHE] Failed to trigger refresh:', error)
       // Fallback: trigger callbacks without cache invalidation
       for (const key of keys) {
         const callback = this.refreshCallbacks.get(key)
         if (callback) {
-          console.log(`🔄 [CACHE] Triggering refresh for: ${key} (fallback)`)
+          logger.info(`🔄 [CACHE] Triggering refresh for: ${key} (fallback)`)
           callback()
         }
       }
@@ -136,9 +136,9 @@ class EnhancedCacheManager {
 
   // Déclencher un refresh global
   async triggerGlobalRefresh() {
-    console.log(`🔄 [CACHE] Triggering global refresh for ${this.refreshCallbacks.size} callbacks`)
+    logger.info(`🔄 [CACHE] Triggering global refresh for ${this.refreshCallbacks.size} callbacks`)
     this.refreshCallbacks.forEach((callback, key) => {
-      console.log(`🔄 [CACHE] Global refresh for: ${key}`)
+      logger.info(`🔄 [CACHE] Global refresh for: ${key}`)
       callback()
     })
 
@@ -147,7 +147,7 @@ class EnhancedCacheManager {
       const { cache } = await import('../lib/cache/cache-manager')
       await cache.invalidate('*')
     } catch (error) {
-      console.warn('[CACHE] Failed to invalidate cache during global refresh:', error)
+      logger.warn('[CACHE] Failed to invalidate cache during global refresh:', error)
     }
   }
 
@@ -157,7 +157,7 @@ class EnhancedCacheManager {
       const { cache } = await import('../lib/cache/cache-manager')
       return await cache.get<T>(key)
     } catch (error) {
-      console.warn('[CACHE] Failed to get cached data:', error)
+      logger.warn('[CACHE] Failed to get cached data:', error)
       return null
     }
   }
@@ -173,7 +173,7 @@ class EnhancedCacheManager {
         ttl: ttl * 1000
       })
     } catch (error) {
-      console.warn('[CACHE] Failed to set cached data:', error)
+      logger.warn('[CACHE] Failed to set cached data:', error)
     }
   }
 
@@ -187,7 +187,7 @@ class EnhancedCacheManager {
       const { cache } = await import('../lib/cache/cache-manager')
       return await cache.getOrSet(key, fetcher, ttl)
     } catch (error) {
-      console.warn('[CACHE] Failed to use getOrSet, fallback to direct fetch:', error)
+      logger.warn('[CACHE] Failed to use getOrSet, fallback to direct fetch:', error)
       return await fetcher()
     }
   }
@@ -198,7 +198,7 @@ class EnhancedCacheManager {
       const { cache } = require('../lib/cache/cache-manager')
       return cache.getMetrics()
     } catch (error) {
-      console.warn('[CACHE] Failed to get metrics:', error)
+      logger.warn('[CACHE] Failed to get metrics:', error)
       return {
         l1Hits: 0,
         l1Misses: 0,
@@ -215,7 +215,7 @@ class EnhancedCacheManager {
       const { cache } = require('../lib/cache/cache-manager')
       return cache.getStatus()
     } catch (error) {
-      console.warn('[CACHE] Failed to get status:', error)
+      logger.warn('[CACHE] Failed to get status:', error)
       return {
         l1Size: 0,
         l1MaxSize: 500,
@@ -227,11 +227,11 @@ class EnhancedCacheManager {
 
   // Gérer l'invalidation basée sur les routes
   handleRouteChange(pathname: string) {
-    console.log(`🛣️ [CACHE] Route changed to: ${pathname}`)
+    logger.info(`🛣️ [CACHE] Route changed to: ${pathname}`)
     
     // ✅ FIX BOUCLE INFINIE: Éviter les invalidations redondantes
     if (this.lastProcessedRoute === pathname) {
-      console.log(`🔒 [CACHE] Same route as last processed, skipping invalidation`)
+      logger.info(`🔒 [CACHE] Same route as last processed, skipping invalidation`)
       return
     }
     
@@ -252,7 +252,7 @@ class EnhancedCacheManager {
         })
 
         if (shouldInvalidate) {
-          console.log(`🎯 [CACHE] Route matches pattern, invalidating cache for:`, config.cacheKeys)
+          logger.info(`🎯 [CACHE] Route matches pattern, invalidating cache for:`, config.cacheKeys)
           
           if (config.forceRefresh) {
             this.invalidateAllCache()
@@ -271,7 +271,7 @@ class EnhancedCacheManager {
   // Configurer les règles d'invalidation
   addInvalidationConfig(config: CacheInvalidationConfig) {
     this.invalidationConfigs.push(config)
-    console.log(`⚙️ [CACHE] Added invalidation config:`, config)
+    logger.info(`⚙️ [CACHE] Added invalidation config:`, config)
   }
 }
 

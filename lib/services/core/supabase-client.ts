@@ -2,7 +2,7 @@ import { createBrowserClient, createServerClient } from '@supabase/ssr'
 import type { CookieOptions } from '@supabase/ssr'
 import type { Database } from '../../database.types'
 import { ENV_CONFIG, calculateRetryDelay } from '../../environment'
-
+import { logger, logError } from '@/lib/logger'
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -148,7 +148,7 @@ export async function getCurrentUserId(client?: ReturnType<typeof createBrowserS
     const { data: { user } } = await supabaseClient.auth.getUser()
     return user?.id || null
   } catch (error) {
-    console.error('Error getting current user ID:', error)
+    logger.error('Error getting current user ID:', error)
     return null
   }
 }
@@ -162,7 +162,7 @@ export async function isAuthenticated(client?: ReturnType<typeof createBrowserSu
     const { data: { session } } = await supabaseClient.auth.getSession()
     return !!session?.user
   } catch (error) {
-    console.error('Error checking authentication:', error)
+    logger.error('Error checking authentication:', error)
     return false
   }
 }

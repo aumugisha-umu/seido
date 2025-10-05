@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerUserService } from '@/lib/services'
 import { getServerSession } from '@/lib/supabase-server'
-
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
+import { logger, logError } from '@/lib/logger'
+import { emailService } from '@/lib/email/email-service'
+import type { Database } from '@/lib/database.types'
 
 
 // Client admin Supabase pour les opérations privilégiées
-const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(
+const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
@@ -21,7 +21,9 @@ const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(
 
 export async function POST(request: Request) {
   try {
-    // Vérifier l'authentification
+    // ============================================================================
+    // ÉTAPE 0: Vérifications préliminaires
+    // ============================================================================
     const session = await getServerSession()
     if (!session) {
       return NextResponse.json(
@@ -30,13 +32,26 @@ export async function POST(request: Request) {
       )
     }
 
-    // Vérifier si le service est disponible
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Service non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },
         { status: 503 }
       )
     }
+
+    // Initialize services
+    const userService = await createServerUserService()
+
+    // Get current user profile
+    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
+    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
+      return NextResponse.json(
+        { error: 'Profil utilisateur non trouvé' },
+        { status: 404 }
+      )
+    }
+
+    const currentUserProfile = currentUserProfileResult.data
 
     const body = await request.json()
     const { invitationId } = body
@@ -48,128 +63,124 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log('🔄 [RESEND-INVITATION] Processing resend for invitation:', invitationId)
+    logger.info('🔄 [RESEND-INVITATION] Processing resend for invitation:', invitationId)
 
-    // ÉTAPE 1: Récupérer les informations de l'invitation
+    // ============================================================================
+    // ÉTAPE 1: Récupérer l'invitation
+    // ============================================================================
     const { data: invitation, error: invitationError } = await supabaseAdmin
       .from('user_invitations')
       .select('*')
       .eq('id', invitationId)
       .single()
-    
+
     if (invitationError || !invitation) {
-      console.error('❌ [RESEND-INVITATION] Invitation not found:', invitationError)
+      logger.error('❌ [STEP-1] Invitation not found:', invitationError)
       return NextResponse.json(
         { error: 'Invitation non trouvée' },
         { status: 404 }
       )
     }
 
-    console.log('✅ [RESEND-INVITATION] Found invitation:', {
+    logger.info('✅ [STEP-1] Found invitation:', {
       email: invitation.email,
       role: invitation.role,
       team_id: invitation.team_id
     })
 
-    // ÉTAPE 2: Vérifier si l'utilisateur existe dans notre BDD
-    const existingUser = await userService.findByEmail(invitation.email)
-    
-    if (!existingUser) {
-      console.error('❌ [RESEND-INVITATION] User not found in database:', invitation.email)
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé dans la base de données' },
-        { status: 404 }
-      )
-    }
+    // ============================================================================
+    // ÉTAPE 2: Générer un nouveau lien d'invitation officiel Supabase
+    // ============================================================================
+    logger.info('🔗 [STEP-2] Generating official Supabase invitation link...')
 
-    console.log('✅ [RESEND-INVITATION] Found user in database:', existingUser.id)
-
-    // ÉTAPE 3: Générer un nouveau magic link de connexion (pas d'invitation)
-    const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-    
-    console.log('🔗 [RESEND-INVITATION] Generating magic link for signin...')
-    
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink', // ← Utiliser 'magiclink' pour les connexions, pas 'invite'
+    const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite', // ✅ CHANGEMENT: 'invite' au lieu de 'magiclink' pour régénérer une invitation complète
       email: invitation.email,
       options: {
-        redirectTo: redirectTo
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        data: {
+          // ✅ Métadonnées complètes pour l'auth user (comme invitation originale)
+          full_name: `${invitation.first_name} ${invitation.last_name}`,
+          first_name: invitation.first_name,
+          last_name: invitation.last_name,
+          display_name: `${invitation.first_name} ${invitation.last_name}`,
+          role: invitation.role,
+          provider_category: invitation.provider_category,
+          team_id: invitation.team_id,
+          password_set: false // ✅ CRITIQUE: Indique que l'utilisateur doit définir son mot de passe
+        }
       }
     })
 
-    if (linkError) {
-      console.error('❌ [RESEND-INVITATION] Failed to generate magic link:', linkError)
+    if (inviteError || !inviteLink?.properties?.action_link) {
+      logger.error('❌ [STEP-2] Failed to generate invitation link:', inviteError)
       return NextResponse.json(
-        { error: 'Erreur lors de la génération du lien magique: ' + linkError.message },
+        { error: 'Échec de la génération du lien d\'invitation: ' + (inviteError?.message || 'Unknown error') },
         { status: 500 }
       )
     }
 
-    const magicLink = linkData?.properties?.action_link
+    const magicLink = inviteLink.properties.action_link
+    const hashedToken = inviteLink.properties.hashed_token
+    logger.info('✅ [STEP-2] Invitation link generated:', magicLink.substring(0, 100) + '...')
 
-    if (!magicLink) {
-      console.error('❌ [RESEND-INVITATION] No magic link in response')
-      return NextResponse.json(
-        { error: 'Impossible de générer le lien magique' },
-        { status: 500 }
-      )
-    }
+    // ============================================================================
+    // ÉTAPE 3: Mettre à jour le token dans user_invitations
+    // ============================================================================
+    logger.info('🔄 [STEP-3] Updating invitation token in database...')
 
-    console.log('✅ [RESEND-INVITATION] Magic link generated successfully')
-    console.log('📋 [RESEND-INVITATION] Magic link preview:', magicLink.substring(0, 100) + '...')
-
-    // ÉTAPE 4: Optionnel - Envoyer aussi l'email automatiquement
-    try {
-      console.log('📧 [RESEND-INVITATION] Sending magic link email...')
-      
-      const { error: emailError } = await supabaseAdmin.auth.signInWithOtp({
-        email: invitation.email,
-        options: {
-          emailRedirectTo: redirectTo
-        }
+    const { error: updateError } = await supabaseAdmin
+      .from('user_invitations')
+      .update({
+        invitation_token: hashedToken, // ✅ NOUVEAU: Mettre à jour le token
+        status: 'pending', // Remettre à pending
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        updated_at: new Date().toISOString()
       })
-      
-      if (emailError) {
-        console.warn('⚠️ [RESEND-INVITATION] Failed to send email, but magic link generated:', emailError.message)
-      } else {
-        console.log('✅ [RESEND-INVITATION] Email sent successfully')
-      }
-    } catch (emailError) {
-      console.warn('⚠️ [RESEND-INVITATION] Email sending failed:', emailError)
-      // Ne pas faire échouer la requête pour cette erreur
+      .eq('id', invitationId)
+
+    if (updateError) {
+      logger.warn('⚠️ [STEP-3] Failed to update invitation token:', updateError)
+      // Non bloquant
+    } else {
+      logger.info('✅ [STEP-3] Invitation token updated successfully')
     }
 
-    // ÉTAPE 5: Mettre à jour l'invitation avec statut pending et nouvelle date d'expiration
-    try {
-      const newExpirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 jours
-      
-      await supabaseAdmin
-        .from('user_invitations')
-        .update({
-          status: 'pending', // ✅ Remettre à pending après renvoi
-          expires_at: newExpirationDate,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', invitationId)
-      
-      console.log('✅ [RESEND-INVITATION] Updated invitation status to pending and expiration')
-    } catch (updateError) {
-      console.warn('⚠️ [RESEND-INVITATION] Failed to update invitation:', updateError)
-      // Ne pas faire échouer pour cette erreur
+    // ============================================================================
+    // ÉTAPE 4: Envoyer l'email avec le template officiel
+    // ============================================================================
+    logger.info('📨 [STEP-4] Sending invitation email via Resend...')
+
+    const emailResult = await emailService.sendInvitationEmail(invitation.email, {
+      firstName: invitation.first_name,
+      inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
+      teamName: invitation.team_id,
+      role: invitation.role,
+      invitationUrl: magicLink, // ✅ Lien officiel Supabase
+      expiresIn: 7,
+    })
+
+    if (!emailResult.success) {
+      logger.warn('⚠️ [STEP-4] Failed to send email via Resend:', emailResult.error)
+      // Non bloquant - on retourne quand même le lien
+    } else {
+      logger.info('✅ [STEP-4] Invitation email sent successfully via Resend:', emailResult.emailId)
     }
 
+    // ============================================================================
+    // ÉTAPE 5: Retourner le lien pour affichage UI
+    // ============================================================================
     return NextResponse.json({
       success: true,
-      magicLink: magicLink,
-      message: 'Lien de connexion généré avec succès',
-      emailSent: true, // Assume email was sent unless there was an error
-      userId: existingUser.id
+      magicLink: magicLink, // ✅ Important pour affichage dans UI avec bouton copier
+      message: 'Invitation renvoyée avec succès',
+      emailSent: emailResult.success
     })
 
   } catch (error) {
-    console.error('❌ [RESEND-INVITATION] Unexpected error:', error)
+    logger.error('❌ [RESEND-INVITATION] Unexpected error:', error)
     return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
+      { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

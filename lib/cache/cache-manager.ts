@@ -13,6 +13,7 @@
  */
 
 import { LRUCache } from 'lru-cache'
+import { logger, logError } from '@/lib/logger'
 
 // Conditional Redis import for server-side only
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

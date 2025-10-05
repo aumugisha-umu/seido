@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * PropertyNameInput - Atomic component for property name input with smart suggestions
  *
@@ -5,7 +7,6 @@
  * Includes validation and automatic placeholder generation.
  */
 
-"use client"
 
 import React, { useMemo } from "react"
 import { Input } from "@/components/ui/input"

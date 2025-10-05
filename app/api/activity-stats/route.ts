@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/services'
-
+import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId') // Optionnel pour stats personnelles
 
     // Validation
-    if (!_teamId) {
+    if (!teamId) {
       return NextResponse.json(
         { error: 'teamId is required' },
         { status: 400 }
@@ -42,17 +42,17 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('activity_logs')
       .select('action_type, entity_type, status, created_at, user_id')
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
       .gte('created_at', startDate.toISOString())
 
-    if (_userId) {
-      query = query.eq('user_id', _userId)
+    if (userId) {
+      query = query.eq('user_id', userId)
     }
 
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching activity stats:', error)
+      logger.error('Error fetching activity stats:', error)
       return NextResponse.json(
         { error: 'Failed to fetch activity statistics' },
         { status: 500 }
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
     // Top utilisateurs
     stats.topUsers = Object.entries(userActivity)
-      .map(([_userId, count]) => ({ _userId, count }))
+      .map(([userId, count]) => ({ userId, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
 
@@ -144,12 +144,12 @@ export async function GET(request: NextRequest) {
     let previousQuery = supabase
       .from('activity_logs')
       .select('id', { count: 'exact' })
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
       .gte('created_at', previousStartDate.toISOString())
       .lt('created_at', startDate.toISOString())
 
-    if (_userId) {
-      previousQuery = previousQuery.eq('user_id', _userId)
+    if (userId) {
+      previousQuery = previousQuery.eq('user_id', userId)
     }
 
     const { count: previousCount } = await previousQuery
@@ -167,14 +167,14 @@ export async function GET(request: NextRequest) {
       evolution,
       metadata: {
         generatedAt: now.toISOString(),
-        _teamId,
+        teamId,
         userId: userId || null,
         period
       }
     })
 
   } catch (error) {
-    console.error('Unexpected error in activity-stats API:', error)
+    logger.error('Unexpected error in activity-stats API:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

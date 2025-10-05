@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * ManagerSelector - Atomic component for selecting property managers
  *
@@ -5,7 +7,6 @@
  * Supports team-based filtering and role-based permissions.
  */
 
-"use client"
 
 import React from "react"
 import { Button } from "@/components/ui/button"

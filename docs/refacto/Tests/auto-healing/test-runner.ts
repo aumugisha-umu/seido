@@ -6,6 +6,7 @@
 import { test as base, expect, Page } from '@playwright/test'
 import { AutoHealingOrchestrator } from './orchestrator'
 import type { AutoHealingConfig } from './config'
+import { logger, logError } from '@/lib/logger'
 
 // Étendre le test Playwright avec auto-healing
 export const test = base.extend<{

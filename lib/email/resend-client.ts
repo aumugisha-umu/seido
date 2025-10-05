@@ -6,6 +6,7 @@
  */
 
 import { Resend } from 'resend'
+import { logger, logError } from '@/lib/logger'
 
 if (!process.env.RESEND_API_KEY) {
   console.warn('⚠️ RESEND_API_KEY not configured - email sending will be disabled')

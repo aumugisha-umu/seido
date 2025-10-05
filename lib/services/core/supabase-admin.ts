@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Vérifier que la SERVICE_ROLE_KEY est configurée
@@ -25,7 +26,7 @@ if (!SUPABASE_URL) {
 }
 
 if (!SERVICE_ROLE_KEY) {
-  console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - admin operations will be disabled')
+  logger.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - admin operations will be disabled')
 }
 
 /**
@@ -68,8 +69,8 @@ export const supabaseAdmin = SERVICE_ROLE_KEY ? createClient<Database>(
  */
 export function getSupabaseAdmin() {
   if (!supabaseAdmin) {
-    console.error('❌ [SUPABASE-ADMIN] SERVICE_ROLE_KEY not configured')
-    console.error('❌ [SUPABASE-ADMIN] Available env vars:', {
+    logger.error('❌ [SUPABASE-ADMIN] SERVICE_ROLE_KEY not configured')
+    logger.error('❌ [SUPABASE-ADMIN] Available env vars:', {
       hasSupabaseUrl: !!SUPABASE_URL,
       hasServiceRoleKey: !!SERVICE_ROLE_KEY,
       supabaseEnvKeys: Object.keys(process.env).filter(key => key.includes('SUPABASE'))

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { supabase } from './supabase'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * Gestionnaire de connexion pour Supabase
  * Surveille l'état de la connexion et gère les reconnexions automatiques
@@ -35,7 +35,7 @@ class ConnectionManager {
       
       // Surveiller l'état de la session Supabase
       supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔐 Auth state changed:', event, !!session)
+        logger.info('🔐 Auth state changed:', event, !!session)
         if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
           this.handleConnectionRestored()
         }
@@ -55,19 +55,19 @@ class ConnectionManager {
   }
 
   private handleOnline() {
-    console.log('🌐 Browser went online')
+    logger.info('🌐 Browser went online')
     this.handleConnectionRestored()
   }
 
   private handleOffline() {
-    console.log('🌐 Browser went offline')
+    logger.info('🌐 Browser went offline')
     this.isOnline = false
     this.notifyListeners()
   }
 
   private handleConnectionRestored() {
     if (!this.isOnline) {
-      console.log('✅ Connection restored')
+      logger.info('✅ Connection restored')
       this.isOnline = true
       this.reconnectAttempts = 0
       this.notifyListeners()
@@ -89,7 +89,7 @@ class ConnectionManager {
     // Skip health check si on navigue ou si l'utilisateur est actif récemment
     const timeSinceActivity = Date.now() - this.lastActivity
     if (this.isNavigating || timeSinceActivity < 60000) { // 1 minute
-      console.log('🔄 Skipping health check - user is active or navigating')
+      logger.info('🔄 Skipping health check - user is active or navigating')
       return
     }
 
@@ -99,14 +99,14 @@ class ConnectionManager {
       const { error } = await supabase.auth.getSession()
 
       if (error && !this.isOnline) {
-        console.log('❌ Health check failed:', error.message)
+        logger.info('❌ Health check failed:', error.message)
         this.attemptReconnection()
       } else if (!error && !this.isOnline) {
-        console.log('✅ Health check passed - connection restored')
+        logger.info('✅ Health check passed - connection restored')
         this.handleConnectionRestored()
       }
     } catch (error) {
-      console.log('❌ Health check exception:', error)
+      logger.info('❌ Health check exception:', error)
       if (this.isOnline) {
         this.isOnline = false
         this.notifyListeners()
@@ -117,12 +117,12 @@ class ConnectionManager {
 
   private async attemptReconnection() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('❌ Max reconnection attempts reached')
+      logger.info('❌ Max reconnection attempts reached')
       return
     }
 
     this.reconnectAttempts++
-    console.log(`🔄 Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
+    logger.info(`🔄 Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
 
     // Attendre avant de tenter la reconnexion
     const delay = this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1)
@@ -133,15 +133,15 @@ class ConnectionManager {
       const { error } = await supabase.auth.refreshSession()
       
       if (!error) {
-        console.log('✅ Session refreshed successfully')
+        logger.info('✅ Session refreshed successfully')
         this.handleConnectionRestored()
       } else {
-        console.log('❌ Session refresh failed:', error.message)
+        logger.info('❌ Session refresh failed:', error.message)
         // Programmer une nouvelle tentative
         setTimeout(() => this.attemptReconnection(), 5000)
       }
     } catch (error) {
-      console.log('❌ Reconnection attempt failed:', error)
+      logger.info('❌ Reconnection attempt failed:', error)
       // Programmer une nouvelle tentative
       setTimeout(() => this.attemptReconnection(), 5000)
     }
@@ -152,7 +152,7 @@ class ConnectionManager {
       try {
         listener(this.isOnline)
       } catch (error) {
-        console.error('❌ Error in connection listener:', error)
+        logger.error('❌ Error in connection listener:', error)
       }
     })
   }
@@ -169,7 +169,7 @@ class ConnectionManager {
   }
 
   public forceReconnection() {
-    console.log('🔄 Forcing reconnection...')
+    logger.info('🔄 Forcing reconnection...')
     this.reconnectAttempts = 0
     this.attemptReconnection()
   }

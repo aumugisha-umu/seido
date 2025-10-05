@@ -14,6 +14,7 @@ import { X, Building2, Mail, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { contactService } from "@/lib/database-service"
 import { supabase } from "@/lib/supabase"
+import { logger, logError } from '@/lib/logger'
 
 interface ContactFormModalProps {
   isOpen: boolean

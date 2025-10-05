@@ -8,6 +8,7 @@ import { UserService, createUserService, createServerUserService } from './user.
 import { LotService, createLotService, createServerLotService } from './lot.service'
 import { BuildingService, createBuildingService, createServerBuildingService } from './building.service'
 import { ValidationException, NotFoundException } from '../core/error-handler'
+import { logger, logError } from '@/lib/logger'
 import type {
   Contact,
   ContactInsert,
@@ -558,7 +559,7 @@ export class ContactService {
    */
   private async logContactCreation(contact: Contact) {
     // In production, this would use the activity-logger service
-    console.log('Contact created:', contact.id, contact.type, contact.user_id)
+    logger.info('Contact created:', contact.id, contact.type, contact.user_id)
   }
 
   /**
@@ -566,7 +567,7 @@ export class ContactService {
    */
   private async logContactUpdate(contact: Contact, changes: ContactUpdate) {
     // In production, this would use the activity-logger service
-    console.log('Contact updated:', contact.id, changes)
+    logger.info('Contact updated:', contact.id, changes)
   }
 
   /**
@@ -574,7 +575,7 @@ export class ContactService {
    */
   private async logContactDeletion(contact: Contact) {
     // In production, this would use the activity-logger service
-    console.log('Contact deleted:', contact.id, contact.type, contact.user_id)
+    logger.info('Contact deleted:', contact.id, contact.type, contact.user_id)
   }
 
   /**
@@ -587,7 +588,7 @@ export class ContactService {
     contactType: Contact['type']
   ) {
     // In production, this would use the activity-logger service
-    console.log(`Contact assigned to ${assignmentType}:`, assignmentId, _userId, contactType)
+    logger.info(`Contact assigned to ${assignmentType}:`, assignmentId, _userId, contactType)
   }
 
   /**
@@ -599,7 +600,7 @@ export class ContactService {
     userId: string
   ) {
     // In production, this would use the activity-logger service
-    console.log(`Contact removed from ${assignmentType}:`, assignmentId, _userId)
+    logger.info(`Contact removed from ${assignmentType}:`, assignmentId, _userId)
   }
 }
 

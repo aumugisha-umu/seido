@@ -8,6 +8,7 @@
 import { Page } from '@playwright/test'
 import { writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * Structure de diagnostic complète pour un test échoué

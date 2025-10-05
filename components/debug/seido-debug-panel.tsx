@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { UserRole } from '@/lib/auth'
 import { SEIDODebugger } from '@/lib/seido-debugger'
-
+import { logger, logError } from '@/lib/logger'
 interface DebugLog {
   id: string
   timestamp: string
@@ -35,12 +35,12 @@ export function SEIDODebugPanel({ userRole, _userId, isVisible = false }: DebugP
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return
 
-    // Intercepter les console.log pour capturer les logs SEIDO
+    // Intercepter les logger.info pour capturer les logs SEIDO
     const originalConsole = {
-      log: console.log,
-      warn: console.warn,
-      error: console.error,
-      info: console.info
+      log: logger.info,
+      warn: logger.warn,
+      error: logger.error,
+      info: logger.info
     }
 
     const captureLog = (level: DebugLog['level']) => (...args: unknown[]) => {
@@ -63,16 +63,16 @@ export function SEIDODebugPanel({ userRole, _userId, isVisible = false }: DebugP
       }
     }
 
-    console.log = captureLog('info')
-    console.warn = captureLog('warn')
-    console.error = captureLog('error')
+    logger.info = captureLog('info')
+    logger.warn = captureLog('warn')
+    logger.error = captureLog('error')
 
     return () => {
       // Restaurer les méthodes console originales
-      console.log = originalConsole.log
-      console.warn = originalConsole.warn
-      console.error = originalConsole.error
-      console.info = originalConsole.info
+      logger.info = originalConsole.log
+      logger.warn = originalConsole.warn
+      logger.error = originalConsole.error
+      logger.info = originalConsole.info
     }
   }, [])
 

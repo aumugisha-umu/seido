@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * BuildingCreationWizard - Main wizard component for building creation
  *
@@ -5,7 +7,6 @@
  * Handles step progression, state management, and component composition.
  */
 
-"use client"
 
 import React, { Suspense } from "react"
 import { Card, CardContent } from "@/components/ui/card"

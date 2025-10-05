@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
 // Remember to make your function async if it isn't already
 
 
 export async function GET(request: NextRequest) {
-  console.log("✅ quote-requests GET API route called")
+  logger.info("✅ quote-requests GET API route called")
 
   try {
     // Initialize Supabase client
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     const { data: quoteRequests, error: queryError } = await query
 
     if (queryError) {
-      console.error("❌ Error fetching quote requests:", queryError)
+      logger.error("❌ Error fetching quote requests:", queryError)
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des demandes de devis'
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in quote-requests GET API:", error)
+    logger.error("❌ Error in quote-requests GET API:", error)
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération des demandes de devis'

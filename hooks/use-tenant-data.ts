@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createTenantService } from '@/lib/services'
 import { useAuth } from './use-auth'
-
+import { useResolvedUserId } from './use-resolved-user-id'
+import { logger, logError } from '@/lib/logger'
 interface TenantData {
   id: string
   reference: string
@@ -55,6 +56,7 @@ interface TenantIntervention {
 
 export const useTenantData = () => {
   const { user } = useAuth()
+  const resolvedUserId = useResolvedUserId(user?.id)
   const [tenantData, setTenantData] = useState<TenantData | null>(null)
   const [tenantStats, setTenantStats] = useState<TenantStats | null>(null)
   const [tenantInterventions, setTenantInterventions] = useState<TenantIntervention[]>([])
@@ -63,7 +65,8 @@ export const useTenantData = () => {
 
   useEffect(() => {
     const fetchTenantData = async () => {
-      if (!user?.id || user.role !== 'locataire') {
+      // Attendre la résolution du user ID (JWT → UUID)
+      if (!resolvedUserId || !user || user.role !== 'locataire') {
         setLoading(false)
         return
       }
@@ -72,19 +75,24 @@ export const useTenantData = () => {
         setLoading(true)
         setError(null)
 
-        // Fetch all tenant data in parallel
+        logger.info('📊 [useTenantData] Fetching tenant data', {
+          originalUserId: user.id,
+          resolvedUserId
+        })
+
+        // Fetch all tenant data in parallel avec l'ID résolu
         const tenantService = createTenantService()
         const [data, stats, interventions] = await Promise.all([
-          tenantService.getTenantData(user.id),
-          tenantService.getTenantStats(user.id),
-          tenantService.getTenantInterventions(user.id)
+          tenantService.getTenantData(resolvedUserId),
+          tenantService.getTenantStats(resolvedUserId),
+          tenantService.getTenantInterventions(resolvedUserId)
         ])
 
         setTenantData(data)
         setTenantStats(stats)
         setTenantInterventions(interventions)
       } catch (err) {
-        console.error('Error fetching tenant data:', err)
+        logger.error('Error fetching tenant data:', err)
         setError(err instanceof Error ? err.message : 'Une erreur est survenue')
       } finally {
         setLoading(false)
@@ -92,26 +100,32 @@ export const useTenantData = () => {
     }
 
     fetchTenantData()
-  }, [user])
+  }, [resolvedUserId, user])
 
   const refreshData = async () => {
-    if (!user?.id || user.role !== 'locataire') return
+    // Utiliser l'ID résolu pour le refresh également
+    if (!resolvedUserId || !user || user.role !== 'locataire') return
 
     try {
       setError(null)
-      
+
+      logger.info('🔄 [useTenantData] Refreshing tenant data', {
+        originalUserId: user.id,
+        resolvedUserId
+      })
+
       const tenantService = createTenantService()
       const [data, stats, interventions] = await Promise.all([
-        tenantService.getTenantData(user.id),
-        tenantService.getTenantStats(user.id),
-        tenantService.getTenantInterventions(user.id)
+        tenantService.getTenantData(resolvedUserId),
+        tenantService.getTenantStats(resolvedUserId),
+        tenantService.getTenantInterventions(resolvedUserId)
       ])
 
       setTenantData(data)
       setTenantStats(stats)
       setTenantInterventions(interventions)
     } catch (err) {
-      console.error('Error refreshing tenant data:', err)
+      logger.error('Error refreshing tenant data:', err)
       setError(err instanceof Error ? err.message : 'Une erreur est survenue')
     }
   }

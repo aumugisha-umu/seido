@@ -1,3 +1,5 @@
+import { logger, logError } from '@/lib/logger'
+
 /**
  * Utilitaires pour filtrer les disponibilités selon les états des devis
  * Permet d'afficher uniquement les disponibilités pertinentes dans l'onglet exécution
@@ -97,7 +99,7 @@ export function filterAvailabilitiesByQuoteStatus(
   })
 
   // Debug log pour tracer les statuts des prestataires
-  console.log('🔧 [FILTER-DEBUG] Provider quote statuses:', {
+  logger.info('🔧 [FILTER-DEBUG] Provider quote statuses:', {
     totalProviders: providerQuoteStatus.size,
     providerStatuses: Array.from(providerQuoteStatus.entries()).map(([providerId, statuses]) => ({
       providerId,
@@ -123,11 +125,11 @@ export function filterAvailabilitiesByQuoteStatus(
     if (!providerStatuses || providerStatuses.size === 0) {
       if (userRole === 'locataire') {
         // Pour les locataires : pas de quote approuvé dans leur liste filtrée = exclusion
-        console.log(`🚫 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no approved quotes - EXCLUDED for tenant`)
+        logger.info(`🚫 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no approved quotes - EXCLUDED for tenant`)
         return false
       } else {
         // Pour gestionnaires/prestataires : inclure les prestataires sans devis (logique existante)
-        console.log(`⚠️ [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no quotes but has availabilities - INCLUDED`)
+        logger.info(`⚠️ [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) has no quotes but has availabilities - INCLUDED`)
         return true
       }
     }
@@ -143,7 +145,7 @@ export function filterAvailabilitiesByQuoteStatus(
       shouldInclude = providerStatuses.has('pending') || providerStatuses.has('approved')
     }
 
-    console.log(`🔍 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) - Role: ${userRole} - Statuses: [${Array.from(providerStatuses).join(', ')}] - ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`)
+    logger.info(`🔍 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) - Role: ${userRole} - Statuses: [${Array.from(providerStatuses).join(', ')}] - ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`)
     return shouldInclude
   })
 }

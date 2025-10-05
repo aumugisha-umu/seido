@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import { LotCategory } from "@/lib/lot-types"
+import { logger, logError } from '@/lib/logger'
 
 interface LotInfo {
   name: string

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/use-auth"
 import { useGlobalNotifications } from "@/hooks/use-global-notifications"
-
+import { logger, logError } from '@/lib/logger'
 interface TenantHeaderProps {
   className?: string
   userName?: string
@@ -41,11 +41,11 @@ export default function TenantHeader({
 
   const handleLogout = async () => {
     try {
-      console.log('👤 [TENANT-HEADER] Logout button clicked')
+      logger.info('👤 [TENANT-HEADER] Logout button clicked')
       await signOut()
       window.location.href = "/auth/login"
     } catch (error) {
-      console.error('❌ [TENANT-HEADER] Error during logout:', error)
+      logger.error('❌ [TENANT-HEADER] Error during logout:', error)
       window.location.href = "/auth/login"
     }
   }

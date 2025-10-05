@@ -56,12 +56,12 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         lot:lot_id(id, reference, building_id, building:building_id(name, address)),
         building:building_id(id, name, address, city)
       `)
-      .eq('id', id)
+      .eq('id', _id)
       .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Contact not found', this.tableName, id)
+        throw new NotFoundException('Contact not found', this.tableName, _id)
       }
       return this.handleError(error)
     }

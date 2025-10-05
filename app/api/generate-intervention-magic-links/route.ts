@@ -5,8 +5,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
-
-
+import { logger, logError } from '@/lib/logger'
 // Admin client for sending emails
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -21,7 +20,7 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 ) : null
 
 export async function POST(request: NextRequest) {
-  console.log("✅ generate-intervention-magic-links API route called")
+  logger.info("✅ generate-intervention-magic-links API route called")
 
   try {
     // Initialize Supabase client
@@ -73,7 +72,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Generating magic links for intervention:", interventionId, "for emails:", providerEmails)
+    logger.info("📝 Generating magic links for intervention:", interventionId, "for emails:", providerEmails)
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -104,7 +103,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error("❌ Intervention not found:", interventionError)
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -127,7 +126,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("🔗 Generating magic links for", providerEmails.length, "external providers...")
+    logger.info("🔗 Generating magic links for", providerEmails.length, "external providers...")
 
     // Generate magic links for each provider email
     const magicLinkResults = []
@@ -146,9 +145,9 @@ export async function POST(request: NextRequest) {
 
         if (existingProvider) {
           providerId = existingProvider.id
-          console.log(`📧 Provider ${email} already exists in system with ID: ${providerId}`)
+          logger.info(`📧 Provider ${email} already exists in system with ID: ${providerId}`)
         } else {
-          console.log(`📧 Provider ${email} is external, will be created on first access`)
+          logger.info(`📧 Provider ${email} is external, will be created on first access`)
         }
 
         // Create magic link record
@@ -168,7 +167,7 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (linkError) {
-          console.error(`❌ Error creating magic link for ${email}:`, linkError)
+          logger.error(`❌ Error creating magic link for ${email}:`, linkError)
           errors.push({ email, error: linkError.message })
           continue
         }
@@ -176,7 +175,7 @@ export async function POST(request: NextRequest) {
         // Generate the actual magic link URL
         const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/intervention/${token}`
 
-        console.log(`✅ Magic link generated for ${email}:`, magicLink.id)
+        logger.info(`✅ Magic link generated for ${email}:`, magicLink.id)
 
         // Send email notification with magic link
         if (supabaseAdmin) {
@@ -209,9 +208,9 @@ export async function POST(request: NextRequest) {
               relatedEntityId: interventionId
             })
 
-            console.log(`📧 Email notification queued for ${email}`)
+            logger.info(`📧 Email notification queued for ${email}`)
           } catch (emailError) {
-            console.warn(`⚠️ Could not send email to ${email}:`, emailError)
+            logger.warn(`⚠️ Could not send email to ${email}:`, emailError)
             // Don't fail the magic link generation for email errors
           }
         }
@@ -227,7 +226,7 @@ export async function POST(request: NextRequest) {
         })
 
       } catch (error) {
-        console.error(`❌ Error processing ${email}:`, error)
+        logger.error(`❌ Error processing ${email}:`, error)
         errors.push({
           email,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -237,7 +236,7 @@ export async function POST(request: NextRequest) {
 
     // Update intervention status to quote request if any links were generated successfully
     if (magicLinkResults.length > 0) {
-      console.log("🔄 Updating intervention status to 'demande_de_devis'...")
+      logger.info("🔄 Updating intervention status to 'demande_de_devis'...")
 
       await supabase
         .from('interventions')
@@ -249,7 +248,7 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', interventionId)
 
-      console.log("✅ Intervention status updated to quote request")
+      logger.info("✅ Intervention status updated to quote request")
 
       // Send status change notification
       try {
@@ -259,9 +258,9 @@ export async function POST(request: NextRequest) {
           'demande_de_devis',
           user.id
         )
-        console.log("📧 Status change notifications sent")
+        logger.info("📧 Status change notifications sent")
       } catch (notifError) {
-        console.warn("⚠️ Could not send status notifications:", notifError)
+        logger.warn("⚠️ Could not send status notifications:", notifError)
       }
     }
 
@@ -286,8 +285,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in generate-intervention-magic-links API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in generate-intervention-magic-links API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

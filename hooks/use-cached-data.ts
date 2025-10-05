@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * 🚀 PHASE 3: Advanced Cache Hooks
  *
@@ -5,12 +7,11 @@
  * avec gestion automatique des états loading/error
  */
 
-'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { cache } from '@/lib/cache/cache-manager'
 import { useDataRefresh } from './use-cache-management'
-
+import { logger, logError } from '@/lib/logger'
 // ✅ Hook pour utiliser le cache directement
 export function useCache() {
   return {
@@ -58,7 +59,7 @@ export function useCachedData<T>(
       const result = await cache.getOrSet(key, fetcher, ttl)
       setData(result)
     } catch (err) {
-      console.error(`[CACHED-DATA] Error fetching ${key}:`, err)
+      logger.error(`[CACHED-DATA] Error fetching ${key}:`, err)
       setError(err instanceof Error ? err : new Error('Unknown error'))
     } finally {
       setLoading(false)
@@ -75,7 +76,7 @@ export function useCachedData<T>(
     if (!refetchOnWindowFocus || !enabled) return
 
     const handleFocus = () => {
-      console.log(`🔍 [CACHED-DATA] Window focus refetch: ${key}`)
+      logger.info(`🔍 [CACHED-DATA] Window focus refetch: ${key}`)
       fetchData()
     }
 
@@ -87,7 +88,7 @@ export function useCachedData<T>(
   useEffect(() => {
     if (!refetchInterval || !enabled) return
 
-    console.log(`⏰ [CACHED-DATA] Setting up interval refetch: ${key} (${refetchInterval}ms)`)
+    logger.info(`⏰ [CACHED-DATA] Setting up interval refetch: ${key} (${refetchInterval}ms)`)
     const interval = setInterval(fetchData, refetchInterval)
     return () => clearInterval(interval)
   }, [refetchInterval, fetchData, enabled, key])
@@ -106,7 +107,7 @@ export function useCachedData<T>(
       setData(newData)
       await cache.set(key, newData, ttl)
     } catch (err) {
-      console.error(`[CACHED-DATA] Error mutating ${key}:`, err)
+      logger.error(`[CACHED-DATA] Error mutating ${key}:`, err)
       setError(err instanceof Error ? err : new Error('Mutation error'))
     }
   }, [data, key, ttl])
@@ -153,7 +154,7 @@ export function useCachedList<T>(
       // Check if next page is not already cached
       cache.get(nextPageKey).then(cached => {
         if (!cached) {
-          console.log(`🔮 [CACHED-LIST] Prefetching next page: ${page + 1}`)
+          logger.info(`🔮 [CACHED-LIST] Prefetching next page: ${page + 1}`)
           cache.getOrSet(nextPageKey, () => fetcher(page + 1, pageSize), ttl)
         }
       })

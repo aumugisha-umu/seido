@@ -3,10 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService, createServerSupabaseClient } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
+const userService = createServerUserService()
+const lotService = createServerLotService()
+const buildingService = createServerBuildingService()
+const interventionService = createServerInterventionService()
 
 
 export async function POST(request: NextRequest) {
-  console.log("🔧 create-manager-intervention API route called")
+  logger.info("🔧 create-manager-intervention API route called")
   
   try {
     // Get the authenticated user 
@@ -40,18 +46,18 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
-      console.error("❌ Auth error:", authError)
+      logger.error("❌ Auth error:", authError)
       return NextResponse.json({
         success: false,
         error: 'Erreur d\'authentification'
       }, { status: 401 })
     }
 
-    console.log("✅ Authenticated user:", authUser.id)
+    logger.info("✅ Authenticated user:", authUser.id)
 
     // Parse the request body
     const body = await request.json()
-    console.log("📝 Request body:", body)
+    logger.info("📝 Request body:", body)
     
     const {
       // Basic intervention data
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    console.log("🔍 Validating required fields:", { 
+    logger.info("🔍 Validating required fields:", { 
       title: !!title, 
       description: !!description, 
       selectedManagerIds: selectedManagerIds?.length || 0,
@@ -113,27 +119,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data from database
-    console.log("👤 Getting user data...")
-    console.log("👤 Looking for user with auth_user_id:", authUser.id)
+    logger.info("👤 Getting user data...")
+    logger.info("👤 Looking for user with auth_user_id:", authUser.id)
     
     // ✅ Utiliser findByAuthUserId au lieu de getById pour la nouvelle structure DB
     let user
     try {
       user = await userService.findByAuthUserId(authUser.id)
-      console.log("✅ Found user via findByAuthUserId:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+      logger.info("✅ Found user via findByAuthUserId:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
     } catch (error) {
-      console.error("❌ Error with findByAuthUserId, trying getById:", error)
+      logger.error("❌ Error with findByAuthUserId, trying getById:", error)
       // Fallback: essayer avec getById au cas où
       try {
         user = await userService.getById(authUser.id)
-        console.log("✅ Found user via getById fallback:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+        logger.info("✅ Found user via getById fallback:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
       } catch (fallbackError) {
-        console.error("❌ Both methods failed:", fallbackError)
+        logger.error("❌ Both methods failed:", fallbackError)
       }
     }
     
     if (!user) {
-      console.error("❌ No user found for auth_user_id:", authUser.id)
+      logger.error("❌ No user found for auth_user_id:", authUser.id)
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
@@ -147,7 +153,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("✅ Manager user found:", user.name, user.role)
+    logger.info("✅ Manager user found:", user.name, user.role)
 
     // Determine if this is a building or lot intervention
     let lotId: string | null = null
@@ -158,16 +164,16 @@ export async function POST(request: NextRequest) {
     if (selectedLotId) {
       // Lot-specific intervention
       lotId = selectedLotId.toString()
-      console.log("🏠 Creating lot-specific intervention for lot ID:", _lotId)
-      
-      if (!_lotId) {
+      logger.info("🏠 Creating lot-specific intervention for lot ID:", lotId)
+
+      if (!lotId) {
         return NextResponse.json({
           success: false,
           error: 'ID du lot invalide'
         }, { status: 400 })
       }
 
-      const lot = await lotService.getById(_lotId)
+      const lot = await lotService.getById(lotId)
       if (!lot) {
         return NextResponse.json({
           success: false,
@@ -176,10 +182,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Get tenant for this lot if exists
-      console.log("👤 Looking for tenant in lot...")
+      logger.info("👤 Looking for tenant in lot...")
       
       // ✅ Utiliser uniquement lot_contacts (nouvelle architecture)
-      console.log("🔄 Using only lot_contacts for tenant lookup...")
+      logger.info("🔄 Using only lot_contacts for tenant lookup...")
       
       {
         // ✅ Look for tenant in lot_contacts avec nouvelle logique
@@ -195,7 +201,7 @@ export async function POST(request: NextRequest) {
             ),
             is_primary
           `)
-          .eq('lot_id', _lotId)
+          .eq('lot_id', lotId)
           .or('end_date.is.null,end_date.gt.now()') // Contacts actifs
 
         if (tenantContactData && tenantContactData.length > 0) {
@@ -206,12 +212,12 @@ export async function POST(request: NextRequest) {
           
           if (tenantContact?.user) {
             tenantId = tenantContact.user.id
-            console.log("✅ Found tenant from lot_contacts:", _tenantId)
+            logger.info("✅ Found tenant from lot_contacts:", tenantId)
           } else {
-            console.log("ℹ️ No tenant found in lot_contacts")
+            logger.info("ℹ️ No tenant found in lot_contacts")
           }
         } else {
-          console.log("ℹ️ No contacts found for this lot")
+          logger.info("ℹ️ No contacts found for this lot")
         }
       }
 
@@ -222,16 +228,16 @@ export async function POST(request: NextRequest) {
     } else if (selectedBuildingId) {
       // Building-wide intervention
       buildingId = selectedBuildingId.toString()
-      console.log("🏢 Creating building-wide intervention for building ID:", _buildingId)
-      
-      if (!_buildingId) {
+      logger.info("🏢 Creating building-wide intervention for building ID:", buildingId)
+
+      if (!buildingId) {
         return NextResponse.json({
           success: false,
           error: "ID du bâtiment invalide"
         }, { status: 400 })
       }
 
-      const building = await buildingService.getById(_buildingId)
+      const building = await buildingService.getById(buildingId)
       if (!building) {
         return NextResponse.json({
           success: false,
@@ -246,11 +252,11 @@ export async function POST(request: NextRequest) {
         interventionTeamId = building.team_id
       }
 
-      console.log("✅ Building-wide intervention will be linked directly to building")
+      logger.info("✅ Building-wide intervention will be linked directly to building")
     }
 
     // Map frontend values to database enums
-    const mapInterventionType = (_frontendType: string): Database['public']['Enums']['intervention_type'] => {
+    const mapInterventionType = (frontendType: string): Database['public']['Enums']['intervention_type'] => {
       const typeMapping: Record<string, Database['public']['Enums']['intervention_type']> = {
         'maintenance': 'autre',
         'plumbing': 'plomberie',
@@ -274,7 +280,7 @@ export async function POST(request: NextRequest) {
       return typeMapping[frontendType] || 'autre'
     }
 
-    const mapUrgencyLevel = (_frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
+    const mapUrgencyLevel = (frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
       const urgencyMapping: Record<string, Database['public']['Enums']['intervention_urgency']> = {
         'low': 'basse',
         'medium': 'normale',
@@ -307,15 +313,15 @@ export async function POST(request: NextRequest) {
     // Les assignations se font maintenant via intervention_contacts
 
     // Prepare intervention data
-    console.log("📝 Preparing intervention data with multiple managers:", selectedManagerIds)
+    logger.info("📝 Preparing intervention data with multiple managers:", selectedManagerIds)
     
     // ✅ LOGIQUE MÉTIER: Déterminer le statut selon les règles de création par gestionnaire
     let interventionStatus: Database['public']['Enums']['intervention_status']
     
-    console.log("🔍 Analyse des conditions pour déterminer le statut:", {
+    logger.info("🔍 Analyse des conditions pour déterminer le statut:", {
       hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
       expectsQuote,
-      hasTenant: !!_tenantId,
+      hasTenant: !!tenantId,
       onlyOneManager: selectedManagerIds.length === 1,
       noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
       schedulingType,
@@ -325,7 +331,7 @@ export async function POST(request: NextRequest) {
     // CAS 1: Demande de devis si prestataires assignés + devis requis
     if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
       interventionStatus = 'demande_de_devis'
-      console.log("✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
+      logger.info("✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
       
     // CAS 2: Planifiée directement si conditions strictes remplies
     } else if (
@@ -336,12 +342,12 @@ export async function POST(request: NextRequest) {
       fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
     ) {
       interventionStatus = 'planifiee'
-      console.log("✅ Statut déterminé: PLANIFIEE (pas locataire + seul gestionnaire + date fixe)")
+      logger.info("✅ Statut déterminé: PLANIFIEE (pas locataire + seul gestionnaire + date fixe)")
       
     // CAS 3: Planification dans tous les autres cas
     } else {
       interventionStatus = 'planification'
-      console.log("✅ Statut déterminé: PLANIFICATION (cas par défaut)")
+      logger.info("✅ Statut déterminé: PLANIFICATION (cas par défaut)")
     }
     
     const interventionData: Record<string, unknown> = {
@@ -350,7 +356,7 @@ export async function POST(request: NextRequest) {
       type: mapInterventionType(type || ''),
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
-      tenant_id: _tenantId, // Can be null for manager-created interventions
+      tenant_id: tenantId, // Can be null for manager-created interventions
       // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
       team_id: interventionTeamId,
       status: interventionStatus, // ✅ NOUVEAU: Statut déterminé selon les règles métier
@@ -362,25 +368,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Add lot_id only if it exists (for lot-specific interventions)
-    if (_lotId) {
+    if (lotId) {
       interventionData.lot_id = lotId
     }
 
-    // Add building_id only if it exists (for building-wide interventions)  
-    if (_buildingId) {
+    // Add building_id only if it exists (for building-wide interventions)
+    if (buildingId) {
       interventionData.building_id = buildingId
     }
 
-    console.log("📝 Creating intervention with data:", interventionData)
+    logger.info("📝 Creating intervention with data:", interventionData)
 
     // Create the intervention
     const intervention = await interventionService.create(interventionData)
-    console.log("✅ Intervention created:", intervention.id)
+    logger.info("✅ Intervention created:", intervention.id)
 
     // Handle multiple contact assignments
-    console.log("👥 Creating contact assignments...")
-    console.log("👥 Selected managers:", selectedManagerIds.length)
-    console.log("👥 Selected providers:", selectedProviderIds?.length || 0)
+    logger.info("👥 Creating contact assignments...")
+    logger.info("👥 Selected managers:", selectedManagerIds.length)
+    logger.info("👥 Selected providers:", selectedProviderIds?.length || 0)
     
     const contactAssignments: Array<{
       intervention_id: string,
@@ -392,7 +398,7 @@ export async function POST(request: NextRequest) {
 
     // ✅ Add all manager assignments
     selectedManagerIds.forEach((managerId: string, index: number) => {
-      console.log(`👥 Adding manager assignment ${index + 1}:`, managerId)
+      logger.info(`👥 Adding manager assignment ${index + 1}:`, managerId)
       contactAssignments.push({
         intervention_id: intervention.id,
         user_id: managerId, // ✅ Correction: user_id
@@ -405,7 +411,7 @@ export async function POST(request: NextRequest) {
     // ✅ Add provider assignments
     if (selectedProviderIds && selectedProviderIds.length > 0) {
       selectedProviderIds.forEach((providerId: string, index: number) => {
-        console.log(`🔧 Adding provider assignment ${index + 1}:`, providerId)
+        logger.info(`🔧 Adding provider assignment ${index + 1}:`, providerId)
         contactAssignments.push({
           intervention_id: intervention.id,
           user_id: providerId, // ✅ Correction: user_id
@@ -418,22 +424,22 @@ export async function POST(request: NextRequest) {
 
     // Insert contact assignments
     if (contactAssignments.length > 0) {
-      console.log("📝 Creating contact assignments:", contactAssignments.length)
+      logger.info("📝 Creating contact assignments:", contactAssignments.length)
       const { error: assignmentError } = await supabase
         .from('intervention_contacts')
         .insert(contactAssignments)
 
       if (assignmentError) {
-        console.error("⚠️ Error creating contact assignments:", assignmentError)
+        logger.error("⚠️ Error creating contact assignments:", assignmentError)
         // Don't fail the entire operation, just log the error
       } else {
-        console.log("✅ Contact assignments created:", contactAssignments.length)
+        logger.info("✅ Contact assignments created:", contactAssignments.length)
       }
     }
 
     // Handle scheduling slots if provided
     if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
-      console.log("📅 Creating time slots:", timeSlots.length)
+      logger.info("📅 Creating time slots:", timeSlots.length)
       
       const timeSlotsToInsert = timeSlots
         .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
@@ -451,16 +457,16 @@ export async function POST(request: NextRequest) {
           .insert(timeSlotsToInsert)
 
         if (slotsError) {
-          console.error("⚠️ Error creating time slots:", slotsError)
+          logger.error("⚠️ Error creating time slots:", slotsError)
         } else {
-          console.log("✅ Time slots created:", timeSlotsToInsert.length)
+          logger.info("✅ Time slots created:", timeSlotsToInsert.length)
         }
       }
     }
 
     // ✅ Handle manager availabilities if provided (gestionnaire's own availability)
     if (managerAvailabilities && managerAvailabilities.length > 0) {
-      console.log("📅 Processing manager availabilities:", managerAvailabilities.length)
+      logger.info("📅 Processing manager availabilities:", managerAvailabilities.length)
 
       try {
         // Validate and prepare manager availability data
@@ -473,21 +479,21 @@ export async function POST(request: NextRequest) {
 
           // Basic validation
           if (!date || !startTime || !endTime) {
-            console.warn("⚠️ Skipping invalid manager availability:", avail)
+            logger.warn("⚠️ Skipping invalid manager availability:", avail)
             continue
           }
 
           // Validate date is not in the past
           const availDate = new Date(date)
           if (isNaN(availDate.getTime()) || availDate < today) {
-            console.warn("⚠️ Skipping past date manager availability:", date)
+            logger.warn("⚠️ Skipping past date manager availability:", date)
             continue
           }
 
           // Validate time format
           const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
           if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
-            console.warn("⚠️ Skipping invalid time format:", startTime, endTime)
+            logger.warn("⚠️ Skipping invalid time format:", startTime, endTime)
             continue
           }
 
@@ -495,7 +501,7 @@ export async function POST(request: NextRequest) {
           const [startHour, startMin] = startTime.split(':').map(Number)
           const [endHour, endMin] = endTime.split(':').map(Number)
           if (startHour > endHour || (startHour === endHour && startMin >= endMin)) {
-            console.warn("⚠️ Skipping invalid time range:", startTime, endTime)
+            logger.warn("⚠️ Skipping invalid time range:", startTime, endTime)
             continue
           }
 
@@ -516,43 +522,43 @@ export async function POST(request: NextRequest) {
             .select()
 
           if (availError) {
-            console.error("❌ Error saving manager availabilities:", availError)
+            logger.error("❌ Error saving manager availabilities:", availError)
             // Don't fail the whole intervention creation, just log the error
           } else {
-            console.log("✅ Manager availabilities saved:", savedAvailabilities.length)
+            logger.info("✅ Manager availabilities saved:", savedAvailabilities.length)
           }
         } else {
-          console.log("ℹ️ No valid manager availabilities to save")
+          logger.info("ℹ️ No valid manager availabilities to save")
         }
       } catch (availabilityError) {
-        console.error("❌ Error processing manager availabilities:", availabilityError)
+        logger.error("❌ Error processing manager availabilities:", availabilityError)
         // Don't fail the intervention creation for availability errors
       }
     }
 
     // Handle file uploads if provided
     if (files && files.length > 0) {
-      console.log("📎 Processing file uploads:", files.length)
+      logger.info("📎 Processing file uploads:", files.length)
       
       try {
         // Store file information for later processing
         // Note: Actual file upload will be handled by separate API calls from the frontend
         // This is because FormData with files needs special handling in Next.js
-        console.log("📝 Files will be uploaded separately via upload API")
-        console.log("Files to upload:", files.map((f: { name: string; size: number; type: string }) => ({ name: f.name, size: f.size, type: f.type })))
+        logger.info("📝 Files will be uploaded separately via upload API")
+        logger.info("Files to upload:", files.map((f: { name: string; size: number; type: string }) => ({ name: f.name, size: f.size, type: f.type })))
         
         // We'll return the file information so the frontend can handle the uploads
         // The frontend will call /api/upload-intervention-document for each file
         
       } catch (error) {
-        console.error("❌ Error handling file information:", error)
+        logger.error("❌ Error handling file information:", error)
         // Don't fail the entire intervention creation for file handling errors
       }
     }
 
     // Store additional metadata in manager_comment
     const managerCommentParts = []
-    if (buildingId && !_lotId) managerCommentParts.push('Intervention sur bâtiment entier')
+    if (buildingId && !lotId) managerCommentParts.push('Intervention sur bâtiment entier')
     if (location) managerCommentParts.push(`Localisation: ${location}`)
     if (expectsQuote) managerCommentParts.push('Devis requis')
     if (globalMessage) managerCommentParts.push(`Instructions: ${globalMessage}`)
@@ -566,7 +572,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log("🎉 Manager intervention creation completed successfully")
+    logger.info("🎉 Manager intervention creation completed successfully")
 
     return NextResponse.json({
       success: true,
@@ -581,8 +587,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in create-manager-intervention API:", error)
-    console.error("❌ Error details:", {
+    logger.error("❌ Error in create-manager-intervention API:", error)
+    logger.error("❌ Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
     })

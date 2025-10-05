@@ -7,6 +7,7 @@ import { FullConfig } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 import { execSync } from 'child_process'
+import { logger, logError } from '@/lib/logger'
 
 async function globalTeardown(config: FullConfig) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')

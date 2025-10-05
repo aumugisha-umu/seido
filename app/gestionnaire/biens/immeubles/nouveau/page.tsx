@@ -54,7 +54,7 @@ import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
-
+import { logger, logError } from '@/lib/logger'
 interface BuildingInfo {
   name: string
   address: string
@@ -198,7 +198,7 @@ export default function NewImmeubleePage() {
         try {
           teamMembers = await teamService.getMembers(primaryTeam.id)
         } catch (membersError) {
-          console.error("Error loading team members:", membersError)
+          logger.error("Error loading team members:", membersError)
           teamMembers = [] // Continue avec un tableau vide
         }
         
@@ -239,7 +239,7 @@ export default function NewImmeubleePage() {
         }
         
       } catch (err) {
-        console.error('Error loading teams and managers:', err)
+        logger.error('Error loading teams and managers:', err)
         setError('Erreur lors du chargement des gestionnaires')
       } finally {
         setIsLoading(false)
@@ -260,7 +260,7 @@ export default function NewImmeubleePage() {
         const counts = await lotService.getCountByCategory(userTeam.id)
         setCategoryCountsByTeam(counts)
       } catch (error) {
-        console.error("Error loading category counts:", error)
+        logger.error("Error loading category counts:", error)
         setCategoryCountsByTeam({}) // Valeur par defaut en cas d'erreur
       }
     }
@@ -421,7 +421,7 @@ export default function NewImmeubleePage() {
 
   // Callbacks pour la gestion des contacts (nouvelle interface centralisee avec contexte)
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
-    console.log('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
+    logger.info('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
     
     if (context?._lotId) {
       // AJOUTER AU LOT SPECIFIQUE
@@ -469,11 +469,11 @@ export default function NewImmeubleePage() {
 
   // Fonction pour ouvrir le ContactSelector avec un type specifique (pour les boutons individuels)
   const openContactModalForType = (contactType: string, lotId?: string) => {
-    console.log('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', _lotId)
+    logger.info('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', _lotId)
     if (contactSelectorRef.current) {
       contactSelectorRef.current.openContactModal(contactType, _lotId)
     } else {
-      console.error('❌ [IMMEUBLE] ContactSelector ref not found')
+      logger.error('❌ [IMMEUBLE] ContactSelector ref not found')
     }
   }
 
@@ -656,7 +656,7 @@ export default function NewImmeubleePage() {
         refreshData: refetchManagerData,
       })
     } catch (err) {
-      console.error("Error creating building:", err)
+      logger.error("Error creating building:", err)
       setError(
         err instanceof Error 
           ? `Erreur lors de la création : ${err.message}`
@@ -688,7 +688,7 @@ export default function NewImmeubleePage() {
   const handleGestionnaireCreated = async (contactData: Contact) => {
     try {
       if (!userTeam?.id) {
-        console.error("No team found for user")
+        logger.error("No team found for user")
         return
       }
 
@@ -723,7 +723,7 @@ export default function NewImmeubleePage() {
       setIsGestionnaireModalOpen(false)
       
     } catch (error) {
-      console.error("Erreur lors de la création du gestionnaire:", error)
+      logger.error("Erreur lors de la création du gestionnaire:", error)
       // Vous pourriez vouloir afficher une notification d'erreur a l'utilisateur ici
     }
   }

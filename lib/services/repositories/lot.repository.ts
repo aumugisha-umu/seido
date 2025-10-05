@@ -204,12 +204,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .eq('id', id)
+      .eq('id', _id)
       .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Lot not found', this.tableName, id)
+        throw new NotFoundException('Lot not found', this.tableName, _id)
       }
       return this.handleError(error)
     }
@@ -234,14 +234,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
    */
   async findByIdWithContacts(_id: string) {
     // First get the basic lot data
-    const lotResult = await this.findByIdWithRelations(id)
+    const lotResult = await this.findByIdWithRelations(_id)
     if (!lotResult.success) return lotResult
 
     // Get contact statistics
     const { data: contactStats, error: statsError } = await this.supabase
       .from('lots_with_contacts')
       .select('*')
-      .eq('id', id)
+      .eq('id', _id)
       .single()
 
     if (statsError && statsError.code !== 'PGRST116') {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
@@ -22,6 +23,7 @@ export async function middleware(request: NextRequest) {
     '/auth/reset-password',
     '/auth/update-password',
     '/auth/callback',
+    '/auth/set-password',  // ✅ Accessible aux users authentifiés avec password_set=false (onboarding)
     '/auth/logout',
     '/auth/unauthorized',
     '/'

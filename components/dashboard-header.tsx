@@ -9,7 +9,7 @@ import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
 import { useGlobalNotifications } from "@/hooks/use-global-notifications"
-
+import { logger, logError } from '@/lib/logger'
 interface NavigationItem {
   href: string
   label: string
@@ -116,12 +116,12 @@ export default function DashboardHeader({
 
   const handleLogout = async () => {
     try {
-      console.log('👤 [DASHBOARD-HEADER] Logout button clicked')
+      logger.info('👤 [DASHBOARD-HEADER] Logout button clicked')
       await signOut()
-      console.log('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
+      logger.info('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
       window.location.href = "/auth/login"
     } catch (error) {
-      console.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
+      logger.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
       window.location.href = "/auth/login"
     }
   }

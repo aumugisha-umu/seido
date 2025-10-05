@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { contactService } from '@/lib/database-service'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 // Créer un client Supabase avec les permissions service-role pour bypass les RLS
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY

@@ -25,6 +25,7 @@ import { useContactsData } from "@/hooks/use-contacts-data"
 import { contactService, teamService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
+import { logger, logError } from '@/lib/logger'
 
 export default function ContactsPage() {
   const _router = useRouter()

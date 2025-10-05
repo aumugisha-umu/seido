@@ -36,7 +36,7 @@ import {
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
 import { ContactDetailHeader } from "@/components/contact-detail-header"
-
+import { logger, logError } from '@/lib/logger'
 interface ContactData {
   id: string
   name: string
@@ -107,18 +107,18 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
   }
 
   const handleArchive = () => {
-    console.log("Archive contact:", contact?.id)
+    logger.info("Archive contact:", contact?.id)
     // TODO: Implémenter la logique d'archivage
   }
 
   const handleInvitationAction = async (_action: string) => {
     if (!contact?.id) return
     
-    console.log("Invitation action:", action, "for contact:", contact.id)
+    logger.info("Invitation action:", action, "for contact:", contact.id)
     
     switch (action) {
       case "open-chat":
-        console.log("Opening chat with contact:", contact.id)
+        logger.info("Opening chat with contact:", contact.id)
         // TODO: Implémenter l'ouverture du chat
         break
       case "send-invitation":
@@ -131,7 +131,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
         await handleRevokeInvitation()
         break
       default:
-        console.log("Unknown invitation action:", action)
+        logger.info("Unknown invitation action:", action)
     }
   }
 
@@ -140,7 +140,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
 
     try {
       setInvitationLoading(true)
-      console.log("🔄 Sending invitation to:", contact.email)
+      logger.info("🔄 Sending invitation to:", contact.email)
 
       const response = await fetch("/api/invite-user", {
         method: "POST",
@@ -153,13 +153,13 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       })
 
       if (response.ok) {
-        console.log("✅ Invitation sent successfully")
+        logger.info("✅ Invitation sent successfully")
         await loadInvitationStatus() // Recharger le statut
       } else {
-        console.error("❌ Failed to send invitation")
+        logger.error("❌ Failed to send invitation")
       }
     } catch (error) {
-      console.error("❌ Error sending invitation:", error)
+      logger.error("❌ Error sending invitation:", error)
     } finally {
       setInvitationLoading(false)
     }
@@ -170,7 +170,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
 
     try {
       setInvitationLoading(true)
-      console.log("🔄 Resending invitation to:", contact.email)
+      logger.info("🔄 Resending invitation to:", contact.email)
 
       const response = await fetch("/api/resend-invitation", {
         method: "POST",
@@ -179,13 +179,13 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       })
 
       if (response.ok) {
-        console.log("✅ Invitation resent successfully")
+        logger.info("✅ Invitation resent successfully")
         await loadInvitationStatus() // Recharger le statut
       } else {
-        console.error("❌ Failed to resend invitation")
+        logger.error("❌ Failed to resend invitation")
       }
     } catch (error) {
-      console.error("❌ Error resending invitation:", error)
+      logger.error("❌ Error resending invitation:", error)
     } finally {
       setInvitationLoading(false)
     }
@@ -196,7 +196,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
 
     try {
       setInvitationLoading(true)
-      console.log("🔄 Revoking invitation for:", contact.email)
+      logger.info("🔄 Revoking invitation for:", contact.email)
 
       const response = await fetch("/api/revoke-invitation", {
         method: "POST",
@@ -205,13 +205,13 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       })
 
       if (response.ok) {
-        console.log("✅ Invitation revoked successfully")
+        logger.info("✅ Invitation revoked successfully")
         await loadInvitationStatus() // Recharger le statut
       } else {
-        console.error("❌ Failed to revoke invitation")
+        logger.error("❌ Failed to revoke invitation")
       }
     } catch (error) {
-      console.error("❌ Error revoking invitation:", error)
+      logger.error("❌ Error revoking invitation:", error)
     } finally {
       setInvitationLoading(false)
     }
@@ -227,21 +227,21 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
   const loadInvitationStatus = useCallback(async () => {
     try {
       setInvitationLoading(true)
-      console.log("🔍 Loading invitation status for contact:", resolvedParams.id)
+      logger.info("🔍 Loading invitation status for contact:", resolvedParams.id)
 
       const response = await fetch(`/api/contact-invitation-status?contactId=${resolvedParams.id}`)
 
       if (response.ok) {
         const { status } = await response.json()
         setInvitationStatus(status)
-        console.log("✅ Invitation status loaded:", status)
+        logger.info("✅ Invitation status loaded:", status)
       } else {
-        console.log("ℹ️ No invitation found for this contact")
+        logger.info("ℹ️ No invitation found for this contact")
         setInvitationStatus(null)
       }
 
     } catch (error) {
-      console.error("❌ Error loading invitation status:", error)
+      logger.error("❌ Error loading invitation status:", error)
       setInvitationStatus(null)
     } finally {
       setInvitationLoading(false)
@@ -252,23 +252,23 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
   const getContactInterventions = useCallback(async (contactId: string, contactData?: ContactType | ContactData) => {
     try {
       const contactToUse = contactData || contact
-      console.log("🔧 Getting interventions for contact role:", contactToUse?.role)
+      logger.info("🔧 Getting interventions for contact role:", contactToUse?.role)
 
       // Pour un prestataire : interventions assignées
       if (contactToUse?.role === 'prestataire') {
-        console.log("🔧 Fetching interventions assigned to provider:", contactId)
+        logger.info("🔧 Fetching interventions assigned to provider:", contactId)
         // Chercher les interventions où assigned_contact_id correspond à ce contact
         const allInterventions = await interventionService.getAll()
         const assignedInterventions = allInterventions?.filter(intervention => 
           intervention.assigned_contact_id === contactId &&
           intervention.lot?.building?.team_id === (contactToUse.team_id || user?.team_id)
         ) || []
-        console.log("🔧 Found assigned interventions:", assignedInterventions.length)
+        logger.info("🔧 Found assigned interventions:", assignedInterventions.length)
         return assignedInterventions
       }
       // Pour un locataire : interventions des lots où il habite
       else if (contactToUse?.role === 'locataire') {
-        console.log("🔧 Fetching interventions for tenant:", contactId)
+        logger.info("🔧 Fetching interventions for tenant:", contactId)
         
         // D'abord trouver les lots du locataire via lot_contacts
         const allLots = await lotService.getAll()
@@ -280,7 +280,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
           )
         }) || []
         
-        console.log("🔧 Found tenant lots for interventions:", tenantLots.length)
+        logger.info("🔧 Found tenant lots for interventions:", tenantLots.length)
         const tenantLotIds = tenantLots.map(lot => lot.id)
         
         // Puis récupérer les interventions de ces lots
@@ -289,24 +289,24 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
           tenantLotIds.includes(intervention.lot_id)
         ) || []
         
-        console.log("🔧 Found tenant interventions:", lotInterventions.length)
+        logger.info("🔧 Found tenant interventions:", lotInterventions.length)
         return lotInterventions
       }
       // Pour un gestionnaire : toutes les interventions de son équipe
       else if (contactToUse?.role === 'gestionnaire') {
-        console.log("🔧 Fetching all team interventions for manager:", contactToUse.team_id || user?.team_id)
+        logger.info("🔧 Fetching all team interventions for manager:", contactToUse.team_id || user?.team_id)
         const allInterventions = await interventionService.getAll()
         const teamInterventions = allInterventions?.filter(intervention => 
           intervention.lot?.building?.team_id === (contactToUse.team_id || user?.team_id)
         ) || []
-        console.log("🔧 Found team interventions:", teamInterventions.length)
+        logger.info("🔧 Found team interventions:", teamInterventions.length)
         return teamInterventions
       }
       
-      console.log("🔧 No interventions found for contact role:", contactToUse?.role)
+      logger.info("🔧 No interventions found for contact role:", contactToUse?.role)
       return []
     } catch (error) {
-      console.error("❌ Error loading contact interventions:", error)
+      logger.error("❌ Error loading contact interventions:", error)
       return []
     }
   }, [contact, user?.team_id, interventionService, lotService])
@@ -316,13 +316,13 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     try {
       const contactToUse = contactData || contact
       const properties = []
-      console.log("🏠 Getting properties for contact role:", contactToUse?.role)
+      logger.info("🏠 Getting properties for contact role:", contactToUse?.role)
       
       // Pour un locataire : lots où il habite (via lot_contacts)
       if (contactToUse?.role === 'locataire') {
-        console.log("🏠 Fetching lots for tenant:", contactId)
+        logger.info("🏠 Fetching lots for tenant:", contactId)
         const allLots = await lotService.getAll()
-        console.log("🏠 Total lots retrieved:", allLots?.length || 0)
+        logger.info("🏠 Total lots retrieved:", allLots?.length || 0)
         
         // Filtrer les lots où ce contact est présent dans lot_contacts comme locataire
         const tenantLots = allLots?.filter(lot => {
@@ -335,8 +335,8 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
           )
         }) || []
         
-        console.log("🏠 Found tenant lots:", tenantLots.length)
-        console.log("🏠 Tenant lots details:", tenantLots.map(lot => ({
+        logger.info("🏠 Found tenant lots:", tenantLots.length)
+        logger.info("🏠 Tenant lots details:", tenantLots.map(lot => ({
           id: lot.id, 
           reference: lot.reference,
           contacts: lot.lot_contacts?.length || 0
@@ -352,7 +352,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       
       // Pour un prestataire : biens où il intervient
       else if (contactToUse?.role === 'prestataire') {
-        console.log("🏠 Fetching properties where provider works:", contactId)
+        logger.info("🏠 Fetching properties where provider works:", contactId)
         // Récupérer les interventions du prestataire pour connaître les biens
         const allInterventions = await interventionService.getAll()
         const providerInterventions = allInterventions?.filter(intervention => 
@@ -362,7 +362,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
         
         // Récupérer les lots uniques de ces interventions
         const uniqueLotIds = [...new Set(providerInterventions.map(i => i.lot_id).filter(Boolean))]
-        console.log("🏠 Found unique lot IDs:", uniqueLotIds.length)
+        logger.info("🏠 Found unique lot IDs:", uniqueLotIds.length)
         
         const allLots = await lotService.getAll()
         const relatedLots = allLots?.filter(lot => 
@@ -380,14 +380,14 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
       
       // Pour un gestionnaire : tous les biens de son équipe
       else if (contactToUse?.role === 'gestionnaire') {
-        console.log("🏠 Fetching all team properties for manager:", contactToUse.team_id || user?.team_id)
+        logger.info("🏠 Fetching all team properties for manager:", contactToUse.team_id || user?.team_id)
         
         // Récupérer tous les immeubles de l'équipe
         const buildings = await buildingService.getAll()
         const teamBuildings = buildings?.filter(building => 
           building.team_id === (contactToUse.team_id || user?.team_id)
         ) || []
-        console.log("🏠 Found team buildings:", teamBuildings.length)
+        logger.info("🏠 Found team buildings:", teamBuildings.length)
         
         for (const building of teamBuildings) {
           properties.push({
@@ -401,7 +401,7 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
         const teamLots = lots?.filter(lot => 
           lot.building?.team_id === (contactToUse.team_id || user?.team_id)
         ) || []
-        console.log("🏠 Found team lots:", teamLots.length)
+        logger.info("🏠 Found team lots:", teamLots.length)
         
         for (const lot of teamLots) {
           properties.push({
@@ -411,10 +411,10 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
         }
       }
       
-      console.log("🏠 Total properties found:", properties.length)
+      logger.info("🏠 Total properties found:", properties.length)
       return properties
     } catch (error) {
-      console.error("❌ Error loading contact properties:", error)
+      logger.error("❌ Error loading contact properties:", error)
       return []
     }
   }, [contact, user?.team_id, interventionService, lotService, buildingService])
@@ -424,11 +424,11 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     try {
       setLoading(true)
       setError(null)
-      console.log("👤 Loading contact data for ID:", resolvedParams.id)
+      logger.info("👤 Loading contact data for ID:", resolvedParams.id)
 
       // 1. Charger les données du contact
       const contactData = await contactService.getById(resolvedParams.id)
-      console.log("👤 Contact loaded:", contactData)
+      logger.info("👤 Contact loaded:", contactData)
       setContact(contactData as ContactData)
 
       // 2. Charger le statut d'invitation
@@ -436,16 +436,16 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
 
       // 3. Charger les interventions liées au contact (passer les données du contact)
       const interventionsData = await getContactInterventions(resolvedParams.id, contactData)
-      console.log("🔧 Interventions loaded:", interventionsData?.length || 0)
+      logger.info("🔧 Interventions loaded:", interventionsData?.length || 0)
       setInterventions(interventionsData || [])
 
       // 4. Charger les biens liés au contact (passer les données du contact)
       const propertiesData = await getContactProperties(resolvedParams.id, contactData)
-      console.log("🏠 Properties loaded:", propertiesData?.length || 0)
+      logger.info("🏠 Properties loaded:", propertiesData?.length || 0)
       setProperties(propertiesData || [])
 
     } catch (error) {
-      console.error("❌ Error loading contact data:", error)
+      logger.error("❌ Error loading contact data:", error)
       setError("Erreur lors du chargement des données du contact")
     } finally {
       setLoading(false)

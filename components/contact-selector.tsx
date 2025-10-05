@@ -22,7 +22,9 @@ import {
 import ContactFormModal from "@/components/contact-form-modal"
 
 
-import { determineAssignmentType } from '@/lib/services'
+import { determineAssignmentType, createContactService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
+const contactService = createContactService()
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -78,7 +80,7 @@ export interface ContactSelectorRef {
 }
 
 export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorProps>(({
-  _teamId,
+  teamId,
   displayMode = "full",
   title = "Assignation des contacts",
   description = "Assignez des contacts à vos lots (optionnel)",
@@ -111,21 +113,21 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Fonction interne pour ouvrir le modal (sera utilisée par le composant et exposée via ref)
   const handleOpenContactModal = async (_contactType: string) => {
-    console.log('🚀 [ContactSelector] openContactModal appelé avec type:', contactType)
+    logger.info('🚀 [ContactSelector] openContactModal appelé avec type:', contactType)
     setSelectedContactType(contactType)
     setSearchTerm("")
     setIsContactModalOpen(true)
     
     // Charger les contacts existants du type correspondant
-    if (_teamId) {
+    if (teamId) {
       setIsLoadingContacts(true)
       try {
-        console.log('📞 [ContactSelector] Loading contacts for team:', _teamId)
-        const contactsResult = await contactService.getTeamContacts(_teamId)
+        logger.info('📞 [ContactSelector] Loading contacts for team:', teamId)
+        const contactsResult = await contactService.getTeamContacts(teamId)
         const teamContacts = contactsResult?.data || []
 
-        console.log('✅ [ContactSelector] Loaded', teamContacts?.length, 'contacts')
-        console.log('📋 [ContactSelector] Sample contact:', JSON.stringify(teamContacts?.[0], null, 2))
+        logger.info('✅ [ContactSelector] Loaded', teamContacts?.length, 'contacts')
+        logger.info('📋 [ContactSelector] Sample contact:', JSON.stringify(teamContacts?.[0], null, 2))
 
         // Filtrer selon le type de contact demandé (logique centralisée)
         const filteredContacts = teamContacts.filter(contact => {
@@ -160,33 +162,33 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
             speciality: (contact.speciality || undefined) as string | undefined  // Convertir null en undefined
           }
           
-          console.log('🧪 [ContactSelector] Processing:', contact?.name, 'DB role:', contact?.role, '→ mapped:', mappedRole, 'DB category:', contact?.provider_category, '→ mapped:', mappedProviderCategory)
+          logger.info('🧪 [ContactSelector] Processing:', contact?.name, 'DB role:', contact?.role, '→ mapped:', mappedRole, 'DB category:', contact?.provider_category, '→ mapped:', mappedProviderCategory)
           
           const assignmentType = determineAssignmentType(assignmentUser)
           const matches = assignmentType === contactType
           
-          console.log('🧪 [ContactSelector] AssignmentType:', assignmentType, 'matches', contactType, '?', matches)
+          logger.info('🧪 [ContactSelector] AssignmentType:', assignmentType, 'matches', contactType, '?', matches)
           
           return matches
         })
         
-        console.log('🎯 [ContactSelector] Filtered:', filteredContacts.length, '/', teamContacts.length, 'contacts')
+        logger.info('🎯 [ContactSelector] Filtered:', filteredContacts.length, '/', teamContacts.length, 'contacts')
         setExistingContacts(filteredContacts)
       } catch (error) {
-        console.error("❌ [ContactSelector] Error loading contacts:", error)
+        logger.error("❌ [ContactSelector] Error loading contacts:", error)
         setExistingContacts([])
       } finally {
         setIsLoadingContacts(false)
       }
     } else {
-      console.log('⚠️ [ContactSelector] No teamId provided')
+      logger.info('⚠️ [ContactSelector] No teamId provided')
     }
   }
 
   // Exposer les méthodes publiques via ref
   useImperativeHandle(ref, () => ({
     openContactModal: (contactType: string, contextLotId?: string) => {
-      console.log('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
+      logger.info('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
       setExternalLotId(contextLotId)
       handleOpenContactModal(contactType)
     }
@@ -215,13 +217,13 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
     const contextLotId = externalLotId || lotId
     
-    console.log('✅ [ContactSelector] Contact selected:', newContact.name, 'type:', selectedContactType, 'lotId:', contextLotId)
+    logger.info('✅ [ContactSelector] Contact selected:', newContact.name, 'type:', selectedContactType, 'lotId:', contextLotId)
     
     // Appeler le callback parent avec contexte
     if (onContactSelected) {
       onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
     } else {
-      console.error('❌ [ContactSelector] onContactSelected callback is missing!')
+      logger.error('❌ [ContactSelector] onContactSelected callback is missing!')
     }
     
     setIsContactModalOpen(false)
@@ -230,14 +232,14 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // Créer un contact (logique centralisée)
-  const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; address: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
+  const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
     try {
-      if (!_teamId) {
-        console.error("❌ [ContactSelector] No teamId provided")
+      if (!teamId) {
+        logger.error("❌ [ContactSelector] No teamId provided")
         return
       }
 
-      console.log('🆕 [ContactSelector] Creating contact:', contactData.firstName, contactData.lastName, 'type:', selectedContactType)
+      logger.info('🆕 [ContactSelector] Creating contact:', contactData.firstName, contactData.lastName, 'type:', selectedContactType)
 
       // Utiliser le service d'invitation pour créer le contact
       const result = await contactInvitationService.createContactWithOptionalInvite({
@@ -246,7 +248,6 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         lastName: contactData.lastName,
         email: contactData.email,
         phone: contactData.phone,
-        address: contactData.address,
         speciality: contactData.speciality,
         notes: contactData.notes,
         inviteToApp: contactData.inviteToApp,
@@ -263,7 +264,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         speciality: result.contact.speciality,
       }
       
-      console.log('✅ [ContactSelector] Contact created:', newContact.name)
+      logger.info('✅ [ContactSelector] Contact created:', newContact.name)
       
       // Appeler les callbacks parent
       if (onContactSelected) {
@@ -278,7 +279,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       cleanContactContext()
       
     } catch (error) {
-      console.error("❌ Erreur lors de la création du contact:", error)
+      logger.error("❌ Erreur lors de la création du contact:", error)
     }
   }
 

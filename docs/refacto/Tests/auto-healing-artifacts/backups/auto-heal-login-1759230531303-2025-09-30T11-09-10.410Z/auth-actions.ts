@@ -16,6 +16,7 @@ import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
 import { requireGuest, invalidateAuth, getDashboardPath } from '@/lib/auth-dal'
 import { createServerUserService } from '@/lib/services'
 import { z } from 'zod'
+import { logger, logError } from '@/lib/logger'
 
 // ✅ VALIDATION: Schemas Zod pour sécurité server-side
 const LoginSchema = z.object({

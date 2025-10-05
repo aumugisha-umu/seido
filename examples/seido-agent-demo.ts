@@ -6,6 +6,7 @@
  */
 
 import {
+import { logger, logError } from '@/lib/logger'
   SEIDORefactoringSpecialist,
   SEIDOValidationEngine,
   SEIDORefactoringPatterns,

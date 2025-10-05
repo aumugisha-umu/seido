@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-
+import { logger, logError } from '@/lib/logger'
 interface UploadProgress {
   file: File
   progress: number
@@ -106,11 +106,11 @@ export const useDocumentUpload = ({
         onUploadError(`${failed.length} fichier(s) n'ont pas pu être uploadés`)
       }
 
-      console.log(`✅ Upload completed: ${successful.length} successful, ${failed.length} failed`)
+      logger.info(`✅ Upload completed: ${successful.length} successful, ${failed.length} failed`)
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'upload des fichiers'
-      console.error('❌ Upload error:', error)
+      logger.error('❌ Upload error:', error)
       
       if (onUploadError) {
         onUploadError(errorMessage)

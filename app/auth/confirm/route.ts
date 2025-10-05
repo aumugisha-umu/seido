@@ -4,7 +4,7 @@ import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { createServerUserService } from '@/lib/services'
 import { createClient } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 📧 ROUTE UNIFIÉE - Confirmation Email & Invitations
  *
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const token_hash = searchParams.get('token_hash')
     const type = searchParams.get('type') as 'email' | 'invite' | 'recovery' | null
 
-    console.log('🔐 [AUTH-CONFIRM] Starting confirmation:', {
+    logger.info('🔐 [AUTH-CONFIRM] Starting confirmation:', {
       type,
       has_token: !!token_hash,
       token_length: token_hash?.length || 0,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Validation paramètres
     if (!token_hash || !type) {
-      console.error('❌ [AUTH-CONFIRM] Missing parameters:', {
+      logger.error('❌ [AUTH-CONFIRM] Missing parameters:', {
         token_hash: !!token_hash,
         type,
         all_params: Object.fromEntries(searchParams.entries())
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Créer client Supabase server
     const supabase = await createServerSupabaseClient()
 
-    console.log('🔧 [AUTH-CONFIRM] Calling verifyOtp...')
+    logger.info('🔧 [AUTH-CONFIRM] Calling verifyOtp...')
 
     // ✅ VÉRIFIER OTP avec Supabase (essai principal)
     let { data, error } = await supabase.auth.verifyOtp({
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     // 🔁 Fallback: certains tokens générés via admin.generateLink({ type: 'signup' })
     // peuvent nécessiter verifyOtp avec type='signup'.
     if ((error || !data?.user) && type === 'email') {
-      console.warn('🔁 [AUTH-CONFIRM] Primary verifyOtp failed with type=email, retrying with type=signup...')
+      logger.warn('🔁 [AUTH-CONFIRM] Primary verifyOtp failed with type=email, retrying with type=signup...')
       const retry = await supabase.auth.verifyOtp({
         token_hash,
         type: 'signup' as any,
@@ -63,12 +63,12 @@ export async function GET(request: NextRequest) {
       if (!retry.error && retry.data?.user) {
         data = retry.data
         error = null as any
-        console.log('✅ [AUTH-CONFIRM] Fallback verifyOtp(type=signup) succeeded')
+        logger.info('✅ [AUTH-CONFIRM] Fallback verifyOtp(type=signup) succeeded')
       }
     }
 
     if (error || !data?.user) {
-      console.error('❌ [AUTH-CONFIRM] OTP verification failed:', {
+      logger.error('❌ [AUTH-CONFIRM] OTP verification failed:', {
         message: error?.message,
         name: error?.name,
         status: error?.status,
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = data.user
-    console.log('✅ [AUTH-CONFIRM] OTP verified for:', user.email)
+    logger.info('✅ [AUTH-CONFIRM] OTP verified for:', user.email)
 
     // ✅ À ce stade, le trigger a déjà créé le profil utilisateur !
     // (car verifyOtp() met à jour email_confirmed_at, déclenchant le trigger)
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     if (type === 'email') {
       // 📧 CONFIRMATION SIGNUP PUBLIC
-      console.log('📧 [AUTH-CONFIRM] Email confirmation (signup) for:', user.email)
+      logger.info('📧 [AUTH-CONFIRM] Email confirmation (signup) for:', user.email)
 
       // ✅ NOUVEAU PATTERN (2025-10-03): Création directe du profil (plus de dépendance sur trigger DB)
       // Après analyse avec 3 agents spécialisés, le trigger PostgreSQL est trop fragile
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
 
         if (existingProfile.success && existingProfile.data) {
           // Profil déjà créé (trigger a fonctionné ou retry)
-          console.log('✅ [AUTH-CONFIRM] Profile already exists:', {
+          logger.info('✅ [AUTH-CONFIRM] Profile already exists:', {
             userId: existingProfile.data.id,
             role: existingProfile.data.role,
             teamId: existingProfile.data.team_id
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           teamId = existingProfile.data.team_id
         } else {
           // Créer le profil directement (pattern recommandé 2025)
-          console.log('🔨 [AUTH-CONFIRM] Creating profile server-side...')
+          logger.info('🔨 [AUTH-CONFIRM] Creating profile server-side...')
 
           // ⚠️ IMPORTANT: Utiliser le client ADMIN pour bypass RLS
           // Le UserService utilise le client server (avec session user) qui est bloqué par RLS
@@ -150,13 +150,13 @@ export async function GET(request: NextRequest) {
           )
 
           // 🔍 ÉTAPE 1: Récupérer le profil complet avec métadonnées depuis Supabase Auth
-          console.log('🔍 [AUTH-CONFIRM] Fetching full user profile with metadata...')
+          logger.info('🔍 [AUTH-CONFIRM] Fetching full user profile with metadata...')
           const { data: fullUserData, error: userFetchError } = await supabaseAdmin.auth.admin.getUserById(user.id)
 
           // Utiliser fullUserData.user au lieu de user pour les métadonnées
           const userWithMetadata = fullUserData?.user || user
 
-          console.log('🔍 [AUTH-CONFIRM] Full user metadata:', {
+          logger.info('🔍 [AUTH-CONFIRM] Full user metadata:', {
             raw_user_meta_data: userWithMetadata.raw_user_meta_data,
             user_metadata: userWithMetadata.user_metadata,
             email: userWithMetadata.email
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
           const phone = userWithMetadata.raw_user_meta_data?.phone ||
                         userWithMetadata.user_metadata?.phone
 
-          console.log('📝 [AUTH-CONFIRM] Extracted metadata:', {
+          logger.info('📝 [AUTH-CONFIRM] Extracted metadata:', {
             firstName,
             lastName,
             fullName,
@@ -216,12 +216,12 @@ export async function GET(request: NextRequest) {
             .single()
 
           if (profileError || !newProfile) {
-            console.error('❌ [AUTH-CONFIRM] Failed to create profile:', profileError)
+            logger.error('❌ [AUTH-CONFIRM] Failed to create profile:', profileError)
             throw new Error(`Profile creation failed: ${profileError?.message || 'Unknown error'}`)
           }
 
           userProfileId = newProfile.id
-          console.log('✅ [AUTH-CONFIRM] Profile created (admin bypass RLS):', {
+          logger.info('✅ [AUTH-CONFIRM] Profile created (admin bypass RLS):', {
             userId: userProfileId,
             role: userRole,
             email: user.email
@@ -246,10 +246,10 @@ export async function GET(request: NextRequest) {
               .single()
 
             if (teamError || !newTeam) {
-              console.warn('⚠️ [AUTH-CONFIRM] Team creation failed (non-blocking):', teamError)
+              logger.warn('⚠️ [AUTH-CONFIRM] Team creation failed (non-blocking):', teamError)
             } else {
               teamId = newTeam.id
-              console.log('✅ [AUTH-CONFIRM] Team created:', {
+              logger.info('✅ [AUTH-CONFIRM] Team created:', {
                 teamId,
                 teamName,
                 createdBy: userProfileId,
@@ -263,9 +263,9 @@ export async function GET(request: NextRequest) {
                 .eq('id', userProfileId)
 
               if (updateError) {
-                console.warn('⚠️ [AUTH-CONFIRM] Failed to update profile with team_id (non-blocking):', updateError)
+                logger.warn('⚠️ [AUTH-CONFIRM] Failed to update profile with team_id (non-blocking):', updateError)
               } else {
-                console.log('✅ [AUTH-CONFIRM] Profile updated with team_id:', teamId)
+                logger.info('✅ [AUTH-CONFIRM] Profile updated with team_id:', teamId)
               }
 
               // 4. Ajouter l'utilisateur comme admin de son équipe dans team_members
@@ -279,9 +279,9 @@ export async function GET(request: NextRequest) {
                 })
 
               if (memberError) {
-                console.warn('⚠️ [AUTH-CONFIRM] Failed to add user to team_members (non-blocking):', memberError)
+                logger.warn('⚠️ [AUTH-CONFIRM] Failed to add user to team_members (non-blocking):', memberError)
               } else {
-                console.log('✅ [AUTH-CONFIRM] User added to team_members as admin')
+                logger.info('✅ [AUTH-CONFIRM] User added to team_members as admin')
               }
             }
           }
@@ -289,8 +289,8 @@ export async function GET(request: NextRequest) {
       } catch (profileCreationError) {
         // ⚠️ IMPORTANT: Ne pas bloquer l'auth si création profil échoue
         // Le fallback JWT dans auth-service.ts gère ce cas
-        console.error('❌ [AUTH-CONFIRM] Profile creation error (non-blocking):', profileCreationError)
-        console.error('⚠️ [AUTH-CONFIRM] User can still login, profile will be created on first login via fallback')
+        logger.error('❌ [AUTH-CONFIRM] Profile creation error (non-blocking):', profileCreationError)
+        logger.error('⚠️ [AUTH-CONFIRM] User can still login, profile will be created on first login via fallback')
       }
 
       // Envoyer email de bienvenue via Resend
@@ -305,18 +305,18 @@ export async function GET(request: NextRequest) {
         })
 
         if (emailResult.success) {
-          console.log('✅ [AUTH-CONFIRM] Welcome email sent:', emailResult.emailId)
+          logger.info('✅ [AUTH-CONFIRM] Welcome email sent:', emailResult.emailId)
         } else {
-          console.warn('⚠️ [AUTH-CONFIRM] Welcome email failed (non-blocking):', emailResult.error)
+          logger.warn('⚠️ [AUTH-CONFIRM] Welcome email failed (non-blocking):', emailResult.error)
         }
       } catch (emailError) {
-        console.error('❌ [AUTH-CONFIRM] Welcome email error (non-blocking):', emailError)
+        logger.error('❌ [AUTH-CONFIRM] Welcome email error (non-blocking):', emailError)
       }
 
       // ✅ REDIRECTION DIRECTE VERS DASHBOARD (2025-10-03)
       // L'utilisateur est déjà connecté après verifyOtp() → pas besoin de login
       const dashboardPath = `/${userRole}/dashboard`
-      console.log(`✅ [AUTH-CONFIRM] User authenticated and profile created, redirecting to: ${dashboardPath}`)
+      logger.info(`✅ [AUTH-CONFIRM] User authenticated and profile created, redirecting to: ${dashboardPath}`)
 
       return NextResponse.redirect(
         new URL(dashboardPath, request.url)
@@ -325,7 +325,7 @@ export async function GET(request: NextRequest) {
 
     if (type === 'invite') {
       // 👥 CONFIRMATION INVITATION
-      console.log('👥 [AUTH-CONFIRM] Invitation confirmation for:', user.email)
+      logger.info('👥 [AUTH-CONFIRM] Invitation confirmation for:', user.email)
 
       // Vérifier si mot de passe déjà défini
       const skipPassword = user.raw_user_meta_data?.skip_password === 'true'
@@ -346,7 +346,7 @@ export async function GET(request: NextRequest) {
 
     if (type === 'recovery') {
       // 🔑 RÉINITIALISATION MOT DE PASSE
-      console.log('🔑 [AUTH-CONFIRM] Password recovery for:', user.email)
+      logger.info('🔑 [AUTH-CONFIRM] Password recovery for:', user.email)
 
       // Rediriger vers page mise à jour mot de passe
       return NextResponse.redirect(
@@ -355,13 +355,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Type non reconnu
-    console.error('❌ [AUTH-CONFIRM] Unknown type:', type)
+    logger.error('❌ [AUTH-CONFIRM] Unknown type:', type)
     return NextResponse.redirect(
       new URL('/auth/login?error=invalid_confirmation_type', request.url)
     )
 
   } catch (error) {
-    console.error('❌ [AUTH-CONFIRM] Unexpected error:', error)
+    logger.error('❌ [AUTH-CONFIRM] Unexpected error:', error)
     return NextResponse.redirect(
       new URL('/auth/login?error=confirmation_failed', request.url)
     )

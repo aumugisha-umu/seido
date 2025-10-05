@@ -190,7 +190,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .or(`building_contacts.user_id.eq.${userId},team_id.in.(select team_id from team_members where user_id = '${userId}')`)
+      .or(`building_contacts.user_id.eq.${_userId},team_id.in.(select team_id from team_members where user_id = '${_userId}')`)
       .order('name')
 
     if (error) {
@@ -238,12 +238,12 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .eq('id', id)
+      .eq('id', _id)
       .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Building not found', this.tableName, id)
+        throw new NotFoundException('Building not found', this.tableName, _id)
       }
       return this.handleError(error)
     }
@@ -254,9 +254,9 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
       // For each lot, extract primary tenant
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data.lots = data.lots?.map((_lot: unknown) => ({
-        ...lot,
-        tenant: lot.lot_contacts?.[0]?.user || null
+      data.lots = data.lots?.map((_lot: any) => ({
+        ..._lot,
+        tenant: _lot.lot_contacts?.[0]?.user || null
       }))
     }
 

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { X, Loader2, AlertTriangle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-
+import { logger, logError } from '@/lib/logger'
 interface QuoteRejectionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -59,7 +59,7 @@ export function QuoteRejectionModal({
         })
       })
 
-      const _data = await response.json()
+      const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors du rejet')
@@ -76,7 +76,7 @@ export function QuoteRejectionModal({
       onSuccess()
 
     } catch (error) {
-      console.error('Erreur lors du rejet:', error)
+      logger.error('Erreur lors du rejet:', error)
       toast({
         title: "Erreur",
         description: error instanceof Error ? error.message : "Erreur lors du rejet du devis",

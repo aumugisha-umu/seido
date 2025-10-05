@@ -8,6 +8,7 @@ import { TeamRepository, createTeamRepository, createServerTeamRepository, type 
 import { TeamMemberRepository, createTeamMemberRepository, createServerTeamMemberRepository, type UserTeamAssociation } from '../repositories/team-member.repository'
 import { UserService, createUserService, createServerUserService } from './user.service'
 import { ValidationException, ConflictException, NotFoundException } from '../core/error-handler'
+import { logger, logError } from '@/lib/logger'
 import type {
   Team,
   User
@@ -89,7 +90,7 @@ export class TeamService {
       const result = await this.repository.findUserTeams(userId)
       return result
     } catch (error) {
-      console.error('[TEAM-SERVICE] getUserTeams: Error', error)
+      logger.error('[TEAM-SERVICE] getUserTeams: Error', error)
       throw error
     }
   }
@@ -374,7 +375,7 @@ export class TeamService {
         error: 'Utilisateur sans équipe assignée. Contactez votre administrateur.'
       }
     } catch (error) {
-      console.error('❌ [TEAM-SERVICE] Error ensuring user has team:', error)
+      logger.error('❌ [TEAM-SERVICE] Error ensuring user has team:', error)
       return {
         hasTeam: false,
         error: 'Erreur lors de la vérification de l\'équipe'
@@ -478,27 +479,27 @@ export class TeamService {
    * Logging methods (in production, these would use the activity-logger service)
    */
   private async logTeamCreation(team: TeamWithMembers, createdBy?: User) {
-    console.log('Team created:', team.id, team.name, 'by:', createdBy?.name || 'system')
+    logger.info('Team created:', team.id, team.name, 'by:', createdBy?.name || 'system')
   }
 
   private async logTeamUpdate(team: Team, changes: UpdateTeamData, updatedBy?: User) {
-    console.log('Team updated:', team.id, changes, 'by:', updatedBy?.name || 'system')
+    logger.info('Team updated:', team.id, changes, 'by:', updatedBy?.name || 'system')
   }
 
   private async logTeamDeletion(team: Team, deletedBy?: User) {
-    console.log('Team deleted:', team.id, team.name, 'by:', deletedBy?.name || 'system')
+    logger.info('Team deleted:', team.id, team.name, 'by:', deletedBy?.name || 'system')
   }
 
   private async logMemberAddition(teamId: string, userId: string, role: string, addedBy?: User) {
-    console.log('Member added to team:', teamId, 'user:', userId, 'role:', role, 'by:', addedBy?.name || 'system')
+    logger.info('Member added to team:', teamId, 'user:', userId, 'role:', role, 'by:', addedBy?.name || 'system')
   }
 
   private async logMemberRemoval(teamId: string, userId: string, removedBy?: User) {
-    console.log('Member removed from team:', teamId, 'user:', userId, 'by:', removedBy?.name || 'system')
+    logger.info('Member removed from team:', teamId, 'user:', userId, 'by:', removedBy?.name || 'system')
   }
 
   private async logMemberRoleUpdate(teamId: string, userId: string, role: string, updatedBy?: User) {
-    console.log('Member role updated:', teamId, 'user:', userId, 'new role:', role, 'by:', updatedBy?.name || 'system')
+    logger.info('Member role updated:', teamId, 'user:', userId, 'new role:', role, 'by:', updatedBy?.name || 'system')
   }
 }
 

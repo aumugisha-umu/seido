@@ -3,6 +3,7 @@ import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{

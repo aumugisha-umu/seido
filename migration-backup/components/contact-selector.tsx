@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import ContactFormModal from "@/components/contact-form-modal"
 import { contactService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
+import { logger, logError } from '@/lib/logger'
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [

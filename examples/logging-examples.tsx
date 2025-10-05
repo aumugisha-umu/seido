@@ -10,6 +10,7 @@ import {
   logError 
 } from '@/lib/logger'
 import { 
+import { logger, logError } from '@/lib/logger'
   useComponentLogger, 
   useInteractionLogger, 
   usePerformanceLogger 

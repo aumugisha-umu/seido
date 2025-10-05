@@ -6,7 +6,7 @@
 import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 // Repository-specific types for statistics
 export interface ActivityStats {
   period: string
@@ -114,7 +114,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
       // Calculate completed interventions and revenue
       const completedInterventions = interventionsResult.data?.filter(
-        i => i.status === 'completed' || i.status === 'cloturee_validee'
+        i => i.status === 'cloturee_par_prestataire' || i.status === 'cloturee_par_locataire' || i.status === 'cloturee_par_gestionnaire'
       ) || []
 
       const totalRevenue = completedInterventions.length * 450 // 450€ average per intervention
@@ -153,7 +153,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       return { success: true, data: stats }
 
     } catch (error) {
-      console.error('❌ Error getting system stats:', error)
+      logger.error('❌ Error getting system stats:', error)
       throw error
     }
   }
@@ -260,7 +260,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       return { success: true, data: stats }
 
     } catch (error) {
-      console.error('❌ Error getting activity stats:', error)
+      logger.error('❌ Error getting activity stats:', error)
       throw error
     }
   }
@@ -269,7 +269,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
    * Get team statistics
    */
   async getTeamStats(_teamId: string): Promise<{ success: true; data: TeamStats }> {
-    const cacheKey = `team_stats_${teamId}`
+    const cacheKey = `team_stats_${_teamId}`
     const cached = this.getFromCache(cacheKey)
     if (cached) {
       return { success: true, data: cached }
@@ -292,7 +292,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
       // Calculate intervention metrics
       const completedInterventions = interventions.filter(
-        i => i.status === 'completed' || i.status === 'cloturee_validee'
+        i => i.status === 'cloturee_par_prestataire' || i.status === 'cloturee_par_locataire' || i.status === 'cloturee_par_gestionnaire'
       )
 
       // Calculate average completion time
@@ -330,7 +330,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       return { success: true, data: stats }
 
     } catch (error) {
-      console.error('❌ Error getting team stats:', error)
+      logger.error('❌ Error getting team stats:', error)
       throw error
     }
   }
@@ -339,7 +339,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
    * Get user statistics
    */
   async getUserStats(_userId: string): Promise<{ success: true; data: UserStats }> {
-    const cacheKey = `user_stats_${userId}`
+    const cacheKey = `user_stats_${_userId}`
     const cached = this.getFromCache(cacheKey)
     if (cached) {
       return { success: true, data: cached }
@@ -364,8 +364,8 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         this.supabase
           .from('interventions')
           .select('id', { count: 'exact' })
-          .or(`assigned_gestionnaire.eq.${userId},assigned_prestataire.eq.${userId}`)
-          .in('status', ['completed', 'cloturee_validee']),
+          .or(`assigned_gestionnaire.eq.${_userId},assigned_prestataire.eq.${_userId}`)
+          .in('status', ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']),
         this.supabase
           .from('activity_logs')
           .select('id, created_at', { count: 'exact' })
@@ -397,7 +397,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       return { success: true, data: stats }
 
     } catch (error) {
-      console.error('❌ Error getting user stats:', error)
+      logger.error('❌ Error getting user stats:', error)
       throw error
     }
   }
@@ -442,7 +442,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       return { success: true, data: dashboardStats }
 
     } catch (error) {
-      console.error('❌ Error getting dashboard stats:', error)
+      logger.error('❌ Error getting dashboard stats:', error)
       throw error
     }
   }
@@ -466,11 +466,11 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
    * Private helper methods
    */
   private getFromCache(_key: string): unknown | null {
-    const cached = this.statsCache.get(key)
+    const cached = this.statsCache.get(_key)
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
       return cached.data
     }
-    this.statsCache.delete(key)
+    this.statsCache.delete(_key)
     return null
   }
 
@@ -489,7 +489,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       prestataire: ['read', 'write_quotes', 'update_interventions'],
       locataire: ['read', 'create_interventions']
     }
-    return permissions[role] || ['read']
+    return permissions[_role] || ['read']
   }
 }
 

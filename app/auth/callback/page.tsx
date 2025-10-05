@@ -1,162 +1,158 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { logger } from '@/lib/logger'
 
 export default function AuthCallback() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, loading } = useAuth()
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [message, setMessage] = useState('')
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  const handleAuthCallback = useCallback(async () => {
-    try {
-      console.log('🚀 [AUTH-CALLBACK-DELEGATED] Starting simplified OAuth callback')
-      console.log('🔍 [AUTH-CALLBACK-DELEGATED] URL:', window.location.href)
+  useEffect(() => {
+    logger.info('🚀 [AUTH-CALLBACK] Starting callback processing')
+    logger.info('🔍 [AUTH-CALLBACK] URL:', window.location.href)
 
-      // ✅ Vérification d'erreurs
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
-      const errorParam = hashParams.get('error') || searchParams.get('error')
-      const errorCode = hashParams.get('error_code') || searchParams.get('error_code')
-      const errorDescription = hashParams.get('error_description') || searchParams.get('error_description')
+    // 1. EXTRAIRE TOKENS DU HASH
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const errorParam = hashParams.get('error') || searchParams.get('error')
+    const errorCode = hashParams.get('error_code') || searchParams.get('error_code')
+    const errorDescription = hashParams.get('error_description') || searchParams.get('error_description')
 
-      if (errorParam === 'access_denied' && errorCode === 'otp_expired') {
-        console.log('⏰ [AUTH-CALLBACK-DELEGATED] Magic link expired')
-        setStatus('error')
-        setMessage('🔗 Lien d\'invitation expiré. Demandez un nouveau lien d\'invitation à l\'administrateur.')
-        return
-      }
-
-      if (errorParam && errorParam !== 'access_denied') {
-        console.log('❌ [AUTH-CALLBACK-DELEGATED] URL error:', errorParam)
-        setStatus('error')
-        setMessage(`❌ Erreur d'authentification: ${errorDescription ? decodeURIComponent(errorDescription) : errorParam}`)
-        return
-      }
-
-      // ✅ SOLUTION: Déléguer à AuthProvider - juste établir la session
-      const accessToken = hashParams.get('access_token')
-      const refreshToken = hashParams.get('refresh_token')
-
-      if (accessToken && refreshToken) {
-        console.log('🔑 [AUTH-CALLBACK-DELEGATED] Found tokens, setting session for AuthProvider...')
-
-        const { error: setSessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        })
-
-        if (setSessionError) {
-          throw new Error(`Session error: ${setSessionError.message}`)
-        }
-
-        console.log('✅ [AUTH-CALLBACK-DELEGATED] Session set, AuthProvider will handle the rest')
-        setMessage('🔄 Authentification en cours...')
-
-        // ✅ Marquer dans sessionStorage qu'on vient d'un callback invitation
-        sessionStorage.setItem('auth_callback_context', JSON.stringify({
-          type: 'invitation',
-          timestamp: Date.now()
-        }))
-
-      } else {
-        console.log('🔍 [AUTH-CALLBACK-DELEGATED] No tokens, checking existing session...')
-
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-        if (sessionError) {
-          throw new Error(`Session error: ${sessionError.message}`)
-        }
-
-        if (session?.user) {
-          console.log('✅ [AUTH-CALLBACK-DELEGATED] Existing session found')
-          setMessage('🔄 Session existante détectée...')
-        } else {
-          throw new Error('Aucune session trouvée')
-        }
-      }
-
-      // ✅ AuthProvider va maintenant détecter le changement d'état et gérer:
-      // - Le traitement des invitations
-      // - La redirection vers le dashboard approprié
-
-    } catch (error) {
-      console.error('❌ [AUTH-CALLBACK-DELEGATED] Callback failed:', error)
-
+    // Gestion des erreurs
+    if (errorParam === 'access_denied' && errorCode === 'otp_expired') {
+      logger.info('⏰ [AUTH-CALLBACK] Magic link expired')
       setStatus('error')
-      setMessage(`❌ Erreur d'authentification : ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
+      setMessage('🔗 Lien d\'invitation expiré. Demandez un nouveau lien d\'invitation à l\'administrateur.')
+      return
+    }
 
+    if (errorParam && errorParam !== 'access_denied') {
+      logger.error('❌ [AUTH-CALLBACK] URL error:', errorParam)
+      setStatus('error')
+      setMessage(`❌ Erreur d'authentification: ${errorDescription ? decodeURIComponent(errorDescription) : errorParam}`)
+      return
+    }
+
+    if (!accessToken || !refreshToken) {
+      logger.error('❌ [AUTH-CALLBACK] Missing tokens in URL')
+      setStatus('error')
+      setMessage('❌ Tokens manquants dans l\'URL')
+      // Redirect to login after short delay
       setTimeout(() => {
-        router.push('/auth/login?error=callback_failed')
-      }, 3000)
+        window.location.href = '/auth/login?error=missing_tokens'
+      }, 2000)
+      return
     }
-  }, [searchParams, router])
 
-  useEffect(() => {
-    handleAuthCallback()
-  }, [handleAuthCallback])
+    // Log détaillé des tokens extraits
+    logger.info('🔑 [AUTH-CALLBACK] Tokens extracted:', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      accessTokenLength: accessToken?.length || 0,
+      refreshTokenLength: refreshToken?.length || 0,
+      urlType: hashParams.get('type') || searchParams.get('type'),
+      expiresAt: hashParams.get('expires_at'),
+      expiresIn: hashParams.get('expires_in')
+    })
 
-  // ✅ Écouter les changements d'utilisateur via AuthProvider
-  useEffect(() => {
-    if (!loading && user) {
-      console.log('✅ [AUTH-CALLBACK-DELEGATED] User loaded by AuthProvider:', user.name, user.role)
-      setStatus('success')
+    // 2. SETUP AUTH STATE LISTENER (Pattern officiel Supabase SSR)
+    logger.info('🎧 [AUTH-CALLBACK] Setting up auth state listener...')
 
-      // ✅ Vérifier si c'est une nouvelle confirmation email (email_confirmed_at récent)
-      const emailConfirmedAt = (user as any).email_confirmed_at
-      const isNewConfirmation = emailConfirmedAt &&
-        (Date.now() - new Date(emailConfirmedAt).getTime()) < 120000 // < 2 minutes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      logger.info('🔔 [AUTH-CALLBACK] Auth state change event:', event)
 
-      if (isNewConfirmation) {
-        console.log('📧 [AUTH-CALLBACK] New email confirmation detected, sending welcome email...')
-        setMessage(`✅ Email confirmé avec succès ! Envoi de l'email de bienvenue...`)
+      if (event === 'SIGNED_IN' && session) {
+        logger.info('✅ [AUTH-CALLBACK] User signed in successfully')
 
-        // ✅ Envoyer email de bienvenue (non-bloquant)
-        fetch('/api/send-welcome-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: (user as any).id })
+        const user = session.user
+        logger.info('👤 [AUTH-CALLBACK] User details:', {
+          id: user.id,
+          email: user.email,
+          metadata: user.user_metadata
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            console.log('✅ [AUTH-CALLBACK] Welcome email sent successfully')
-          } else {
-            console.warn('⚠️ [AUTH-CALLBACK] Welcome email failed (non-blocking):', data.error)
-          }
-        })
-        .catch(err => console.warn('⚠️ [AUTH-CALLBACK] Welcome email failed (non-blocking):', err))
 
-        // ✅ Rediriger vers login avec message de succès
+        // 3. EXTRAIRE PROFIL DES MÉTADONNÉES
+        const profile = {
+          id: user.id,
+          email: user.email!,
+          role: (user.user_metadata?.role || 'gestionnaire') as string,
+          password_set: (user.user_metadata?.password_set ?? true) as boolean,
+          name: (user.user_metadata?.full_name || user.user_metadata?.display_name || user.email) as string
+        }
+
+        logger.info('📋 [AUTH-CALLBACK] Profile extracted from metadata:', profile)
+
+        // 4. DÉCISION DE REDIRECTION
+        const destination = profile.password_set === false
+          ? '/auth/set-password'
+          : `/${profile.role}/dashboard`
+
+        logger.info('🎯 [AUTH-CALLBACK] Redirect destination:', {
+          destination,
+          reason: profile.password_set === false ? 'password_not_set' : 'password_already_set',
+          role: profile.role
+        })
+
+        // 5. MISE À JOUR UI
+        setStatus('success')
+        setMessage(
+          profile.password_set === false
+            ? '✅ Authentification réussie ! Redirection vers la configuration du mot de passe...'
+            : `✅ Authentification réussie ! Redirection vers votre espace ${profile.role}...`
+        )
+        setUserRole(profile.role)
+
+        // 6. REDIRECTION GARANTIE
+        logger.info(`🔄 [AUTH-CALLBACK] Navigating to: ${destination}`)
+
+        // Nettoyer le listener avant redirection
+        subscription.unsubscribe()
+
+        // Rediriger après un court délai pour que l'UI se mette à jour
         setTimeout(() => {
-          console.log('🔄 [AUTH-CALLBACK] Redirecting to login page...')
-          window.location.href = '/auth/login?confirmed=true'
+          window.location.href = destination
+        }, 1000)
+      } else if (event === 'SIGNED_OUT') {
+        logger.warn('⚠️ [AUTH-CALLBACK] User signed out unexpectedly')
+        subscription.unsubscribe()
+        setStatus('error')
+        setMessage('❌ Session expirée ou invalide')
+        setTimeout(() => {
+          window.location.href = '/auth/login?error=session_expired'
         }, 2000)
-
-        return
       }
+    })
 
-      // ✅ Message adapté selon si on va vers set-password ou dashboard
-      const callbackContext = sessionStorage.getItem('auth_callback_context')
-      const isInvitationCallback = callbackContext && JSON.parse(callbackContext).type === 'invitation'
+    // 7. DÉCLENCHER setSession (asynchrone, non bloquant)
+    logger.info('🔑 [AUTH-CALLBACK] Triggering setSession (async)...')
+    supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    }).catch(error => {
+      logger.error('❌ [AUTH-CALLBACK] setSession error:', error)
+      subscription.unsubscribe()
+      setStatus('error')
+      setMessage(`❌ Erreur d'authentification : ${error.message}`)
+      setTimeout(() => {
+        window.location.href = '/auth/login?error=callback_failed'
+      }, 3000)
+    })
 
-      if (isInvitationCallback) {
-        setMessage(`✅ Authentification réussie ! Configuration de votre compte en cours...`)
-      } else {
-        setMessage(`✅ Connexion réussie ! Redirection vers votre espace ${user.role}...`)
-      }
-
-      setUserRole(user.role)
+    // Cleanup function
+    return () => {
+      logger.info('🧹 [AUTH-CALLBACK] Cleaning up auth listener')
+      subscription.unsubscribe()
     }
-  }, [user, loading])
+  }, [searchParams])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -174,7 +170,7 @@ export default function AuthCallback() {
               </CardTitle>
             </div>
           </CardHeader>
-          
+
           <CardContent className="text-center space-y-4">
             {status === 'processing' && (
               <div className="space-y-4">

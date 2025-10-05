@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 interface User {
   id: string
   name: string
@@ -54,7 +54,7 @@ export default function DebugAvailabilitiesPage() {
 
       const interventionId = 'd9c86275-7817-4160-a348-c4ba63ea74bb'
 
-      console.log('🔍 Debugging user_availabilities pour intervention:', interventionId)
+      logger.info('🔍 Debugging user_availabilities pour intervention:', interventionId)
 
       try {
         // 1. Vérifier toutes les availabilities pour cette intervention
@@ -66,10 +66,10 @@ export default function DebugAvailabilitiesPage() {
           `)
           .eq('intervention_id', interventionId)
 
-        console.log('📊 Query result:', { allAvails, availError })
+        logger.info('📊 Query result:', { allAvails, availError })
 
         if (availError) {
-          console.error('❌ Erreur récupération availabilities:', availError)
+          logger.error('❌ Erreur récupération availabilities:', availError)
           setResults({ error: availError })
           setLoading(false)
           return
@@ -103,10 +103,10 @@ export default function DebugAvailabilitiesPage() {
           }
         }
 
-        console.log('🔍 Debug results:', debugResults)
+        logger.info('🔍 Debug results:', debugResults)
         setResults(debugResults)
       } catch (error) {
-        console.error('❌ Erreur dans debug:', error)
+        logger.error('❌ Erreur dans debug:', error)
         setResults({ error })
       } finally {
         setLoading(false)

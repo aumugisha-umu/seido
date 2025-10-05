@@ -3,6 +3,7 @@ import { interventionService, userService, tenantService, teamService, buildingS
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   console.log("🔧 create-intervention API route called")

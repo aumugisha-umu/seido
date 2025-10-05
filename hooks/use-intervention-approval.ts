@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { 
-  interventionActionsService, 
-  type InterventionAction, 
-  type ApprovalData 
+import { logger, logError } from '@/lib/logger'
+import {
+  interventionActionsService,
+  type InterventionAction,
+  type ApprovalData
 } from "@/lib/intervention-actions-service"
 
 interface ApprovalModal {
@@ -154,7 +155,7 @@ export const useInterventionApproval = () => {
         }, 2000)
       }
     } catch (error) {
-      console.error("Error processing intervention:", error)
+      logger.error("Error processing intervention:", error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue')
     } finally {
       setIsLoading(false)

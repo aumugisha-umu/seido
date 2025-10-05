@@ -12,6 +12,7 @@ import DataLoader from 'dataloader'
 import { createClient } from '@/utils/supabase/server'
 import { cache } from '@/lib/cache/cache-manager'
 import type { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 // Type aliases for better readability
 type Tables = Database['public']['Tables']

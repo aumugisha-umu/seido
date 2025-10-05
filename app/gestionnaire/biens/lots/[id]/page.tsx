@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
-
+import { logger, logError } from '@/lib/logger'
 interface LotData {
   id: string
   reference: string
@@ -80,25 +80,25 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     try {
       setLoading(true)
       setError(null)
-      console.log("🏠 Loading lot data for ID:", resolvedParams.id)
+      logger.info("🏠 Loading lot data for ID:", resolvedParams.id)
 
       // 1. Charger les données du lot
       const lotData = await lotService.getById(resolvedParams.id)
-      console.log("🏠 Lot loaded:", lotData)
+      logger.info("🏠 Lot loaded:", lotData)
       setLot(lotData)
 
       // 2. Charger les interventions du lot
       const interventionsData = await interventionService.getByLotId(resolvedParams.id)
-      console.log("🔧 Interventions loaded:", interventionsData?.length || 0)
+      logger.info("🔧 Interventions loaded:", interventionsData?.length || 0)
       setInterventions(interventionsData || [])
 
       // 3. Charger les contacts du lot
       const contactsData = await contactService.getLotContacts(resolvedParams.id)
-      console.log("👥 Contacts loaded:", contactsData?.length || 0)
+      logger.info("👥 Contacts loaded:", contactsData?.length || 0)
       setContacts(contactsData || [])
 
     } catch (error) {
-      console.error("❌ Error loading lot data:", error)
+      logger.error("❌ Error loading lot data:", error)
       setError("Erreur lors du chargement des données du lot")
     } finally {
       setLoading(false)
@@ -124,7 +124,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
 
     try {
       setIsDeleting(true)
-      console.log("🗑️ Deleting lot:", lot.id)
+      logger.info("🗑️ Deleting lot:", lot.id)
       
       await lotService.delete(lot.id)
       
@@ -136,7 +136,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       }
       
     } catch (error) {
-      console.error("❌ Error deleting lot:", error)
+      logger.error("❌ Error deleting lot:", error)
       setError("Erreur lors de la suppression du lot")
       setIsDeleting(false)
       setShowDeleteModal(false)
@@ -155,7 +155,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       const interventionsData = await interventionService.getInterventionsWithDocumentsByLotId(resolvedParams.id)
       setInterventionsWithDocs(interventionsData)
     } catch (error) {
-      console.error("❌ Error loading interventions with documents:", error)
+      logger.error("❌ Error loading interventions with documents:", error)
     } finally {
       setLoadingDocs(false)
     }
@@ -197,13 +197,13 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
 
   const handleDocumentView = (document: DocumentData) => {
     // TODO: Implement document viewer
-    console.log('Viewing document:', document)
+    logger.info('Viewing document:', document)
     // For now, we can open in a new tab or show a modal
   }
 
   const handleDocumentDownload = (document: DocumentData) => {
     // TODO: Implement document download
-    console.log('Downloading document:', document)
+    logger.info('Downloading document:', document)
     // For now, we can trigger a download or redirect to download URL
   }
 
@@ -335,7 +335,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
         router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
         break
       default:
-        console.log("Action not implemented:", actionKey)
+        logger.info("Action not implemented:", actionKey)
     }
   }
 
@@ -364,7 +364,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
         customActions={[
           { key: "add-intervention", label: "Créer une intervention", icon: Plus, onClick: () => handleCustomAction("add-intervention") },
         ]}
-        onArchive={() => console.log("Archive lot:", lot.id)}
+        onArchive={() => logger.info("Archive lot:", lot.id)}
       />
 
       {/* Surface et pièces - Info supplémentaire */}

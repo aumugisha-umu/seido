@@ -1,6 +1,7 @@
 import { userService } from '@/lib/database-service'
 import { getServerSession } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { logger, logError } from '@/lib/logger'
 
 export async function PATCH(request: Request) {
   try {

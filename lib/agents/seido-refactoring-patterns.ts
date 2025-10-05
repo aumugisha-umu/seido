@@ -557,6 +557,7 @@ const CustomCard = ({ title, children }) => (
 // Use shadcn/ui components directly
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { logger, logError } from '@/lib/logger'
 
 // No need for custom components - use shadcn/ui directly
 <Button variant="default" onClick={onClick}>

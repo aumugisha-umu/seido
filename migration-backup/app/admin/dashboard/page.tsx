@@ -4,6 +4,7 @@ import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-
 import { requireRole } from "@/lib/dal"
 import { userService, interventionService, buildingService } from "@/lib/database-service"
 import { AdminDashboardClient } from "./admin-dashboard-client"
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🔐 DASHBOARD ADMIN - SERVER COMPONENT (Migration Server Components)

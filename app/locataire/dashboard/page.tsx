@@ -14,8 +14,7 @@ import {
 } from '@/lib/services'
 
 import { LocataireDashboardClient } from "./locataire-dashboard-client"
-
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 DASHBOARD LOCATAIRE - SERVER COMPONENT (Migration Server Components)
  *
@@ -43,7 +42,7 @@ export default async function LocataireDashboard() {
   let error: string | null = null
 
   try {
-    console.log('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data for user:', user.id)
+    logger.info('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data for user:', user.id)
 
     // Récupérer les données du locataire
     const userResult = await userService.getById(user.id)
@@ -84,9 +83,9 @@ export default async function LocataireDashboard() {
       }))
     }
 
-    console.log('✅ [LOCATAIRE-DASHBOARD] Tenant data loaded successfully')
+    logger.info('✅ [LOCATAIRE-DASHBOARD] Tenant data loaded successfully')
   } catch (err) {
-    console.error('❌ [LOCATAIRE-DASHBOARD] Error loading tenant data:', err)
+    logger.error('❌ [LOCATAIRE-DASHBOARD] Error loading tenant data:', err)
     error = 'Erreur lors du chargement des données'
   }
 

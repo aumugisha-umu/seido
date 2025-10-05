@@ -17,7 +17,7 @@ import { InterventionDetailHeader } from "@/components/intervention/intervention
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { CancelConfirmationModal } from "@/components/intervention/modals/cancel-confirmation-modal"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
-
+import { logger, logError } from '@/lib/logger'
 // Types basés sur la structure de la base de données
 interface DatabaseContact {
   id: string
@@ -183,12 +183,12 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
   }
 
   const handleArchive = () => {
-    console.log('Archive intervention:', intervention?.id)
+    logger.info('Archive intervention:', intervention?.id)
     // TODO: Implémenter la logique d'archivage
   }
 
   const handleStatusAction = (_action: string) => {
-    console.log('Status action:', action, 'for intervention:', intervention?.id)
+    logger.info('Status action:', action, 'for intervention:', intervention?.id)
     // TODO: Implémenter les actions selon le statut
   }
 
@@ -211,7 +211,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     setError(null)
 
     try {
-      console.log('🔍 Fetching intervention details for ID:', resolvedParams.id)
+      logger.info('🔍 Fetching intervention details for ID:', resolvedParams.id)
       
       // 1. Récupérer l'intervention avec les données relationnelles
       const interventionData = await interventionService.getById(resolvedParams.id)
@@ -220,9 +220,9 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         throw new Error('Intervention non trouvée')
       }
 
-      console.log('✅ Intervention data loaded:', interventionData)
+      logger.info('✅ Intervention data loaded:', interventionData)
 
-      console.log('🔍 [MANAGER-DEBUG] Raw intervention data received:', {
+      logger.info('🔍 [MANAGER-DEBUG] Raw intervention data received:', {
         id: interventionData.id,
         status: interventionData.status,
         user_availabilities_count: interventionData.user_availabilities?.length || 0,
@@ -234,14 +234,14 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       if (interventionData.lot_id) {
         // Intervention sur lot spécifique
         contacts = await contactService.getLotContacts(interventionData.lot_id)
-        console.log('✅ Lot contacts loaded:', contacts.length)
+        logger.info('✅ Lot contacts loaded:', contacts.length)
       } else if (interventionData.building_id) {
         // Intervention sur bâtiment entier - récupérer tous les contacts du bâtiment
         contacts = await contactService.getBuildingContacts(interventionData.building_id)
-        console.log('✅ Building contacts loaded:', contacts.length)
+        logger.info('✅ Building contacts loaded:', contacts.length)
       }
       
-      console.log('✅ Contacts loaded:', contacts.length)
+      logger.info('✅ Contacts loaded:', contacts.length)
 
       // 3. Organiser les contacts par type (nouvelle architecture)
       const getContactAssignmentType = (contact: DatabaseContact) => {
@@ -361,7 +361,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
           userId: avail.user.id
         })) || [],
         quotes: interventionData.intervention_quotes?.map(quote => {
-          console.log('🔄 [GESTIONNAIRE] Processing quote data:', {
+          logger.info('🔄 [GESTIONNAIRE] Processing quote data:', {
             id: quote.id,
             status: quote.status,
             provider: quote.provider.name
@@ -387,7 +387,7 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             attachments: typeof quote.attachments === 'string' ? JSON.parse(quote.attachments) : quote.attachments || []
           }
 
-          console.log('✅ [GESTIONNAIRE] Transformed quote:', {
+          logger.info('✅ [GESTIONNAIRE] Transformed quote:', {
             id: transformedQuote.id,
             status: transformedQuote.status
           })
@@ -433,11 +433,11 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
             }
           }) || []
 
-      console.log('✅ Quote requests created:', requests.length)
+      logger.info('✅ Quote requests created:', requests.length)
       setQuoteRequests(requests)
 
       // Debug log pour tracer les disponibilités récupérées
-      console.log('📊 [MANAGER-DEBUG] Total availabilities mapped:', {
+      logger.info('📊 [MANAGER-DEBUG] Total availabilities mapped:', {
         count: interventionData.user_availabilities?.length || 0,
         byUser: interventionData.user_availabilities?.reduce((acc, avail) => {
           const key = `${avail.user.name} (${avail.user.id})`
@@ -453,11 +453,11 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         })) || []
       })
 
-      console.log('✅ Transformed intervention data:', transformedIntervention)
+      logger.info('✅ Transformed intervention data:', transformedIntervention)
       setIntervention(transformedIntervention)
 
     } catch (error) {
-      console.error('❌ Error fetching intervention data:', error)
+      logger.error('❌ Error fetching intervention data:', error)
       setError(error instanceof Error ? error.message : 'Erreur lors du chargement de l\'intervention')
     } finally {
       setLoading(false)
@@ -558,23 +558,23 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
         userId={user?.id || ""}
         onDataChange={fetchInterventionData}
         onDownloadAttachment={(attachment) => {
-          console.log('Download attachment:', attachment)
+          logger.info('Download attachment:', attachment)
           // TODO: Implémenter le téléchargement des pièces jointes
         }}
         onResendRequest={(requestId) => {
-          console.log('Resend request:', requestId)
+          logger.info('Resend request:', requestId)
           // TODO: Implémenter la relance de demande
         }}
         onCancelRequest={(requestId) => {
-          console.log('Cancel request:', requestId)
+          logger.info('Cancel request:', requestId)
           // TODO: Implémenter l'annulation de demande
         }}
         onNewRequest={(requestId) => {
-          console.log('New request:', requestId)
+          logger.info('New request:', requestId)
           // TODO: Implémenter la nouvelle demande de devis
         }}
         onViewProvider={(providerId) => {
-          console.log('View provider:', providerId)
+          logger.info('View provider:', providerId)
           // TODO: Implémenter la navigation vers le profil du prestataire
         }}
       />

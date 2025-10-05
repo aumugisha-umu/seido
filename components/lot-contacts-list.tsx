@@ -9,18 +9,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle } from "lucide-react"
 
-import { determineAssignmentType } from '@/lib/services'
+import { determineAssignmentType, createContactService } from '@/lib/services'
+
+const contactService = createContactService()
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import type { ContactWithRelations } from "@/lib/services"
-
+import { logger, logError } from '@/lib/logger'
 interface LotContactsListProps {
   lotId: string
   contacts?: ContactWithRelations[]
   onContactsUpdate?: (contacts: ContactWithRelations[]) => void
 }
 
-export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+export const LotContactsList = ({ lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
   const [contacts, setContacts] = useState<ContactWithRelations[]>(propContacts)
   const [filteredContacts, setFilteredContacts] = useState<ContactWithRelations[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -33,17 +35,17 @@ export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContact
 
   // Update local contacts when props change
   useEffect(() => {
-    console.log("🔄 LotContactsList contacts updated:", propContacts.length)
+    logger.info("🔄 LotContactsList contacts updated:", propContacts.length)
     setContacts(propContacts)
     setFilteredContacts(propContacts)
   }, [propContacts])
 
   // Separate useCallback to prevent infinite loops
   const loadLotContacts = useCallback(async () => {
-    if (!_lotId) return
+    if (!lotId) return
     
     const timeoutId = setTimeout(() => {
-      console.warn("⏰ Request timeout for lot contacts")
+      logger.warn("⏰ Request timeout for lot contacts")
       setError("Temps d'attente dépassé lors du chargement des contacts")
       setLoading(false)
     }, 10000) // 10 seconds timeout
@@ -51,18 +53,18 @@ export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContact
     try {
       setLoading(true)
       setError(null)
-      console.log("📞 Loading contacts for lot:", _lotId)
+      logger.info("📞 Loading contacts for lot:", lotId)
       
       // Adapter pour nouvelle architecture - récupérer les locataires pour ce lot
-      const lotContacts = await contactService.getLotContactsByType(_lotId, 'tenant')
-      console.log("✅ Lot contacts loaded:", lotContacts?.length || 0)
+      const lotContacts = await contactService.getLotContactsByType(lotId, 'tenant')
+      logger.info("✅ Lot contacts loaded:", lotContacts?.length || 0)
       
       clearTimeout(timeoutId)
       setContacts(lotContacts || [])
       setFilteredContacts(lotContacts || [])
       
     } catch (error) {
-      console.error("❌ Error loading lot contacts:", error)
+      logger.error("❌ Error loading lot contacts:", error)
       clearTimeout(timeoutId)
       
       // Gestion plus fine des erreurs
@@ -104,20 +106,20 @@ export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContact
       if (selectedContact) {
         // Update existing contact
         await contactService.update(selectedContact.id, contactData)
-        console.log("✅ Contact updated")
+        logger.info("✅ Contact updated")
       } else {
         // Create new contact
         await contactService.create({
           ...contactData,
           team_id: contacts[0]?.team?.id // Use the same team as other contacts
         })
-        console.log("✅ Contact created")
+        logger.info("✅ Contact created")
       }
       
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(_lotId)
+        const updatedContacts = await contactService.getLotContacts(lotId)
         onContactsUpdate(updatedContacts || [])
       } else {
         // Fallback to local loading
@@ -128,7 +130,7 @@ export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContact
       setSelectedContact(null)
       
     } catch (error) {
-      console.error("❌ Error saving contact:", error)
+      logger.error("❌ Error saving contact:", error)
       setError("Erreur lors de la sauvegarde du contact")
     }
   }
@@ -142,7 +144,7 @@ export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContact
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(_lotId)
+        const updatedContacts = await contactService.getLotContacts(lotId)
         onContactsUpdate(updatedContacts || [])
       } else {
         // Fallback to local loading
@@ -150,9 +152,9 @@ export const LotContactsList = ({ _lotId, contacts: propContacts = [], onContact
       }
       
       setDeleteContact(null)
-      console.log("✅ Contact deleted")
+      logger.info("✅ Contact deleted")
     } catch (error) {
-      console.error("❌ Error deleting contact:", error)
+      logger.error("❌ Error deleting contact:", error)
       setError("Erreur lors de la suppression du contact")
     }
   }

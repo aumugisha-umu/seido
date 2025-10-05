@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
+import { logger, logError } from '@/lib/logger'
 import {
   getValidAvailabilities
 } from "@/lib/availability-filtering-utils"
@@ -75,7 +76,7 @@ export function UserAvailabilitiesDisplay({
   }, [filteredByQuotes, filterRole])
 
   // Debug log pour tracer le filtrage des disponibilités
-  console.log('🔍 [AVAILABILITY-DEBUG] Filtering results:', {
+  logger.info('🔍 [AVAILABILITY-DEBUG] Filtering results:', {
     original: availabilities.length,
     filteredByQuotes: filteredByQuotes.length,
     finalFiltered: filteredAvailabilities.length,
@@ -119,7 +120,7 @@ export function UserAvailabilitiesDisplay({
   }
 
   // Debug log pour tracer le groupement des disponibilités
-  console.log('👥 [GROUPING-DEBUG] Grouped availabilities:', {
+  logger.info('👥 [GROUPING-DEBUG] Grouped availabilities:', {
     totalGroups: Object.keys(groupedAvailabilities).length,
     groups: Object.entries(groupedAvailabilities).map(([key, group]) => ({
       key,

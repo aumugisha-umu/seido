@@ -16,7 +16,7 @@ function getSimpleRedirectPath(_userRole: string): string {
   return routes[userRole as keyof typeof routes] || '/gestionnaire/dashboard'
 }
 import AuthLoading, { AUTH_LOADING_MESSAGES } from "./auth-loading"
-
+import { logger, logError } from '@/lib/logger'
 interface AuthGuardProps {
   children: React.ReactNode
   requiredRole?: string
@@ -35,15 +35,15 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
     // Grace period pour les pages callback ET après redirection (éviter race condition avec setSession)
     if (pathname?.includes('/auth/callback')) {
       const callbackGracePeriod = ENV_CONFIG.gracePeriod.callback
-      console.log(`⏳ [AUTH-GUARD] Callback page detected - starting ${callbackGracePeriod}ms grace period (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
+      logger.info(`⏳ [AUTH-GUARD] Callback page detected - starting ${callbackGracePeriod}ms grace period (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
       setCallbackGracePeriod(true)
       const timer = setTimeout(() => {
-        console.log('✅ [AUTH-GUARD] Grace period ended - resuming normal auth checks')
+        logger.info('✅ [AUTH-GUARD] Grace period ended - resuming normal auth checks')
         setCallbackGracePeriod(false)
       }, callbackGracePeriod)
       return () => clearTimeout(timer)
     } else {
-      console.log('🔍 [AUTH-GUARD] Non-callback page - checking if grace period needed')
+      logger.info('🔍 [AUTH-GUARD] Non-callback page - checking if grace period needed')
       // Si on vient de charger une page dashboard et qu'il n'y a pas encore d'user,
       // c'est probablement qu'on vient d'une redirection callback ou d'un signup récent
       if (!user && !loading && (pathname?.includes('/dashboard'))) {
@@ -64,10 +64,10 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
                                isRecentLogin ? 'RECENT LOGIN' :
                                isServerRedirect ? 'SERVER REDIRECT' : 'NORMAL'
 
-        console.log(`⏳ [AUTH-GUARD] Dashboard page without user - starting ${dashboardGracePeriod}ms grace period for post-redirect auth (${gracePeriodType}) (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
+        logger.info(`⏳ [AUTH-GUARD] Dashboard page without user - starting ${dashboardGracePeriod}ms grace period for post-redirect auth (${gracePeriodType}) (${ENV_CONFIG.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'})`)
         setCallbackGracePeriod(true)
         const timer = setTimeout(() => {
-          console.log('✅ [AUTH-GUARD] Post-redirect grace period ended')
+          logger.info('✅ [AUTH-GUARD] Post-redirect grace period ended')
           setCallbackGracePeriod(false)
           // Nettoyer les flags si toujours présents après timeout
           if (isRecentSignup) {
@@ -83,7 +83,7 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
   }, [pathname, user, loading])
 
   useEffect(() => {
-    console.log('🔍 [AUTH-GUARD] Auth state check:', {
+    logger.info('🔍 [AUTH-GUARD] Auth state check:', {
       loading,
       hasUser: !!user,
       userName: user?.name,
@@ -94,24 +94,24 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
     
     // Si grace period actif, ne pas rediriger
     if (callbackGracePeriod) {
-      console.log('⏳ [AUTH-GUARD] Grace period active for callback - waiting...')
+      logger.info('⏳ [AUTH-GUARD] Grace period active for callback - waiting...')
       return
     }
 
     // Si le chargement est terminé et qu'il n'y a pas d'utilisateur
     if (!loading && !user) {
-      console.log('🚫 [AUTH-GUARD] User not authenticated - redirecting to login')
+      logger.info('🚫 [AUTH-GUARD] User not authenticated - redirecting to login')
       router.push('/auth/login')
       return
     }
 
     // Si un rôle spécifique est requis et que l'utilisateur n'a pas ce rôle
     if (user && requiredRole && user.role !== requiredRole) {
-      console.log(`🚫 [AUTH-GUARD] User role '${user.role}' does not match required role '${requiredRole}'`)
+      logger.info(`🚫 [AUTH-GUARD] User role '${user.role}' does not match required role '${requiredRole}'`)
       
       // ✅ Redirection simple vers dashboard du rôle utilisateur
       const redirectPath = getSimpleRedirectPath(user.role)
-      console.log(`🔄 [AUTH-GUARD] Role mismatch - redirecting ${user.role} to: ${redirectPath}`)
+      logger.info(`🔄 [AUTH-GUARD] Role mismatch - redirecting ${user.role} to: ${redirectPath}`)
       router.push(redirectPath)
       
       return

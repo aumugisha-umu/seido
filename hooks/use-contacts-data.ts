@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { useDataRefresh } from "./use-cache-management"
 import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
-
+import { logger, logError } from '@/lib/logger'
 export interface ContactsData {
   contacts: unknown[]
   pendingInvitations: unknown[]
@@ -31,13 +31,13 @@ export function useContactsData() {
   const fetchContactsData = useCallback(async (userId: string, bypassCache = false) => {
     // Éviter les appels multiples
     if (loadingRef.current || !mountedRef.current) {
-      console.log("🔒 [CONTACTS-DATA] Skipping fetch - already loading or unmounted")
+      logger.info("🔒 [CONTACTS-DATA] Skipping fetch - already loading or unmounted")
       return
     }
 
     // ✅ OPTIMISATION: Permettre le bypass du cache lors des navigations
     if (lastUserIdRef.current === userId && data.contacts.length > 0 && !bypassCache) {
-      console.log("🔒 [CONTACTS-DATA] Skipping fetch - same userId and data exists (use bypassCache=true to force)")
+      logger.info("🔒 [CONTACTS-DATA] Skipping fetch - same userId and data exists (use bypassCache=true to force)")
       return
     }
 
@@ -45,7 +45,7 @@ export function useContactsData() {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
+      logger.info("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
 
       // Initialiser le client Supabase
       const supabase = createBrowserSupabaseClient()
@@ -56,10 +56,10 @@ export function useContactsData() {
         const teamService = createTeamService()
         const teamsResult = await teamService.getUserTeams(userId)
         userTeams = teamsResult?.data || []
-        console.log("📦 [CONTACTS-DATA] Teams result:", teamsResult)
-        console.log("📦 [CONTACTS-DATA] Teams extracted:", userTeams)
+        logger.info("📦 [CONTACTS-DATA] Teams result:", teamsResult)
+        logger.info("📦 [CONTACTS-DATA] Teams extracted:", userTeams)
       } catch (teamError) {
-        console.error("❌ [CONTACTS-DATA] Error fetching user teams:", teamError)
+        logger.error("❌ [CONTACTS-DATA] Error fetching user teams:", teamError)
         setData({
           contacts: [],
           pendingInvitations: [],
@@ -72,7 +72,7 @@ export function useContactsData() {
       }
 
       if (!userTeams || userTeams.length === 0) {
-        console.log("⚠️ [CONTACTS-DATA] No team found for user")
+        logger.info("⚠️ [CONTACTS-DATA] No team found for user")
         setData({
           contacts: [],
           pendingInvitations: [],
@@ -84,22 +84,47 @@ export function useContactsData() {
       }
 
       const team = userTeams[0]
-      console.log("🏢 [CONTACTS-DATA] Found team:", team.id, team.name)
+      logger.info("🏢 [CONTACTS-DATA] Found team:", team.id, team.name)
 
-      // 2. Récupérer les membres de l'équipe depuis la table users
-      const { data: teamMembers, error: membersError } = await supabase
-        .from('users')
-        .select('*')
+      // 2. Récupérer les membres de l'équipe depuis la table team_members (junction table)
+      // ✅ FIX: Utiliser team_members au lieu de users pour éviter les problèmes RLS
+      const { data: teamMembersData, error: membersError } = await supabase
+        .from('team_members')
+        .select(`
+          id,
+          user_id,
+          role,
+          joined_at,
+          user:user_id (
+            id,
+            name,
+            email,
+            phone,
+            company,
+            role,
+            provider_category,
+            speciality,
+            address,
+            is_active,
+            avatar_url,
+            notes,
+            first_name,
+            last_name
+          )
+        `)
         .eq('team_id', team.id)
-        .order('name')
+        .order('joined_at', { ascending: false })
 
       if (membersError) {
-        console.error("❌ [CONTACTS-DATA] Error loading team members:", membersError)
+        logger.error("❌ [CONTACTS-DATA] Error loading team members:", membersError)
         throw new Error(`Failed to load team members: ${membersError.message}`)
       }
 
-      const teamContacts = teamMembers || []
-      console.log("✅ [CONTACTS-DATA] Team members loaded:", teamContacts.length)
+      // Extraire les users depuis la relation team_members
+      const teamContacts = teamMembersData
+        ?.map(tm => tm.user)
+        ?.filter(user => user !== null) || []
+      logger.info("✅ [CONTACTS-DATA] Team members loaded:", teamContacts.length)
 
       // 3. Charger les invitations en attente depuis user_invitations
       let invitations: unknown[] = []
@@ -112,14 +137,14 @@ export function useContactsData() {
           .order('invited_at', { ascending: false })
 
         if (invError) {
-          console.error("❌ [CONTACTS-DATA] Error loading invitations:", invError)
+          logger.error("❌ [CONTACTS-DATA] Error loading invitations:", invError)
           invitations = []
         } else {
           invitations = invitationsData || []
-          console.log("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
+          logger.info("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
         }
       } catch (invitationError) {
-        console.error("❌ [CONTACTS-DATA] Error loading pending invitations:", invitationError)
+        logger.error("❌ [CONTACTS-DATA] Error loading pending invitations:", invitationError)
         // Ne pas faire échouer le chargement principal pour les invitations
         invitations = []
       }
@@ -127,13 +152,13 @@ export function useContactsData() {
       // 4. Charger le statut d'invitation pour tous les contacts
       let contactsInvitationStatus: { [key: string]: string } = {}
       try {
-        console.log("🔍 [CONTACTS-DATA] Loading invitation status for", teamContacts.length, "contacts...")
+        logger.info("🔍 [CONTACTS-DATA] Loading invitation status for", teamContacts.length, "contacts...")
         
         const response = await fetch(`/api/team-invitations?teamId=${team.id}`)
         
         if (response.ok) {
           const { invitations: teamInvitations } = await response.json()
-          console.log("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
+          logger.info("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
           
           // Marquer uniquement les contacts qui ont une invitation réelle
           teamInvitations?.forEach((invitation: any) => {
@@ -142,12 +167,12 @@ export function useContactsData() {
             }
           })
           
-          console.log("📊 [CONTACTS-DATA] Final invitation status mapping:", contactsInvitationStatus)
+          logger.info("📊 [CONTACTS-DATA] Final invitation status mapping:", contactsInvitationStatus)
         } else {
-          console.warn("⚠️ [CONTACTS-DATA] Could not fetch team invitations, using empty status map")
+          logger.warn("⚠️ [CONTACTS-DATA] Could not fetch team invitations, using empty status map")
         }
       } catch (statusError) {
-        console.error("❌ [CONTACTS-DATA] Error loading contacts invitation status:", statusError)
+        logger.error("❌ [CONTACTS-DATA] Error loading contacts invitation status:", statusError)
         // Ne pas faire échouer l'interface si les badges ne se chargent pas
       }
       
@@ -160,10 +185,10 @@ export function useContactsData() {
         }
         setData(newData)
         lastUserIdRef.current = userId
-        console.log("✅ [CONTACTS-DATA] All contacts data loaded successfully")
+        logger.info("✅ [CONTACTS-DATA] All contacts data loaded successfully")
       }
     } catch (err) {
-      console.error("❌ [CONTACTS-DATA] Error fetching contacts data:", err)
+      logger.error("❌ [CONTACTS-DATA] Error fetching contacts data:", err)
       if (mountedRef.current) {
         setError("Erreur lors du chargement des contacts")
       }
@@ -178,7 +203,7 @@ export function useContactsData() {
   // ✅ NOUVEAU: Intégration avec le système de cache pour refresh automatique
   const refreshCallback = useCallback(() => {
     if (user?.id) {
-      console.log("🔄 [CONTACTS-DATA] Cache refresh triggered")
+      logger.info("🔄 [CONTACTS-DATA] Cache refresh triggered")
       // Forcer le bypass du cache pour le refresh
       lastUserIdRef.current = null
       setData(prev => ({ ...prev, contacts: [], pendingInvitations: [] })) // Clear data to show loading state
@@ -224,7 +249,7 @@ export function useContactsData() {
   // ✅ OPTIMISÉ: Refetch avec système de cache intégré
   const refetch = useCallback(() => {
     if (user?.id) {
-      console.log("🔄 [CONTACTS-DATA] Manual refetch requested")
+      logger.info("🔄 [CONTACTS-DATA] Manual refetch requested")
       // Invalider le cache et forcer le refetch
       invalidateCache()
       lastUserIdRef.current = null
@@ -241,7 +266,7 @@ export function useContactsData() {
 
   const forceRefetch = useCallback(async () => {
     if (user?.id) {
-      console.log("🔄 [CONTACTS-DATA] Force refresh requested")
+      logger.info("🔄 [CONTACTS-DATA] Force refresh requested")
       invalidateCache()
       lastUserIdRef.current = null
       setData({

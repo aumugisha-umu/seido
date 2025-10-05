@@ -1,42 +1,50 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { useCacheManagement } from './use-cache-management'
-
+import { logger, logError } from '@/lib/logger'
 // Hook spécialisé pour gérer le refresh des données lors de la navigation
 export function useNavigationRefresh() {
   const pathname = usePathname()
   const cacheManager = useCacheManagement()
+  const lastPathRef = useRef<string | null>(null)
 
   useEffect(() => {
-    console.log(`🧭 [NAV-REFRESH] Navigation detected to: ${pathname}`)
-    
+    // ✅ FIX BOUCLE INFINIE: Ne trigger que si le path a vraiment changé
+    if (lastPathRef.current === pathname) {
+      logger.info(`🔒 [NAV-REFRESH] Same path as last refresh (${pathname}), skipping`)
+      return
+    }
+
+    logger.info(`🧭 [NAV-REFRESH] Navigation detected to: ${pathname}`)
+    lastPathRef.current = pathname
+
     // ✅ FIX BOUCLE INFINIE: Délai pour éviter les appels en rafale lors de navigation rapide
     const timeoutId = setTimeout(() => {
       // Logique spécifique par section de l'application
       const refreshStrategies = {
         // Dashboard - refresh toutes les stats
         dashboard: () => {
-          console.log(`🏠 [NAV-REFRESH] Dashboard section - refreshing stats`)
+          logger.info(`🏠 [NAV-REFRESH] Dashboard section - refreshing stats`)
           cacheManager.triggerRefresh(['manager-stats', 'contact-stats'])
         },
-        
+
         // Biens - refresh les bâtiments et lots
         biens: () => {
-          console.log(`🏢 [NAV-REFRESH] Biens section - refreshing buildings and lots`)
+          logger.info(`🏢 [NAV-REFRESH] Biens section - refreshing buildings and lots`)
           cacheManager.triggerRefresh(['manager-stats', 'buildings', 'lots'])
         },
-        
+
         // Interventions - refresh les interventions et stats
         interventions: () => {
-          console.log(`🔧 [NAV-REFRESH] Interventions section - refreshing interventions`)
+          logger.info(`🔧 [NAV-REFRESH] Interventions section - refreshing interventions`)
           cacheManager.triggerRefresh(['manager-stats', 'interventions', 'intervention-stats'])
         },
-        
+
         // Contacts - refresh les contacts
         contacts: () => {
-          console.log(`👥 [NAV-REFRESH] Contacts section - refreshing contacts`)
+          logger.info(`👥 [NAV-REFRESH] Contacts section - refreshing contacts`)
           cacheManager.triggerRefresh(['contact-stats', 'contacts', 'contacts-data'])
         }
       }
@@ -52,17 +60,17 @@ export function useNavigationRefresh() {
         refreshStrategies.contacts()
       } else {
         // Pour toute autre navigation, faire un refresh général mais moins agressif
-        console.log(`🔄 [NAV-REFRESH] General navigation - light refresh`)
+        logger.info(`🔄 [NAV-REFRESH] General navigation - light refresh`)
         cacheManager.triggerRefresh(['manager-stats'])
       }
     }, 200) // ✅ FIX: Délai augmenté à 200ms pour éviter les appels en rafale
-    
+
     return () => clearTimeout(timeoutId)
-  }, [pathname, cacheManager])
+  }, [pathname]) // ✅ FIX: Retirer cacheManager des dépendances pour éviter la boucle
 
   // Fonction pour forcer un refresh manuel
   const forceRefreshCurrentSection = () => {
-    console.log(`🔄 [NAV-REFRESH] Force refresh requested for: ${pathname}`)
+    logger.info(`🔄 [NAV-REFRESH] Force refresh requested for: ${pathname}`)
     
     if (pathname.includes('/dashboard')) {
       cacheManager.invalidateCache(['manager-stats', 'contact-stats'])
@@ -85,7 +93,7 @@ export function useNavigationRefresh() {
 
   // Fonction pour refresh global (utilisé en cas d'erreur ou pour debug)
   const forceGlobalRefresh = () => {
-    console.log(`🌍 [NAV-REFRESH] Global refresh requested`)
+    logger.info(`🌍 [NAV-REFRESH] Global refresh requested`)
     cacheManager.invalidateAllCache()
     cacheManager.triggerGlobalRefresh()
   }
@@ -108,7 +116,7 @@ export function useSectionChange(onSectionChange?: (_section: string) => void) {
     const section = pathParts[2] // dashboard, biens, interventions, etc.
     
     if (section && onSectionChange) {
-      console.log(`📍 [SECTION-CHANGE] Section changed to: ${role}/${section}`)
+      logger.info(`📍 [SECTION-CHANGE] Section changed to: ${role}/${section}`)
       onSectionChange(section)
     }
   }, [pathname, onSectionChange])

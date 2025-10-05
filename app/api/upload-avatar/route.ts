@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * POST /api/upload-avatar
  * Permet à un utilisateur authentifié d'uploader sa photo de profil
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📸 [UPLOAD-AVATAR] Processing upload for user:", authUser.email)
+    logger.info("📸 [UPLOAD-AVATAR] Processing upload for user:", authUser.email)
 
     // Récupérer l'utilisateur dans notre base de données
     const { data: dbUser, error: userError } = await supabase
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError || !dbUser) {
-      console.error("❌ [UPLOAD-AVATAR] User not found in database:", userError)
+      logger.error("❌ [UPLOAD-AVATAR] User not found in database:", userError)
       return NextResponse.json({ 
         error: "Utilisateur non trouvé dans la base de données" 
       }, { status: 404 })
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (dbUser.avatar_url) {
       const oldFileName = dbUser.avatar_url.split('/').pop()
       if (oldFileName && oldFileName !== 'default-avatar.png') {
-        console.log("🗑️ [UPLOAD-AVATAR] Removing old avatar:", oldFileName)
+        logger.info("🗑️ [UPLOAD-AVATAR] Removing old avatar:", oldFileName)
         await supabase.storage
           .from('avatars')
           .remove([`${dbUser.id}/${oldFileName}`])
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
     const filePath = `${dbUser.id}/${fileName}`
 
-    console.log("☁️ [UPLOAD-AVATAR] Uploading to Storage:", filePath)
+    logger.info("☁️ [UPLOAD-AVATAR] Uploading to Storage:", filePath)
 
     // Uploader vers Supabase Storage
     const { error: uploadError } = await supabase.storage
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (uploadError) {
-      console.error("❌ [UPLOAD-AVATAR] Storage upload error:", uploadError)
+      logger.error("❌ [UPLOAD-AVATAR] Storage upload error:", uploadError)
       return NextResponse.json({ 
         error: "Erreur lors de l'upload: " + uploadError.message 
       }, { status: 500 })
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       .from('avatars')
       .getPublicUrl(filePath)
 
-    console.log("🔗 [UPLOAD-AVATAR] Generated public URL:", publicUrl)
+    logger.info("🔗 [UPLOAD-AVATAR] Generated public URL:", publicUrl)
 
     // Mettre à jour l'avatar_url dans la base de données
     const { error: updateError } = await supabase
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       .eq('id', dbUser.id)
 
     if (updateError) {
-      console.error("❌ [UPLOAD-AVATAR] Database update error:", updateError)
+      logger.error("❌ [UPLOAD-AVATAR] Database update error:", updateError)
       
       // Nettoyer le fichier uploadé en cas d'erreur de BD
       await supabase.storage
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log("✅ [UPLOAD-AVATAR] Avatar updated successfully")
+    logger.info("✅ [UPLOAD-AVATAR] Avatar updated successfully")
 
     // Retourner la nouvelle URL
     return NextResponse.json({ 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     }, { status: 200 })
 
   } catch (error) {
-    console.error("❌ [UPLOAD-AVATAR] Unexpected error:", error)
+    logger.error("❌ [UPLOAD-AVATAR] Unexpected error:", error)
     return NextResponse.json({ 
       error: "Erreur interne du serveur" 
     }, { status: 500 })
@@ -208,7 +208,7 @@ export async function DELETE() {
     if (dbUser.avatar_url) {
       const fileName = dbUser.avatar_url.split('/').pop()
       if (fileName && fileName !== 'default-avatar.png') {
-        console.log("🗑️ [DELETE-AVATAR] Removing avatar:", fileName)
+        logger.info("🗑️ [DELETE-AVATAR] Removing avatar:", fileName)
         await supabase.storage
           .from('avatars')
           .remove([`${dbUser.id}/${fileName}`])
@@ -222,20 +222,20 @@ export async function DELETE() {
       .eq('id', dbUser.id)
 
     if (updateError) {
-      console.error("❌ [DELETE-AVATAR] Database update error:", updateError)
+      logger.error("❌ [DELETE-AVATAR] Database update error:", updateError)
       return NextResponse.json({ 
         error: "Erreur lors de la suppression" 
       }, { status: 500 })
     }
 
-    console.log("✅ [DELETE-AVATAR] Avatar removed successfully")
+    logger.info("✅ [DELETE-AVATAR] Avatar removed successfully")
 
     return NextResponse.json({ 
       message: "Photo de profil supprimée avec succès"
     }, { status: 200 })
 
   } catch (error) {
-    console.error("❌ [DELETE-AVATAR] Unexpected error:", error)
+    logger.error("❌ [DELETE-AVATAR] Unexpected error:", error)
     return NextResponse.json({ 
       error: "Erreur interne du serveur" 
     }, { status: 500 })

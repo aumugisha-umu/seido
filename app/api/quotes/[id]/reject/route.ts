@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-
+import { logger, logError } from '@/lib/logger'
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -30,7 +30,7 @@ export async function POST(
       .single()
 
     if (userError || !userData) {
-      console.error('❌ [API-REJECT] User not found in users table:', userError)
+      logger.error('❌ [API-REJECT] User not found in users table:', userError)
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 401 })
     }
 
@@ -67,7 +67,7 @@ export async function POST(
       .eq('id', id)
 
     if (rejectError) {
-      console.error('Erreur lors du rejet du devis:', rejectError)
+      logger.error('Erreur lors du rejet du devis:', rejectError)
       return NextResponse.json({
         error: 'Erreur lors du rejet du devis'
       }, { status: 500 })
@@ -79,7 +79,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Erreur API:', error)
+    logger.error('Erreur API:', error)
     return NextResponse.json({
       error: 'Erreur interne du serveur'
     }, { status: 500 })

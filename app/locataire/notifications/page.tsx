@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { useNotifications } from "@/hooks/use-notifications"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
+import { logger, logError } from '@/lib/logger'
 function getNotificationIcon(_type: string) {
   switch (type) {
     case "intervention":
@@ -98,7 +98,7 @@ export default function NotificationsPage() {
     try {
       await markAsRead(notificationId)
     } catch (err) {
-      console.error('Error marking as read:', err)
+      logger.error('Error marking as read:', err)
     } finally {
       setActionLoading(null)
     }
@@ -109,7 +109,7 @@ export default function NotificationsPage() {
     try {
       await markAsUnread(notificationId)
     } catch (err) {
-      console.error('Error marking as unread:', err)
+      logger.error('Error marking as unread:', err)
     } finally {
       setActionLoading(null)
     }
@@ -120,7 +120,7 @@ export default function NotificationsPage() {
     try {
       await deleteNotification(notificationId)
     } catch (err) {
-      console.error('Error deleting notification:', err)
+      logger.error('Error deleting notification:', err)
     } finally {
       setActionLoading(null)
     }
@@ -131,7 +131,7 @@ export default function NotificationsPage() {
     try {
       await markAllAsRead()
     } catch (err) {
-      console.error('Error marking all as read:', err)
+      logger.error('Error marking all as read:', err)
     } finally {
       setActionLoading(null)
     }

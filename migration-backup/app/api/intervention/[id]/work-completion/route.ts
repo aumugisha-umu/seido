@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { userService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
+import { logger, logError } from '@/lib/logger'
 
 export async function POST(
   request: NextRequest,

@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * PropertyCreationContext - Context provider for property creation state
  *
@@ -5,7 +7,6 @@
  * components through React Context, enabling clean component composition.
  */
 
-"use client"
 
 import React, { createContext, useContext, ReactNode } from "react"
 import { usePropertyCreation } from "@/hooks/use-property-creation"

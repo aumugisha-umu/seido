@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useNavigationRefresh } from '@/hooks/use-navigation-refresh'
 import { useDataRefresh } from '@/hooks/use-cache-management'
 import { RefreshCw, Bug, CheckCircle, XCircle, AlertTriangle, EyeOff } from 'lucide-react'
-
+import { logger, logError } from '@/lib/logger'
 // Composant de debug pour tester le système de navigation et cache
 export function NavigationDebugPanel() {
   const pathname = usePathname()
@@ -30,7 +30,7 @@ export function NavigationDebugPanel() {
         setIsVisible(true)
       }
     } catch (error) {
-      console.error('❌ [DEBUG-PANEL] Error reading localStorage:', error)
+      logger.error('❌ [DEBUG-PANEL] Error reading localStorage:', error)
       setHasError(true)
     }
   }, [])
@@ -38,7 +38,7 @@ export function NavigationDebugPanel() {
   // ✅ FIX: Écouter l'événement d'urgence
   useEffect(() => {
     const handleForceOpen = () => {
-      console.log('🚨 [DEBUG-PANEL] Emergency force open received')
+      logger.info('🚨 [DEBUG-PANEL] Emergency force open received')
       setIsVisible(true)
       setLogs(prev => [...prev, '🚨 Emergency activation triggered'])
     }
@@ -66,7 +66,7 @@ export function NavigationDebugPanel() {
       
       if (cacheInvalidateMessages.length > 10) {
         setLoopDetected(true)
-        console.error('🚨 [DEBUG-PANEL] Loop detected - stopping cache system')
+        logger.error('🚨 [DEBUG-PANEL] Loop detected - stopping cache system')
       }
     }
     
@@ -80,9 +80,9 @@ export function NavigationDebugPanel() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('debug-panel-visible', visible.toString())
       }
-      console.log(`🔄 [DEBUG-PANEL] Visibility toggled to: ${visible}`)
+      logger.info(`🔄 [DEBUG-PANEL] Visibility toggled to: ${visible}`)
     } catch (error) {
-      console.error('❌ [DEBUG-PANEL] Error saving to localStorage:', error)
+      logger.error('❌ [DEBUG-PANEL] Error saving to localStorage:', error)
       setHasError(true)
       // Même en cas d'erreur, on change l'état pour que ça marche
       setIsVisible(visible)
@@ -92,7 +92,7 @@ export function NavigationDebugPanel() {
 
   // ✅ NOUVEAU: Emergency stop pour arrêter les boucles infinies
   const emergencyStopLoop = () => {
-    console.log('🚨 [DEBUG-PANEL] Emergency stop triggered')
+    logger.info('🚨 [DEBUG-PANEL] Emergency stop triggered')
     setLoopDetected(false)
     setLogs([])
     
@@ -119,7 +119,7 @@ export function NavigationDebugPanel() {
       }, 2000)
       
     } catch (error) {
-      console.error('❌ [DEBUG-PANEL] Error in emergency stop:', error)
+      logger.error('❌ [DEBUG-PANEL] Error in emergency stop:', error)
       setLogs(['❌ Emergency stop failed - consider page refresh'])
     }
   }
@@ -132,7 +132,7 @@ export function NavigationDebugPanel() {
     isCacheValid = cacheHooks.isCacheValid
     invalidateCache = cacheHooks.invalidateCache
   } catch (error) {
-    console.error('❌ [DEBUG-PANEL] Error with cache hooks:', error)
+    logger.error('❌ [DEBUG-PANEL] Error with cache hooks:', error)
     setHasError(true)
     // Fallbacks pour éviter les erreurs
     setCacheValid = () => {}
@@ -145,7 +145,7 @@ export function NavigationDebugPanel() {
     try {
       setCacheValid?.(300000) // Cache valide pour 5 minutes par défaut
     } catch (error) {
-      console.error('❌ [DEBUG-PANEL] Error initializing cache:', error)
+      logger.error('❌ [DEBUG-PANEL] Error initializing cache:', error)
     }
   }, [setCacheValid])
 
@@ -161,7 +161,7 @@ export function NavigationDebugPanel() {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'D') {
         event.preventDefault()
         toggleVisibility(!isVisible)
-        console.log(`🎹 [DEBUG-PANEL] Keyboard shortcut triggered - ${!isVisible ? 'Opening' : 'Closing'} debug panel`)
+        logger.info(`🎹 [DEBUG-PANEL] Keyboard shortcut triggered - ${!isVisible ? 'Opening' : 'Closing'} debug panel`)
       }
     }
 
@@ -239,7 +239,7 @@ export function NavigationDebugPanel() {
         </div>
       )
     } catch (error) {
-      console.error('❌ [DEBUG-PANEL] Error rendering button:', error)
+      logger.error('❌ [DEBUG-PANEL] Error rendering button:', error)
       // Bouton de secours minimal
       return (
         <div className="fixed bottom-4 right-4 z-50">

@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { 
-  interventionActionsService, 
-  type InterventionAction, 
-  type FinalizationData 
+import { logger, logError } from '@/lib/logger'
+import {
+  interventionActionsService,
+  type InterventionAction,
+  type FinalizationData
 } from "@/lib/intervention-actions-service"
 
 interface FinalizeModal {
@@ -67,7 +68,7 @@ export const useInterventionFinalization = () => {
         resetFinalizationForm()
       }, 3000)
     } catch (error) {
-      console.error("Error finalizing intervention:", error)
+      logger.error("Error finalizing intervention:", error)
       // TODO: Handle error state
     }
   }
@@ -90,7 +91,7 @@ export const useInterventionFinalization = () => {
 
       setQuotesModal({ isOpen: false, intervention: null })
     } catch (error) {
-      console.error("Error processing quote:", error)
+      logger.error("Error processing quote:", error)
       // TODO: Handle error state
     }
   }

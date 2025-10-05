@@ -7,7 +7,7 @@ import {
   createContactInvitationService
 } from "@/lib/services"
 import type { Intervention } from "@/lib/services/core/service-types"
-
+import { logger, logError } from '@/lib/logger'
 export interface PrestataireDashboardStats {
   interventionsEnCours: number
   urgentesCount: number
@@ -54,7 +54,7 @@ const mapStatusToFrontend = (_dbStatus: string): string => {
     'approuvee': 'approuvee',
     'demande_de_devis': 'devis-a-fournir',
     'planification': 'planification',
-    'planifiee': 'programmee',
+    'planifiee': 'planifiee',
     'en_cours': 'en_cours',
     'cloturee_par_prestataire': 'terminee',
     'cloturee_par_locataire': 'terminee',
@@ -114,7 +114,7 @@ export const usePrestataireData = (userId: string) => {
   })
 
   const loadData = async () => {
-    console.log("📊 Loading prestataire data for user:", userId)
+    logger.info("📊 Loading prestataire data for user:", userId)
 
     try {
       setData(prev => ({ ...prev, loading: true, error: null }))
@@ -122,7 +122,7 @@ export const usePrestataireData = (userId: string) => {
       // ✅ CORRECTION: Nettoyer l'ID utilisateur si c'est un JWT-only ID
       const cleanUserId = userId.startsWith('jwt_') ? userId.replace('jwt_', '') : userId
 
-      console.log("🔍 [PRESTATAIRE-DATA] Using cleaned user ID:", {
+      logger.info("🔍 [PRESTATAIRE-DATA] Using cleaned user ID:", {
         originalId: userId,
         cleanedId: cleanUserId,
         isJwtOnly: userId.startsWith('jwt_')
@@ -135,25 +135,25 @@ export const usePrestataireData = (userId: string) => {
       // 1. Get user profile using new service architecture
       const userResult = await userService.getById(cleanUserId)
       if (!userResult.success || !userResult.data) {
-        console.log("❌ No user profile found for user_id:", cleanUserId)
+        logger.info("❌ No user profile found for user_id:", cleanUserId)
         throw new Error("Aucun profil utilisateur trouvé")
       }
 
       const userProfile = userResult.data
-      console.log("✅ Found user profile:", userProfile.name, userProfile.role)
+      logger.info("✅ Found user profile:", userProfile.name, userProfile.role)
 
       // Vérifier que l'utilisateur est bien un prestataire
       if (userProfile.role !== 'prestataire') {
-        console.log("❌ User is not a prestataire:", userProfile.role)
+        logger.info("❌ User is not a prestataire:", userProfile.role)
         throw new Error(`Utilisateur n'est pas un prestataire (rôle: ${userProfile.role})`)
       }
 
-      console.log("✅ Found prestataire profile:", userProfile.id)
+      logger.info("✅ Found prestataire profile:", userProfile.id)
 
       // 2. Get interventions assigned to this prestataire using new service
       const interventionsResult = await interventionService.getByProvider(userProfile.id)
       const interventions = interventionsResult.success ? (interventionsResult.data || []) : []
-      console.log("📋 Found interventions:", interventions?.length || 0)
+      logger.info("📋 Found interventions:", interventions?.length || 0)
 
       // 3. Transform interventions to frontend format
       const transformedInterventions: PrestataireIntervention[] = (interventions || []).map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown }) => ({
@@ -168,7 +168,7 @@ export const usePrestataireData = (userId: string) => {
         location: `${intervention.lot?.reference || 'N/A'} - ${intervention.lot?.building?.address || 'Adresse inconnue'}`,
         tenant: intervention.tenant?.name || 'Locataire inconnu',
         requestedBy: intervention.manager?.name ? `${intervention.manager.name} (Gestionnaire)` : 'Gestionnaire',
-        needsQuote: ['devis-a-fournir', 'validee'].includes(mapStatusToFrontend(intervention.status)),
+        needsQuote: ['devis-a-fournir', 'approuvee'].includes(mapStatusToFrontend(intervention.status)),
         reference: intervention.reference,
         lot: intervention.lot,
         tenant_details: intervention.tenant,
@@ -183,12 +183,12 @@ export const usePrestataireData = (userId: string) => {
       const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       
       const interventionsEnCours = transformedInterventions.filter(i => 
-        ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length
 
       const urgentesCount = transformedInterventions.filter(i => 
         ['haute', 'urgente'].includes(i.priority) && 
-        ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length
 
       const terminesCeMois = transformedInterventions.filter(i => {
@@ -206,7 +206,7 @@ export const usePrestataireData = (userId: string) => {
       // 5. Get urgent interventions for dashboard
       const urgentInterventions: UrgentIntervention[] = transformedInterventions
         .filter(i => ['haute', 'urgente'].includes(i.priority) && 
-                    ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status))
+                    ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status))
         .slice(0, 3) // Show only top 3
         .map(i => ({
           id: i.id,
@@ -226,7 +226,7 @@ export const usePrestataireData = (userId: string) => {
         revenusMoisPrecedent: terminesMoisPrecedent * 280 // Mock: estimate 280€ per intervention
       }
 
-      console.log("📊 Calculated stats:", stats)
+      logger.info("📊 Calculated stats:", stats)
 
       setData({
         stats,
@@ -237,7 +237,7 @@ export const usePrestataireData = (userId: string) => {
       })
 
     } catch (error) {
-      console.error("❌ Error loading prestataire data:", error)
+      logger.error("❌ Error loading prestataire data:", error)
       setData(prev => ({
         ...prev,
         loading: false,

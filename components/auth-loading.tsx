@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * 🔄 COMPOSANT LOADING AUTHENTIFICATION
  * 
@@ -5,7 +7,6 @@
  * Améliore l'UX en montrant des messages contextuel selon l'état.
  */
 
-"use client"
 
 import { Loader2 } from "lucide-react"
 

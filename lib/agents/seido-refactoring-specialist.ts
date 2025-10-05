@@ -20,6 +20,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { logger, logError } from '@/lib/logger'
 
 // SEIDO-specific types
 export interface SEIDORefactoringContext {

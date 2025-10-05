@@ -12,7 +12,7 @@ import type {
   InterventionUpdate,
   User
 } from '../core/service-types'
-import { ValidationException, NotFoundException } from '../core/error-handler'
+import { ValidationException, NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import {
   validateRequired,
   validateLength,
@@ -78,8 +78,8 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       validateEnum(data.priority, ['low', 'medium', 'high', 'urgent'], 'priority')
     }
 
-    if ('requested_by' in data && data.requested_by) {
-      validateRequired({ requested_by: data.requested_by }, ['requested_by'])
+    if ('tenant_id' in data && data.tenant_id) {
+      validateRequired({ tenant_id: data.tenant_id }, ['tenant_id'])
     }
   }
 
@@ -99,8 +99,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
             user:user_id(id, name, email, phone, role, provider_category)
           )
         ),
-        requested_by_user:requested_by(id, name, email, phone, role),
-        assigned_to_user:assigned_to(id, name, email, phone, role, provider_category),
+        tenant:tenant_id(id, name, email, phone, role),
         intervention_contacts(
           role,
           is_primary,
@@ -118,14 +117,14 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           uploaded_by
         )
       `)
-      .eq('id', id)
+      .eq('id', _id)
       .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Intervention not found', this.tableName, id)
+        throw new NotFoundException('Intervention not found', this.tableName, _id)
       }
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:findByIdWithRelations'))
     }
 
     // Post-process to enrich with computed fields
@@ -145,8 +144,14 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address)
         ),
-        requested_by_user:requested_by(id, name, email, role),
-        assigned_to_user:assigned_to(id, name, email, role, provider_category)
+        tenant:tenant_id(id, name, email, role),
+        intervention_contacts(
+          id,
+          role,
+          is_primary,
+          individual_message,
+          user:user_id(id, name, email, role, provider_category)
+        )
       `)
 
     if (options?.status) {
@@ -163,7 +168,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     const { data, error } = await queryBuilder
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:findAllWithRelations'))
     }
 
     return { success: true as const, data: data || [] }
@@ -181,13 +186,17 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address)
         ),
-        assigned_to_user:assigned_to(id, name, email, role, provider_category)
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
       `)
-      .eq('requested_by', _tenantId)
+      .eq('tenant_id', _tenantId)
       .order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:findByTenant'))
     }
 
     return { success: true as const, data: data || [] }
@@ -205,14 +214,18 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address)
         ),
-        requested_by_user:requested_by(id, name, email, role),
-        assigned_to_user:assigned_to(id, name, email, role, provider_category)
+        tenant:tenant_id(id, name, email, role),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
       `)
       .eq('lot_id', _lotId)
       .order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:findByLot'))
     }
 
     return { success: true as const, data: data || [] }
@@ -222,21 +235,8 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    * Get interventions assigned to a provider
    */
   async findByProvider(_providerId: string) {
-    // First find interventions directly assigned
-    const directQuery = this.supabase
-      .from(this.tableName)
-      .select(`
-        *,
-        lot:lot_id(
-          id, reference,
-          building:building_id(id, name, address)
-        ),
-        requested_by_user:requested_by(id, name, email, role)
-      `)
-      .eq('assigned_to', providerId)
-
-    // Also find interventions assigned via intervention_contacts
-    const contactQuery = this.supabase
+    // Find interventions assigned via intervention_contacts (no direct assignment field anymore)
+    const { data, error } = await this.supabase
       .from('intervention_contacts')
       .select(`
         intervention_id,
@@ -246,34 +246,27 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
             id, reference,
             building:building_id(id, name, address)
           ),
-          requested_by_user:requested_by(id, name, email, role)
+          tenant:tenant_id(id, name, email, role),
+          intervention_contacts(
+            role,
+            is_primary,
+            user:user_id(id, name, email, role, provider_category)
+          )
         )
       `)
-      .eq('user_id', providerId)
+      .eq('user_id', _providerId)
       .eq('role', 'prestataire')
 
-    const [directResult, contactResult] = await Promise.all([directQuery, contactQuery])
-
-    if (directResult.error) {
-      return this.handleError(directResult.error)
+    if (error) {
+      return createErrorResponse(handleError(error, 'intervention:findByProvider'))
     }
 
-    if (contactResult.error) {
-      return this.handleError(contactResult.error)
-    }
-
-    // Combine and deduplicate results
-    const directInterventions = directResult.data || []
-    const contactInterventions = (contactResult.data || [])
+    // Extract interventions from the contact relationships
+    const interventions = (data || [])
       .map(item => item.intervention)
       .filter(Boolean)
 
-    const allInterventions = [...directInterventions, ...contactInterventions]
-    const uniqueInterventions = allInterventions.filter((intervention, index, self) =>
-      self.findIndex(i => i.id === intervention.id) === index
-    )
-
-    return { success: true as const, data: uniqueInterventions }
+    return { success: true as const, data: interventions }
   }
 
   /**
@@ -288,14 +281,18 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address)
         ),
-        requested_by_user:requested_by(id, name, email, role),
-        assigned_to_user:assigned_to(id, name, email, role, provider_category)
+        tenant:tenant_id(id, name, email, role),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
       `)
       .eq('status', status)
       .order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:findByStatus'))
     }
 
     return { success: true as const, data: data || [] }
@@ -312,7 +309,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .eq('building_id', _buildingId)
 
     if (lotsError) {
-      return this.handleError(lotsError)
+      return createErrorResponse(handleError(lotsError, 'intervention:findByBuilding'))
     }
 
     if (!lots || lots.length === 0) {
@@ -329,14 +326,18 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address)
         ),
-        requested_by_user:requested_by(id, name, email, role),
-        assigned_to_user:assigned_to(id, name, email, role, provider_category)
+        tenant:tenant_id(id, name, email, role),
+        intervention_contacts(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
       `)
       .in('lot_id', lotIds)
       .order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:findByBuilding'))
     }
 
     return { success: true as const, data: data || [] }
@@ -382,7 +383,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
-      return this.handleError(checkError)
+      return createErrorResponse(handleError(checkError, 'intervention:assignToProvider'))
     }
 
     if (existingAssignment) {
@@ -402,13 +403,11 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .single()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:assignToProvider'))
     }
 
-    // Also update the main assigned_to field if primary
-    if (_isPrimary) {
-      await this.update(interventionId, { assigned_to: providerId })
-    }
+    // Note: assigned_to field no longer exists in database
+    // Assignment is now handled entirely through intervention_contacts table
 
     return { success: true as const, data }
   }
@@ -426,17 +425,15 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .select()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:removeProviderAssignment'))
     }
 
     if (!data || data.length === 0) {
       throw new NotFoundException('Provider assignment not found', 'intervention_contacts', `${interventionId}-${providerId}`)
     }
 
-    // Clear main assigned_to field if this was the primary provider
-    if (data[0]?.is_primary) {
-      await this.update(interventionId, { assigned_to: null })
-    }
+    // Note: assigned_to field no longer exists in database
+    // Assignment removal is handled entirely through intervention_contacts table
 
     return { success: true as const, data: data[0] }
   }
@@ -450,7 +447,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .select('status, priority')
 
     if (statusError) {
-      return this.handleError(statusError)
+      return createErrorResponse(handleError(statusError, 'intervention:getInterventionStats'))
     }
 
     // Calculate statistics
@@ -494,11 +491,11 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         uploaded_by_user:uploaded_by(name, email),
         validated_by_user:validated_by(name, email)
       `)
-      .eq('intervention_id', interventionId)
+      .eq('intervention_id', _interventionId)
       .order('uploaded_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, 'intervention:getDocuments'))
     }
 
     return { success: true as const, data: data || [] }

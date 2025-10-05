@@ -20,7 +20,7 @@ import LotCard from "@/components/lot-card"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
-
+import { logger, logError } from '@/lib/logger'
 export default function BuildingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
   const _router = useRouter()
@@ -58,7 +58,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     try {
       setLoading(true)
       setError(null)
-      console.log("🏢 Loading building data for ID:", resolvedParams.id)
+      logger.info("🏢 Loading building data for ID:", resolvedParams.id)
 
       // Initialize services
       const _buildingService = createBuildingService()
@@ -67,12 +67,12 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
       // 1. Charger les donnees de l'immeuble
       const buildingData = await buildingService.getById(resolvedParams.id)
-      console.log("🏢 Building loaded:", buildingData)
+      logger.info("🏢 Building loaded:", buildingData)
       setBuilding(buildingData)
 
       // 2. Charger les lots de l'immeuble
       const lotsData = await lotService.getByBuildingId(resolvedParams.id)
-      console.log("🏠 Lots loaded:", lotsData?.length || 0)
+      logger.info("🏠 Lots loaded:", lotsData?.length || 0)
       setLots(lotsData || [])
 
       // 3. Charger les interventions des lots
@@ -85,16 +85,16 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
             const lotInterventions = await interventionService.getByLotId(_lotId)
             allInterventions.push(...(lotInterventions || []))
           } catch (error) {
-            console.warn(`⚠️ Could not load interventions for lot ${lotId}:`, error)
+            logger.warn(`⚠️ Could not load interventions for lot ${lotId}:`, error)
           }
         }
         
-        console.log("🔧 Interventions loaded:", allInterventions.length)
+        logger.info("🔧 Interventions loaded:", allInterventions.length)
         setInterventions(allInterventions)
       }
 
     } catch (error) {
-      console.error("❌ Error loading building data:", error)
+      logger.error("❌ Error loading building data:", error)
       setError("Erreur lors du chargement des données de l'immeuble")
     } finally {
       setLoading(false)
@@ -148,7 +148,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
     try {
       setIsDeleting(true)
-      console.log("🗑️ Deleting building:", building.id)
+      logger.info("🗑️ Deleting building:", building.id)
 
       const buildingService = createBuildingService()
       await buildingService.delete(building.id)
@@ -157,7 +157,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       router.push('/gestionnaire/biens')
       
     } catch (error) {
-      console.error("❌ Error deleting building:", error)
+      logger.error("❌ Error deleting building:", error)
       setError("Erreur lors de la suppression de l'immeuble")
       setIsDeleting(false)
       setShowDeleteModal(false)
@@ -181,7 +181,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
         break
       default:
-        console.log("Action not implemented:", actionKey)
+        logger.info("Action not implemented:", actionKey)
     }
   }
 
@@ -198,7 +198,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       const interventionsData = await interventionService.getInterventionsWithDocumentsByBuildingId(resolvedParams.id)
       setInterventionsWithDocs(interventionsData)
     } catch (error) {
-      console.error("❌ Error loading interventions with documents:", error)
+      logger.error("❌ Error loading interventions with documents:", error)
     } finally {
       setLoadingDocs(false)
     }
@@ -240,13 +240,13 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
   const handleDocumentView = (_document: unknown) => {
     // TODO: Implement document viewer
-    console.log('Viewing document:', document)
+    logger.info('Viewing document:', document)
     // For now, we can open in a new tab or show a modal
   }
 
   const handleDocumentDownload = (_document: unknown) => {
     // TODO: Implement document download
-    console.log('Downloading document:', document)
+    logger.info('Downloading document:', document)
     // For now, we can trigger a download or redirect to download URL
   }
 
@@ -382,7 +382,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
           { key: "add-intervention", label: "Créer une intervention", icon: Plus, onClick: () => handleCustomAction("add-intervention") },
           { key: "add-lot", label: "Ajouter un lot", icon: Home, onClick: () => handleCustomAction("add-lot") },
         ]}
-        onArchive={() => console.log("Archive building:", building.id)}
+        onArchive={() => logger.info("Archive building:", building.id)}
       />
 
       {/* Tabs Navigation with shadcn/ui */}

@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { BuildingInfoForm } from "@/components/building-info-form"
+import { logger, logError } from '@/lib/logger'
 
 interface BuildingInfo {
   name: string

@@ -10,16 +10,18 @@ import { useAuth } from "@/hooks/use-auth"
 import { InterventionActionPanelHeader } from "@/components/intervention/intervention-action-panel-header"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
-
-
-import { determineAssignmentType } from '@/lib/services'
-
+import { createInterventionService, createContactService, determineAssignmentType } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 // interface InterventionDetailsProps removed as unused
 
 export default function InterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const _router = useRouter()
+  const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
+
+  // Initialize services using factory functions
+  const interventionService = createInterventionService()
+  const contactService = createContactService()
   const [intervention, setIntervention] = useState<{ id: string; title: string; description: string; status: string; [key: string]: unknown } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,9 +39,9 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
     if (!resolvedParams.id || !user?.id) return
 
     try {
-      const _data = await interventionService.getById(resolvedParams.id)
+      const data = await interventionService.getById(resolvedParams.id)
 
-      console.log('🔍 [TENANT-DEBUG] Raw intervention data received:', {
+      logger.info('🔍 [TENANT-DEBUG] Raw intervention data received:', {
         id: data.id,
         status: data.status,
         user_availabilities_count: data.user_availabilities?.length || 0
@@ -47,7 +49,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
 
       // Filtrer et compter les disponibilités prestataire pour debug
       const providerAvails = data.user_availabilities?.filter(avail => avail.user?.role === 'prestataire') || []
-      console.log(`🔧 [TENANT-DEBUG] Provider availabilities found: ${providerAvails.length}`)
+      logger.info(`🔧 [TENANT-DEBUG] Provider availabilities found: ${providerAvails.length}`)
 
       // Fonction helper pour déterminer si on doit récupérer les contacts complets
       const shouldFetchFullContacts = (): boolean => {
@@ -56,7 +58,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
           'planifiee',
           'en_cours',
           'terminee',
-          'validee',
+          'approuvee',
           'cloturee'
         ]
         return planificationStatuses.includes(data.status?.toLowerCase())
@@ -70,17 +72,17 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
       }
 
       if (shouldFetchFullContacts()) {
-        console.log('🔍 [TENANT-DEBUG] Fetching full contacts for tenant view')
+        logger.info('🔍 [TENANT-DEBUG] Fetching full contacts for tenant view')
 
         let contacts = []
         if (data.lot_id) {
           // Intervention sur lot spécifique
           contacts = await contactService.getLotContacts(data.lot_id)
-          console.log('✅ [TENANT-DEBUG] Lot contacts loaded:', contacts.length)
+          logger.info('✅ [TENANT-DEBUG] Lot contacts loaded:', contacts.length)
         } else if (data.building_id) {
           // Intervention sur bâtiment entier
           contacts = await contactService.getBuildingContacts(data.building_id)
-          console.log('✅ [TENANT-DEBUG] Building contacts loaded:', contacts.length)
+          logger.info('✅ [TENANT-DEBUG] Building contacts loaded:', contacts.length)
         }
 
         // Organiser les contacts et filtrer le locataire connecté
@@ -121,13 +123,13 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
             }))
         }
 
-        console.log('✅ [TENANT-DEBUG] Organized contacts:', {
+        logger.info('✅ [TENANT-DEBUG] Organized contacts:', {
           locataires: organizedContacts.locataires.length,
           syndics: organizedContacts.syndics.length,
           autres: organizedContacts.autres.length
         })
       } else {
-        console.log('🔒 [TENANT-DEBUG] Intervention status not in planification phase, using empty contacts')
+        logger.info('🔒 [TENANT-DEBUG] Intervention status not in planification phase, using empty contacts')
       }
 
       // Transform the data to match expected format for InterventionDetailTabs
@@ -237,7 +239,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         })) || [], // Locataires voient seulement les devis approuvés pour identifier les prestataires sélectionnés
       }
 
-      console.log('✅ [TENANT-DEBUG] Transformed intervention data:', {
+      logger.info('✅ [TENANT-DEBUG] Transformed intervention data:', {
         id: transformedData.id,
         status: transformedData.status,
         availabilities_count: transformedData.availabilities.length,
@@ -247,7 +249,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
 
       setIntervention(transformedData)
     } catch (err) {
-      console.error("Error refreshing intervention:", err)
+      logger.error("Error refreshing intervention:", err)
     }
   }, [resolvedParams.id, user?.id])
 
@@ -259,7 +261,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         setError(null)
         await refreshIntervention()
       } catch (err) {
-        console.error("Error fetching intervention:", err)
+        logger.error("Error fetching intervention:", err)
         setError("Erreur lors du chargement de l'intervention")
       } finally {
         setLoading(false)
@@ -326,12 +328,12 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
 
   const handleArchive = () => {
     // Pas d'archivage pour les locataires
-    console.log('Archive not available for tenants')
+    logger.info('Archive not available for tenants')
   }
 
-  const handleStatusAction = (_action: string) => {
+  const handleStatusAction = (action: string) => {
     // Actions gérées par le panel d'actions
-    console.log('Status action:', action)
+    logger.info('Status action:', action)
   }
 
   return (
@@ -377,7 +379,7 @@ export default function InterventionDetailsPage({ params }: { params: Promise<{ 
         userId={user?.id || ""}
         onDataChange={refreshIntervention}
         onDownloadAttachment={(attachment) => {
-          console.log('Download attachment:', attachment)
+          logger.info('Download attachment:', attachment)
           // TODO: Implémenter le téléchargement des pièces jointes
         }}
       />

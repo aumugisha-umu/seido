@@ -10,6 +10,7 @@ import {
 import { requireRole } from "@/lib/dal"
 import { userService, lotService, interventionService, buildingService } from "@/lib/database-service"
 import { LocataireDashboardClient } from "./locataire-dashboard-client"
+import { logger, logError } from '@/lib/logger'
 
 /**
  * 🔐 DASHBOARD LOCATAIRE - SERVER COMPONENT (Migration Server Components)

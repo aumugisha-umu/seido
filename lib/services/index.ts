@@ -183,11 +183,17 @@ export {
 export {
   InterventionService,
   createInterventionService,
+  createInterventionService as createBrowserInterventionService, // Alias for client-side usage
   createServerInterventionService,
   type ApprovalData,
   type PlanningData,
   type ExecutionData,
-  type FinalizationData
+  type FinalizationData,
+  type TenantValidationData,
+  type TenantContestData,
+  type CancellationData,
+  type SlotConfirmationData,
+  type ProviderCompletionData
 } from './domain/intervention.service'
 
 // Team Service
@@ -325,6 +331,20 @@ if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
   } from './__tests__/setup'
   */
 }
+
+// Singleton service instances (for client-side usage)
+// ⚠️ DISABLED: These cause circular dependency issues at module load time
+// Use factory functions instead: createUserService(), createBuildingService(), etc.
+// export const userService = createUserService()
+// export const buildingService = createBuildingService()
+// export const lotService = createLotService()
+// export const contactService = createContactService()
+// export const interventionService = createInterventionService()
+// export const teamService = createTeamService()
+// export const statsService = createStatsService()
+// export const compositeService = createCompositeService()
+// export const contactInvitationService = createContactInvitationService()
+// export const tenantService = createTenantService()
 
 // Legacy compatibility exports
 // These will be removed after migration is complete

@@ -1,0 +1,28 @@
+{
+  "testName": "invitation-callback-failed",
+  "timestamp": 1759551399458,
+  "screenshot": "test\\e2e\\screenshots\\debug\\invitation-callback-failed-1759551399458.png",
+  "finalUrl": "chrome-error://chromewebdata/",
+  "consoleLog": [
+    {
+      "type": "warning",
+      "text": "Deprecated API for given entry type.",
+      "timestamp": 1759551401240
+    }
+  ],
+  "errors": [],
+  "pendingRequests": [],
+  "domSnapshot": "<html><head></head><body></body></html>",
+  "pageHealth": {
+    "readyState": "complete",
+    "nextJsHydrated": false,
+    "hasJsErrors": false,
+    "errorCount": 0
+  },
+  "performanceMetrics": {
+    "domContentLoaded": 2510.0999999940395,
+    "loadComplete": 2512.199999988079,
+    "firstPaint": 0,
+    "largestContentfulPaint": 0
+  }
+}

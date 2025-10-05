@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, CheckCircle } from "lucide-react"
 import { LoginForm } from "./login-form"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 PAGE LOGIN - SERVER COMPONENT (Migration Server Components)
  *
@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showSessionExpired = params.reason === 'session_expired'
   const showConfirmationError = params.error && ['expired_token', 'invalid_token', 'confirmation_failed'].includes(params.error)
 
-  console.log('🔄 [LOGIN-SERVER] Login page rendered server-side', {
+  logger.info('🔄 [LOGIN-SERVER] Login page rendered server-side', {
     confirmed: params.confirmed,
     message: params.message,
     reason: params.reason,

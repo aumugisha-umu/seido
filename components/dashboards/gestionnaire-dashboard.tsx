@@ -18,10 +18,12 @@ import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import { useInterventionExecution } from "@/hooks/use-intervention-execution"
 import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
-
+import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { createContactInvitationService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 export default function GestionnaireDashboard() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const _router = useRouter()
+  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData, loading: statsLoading, stats, refetch } = useManagerStats()
 
@@ -41,22 +43,102 @@ export default function GestionnaireDashboard() {
     finalizationHook,
   }
 
+  // Convertir les interventions en format PendingAction pour le composant
+  const convertToPendingActions = () => {
+    if (!managerData?.recentInterventions) return []
+
+    return managerData.recentInterventions
+      .filter((intervention: any) => [
+        "demande",
+        "approuvee",
+        "demande_de_devis",
+        "planification",
+        "planifiee",
+        "en_cours"
+      ].includes(intervention.status))
+      .map((intervention: any) => ({
+        id: intervention.id,
+        type: 'intervention',
+        title: intervention.title,
+        status: intervention.status,
+        reference: intervention.reference,
+        priority: intervention.priority,
+        location: {
+          building: intervention.building?.name,
+          lot: intervention.lot?.reference
+        },
+        contact: intervention.tenant ? {
+          name: intervention.tenant.name,
+          role: 'Locataire'
+        } : intervention.prestataire ? {
+          name: intervention.prestataire.name,
+          role: 'Prestataire'
+        } : undefined,
+        actionUrl: `/gestionnaire/interventions/${intervention.id}`
+      }))
+  }
+
+  const pendingActions = convertToPendingActions()
+
   // Afficher la vérification d'équipe en cours ou échoué
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
-  const handleContactSubmit = (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; address: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
-    console.log("[v0] Contact created:", {
+  const handleContactSubmit = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
+    logger.info("[GESTIONNAIRE-DASHBOARD] Creating contact:", {
       ...contactData,
       fullName: `${contactData.firstName} ${contactData.lastName}`,
     })
-    
-    if (contactData.inviteToApp) {
-      console.log("📧 Une invitation sera envoyée à:", contactData.email)
+
+    try {
+      // ✅ FIX: Utiliser le même service que la page contacts pour garantir la cohérence
+      const contactInvitationService = createContactInvitationService()
+
+      // ✅ Préparer les données dans le format attendu par le service
+      const dataToSend = {
+        type: contactData.type,
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
+        email: contactData.email,
+        phone: contactData.phone,
+        speciality: contactData.speciality,
+        notes: contactData.notes,
+        inviteToApp: contactData.inviteToApp,
+        teamId: teamStatus.team?.id || '' // Récupérer le teamId depuis le teamStatus
+      }
+
+      logger.info("📞 [GESTIONNAIRE-DASHBOARD] Calling contactInvitationService with:", dataToSend)
+
+      // ✅ Utiliser le service d'invitation qui gère la création du contact + invitation optionnelle
+      const result = await contactInvitationService.createContactWithOptionalInvite(dataToSend)
+
+      logger.info("✅ [GESTIONNAIRE-DASHBOARD] Service completed, result:", result)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create contact')
+      }
+
+      if (contactData.inviteToApp) {
+        logger.info("📧 Invitation sent to:", contactData.email)
+      }
+
+      setIsContactModalOpen(false)
+
+      // Trigger refetch to update the dashboard
+      if (typeof refetch === 'function') {
+        logger.info("🔄 [GESTIONNAIRE-DASHBOARD] Triggering dashboard refetch...")
+        await refetch()
+      }
+    } catch (error) {
+      logger.error('❌ [GESTIONNAIRE-DASHBOARD] Error creating contact:', error)
+      logger.error('❌ [GESTIONNAIRE-DASHBOARD] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        contactData: contactData
+      })
+      // TODO: Show error toast to user
     }
-    
-    setIsContactModalOpen(false)
   }
 
   return (
@@ -161,6 +243,13 @@ export default function GestionnaireDashboard() {
         </Card>
       </div>
 
+      {/* Section: Actions en attente */}
+      <PendingActionsCard
+        actions={pendingActions}
+        userRole="gestionnaire"
+        loading={statsLoading}
+      />
+
       {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Occupation Trends */}
@@ -232,7 +321,7 @@ export default function GestionnaireDashboard() {
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
         onSuccess={refetch}
-        defaultType="locataire"
+        defaultType="tenant"
       />
     </div>
   )

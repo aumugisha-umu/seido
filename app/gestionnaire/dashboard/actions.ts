@@ -3,9 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/lib/dal'
 import { createServerTeamService, createServerContactInvitationService } from '@/lib/services'
-
-
-
+import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 DASHBOARD ACTIONS (Bonnes Pratiques 2025)
  *
@@ -30,23 +28,47 @@ export interface CreateContactData {
 
 export async function createContactAction(data: CreateContactData) {
   try {
+    logger.info('🚀 [DASHBOARD-ACTION] Starting contact creation:', {
+      type: data.type,
+      email: data.email,
+      teamId: data.teamId,
+      inviteToApp: data.inviteToApp
+    })
+
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
     const user = await requireRole('gestionnaire')
+    logger.info('✅ [DASHBOARD-ACTION] User authenticated:', { userId: user.id, role: user.role })
 
-    // Initialize services
-    const teamService = createServerTeamService()
-    const contactInvitationService = createServerContactInvitationService()
+    // ✅ FIX: Initialize services with await (Server Components)
+    logger.info('📦 [DASHBOARD-ACTION] Initializing services...')
+    const teamService = await createServerTeamService()
+    const contactInvitationService = await createServerContactInvitationService()
+    logger.info('✅ [DASHBOARD-ACTION] Services initialized')
 
     // Vérifier que l'utilisateur peut créer des contacts pour cette équipe
-    const teams = await teamService.getUserTeams(user.id)
-    const hasTeamAccess = teams.some(team => team.id === data._teamId)
+    logger.info('🔍 [DASHBOARD-ACTION] Checking team access...')
+    const teamsResult = await teamService.getUserTeams(user.id)
+    const teams = teamsResult?.data || []
+
+    logger.info('📊 [DASHBOARD-ACTION] User teams:', {
+      teamsCount: teams.length,
+      teamIds: teams.map(t => t.id),
+      requestedTeamId: data.teamId
+    })
+
+    // ✅ FIX: Corriger typo data._teamId → data.teamId
+    const hasTeamAccess = teams.some(team => team.id === data.teamId)
 
     if (!hasTeamAccess) {
-      console.log(`🚫 [DASHBOARD-ACTION] User ${user.id} cannot create contacts for team ${data.teamId}`)
+      logger.error(`🚫 [DASHBOARD-ACTION] Access denied:`, {
+        userId: user.id,
+        requestedTeamId: data.teamId,
+        userTeams: teams.map(t => t.id)
+      })
       return { success: false, error: 'Accès non autorisé à cette équipe' }
     }
 
-    console.log('[DASHBOARD-ACTION] Creating contact with invitation service...')
+    logger.info('✅ [DASHBOARD-ACTION] Team access verified, calling service...')
 
     // Créer le contact avec invitation optionnelle
     const result = await contactInvitationService.createContactWithOptionalInvite({
@@ -62,26 +84,47 @@ export async function createContactAction(data: CreateContactData) {
       teamId: data.teamId
     })
 
-    console.log('✅ [DASHBOARD-ACTION] Contact created successfully:', result.contact.id)
+    logger.info('📥 [DASHBOARD-ACTION] Service result:', {
+      success: result.success,
+      hasData: !!result.data,
+      error: result.error
+    })
 
-    if (data.inviteToApp && result.invitationResult) {
-      console.log('📧 [DASHBOARD-ACTION] Invitation sent to:', data.email)
+    // ✅ FIX: Vérifier la structure du résultat avant d'accéder aux propriétés
+    if (!result.success) {
+      logger.error('❌ [DASHBOARD-ACTION] Service returned error:', result.error)
+      return {
+        success: false,
+        error: result.error || 'Erreur lors de la création du contact'
+      }
+    }
+
+    logger.info('✅ [DASHBOARD-ACTION] Contact created successfully:', result.data)
+
+    // ✅ FIX: La structure du résultat est result.data, pas result.contact
+    if (data.inviteToApp && result.data?.invitation) {
+      logger.info('📧 [DASHBOARD-ACTION] Invitation sent to:', data.email)
     }
 
     // Revalider la page pour refléter les changements
+    logger.info('🔄 [DASHBOARD-ACTION] Revalidating paths...')
     revalidatePath('/gestionnaire/dashboard')
     revalidatePath('/gestionnaire/contacts')
 
     return {
       success: true,
-      contact: result.contact,
-      invitationSent: data.inviteToApp && !!result.invitationResult
+      contact: result.data?.contact,
+      invitationSent: data.inviteToApp && !!result.data?.invitation
     }
   } catch (error) {
-    console.error('❌ [DASHBOARD-ACTION] Contact creation failed:', error)
+    logger.error('❌ [DASHBOARD-ACTION] Contact creation failed:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    })
     return {
       success: false,
-      error: 'Erreur lors de la création du contact'
+      error: error instanceof Error ? error.message : 'Erreur lors de la création du contact'
     }
   }
 }
@@ -95,7 +138,7 @@ export async function createInterventionAction() {
     // Pour l'instant, redirection vers le formulaire
     return { success: true, redirectTo: '/gestionnaire/interventions/nouvelle-intervention' }
   } catch (error) {
-    console.error('❌ [DASHBOARD-ACTION] Intervention creation failed:', error)
+    logger.error('❌ [DASHBOARD-ACTION] Intervention creation failed:', error)
     return {
       success: false,
       error: 'Erreur lors de la création de l\'intervention'

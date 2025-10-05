@@ -26,7 +26,7 @@ import { useContactsData } from "@/hooks/use-contacts-data"
 
 import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
-
+import { logger, logError } from '@/lib/logger'
 export default function ContactsPage() {
   const _router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -254,15 +254,15 @@ export default function ContactsPage() {
   const loadPendingInvitations = async (teamId: string) => {
     try {
       setLoadingInvitations(true)
-      console.log("📧 Loading invitations for team:", teamId)
+      logger.info("📧 Loading invitations for team:", teamId)
 
       const contactInvitationServiceLocal = createContactInvitationService()
       const invitations = await contactInvitationServiceLocal.getPendingInvitations(teamId)
-      console.log("✅ Invitations loaded:", invitations.length)
+      logger.info("✅ Invitations loaded:", invitations.length)
       // Note: maintenant les invitations sont gérées par useContactsData, 
       // cette fonction est gardée pour les actions spéciales si nécessaire
     } catch (invitationError) {
-      console.error("❌ Error loading invitations:", invitationError)
+      logger.error("❌ Error loading invitations:", invitationError)
     } finally {
       setLoadingInvitations(false)
     }
@@ -271,15 +271,15 @@ export default function ContactsPage() {
 
   const handleResendInvitation = async (contactId: string) => {
     try {
-      console.log("🔄 [CONTACTS-UI] Resending invitation for contact:", contactId)
+      logger.info("🔄 [CONTACTS-UI] Resending invitation for contact:", contactId)
 
       // Marquer cette invitation comme en cours de renvoi
       setResendingInvitations(prev => ({ ...prev, [contactId]: true }))
       
-      console.log("📞 [CONTACTS-UI] Calling contactInvitationService.resendInvitation...")
+      logger.info("📞 [CONTACTS-UI] Calling contactInvitationService.resendInvitation...")
       const result = await contactInvitationService.resendInvitation(contactId)
       
-      console.log("📊 [CONTACTS-UI] Resend result:", {
+      logger.info("📊 [CONTACTS-UI] Resend result:", {
         success: result.success,
         hasMessage: !!result.message,
         hasMagicLink: !!result.magicLink,
@@ -287,9 +287,9 @@ export default function ContactsPage() {
       })
       
       if (result.success) {
-        console.log("✅ [CONTACTS-UI] Invitation resent successfully!")
-        console.log("📫 [CONTACTS-UI] Email should have been sent")
-        console.log("🔗 [CONTACTS-UI] Magic link generated:", result.magicLink?.substring(0, 80) + '...')
+        logger.info("✅ [CONTACTS-UI] Invitation resent successfully!")
+        logger.info("📫 [CONTACTS-UI] Email should have been sent")
+        logger.info("🔗 [CONTACTS-UI] Magic link generated:", result.magicLink?.substring(0, 80) + '...')
         
         // Marquer cette invitation comme renvoyée avec succès
         // Le vrai magic link généré par Supabase est maintenant disponible
@@ -303,7 +303,7 @@ export default function ContactsPage() {
         }))
         
       } else {
-        console.error("❌ [CONTACTS-UI] Failed to resend invitation:", {
+        logger.error("❌ [CONTACTS-UI] Failed to resend invitation:", {
           contactId,
           error: result.error
         })
@@ -315,7 +315,7 @@ export default function ContactsPage() {
       }
       
     } catch (error) {
-      console.error("❌ [CONTACTS-UI] Exception in resend:", {
+      logger.error("❌ [CONTACTS-UI] Exception in resend:", {
         contactId,
         error: error instanceof Error ? error.message : String(error)
       })
@@ -325,7 +325,7 @@ export default function ContactsPage() {
         [contactId]: { success: false } 
       }))
     } finally {
-      console.log("🏁 [CONTACTS-UI] Resend process finished for contact:", contactId)
+      logger.info("🏁 [CONTACTS-UI] Resend process finished for contact:", contactId)
       // Enlever l'état de chargement
       setResendingInvitations(prev => ({ ...prev, [contactId]: false }))
     }
@@ -334,11 +334,11 @@ export default function ContactsPage() {
   // ✅ NOUVEAU: Fonction pour annuler une invitation
   const handleCancelInvitation = async (invitationId: string) => {
     try {
-      console.log("🚫 [CONTACTS-UI] Cancelling invitation:", invitationId)
+      logger.info("🚫 [CONTACTS-UI] Cancelling invitation:", invitationId)
 
       // Trouver l'invitation dans la liste pour debug
       const invitationToCancel = pendingInvitations.find(inv => inv.id === invitationId)
-      console.log("🔍 [CONTACTS-UI] Invitation details:", invitationToCancel)
+      logger.info("🔍 [CONTACTS-UI] Invitation details:", invitationToCancel)
 
       // Marquer cette invitation comme en cours d'annulation
       setCancellingInvitations(prev => ({ ...prev, [invitationId]: true }))
@@ -352,14 +352,14 @@ export default function ContactsPage() {
       })
 
       const result = await response.json()
-      console.log("📥 [CONTACTS-UI] API Response:", { 
+      logger.info("📥 [CONTACTS-UI] API Response:", { 
         status: response.status, 
         ok: response.ok, 
         result 
       })
       
       if (response.ok && result.success) {
-        console.log("✅ [CONTACTS-UI] Invitation cancelled successfully!")
+        logger.info("✅ [CONTACTS-UI] Invitation cancelled successfully!")
         
         // Rafraîchir la liste des invitations
         if (userTeam?.id) {
@@ -371,12 +371,12 @@ export default function ContactsPage() {
         
       } else {
         const errorMessage = result.error || `Erreur HTTP ${response.status}`
-        console.error("❌ [CONTACTS-UI] Failed to cancel invitation:", errorMessage)
+        logger.error("❌ [CONTACTS-UI] Failed to cancel invitation:", errorMessage)
         setError(`Erreur lors de l'annulation: ${errorMessage}`)
       }
       
     } catch (error: unknown) {
-      console.error("❌ [CONTACTS-UI] Exception in cancel:", error)
+      logger.error("❌ [CONTACTS-UI] Exception in cancel:", error)
       const errorMessage = (error as any)?.message || "Erreur inconnue"
       setError(`Erreur lors de l'annulation de l'invitation: ${errorMessage}`)
     } finally {
@@ -388,7 +388,7 @@ export default function ContactsPage() {
   const handleCopyMagicLink = async (magicLink: string, contactId: string) => {
     try {
       await navigator.clipboard.writeText(magicLink)
-      console.log("✅ Magic link copied to clipboard")
+      logger.info("✅ Magic link copied to clipboard")
       
       // Marquer comme copié temporairement
       setCopiedLinks(prev => ({ ...prev, [contactId]: true }))
@@ -399,7 +399,7 @@ export default function ContactsPage() {
       }, 2000)
       
     } catch (error) {
-      console.error("❌ Failed to copy magic link:", error)
+      logger.error("❌ Failed to copy magic link:", error)
       setError("Erreur lors de la copie du lien")
     }
   }
@@ -422,11 +422,11 @@ export default function ContactsPage() {
 
   const handleContactSubmit = async (contactData: unknown) => {
     try {
-      console.log("📞 [CONTACTS-PAGE] Creating contact:", contactData)
-      console.log("📞 [CONTACTS-PAGE] User team:", userTeam)
+      logger.info("📞 [CONTACTS-PAGE] Creating contact:", contactData)
+      logger.info("📞 [CONTACTS-PAGE] User team:", userTeam)
 
       if (!userTeam?.id) {
-        console.error("❌ [CONTACTS-PAGE] No team found")
+        logger.error("❌ [CONTACTS-PAGE] No team found")
         setError("Aucune équipe trouvée pour créer le contact")
         return
       }
@@ -436,31 +436,31 @@ export default function ContactsPage() {
         teamId: userTeam.id
       }
 
-      console.log("📞 [CONTACTS-PAGE] Calling service with:", dataWithTeam)
+      logger.info("📞 [CONTACTS-PAGE] Calling service with:", dataWithTeam)
 
       // Utiliser le service d'invitation qui gère la création du contact + invitation optionnelle
       const result = await contactInvitationService.createContactWithOptionalInvite(dataWithTeam)
 
-      console.log("✅ [CONTACTS-PAGE] Service completed, result:", result)
+      logger.info("✅ [CONTACTS-PAGE] Service completed, result:", result)
 
       if (result.invitation) {
         if (result.invitation.success) {
-          console.log("✅ [CONTACTS-PAGE] Invitation sent successfully to:", contactData.email)
+          logger.info("✅ [CONTACTS-PAGE] Invitation sent successfully to:", contactData.email)
         } else {
-          console.warn("⚠️ [CONTACTS-PAGE] Contact created but invitation failed:", result.invitation.error)
+          logger.warn("⚠️ [CONTACTS-PAGE] Contact created but invitation failed:", result.invitation.error)
           setError(`Contact créé mais l'invitation a échoué: ${result.invitation.error}`)
         }
       }
 
-      console.log("🔄 [CONTACTS-PAGE] Reloading contacts...")
+      logger.info("🔄 [CONTACTS-PAGE] Reloading contacts...")
       // ✅ NOUVEAU: Utiliser le refetch du hook optimisé
       await refetchContacts()
-      console.log("✅ [CONTACTS-PAGE] Contacts reloaded, closing modal")
+      logger.info("✅ [CONTACTS-PAGE] Contacts reloaded, closing modal")
       setIsContactModalOpen(false)
 
     } catch (error) {
-      console.error("❌ [CONTACTS-PAGE] Error creating contact:", error)
-      console.error("❌ [CONTACTS-PAGE] Error details:", {
+      logger.error("❌ [CONTACTS-PAGE] Error creating contact:", error)
+      logger.error("❌ [CONTACTS-PAGE] Error details:", {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : 'No stack',
         contactData: contactData,
@@ -472,14 +472,14 @@ export default function ContactsPage() {
 
   const handleDeleteContact = async (contactId: string) => {
     try {
-      console.log("🗑️ Deleting contact:", contactId)
+      logger.info("🗑️ Deleting contact:", contactId)
       await contactService.delete(contactId)
 
       // ✅ NOUVEAU: Utiliser le refetch du hook optimisé
       await refetchContacts()
 
     } catch (error) {
-      console.error("❌ Error deleting contact:", error)
+      logger.error("❌ Error deleting contact:", error)
       setError("Erreur lors de la suppression du contact")
     }
   }
@@ -726,7 +726,7 @@ export default function ContactsPage() {
                                 <DropdownMenuItem
                                   onClick={() => {
                                     // TODO: Implémenter l'archivage du contact
-                                    console.log('Archiver contact:', contact.id)
+                                    logger.info('Archiver contact:', contact.id)
                                     setError("Fonctionnalité d'archivage bientôt disponible")
                                   }}
                                   className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
@@ -1359,7 +1359,7 @@ export default function ContactsPage() {
                           <DropdownMenuItem
                             onClick={() => {
                               // TODO: Implémenter l'archivage du contact
-                              console.log('Archiver contact:', contact.id)
+                              logger.info('Archiver contact:', contact.id)
                               setError("Fonctionnalité d'archivage bientôt disponible")
                             }}
                             className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
@@ -1384,7 +1384,7 @@ export default function ContactsPage() {
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
         onSuccess={refetchContacts}
-        defaultType="locataire"
+        defaultType="tenant"
       />
 
       {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}

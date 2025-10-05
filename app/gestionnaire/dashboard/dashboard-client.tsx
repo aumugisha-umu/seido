@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Building2, Home, UserPlus, Plus, ChevronDown, Wrench } from 'lucide-react'
 import { ContactFormModal } from '@/components/contact-form-modal'
-import type { CreateContactData } from './actions'
-
+import { createContactInvitationService } from '@/lib/services'
+import { logger } from '@/lib/logger'
 interface DashboardClientProps {
   teamId: string
 }
@@ -29,26 +29,56 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
   const _router = useRouter()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
 
-  const handleContactSubmit = async (contactData: CreateContactData) => {
+  // ✅ Instancier le service côté CLIENT (exactement comme contacts/page.tsx)
+  const contactInvitationService = createContactInvitationService()
+
+  const handleContactSubmit = async (contactData: any) => {
     try {
-      console.log('[DASHBOARD-CLIENT] Contact creation:', contactData)
+      logger.info("📞 [DASHBOARD-CLIENT] Creating contact:", contactData)
 
-      // ✅ BONNE PRATIQUE 2025: Utiliser Server Action au lieu de fetch client
-      const { createContactAction } = await import('./actions')
-      const result = await createContactAction({
-        ...contactData,
-        teamId
-      })
-
-      if (result.success) {
-        setIsContactModalOpen(false)
-        // Recharger la page pour refléter les changements
-        router.refresh()
-      } else {
-        console.error('[DASHBOARD-CLIENT] Contact creation failed:', result.error)
+      if (!teamId) {
+        logger.error("❌ [DASHBOARD-CLIENT] No team found")
+        throw new Error("Aucune équipe trouvée pour créer le contact")
       }
+
+      const dataWithTeam = {
+        ...contactData,
+        teamId: teamId
+      }
+
+      logger.info("📞 [DASHBOARD-CLIENT] Calling service with:", dataWithTeam)
+
+      // ✅ Utiliser le service d'invitation qui gère la création du contact + invitation optionnelle
+      // Exactement comme contacts/page.tsx:442
+      const result = await contactInvitationService.createContactWithOptionalInvite(dataWithTeam)
+
+      logger.info("✅ [DASHBOARD-CLIENT] Service completed, result:", result)
+
+      if (result.invitation) {
+        if (result.invitation.success) {
+          logger.info("✅ [DASHBOARD-CLIENT] Invitation sent successfully to:", contactData.email)
+        } else {
+          logger.warn("⚠️ [DASHBOARD-CLIENT] Contact created but invitation failed:", result.invitation.error)
+        }
+      }
+
+      logger.info("🔄 [DASHBOARD-CLIENT] Closing modal and refreshing...")
+      setIsContactModalOpen(false)
+
+      // Recharger le dashboard pour afficher le nouveau contact
+      _router.refresh()
+      logger.info("✅ [DASHBOARD-CLIENT] Dashboard refresh triggered")
+
     } catch (error) {
-      console.error('[DASHBOARD-CLIENT] Error creating contact:', error)
+      logger.error("❌ [DASHBOARD-CLIENT] Error creating contact:", error)
+      logger.error("❌ [DASHBOARD-CLIENT] Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        contactData: contactData,
+        teamId: teamId
+      })
+      // Propager l'erreur pour affichage dans ContactFormModal
+      throw error
     }
   }
 
@@ -140,7 +170,7 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
-        defaultType="locataire"
+        defaultType="tenant"
       />
     </>
   )

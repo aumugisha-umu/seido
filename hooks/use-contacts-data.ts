@@ -35,8 +35,9 @@ export function useContactsData() {
     }
 
     // ✅ OPTIMISATION: Permettre le bypass du cache lors des navigations
-    if (lastUserIdRef.current === userId && data.contacts.length > 0 && !bypassCache) {
-      logger.info("🔒 [CONTACTS-DATA] Skipping fetch - same userId and data exists (use bypassCache=true to force)")
+    // Note: Removed data.contacts.length dependency to avoid circular re-renders
+    if (lastUserIdRef.current === userId && !bypassCache) {
+      logger.info("🔒 [CONTACTS-DATA] Skipping fetch - same userId (use bypassCache=true to force)")
       return
     }
 
@@ -85,10 +86,10 @@ export function useContactsData() {
       const team = userTeams[0]
       logger.info("🏢 [CONTACTS-DATA] Found team:", team.id, team.name)
 
-      // ⚡ OPTIMISATION: Charger les 3 queries EN PARALLÈLE
-      logger.info("🏃 [CONTACTS-DATA] Loading team members, invitations, and status IN PARALLEL...")
+      // ⚡ OPTIMISATION: Charger les 2 queries EN PARALLÈLE (API redondante supprimée)
+      logger.info("🏃 [CONTACTS-DATA] Loading team members and ALL invitations IN PARALLEL...")
 
-      const [membersResult, invitationsResult, statusResult] = await Promise.allSettled([
+      const [membersResult, invitationsResult] = await Promise.allSettled([
         // Query 1: Team members
         supabase
           .from('team_members')
@@ -109,24 +110,18 @@ export function useContactsData() {
               address,
               is_active,
               avatar_url,
-              notes,
-              first_name,
-              last_name
+              notes
             )
           `)
           .eq('team_id', team.id)
           .order('joined_at', { ascending: false }),
 
-        // Query 2: Pending invitations
+        // Query 2: ALL invitations (all statuses for mapping)
         supabase
           .from('user_invitations')
           .select('*')
           .eq('team_id', team.id)
-          .eq('status', 'pending')
-          .order('invited_at', { ascending: false }),
-
-        // Query 3: Invitation status
-        fetch(`/api/team-invitations?teamId=${team.id}`)
+          .order('invited_at', { ascending: false })
       ])
 
       // Traiter résultat membres
@@ -148,49 +143,37 @@ export function useContactsData() {
         throw new Error("Failed to load team members")
       }
 
-      // Traiter résultat invitations
+      // Traiter résultat invitations (pour TOUS les statuts + mapping)
       let invitations: unknown[] = []
+      let allInvitations: unknown[] = []
+      let contactsInvitationStatus: { [key: string]: string } = {}
+
       if (invitationsResult.status === 'fulfilled') {
         const { data: invitationsData, error: invError } = invitationsResult.value
 
         if (invError) {
           logger.error("❌ [CONTACTS-DATA] Error loading invitations:", invError)
           invitations = []
+          allInvitations = []
         } else {
-          invitations = invitationsData || []
-          logger.info("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
+          allInvitations = invitationsData || []
+
+          // Séparer les pending pour l'affichage
+          invitations = allInvitations.filter((inv: any) => inv.status === 'pending')
+          logger.info("✅ [CONTACTS-DATA] All invitations loaded:", allInvitations.length, "(pending:", invitations.length, ")")
+
+          // Construire le mapping de statut à partir de TOUTES les invitations
+          allInvitations.forEach((invitation: any) => {
+            if (invitation.email) {
+              contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
+            }
+          })
+          logger.info("📊 [CONTACTS-DATA] Invitation status mapping created:", Object.keys(contactsInvitationStatus).length, "entries")
         }
       } else {
         logger.error("❌ [CONTACTS-DATA] Invitations query failed:", invitationsResult.reason)
         invitations = []
-      }
-
-      // Traiter résultat invitation status
-      let contactsInvitationStatus: { [key: string]: string } = {}
-      if (statusResult.status === 'fulfilled') {
-        const response = statusResult.value
-
-        try {
-          if (response.ok) {
-            const { invitations: teamInvitations } = await response.json()
-            logger.info("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
-
-            // Marquer uniquement les contacts qui ont une invitation réelle
-            teamInvitations?.forEach((invitation: any) => {
-              if (invitation.email) {
-                contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
-              }
-            })
-
-            logger.info("📊 [CONTACTS-DATA] Final invitation status mapping:", contactsInvitationStatus)
-          } else {
-            logger.warn("⚠️ [CONTACTS-DATA] Could not fetch team invitations, using empty status map")
-          }
-        } catch (statusError) {
-          logger.error("❌ [CONTACTS-DATA] Error parsing invitation status:", statusError)
-        }
-      } else {
-        logger.error("❌ [CONTACTS-DATA] Invitation status fetch failed:", statusResult.reason)
+        allInvitations = []
       }
 
       logger.info("🏁 [CONTACTS-DATA] All parallel queries completed")
@@ -217,7 +200,7 @@ export function useContactsData() {
       }
       loadingRef.current = false
     }
-  }, [data.contacts.length])
+  }, []) // Removed circular dependency - callback is now stable
 
   // ✅ SIMPLIFIÉ: Effect standard React sans couche de cache
   useEffect(() => {
@@ -233,14 +216,8 @@ export function useContactsData() {
       return
     }
 
-    // ✅ OPTIMISATION: Débounce réduit pour une navigation plus réactive
-    const timeoutId = setTimeout(() => {
-      fetchContactsData(user.id, false) // Utilisation normale du cache
-    }, 100) // Réduit pour plus de réactivité
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
+    // ✅ OPTIMISATION: Appel immédiat pour réactivité maximale
+    fetchContactsData(user.id, false) // Utilisation normale du cache
   }, [user?.id, fetchContactsData])
 
   // Nettoyage au démontage
@@ -251,17 +228,12 @@ export function useContactsData() {
     }
   }, [])
 
-  // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
+  // ✅ OPTIMISÉ: Refetch sans vider les données (meilleure UX)
   const refetch = useCallback(() => {
     if (user?.id) {
       logger.info("🔄 [CONTACTS-DATA] Manual refetch requested")
       lastUserIdRef.current = null
-      setData({
-        contacts: [],
-        pendingInvitations: [],
-        userTeam: null,
-        contactsInvitationStatus: {}
-      })
+      // Ne pas vider les données - les nouvelles écraseront les anciennes
       loadingRef.current = false
       fetchContactsData(user.id, true) // Bypass cache
     }
@@ -271,12 +243,7 @@ export function useContactsData() {
     if (user?.id) {
       logger.info("🔄 [CONTACTS-DATA] Force refresh requested")
       lastUserIdRef.current = null
-      setData({
-        contacts: [],
-        pendingInvitations: [],
-        userTeam: null,
-        contactsInvitationStatus: {}
-      })
+      // Ne pas vider les données - les nouvelles écraseront les anciennes
       loadingRef.current = false
 
       // Force fetch

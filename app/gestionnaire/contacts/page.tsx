@@ -52,6 +52,7 @@ export default function ContactsPage() {
   const [filteredContacts, setFilteredContacts] = useState<typeof contacts>([])
   const [filteredInvitations, setFilteredInvitations] = useState<unknown[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loadingInvitations, setLoadingInvitations] = useState(false)
   const [resentInvitations, setResentInvitations] = useState<{[key: string]: {success: boolean, message?: string, magicLink?: string}}>({})
@@ -126,6 +127,15 @@ export default function ContactsPage() {
     }
   }, [contactsError])
 
+  // ✅ OPTIMISATION: Debounce search term pour éviter filtrage à chaque frappe
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
+
   // État pour les filtres
   const [filters, setFilters] = useState({
     role: "all",
@@ -139,13 +149,13 @@ export default function ContactsPage() {
     // Filtrage des contacts
     let filteredContactsResult = contacts
 
-    // Filtrage par terme de recherche
-    if (searchTerm.trim() !== "") {
-      filteredContactsResult = filteredContactsResult.filter(contact => 
-        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
+    // Filtrage par terme de recherche (DEBOUNCED pour performance)
+    if (debouncedSearchTerm.trim() !== "") {
+      filteredContactsResult = filteredContactsResult.filter(contact =>
+        contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        contact.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        contact.company?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        contact.speciality?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       )
     }
 
@@ -184,13 +194,13 @@ export default function ContactsPage() {
     // Filtrage des invitations
     let filteredInvitationsResult = pendingInvitations
 
-    // Filtrage par terme de recherche
-    if (searchTerm.trim() !== "") {
-      filteredInvitationsResult = filteredInvitationsResult.filter(invitation => 
-        invitation.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invitation.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invitation.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invitation.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
+    // Filtrage par terme de recherche (DEBOUNCED pour performance)
+    if (debouncedSearchTerm.trim() !== "") {
+      filteredInvitationsResult = filteredInvitationsResult.filter(invitation =>
+        invitation.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        invitation.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        invitation.company?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        invitation.speciality?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       )
     }
 
@@ -222,7 +232,7 @@ export default function ContactsPage() {
     }
 
     setFilteredInvitations(filteredInvitationsResult)
-  }, [contacts, pendingInvitations, searchTerm, filters, contactsInvitationStatus])
+  }, [contacts, pendingInvitations, debouncedSearchTerm, filters, contactsInvitationStatus])
 
   // ✅ 2025: Vérifier d'abord si l'auth est en cours de chargement
   if (authLoading) {

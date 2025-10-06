@@ -62,7 +62,7 @@ const mockNotifications: Notification[] = [
 ]
 
 function getNotificationIcon(_type: string) {
-  switch (type) {
+  switch (_type) {
     case "intervention":
       return <Wrench className="h-5 w-5 text-blue-600" />
     case "payment":

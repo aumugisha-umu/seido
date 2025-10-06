@@ -41,7 +41,7 @@ export async function GET(
       }
     )
 
-    logger.info("🔍 Looking up magic link for token:", token.substring(0, 8) + '...')
+    logger.info({ token: token.substring(0, 8) + '...' }, "🔍 Looking up magic link for token")
 
     // Fetch magic link with related data
     const { data: magicLink, error: magicLinkError } = await supabase
@@ -75,7 +75,7 @@ export async function GET(
       .single()
 
     if (magicLinkError || !magicLink) {
-      logger.error("❌ Magic link not found:", magicLinkError)
+      logger.error({ magicLinkError: magicLinkError }, "❌ Magic link not found:")
       return NextResponse.json({
         success: false,
         error: 'Lien non trouvé ou invalide'
@@ -127,7 +127,7 @@ export async function GET(
       existingQuote = quote
     }
 
-    logger.info("✅ Magic link found and validated")
+    logger.info({}, "✅ Magic link found and validated")
 
     return NextResponse.json({
       success: true,
@@ -138,7 +138,7 @@ export async function GET(
     })
 
   } catch (error) {
-    logger.error("❌ Error in magic-link API:", error)
+    logger.error({ error: error }, "❌ Error in magic-link API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

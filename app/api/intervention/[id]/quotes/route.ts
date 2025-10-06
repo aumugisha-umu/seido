@@ -57,7 +57,7 @@ export async function GET(
       }, { status: 404 })
     }
 
-    logger.info("🔍 Getting quotes for intervention:", interventionId, "by user:", user.role)
+    logger.info({ interventionId, userRole: user.role }, "🔍 Getting quotes for intervention")
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
@@ -149,14 +149,14 @@ export async function GET(
     const { data: quotes, error: quotesError } = await quotesQuery
 
     if (quotesError) {
-      logger.error('❌ Error fetching quotes:', quotesError)
+      logger.error({ error: quotesError }, '❌ Error fetching quotes:')
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des devis'
       }, { status: 500 })
     }
 
-    logger.info(`✅ Found ${quotes?.length || 0} quotes for intervention ${interventionId}`)
+    logger.info({ quotesCount: quotes?.length || 0, interventionId }, "✅ Found quotes for intervention")
 
     // Parse attachments JSON
     const quotesWithParsedAttachments = quotes?.map(quote => ({
@@ -177,7 +177,7 @@ export async function GET(
     })
 
   } catch (error) {
-    logger.error('❌ Error in intervention quotes API:', error)
+    logger.error({ error: error }, '❌ Error in intervention quotes API:')
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

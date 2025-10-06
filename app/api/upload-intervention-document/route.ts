@@ -44,7 +44,7 @@ function generateUniqueFilename(_originalFilename: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  logger.info("📤 upload-intervention-document API route called")
+  logger.info({}, "📤 upload-intervention-document API route called")
   
   try {
     // Initialize Supabase client
@@ -88,12 +88,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📁 Processing file upload:", {
+    logger.info({
       interventionId,
       filename: file.name,
       size: file.size,
       type: file.type
-    })
+    }, "📁 Processing file upload:")
 
     // Verify that the user has access to this intervention
     const { data: intervention, error: interventionError } = await supabase
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error("❌ Intervention not found or access denied:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found or access denied:")
       return NextResponse.json({ 
         error: 'Intervention non trouvée ou accès refusé' 
       }, { status: 403 })
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (!userHasAccess) {
-      logger.error("❌ User not member of intervention team")
+      logger.error({}, "❌ User not member of intervention team")
       return NextResponse.json({ 
         error: 'Accès refusé à cette intervention' 
       }, { status: 403 })
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     const uniqueFilename = generateUniqueFilename(file.name)
     const storagePath = `interventions/${interventionId}/${uniqueFilename}`
 
-    logger.info("☁️ Uploading to Supabase Storage:", storagePath)
+    logger.info({ storagePath: storagePath }, "☁️ Uploading to Supabase Storage:")
 
     // Upload file to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -142,13 +142,13 @@ export async function POST(request: NextRequest) {
       })
 
     if (uploadError) {
-      logger.error("❌ Error uploading file to storage:", uploadError)
+      logger.error({ error: uploadError }, "❌ Error uploading file to storage:")
       return NextResponse.json({ 
         error: 'Erreur lors de l\'upload du fichier: ' + uploadError.message 
       }, { status: 500 })
     }
 
-    logger.info("✅ File uploaded to storage:", uploadData.path)
+    logger.info({ uploadData: uploadData.path }, "✅ File uploaded to storage:")
 
     // Store document metadata in database
     const { data: document, error: docError } = await supabase
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (docError) {
-      logger.error("❌ Error storing document metadata:", docError)
+      logger.error({ error: docError }, "❌ Error storing document metadata:")
       
       // Try to clean up the uploaded file if metadata storage fails
       try {
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
           .from('intervention-documents')
           .remove([uploadData.path])
       } catch (cleanupError) {
-        logger.error("⚠️ Error cleaning up uploaded file:", cleanupError)
+        logger.error({ error: cleanupError }, "⚠️ Error cleaning up uploaded file:")
       }
       
       return NextResponse.json({ 
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    logger.info("✅ Document metadata stored:", document.id)
+    logger.info({ data: document.id }, "✅ Document metadata stored:")
 
     // Update intervention to mark it as having attachments
     const { error: updateError } = await supabase
@@ -197,11 +197,11 @@ export async function POST(request: NextRequest) {
       .eq('id', interventionId)
 
     if (updateError) {
-      logger.warn("⚠️ Warning: Could not update intervention has_attachments flag:", updateError)
+      logger.warn({ updateError: updateError }, "⚠️ Warning: Could not update intervention has_attachments flag:")
       // Don't fail the entire operation for this
     }
 
-    logger.info("🎉 Document upload completed successfully")
+    logger.info({}, "🎉 Document upload completed successfully")
 
     return NextResponse.json({
       success: true,
@@ -222,11 +222,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in upload-intervention-document API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in upload-intervention-document API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

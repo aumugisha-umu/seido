@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
     // Vérifier l'authentification
     const session = await getServerSession()
     if (!session) {
-      logger.info('❌ [NOTIFICATIONS-API] Unauthorized request')
+      logger.info({}, '❌ [NOTIFICATIONS-API] Unauthorized request')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    logger.info('🔍 [NOTIFICATIONS-API] Request params:', {
+    logger.info({
       userId,
       teamId,
       scope,
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       limit,
       offset,
       sessionUserId: session.user.id
-    })
+    }, '🔍 [NOTIFICATIONS-API] Request params:')
 
     const supabaseGet = await createServerSupabaseClient()
 
@@ -44,17 +44,17 @@ export async function GET(request: NextRequest) {
     const dbUserGet = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserGet) {
-      logger.info('❌ [NOTIFICATIONS-API] User not found in database for auth ID:', session.user.id)
+      logger.info({ user: session.user.id }, '❌ [NOTIFICATIONS-API] User not found in database for auth ID:')
       return NextResponse.json(
         { error: 'User not found in database' },
         { status: 404 }
       )
     }
     
-    logger.info('🔄 [NOTIFICATIONS-API] Auth ID converted:', {
+    logger.info({
       authId: session.user.id,
       dbUserId: dbUserGet.id
-    })
+    }, '🔄 [NOTIFICATIONS-API] Auth ID converted:')
 
     // Construire la requête de base
     let query = supabaseGet
@@ -75,19 +75,19 @@ export async function GET(request: NextRequest) {
 
     // Appliquer les filtres selon le scope
     if (scope === 'personal') {
-      logger.info('🔍 [NOTIFICATIONS-API] Using personal scope filter')
+      logger.info({}, '🔍 [NOTIFICATIONS-API] Using personal scope filter')
       // Notifications personnelles : seulement celles adressées à l'utilisateur connecté avec is_personal = true
       query = query.eq('user_id', dbUserGet.id).eq('is_personal', true)
       if (teamId) {
         query = query.eq('team_id', teamId)
       }
     } else if (scope === 'team') {
-      logger.info('🔍 [NOTIFICATIONS-API] Using team scope filter')
+      logger.info({}, '🔍 [NOTIFICATIONS-API] Using team scope filter')
       // Notifications d'équipe : notifications de l'équipe avec is_personal = false ET destinées à l'utilisateur connecté
       if (teamId) {
         query = query.eq('team_id', teamId).eq('user_id', dbUserGet.id).eq('is_personal', false)
       } else {
-        logger.info('❌ [NOTIFICATIONS-API] team_id required for team scope')
+        logger.info({}, '❌ [NOTIFICATIONS-API] team_id required for team scope')
         // Si pas de teamId spécifié pour le scope team, renvoyer erreur
         return NextResponse.json(
           { error: 'team_id is required for team scope' },
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
         )
       }
     } else {
-      logger.info('🔍 [NOTIFICATIONS-API] Using default scope filter')
+      logger.info({}, '🔍 [NOTIFICATIONS-API] Using default scope filter')
       // Comportement par défaut (toutes les notifications selon les filtres)
       if (_userId) {
         query = query.eq('user_id', _userId)
@@ -119,14 +119,14 @@ export async function GET(request: NextRequest) {
     const { data: notifications, error } = await query
 
     if (error) {
-      logger.error('❌ [NOTIFICATIONS-API] Database error:', error)
+      logger.error({ error: error }, '❌ [NOTIFICATIONS-API] Database error:')
       return NextResponse.json(
         { error: 'Failed to fetch notifications', details: error.message, code: error.code },
         { status: 500 }
       )
     }
 
-    logger.info('📊 [NOTIFICATIONS-API] Query result:', {
+    logger.info({
       count: notifications?.length || 0,
       notifications: notifications?.map(n => ({
         id: n.id,
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
         team_id: n.team_id,
         read: n.read,
         created_at: n.created_at
-      }))
+      }, '📊 [NOTIFICATIONS-API] Query result:'))
     })
 
     return NextResponse.json({
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('Notifications API error:', error)
+    logger.error({ error: error }, 'Notifications API error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      logger.error('Error creating notification:', error)
+      logger.error({ error: error }, 'Error creating notification:')
       return NextResponse.json(
         { error: 'Failed to create notification' },
         { status: 500 }
@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('Create notification error:', error)
+    logger.error({ error: error }, 'Create notification error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -358,7 +358,7 @@ export async function PATCH(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('Update notification error:', error)
+    logger.error({ error: error }, 'Update notification error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

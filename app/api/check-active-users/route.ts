@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('👥 [CHECK-ACTIVE-USERS] Checking', emails.length, 'emails for team:', teamId)
+    logger.info({ emailCount: emails.length, teamId }, '👥 [CHECK-ACTIVE-USERS] Checking emails for team')
 
     // Vérifier quels emails correspondent à des utilisateurs actifs
     // Un utilisateur est "actif" s'il existe dans la table users avec cet email
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .eq('team_id', teamId)
 
     if (error) {
-      logger.error('❌ [CHECK-ACTIVE-USERS] Database error:', error)
+      logger.error({ error }, '❌ [CHECK-ACTIVE-USERS] Database error')
       return NextResponse.json(
         { error: 'Erreur lors de la vérification des utilisateurs actifs' },
         { status: 500 }
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const activeEmails = activeUsers?.map(user => user.email) || []
-    logger.info('✅ [CHECK-ACTIVE-USERS] Found', activeEmails.length, 'active users')
+    logger.info({ activeCount: activeEmails.length }, '✅ [CHECK-ACTIVE-USERS] Found active users')
 
     return NextResponse.json({
       success: true,
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('❌ [CHECK-ACTIVE-USERS] Unexpected error:', error)
+    logger.error({ error }, '❌ [CHECK-ACTIVE-USERS] Unexpected error')
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

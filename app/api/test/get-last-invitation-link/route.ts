@@ -6,7 +6,7 @@ import { logger, logError } from '@/lib/logger'
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
-  logger.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured')
+  logger.warn({}, '⚠️ SUPABASE_SERVICE_ROLE_KEY not configured')
 }
 
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -65,7 +65,7 @@ export async function GET() {
     })
 
   } catch (error) {
-    logger.error('❌ [GET-LAST-INVITATION-LINK] Error:', error)
+    logger.error({ error: error }, '❌ [GET-LAST-INVITATION-LINK] Error:')
     return NextResponse.json(
       { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }

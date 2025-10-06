@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "ID du contact requis" }, { status: 400 })
     }
 
-    logger.info("🔍 Checking invitation status for contact:", contactId)
+    logger.info({ contactId: contactId }, "🔍 Checking invitation status for contact:")
 
     // D'abord, vérifier que le contact existe et appartient au gestionnaire
     const { data: contact, error: contactError } = await supabase
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (contactError || !contact) {
-      logger.info("❌ Contact not found:", contactError)
+      logger.info({ contactError: contactError }, "❌ Contact not found:")
       return NextResponse.json({ error: "Contact non trouvé" }, { status: 404 })
     }
 
@@ -79,15 +79,15 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (!managerTeam || contact.team_id !== managerTeam.team_id) {
-      logger.info("❌ Contact not in same team as manager")
+      logger.info({}, "❌ Contact not in same team as manager")
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
     }
 
-    logger.info("🔍 Contact details:", {
+    logger.info({
       email: contact.email,
       hasAuthUserId: !!contact.auth_user_id,
       authUserId: contact.auth_user_id
-    })
+    }, "🔍 Contact details:")
 
     // ✅ LOGIQUE CORRIGÉE : Vérifier d'ABORD les invitations (priorité sur auth_user_id)
     const { data: invitation, error: invitationError } = await supabase
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (invitationError && invitationError.code !== 'PGRST116') {
-      logger.error("❌ Error fetching invitation:", invitationError)
+      logger.error({ error: invitationError }, "❌ Error fetching invitation:")
       return NextResponse.json({ error: "Erreur lors de la récupération" }, { status: 500 })
     }
 
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      logger.info("✅ Invitation found with status:", status)
+      logger.info({ status: status }, "✅ Invitation found with status:")
 
     return NextResponse.json({
       status,
@@ -139,11 +139,11 @@ export async function GET(request: NextRequest) {
 
     // ✅ LOGIQUE SIMPLIFIÉE : Si pas d'invitation trouvée, toujours "pas de compte"
     // Seules les invitations avec status="accepted" indiquent un compte réellement actif
-    logger.info("ℹ️ No invitation found for contact, treating as no account:", contact.email)
+    logger.info({ contact: contact.email }, "ℹ️ No invitation found for contact, treating as no account:")
     return NextResponse.json({ status: null }, { status: 200 })
 
   } catch (error) {
-    logger.error("❌ Error in contact-invitation-status API:", error)
+    logger.error({ error: error }, "❌ Error in contact-invitation-status API:")
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }

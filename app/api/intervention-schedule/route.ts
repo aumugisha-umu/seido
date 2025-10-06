@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger'
 import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  logger.info("📅 intervention-schedule API route called")
+  logger.info({}, "📅 intervention-schedule API route called")
 
   // Initialize services
   const userService = await createServerUserService()
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📝 Scheduling intervention:", interventionId, "Type:", planningType)
+    logger.info({ interventionId, planningType }, "📝 Scheduling intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         scheduledDate = `${directSchedule.date}T${directSchedule.startTime}:00.000Z`
         notificationMessage = `Votre intervention "${intervention.title}" a été planifiée pour le ${new Date(directSchedule.date).toLocaleDateString('fr-FR')} de ${directSchedule.startTime} à ${directSchedule.endTime}.`
         
-        logger.info("📅 Direct scheduling:", scheduledDate)
+        logger.info({ scheduledDate: scheduledDate }, "📅 Direct scheduling:")
         break
 
       case 'propose':
@@ -176,18 +176,18 @@ export async function POST(request: NextRequest) {
           .insert(timeSlots)
 
         if (insertSlotsError) {
-          logger.error("❌ Error inserting time slots:", insertSlotsError)
+          logger.error({ error: insertSlotsError }, "❌ Error inserting time slots:")
           throw new Error('Erreur lors de la création des créneaux')
         }
 
-        logger.info("📅 Proposed slots created:", timeSlots.length)
+        logger.info({ timeSlots: timeSlots.length }, "📅 Proposed slots created:")
         break
 
       case 'organize':
         // Will organize with tenant/provider availability later
         newStatus = 'planification'
         notificationMessage = `Votre intervention "${intervention.title}" est en cours de planification. Nous vous contacterons pour convenir d'un créneau.`
-        logger.info("📅 Organization mode - will coordinate later")
+        logger.info({}, "📅 Organization mode - will coordinate later")
         break
 
       default:
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
     }
 
-    logger.info("🔄 Updating intervention status to:", newStatus)
+    logger.info({ newStatus: newStatus }, "🔄 Updating intervention status to:")
 
     // Build manager comment
     const managerCommentParts = []
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
-    logger.info("✅ Intervention scheduled successfully")
+    logger.info({}, "✅ Intervention scheduled successfully")
 
     // Create notification for tenant if exists
     if (intervention.tenant_id && intervention.team_id) {
@@ -252,9 +252,9 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        logger.info("📧 Scheduling notification sent to tenant")
+        logger.info({}, "📧 Scheduling notification sent to tenant")
       } catch (notifError) {
-        logger.warn("⚠️ Could not send notification to tenant:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
         // Don't fail the scheduling for notification errors
       }
     }
@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
           relatedEntityId: intervention.id
         })
       } catch (notifError) {
-        logger.warn("⚠️ Could not send notification to provider:", provider.user.name, notifError)
+        logger.warn({ provider: provider.user.name, notifError }, "⚠️ Could not send notification to provider:")
       }
     }
 
@@ -301,11 +301,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in intervention-schedule API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-schedule API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

@@ -38,15 +38,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (entityType) {
-      query = query.eq('entity_type', entityType)
+      query = query.eq('entity_type', entityType as any)
     }
 
     if (actionType) {
-      query = query.eq('action_type', actionType)
+      query = query.eq('action_type', actionType as any)
     }
 
     if (status) {
-      query = query.eq('status', status)
+      query = query.eq('status', status as any)
     }
 
     if (startDate) {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      logger.error('Error fetching activity logs:', error)
+      logger.error({ error }, 'Error fetching activity logs')
       return NextResponse.json(
         { error: 'Failed to fetch activity logs', details: error.message, code: error.code },
         { status: 500 }
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('Unexpected error in activity-logs API:', error)
+    logger.error({ error }, 'Unexpected error in activity-logs API')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      logger.error('Error creating activity log:', error)
+      logger.error({ error }, 'Error creating activity log')
       return NextResponse.json(
         { error: 'Failed to create activity log' },
         { status: 500 }
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data })
 
   } catch (error) {
-    logger.error('Unexpected error in activity-logs POST:', error)
+    logger.error({ error }, 'Unexpected error in activity-logs POST')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

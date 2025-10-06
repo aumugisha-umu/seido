@@ -16,7 +16,7 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  logger.info("✅ quote-requests/[id] GET API route called for ID:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ quote-requests/[id] GET API route called for ID:")
 
   try {
     // Initialize Supabase client
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (quoteRequestError || !quoteRequest) {
-      logger.error("❌ Quote request not found:", quoteRequestError)
+      logger.error({ quoteRequestError: quoteRequestError }, "❌ Quote request not found:")
       return NextResponse.json({
         success: false,
         error: 'Demande de devis non trouvée'
@@ -94,9 +94,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })
 
       if (markViewedError) {
-        logger.warn("⚠️ Could not mark quote request as viewed:", markViewedError)
+        logger.warn({ markViewedError: markViewedError }, "⚠️ Could not mark quote request as viewed:")
       } else {
-        logger.info("✅ Quote request marked as viewed")
+        logger.info({}, "✅ Quote request marked as viewed")
       }
     }
 
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in quote-requests/[id] GET API:", error)
+    logger.error({ error: error }, "❌ Error in quote-requests/[id] GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération de la demande de devis'
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  logger.info("✅ quote-requests/[id] PATCH API route called for ID:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ quote-requests/[id] PATCH API route called for ID:")
 
   try {
     // Initialize Supabase client
@@ -230,7 +230,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (updateError) {
-      logger.error("❌ Error updating quote request:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating quote request:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la modification de la demande de devis'
@@ -248,7 +248,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in quote-requests/[id] PATCH API:", error)
+    logger.error({ error: error }, "❌ Error in quote-requests/[id] PATCH API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la modification de la demande de devis'
@@ -258,7 +258,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  logger.info("✅ quote-requests/[id] DELETE API route called for ID:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ quote-requests/[id] DELETE API route called for ID:")
 
   try {
     // Initialize Supabase client
@@ -342,7 +342,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('id', resolvedParams.id)
 
     if (deleteError) {
-      logger.error("❌ Error deleting quote request:", deleteError)
+      logger.error({ error: deleteError }, "❌ Error deleting quote request:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la suppression de la demande de devis'
@@ -355,7 +355,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in quote-requests/[id] DELETE API:", error)
+    logger.error({ error: error }, "❌ Error in quote-requests/[id] DELETE API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la suppression de la demande de devis'

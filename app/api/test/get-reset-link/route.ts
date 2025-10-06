@@ -14,7 +14,7 @@ import { logger, logError } from '@/lib/logger'
 export async function POST(request: NextRequest) {
   // ✅ SÉCURITÉ: Vérifier qu'on est bien en environnement de test
   if (process.env.NODE_ENV === 'production') {
-    logger.error('🚨 [GET-RESET-LINK] Attempted access in production - BLOCKED')
+    logger.error({}, '🚨 [GET-RESET-LINK] Attempted access in production - BLOCKED')
     return NextResponse.json(
       { error: 'This endpoint is only available in development/test environments' },
       { status: 403 }
@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
-    logger.info('🧪 [GET-RESET-LINK] Generating reset link for:', email)
+    logger.info({ email: email }, '🧪 [GET-RESET-LINK] Generating reset link for:')
 
     // Créer client Supabase Admin
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      logger.error('❌ [GET-RESET-LINK] Missing Supabase credentials')
+      logger.error({}, '❌ [GET-RESET-LINK] Missing Supabase credentials')
       return NextResponse.json(
         { error: 'Supabase credentials not configured' },
         { status: 500 }
@@ -54,14 +54,14 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.auth.admin.getUserByEmail(email)
 
     if (getUserError || !authUser.user) {
-      logger.warn('⚠️  [GET-RESET-LINK] User not found:', email)
+      logger.warn({ user: email }, '⚠️  [GET-RESET-LINK] User not found:')
       return NextResponse.json(
         { error: 'User not found', resetLink: null },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [GET-RESET-LINK] User found:', authUser.user.id)
+    logger.info({ user: authUser.user.id }, '✅ [GET-RESET-LINK] User found:')
 
     // Générer le lien de réinitialisation
     const { data: linkData, error: linkError } =
@@ -71,14 +71,14 @@ export async function POST(request: NextRequest) {
       })
 
     if (linkError) {
-      logger.error('❌ [GET-RESET-LINK] Error generating link:', linkError)
+      logger.error({ error: linkError }, '❌ [GET-RESET-LINK] Error generating link:')
       return NextResponse.json(
         { error: 'Failed to generate reset link' },
         { status: 500 }
       )
     }
 
-    logger.info('✅ [GET-RESET-LINK] Link generated successfully')
+    logger.info({}, '✅ [GET-RESET-LINK] Link generated successfully')
 
     // Extraire l'action_link depuis les propriétés
     // Supabase génère directement un lien avec tous les tokens nécessaires
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('🔗 [GET-RESET-LINK] Reset URL (action_link):', actionLink)
+    logger.info({ actionLink: actionLink }, '🔗 [GET-RESET-LINK] Reset URL (action_link):')
 
     // Le action_link de Supabase pointe vers leur URL avec redirect
     // Pour les tests, on peut rediriger directement vers /auth/update-password
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
       const resetUrl = `${baseUrl}/auth/update-password${hash}`
 
-      logger.info('🔗 [GET-RESET-LINK] Final reset URL:', resetUrl)
+      logger.info({ resetUrl: resetUrl }, '🔗 [GET-RESET-LINK] Final reset URL:')
 
       return NextResponse.json({
         success: true,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       })
     } catch (error) {
       // Fallback: retourner action_link tel quel
-      logger.warn('⚠️ [GET-RESET-LINK] Could not parse action_link, using as-is')
+      logger.warn({}, '⚠️ [GET-RESET-LINK] Could not parse action_link, using as-is')
       return NextResponse.json({
         success: true,
         resetLink: actionLink,
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error) {
-    logger.error('❌ [GET-RESET-LINK] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [GET-RESET-LINK] Unexpected error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

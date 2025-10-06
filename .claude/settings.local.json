@@ -66,7 +66,9 @@
       "Bash(chcp:*)",
       "Bash(do echo \"=== $file ===\" grep -n \"createSupabaseServerClient\\|createServerSupabaseClient\" \"$file\")",
       "Bash(ESLINT_NO_DEV_ERRORS=true npm run build)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(python:*)",
+      "Bash(cut:*)"
     ],
     "deny": [],
     "ask": []

@@ -125,7 +125,7 @@ export async function POST(
       }, { status: 403 })
     }
 
-    logger.info(`📝 Processing simple work completion report for intervention: ${interventionId} by ${user.role}: ${user.name}`)
+    logger.info({ interventionId, user: user.role, user: user.name }, "📝 Processing simple work completion report for intervention: by :")
 
     // Process media files (simplified - just store references)
     const processedMediaFiles = mediaFiles || []
@@ -163,7 +163,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      logger.error("❌ Error creating simple work completion record:", insertError)
+      logger.error({ error: insertError }, "❌ Error creating simple work completion record:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde du rapport'
@@ -180,14 +180,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      logger.error("❌ Error updating intervention status:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention status:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    logger.info("✅ Simple work completion report submitted successfully")
+    logger.info({}, "✅ Simple work completion report submitted successfully")
 
     // Send notifications (same as complex version)
     try {
@@ -241,9 +241,9 @@ export async function POST(
       ) || []
 
       await Promise.all([tenantNotificationPromise, ...managerNotificationPromises])
-      logger.info("📧 Simple work completion notifications sent")
+      logger.info({}, "📧 Simple work completion notifications sent")
     } catch (notifError) {
-      logger.warn("⚠️ Could not send work completion notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications:")
     }
 
     return NextResponse.json({
@@ -257,7 +257,7 @@ export async function POST(
     })
 
   } catch (error) {
-    logger.error("❌ Error in simple work completion API:", error)
+    logger.error({ error: error }, "❌ Error in simple work completion API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

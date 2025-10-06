@@ -80,7 +80,7 @@ export default async function AdminDashboard() {
       const totalInterventions = allInterventions?.length || 0
 
       // Calcul du chiffre d'affaires simulé (basé sur les interventions)
-      const completedInterventions = allInterventions?.filter((i: Intervention) => i.status === 'completed') || []
+      const completedInterventions = allInterventions?.filter((i) => i.status === 'cloturee_par_gestionnaire') || []
       const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
 
       systemStats = {
@@ -95,9 +95,9 @@ export default async function AdminDashboard() {
       }
     }
 
-    logger.info('✅ [ADMIN-DASHBOARD] System stats loaded:', systemStats)
+    logger.info({ systemStats }, '✅ [ADMIN-DASHBOARD] System stats loaded')
   } catch (error) {
-    logger.error('❌ [ADMIN-DASHBOARD] Error loading system stats:', error)
+    logger.error({ error }, '❌ [ADMIN-DASHBOARD] Error loading system stats')
     // Les stats par défaut restent (valeurs 0)
   }
 

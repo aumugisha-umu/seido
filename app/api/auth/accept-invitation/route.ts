@@ -5,7 +5,7 @@ import { logger, logError } from '@/lib/logger'
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
-  logger.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured')
+  logger.warn({}, '⚠️ SUPABASE_SERVICE_ROLE_KEY not configured')
 }
 
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { token } = body // ✅ Token seul, pas besoin d'email
 
-    logger.info('🔍 [ACCEPT-INVITATION] Validating invitation token:', { token })
+    logger.info({ token }, '🔍 [ACCEPT-INVITATION] Validating invitation token:')
 
     // ✅ ÉTAPE 1: Vérifier le token d'invitation (token seul suffit)
     const { data: invitation, error: invitationError } = await supabaseAdmin
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       .single()
 
     if (invitationError || !invitation) {
-      logger.error('❌ [ACCEPT-INVITATION] Invalid or expired token:', invitationError)
+      logger.error({ invitationError: invitationError }, '❌ [ACCEPT-INVITATION] Invalid or expired token:')
       return NextResponse.json(
         { error: 'Token d\'invitation invalide ou expiré' },
         { status: 404 }
@@ -66,14 +66,14 @@ export async function POST(request: Request) {
 
     // ✅ Vérifier l'expiration
     if (new Date(invitation.expires_at) < new Date()) {
-      logger.error('❌ [ACCEPT-INVITATION] Invitation expired:', invitation.expires_at)
+      logger.error({ invitation: invitation.expires_at }, '❌ [ACCEPT-INVITATION] Invitation expired:')
       return NextResponse.json(
         { error: 'Invitation expirée' },
         { status: 410 }
       )
     }
 
-    logger.info('✅ [ACCEPT-INVITATION] Invitation valid:', invitation.id)
+    logger.info({ invitation: invitation.id }, '✅ [ACCEPT-INVITATION] Invitation valid:')
 
     // ✅ ÉTAPE 2: Récupérer le profil utilisateur existant
     const { data: userProfile, error: profileError } = await supabaseAdmin
@@ -83,14 +83,14 @@ export async function POST(request: Request) {
       .single()
 
     if (profileError || !userProfile) {
-      logger.error('❌ [ACCEPT-INVITATION] User profile not found:', profileError)
+      logger.error({ user: profileError }, '❌ [ACCEPT-INVITATION] User profile not found:')
       return NextResponse.json(
         { error: 'Profil utilisateur introuvable' },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [ACCEPT-INVITATION] User profile found:', userProfile.id)
+    logger.info({ user: userProfile.id }, '✅ [ACCEPT-INVITATION] User profile found:')
 
     // ✅ ÉTAPE 3: Créer l'auth Supabase avec mot de passe temporaire
     const tempPassword = crypto.randomUUID() // Mot de passe temporaire unique
@@ -111,14 +111,14 @@ export async function POST(request: Request) {
     })
 
     if (authError || !authData.user) {
-      logger.error('❌ [ACCEPT-INVITATION] Auth creation failed:', authError)
+      logger.error({ authError: authError }, '❌ [ACCEPT-INVITATION] Auth creation failed:')
       return NextResponse.json(
         { error: 'Erreur lors de la création du compte: ' + authError?.message },
         { status: 500 }
       )
     }
 
-    logger.info('✅ [ACCEPT-INVITATION] Auth user created:', authData.user.id)
+    logger.info({ user: authData.user.id }, '✅ [ACCEPT-INVITATION] Auth user created:')
 
     // ✅ ÉTAPE 4: Relier l'auth au profil existant
     const { error: updateError } = await supabaseAdmin
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
       .eq('id', userProfile.id)
 
     if (updateError) {
-      logger.error('❌ [ACCEPT-INVITATION] Failed to link auth to profile:', updateError)
+      logger.error({ updateError: updateError }, '❌ [ACCEPT-INVITATION] Failed to link auth to profile:')
       // Tenter de supprimer l'auth créé pour éviter les orphelins
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.info('✅ [ACCEPT-INVITATION] Auth linked to profile')
+    logger.info({}, '✅ [ACCEPT-INVITATION] Auth linked to profile')
 
     // ✅ ÉTAPE 5: Se connecter avec le mot de passe temporaire pour obtenir une session
     // Note: On utilise le client admin pour se connecter (pas le client user)
@@ -149,14 +149,14 @@ export async function POST(request: Request) {
     })
 
     if (signInError || !signInData?.session) {
-      logger.error('❌ [ACCEPT-INVITATION] Failed to sign in with temp password:', signInError)
+      logger.error({ signInError: signInError }, '❌ [ACCEPT-INVITATION] Failed to sign in with temp password:')
       return NextResponse.json(
         { error: 'Erreur lors de la création de la session: ' + (signInError?.message || 'Session vide') },
         { status: 500 }
       )
     }
 
-    logger.info('✅ [ACCEPT-INVITATION] User signed in successfully with temp password')
+    logger.info({}, '✅ [ACCEPT-INVITATION] User signed in successfully with temp password')
 
     // ✅ ÉTAPE 6: Marquer l'invitation comme acceptée
     await supabaseAdmin
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
       })
       .eq('id', invitation.id)
 
-    logger.info('✅ [ACCEPT-INVITATION] Invitation marked as accepted')
+    logger.info({}, '✅ [ACCEPT-INVITATION] Invitation marked as accepted')
 
     // ✅ ÉTAPE 7: Retourner les tokens de session pour établissement client-side
     return NextResponse.json({
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [ACCEPT-INVITATION] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [ACCEPT-INVITATION] Unexpected error:')
     return NextResponse.json(
       { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }

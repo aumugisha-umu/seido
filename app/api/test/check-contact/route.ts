@@ -14,7 +14,7 @@ import { logger, logError } from '@/lib/logger'
 export async function POST(request: NextRequest) {
   // ✅ SÉCURITÉ: Vérifier qu'on est bien en environnement de test
   if (process.env.NODE_ENV === 'production') {
-    logger.error('🚨 [CHECK-CONTACT] Attempted access in production - BLOCKED')
+    logger.error({}, '🚨 [CHECK-CONTACT] Attempted access in production - BLOCKED')
     return NextResponse.json(
       { error: 'This endpoint is only available in development/test environments' },
       { status: 403 }
@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
-    logger.info('🧪 [CHECK-CONTACT] Checking if contact exists:', email)
+    logger.info({ email: email }, '🧪 [CHECK-CONTACT] Checking if contact exists:')
 
     // Créer client Supabase Admin
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      logger.error('❌ [CHECK-CONTACT] Missing Supabase credentials')
+      logger.error({}, '❌ [CHECK-CONTACT] Missing Supabase credentials')
       return NextResponse.json(
         { error: 'Supabase credentials not configured' },
         { status: 500 }
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (contactError) {
-      logger.error('❌ [CHECK-CONTACT] Error querying contacts:', contactError)
+      logger.error({ error: contactError }, '❌ [CHECK-CONTACT] Error querying contacts:')
       return NextResponse.json(
         { error: 'Failed to check contact' },
         { status: 500 }
@@ -65,14 +65,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!contact) {
-      logger.info('ℹ️  [CHECK-CONTACT] Contact not found:', email)
+      logger.info({ email: email }, 'ℹ️  [CHECK-CONTACT] Contact not found:')
       return NextResponse.json({
         exists: false,
         contact: null,
       })
     }
 
-    logger.info('✅ [CHECK-CONTACT] Contact found:', contact.id)
+    logger.info({ contact: contact.id }, '✅ [CHECK-CONTACT] Contact found:')
 
     return NextResponse.json({
       exists: true,
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    logger.error('❌ [CHECK-CONTACT] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [CHECK-CONTACT] Unexpected error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

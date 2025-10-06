@@ -2,15 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { createServerUserService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  logger.info("📅 GET availabilities API called for intervention:", id)
+  logger.info({ id: id }, "📅 GET availabilities API called for intervention:")
 
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+
     // Initialize Supabase client
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -116,7 +120,7 @@ export async function GET(
       .order('date', { ascending: true })
 
     if (availError) {
-      logger.error("❌ Error fetching availabilities:", availError)
+      logger.error({ error: availError }, "❌ Error fetching availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -131,7 +135,7 @@ export async function GET(
       .order('slot_date', { ascending: true })
 
     if (timeSlotsError) {
-      logger.warn("⚠️ Error fetching time slots:", timeSlotsError)
+      logger.warn({ error: timeSlotsError }, "⚠️ Error fetching time slots:")
     }
 
     // Get existing matches (résultats du matching automatique)
@@ -142,7 +146,7 @@ export async function GET(
       .order('match_score', { ascending: false })
 
     if (matchesError) {
-      logger.warn("⚠️ Error fetching matches:", matchesError)
+      logger.warn({ error: matchesError }, "⚠️ Error fetching matches:")
     }
 
     // Group availabilities by user
@@ -152,10 +156,10 @@ export async function GET(
     for (const avail of (allAvailabilities || [])) {
       const userId = avail.user_id
 
-      if (!availabilitiesByUser.has(_userId)) {
-        availabilitiesByUser.set(_userId, [])
-        userSummary.set(_userId, {
-          user_id: _userId,
+      if (!availabilitiesByUser.has(userId)) {
+        availabilitiesByUser.set(userId, [])
+        userSummary.set(userId, {
+          user_id: userId,
           name: avail.user.name,
           role: avail.user.role,
           provider_category: avail.user.provider_category,
@@ -164,7 +168,7 @@ export async function GET(
         })
       }
 
-      availabilitiesByUser.get(_userId).push({
+      availabilitiesByUser.get(userId).push({
         id: avail.id,
         date: avail.date,
         start_time: avail.start_time,
@@ -174,7 +178,7 @@ export async function GET(
       })
 
       // Update summary
-      const summary = userSummary.get(_userId)
+      const summary = userSummary.get(userId)
       summary.total_slots++
 
       if (!summary.date_range.start || avail.date < summary.date_range.start) {
@@ -186,8 +190,8 @@ export async function GET(
     }
 
     // Convert to arrays for response
-    const userAvailabilities = Array.from(availabilitiesByUser.entries()).map(([_userId, slots]) => ({
-      user: userSummary.get(_userId),
+    const userAvailabilities = Array.from(availabilitiesByUser.entries()).map(([userId, slots]) => ({
+      user: userSummary.get(userId),
       availabilities: slots
     }))
 
@@ -223,7 +227,7 @@ export async function GET(
       ['planification', 'approuvee'].includes(intervention.status)
     )
 
-    logger.info(`✅ Retrieved availabilities: ${stats.total_availability_slots} slots from ${stats.participants_with_availabilities} users`)
+    logger.info({ stats: stats.total_availability_slots, stats: stats.participants_with_availabilities }, "✅ Retrieved availabilities: slots from users")
 
     return NextResponse.json({
       success: true,
@@ -250,7 +254,7 @@ export async function GET(
     })
 
   } catch (error) {
-    logger.error("❌ Error in availabilities GET API:", error)
+    logger.error({ error: error }, "❌ Error in availabilities GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la récupération des disponibilités'

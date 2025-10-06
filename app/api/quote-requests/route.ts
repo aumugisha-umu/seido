@@ -9,7 +9,7 @@ import { logger, logError } from '@/lib/logger'
 
 
 export async function GET(request: NextRequest) {
-  logger.info("✅ quote-requests GET API route called")
+  logger.info({}, "✅ quote-requests GET API route called")
 
   try {
     // Initialize Supabase client
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     const { data: quoteRequests, error: queryError } = await query
 
     if (queryError) {
-      logger.error("❌ Error fetching quote requests:", queryError)
+      logger.error({ error: queryError }, "❌ Error fetching quote requests:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des demandes de devis'
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in quote-requests GET API:", error)
+    logger.error({ error: error }, "❌ Error in quote-requests GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération des demandes de devis'

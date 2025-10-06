@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
+import { createServerUserService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 // Admin client for creating auth users
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -18,7 +19,7 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 ) : null
 
 export async function POST(request: NextRequest) {
-  logger.info("✅ create-provider-account API route called")
+  logger.info({}, "✅ create-provider-account API route called")
 
   try {
     if (!supabaseAdmin) {
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
         error: 'Service de création de compte non configuré'
       }, { status: 503 })
     }
+
+    // Initialize services
+    const userService = await createServerUserService()
 
     // Initialize Supabase client
     const cookieStore = await cookies()
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📝 Creating provider account for:", email)
+    logger.info({ email: email }, "📝 Creating provider account for:")
 
     // Verify magic link exists and is valid
     const { data: magicLink, error: magicLinkError } = await supabase
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (magicLinkError || !magicLink) {
-      logger.error("❌ Magic link not found:", magicLinkError)
+      logger.error({ magicLinkError: magicLinkError }, "❌ Magic link not found:")
       return NextResponse.json({
         success: false,
         error: 'Lien magique invalide ou expiré'
@@ -132,7 +136,7 @@ export async function POST(request: NextRequest) {
     // Generate a temporary password for the account
     const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
 
-    logger.info("🔑 Creating auth user...")
+    logger.info({}, "🔑 Creating auth user...")
 
     // Create auth user with admin client
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -149,14 +153,14 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError || !authData.user) {
-      logger.error("❌ Error creating auth user:", authError)
+      logger.error({ error: authError }, "❌ Error creating auth user:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la création du compte: ' + (authError?.message || 'Unknown error')
       }, { status: 500 })
     }
 
-    logger.info("✅ Auth user created:", authData.user.id)
+    logger.info({ user: authData.user.id }, "✅ Auth user created:")
 
     // Create user profile in our database
     const userProfile = await userService.create({
@@ -169,7 +173,7 @@ export async function POST(request: NextRequest) {
       is_active: true
     })
 
-    logger.info("✅ User profile created:", userProfile.id)
+    logger.info({ user: userProfile.id }, "✅ User profile created:")
 
     // Update magic link with provider ID
     await supabase
@@ -193,7 +197,7 @@ export async function POST(request: NextRequest) {
         onConflict: 'intervention_id,user_id,role'
       })
 
-    logger.info("✅ Provider added to intervention contacts")
+    logger.info({}, "✅ Provider added to intervention contacts")
 
     // Send magic link for password setup (they can change password later)
     try {
@@ -204,12 +208,12 @@ export async function POST(request: NextRequest) {
       })
 
       if (magicLinkError) {
-        logger.warn("⚠️ Could not generate password reset link:", magicLinkError)
+        logger.warn({ magicLinkError: magicLinkError }, "⚠️ Could not generate password reset link:")
       } else {
-        logger.info("✅ Password reset link generated")
+        logger.info({}, "✅ Password reset link generated")
       }
     } catch (linkError) {
-      logger.warn("⚠️ Error generating password reset link:", linkError)
+      logger.warn({ error: linkError }, "⚠️ Error generating password reset link:")
     }
 
     return NextResponse.json({
@@ -222,11 +226,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in create-provider-account API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in create-provider-account API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

@@ -30,11 +30,11 @@ export async function PATCH(request: Request) {
     const body = await request.json()
     const { password_set } = body
 
-    logger.info('🔐 [UPDATE-USER-PROFILE] Updating password_set for user:', currentUserProfile.email, 'to:', password_set)
+    logger.info({ user: currentUserProfile.email, passwordSetTo: password_set }, '🔐 [UPDATE-USER-PROFILE] Updating password_set for user')
 
     // ✅ SÉCURITÉ: Vérifier que l'utilisateur a vraiment besoin de définir son mot de passe
     if (password_set === true && currentUserProfile.password_set === true) {
-      logger.info('⚠️ [UPDATE-USER-PROFILE] User already has password_set=true, rejecting update')
+      logger.info({}, '⚠️ [UPDATE-USER-PROFILE] User already has password_set=true, rejecting update')
       return NextResponse.json(
         { error: 'Le mot de passe a déjà été configuré' },
         { status: 400 }
@@ -47,14 +47,14 @@ export async function PATCH(request: Request) {
     })
 
     if (!updateResult.success) {
-      logger.error('❌ [UPDATE-USER-PROFILE] Failed to update user:', updateResult.error)
+      logger.error({ user: updateResult.error }, '❌ [UPDATE-USER-PROFILE] Failed to update user:')
       return NextResponse.json(
         { error: 'Erreur lors de la mise à jour du profil' },
         { status: 500 }
       )
     }
 
-    logger.info('✅ [UPDATE-USER-PROFILE] User profile updated successfully')
+    logger.info({}, '✅ [UPDATE-USER-PROFILE] User profile updated successfully')
 
     return NextResponse.json({
       success: true,
@@ -62,7 +62,7 @@ export async function PATCH(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [UPDATE-USER-PROFILE] Error:', error)
+    logger.error({ error: error }, '❌ [UPDATE-USER-PROFILE] Error:')
     return NextResponse.json(
       { error: 'Erreur serveur lors de la mise à jour du profil' },
       { status: 500 }

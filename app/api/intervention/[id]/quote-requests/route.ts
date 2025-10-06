@@ -16,7 +16,7 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  logger.info("✅ intervention/[id]/quote-requests GET API route called for intervention:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ intervention/[id]/quote-requests GET API route called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: quoteRequests, error: queryError } = await query
 
     if (queryError) {
-      logger.error("❌ Error fetching quote requests:", queryError)
+      logger.error({ error: queryError }, "❌ Error fetching quote requests:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des demandes de devis'
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       if (!quotesError) {
         result.quotes = quotes || []
       } else {
-        logger.warn("⚠️ Could not fetch associated quotes:", quotesError)
+        logger.warn({ quotesError: quotesError }, "⚠️ Could not fetch associated quotes:")
       }
 
       // Also include availabilities if requested
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       if (!availError) {
         result.availabilities = availabilities || []
       } else {
-        logger.warn("⚠️ Could not fetch associated availabilities:", availError)
+        logger.warn({ availError: availError }, "⚠️ Could not fetch associated availabilities:")
       }
     }
 
@@ -179,7 +179,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(result)
 
   } catch (error) {
-    logger.error("❌ Error in intervention/[id]/quote-requests GET API:", error)
+    logger.error({ error: error }, "❌ Error in intervention/[id]/quote-requests GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération des demandes de devis'

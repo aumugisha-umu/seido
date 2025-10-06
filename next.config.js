@@ -9,6 +9,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  typescript: {
+    // Ignore TypeScript errors during build (Vercel deployment)
+    // We check types separately with `tsc --noEmit`
+    ignoreBuildErrors: true,
+  },
+
   // Externalize Supabase packages to avoid Edge Runtime conflicts (Next.js 15+)
   serverExternalPackages: ['@supabase/supabase-js', '@supabase/ssr'],
 

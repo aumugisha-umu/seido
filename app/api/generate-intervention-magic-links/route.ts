@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
+import { createServerUserService } from '@/lib/services'
 import crypto from 'crypto'
 import { logger, logError } from '@/lib/logger'
 // Admin client for sending emails
@@ -20,9 +21,12 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 ) : null
 
 export async function POST(request: NextRequest) {
-  logger.info("✅ generate-intervention-magic-links API route called")
+  logger.info({}, "✅ generate-intervention-magic-links API route called")
 
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+
     // Initialize Supabase client
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -72,7 +76,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📝 Generating magic links for intervention:", interventionId, "for emails:", providerEmails)
+    logger.info({ interventionId, providerEmails }, "📝 Generating magic links for intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -103,7 +107,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -126,7 +130,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    logger.info("🔗 Generating magic links for", providerEmails.length, "external providers...")
+    logger.info({ providerEmailCount: providerEmails.length }, "🔗 Generating magic links for external providers")
 
     // Generate magic links for each provider email
     const magicLinkResults = []
@@ -145,9 +149,9 @@ export async function POST(request: NextRequest) {
 
         if (existingProvider) {
           providerId = existingProvider.id
-          logger.info(`📧 Provider ${email} already exists in system with ID: ${providerId}`)
+          logger.info({ email, providerId }, "📧 Provider already exists in system with ID:")
         } else {
-          logger.info(`📧 Provider ${email} is external, will be created on first access`)
+          logger.info({ email }, "📧 Provider is external, will be created on first access")
         }
 
         // Create magic link record
@@ -208,7 +212,7 @@ export async function POST(request: NextRequest) {
               relatedEntityId: interventionId
             })
 
-            logger.info(`📧 Email notification queued for ${email}`)
+            logger.info({ email }, "📧 Email notification queued for")
           } catch (emailError) {
             logger.warn(`⚠️ Could not send email to ${email}:`, emailError)
             // Don't fail the magic link generation for email errors
@@ -248,7 +252,7 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', interventionId)
 
-      logger.info("✅ Intervention status updated to quote request")
+      logger.info({}, "✅ Intervention status updated to quote request")
 
       // Send status change notification
       try {
@@ -258,9 +262,9 @@ export async function POST(request: NextRequest) {
           'demande_de_devis',
           user.id
         )
-        logger.info("📧 Status change notifications sent")
+        logger.info({}, "📧 Status change notifications sent")
       } catch (notifError) {
-        logger.warn("⚠️ Could not send status notifications:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
       }
     }
 
@@ -285,11 +289,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in generate-intervention-magic-links API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in generate-intervention-magic-links API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

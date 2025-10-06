@@ -42,11 +42,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('🧹 [CLEANUP] Starting cleanup for test user:', email)
+    logger.info({ user: email }, '🧹 [CLEANUP] Starting cleanup for test user:')
 
     // Vérifier que le service admin est configuré
     if (!isAdminConfigured()) {
-      logger.error('❌ [CLEANUP] Admin service not configured')
+      logger.error({}, '❌ [CLEANUP] Admin service not configured')
       return NextResponse.json(
         { error: 'Admin service not configured' },
         { status: 500 }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const { data: authUsers, error: authListError } = await supabaseAdmin.auth.admin.listUsers()
 
     if (authListError) {
-      logger.error('❌ [CLEANUP] Failed to list auth users:', authListError)
+      logger.error({ user: authListError }, '❌ [CLEANUP] Failed to list auth users:')
       return NextResponse.json(
         { error: 'Failed to list users' },
         { status: 500 }
@@ -69,17 +69,17 @@ export async function POST(request: NextRequest) {
     const authUser = authUsers.users.find((u) => u.email === email)
 
     if (!authUser) {
-      logger.warn('⚠️  [CLEANUP] User not found in auth.users:', email)
+      logger.warn({ user: email }, '⚠️  [CLEANUP] User not found in auth.users:')
       return NextResponse.json(
         { message: 'User not found (already cleaned up?)' },
         { status: 200 }
       )
     }
 
-    logger.info('🔍 [CLEANUP] Found auth user:', {
+    logger.info({
       id: authUser.id,
       email: authUser.email,
-    })
+    }, '🔍 [CLEANUP] Found auth user:')
 
     // ÉTAPE 2: Trouver le profil dans public.users
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -90,14 +90,14 @@ export async function POST(request: NextRequest) {
 
     if (profileError && profileError.code !== 'PGRST116') {
       // PGRST116 = not found (acceptable)
-      logger.warn('⚠️  [CLEANUP] Error fetching profile:', profileError)
+      logger.warn({ error: profileError }, '⚠️  [CLEANUP] Error fetching profile:')
     }
 
     if (profile) {
-      logger.info('🔍 [CLEANUP] Found profile:', {
+      logger.info({
         userId: profile.id,
         teamId: profile.team_id,
-      })
+      }, '🔍 [CLEANUP] Found profile:')
 
       // ÉTAPE 3: Supprimer les team_members si applicable
       if (profile.team_id) {
@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
           .eq('user_id', profile.id)
 
         if (teamMemberError) {
-          logger.warn('⚠️  [CLEANUP] Failed to delete team_members:', teamMemberError)
+          logger.warn({ teamMemberError: teamMemberError }, '⚠️  [CLEANUP] Failed to delete team_members:')
         } else {
-          logger.info('✅ [CLEANUP] Deleted team_members')
+          logger.info({}, '✅ [CLEANUP] Deleted team_members')
         }
 
         // ÉTAPE 4: Supprimer l'équipe si c'est le gestionnaire
@@ -126,9 +126,9 @@ export async function POST(request: NextRequest) {
             .eq('id', profile.team_id)
 
           if (teamError) {
-            logger.warn('⚠️  [CLEANUP] Failed to delete team:', teamError)
+            logger.warn({ teamError: teamError }, '⚠️  [CLEANUP] Failed to delete team:')
           } else {
-            logger.info('✅ [CLEANUP] Deleted team:', profile.team_id)
+            logger.info({ profile: profile.team_id }, '✅ [CLEANUP] Deleted team:')
           }
         }
       }
@@ -140,9 +140,9 @@ export async function POST(request: NextRequest) {
         .eq('id', profile.id)
 
       if (deleteProfileError) {
-        logger.warn('⚠️  [CLEANUP] Failed to delete profile:', deleteProfileError)
+        logger.warn({ deleteProfileError: deleteProfileError }, '⚠️  [CLEANUP] Failed to delete profile:')
       } else {
-        logger.info('✅ [CLEANUP] Deleted profile:', profile.id)
+        logger.info({ profile: profile.id }, '✅ [CLEANUP] Deleted profile:')
       }
     }
 
@@ -150,15 +150,15 @@ export async function POST(request: NextRequest) {
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUser.id)
 
     if (deleteAuthError) {
-      logger.error('❌ [CLEANUP] Failed to delete auth user:', deleteAuthError)
+      logger.error({ user: deleteAuthError }, '❌ [CLEANUP] Failed to delete auth user:')
       return NextResponse.json(
         { error: 'Failed to delete auth user' },
         { status: 500 }
       )
     }
 
-    logger.info('✅ [CLEANUP] Deleted auth user:', authUser.id)
-    logger.info('✅ [CLEANUP] Cleanup completed for:', email)
+    logger.info({ user: authUser.id }, '✅ [CLEANUP] Deleted auth user:')
+    logger.info({ email: email }, '✅ [CLEANUP] Cleanup completed for:')
 
     return NextResponse.json({
       message: 'User cleaned up successfully',
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       deletedTeam: profile?.team_id,
     })
   } catch (error) {
-    logger.error('❌ [CLEANUP] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [CLEANUP] Unexpected error:')
     return NextResponse.json(
       {
         error: 'Cleanup failed',

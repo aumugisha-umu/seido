@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { email, _password, name, firstName, lastName, phone } = body
 
-    logger.info('🚀 [SIGNUP-SIMPLE] Starting simple signup process for:', email)
+    logger.info({ email: email }, '🚀 [SIGNUP-SIMPLE] Starting simple signup process for:')
 
     // Créer le client Supabase
     const supabase = await createServerSupabaseClient()
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const teamService = await createServerTeamService()
 
     // ÉTAPE 1: CRÉER LE USER PROFILE TEMPORAIRE (pour avoir un UUID pour la team)
-    logger.info('👤 [STEP-1] Creating temporary user profile...')
+    logger.info({}, '👤 [STEP-1] Creating temporary user profile...')
     const userProfileResult = await userService.create({
       auth_user_id: null, // Pas encore d'auth
       email: email,
@@ -32,15 +32,15 @@ export async function POST(request: Request) {
     })
 
     if (!userProfileResult.success || !userProfileResult.data) {
-      logger.error('❌ [STEP-1] User profile creation failed:', userProfileResult.error)
+      logger.error({ user: userProfileResult.error }, '❌ [STEP-1] User profile creation failed:')
       throw new Error('Failed to create user profile: ' + (userProfileResult.error?.message || 'Unknown error'))
     }
 
     const userProfile = userProfileResult.data
-    logger.info('✅ [STEP-1] Temporary user profile created:', userProfile.id)
+    logger.info({ user: userProfile.id }, '✅ [STEP-1] Temporary user profile created:')
 
     // ÉTAPE 2: CRÉER L'ÉQUIPE AVEC L'ID USER VALIDE
-    logger.info('👥 [STEP-2] Creating team with valid user ID...')
+    logger.info({}, '👥 [STEP-2] Creating team with valid user ID...')
     const teamResult = await teamService.create({
       name: `Équipe de ${name}`,
       description: `Équipe personnelle de ${name}`,
@@ -48,12 +48,12 @@ export async function POST(request: Request) {
     })
 
     if (!teamResult.success || !teamResult.data) {
-      logger.error('❌ [STEP-2] Team creation failed:', teamResult.error)
+      logger.error({ teamResult: teamResult.error }, '❌ [STEP-2] Team creation failed:')
       throw new Error('Failed to create team: ' + (teamResult.error?.message || 'Unknown error'))
     }
 
     const team = teamResult.data
-    logger.info('✅ [STEP-2] Team created:', team.id)
+    logger.info({ team: team.id }, '✅ [STEP-2] Team created:')
 
     // LOGS D'ACTIVITÉ: Enregistrer la création de l'équipe et du compte utilisateur
     try {
@@ -88,9 +88,9 @@ export async function POST(request: Request) {
         }
       )
 
-      logger.info('✅ [LOGS] Activity logs created for user and team creation')
+      logger.info({}, '✅ [LOGS] Activity logs created for user and team creation')
     } catch (logError) {
-      logger.error('⚠️ [LOGS] Failed to create activity logs:', logError)
+      logger.error({ logError: logError }, '⚠️ [LOGS] Failed to create activity logs:')
       // Non bloquant, on continue même si les logs échouent
     }
 
@@ -100,12 +100,12 @@ export async function POST(request: Request) {
     })
 
     if (!updateResult.success) {
-      logger.error('❌ Failed to link user to team:', updateResult.error)
+      logger.error({ user: updateResult.error }, '❌ Failed to link user to team:')
       throw new Error('Failed to link user to team: ' + (updateResult.error?.message || 'Unknown error'))
     }
 
     // ÉTAPE 3: CRÉER L'AUTH USER ET LIER AU PROFIL
-    logger.info('🔐 [STEP-3] Creating auth user and linking to profile...')
+    logger.info({}, '🔐 [STEP-3] Creating auth user and linking to profile...')
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       _password,
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     })
 
     if (authError || !authData.user) {
-      logger.error('❌ [STEP-3] Auth creation failed:', authError)
+      logger.error({ authError: authError }, '❌ [STEP-3] Auth creation failed:')
       throw authError || new Error('Failed to create auth user')
     }
     
@@ -130,17 +130,17 @@ export async function POST(request: Request) {
     })
 
     if (!linkResult.success) {
-      logger.error('❌ Failed to link auth to user:', linkResult.error)
+      logger.error({ user: linkResult.error }, '❌ Failed to link auth to user:')
       throw new Error('Failed to link auth to user: ' + (linkResult.error?.message || 'Unknown error'))
     }
 
-    logger.info('✅ [STEP-3] Auth user created and linked:', authData.user.id)
+    logger.info({ user: authData.user.id }, '✅ [STEP-3] Auth user created and linked:')
 
     // ✅ L'utilisateur est déjà ajouté à l'équipe par teamService.create
-    logger.info('✅ [STEP-3] User already added to team as admin by teamService.create')
+    logger.info({}, '✅ [STEP-3] User already added to team as admin by teamService.create')
 
     // ÉTAPE 4: RETOURNER LES CREDENTIALS POUR AUTO-LOGIN
-    logger.info('🎯 [STEP-4] All setup complete - ready for auto-login!')
+    logger.info({}, '🎯 [STEP-4] All setup complete - ready for auto-login!')
 
     return NextResponse.json({
       success: true,
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [SIGNUP-SIMPLE] Process failed:', error)
+    logger.error({ error: error }, '❌ [SIGNUP-SIMPLE] Process failed:')
     return NextResponse.json(
       { 
         success: false,

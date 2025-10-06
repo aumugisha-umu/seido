@@ -35,7 +35,7 @@ function getNotificationIcon(type: string, priority?: string) {
   const isUrgent = priority === 'urgent' || priority === 'high'
   const className = isUrgent ? "h-5 w-5 text-red-500" : "h-5 w-5 text-blue-500"
 
-  switch (type) {
+  switch (_type) {
     case "intervention":
       return isUrgent ? <AlertTriangle className={className} /> : <Bell className={className} />
     case "assignment":

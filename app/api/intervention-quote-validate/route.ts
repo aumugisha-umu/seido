@@ -8,7 +8,7 @@ import { logger, logError } from '@/lib/logger'
 import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  logger.info("✅ intervention-quote-validate API route called")
+  logger.info({}, "✅ intervention-quote-validate API route called")
 
   // Initialize services
   const userService = await createServerUserService()
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (quoteError || !quote) {
-      logger.error("❌ Quote not found:", quoteError)
+      logger.error({ quoteError: quoteError }, "❌ Quote not found:")
       return NextResponse.json({
         success: false,
         error: 'Devis non trouvé'
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     // Quote validation checks could be added here if needed
 
-    logger.info(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
+    logger.info({ status: action === 'approve' ? 'approved' : 'rejected' }, `🔄 Updating quote status to ${action === 'approve' ? 'approved' : 'rejected'}`)
 
     // Prepare update data
     const updateData = {
@@ -161,14 +161,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (updateError) {
-      logger.error("❌ Error updating quote:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating quote:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du devis'
       }, { status: 500 })
     }
 
-    logger.info(`✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
+    logger.info({ status: action === 'approve' ? 'approved' : 'rejected' }, `✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
 
     // If quote is approved, update intervention status and reject other pending quotes
     if (action === 'approve') {
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Automatically reject other pending quotes for this intervention
-      logger.info("🔄 Rejecting other pending quotes for this intervention...")
+      logger.info({}, "🔄 Rejecting other pending quotes for this intervention...")
 
       const { data: otherQuotes } = await supabase
         .from('intervention_quotes')
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
         })
 
         await Promise.all(rejectPromises)
-        logger.info(`✅ Rejected ${otherQuotes.length} other pending quote(s)`)
+        logger.info({ otherQuotes: otherQuotes.length }, "✅ Rejected other pending quote(s)")
       }
     }
 
@@ -263,9 +263,9 @@ export async function POST(request: NextRequest) {
       }
 
       await notificationService.createNotification(notificationData)
-      logger.info(`📧 Quote validation notification sent to provider`)
+      logger.info({}, "📧 Quote validation notification sent to provider")
     } catch (notifError) {
-      logger.warn("⚠️ Could not send quote validation notification:", notifError)
+      logger.warn({ notifError }, "⚠️ Could not send quote validation notification")
       // Don't fail the validation for notification errors
     }
 
@@ -278,9 +278,9 @@ export async function POST(request: NextRequest) {
           'planifiee',
           user.id
         )
-        logger.info("📧 Intervention status change notifications sent")
+        logger.info({}, "📧 Intervention status change notifications sent")
       } catch (notifError) {
-        logger.warn("⚠️ Could not send status change notifications:", notifError)
+        logger.warn({ notifError }, "⚠️ Could not send status change notifications")
       }
     }
 
@@ -306,11 +306,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in intervention-quote-validate API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-quote-validate API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

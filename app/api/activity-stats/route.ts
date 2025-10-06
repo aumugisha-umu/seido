@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      logger.error('Error fetching activity stats:', error)
+      logger.error({ error: error }, 'Error fetching activity stats:')
       return NextResponse.json(
         { error: 'Failed to fetch activity statistics' },
         { status: 500 }
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('Unexpected error in activity-stats API:', error)
+    logger.error({ error: error }, 'Unexpected error in activity-stats API:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

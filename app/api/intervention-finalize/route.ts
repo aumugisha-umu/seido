@@ -8,7 +8,7 @@ import { logger, logError } from '@/lib/logger'
 import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  logger.info("🏁 intervention-finalize API route called")
+  logger.info({}, "🏁 intervention-finalize API route called")
 
   // Initialize services
   const userService = await createServerUserService()
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📝 Finalizing intervention:", interventionId)
+    logger.info({ interventionId: interventionId }, "📝 Finalizing intervention:")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
-    logger.info("🏁 Intervention finalized successfully")
+    logger.info({}, "🏁 Intervention finalized successfully")
 
     // Create notifications for all stakeholders
     const notificationTitle = 'Intervention finalisée'
@@ -214,9 +214,9 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        logger.info("📧 Finalization notification sent to tenant")
+        logger.info({}, "📧 Finalization notification sent to tenant")
       } catch (notifError) {
-        logger.warn("⚠️ Could not send notification to tenant:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
       }
     }
 
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
           relatedEntityId: intervention.id
         })
       } catch (notifError) {
-        logger.warn("⚠️ Could not send notification to provider:", provider.user.name, notifError)
+        logger.warn({ provider: provider.user.name, notifError }, "⚠️ Could not send notification to provider:")
       }
     }
 
@@ -274,10 +274,10 @@ export async function POST(request: NextRequest) {
         })
 
       if (activityError) {
-        logger.warn("⚠️ Could not create activity log:", activityError)
+        logger.warn({ activityError: activityError }, "⚠️ Could not create activity log:")
       }
     } catch (logError) {
-      logger.warn("⚠️ Error creating activity log:", logError)
+      logger.warn({ error: logError }, "⚠️ Error creating activity log:")
     }
 
     return NextResponse.json({
@@ -301,11 +301,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in intervention-finalize API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in intervention-finalize API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

@@ -8,7 +8,7 @@ import { logger, logError } from '@/lib/logger'
 import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  logger.info("🚀 intervention-start API route called")
+  logger.info({}, "🚀 intervention-start API route called")
 
   // Initialize services
   const userService = await createServerUserService()
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📝 Starting intervention:", interventionId)
+    logger.info({ interventionId: interventionId }, "📝 Starting intervention:")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
-    logger.info("✅ Intervention started successfully")
+    logger.info({}, "✅ Intervention started successfully")
 
     // Create notifications
     const notificationMessage = `L'intervention "${intervention.title}" a été démarrée par ${user.name}.`
@@ -194,9 +194,9 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        logger.info("📧 Start notification sent to tenant")
+        logger.info({}, "📧 Start notification sent to tenant")
       } catch (notifError) {
-        logger.warn("⚠️ Could not send notification to tenant:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
       }
     }
 
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
           relatedEntityId: intervention.id
         })
       } catch (notifError) {
-        logger.warn("⚠️ Could not send notification to stakeholder:", stakeholder.user.name, notifError)
+        logger.warn({ stakeholder: stakeholder.user.name, notifError }, "⚠️ Could not send notification to stakeholder:")
       }
     }
 
@@ -246,11 +246,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in intervention-start API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in intervention-start API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
-  logger.info("📥 download-intervention-document API route called")
+  logger.info({}, "📥 download-intervention-document API route called")
   
   try {
     // Initialize Supabase client
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📄 Getting document info for:", documentId)
+    logger.info({ documentId: documentId }, "📄 Getting document info for:")
 
     // Get document information and verify access
     const { data: document, error: docError } = await supabase
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (docError || !document) {
-      logger.error("❌ Document not found:", docError)
+      logger.error({ docError: docError }, "❌ Document not found:")
       return NextResponse.json({ 
         error: 'Document non trouvé' 
       }, { status: 404 })
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
 
-    logger.info("🔐 Generating signed URL for:", document.storage_path)
+    logger.info({ document: document.storage_path }, "🔐 Generating signed URL for:")
 
     // Generate signed URL for download (valid for 1 hour)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
@@ -91,13 +91,13 @@ export async function GET(request: NextRequest) {
       .createSignedUrl(document.storage_path, 3600) // 1 hour expiry
 
     if (signedUrlError || !signedUrlData) {
-      logger.error("❌ Error generating signed URL:", signedUrlError)
+      logger.error({ error: signedUrlError }, "❌ Error generating signed URL:")
       return NextResponse.json({ 
         error: 'Erreur lors de la génération de l\'URL de téléchargement' 
       }, { status: 500 })
     }
 
-    logger.info("✅ Signed URL generated successfully")
+    logger.info({}, "✅ Signed URL generated successfully")
 
     return NextResponse.json({
       success: true,
@@ -112,11 +112,11 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in download-intervention-document API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in download-intervention-document API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

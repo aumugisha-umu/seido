@@ -42,7 +42,7 @@ interface MatchingResult {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  logger.info("🔄 match-availabilities API route called for intervention:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "🔄 match-availabilities API route called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .order('start_time', { ascending: true })
 
     if (availError) {
-      logger.error("❌ Error fetching availabilities:", availError)
+      logger.error({ error: availError }, "❌ Error fetching availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    logger.info("📅 Processing availabilities:", allAvailabilities.length)
+    logger.info({ allAvailabilities: allAvailabilities.length }, "📅 Processing availabilities:")
 
     // Group availabilities by user role
     const tenantAvailabilities = allAvailabilities.filter(avail => avail.user.role === 'locataire')
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    logger.info("🏠 Tenant availabilities:", tenantAvailabilities.length)
-    logger.info("🔧 Provider availabilities:", providerAvailabilities.length)
+    logger.info({ tenantAvailabilities: tenantAvailabilities.length }, "🏠 Tenant availabilities:")
+    logger.info({ providerAvailabilities: providerAvailabilities.length }, "🔧 Provider availabilities:")
 
     // Perform matching algorithm
     const matchingResult = performAvailabilityMatching(tenantAvailabilities, providerAvailabilities)
@@ -172,13 +172,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             .insert(matchesToSave)
 
           if (saveError) {
-            logger.warn("⚠️ Could not save matches to database:", saveError)
+            logger.warn({ data: saveError }, "⚠️ Could not save matches to database:")
           } else {
-            logger.info("✅ Saved", matchesToSave.length, "matches to database")
+            logger.info({ matchCount: matchesToSave.length }, "✅ Saved matches to database")
           }
         }
       } catch (saveError) {
-        logger.warn("⚠️ Error saving matches:", saveError)
+        logger.warn({ error: saveError }, "⚠️ Error saving matches:")
         // Don't fail the whole operation for this
       }
     }
@@ -186,11 +186,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(matchingResult)
 
   } catch (error) {
-    logger.error("❌ Error in match-availabilities API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in match-availabilities API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,
@@ -205,7 +205,7 @@ function performAvailabilityMatching(
 ): MatchingResult {
   const matches: MatchedSlot[] = []
 
-  logger.info("🔍 Starting availability matching algorithm...")
+  logger.info({}, "🔍 Starting availability matching algorithm...")
 
   // For each tenant availability, find overlapping provider availabilities
   for (const tenantAvail of tenantAvailabilities) {
@@ -232,7 +232,7 @@ function performAvailabilityMatching(
           score: score
         })
 
-        logger.info(`✨ Found overlap on ${tenantAvail.date}: ${overlap.duration} minutes (score: ${score})`)
+        logger.info({ tenantAvail: tenantAvail.date, overlap: overlap.duration, score }, "✨ Found overlap on : minutes (score: )")
       }
     }
   }
@@ -256,12 +256,12 @@ function performAvailabilityMatching(
     message = 'Aucun créneau compatible trouvé, veuillez ajuster vos disponibilités'
   }
 
-  logger.info("📊 Matching results:", {
+  logger.info({
     perfectMatch: !!perfectMatch,
     partialMatches: partialMatches.length,
     suggestions: suggestions.length,
     totalMatches: matches.length
-  })
+  }, "📊 Matching results:")
 
   return {
     success: matches.length > 0,

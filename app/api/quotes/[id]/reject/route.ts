@@ -30,7 +30,7 @@ export async function POST(
       .single()
 
     if (userError || !userData) {
-      logger.error('❌ [API-REJECT] User not found in users table:', userError)
+      logger.error({ user: userError }, '❌ [API-REJECT] User not found in users table:')
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 401 })
     }
 
@@ -67,7 +67,7 @@ export async function POST(
       .eq('id', id)
 
     if (rejectError) {
-      logger.error('Erreur lors du rejet du devis:', rejectError)
+      logger.error({ rejectError: rejectError }, 'Erreur lors du rejet du devis:')
       return NextResponse.json({
         error: 'Erreur lors du rejet du devis'
       }, { status: 500 })
@@ -79,7 +79,7 @@ export async function POST(
     })
 
   } catch (error) {
-    logger.error('Erreur API:', error)
+    logger.error({ error: error }, 'Erreur API:')
     return NextResponse.json({
       error: 'Erreur interne du serveur'
     }, { status: 500 })

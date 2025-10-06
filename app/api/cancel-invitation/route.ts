@@ -49,23 +49,23 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.info('🚫 [CANCEL-INVITATION-API] Processing cancellation for invitation:', invitationId)
+    logger.info({ invitationId: invitationId }, '🚫 [CANCEL-INVITATION-API] Processing cancellation for invitation:')
 
     // Récupérer le profil utilisateur courant
     const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
     const currentUserProfile = currentUserProfileResult.success ? currentUserProfileResult.data : null
     if (!currentUserProfile) {
-      logger.error('❌ [CANCEL-INVITATION-API] User profile not found for auth user:', session.user.id)
+      logger.error({ user: session.user.id }, '❌ [CANCEL-INVITATION-API] User profile not found for auth user:')
       return NextResponse.json(
         { error: 'Profil utilisateur non trouvé' },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [CANCEL-INVITATION-API] Current user profile:', {
+    logger.info({
       id: currentUserProfile.id,
       email: currentUserProfile.email
-    })
+    }, '✅ [CANCEL-INVITATION-API] Current user profile:')
 
     // ÉTAPE 1: Vérifier d'abord si l'invitation existe (sans conditions)
     const { data: invitationCheck, error: checkError } = await supabaseAdmin
@@ -75,17 +75,17 @@ export async function POST(request: Request) {
       .single()
     
     if (checkError || !invitationCheck) {
-      logger.error('❌ [CANCEL-INVITATION-API] Invitation does not exist:', {
+      logger.error({
         invitationId,
         error: checkError
-      })
+      }, '❌ [CANCEL-INVITATION-API] Invitation does not exist:')
       return NextResponse.json(
         { error: 'Invitation non trouvée dans la base de données' },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [CANCEL-INVITATION-API] Found invitation:', {
+    logger.info({
       id: invitationCheck.id,
       email: invitationCheck.email,
       status: invitationCheck.status,
@@ -95,14 +95,14 @@ export async function POST(request: Request) {
       current_user_type: typeof currentUserProfile.id,
       auth_user_id: session.user.id,
       ids_match: invitationCheck.invited_by === currentUserProfile.id
-    })
+    }, '✅ [CANCEL-INVITATION-API] Found invitation:')
 
     // ÉTAPE 2: Vérifier le statut de l'invitation
     if (invitationCheck.status !== 'pending') {
-      logger.error('❌ [CANCEL-INVITATION-API] Invitation not in pending status:', {
+      logger.error({
         current_status: invitationCheck.status,
         expected_status: 'pending'
-      })
+      }, '❌ [CANCEL-INVITATION-API] Invitation not in pending status:')
       return NextResponse.json(
         { error: `Impossible d'annuler: invitation déjà ${invitationCheck.status}` },
         { status: 400 }
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
         .eq('id', invitationCheck.invited_by)
         .single()
 
-      logger.error('❌ [CANCEL-INVITATION-API] Permission denied - detailed comparison:', {
+      logger.error({
         invitation_invited_by: invitationCheck.invited_by,
         current_user_id: currentUserProfile.id,
         auth_user_id: session.user.id,
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
         },
         original_inviter_details: originalInviter || 'FAILED_TO_FETCH',
         inviter_error: inviterError || 'NO_ERROR'
-      })
+      }, '❌ [CANCEL-INVITATION-API] Permission denied - detailed comparison:')
 
       return NextResponse.json(
         { error: 'Permission refusée: vous ne pouvez annuler que vos propres invitations' },
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     // Si on arrive ici, l'invitation peut être annulée
     const invitation = invitationCheck
 
-    logger.info('✅ [CANCEL-INVITATION-API] Invitation validation passed, proceeding with deletion...')
+    logger.info({}, '✅ [CANCEL-INVITATION-API] Invitation validation passed, proceeding with deletion...')
 
     // ============================================================================
     // ÉTAPE 4: Récupérer auth_user_id si l'invitation a un user associé
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     let authUserIdToDelete: string | null = null
 
     if (invitation.user_id) {
-      logger.info('🔍 [STEP-4] Fetching auth_user_id for user:', invitation.user_id)
+      logger.info({ user: invitation.user_id }, '🔍 [STEP-4] Fetching auth_user_id for user:')
 
       const { data: user, error: userError } = await supabaseAdmin
         .from('users')
@@ -158,36 +158,36 @@ export async function POST(request: Request) {
         .single()
 
       if (userError) {
-        logger.warn('⚠️ [STEP-4] Failed to fetch user auth_id:', userError)
+        logger.warn({ user: userError }, '⚠️ [STEP-4] Failed to fetch user auth_id:')
       } else if (user?.auth_user_id) {
         authUserIdToDelete = user.auth_user_id
-        logger.info('✅ [STEP-4] Found auth_user_id to delete:', authUserIdToDelete)
+        logger.info({ user: authUserIdToDelete }, '✅ [STEP-4] Found auth_user_id to delete:')
       } else {
-        logger.info('ℹ️ [STEP-4] No auth_user_id found for this invitation')
+        logger.info({}, 'ℹ️ [STEP-4] No auth_user_id found for this invitation')
       }
     } else {
-      logger.info('ℹ️ [STEP-4] No user_id associated with this invitation')
+      logger.info({}, 'ℹ️ [STEP-4] No user_id associated with this invitation')
     }
 
     // ============================================================================
     // ÉTAPE 5: Supprimer l'auth user de Supabase Auth
     // ============================================================================
     if (authUserIdToDelete) {
-      logger.info('🗑️ [STEP-5] Deleting auth user from Supabase Auth...', authUserIdToDelete)
+      logger.info({ user: authUserIdToDelete }, '🗑️ [STEP-5] Deleting auth user from Supabase Auth...')
 
       const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUserIdToDelete)
 
       if (deleteAuthError) {
-        logger.warn('⚠️ [STEP-5] Failed to delete auth user:', deleteAuthError)
+        logger.warn({ user: deleteAuthError }, '⚠️ [STEP-5] Failed to delete auth user:')
         // ✅ Non bloquant - on continue quand même avec la suppression de l'invitation
       } else {
-        logger.info('✅ [STEP-5] Auth user deleted successfully from Supabase Auth')
+        logger.info({}, '✅ [STEP-5] Auth user deleted successfully from Supabase Auth')
 
         // ============================================================================
         // ÉTAPE 5b: Mettre à jour le profil utilisateur pour supprimer la référence auth
         // ============================================================================
         if (invitation.user_id) {
-          logger.info('🔄 [STEP-5b] Unlinking auth from user profile...')
+          logger.info({}, '🔄 [STEP-5b] Unlinking auth from user profile...')
 
           const { error: unlinkError } = await supabaseAdmin
             .from('users')
@@ -195,20 +195,20 @@ export async function POST(request: Request) {
             .eq('id', invitation.user_id)
 
           if (unlinkError) {
-            logger.warn('⚠️ [STEP-5b] Failed to unlink auth from profile:', unlinkError)
+            logger.warn({ unlinkError: unlinkError }, '⚠️ [STEP-5b] Failed to unlink auth from profile:')
           } else {
-            logger.info('✅ [STEP-5b] Auth unlinked from user profile successfully')
+            logger.info({}, '✅ [STEP-5b] Auth unlinked from user profile successfully')
           }
         }
       }
     } else {
-      logger.info('⏭️ [STEP-5] No auth user to delete, skipping...')
+      logger.info({}, '⏭️ [STEP-5] No auth user to delete, skipping...')
     }
 
     // ============================================================================
     // ÉTAPE 6: Supprimer l'invitation de la base de données
     // ============================================================================
-    logger.info('🗑️ [STEP-6] Deleting invitation from database...')
+    logger.info({}, '🗑️ [STEP-6] Deleting invitation from database...')
 
     const { data: deletedInvitation, error: deleteError } = await supabaseAdmin
       .from('user_invitations')
@@ -219,7 +219,7 @@ export async function POST(request: Request) {
       .single()
 
     if (deleteError) {
-      logger.error('❌ [STEP-6] Failed to delete invitation:', deleteError)
+      logger.error({ deleteError: deleteError }, '❌ [STEP-6] Failed to delete invitation:')
       return NextResponse.json(
         { error: 'Erreur lors de la suppression de l\'invitation: ' + deleteError.message },
         { status: 500 }
@@ -227,17 +227,17 @@ export async function POST(request: Request) {
     }
 
     if (!deletedInvitation) {
-      logger.error('❌ [STEP-6] No invitation deleted')
+      logger.error({}, '❌ [STEP-6] No invitation deleted')
       return NextResponse.json(
         { error: 'Invitation non trouvée ou déjà supprimée' },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [STEP-6] Invitation deleted successfully:', {
+    logger.info({
       id: deletedInvitation.id,
       email: deletedInvitation.email
-    })
+    }, '✅ [STEP-6] Invitation deleted successfully:')
 
     // ============================================================================
     // ÉTAPE 7: Retourner le succès
@@ -253,7 +253,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [CANCEL-INVITATION-API] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [CANCEL-INVITATION-API] Unexpected error:')
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

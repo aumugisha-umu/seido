@@ -164,7 +164,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      logger.error("❌ Error creating tenant validation record:", insertError)
+      logger.error({ error: insertError }, "❌ Error creating tenant validation record:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde de la validation'
@@ -182,14 +182,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      logger.error("❌ Error updating intervention status:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention status:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    logger.info(`✅ Tenant validation (${validationType}) submitted successfully`)
+    logger.info({ validationType }, "✅ Tenant validation () submitted successfully")
 
     // Send notifications
     try {
@@ -234,9 +234,9 @@ export async function POST(
       }) || []
 
       await Promise.all(notificationPromises)
-      logger.info(`📧 Tenant validation notifications sent for ${validationType}`)
+      logger.info({ validationType }, "📧 Tenant validation notifications sent for")
     } catch (notifError) {
-      logger.warn("⚠️ Could not send tenant validation notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send tenant validation notifications:")
     }
 
     return NextResponse.json({
@@ -253,7 +253,7 @@ export async function POST(
     })
 
   } catch (error) {
-    logger.error("❌ Error in tenant validation API:", error)
+    logger.error({ error: error }, "❌ Error in tenant validation API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

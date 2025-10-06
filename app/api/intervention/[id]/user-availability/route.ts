@@ -13,7 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const resolvedParams = await params
-  logger.info("📅 POST user-availability API called for intervention:", resolvedParams.id)
+  logger.info({ user: resolvedParams.id }, "📅 POST user-availability API called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -170,7 +170,7 @@ export async function POST(
       })
     }
 
-    logger.info(`📝 Validated ${validatedAvailabilities.length} availabilities for user ${user.id}`)
+    logger.info({ validatedAvailabilities: validatedAvailabilities.length, user: user.id }, "📝 Validated availabilities for user")
 
     // Delete existing availabilities for this user and intervention
     const { error: deleteError } = await supabase
@@ -180,7 +180,7 @@ export async function POST(
       .eq('intervention_id', interventionId)
 
     if (deleteError) {
-      logger.error("❌ Error deleting existing availabilities:", deleteError)
+      logger.error({ error: deleteError }, "❌ Error deleting existing availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la suppression des anciennes disponibilités'
@@ -195,14 +195,14 @@ export async function POST(
         .select()
 
       if (insertError) {
-        logger.error("❌ Error inserting availabilities:", insertError)
+        logger.error({ error: insertError }, "❌ Error inserting availabilities:")
         return NextResponse.json({
           success: false,
           error: 'Erreur lors de la sauvegarde des disponibilités'
         }, { status: 500 })
       }
 
-      logger.info(`✅ Successfully saved ${insertedAvailabilities.length} availabilities`)
+      logger.info({ insertedAvailabilities: insertedAvailabilities.length }, "✅ Successfully saved availabilities")
 
       return NextResponse.json({
         success: true,
@@ -210,7 +210,7 @@ export async function POST(
         availabilities: insertedAvailabilities
       })
     } else {
-      logger.info("✅ Successfully cleared all availabilities (empty array provided)")
+      logger.info({}, "✅ Successfully cleared all availabilities (empty array provided)")
 
       return NextResponse.json({
         success: true,
@@ -220,7 +220,7 @@ export async function POST(
     }
 
   } catch (error) {
-    logger.error("❌ Error in user-availability POST API:", error)
+    logger.error({ error: error }, "❌ Error in user-availability POST API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la sauvegarde des disponibilités'
@@ -233,7 +233,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const resolvedParams = await params
-  logger.info("📅 GET user-availability API called for intervention:", resolvedParams.id)
+  logger.info({ user: resolvedParams.id }, "📅 GET user-availability API called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -288,7 +288,7 @@ export async function GET(
       .order('date', { ascending: true })
 
     if (userAvailError) {
-      logger.error("❌ Error fetching user availabilities:", userAvailError)
+      logger.error({ error: userAvailError }, "❌ Error fetching user availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -334,7 +334,7 @@ export async function GET(
       }
     }
 
-    logger.info(`✅ Retrieved ${userAvailabilities.length} user availabilities and ${allAvailabilities.length} total availabilities`)
+    logger.info({ userAvailabilities: userAvailabilities.length, allAvailabilities: allAvailabilities.length }, "✅ Retrieved user availabilities and total availabilities")
 
     return NextResponse.json({
       success: true,
@@ -344,7 +344,7 @@ export async function GET(
     })
 
   } catch (error) {
-    logger.error("❌ Error in user-availability GET API:", error)
+    logger.error({ error: error }, "❌ Error in user-availability GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la récupération des disponibilités'

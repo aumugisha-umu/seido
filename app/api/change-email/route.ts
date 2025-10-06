@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📧 [CHANGE-EMAIL] Validating current password for user:", authUser.email)
+    logger.info({ user: authUser.email }, "📧 [CHANGE-EMAIL] Validating current password for user:")
 
     // Étape 1: Vérifier le mot de passe actuel en tentant une connexion
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -79,27 +79,27 @@ export async function POST(request: NextRequest) {
     })
 
     if (signInError) {
-      logger.info("❌ [CHANGE-EMAIL] Current password validation failed:", signInError.message)
+      logger.info({ signInError: signInError.message }, "❌ [CHANGE-EMAIL] Current password validation failed:")
       return NextResponse.json({ 
         error: "Le mot de passe actuel est incorrect" 
       }, { status: 400 })
     }
 
-    logger.info("✅ [CHANGE-EMAIL] Current password validated successfully")
+    logger.info({}, "✅ [CHANGE-EMAIL] Current password validated successfully")
 
     // Étape 2: Vérifier que le nouvel email n'est pas déjà utilisé
-    logger.info("🔍 [CHANGE-EMAIL] Checking if new email already exists...")
+    logger.info({}, "🔍 [CHANGE-EMAIL] Checking if new email already exists...")
     const existingUserResult = await userService.getByEmail(newEmail)
     const existingUser = existingUserResult.success ? existingUserResult.data : null
 
     if (existingUser) {
-      logger.info("❌ [CHANGE-EMAIL] Email already in use by another user")
+      logger.info({}, "❌ [CHANGE-EMAIL] Email already in use by another user")
       return NextResponse.json({ 
         error: "Cet email est déjà utilisé par un autre compte" 
       }, { status: 400 })
     }
 
-    logger.info("✅ [CHANGE-EMAIL] New email is available")
+    logger.info({}, "✅ [CHANGE-EMAIL] New email is available")
 
     // Étape 3: Récupérer l'utilisateur dans notre base de données
     const { data: dbUser, error: userError } = await supabase
@@ -109,44 +109,44 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError || !dbUser) {
-      logger.error("❌ [CHANGE-EMAIL] User not found in database:", userError)
+      logger.error({ user: userError }, "❌ [CHANGE-EMAIL] User not found in database:")
       return NextResponse.json({ 
         error: "Utilisateur non trouvé dans la base de données" 
       }, { status: 404 })
     }
 
     // Étape 4: Mettre à jour l'email avec Supabase Auth
-    logger.info("🔄 [CHANGE-EMAIL] Updating email in Supabase Auth...")
+    logger.info({}, "🔄 [CHANGE-EMAIL] Updating email in Supabase Auth...")
     const { error: updateAuthError } = await supabase.auth.updateUser({
       email: newEmail
     })
 
     if (updateAuthError) {
-      logger.error("❌ [CHANGE-EMAIL] Error updating email in Supabase Auth:", updateAuthError.message)
+      logger.error({ error: updateAuthError.message }, "❌ [CHANGE-EMAIL] Error updating email in Supabase Auth:")
       return NextResponse.json({ 
         error: "Erreur lors de la mise à jour de l'email: " + updateAuthError.message 
       }, { status: 500 })
     }
 
-    logger.info("✅ [CHANGE-EMAIL] Email updated in Supabase Auth")
+    logger.info({}, "✅ [CHANGE-EMAIL] Email updated in Supabase Auth")
 
     // Étape 5: Mettre à jour l'email dans notre table users
-    logger.info("🔄 [CHANGE-EMAIL] Updating email in users table...")
+    logger.info({}, "🔄 [CHANGE-EMAIL] Updating email in users table...")
     const updateResult = await userService.update(dbUser.id, {
       email: newEmail
     })
 
     if (!updateResult.success) {
-      logger.error("❌ [CHANGE-EMAIL] Error updating email in users table:", updateResult.error)
+      logger.error({ error: updateResult.error }, "❌ [CHANGE-EMAIL] Error updating email in users table:")
 
       // Si la mise à jour de la DB échoue, essayer de rétablir l'ancien email dans Supabase Auth
       try {
         await supabase.auth.updateUser({
           email: authUser.email!
         })
-        logger.info("🔄 [CHANGE-EMAIL] Rolled back email in Supabase Auth")
+        logger.info({}, "🔄 [CHANGE-EMAIL] Rolled back email in Supabase Auth")
       } catch (rollbackError) {
-        logger.error("❌ [CHANGE-EMAIL] Failed to rollback email in Supabase Auth:", rollbackError)
+        logger.error({ rollbackError: rollbackError }, "❌ [CHANGE-EMAIL] Failed to rollback email in Supabase Auth:")
       }
 
       return NextResponse.json({
@@ -154,9 +154,9 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    logger.info("✅ [CHANGE-EMAIL] Email updated in users table")
+    logger.info({}, "✅ [CHANGE-EMAIL] Email updated in users table")
 
-    logger.info("✅ [CHANGE-EMAIL] Email change completed successfully")
+    logger.info({}, "✅ [CHANGE-EMAIL] Email change completed successfully")
 
     // Retourner le succès
     return NextResponse.json({ 
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
     }, { status: 200 })
 
   } catch (error) {
-    logger.error("❌ [CHANGE-EMAIL] Unexpected error:", error)
+    logger.error({ error: error }, "❌ [CHANGE-EMAIL] Unexpected error:")
     return NextResponse.json({ 
       error: "Erreur interne du serveur" 
     }, { status: 500 })

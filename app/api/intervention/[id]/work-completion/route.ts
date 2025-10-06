@@ -144,7 +144,7 @@ export async function POST(
       }, { status: 403 })
     }
 
-    logger.info("📝 Processing work completion report for intervention:", interventionId)
+    logger.info({ interventionId: interventionId }, "📝 Processing work completion report for intervention:")
 
     // TODO: Handle file uploads to Supabase Storage
     // For now, we'll store file references as JSON
@@ -180,7 +180,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      logger.error("❌ Error creating work completion record:", insertError)
+      logger.error({ error: insertError }, "❌ Error creating work completion record:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde du rapport'
@@ -197,14 +197,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      logger.error("❌ Error updating intervention status:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention status:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    logger.info("✅ Work completion report submitted successfully")
+    logger.info({}, "✅ Work completion report submitted successfully")
 
     // Send notifications
     try {
@@ -258,9 +258,9 @@ export async function POST(
       ) || []
 
       await Promise.all([tenantNotificationPromise, ...managerNotificationPromises])
-      logger.info("📧 Work completion notifications sent")
+      logger.info({}, "📧 Work completion notifications sent")
     } catch (notifError) {
-      logger.warn("⚠️ Could not send work completion notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications:")
     }
 
     return NextResponse.json({
@@ -274,7 +274,7 @@ export async function POST(
     })
 
   } catch (error) {
-    logger.error("❌ Error in work completion API:", error)
+    logger.error({ error: error }, "❌ Error in work completion API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

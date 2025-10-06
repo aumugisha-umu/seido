@@ -24,7 +24,7 @@ async function getEligibleProviders(
     .in('provider_id', requestedProviderIds)
 
   if (requestsError) {
-    logger.error('❌ Error fetching existing quote requests:', requestsError)
+    logger.error({ error: requestsError }, '❌ Error fetching existing quote requests:')
     throw new Error('Erreur lors de la vérification des demandes de devis existantes')
   }
 
@@ -36,7 +36,7 @@ async function getEligibleProviders(
     .in('provider_id', requestedProviderIds)
 
   if (quotesError) {
-    logger.error('❌ Error fetching existing quotes:', quotesError)
+    logger.error({ error: quotesError }, '❌ Error fetching existing quotes:')
     throw new Error('Erreur lors de la vérification des devis existants')
   }
 
@@ -73,20 +73,20 @@ async function getEligibleProviders(
 
   const eligibleIds = requestedProviderIds.filter(id => !ineligibleIds.includes(id))
 
-  logger.info('🔍 Provider eligibility check:', {
+  logger.info({
     requested: requestedProviderIds.length,
     eligible: eligibleIds.length,
     ineligible: ineligibleIds.length,
     ineligibleReasons,
     existingRequests: existingRequests?.length || 0,
     existingQuotes: existingQuotes?.length || 0
-  })
+  }, '🔍 Provider eligibility check:')
 
   return { eligibleIds, ineligibleIds, ineligibleReasons }
 }
 
 export async function POST(request: NextRequest) {
-  logger.info("✅ intervention-quote-request API route called")
+  logger.info({}, "✅ intervention-quote-request API route called")
 
   // Initialize services
   const userService = await createServerUserService()
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("📝 Requesting quote for intervention:", interventionId, "from providers:", targetProviderIds)
+    logger.info({ interventionId, targetProviderIds }, "📝 Requesting quote for intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       .in('id', targetProviderIds)
 
     if (providerError) {
-      logger.error("❌ Error fetching providers:", providerError)
+      logger.error({ error: providerError }, "❌ Error fetching providers:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la vérification des prestataires'
@@ -284,7 +284,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create individual quote requests for each provider
-    logger.info("📋 Creating individual quote requests...")
+    logger.info({}, "📋 Creating individual quote requests...")
 
     const quoteRequestPromises = eligibleProviders.map(async (provider) => {
       const individualMessage = individualMessages[provider.id] || additionalNotes || null
@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
       createdQuoteRequests = quoteRequestResults.filter(result => !result.error).map(result => result.quoteRequest)
 
       if (failedRequests.length > 0) {
-        logger.error("❌ Some quote request creations failed:", failedRequests)
+        logger.error({ failedRequests: failedRequests }, "❌ Some quote request creations failed:")
 
         // If all failed, return error
         if (failedRequests.length === eligibleProviders.length) {
@@ -349,16 +349,16 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      logger.info(`✅ Successfully created ${createdQuoteRequests.length} quote requests`)
+      logger.info({ createdQuoteRequests: createdQuoteRequests.length }, "✅ Successfully created quote requests")
     } catch (requestError) {
-      logger.error("❌ Error during quote request creation:", requestError)
+      logger.error({ error: requestError }, "❌ Error during quote request creation:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la création des demandes de devis'
       }, { status: 500 })
     }
 
-    logger.info("✅ Intervention updated to quote request successfully")
+    logger.info({}, "✅ Intervention updated to quote request successfully")
 
     // Send notifications to all providers about quote request
     try {
@@ -375,9 +375,9 @@ export async function POST(request: NextRequest) {
       })
 
       await Promise.all(notificationPromises)
-      logger.info(`📧 Quote request notifications sent to ${eligibleProviders.length} provider(s)`)
+      logger.info({ eligibleProviders: eligibleProviders.length }, "📧 Quote request notifications sent to provider(s)")
     } catch (notifError) {
-      logger.warn("⚠️ Could not send quote request notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send quote request notifications:")
       // Don't fail the request for notification errors
     }
 
@@ -390,9 +390,9 @@ export async function POST(request: NextRequest) {
           'demande_de_devis',
           user.id
         )
-        logger.info("📧 Status change notifications sent")
+        logger.info({}, "📧 Status change notifications sent")
       } catch (notifError) {
-        logger.warn("⚠️ Could not send status notifications:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
       }
     }
 
@@ -415,11 +415,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in intervention-quote-request API:", error)
-    logger.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-quote-request API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

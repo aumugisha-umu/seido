@@ -8,7 +8,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 if (!supabaseServiceRoleKey || !supabaseUrl) {
-  logger.warn('⚠️ Service role key or URL not configured')
+  logger.warn({}, '⚠️ Service role key or URL not configured')
 }
 
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -41,13 +41,13 @@ export async function POST(request: Request) {
       is_active = true
     } = body
 
-    logger.info('🚀 [CREATE-CONTACT-API] Received request:', { 
+    logger.info({ 
       email, 
       role, 
       provider_category,
       team_id,
       hasServiceRole: !!supabaseAdmin 
-    })
+    }, '🚀 [CREATE-CONTACT-API] Received request:')
 
     // ✅ Validation des données requises (nouvelle logique)
     if (!name || !email || !role || !team_id) {
@@ -83,13 +83,13 @@ export async function POST(request: Request) {
       is_active
     }
 
-    logger.info('📝 [CREATE-CONTACT-API] User data:', JSON.stringify(userToCreate, null, 2))
+    logger.info({ user: JSON.stringify(userToCreate, null, 2) }, '📝 [CREATE-CONTACT-API] User data')
 
     let result;
 
     // Méthode 1: Utiliser le client admin si disponible (bypass RLS)
     if (supabaseAdmin) {
-      logger.info('🔐 [CREATE-CONTACT-API] Using admin client (service role)')
+      logger.info({}, '🔐 [CREATE-CONTACT-API] Using admin client (service role)')
       
       const { data, error } = await supabaseAdmin
         .from('users')
@@ -98,19 +98,19 @@ export async function POST(request: Request) {
         .single()
 
       if (error) {
-        logger.error('❌ [CREATE-CONTACT-API] Admin insert failed:', error)
+        logger.error({ error }, '❌ [CREATE-CONTACT-API] Admin insert failed')
         throw error
       }
 
       result = data
     } else {
       // Méthode 2: Utiliser le service contact normal (fallback)
-      logger.info('📝 [CREATE-CONTACT-API] Using normal contact service (fallback)')
+      logger.info({}, '📝 [CREATE-CONTACT-API] Using normal contact service (fallback)')
       const contactService = await createServerContactService()
       result = await contactService.create(userToCreate)
     }
 
-    logger.info('✅ [CREATE-CONTACT-API] User/Contact created successfully:', result.id)
+    logger.info({ user: result.id }, '✅ [CREATE-CONTACT-API] User/Contact created successfully:')
 
     return NextResponse.json({
       success: true,
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [CREATE-CONTACT-API] Error:', error)
+    logger.error({ error: error }, '❌ [CREATE-CONTACT-API] Error:')
     return NextResponse.json(
       { 
         error: 'Erreur lors de la création du contact', 

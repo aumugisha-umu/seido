@@ -42,11 +42,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('🔍 [GET-CONFIRMATION-LINK] Fetching confirmation link for:', email)
+    logger.info({ email: email }, '🔍 [GET-CONFIRMATION-LINK] Fetching confirmation link for:')
 
     // Vérifier que le service admin est configuré
     if (!isAdminConfigured()) {
-      logger.error('❌ [GET-CONFIRMATION-LINK] Admin service not configured')
+      logger.error({}, '❌ [GET-CONFIRMATION-LINK] Admin service not configured')
       return NextResponse.json(
         { error: 'Admin service not configured' },
         { status: 500 }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const { data: authUsers, error: authListError } = await supabaseAdmin.auth.admin.listUsers()
 
     if (authListError) {
-      logger.error('❌ [GET-CONFIRMATION-LINK] Failed to list auth users:', authListError)
+      logger.error({ user: authListError }, '❌ [GET-CONFIRMATION-LINK] Failed to list auth users:')
       return NextResponse.json(
         { error: 'Failed to list users' },
         { status: 500 }
@@ -69,22 +69,22 @@ export async function POST(request: NextRequest) {
     const authUser = authUsers.users.find((u) => u.email === email)
 
     if (!authUser) {
-      logger.warn('⚠️  [GET-CONFIRMATION-LINK] User not found:', email)
+      logger.warn({ user: email }, '⚠️  [GET-CONFIRMATION-LINK] User not found:')
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [GET-CONFIRMATION-LINK] User found:', {
+    logger.info({
       id: authUser.id,
       email: authUser.email,
       confirmed: !!authUser.email_confirmed_at,
-    })
+    }, '✅ [GET-CONFIRMATION-LINK] User found:')
 
     // Si déjà confirmé, pas besoin de lien
     if (authUser.email_confirmed_at) {
-      logger.info('✅ [GET-CONFIRMATION-LINK] Email already confirmed')
+      logger.info({}, '✅ [GET-CONFIRMATION-LINK] Email already confirmed')
       return NextResponse.json({
         confirmed: true,
         confirmationLink: null,
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Générer un lien de confirmation via admin.generateLink()
-    logger.info('🔧 [GET-CONFIRMATION-LINK] Generating confirmation link...')
+    logger.info({}, '🔧 [GET-CONFIRMATION-LINK] Generating confirmation link...')
 
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (linkError || !linkData) {
-      logger.error('❌ [GET-CONFIRMATION-LINK] Failed to generate link:', linkError)
+      logger.error({ linkError: linkError }, '❌ [GET-CONFIRMATION-LINK] Failed to generate link:')
       return NextResponse.json(
         { error: 'Failed to generate confirmation link' },
         { status: 500 }
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       ? `${baseUrl}/auth/confirm?token_hash=${hashedToken}&type=email`
       : actionLink
 
-    logger.info('🔗 [GET-CONFIRMATION-LINK] Confirmation link generated:', confirmationUrl)
+    logger.info({ confirmationUrl: confirmationUrl }, '🔗 [GET-CONFIRMATION-LINK] Confirmation link generated:')
 
     return NextResponse.json({
       confirmed: false,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       email: authUser.email,
     })
   } catch (error) {
-    logger.error('❌ [GET-CONFIRMATION-LINK] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [GET-CONFIRMATION-LINK] Unexpected error:')
     return NextResponse.json(
       {
         error: 'Failed to get confirmation link',

@@ -10,7 +10,7 @@ import { logger, logError } from '@/lib/logger'
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
-  logger.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - invitations will be disabled')
+  logger.warn({}, '⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - invitations will be disabled')
 }
 
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
     } = body
 
-    logger.info('📧 [INVITE-USER-SIMPLE] Creating contact:', {
+    logger.info({
       email,
       firstName,
       lastName,
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       speciality,
       shouldInviteToApp,
       teamId
-    })
+    }, '📧 [INVITE-USER-SIMPLE] Creating contact:')
 
     // ✅ FIX: Si providerCategory est déjà fourni par le service, l'utiliser directement
     // Sinon, mapper depuis le role (legacy support)
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       // ✅ NOUVEAU FLUX: Service envoie déjà role + providerCategory
       validUserRole = role as Database['public']['Enums']['user_role']
       finalProviderCategory = providerCategory as Database['public']['Enums']['provider_category']
-      logger.info(`✅ [ROLE-DIRECT] Using provided role "${validUserRole}" + category "${finalProviderCategory}"`)
+      logger.info({ validUserRole, finalProviderCategory }, "✅ [ROLE-DIRECT] Using provided role and category")
     } else {
       // ✅ LEGACY FLUX: Mapper depuis le type frontend (backward compatibility)
       const mapContactTypeToRoleAndCategory = (_contactType: string) => {
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
       const mapped = mapContactTypeToRoleAndCategory(role)
       validUserRole = mapped.role
       finalProviderCategory = mapped.provider_category
-      logger.info(`🔄 [ROLE-MAPPING] Contact type "${role}" → User role "${validUserRole}" + Category "${finalProviderCategory}"`)
+      logger.info({ role, validUserRole, finalProviderCategory }, "🔄 [ROLE-MAPPING] Contact type mapped to user role and category")
     }
 
     let userProfile
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     // ============================================================================
     // ÉTAPE 1 (COMMUNE): Créer le profil utilisateur SANS auth
     // ============================================================================
-    logger.info('👤 [STEP-1] Creating user profile (common step)...')
+    logger.info({}, '👤 [STEP-1] Creating user profile (common step)...')
 
     try {
       // Vérifier si l'utilisateur existe déjà en utilisant supabaseAdmin pour bypasser RLS
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
       // Si checkError avec code PGRST116, c'est que l'utilisateur n'existe pas (ce qui est OK)
       if (existingUser && !checkError) {
-        logger.info('✅ [STEP-1] User already exists:', existingUser.id)
+        logger.info({ user: existingUser.id }, '✅ [STEP-1] User already exists:')
         userProfile = existingUser
         authUserId = existingUser.auth_user_id
       } else if (!existingUser || checkError?.code === 'PGRST116') {
@@ -167,19 +167,19 @@ export async function POST(request: Request) {
           .single()
 
         if (createError || !newUser) {
-          logger.error('❌ [STEP-1] User profile creation failed:', createError)
+          logger.error({ user: createError }, '❌ [STEP-1] User profile creation failed:')
           throw new Error('Failed to create user profile: ' + (createError?.message || 'Unknown error'))
         }
 
         userProfile = newUser
-        logger.info('✅ [STEP-1] User profile created:', userProfile.id)
+        logger.info({ user: userProfile.id }, '✅ [STEP-1] User profile created:')
       } else {
         // Autre erreur lors de la vérification
-        logger.error('❌ [STEP-1] Error checking existing user:', checkError)
+        logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user:')
         throw new Error('Failed to check existing user: ' + checkError?.message)
       }
     } catch (userError) {
-      logger.error('❌ [STEP-1] Failed to create user profile:', userError)
+      logger.error({ user: userError }, '❌ [STEP-1] Failed to create user profile:')
       return NextResponse.json(
         { error: 'Erreur lors de la création du profil utilisateur: ' + (userError instanceof Error ? userError.message : String(userError)) },
         { status: 500 }
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
     // ============================================================================
     // ÉTAPE 2 (COMMUNE): Ajouter à l'équipe (OBLIGATOIRE pour tous)
     // ============================================================================
-    logger.info('👥 [STEP-2] Adding user to team (common step)...')
+    logger.info({}, '👥 [STEP-2] Adding user to team (common step)...')
     try {
       // Utiliser supabaseAdmin pour bypasser RLS lors de l'ajout à l'équipe
       const { data: teamMember, error: teamError } = await supabaseAdmin
@@ -205,16 +205,16 @@ export async function POST(request: Request) {
 
       if (teamError) {
         // Si erreur critique, ne pas continuer
-        logger.error('❌ [STEP-2] Failed to add user to team:', teamError)
+        logger.error({ user: teamError }, '❌ [STEP-2] Failed to add user to team:')
         return NextResponse.json(
           { error: 'Erreur lors de l\'ajout du membre à l\'équipe: ' + (teamError?.message || 'Unknown error') },
           { status: 500 }
         )
       }
 
-      logger.info('✅ [STEP-2] User added to team:', teamId)
+      logger.info({ user: teamId }, '✅ [STEP-2] User added to team:')
     } catch (teamError) {
-      logger.error('❌ [STEP-2] Failed to add user to team:', teamError)
+      logger.error({ user: teamError }, '❌ [STEP-2] Failed to add user to team:')
       return NextResponse.json(
         { error: 'Erreur lors de l\'ajout du membre à l\'équipe: ' + (teamError instanceof Error ? teamError.message : String(teamError)) },
         { status: 500 }
@@ -225,11 +225,11 @@ export async function POST(request: Request) {
     // ÉTAPE 3 (SI INVITATION): Créer auth + Générer lien officiel + Enregistrer invitation
     // ============================================================================
     if (shouldInviteToApp) {
-      logger.info('📧 [STEP-3-INVITE] Processing invitation flow with official Supabase link...')
+      logger.info({}, '📧 [STEP-3-INVITE] Processing invitation flow with official Supabase link...')
 
       try {
         // SOUS-ÉTAPE 1: Générer le lien d'invitation officiel Supabase (crée auth automatiquement)
-        logger.info('🔗 [STEP-3-INVITE-1] Generating official Supabase invite link (auto-creates auth user)...')
+        logger.info({}, '🔗 [STEP-3-INVITE-1] Generating official Supabase invite link (auto-creates auth user)...')
         const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'invite',
           email: email,
@@ -250,17 +250,17 @@ export async function POST(request: Request) {
         })
 
         if (inviteError || !inviteLink?.properties?.action_link) {
-          logger.error('❌ [STEP-3-INVITE-1] Failed to generate invite link:', inviteError)
+          logger.error({ inviteError: inviteError }, '❌ [STEP-3-INVITE-1] Failed to generate invite link:')
           throw new Error('Failed to generate invitation link: ' + inviteError?.message)
         }
 
         // ✅ Récupérer l'auth_user_id créé automatiquement par generateLink
         authUserId = inviteLink.user.id
         const invitationUrl = inviteLink.properties.action_link
-        logger.info('✅ [STEP-3-INVITE-1] Auth user created + invite link generated:', authUserId)
+        logger.info({ user: authUserId }, '✅ [STEP-3-INVITE-1] Auth user created + invite link generated:')
 
         // SOUS-ÉTAPE 2: Lier l'auth au profil (utiliser Service Role pour bypasser RLS)
-        logger.info('🔗 [STEP-3-INVITE-2] Linking auth to profile with Service Role...')
+        logger.info({}, '🔗 [STEP-3-INVITE-2] Linking auth to profile with Service Role...')
         const { data: updatedUser, error: updateError } = await supabaseAdmin
           .from('users')
           .update({ auth_user_id: authUserId })
@@ -269,16 +269,16 @@ export async function POST(request: Request) {
           .single()
 
         if (updateError || !updatedUser) {
-          logger.error('❌ [STEP-3-INVITE-2] Failed to link auth to profile:', updateError)
+          logger.error({ updateError: updateError }, '❌ [STEP-3-INVITE-2] Failed to link auth to profile:')
           // Cleanup : Supprimer l'auth créé si échec de liaison
           await supabaseAdmin.auth.admin.deleteUser(authUserId)
           throw new Error('Failed to link auth to profile: ' + (updateError?.message || 'No user returned'))
         }
 
-        logger.info('✅ [STEP-3-INVITE-2] Auth linked to profile via Service Role')
+        logger.info({}, '✅ [STEP-3-INVITE-2] Auth linked to profile via Service Role')
 
         // SOUS-ÉTAPE 3: Créer l'enregistrement d'invitation dans user_invitations
-        logger.info('📋 [STEP-3-INVITE-3] Creating invitation record in user_invitations...')
+        logger.info({}, '📋 [STEP-3-INVITE-3] Creating invitation record in user_invitations...')
         const { data: invitationRecord, error: invitationError } = await supabaseAdmin
           .from('user_invitations')
           .insert({
@@ -298,14 +298,14 @@ export async function POST(request: Request) {
           .single()
 
         if (invitationError) {
-          logger.error('⚠️ [STEP-3-INVITE-3] Failed to create invitation record:', invitationError)
+          logger.error({ invitationError: invitationError }, '⚠️ [STEP-3-INVITE-3] Failed to create invitation record:')
           // Non bloquant
         } else {
-          logger.info('✅ [STEP-3-INVITE-3] Invitation record created:', invitationRecord.id)
+          logger.info({ invitationRecord: invitationRecord.id }, '✅ [STEP-3-INVITE-3] Invitation record created:')
         }
 
         // SOUS-ÉTAPE 4: Envoyer l'email via Resend
-        logger.info('📨 [STEP-3-INVITE-4] Sending invitation email via Resend...')
+        logger.info({}, '📨 [STEP-3-INVITE-4] Sending invitation email via Resend...')
         const emailResult = await emailService.sendInvitationEmail(email, {
           firstName,
           inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
@@ -316,7 +316,7 @@ export async function POST(request: Request) {
         })
 
         if (!emailResult.success) {
-          logger.warn('⚠️ [STEP-3-INVITE-4] Failed to send email via Resend:', emailResult.error)
+          logger.warn({ emailResult: emailResult.error }, '⚠️ [STEP-3-INVITE-4] Failed to send email via Resend:')
           invitationResult = {
             success: false,
             invitationSent: false,
@@ -325,7 +325,7 @@ export async function POST(request: Request) {
             message: 'Auth et profil créés mais email non envoyé'
           }
         } else {
-          logger.info('✅ [STEP-3-INVITE-4] Invitation email sent successfully via Resend:', emailResult.emailId)
+          logger.info({ emailResult: emailResult.emailId }, '✅ [STEP-3-INVITE-4] Invitation email sent successfully via Resend:')
           invitationResult = {
             success: true,
             invitationSent: true,
@@ -335,14 +335,14 @@ export async function POST(request: Request) {
         }
 
       } catch (inviteError) {
-        logger.error('❌ [STEP-3-INVITE] Invitation flow failed:', inviteError)
+        logger.error({ inviteError: inviteError }, '❌ [STEP-3-INVITE] Invitation flow failed:')
         return NextResponse.json(
           { error: 'Erreur lors de la création de l\'invitation: ' + (inviteError instanceof Error ? inviteError.message : String(inviteError)) },
           { status: 500 }
         )
       }
     } else {
-      logger.info('⏭️ [STEP-3] No invitation requested')
+      logger.info({}, '⏭️ [STEP-3] No invitation requested')
       invitationResult = {
         success: true,
         invitationSent: false,
@@ -365,13 +365,13 @@ export async function POST(request: Request) {
           status: 'success',
           metadata: { email, speciality, shouldInviteToApp }
         })
-        logger.info('✅ [STEP-4] Activity logged successfully')
+        logger.info({}, '✅ [STEP-4] Activity logged successfully')
       } catch (logError) {
-        logger.error('⚠️ [STEP-4] Failed to log activity:', logError)
+        logger.error({ logError: logError }, '⚠️ [STEP-4] Failed to log activity:')
         // Non bloquant
       }
 
-    logger.info('🎉 [INVITE-USER-SIMPLE] Process completed successfully')
+    logger.info({}, '🎉 [INVITE-USER-SIMPLE] Process completed successfully')
 
       return NextResponse.json({
         success: true,
@@ -383,7 +383,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [INVITE-USER-SIMPLE] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [INVITE-USER-SIMPLE] Unexpected error:')
     return NextResponse.json(
       { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }

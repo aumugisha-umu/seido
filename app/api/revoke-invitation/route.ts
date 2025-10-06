@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    logger.info("🚫 Revoking access for contact:", { contactEmail, contactId })
+    logger.info({ contactEmail, contactId }, "🚫 Revoking access for contact:")
 
     // Vérifier que le contact existe
     const { data: contact, error: contactError } = await supabase
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (contactError || !contact) {
-      logger.info("❌ Contact not found:", contactError)
+      logger.info({ contactError: contactError }, "❌ Contact not found:")
       return NextResponse.json({ error: "Contact non trouvé" }, { status: 404 })
     }
 
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!managerTeam || contact.team_id !== managerTeam.team_id) {
-      logger.info("❌ Contact not in same team as manager")
+      logger.info({}, "❌ Contact not in same team as manager")
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
     }
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (invitationError && invitationError.code !== 'PGRST116') {
-      logger.error("❌ Error fetching invitation:", invitationError)
+      logger.error({ error: invitationError }, "❌ Error fetching invitation:")
       return NextResponse.json({ error: "Erreur lors de la récupération" }, { status: 500 })
     }
 
@@ -115,13 +115,13 @@ export async function POST(request: NextRequest) {
         .eq("id", invitation.id)
 
       if (updateError) {
-        logger.error("❌ Error updating invitation status:", updateError)
+        logger.error({ error: updateError }, "❌ Error updating invitation status:")
         return NextResponse.json({ 
           error: "Erreur lors de la mise à jour de l'invitation" 
         }, { status: 500 })
       }
 
-      logger.info("✅ Invitation status updated to cancelled")
+      logger.info({}, "✅ Invitation status updated to cancelled")
     }
 
     // ✅ LOGIQUE CORRIGÉE : Déterminer le type d'action basée sur l'invitation
@@ -131,18 +131,18 @@ export async function POST(request: NextRequest) {
     // Si une invitation existe, prioriser son statut
     if (invitation) {
       if (invitation.status === "accepted") {
-        logger.info("🔍 Invitation accepted, revoking active access")
+        logger.info({}, "🔍 Invitation accepted, revoking active access")
         needsAuthDeletion = true
         actionMessage = "Accès révoqué avec succès"
       } else if (invitation.status === "pending") {
-        logger.info("🔍 Invitation pending, cancelling invitation")
+        logger.info({}, "🔍 Invitation pending, cancelling invitation")
         needsAuthDeletion = false // Juste annuler, pas de suppression auth nécessaire
         actionMessage = "Invitation annulée avec succès"
       }
     } 
     // Si pas d'invitation mais auth_user_id existe (cas legacy)
     else if (contact.auth_user_id) {
-      logger.info("🔍 Legacy case: has auth account but no invitation, revoking access")
+      logger.info({}, "🔍 Legacy case: has auth account but no invitation, revoking access")
       needsAuthDeletion = true
       actionMessage = "Accès révoqué avec succès"
     }
@@ -169,9 +169,9 @@ export async function POST(request: NextRequest) {
           const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(authUserIdToDelete)
 
           if (deleteAuthError) {
-            logger.warn("⚠️ Could not delete auth user:", deleteAuthError)
+            logger.warn({ user: deleteAuthError }, "⚠️ Could not delete auth user:")
           } else {
-            logger.info("✅ Auth user deleted successfully")
+            logger.info({}, "✅ Auth user deleted successfully")
             
             // Mettre à jour le contact pour supprimer la référence auth
             await supabase
@@ -181,10 +181,10 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        logger.info("ℹ️ Contact remains in users table but auth access removed")
+        logger.info({}, "ℹ️ Contact remains in users table but auth access removed")
 
       } catch (authError) {
-        logger.warn("⚠️ Error during auth deletion:", authError)
+        logger.warn({ error: authError }, "⚠️ Error during auth deletion:")
       }
     }
 
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error("❌ Error in revoke-invitation API:", error)
+    logger.error({ error: error }, "❌ Error in revoke-invitation API:")
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }

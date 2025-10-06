@@ -187,7 +187,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      logger.error("❌ Error creating manager finalization record:", insertError)
+      logger.error({ error: insertError }, "❌ Error creating manager finalization record:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde de la finalisation'
@@ -207,14 +207,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      logger.error("❌ Error updating intervention:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour de l\'intervention'
       }, { status: 500 })
     }
 
-    logger.info(`✅ Manager finalization (${finalStatus}) completed successfully`)
+    logger.info({ finalStatus }, "✅ Manager finalization () completed successfully")
 
     // Send final notifications
     try {
@@ -268,14 +268,14 @@ export async function POST(
       ) || []
 
       await Promise.all([tenantNotificationPromise, ...contactNotificationPromises])
-      logger.info("📧 Finalization notifications sent")
+      logger.info({}, "📧 Finalization notifications sent")
     } catch (notifError) {
-      logger.warn("⚠️ Could not send finalization notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send finalization notifications:")
     }
 
     // Schedule follow-up actions if needed
     if (followUpActions?.warrantyReminder || followUpActions?.maintenanceSchedule || followUpActions?.feedbackRequest) {
-      logger.info("📅 Follow-up actions scheduled:", followUpActions)
+      logger.info({ followUpActions: followUpActions }, "📅 Follow-up actions scheduled:")
       // TODO: Implement follow-up scheduling system
     }
 
@@ -291,7 +291,7 @@ export async function POST(
     })
 
   } catch (error) {
-    logger.error("❌ Error in manager finalization API:", error)
+    logger.error({ error: error }, "❌ Error in manager finalization API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

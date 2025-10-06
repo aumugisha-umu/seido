@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.info('🔄 [RESEND-INVITATION] Processing resend for invitation:', invitationId)
+    logger.info({ invitationId: invitationId }, '🔄 [RESEND-INVITATION] Processing resend for invitation:')
 
     // ============================================================================
     // ÉTAPE 1: Récupérer l'invitation
@@ -75,23 +75,23 @@ export async function POST(request: Request) {
       .single()
 
     if (invitationError || !invitation) {
-      logger.error('❌ [STEP-1] Invitation not found:', invitationError)
+      logger.error({ invitationError: invitationError }, '❌ [STEP-1] Invitation not found:')
       return NextResponse.json(
         { error: 'Invitation non trouvée' },
         { status: 404 }
       )
     }
 
-    logger.info('✅ [STEP-1] Found invitation:', {
+    logger.info({
       email: invitation.email,
       role: invitation.role,
       team_id: invitation.team_id
-    })
+    }, '✅ [STEP-1] Found invitation:')
 
     // ============================================================================
     // ÉTAPE 2: Générer un nouveau lien d'invitation officiel Supabase
     // ============================================================================
-    logger.info('🔗 [STEP-2] Generating official Supabase invitation link...')
+    logger.info({}, '🔗 [STEP-2] Generating official Supabase invitation link...')
 
     const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite', // ✅ CHANGEMENT: 'invite' au lieu de 'magiclink' pour régénérer une invitation complète
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     })
 
     if (inviteError || !inviteLink?.properties?.action_link) {
-      logger.error('❌ [STEP-2] Failed to generate invitation link:', inviteError)
+      logger.error({ inviteError: inviteError }, '❌ [STEP-2] Failed to generate invitation link:')
       return NextResponse.json(
         { error: 'Échec de la génération du lien d\'invitation: ' + (inviteError?.message || 'Unknown error') },
         { status: 500 }
@@ -122,12 +122,12 @@ export async function POST(request: Request) {
 
     const magicLink = inviteLink.properties.action_link
     const hashedToken = inviteLink.properties.hashed_token
-    logger.info('✅ [STEP-2] Invitation link generated:', magicLink.substring(0, 100) + '...')
+    logger.info({ magicLink: magicLink.substring(0, 100) + '...' }, '✅ [STEP-2] Invitation link generated')
 
     // ============================================================================
     // ÉTAPE 3: Mettre à jour le token dans user_invitations
     // ============================================================================
-    logger.info('🔄 [STEP-3] Updating invitation token in database...')
+    logger.info({}, '🔄 [STEP-3] Updating invitation token in database...')
 
     const { error: updateError } = await supabaseAdmin
       .from('user_invitations')
@@ -140,16 +140,16 @@ export async function POST(request: Request) {
       .eq('id', invitationId)
 
     if (updateError) {
-      logger.warn('⚠️ [STEP-3] Failed to update invitation token:', updateError)
+      logger.warn({ updateError: updateError }, '⚠️ [STEP-3] Failed to update invitation token:')
       // Non bloquant
     } else {
-      logger.info('✅ [STEP-3] Invitation token updated successfully')
+      logger.info({}, '✅ [STEP-3] Invitation token updated successfully')
     }
 
     // ============================================================================
     // ÉTAPE 4: Envoyer l'email avec le template officiel
     // ============================================================================
-    logger.info('📨 [STEP-4] Sending invitation email via Resend...')
+    logger.info({}, '📨 [STEP-4] Sending invitation email via Resend...')
 
     const emailResult = await emailService.sendInvitationEmail(invitation.email, {
       firstName: invitation.first_name,
@@ -161,10 +161,10 @@ export async function POST(request: Request) {
     })
 
     if (!emailResult.success) {
-      logger.warn('⚠️ [STEP-4] Failed to send email via Resend:', emailResult.error)
+      logger.warn({ emailResult: emailResult.error }, '⚠️ [STEP-4] Failed to send email via Resend:')
       // Non bloquant - on retourne quand même le lien
     } else {
-      logger.info('✅ [STEP-4] Invitation email sent successfully via Resend:', emailResult.emailId)
+      logger.info({ emailResult: emailResult.emailId }, '✅ [STEP-4] Invitation email sent successfully via Resend:')
     }
 
     // ============================================================================
@@ -178,7 +178,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error('❌ [RESEND-INVITATION] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [RESEND-INVITATION] Unexpected error:')
     return NextResponse.json(
       { error: 'Erreur interne du serveur: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }

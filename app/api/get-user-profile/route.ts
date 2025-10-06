@@ -12,14 +12,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('🔍 [GET-USER-PROFILE] Looking up user profile for auth_user_id:', authUserId)
+    logger.info({ user: authUserId }, '🔍 [GET-USER-PROFILE] Looking up user profile for auth_user_id:')
 
     // Récupérer le profil utilisateur par auth_user_id
     const userService = await createServerUserService()
     const userResult = await userService.getByAuthUserId(authUserId)
 
     if (!userResult.success || !userResult.data) {
-      logger.info('❌ [GET-USER-PROFILE] No user profile found for auth_user_id:', authUserId)
+      logger.info({ user: authUserId }, '❌ [GET-USER-PROFILE] No user profile found for auth_user_id:')
       return NextResponse.json(
         { success: false, error: 'User profile not found' },
         { status: 404 }
@@ -28,13 +28,13 @@ export async function POST(request: NextRequest) {
 
     const userProfile = userResult.data
 
-    logger.info('✅ [GET-USER-PROFILE] User profile found:', {
+    logger.info({
       id: userProfile.id,
       name: userProfile.name,
       email: userProfile.email,
       password_set: userProfile.password_set,
       role: userProfile.role
-    })
+    }, '✅ [GET-USER-PROFILE] User profile found:')
 
     return NextResponse.json({
       success: true,
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('❌ [GET-USER-PROFILE] Error:', error)
+    logger.error({ error: error }, '❌ [GET-USER-PROFILE] Error:')
     return NextResponse.json(
       { 
         success: false, 

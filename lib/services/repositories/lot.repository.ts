@@ -7,7 +7,8 @@ import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Lot, LotInsert, LotUpdate, User } from '../core/service-types'
-import { NotFoundException } from '../core/error-handler'
+import { NotFoundException, handleError } from '../core/error-handler'
+import { logger } from '@/lib/logger'
 import {
   validateRequired,
   validateLength,
@@ -53,7 +54,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     if ('category' in data && data.category) {
       validateEnum(
         data.category,
-        ['apartment', 'office', 'commercial', 'storage', 'parking'] as const,
+        ['appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'parking', 'autre'] as const,
         'category'
       )
     }
@@ -155,7 +156,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Get lots by building
    */
-  async findByBuilding(_buildingId: string) {
+  async findByBuilding(buildingId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -165,7 +166,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .eq('building_id', _buildingId)
+      .eq('building_id', buildingId)
       .order('reference')
 
     if (error) {
@@ -279,7 +280,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select('id')
       .eq('reference', reference)
-      .eq('building_id', _buildingId)
+      .eq('building_id', buildingId)
 
     if (excludeId) {
       queryBuilder = queryBuilder.neq('id', excludeId)
@@ -310,12 +311,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       `)
       .eq('category', category)
 
-    if (options?._buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', options._buildingId)
+    if (options?.buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', options.buildingId)
     }
 
-    if (options?._teamId) {
-      queryBuilder = queryBuilder.eq('building.team_id', options._teamId)
+    if (options?.teamId) {
+      queryBuilder = queryBuilder.eq('building.team_id', options.teamId)
     }
 
     const { data, error } = await queryBuilder.order('reference')
@@ -342,8 +343,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       `)
       .eq('lot_contacts.user.role', 'tenant')
 
-    if (_buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', _buildingId)
+    if (buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', buildingId)
     }
 
     const { data, error } = await queryBuilder.order('reference')
@@ -370,8 +371,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         )
       `)
 
-    if (_buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', _buildingId)
+    if (buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', buildingId)
     }
 
     const { data, error } = await queryBuilder.order('reference')
@@ -416,7 +417,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select('*')
-      .eq('building_id', _buildingId)
+      .eq('building_id', buildingId)
       .eq('floor', floor)
       .order('reference')
 
@@ -441,8 +442,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       `)
       .or(`reference.ilike.%${query}%`)
 
-    if (options?._buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', options._buildingId)
+    if (options?.buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', options.buildingId)
     }
 
     if (options?.category) {
@@ -461,26 +462,33 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Get lot count by category for a team
    */
-  async getCountByCategory(_teamId: string) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select(`
-        category,
-        building:building_id!inner(team_id)
-      `)
-      .eq('building.team_id', _teamId)
+  async getCountByCategory(teamId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select(`
+          category,
+          buildings!inner(team_id)
+        `)
+        .eq('buildings.team_id', teamId)
 
-    if (error) {
-      return this.handleError(error)
+      if (error) {
+        logger.error('❌ [LOT-REPOSITORY] getCountByCategory SQL error:', error)
+        return { success: false as const, error: handleError(error, 'lot:getCountByCategory') }
+      }
+
+      // Count by category
+      const counts = data?.reduce((acc, lot) => {
+        acc[lot.category] = (acc[lot.category] || 0) + 1
+        return acc
+      }, {} as Record<string, number>) || {}
+
+      logger.info('✅ [LOT-REPOSITORY] Category counts calculated:', counts)
+      return { success: true as const, data: counts }
+    } catch (error) {
+      logger.error('❌ [LOT-REPOSITORY] getCountByCategory exception:', error)
+      return { success: false as const, error: handleError(error as Error, 'lot:getCountByCategory') }
     }
-
-    // Count by category
-    const counts = data?.reduce((acc, lot) => {
-      acc[lot.category] = (acc[lot.category] || 0) + 1
-      return acc
-    }, {} as Record<string, number>) || {}
-
-    return { success: true as const, data: counts }
   }
 
   /**
@@ -494,7 +502,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({
-        building_id: _buildingId,
+        building_id: buildingId,
         updated_at: new Date().toISOString()
       })
       .in('id', lotIds)

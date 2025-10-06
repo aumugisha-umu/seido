@@ -41,7 +41,7 @@ import ContactSelector, { ContactSelectorRef } from "@/components/contact-select
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
-import { createServerTeamService, createServerBuildingService, createServerLotService, createServerCompositeService, createServerContactInvitationService } from "@/lib/services"
+import { createTeamService, createBuildingService, createLotService, createCompositeService, createContactInvitationService } from "@/lib/services"
 
 
 
@@ -104,7 +104,7 @@ const countryToISOCode: Record<string, string> = {
 }
 
 export default function NewImmeubleePage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
@@ -162,14 +162,22 @@ export default function NewImmeubleePage() {
   // Etat pour gerer l'affichage des details de chaque lot
   const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
 
+  // Flag to prevent hydration mismatch
+  const [isMounted, setIsMounted] = useState(false)
+
   // Initialize services
-  const [teamService] = useState(() => createServerTeamService())
-  const [buildingService] = useState(() => createServerBuildingService())
-  const [lotService] = useState(() => createServerLotService())
-  const [compositeService] = useState(() => createServerCompositeService())
-  const [contactInvitationService] = useState(() => createServerContactInvitationService())
+  const [teamService] = useState(() => createTeamService())
+  const [buildingService] = useState(() => createBuildingService())
+  const [lotService] = useState(() => createLotService())
+  const [compositeService] = useState(() => createCompositeService())
+  const [contactInvitationService] = useState(() => createContactInvitationService())
 
   // TOUS LES useEffect DOIVENT AUSSI ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
+  // Set mounted flag to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   // Charger l'equipe de l'utilisateur et ses gestionnaires
   useEffect(() => {
     const loadUserTeamAndManagers = async () => {
@@ -180,23 +188,25 @@ export default function NewImmeubleePage() {
       try {
         setIsLoading(true)
         setError("")
-        
+
         // 1. Recuperer les equipes de l'utilisateur
-        const userTeams = await teamService.getUserTeams(user.id)
-        
+        const teamsResult = await teamService.getUserTeams(user.id)
+        const userTeams = teamsResult?.data || []
+
         if (userTeams.length === 0) {
           setError('Vous devez faire partie d\'une équipe pour créer des immeubles')
           return
         }
-        
+
         // 2. Prendre la premiere equipe (un gestionnaire n'a normalement qu'une equipe)
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
-        
+
         // 3. Recuperer les membres de cette equipe
         let teamMembers = []
         try {
-          teamMembers = await teamService.getMembers(primaryTeam.id)
+          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          teamMembers = membersResult?.data || []
         } catch (membersError) {
           logger.error("Error loading team members:", membersError)
           teamMembers = [] // Continue avec un tableau vide
@@ -257,8 +267,13 @@ export default function NewImmeubleePage() {
       }
 
       try {
-        const counts = await lotService.getCountByCategory(userTeam.id)
-        setCategoryCountsByTeam(counts)
+        const result = await lotService.getCountByCategory(userTeam.id)
+        if (result.success) {
+          setCategoryCountsByTeam(result.data || {})
+        } else {
+          logger.error("Error loading category counts:", result.error)
+          setCategoryCountsByTeam({})
+        }
       } catch (error) {
         logger.error("Error loading category counts:", error)
         setCategoryCountsByTeam({}) // Valeur par defaut en cas d'erreur
@@ -352,8 +367,35 @@ export default function NewImmeubleePage() {
     }
   }, [lots.map(lot => lot.category).join(','), categoryCountsByTeam])
 
+  // Initialiser automatiquement le premier lot quand on arrive à l'étape 2
+  useEffect(() => {
+    if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam !== undefined) {
+      logger.info('🏗️ [IMMEUBLE] Auto-initializing first lot at step 2')
+
+      const category = "appartement"
+      const categoryConfig = getLotCategoryConfig(category)
+      const currentCategoryCount = categoryCountsByTeam[category] || 0
+      const nextNumber = currentCategoryCount + 1
+
+      const initialLot: Lot = {
+        id: `lot1`,
+        reference: `${categoryConfig.label} ${nextNumber}`,
+        floor: "0",
+        doorNumber: "",
+        description: "",
+        category: "appartement",
+      }
+
+      setLots([initialLot])
+      setExpandedLots({ [initialLot.id]: true })
+
+      logger.info('✅ [IMMEUBLE] First lot auto-created:', initialLot.reference)
+    }
+  }, [currentStep, lots.length, categoryCountsByTeam])
+
   // Afficher la verification d'equipe si necessaire (APRES tous les hooks)
-  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+  // Only show TeamCheckModal after client-side hydration to prevent mismatch
+  if (isMounted && (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam))) {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
@@ -384,22 +426,22 @@ export default function NewImmeubleePage() {
   }
 
   const removeLot = (_id: string) => {
-    setLots(lots.filter((lot) => lot.id !== id))
+    setLots(lots.filter((lot) => lot.id !== _id))
     // Nettoyer l'etat d'expansion pour ce lot
     const newExpandedLots = {...expandedLots}
-    delete newExpandedLots[id]
+    delete newExpandedLots[_id]
     setExpandedLots(newExpandedLots)
   }
 
   const toggleLotExpansion = (_lotId: string) => {
     setExpandedLots({
       ...expandedLots,
-      [lotId]: !expandedLots[lotId]
+      [_lotId]: !expandedLots[_lotId]
     })
   }
 
   const duplicateLot = (_id: string) => {
-    const lotToDuplicate = lots.find((lot) => lot.id === id)
+    const lotToDuplicate = lots.find((lot) => lot.id === _id)
     if (lotToDuplicate) {
       // Generer la reference basee sur la categorie du lot duplique
       const category = lotToDuplicate.category || "appartement"
@@ -422,8 +464,8 @@ export default function NewImmeubleePage() {
   // Callbacks pour la gestion des contacts (nouvelle interface centralisee avec contexte)
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
     logger.info('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
-    
-    if (context?._lotId) {
+
+    if (context?.lotId) {
       // AJOUTER AU LOT SPECIFIQUE
       setLotContactAssignments((prev) => {
         const lotId = context.lotId!  // On sait que lotId existe ici
@@ -469,9 +511,9 @@ export default function NewImmeubleePage() {
 
   // Fonction pour ouvrir le ContactSelector avec un type specifique (pour les boutons individuels)
   const openContactModalForType = (contactType: string, lotId?: string) => {
-    logger.info('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', _lotId)
+    logger.info('🎯 [IMMEUBLE] Opening ContactSelector for type:', contactType, 'lotId:', lotId)
     if (contactSelectorRef.current) {
-      contactSelectorRef.current.openContactModal(contactType, _lotId)
+      contactSelectorRef.current.openContactModal(contactType, lotId)
     } else {
       logger.error('❌ [IMMEUBLE] ContactSelector ref not found')
     }
@@ -480,13 +522,13 @@ export default function NewImmeubleePage() {
   // [SUPPRIME] addContact maintenant gere dans ContactSelector
 
   const _removeContact = (_id: string) => {
-    setContacts(contacts.filter((contact) => contact.id !== id))
+    setContacts(contacts.filter((contact) => contact.id !== _id))
 
     // Aussi retirer ce contact de toutes les assignations de lots
     const newLotContactAssignments = { ...lotContactAssignments }
     Object.keys(newLotContactAssignments).forEach(lotId => {
       Object.keys(newLotContactAssignments[lotId]).forEach(contactType => {
-        newLotContactAssignments[lotId][contactType] = newLotContactAssignments[lotId][contactType].filter(c => c.id !== id)
+        newLotContactAssignments[lotId][contactType] = newLotContactAssignments[lotId][contactType].filter(c => c.id !== _id)
       })
     })
     setLotContactAssignments(newLotContactAssignments)
@@ -521,7 +563,7 @@ export default function NewImmeubleePage() {
 
   // Fonction pour obtenir tous les contacts assignes a un lot
   const getAllLotContacts = (_lotId: string): Contact[] => {
-    const lotAssignments = lotContactAssignments[lotId] || {}
+    const lotAssignments = lotContactAssignments[_lotId] || {}
     return Object.values(lotAssignments).flat()
   }
 
@@ -625,7 +667,7 @@ export default function NewImmeubleePage() {
         )
         
         // Ajouter les gestionnaires assignes a ce lot
-        const managersForThisLot = assignedManagers[lotId] || []
+        const managersForThisLot = assignedManagers[_lotId] || []
         const managerAssignments = managersForThisLot.map((manager, index) => ({
           contactId: manager.user.id, // ✅ CORRECTION : utiliser manager.user.id au lieu de manager.id
           contactType: 'gestionnaire',
@@ -648,10 +690,15 @@ export default function NewImmeubleePage() {
         lotContactAssignments: lotContactAssignmentsData,
       })
 
+      // Verifier le succes de l'operation
+      if (!result.success) {
+        throw new Error(result.error || 'Échec de la création de l\'immeuble')
+      }
+
       // Gerer le succes avec la nouvelle strategie
       await handleSuccess({
         successTitle: "Immeuble créé avec succès",
-        successDescription: `L'immeuble "${result.building.name}" avec ${result.lots.length} lot(s) a été créé et assigné à votre équipe.`,
+        successDescription: `L'immeuble "${result.data.building.name}" avec ${result.data.lots.length} lot(s) a été créé et assigné à votre équipe.`,
         redirectPath: "/gestionnaire/biens",
         refreshData: refetchManagerData,
       })
@@ -761,7 +808,7 @@ export default function NewImmeubleePage() {
   }
 
   const getAssignedManagers = (_lotId: string) => {
-    return assignedManagers[lotId] || []
+    return assignedManagers[_lotId] || []
   }
 
   return (
@@ -865,9 +912,6 @@ export default function NewImmeubleePage() {
                                 <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
                                   {lots.length - index}
                                 </div>
-                                <div>
-                                  <h3 className="font-medium">{lot.reference}</h3>
-                                </div>
                                 <div className="ml-2">
                                   {expandedLots[lot.id] ? (
                                     <ChevronUp className="w-5 h-5 text-gray-500" />
@@ -898,6 +942,15 @@ export default function NewImmeubleePage() {
                           </CardHeader>
                           {expandedLots[lot.id] && (
                             <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+
+                            {/* Selection de categorie */}
+                            <LotCategorySelector
+                              value={lot.category}
+                              onChange={(category) => updateLot(lot.id, "category", category)}
+                              displayMode="grid"
+                              required
+                            />
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                               <div>
                                 <Label className="text-sm font-medium text-gray-700">
@@ -936,13 +989,7 @@ export default function NewImmeubleePage() {
                               </div>
                             </div>
 
-                            {/* Selection de categorie */}
-                            <LotCategorySelector
-                              value={lot.category}
-                              onChange={(category) => updateLot(lot.id, "category", category)}
-                              displayMode="grid"
-                              required
-                            />
+                            
 
                             <div>
                               <Label className="text-sm font-medium text-gray-700">Description</Label>
@@ -1672,3 +1719,4 @@ export default function NewImmeubleePage() {
     </div>
   )
 }
+

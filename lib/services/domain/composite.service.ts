@@ -71,6 +71,48 @@ export interface CreateCompleteBuildingData {
   }>
 }
 
+/**
+ * Complete property creation with contacts and lot assignments
+ * Used by building creation wizard
+ */
+export interface CreateCompletePropertyData {
+  building: {
+    name: string
+    address: string
+    city: string
+    postal_code?: string
+    country: string
+    team_id: string
+    description?: string
+    construction_year?: number
+  }
+  lots: Array<{
+    reference: string
+    floor?: number
+    apartment_number?: string
+    surface_area?: number
+    rooms?: number
+    charges_amount?: number
+    category: string
+  }>
+  contacts: Array<{
+    name: string
+    email: string
+    speciality?: string
+    team_id: string
+  }>
+  lotContactAssignments: Array<{
+    lotId: string // Temporary lot ID from frontend
+    lotIndex: number // Index in lots array
+    assignments: Array<{
+      contactId: string
+      contactType: string
+      isPrimary: boolean
+      isLotPrincipal?: boolean
+    }>
+  }>
+}
+
 export interface InviteTeamContactsData {
   teamId: string
   contacts: Array<{
@@ -501,6 +543,185 @@ export class CompositeService {
   }
 
   /**
+   * Create complete property with building, lots, and contact assignments
+   * This is the main method used by the building creation wizard
+   */
+  async createCompleteProperty(data: CreateCompletePropertyData): Promise<CompositeOperationResult<{
+    building: Building
+    lots: Lot[]
+  }>> {
+    const operations: CompositeOperation[] = []
+    const rollbackOperations: CompositeOperation[] = []
+    let building: Building | null = null
+    const lots: Lot[] = []
+
+    try {
+      // Step 1: Create building
+      const buildingOperation: CompositeOperation = {
+        id: `building-${Date.now()}`,
+        type: 'create',
+        service: 'building',
+        entity: 'building',
+        data: data.building,
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      }
+      operations.push(buildingOperation)
+
+      const buildingResult = await this.buildingService.create(data.building)
+      if (!buildingResult.success) {
+        buildingOperation.status = 'failed'
+        throw new Error('Building creation failed: ' + buildingResult.error)
+      }
+
+      building = buildingResult.data
+      buildingOperation.entityId = building.id
+      buildingOperation.status = 'completed'
+
+      // Step 2: Create lots
+      for (let i = 0; i < data.lots.length; i++) {
+        const lotData = data.lots[i]
+        const lotOperation: CompositeOperation = {
+          id: `lot-${Date.now()}-${i}`,
+          type: 'create',
+          service: 'lot',
+          entity: 'lot',
+          data: {
+            ...lotData,
+            building_id: building.id,
+            team_id: data.building.team_id
+          },
+          status: 'pending',
+          timestamp: new Date().toISOString()
+        }
+        operations.push(lotOperation)
+
+        const lotResult = await this.lotService.create({
+          ...lotData,
+          building_id: building.id,
+          team_id: data.building.team_id
+        })
+
+        if (!lotResult.success) {
+          lotOperation.status = 'failed'
+          throw new Error(`Lot creation failed for ${lotData.reference}: ` + lotResult.error)
+        }
+
+        lots.push(lotResult.data)
+        lotOperation.entityId = lotResult.data.id
+        lotOperation.status = 'completed'
+      }
+
+      // Step 3: Handle contact assignments to lots
+      // Insert into lot_contacts junction table
+      for (const assignment of data.lotContactAssignments) {
+        const lotIndex = assignment.lotIndex
+        if (lotIndex < 0 || lotIndex >= lots.length) {
+          throw new Error(`Invalid lot index: ${lotIndex}`)
+        }
+
+        const createdLot = lots[lotIndex]
+
+        for (const contactAssignment of assignment.assignments) {
+          const assignmentOperation: CompositeOperation = {
+            id: `lot-contact-${Date.now()}-${Math.random()}`,
+            type: 'create',
+            service: 'contact',
+            entity: 'lot_contact',
+            data: {
+              lot_id: createdLot.id,
+              user_id: contactAssignment.contactId,
+              is_primary: contactAssignment.isLotPrincipal || contactAssignment.isPrimary || false
+            },
+            status: 'pending',
+            timestamp: new Date().toISOString()
+          }
+          operations.push(assignmentOperation)
+
+          // Direct Supabase insert into lot_contacts junction table
+          const { data: insertedData, error: insertError } = await this.buildingService['repository']['supabase']
+            .from('lot_contacts')
+            .insert({
+              lot_id: createdLot.id,
+              user_id: contactAssignment.contactId,
+              is_primary: contactAssignment.isLotPrincipal || contactAssignment.isPrimary || false
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            assignmentOperation.status = 'failed'
+            throw new Error(`Contact assignment failed for lot ${createdLot.reference}: ` + insertError.message)
+          }
+
+          assignmentOperation.status = 'completed'
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          building,
+          lots
+        },
+        operations
+      }
+
+    } catch (error) {
+      // Rollback logic
+      const rollbackErrors: string[] = []
+
+      // Rollback in reverse order: contacts -> lots -> building
+      for (const operation of operations.reverse()) {
+        if (operation.status === 'completed') {
+          try {
+            const rollbackOp: CompositeOperation = {
+              id: `rollback-${operation.id}`,
+              type: 'delete',
+              service: operation.service,
+              entity: operation.entity,
+              entityId: operation.entityId,
+              status: 'pending',
+              timestamp: new Date().toISOString()
+            }
+
+            if (operation.entity === 'building' && operation.entityId) {
+              await this.buildingService.delete(operation.entityId)
+            } else if (operation.entity === 'lot' && operation.entityId) {
+              await this.lotService.delete(operation.entityId)
+            } else if (operation.entity === 'lot_contact' && operation.data) {
+              // Delete from lot_contacts junction table
+              const assignmentData = operation.data as any
+              await this.buildingService['repository']['supabase']
+                .from('lot_contacts')
+                .delete()
+                .eq('lot_id', assignmentData.lot_id)
+                .eq('user_id', assignmentData.user_id)
+            }
+
+            rollbackOp.status = 'completed'
+            rollbackOperations.push(rollbackOp)
+          } catch (rollbackError) {
+            rollbackErrors.push(`Failed to rollback ${operation.entity} ${operation.entityId}: ${rollbackError}`)
+          }
+        }
+      }
+
+      return {
+        success: false,
+        data: {
+          building: building || {} as Building,
+          lots
+        },
+        error: error instanceof Error ? error.message : String(error),
+        operations,
+        rollbackOperations,
+        rollbackErrors: rollbackErrors.length > 0 ? rollbackErrors : undefined
+      }
+    }
+  }
+
+  /**
    * Invite multiple contacts to a team
    */
   async inviteTeamContacts(data: InviteTeamContactsData): Promise<CompositeOperationResult<{
@@ -529,7 +750,7 @@ export class CompositeService {
           entity: 'contact',
           data: {
             ...contactData,
-            team_id: data._teamId,
+            team_id: data.teamId,
             created_by: data.invitedBy
           },
           status: 'pending',
@@ -539,7 +760,7 @@ export class CompositeService {
 
         const contactResult = await this.contactService.create({
           ...contactData,
-          team_id: data._teamId,
+          team_id: data.teamId,
           created_by: data.invitedBy
         })
 
@@ -599,9 +820,9 @@ export class CompositeService {
 
     try {
       // Validate lot exists
-      const lotResult = await this.lotService.getById(data._lotId)
+      const lotResult = await this.lotService.getById(data.lotId)
       if (!lotResult.success) {
-        throw new Error('Lot not found: ' + data._lotId)
+        throw new Error('Lot not found: ' + data.lotId)
       }
 
       const lot = lotResult.data
@@ -629,14 +850,14 @@ export class CompositeService {
         type: 'update',
         service: 'lot',
         entity: 'tenant_assignment',
-        entityId: data._lotId,
+        entityId: data.lotId,
         data: { tenant_id: data.toTenantId },
         status: 'pending',
         timestamp: new Date().toISOString()
       }
       operations.push(transferOperation)
 
-      const transferResult = await this.lotService.assignTenant(data._lotId, data.toTenantId)
+      const transferResult = await this.lotService.assignTenant(data.lotId, data.toTenantId)
       if (!transferResult.success) {
         transferOperation.status = 'failed'
         throw new Error('Tenant transfer failed: ' + transferResult.error)
@@ -768,7 +989,7 @@ export class CompositeService {
         operations.push(teamOp)
 
         try {
-          const teamResult = await this.teamService.getById(request._teamId)
+          const teamResult = await this.teamService.getById(request.teamId)
           if (teamResult.success) {
             data.team = teamResult.data
             teamOp.status = 'completed'
@@ -794,7 +1015,7 @@ export class CompositeService {
       operations.push(buildingOp)
 
       try {
-        const buildingsResult = await this.buildingService.getByTeam(request._teamId)
+        const buildingsResult = await this.buildingService.getByTeam(request.teamId)
         if (buildingsResult.success) {
           data.buildings = buildingsResult.data
           buildingOp.status = 'completed'

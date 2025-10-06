@@ -179,10 +179,10 @@ const getEntityIcon = (entityType: ActivityEntityType) => {
 
 // Formater la date selon notre design (similaire à la photo)
 const formatActivityDate = (_dateString: string) => {
-  const date = new Date(dateString)
+  const date = new Date(_dateString)
   const now = new Date()
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-  
+
   if (diffInMinutes < 60) {
     return `${diffInMinutes} min ago`
   } else if (diffInMinutes < 1440) {
@@ -200,7 +200,7 @@ const formatActivityDate = (_dateString: string) => {
 
 // Obtenir les initiales pour l'avatar
 const getUserInitials = (_name: string) => {
-  return name
+  return _name
     .split(' ')
     .map(word => word.charAt(0))
     .join('')

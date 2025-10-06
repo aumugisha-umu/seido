@@ -28,7 +28,7 @@ interface BuildingInfo {
 }
 
 export default function EditBuildingPage({ params }: { params: Promise<{ id: string }> }) {
-  const _router = useRouter()
+  const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const { teamStatus } = useTeamStatus()
@@ -69,21 +69,23 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
 
       try {
         // 1. Récupérer les équipes de l'utilisateur
-        const userTeams = await teamService.getUserTeams(user.id)
-        
+        const teamsResult = await teamService.getUserTeams(user.id)
+        const userTeams = teamsResult?.data || []
+
         if (userTeams.length === 0) {
           logger.warn('No teams found for user')
           return
         }
-        
+
         // 2. Prendre la première équipe
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
-        
+
         // 3. Récupérer les membres de cette équipe
         let teamMembers = []
         try {
-          teamMembers = await teamService.getMembers(primaryTeam.id)
+          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          teamMembers = membersResult?.data || []
           setTeamManagers(teamMembers)
         } catch (membersError) {
           logger.error("Error loading team members:", membersError)
@@ -353,3 +355,4 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
     </div>
   )
 }
+

@@ -27,7 +27,7 @@ import ContactSelector from "@/components/contact-selector"
 import type { LotFormData } from "../types"
 import { logger, logError } from '@/lib/logger'
 export function LotCreationWizard() {
-  const _router = useRouter()
+  const router = useRouter()
   const { formData, navigation, actions, teamData } = usePropertyCreationContext()
 
   if (formData.mode !== 'lot' && formData.mode !== 'independent') {
@@ -188,9 +188,9 @@ function BuildingAssociationStep() {
             <BuildingSelector
               buildings={buildings}
               selectedBuildingId={lotData.selectedBuilding}
-              onBuildingSelect={(_buildingId) => {
+              onBuildingSelect={(buildingId) => {
                 // Update selected building in form data
-                logger.info("Building selected:", _buildingId)
+                logger.info("Building selected:", buildingId)
               }}
               searchQuery={buildingSearchQuery}
               onSearchChange={setBuildingSearchQuery}

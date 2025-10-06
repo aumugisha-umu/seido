@@ -89,7 +89,7 @@ export function QuoteSubmissionForm({
   quoteRequest,
   onSuccess
 }: QuoteSubmissionFormProps) {
-  const _router = useRouter()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -831,3 +831,4 @@ export function QuoteSubmissionForm({
     </div>
   )
 }
+

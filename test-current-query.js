@@ -18,7 +18,7 @@ async function testCurrentQuery() {
   const teamId = '8b1acc7b-cdef-4ec6-a87f-9a1b4cce8e0c'
 
   console.log('Testing current query structure...')
-  console.log('Team ID:', _teamId)
+  console.log('Team ID:', teamId)
   console.log('='.repeat(60))
 
   // Test the exact query from database-service.ts
@@ -44,7 +44,7 @@ async function testCurrentQuery() {
         user:user_id(id, name, email, phone, role, provider_category)
       )
     `)
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
     .order('name')
 
   if (error) {
@@ -78,7 +78,7 @@ async function testCurrentQuery() {
   const { data: simpleData, error: simpleError } = await supabase
     .from('buildings')
     .select('*')
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
     .order('name')
 
   if (simpleError) {
@@ -104,7 +104,7 @@ async function testCurrentQuery() {
         user:user_id(id, name, email, phone, role, provider_category)
       )
     `)
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
     .order('name')
 
   if (contactError) {

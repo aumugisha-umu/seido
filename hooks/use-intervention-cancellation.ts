@@ -11,7 +11,7 @@ interface CancellationModal {
 }
 
 export const useInterventionCancellation = () => {
-  const _router = useRouter()
+  const router = useRouter()
   const { toast } = useToast()
   
   // État des modales
@@ -145,3 +145,4 @@ export const useInterventionCancellation = () => {
     closeCancellationModal,
   }
 }
+

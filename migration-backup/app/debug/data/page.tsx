@@ -14,11 +14,11 @@ import { logger, logError } from '@/lib/logger'
  * Accessible uniquement aux gestionnaires en développement
  */
 
-async function createSampleData(_teamId: string) {
+async function createSampleData(teamId: string) {
   'use server'
 
-  console.log('🔧 [DEBUG] Creating sample data for team:', _teamId)
-  const result = await createSampleBuildingsForTeam({ _teamId, force: false })
+  console.log('🔧 [DEBUG] Creating sample data for team:', teamId)
+  const result = await createSampleBuildingsForTeam({ teamId, force: false })
   console.log('🔧 [DEBUG] Sample data creation result:', result)
   return result
 }

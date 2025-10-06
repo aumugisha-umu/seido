@@ -37,7 +37,7 @@ interface UploadedFile {
 }
 
 export default function NouvelleDemandePage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { loading, error, refreshData } = useTenantData()
@@ -860,3 +860,4 @@ function LoadingSkeleton() {
     </div>
   )
 }
+

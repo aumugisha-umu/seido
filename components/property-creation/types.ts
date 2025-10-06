@@ -213,7 +213,7 @@ export interface ManagerSelectorProps {
 export interface BuildingSelectorProps {
   buildings: Building[]
   selectedBuildingId?: string
-  onBuildingSelect: (_buildingId: string) => void
+  onBuildingSelect: (buildingId: string) => void
   searchQuery: string
   onSearchChange: (_query: string) => void
   isLoading?: boolean

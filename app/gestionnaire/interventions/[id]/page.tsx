@@ -166,7 +166,7 @@ const formatFileSize = (bytes: number): string => {
 
 
 export default function InterventionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const _router = useRouter()
+  const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [intervention, setIntervention] = useState<InterventionDetail | null>(null)
@@ -595,3 +595,4 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
     </>
   )
 }
+

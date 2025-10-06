@@ -67,7 +67,7 @@ const specialities = [
 ]
 
 export default function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
-  const _router = useRouter()
+  const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   const resolvedParams = use(params)
@@ -977,3 +977,4 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     </div>
   )
 }
+

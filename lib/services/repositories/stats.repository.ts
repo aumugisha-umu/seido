@@ -193,7 +193,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       let query = this.supabase
         .from('activity_logs')
         .select('action_type, entity_type, status, created_at, user_id')
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
         .gte('created_at', startDate.toISOString())
 
       if (_userId) {
@@ -268,8 +268,8 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
   /**
    * Get team statistics
    */
-  async getTeamStats(_teamId: string): Promise<{ success: true; data: TeamStats }> {
-    const cacheKey = `team_stats_${_teamId}`
+  async getTeamStats(teamId: string): Promise<{ success: true; data: TeamStats }> {
+    const cacheKey = `team_stats_${teamId}`
     const cached = this.getFromCache(cacheKey)
     if (cached) {
       return { success: true, data: cached }
@@ -278,10 +278,10 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
     try {
       // Get team data with related counts
       const [teamResult, membersResult, buildingsResult, interventionsResult] = await Promise.all([
-        this.supabase.from('teams').select('*').eq('id', _teamId).single(),
-        this.supabase.from('team_members').select('id, user_id').eq('team_id', _teamId),
-        this.supabase.from('buildings').select('id').eq('team_id', _teamId),
-        this.supabase.from('interventions').select('id, status, created_at, updated_at').eq('team_id', _teamId)
+        this.supabase.from('teams').select('*').eq('id', teamId).single(),
+        this.supabase.from('team_members').select('id, user_id').eq('team_id', teamId),
+        this.supabase.from('buildings').select('id').eq('team_id', teamId),
+        this.supabase.from('interventions').select('id, status, created_at, updated_at').eq('team_id', teamId)
       ])
 
       if (teamResult.error) throw teamResult.error
@@ -310,13 +310,13 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       const { data: lastActivity } = await this.supabase
         .from('activity_logs')
         .select('created_at')
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
 
       const stats: TeamStats = {
-        _teamId,
+        teamId,
         memberCount: members.length,
         buildingsCount: buildings.length,
         interventionsCount: interventions.length,
@@ -418,12 +418,12 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
       // Get activity stats
       const activityStatsResult = teamId
-        ? await this.getActivityStats(_teamId)
+        ? await this.getActivityStats(teamId)
         : await this.getActivityStats('global') // Global stats for admin
 
       // Get team stats (limited for performance)
       const teamsResult = teamId
-        ? [await this.getTeamStats(_teamId)]
+        ? [await this.getTeamStats(teamId)]
         : [] // For global dashboard, we'd need to implement top teams
 
       const dashboardStats: DashboardStats = {

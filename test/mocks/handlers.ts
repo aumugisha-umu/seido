@@ -118,8 +118,8 @@ export const handlers = [
 
     let filteredLots = mockLots
 
-    if (_buildingId) {
-      filteredLots = filteredLots.filter(lot => lot.building_id === _buildingId)
+    if (buildingId) {
+      filteredLots = filteredLots.filter(lot => lot.building_id === buildingId)
     }
 
     if (_tenantId) {

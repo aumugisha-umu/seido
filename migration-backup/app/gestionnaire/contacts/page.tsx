@@ -226,12 +226,12 @@ export default function ContactsPage() {
   }
 
   // ✅ NOUVEAU: Fonction pour charger les invitations séparément
-  const loadPendingInvitations = async (_teamId: string) => {
+  const loadPendingInvitations = async (teamId: string) => {
     try {
       setLoadingInvitations(true)
-      console.log("📧 Loading invitations for team:", _teamId)
+      console.log("📧 Loading invitations for team:", teamId)
       
-      const invitations = await contactInvitationService.getPendingInvitations(_teamId)
+      const invitations = await contactInvitationService.getPendingInvitations(teamId)
       console.log("✅ Invitations loaded:", invitations.length)
       // Note: maintenant les invitations sont gérées par useContactsData, 
       // cette fonction est gardée pour les actions spéciales si nécessaire

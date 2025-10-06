@@ -26,7 +26,7 @@ interface DashboardClientProps {
  * - Pas de logique métier côté client
  */
 export function DashboardClient({ teamId }: DashboardClientProps) {
-  const _router = useRouter()
+  const router = useRouter()
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
 
   // ✅ Instancier le service côté CLIENT (exactement comme contacts/page.tsx)
@@ -66,7 +66,7 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
       setIsContactModalOpen(false)
 
       // Recharger le dashboard pour afficher le nouveau contact
-      _router.refresh()
+      router.refresh()
       logger.info("✅ [DASHBOARD-CLIENT] Dashboard refresh triggered")
 
     } catch (error) {

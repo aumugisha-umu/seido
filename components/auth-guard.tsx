@@ -26,7 +26,7 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, requiredRole, fallback }: AuthGuardProps) {
   const { user, loading } = useAuth()
   const { isAuthLoading, loadingMessage } = useAuthLoading(loading, user)
-  const _router = useRouter()
+  const router = useRouter()
   const pathname = usePathname()
   const [callbackGracePeriod, setCallbackGracePeriod] = useState(false)
 
@@ -144,3 +144,4 @@ export default function AuthGuard({ children, requiredRole, fallback }: AuthGuar
   // Utilisateur authentifié avec le bon rôle
   return <>{children}</>
 }
+

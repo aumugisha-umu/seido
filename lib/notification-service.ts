@@ -1525,7 +1525,7 @@ class NotificationService {
   /**
    * Récupérer les gestionnaires spécifiquement assignés à un bâtiment
    */
-  private async getBuildingManagers(_buildingId: string): Promise<string[]> {
+  private async getBuildingManagers(buildingId: string): Promise<string[]> {
     try {
       const { data: buildingContacts } = await supabase
         .from('building_contacts')
@@ -1536,7 +1536,7 @@ class NotificationService {
             provider_category
           )
         `)
-        .eq('building_id', _buildingId)
+        .eq('building_id', buildingId)
         .is('end_date', null) // Only active assignments
 
       // Filtrer pour récupérer seulement les gestionnaires (rôle en français)

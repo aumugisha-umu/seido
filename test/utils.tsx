@@ -31,7 +31,7 @@ const AllTheProviders = ({
     first_name: 'Test',
     last_name: userRole.charAt(0).toUpperCase() + userRole.slice(1),
     role: userRole,
-    team_id: _teamId,
+    team_id: teamId,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }

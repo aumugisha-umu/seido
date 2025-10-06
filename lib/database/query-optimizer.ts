@@ -235,7 +235,7 @@ export class QueryOptimizerV2 {
   /**
    * Get dashboard summary with materialized view
    */
-  async getDashboardSummary(_teamId: string) {
+  async getDashboardSummary(teamId: string) {
     const cacheKey = `dashboard:summary:${teamId}`
     const startTime = Date.now()
 
@@ -246,7 +246,7 @@ export class QueryOptimizerV2 {
       const { data, error } = await supabase
         .from('intervention_summary_view')
         .select('*')
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
 
       queryMonitor.logQuery(`dashboard_summary:${teamId}`, Date.now() - startTime)
 
@@ -294,7 +294,7 @@ export class QueryOptimizerV2 {
             address
           )
         `, { count: 'exact' })
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
         .range(offset, offset + limit - 1)
         .order('created_at', { ascending: false })
 
@@ -341,7 +341,7 @@ export class QueryOptimizerV2 {
   /**
    * Clear all cache for team
    */
-  async invalidateTeam(_teamId: string) {
+  async invalidateTeam(teamId: string) {
     await Promise.all([
       cache.invalidate(`dashboard:summary:${teamId}`),
       cache.invalidate(`interventions:paginated:${teamId}`),

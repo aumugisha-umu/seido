@@ -28,7 +28,7 @@ import { determineAssignmentType, createContactService, createContactInvitationS
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 import { logger, logError } from '@/lib/logger'
 export default function ContactsPage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   
@@ -1392,3 +1392,4 @@ export default function ContactsPage() {
     </div>
   )
 }
+

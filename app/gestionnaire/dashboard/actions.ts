@@ -56,7 +56,7 @@ export async function createContactAction(data: CreateContactData) {
       requestedTeamId: data.teamId
     })
 
-    // ✅ FIX: Corriger typo data._teamId → data.teamId
+    // ✅ FIX: Corriger typo data.teamId → data.teamId
     const hasTeamAccess = teams.some(team => team.id === data.teamId)
 
     if (!hasTeamAccess) {

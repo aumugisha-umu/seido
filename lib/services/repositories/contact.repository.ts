@@ -19,7 +19,7 @@ import {
  */
 export class ContactRepository extends BaseRepository<Contact, ContactInsert, ContactUpdate> {
   constructor(supabase: SupabaseClient) {
-    super(supabase, 'contacts')
+    super(supabase, 'team_members')
   }
 
   /**
@@ -100,7 +100,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         *,
         user:user_id(id, name, email, phone, role, provider_category)
       `)
-      .eq('lot_id', _lotId)
+      .eq('lot_id', lotId)
 
     if (type) {
       queryBuilder = queryBuilder.eq('type', type)
@@ -125,7 +125,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         *,
         user:user_id(id, name, email, phone, role, provider_category)
       `)
-      .eq('building_id', _buildingId)
+      .eq('building_id', buildingId)
 
     if (type) {
       queryBuilder = queryBuilder.eq('type', type)
@@ -174,14 +174,14 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select('id')
-      .eq('user_id', _userId)
+      .eq('user_id', userId)
 
-    if (_lotId) {
-      queryBuilder = queryBuilder.eq('lot_id', _lotId)
+    if (lotId) {
+      queryBuilder = queryBuilder.eq('lot_id', lotId)
     }
 
-    if (_buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', _buildingId)
+    if (buildingId) {
+      queryBuilder = queryBuilder.eq('building_id', buildingId)
     }
 
     const { data, error } = await queryBuilder.single()
@@ -242,7 +242,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
    */
   async addToLot(lotId: string, userId: string, type: Contact['type'], isPrimary: boolean = false) {
     // Check if user is already assigned to this lot
-    const existingCheck = await this.userExists(_userId, _lotId)
+    const existingCheck = await this.userExists(userId, lotId)
     if (!existingCheck.success) return existingCheck
 
     if (existingCheck.exists) {
@@ -250,8 +250,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     const contactData: ContactInsert = {
-      user_id: _userId,
-      lot_id: _lotId,
+      user_id: userId,
+      lot_id: lotId,
       type,
       status: 'active'
     }
@@ -264,7 +264,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
    */
   async addToBuilding(buildingId: string, userId: string, type: Contact['type'], isPrimary: boolean = false) {
     // Check if user is already assigned to this building
-    const existingCheck = await this.userExists(_userId, undefined, _buildingId)
+    const existingCheck = await this.userExists(userId, undefined, buildingId)
     if (!existingCheck.success) return existingCheck
 
     if (existingCheck.exists) {
@@ -272,8 +272,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     const contactData: ContactInsert = {
-      user_id: _userId,
-      building_id: _buildingId,
+      user_id: userId,
+      building_id: buildingId,
       type,
       status: 'active'
     }
@@ -288,8 +288,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await this.supabase
       .from(this.tableName)
       .delete()
-      .eq('lot_id', _lotId)
-      .eq('user_id', _userId)
+      .eq('lot_id', lotId)
+      .eq('user_id', userId)
       .select()
 
     if (error) {
@@ -310,8 +310,8 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await this.supabase
       .from(this.tableName)
       .delete()
-      .eq('building_id', _buildingId)
-      .eq('user_id', _userId)
+      .eq('building_id', buildingId)
+      .eq('user_id', userId)
       .select()
 
     if (error) {

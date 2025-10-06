@@ -113,8 +113,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Fonction interne pour ouvrir le modal (sera utilisée par le composant et exposée via ref)
   const handleOpenContactModal = async (_contactType: string) => {
-    logger.info('🚀 [ContactSelector] openContactModal appelé avec type:', contactType)
-    setSelectedContactType(contactType)
+    logger.info('🚀 [ContactSelector] openContactModal appelé avec type:', _contactType)
+    setSelectedContactType(_contactType)
     setSearchTerm("")
     setIsContactModalOpen(true)
     
@@ -163,11 +163,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           }
           
           logger.info('🧪 [ContactSelector] Processing:', contact?.name, 'DB role:', contact?.role, '→ mapped:', mappedRole, 'DB category:', contact?.provider_category, '→ mapped:', mappedProviderCategory)
-          
+
           const assignmentType = determineAssignmentType(assignmentUser)
-          const matches = assignmentType === contactType
-          
-          logger.info('🧪 [ContactSelector] AssignmentType:', assignmentType, 'matches', contactType, '?', matches)
+          const matches = assignmentType === _contactType
+
+          logger.info('🧪 [ContactSelector] AssignmentType:', assignmentType, 'matches', _contactType, '?', matches)
           
           return matches
         })
@@ -198,7 +198,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Ouvrir le modal de création de contact
   const openContactFormModal = (_type: string) => {
-    setPrefilledContactType(type)
+    setPrefilledContactType(_type)
     setIsContactFormModalOpen(true)
     setIsContactModalOpen(false)
   }
@@ -305,7 +305,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Obtenir les contacts sélectionnés pour un type donné (centralisé)
   const getSelectedContactsByType = (_contactType: string): Contact[] => {
-    return selectedContacts[contactType] || []
+    return selectedContacts[_contactType] || []
   }
 
   // Rendu en mode compact (pour création d'immeuble)

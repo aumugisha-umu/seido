@@ -194,7 +194,7 @@ export class ContactService {
    */
   async getBuildingContacts(buildingId: string, type?: Contact['type']) {
     try {
-      const result = await this.repository.findByBuilding(_buildingId, type)
+      const result = await this.repository.findByBuilding(buildingId, type)
       return result
     } catch (error) {
       throw error
@@ -267,10 +267,10 @@ export class ContactService {
     this.validateBuildingAssignment(user)
 
     try {
-      const result = await this.repository.addToBuilding(_buildingId, _userId, contactType, _isPrimary)
+      const result = await this.repository.addToBuilding(buildingId, _userId, contactType, _isPrimary)
 
       if (result.success && result.data) {
-        await this.logContactAssignment('building', _buildingId, _userId, contactType)
+        await this.logContactAssignment('building', buildingId, _userId, contactType)
       }
 
       return result
@@ -284,10 +284,10 @@ export class ContactService {
    */
   async removeContactFromLot(lotId: string, userId: string) {
     try {
-      const result = await this.repository.removeFromLot(_lotId, _userId)
+      const result = await this.repository.removeFromLot(lotId, userId)
 
       if (result.success) {
-        await this.logContactRemoval('lot', _lotId, _userId)
+        await this.logContactRemoval('lot', lotId, userId)
       }
 
       return result
@@ -301,10 +301,10 @@ export class ContactService {
    */
   async removeContactFromBuilding(buildingId: string, userId: string) {
     try {
-      const result = await this.repository.removeFromBuilding(_buildingId, _userId)
+      const result = await this.repository.removeFromBuilding(buildingId, userId)
 
       if (result.success) {
-        await this.logContactRemoval('building', _buildingId, _userId)
+        await this.logContactRemoval('building', buildingId, userId)
       }
 
       return result
@@ -342,25 +342,42 @@ export class ContactService {
    */
   async getContactsByTeam(teamId: string, role?: User['role']) {
     try {
-      // TODO: Implement team-based filtering in repository
-      // For now, get all and filter by user team
-      const allContactsResult = await this.repository.findAll()
-      const allContacts = allContactsResult.data || []
-
-      // If UserService is available, filter by team
-      if (this.userService) {
-        const teamUsersResponse = await this.userService.getUsersByTeam(teamId)
-        if (teamUsersResponse.success && teamUsersResponse.data) {
-          const teamUserIds = new Set(teamUsersResponse.data.map(u => u.id))
-          const filteredContacts = allContacts.filter(contact =>
-            teamUserIds.has(contact.user_id) &&
-            (!role || (contact.user && contact.user.role === role))
+      // Query team_members with JOIN on users table (like useContactsData hook)
+      const { data: teamMembersData, error } = await this.repository['supabase']
+        .from('team_members')
+        .select(`
+          id,
+          user_id,
+          user:user_id (
+            id,
+            name,
+            email,
+            phone,
+            company,
+            role,
+            provider_category,
+            speciality,
+            address,
+            is_active,
+            avatar_url,
+            notes,
+            first_name,
+            last_name
           )
-          return { success: true as const, data: filteredContacts }
-        }
+        `)
+        .eq('team_id', teamId)
+        .order('joined_at', { ascending: false })
+
+      if (error) {
+        throw error
       }
 
-      return { success: true as const, data: allContacts }
+      // Extract users from the relation and filter by role if specified
+      const contacts = teamMembersData
+        ?.map(tm => tm.user)
+        ?.filter(user => user !== null && (!role || user.role === role)) || []
+
+      return { success: true as const, data: contacts }
     } catch (error) {
       throw error
     }

@@ -272,7 +272,7 @@ export class InterventionService {
    */
   async getByBuilding(buildingId: string) {
     try {
-      const result = await this.repository.findByBuilding(_buildingId)
+      const result = await this.repository.findByBuilding(buildingId)
       return result
     } catch (error) {
       throw error

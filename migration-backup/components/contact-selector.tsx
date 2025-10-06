@@ -77,7 +77,7 @@ export interface ContactSelectorRef {
 }
 
 export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorProps>(({
-  _teamId,
+  teamId,
   displayMode = "full",
   title = "Assignation des contacts",
   description = "Assignez des contacts à vos lots (optionnel)",
@@ -116,11 +116,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     setIsContactModalOpen(true)
     
     // Charger les contacts existants du type correspondant
-    if (_teamId) {
+    if (teamId) {
       setIsLoadingContacts(true)
       try {
-        console.log('📞 [ContactSelector] Loading contacts for team:', _teamId)
-        const teamContacts = await contactService.getTeamContacts(_teamId)
+        console.log('📞 [ContactSelector] Loading contacts for team:', teamId)
+        const teamContacts = await contactService.getTeamContacts(teamId)
         
         console.log('✅ [ContactSelector] Loaded', teamContacts?.length, 'contacts')
         console.log('📋 [ContactSelector] Sample contact:', JSON.stringify(teamContacts?.[0], null, 2))
@@ -188,7 +188,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       setExternalLotId(contextLotId)
       handleOpenContactModal(contactType)
     }
-  }), [_teamId, handleOpenContactModal])
+  }), [teamId, handleOpenContactModal])
 
   // [SUPPRIMÉ] Ancienne fonction openContactModal remplacée par handleOpenContactModal
 
@@ -230,7 +230,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // Créer un contact (logique centralisée)
   const handleContactCreated = async (_contactData: unknown) => {
     try {
-      if (!_teamId) {
+      if (!teamId) {
         console.error("❌ [ContactSelector] No teamId provided")
         return
       }

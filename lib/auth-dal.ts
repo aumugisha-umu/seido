@@ -158,13 +158,29 @@ export const getUserProfile = cache(async () => {
   const supabaseUser = await getUser()
 
   if (!supabaseUser) {
+    logger.info('🔍 [AUTH-DAL-DEBUG] getUserProfile: No supabase user')
     return null
   }
 
+  logger.info('🔍 [AUTH-DAL-DEBUG] getUserProfile: Supabase user found:', {
+    id: supabaseUser.id,
+    email: supabaseUser.email,
+    aud: supabaseUser.aud
+  })
+
   try {
     // ✅ Récupérer le profil complet depuis la table users
+    logger.info('🔍 [AUTH-DAL-DEBUG] Creating userService...')
     const userService = await createServerUserService()
+
+    logger.info('🔍 [AUTH-DAL-DEBUG] Calling userService.getByAuthUserId with:', supabaseUser.id)
     const userResult = await userService.getByAuthUserId(supabaseUser.id)
+
+    logger.info('🔍 [AUTH-DAL-DEBUG] userService.getByAuthUserId result:', {
+      success: userResult.success,
+      hasData: !!userResult.data,
+      error: userResult.success ? null : (userResult as any).error
+    })
 
     if (!userResult.success || !userResult.data) {
       logger.info('⚠️ [AUTH-DAL] Supabase user exists but no profile found in users table:', supabaseUser.email)
@@ -176,7 +192,8 @@ export const getUserProfile = cache(async () => {
     logger.info('✅ [AUTH-DAL] Complete user profile loaded:', {
       email: userProfile.email,
       role: userProfile.role,
-      id: userProfile.id
+      id: userProfile.id,
+      team_id: (userProfile as any).team_id
     })
 
     return {
@@ -185,6 +202,7 @@ export const getUserProfile = cache(async () => {
     }
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Error loading user profile:', error)
+    logger.error('❌ [AUTH-DAL-DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return null
   }
 })

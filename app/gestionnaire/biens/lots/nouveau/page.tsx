@@ -19,9 +19,9 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { TeamCheckModal } from "@/components/team-check-modal"
-
-
-
+import { createTeamService, createLotService, createContactService, createContactInvitationService } from "@/lib/services"
+import type { Team } from "@/lib/services/core/service-types"
+import { useToast } from "@/hooks/use-toast"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -94,7 +94,7 @@ interface LotData {
 }
 
 export default function NewLotPage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
@@ -113,6 +113,8 @@ export default function NewLotPage() {
   const [userTeam, setUserTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
+  const [teams, setTeams] = useState<Team[]>([])
+  const [error, setError] = useState<string>("")
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   const [lotData, setLotData] = useState<LotData>({
@@ -155,6 +157,20 @@ export default function NewLotPage() {
     },
   })
 
+  // Flag to prevent hydration mismatch
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Initialize services
+  const [teamService] = useState(() => createTeamService())
+  const [lotService] = useState(() => createLotService())
+  const [contactService] = useState(() => createContactService())
+  const [contactInvitationService] = useState(() => createContactInvitationService())
+
+  // Set mounted flag to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   // Charger l'équipe de l'utilisateur et ses gestionnaires
   useEffect(() => {
     logger.info("🔐 useAuth hook user state:", user)
@@ -169,27 +185,29 @@ export default function NewLotPage() {
         logger.info("📡 Loading user teams for user:", user.id)
         setIsLoading(true)
         setError("")
-        
+
         // 1. Récupérer les équipes de l'utilisateur
-        const userTeams = await teamService.getUserTeams(user.id)
+        const teamsResult = await teamService.getUserTeams(user.id)
+        const userTeams = teamsResult?.data || []
         logger.info("✅ User teams loaded:", userTeams)
         setTeams(userTeams)
-        
+
         if (userTeams.length === 0) {
           setError('Vous devez faire partie d\'une équipe pour créer des lots')
           return
         }
-        
+
         // 2. Prendre la première équipe (un gestionnaire n'a normalement qu'une équipe)
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
         logger.info("🏢 Primary team:", primaryTeam.name)
-        
+
         // 3. Récupérer les membres de cette équipe
         logger.info("👥 Loading team members for team:", primaryTeam.id)
         let teamMembers = []
         try {
-          teamMembers = await teamService.getMembers(primaryTeam.id)
+          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          teamMembers = membersResult?.data || []
           logger.info("✅ Team members loaded:", teamMembers)
         } catch (membersError) {
           logger.error("❌ Error loading team members:", membersError)
@@ -259,9 +277,14 @@ export default function NewLotPage() {
 
       try {
         logger.info("📊 Loading lot counts by category for team:", userTeam.id)
-        const counts = await lotService.getCountByCategory(userTeam.id)
-        logger.info("✅ Category counts loaded:", counts)
-        setCategoryCountsByTeam(counts)
+        const result = await lotService.getCountByCategory(userTeam.id)
+        if (result.success) {
+          logger.info("✅ Category counts loaded:", result.data)
+          setCategoryCountsByTeam(result.data || {})
+        } else {
+          logger.error("❌ Error loading category counts:", result.error)
+          setCategoryCountsByTeam({})
+        }
       } catch (error) {
         logger.error("❌ Error loading category counts:", error)
         setCategoryCountsByTeam({}) // Valeur par défaut en cas d'erreur
@@ -329,7 +352,8 @@ export default function NewLotPage() {
 
 
   // Afficher la vérification d'équipe si nécessaire
-  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+  // Only show TeamCheckModal after client-side hydration to prevent mismatch
+  if (isMounted && (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam))) {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
@@ -1058,7 +1082,7 @@ export default function NewLotPage() {
   const removeLotManager = (_managerId: string) => {
     setLotData(prev => ({
       ...prev,
-      assignedLotManagers: (prev.assignedLotManagers || []).filter(manager => manager.id !== managerId)
+      assignedLotManagers: (prev.assignedLotManagers || []).filter(manager => manager.id !== _managerId)
     }))
   }
 
@@ -1610,3 +1634,4 @@ export default function NewLotPage() {
     </div>
   )
 }
+

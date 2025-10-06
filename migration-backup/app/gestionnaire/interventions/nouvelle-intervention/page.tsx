@@ -387,7 +387,7 @@ export default function NouvelleInterventionPage() {
   const handleBuildingSelect = (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    if (_buildingId) {
+    if (buildingId) {
       setSelectedLogement({ type: "building", id: buildingId })
     } else {
       setSelectedLogement(null)
@@ -419,14 +419,14 @@ export default function NouvelleInterventionPage() {
       } else {
         // Fallback to minimal data if lot not found
         setSelectedLotId(_lotId)
-        setSelectedBuildingId(_buildingId)
+        setSelectedBuildingId(buildingId)
         setSelectedLogement({ type: "lot", id: _lotId, buildingId })
       }
     } catch (error) {
       console.error("❌ Error loading lot data:", error)
       // Fallback to minimal data
       setSelectedLotId(_lotId)
-      setSelectedBuildingId(_buildingId)
+      setSelectedBuildingId(buildingId)
       setSelectedLogement({ type: "lot", id: _lotId, buildingId })
     }
   }

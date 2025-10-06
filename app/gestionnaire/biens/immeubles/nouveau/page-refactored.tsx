@@ -33,7 +33,7 @@ import {
  * `─────────────────────────────────────────────────`
  */
 export default function NewBuildingPage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
 
   // Handle team verification

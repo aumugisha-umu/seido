@@ -18,7 +18,7 @@ async function testQueries() {
   const teamId = '8b1acc7b-cdef-4ec6-a87f-9a1b4cce8e0c'
 
   console.log('Testing database queries...\n')
-  console.log('Team ID:', _teamId)
+  console.log('Team ID:', teamId)
   console.log('='.repeat(50))
 
   // Test 1: Check if buildings exist at all
@@ -57,7 +57,7 @@ async function testQueries() {
   const { data: teamBuildings, error: teamBuildingsError } = await supabase
     .from('buildings')
     .select('*')
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
 
   if (teamBuildingsError) {
     console.error('Error fetching team buildings:', teamBuildingsError)
@@ -73,7 +73,7 @@ async function testQueries() {
   const { data: team, error: teamCheckError } = await supabase
     .from('teams')
     .select('*')
-    .eq('id', _teamId)
+    .eq('id', teamId)
     .single()
 
   if (teamCheckError) {
@@ -90,7 +90,7 @@ async function testQueries() {
   const { data: teamUsers, error: usersError } = await supabase
     .from('users')
     .select('id, name, email, team_id')
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
     .limit(5)
 
   if (usersError) {
@@ -106,12 +106,12 @@ async function testQueries() {
   console.log('\n6. CHECKING LOTS:')
   if (teamBuildings?.length > 0) {
     const buildingId = teamBuildings[0].id
-    console.log('Checking lots for building:', _buildingId)
+    console.log('Checking lots for building:', buildingId)
 
     const { data: lots, error: lotsError } = await supabase
       .from('lots')
       .select('*')
-      .eq('building_id', _buildingId)
+      .eq('building_id', buildingId)
 
     if (lotsError) {
       console.error('Error fetching lots:', lotsError)

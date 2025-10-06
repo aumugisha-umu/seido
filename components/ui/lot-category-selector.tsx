@@ -47,7 +47,7 @@ export function LotCategorySelector({
   const categories = getAllLotCategories()
 
   const handleCategorySelect = (_categoryKey: string) => {
-    onChange(categoryKey as LotCategory)
+    onChange(_categoryKey as LotCategory)
   }
 
   if (displayMode === "list") {

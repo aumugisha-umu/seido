@@ -255,8 +255,8 @@ export function validateRequired(data: Record<string, unknown>, requiredFields: 
  */
 export function validateEmail(_email: string): void {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(email)) {
-    throw new ValidationException('Invalid email format', 'email', email)
+  if (!emailRegex.test(_email)) {
+    throw new ValidationException('Invalid email format', 'email', _email)
   }
 }
 

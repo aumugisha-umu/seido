@@ -82,7 +82,7 @@ const specialities = [
 
 export default function ContactDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const _router = useRouter()
+  const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
 
@@ -1050,3 +1050,4 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
     </div>
   )
 }
+

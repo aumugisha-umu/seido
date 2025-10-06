@@ -442,7 +442,7 @@ export class LotService {
    * Get lot statistics by category for a team
    */
   async getLotStatsByCategory(teamId: string) {
-    return this.repository.getCountByCategory(_teamId)
+    return this.repository.getCountByCategory(teamId)
   }
 
   /**
@@ -450,9 +450,9 @@ export class LotService {
    */
   async assignTenant(lotId: string, tenantId: string) {
     // Check if lot exists
-    const lot = await this.repository.findById(_lotId)
+    const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', _lotId)
+      throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
     // This would typically update lot_contacts table
@@ -777,9 +777,9 @@ export class LotService {
       throw new ValidationException('Size must be positive', 'lots', 'size')
     }
 
-    // Validate category if provided
-    if (data.category && !['apartment', 'commercial', 'office', 'parking', 'storage'].includes(data.category)) {
-      throw new ValidationException('Invalid lot category', 'lots', 'category')
+    // Validate category if provided (must match PostgreSQL enum lot_category)
+    if (data.category && !['appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'parking', 'autre'].includes(data.category)) {
+      throw new ValidationException(`Invalid lot category: "${data.category}". Must be one of: appartement, collocation, maison, garage, local_commercial, parking, autre`, 'lots', 'category')
     }
   }
 

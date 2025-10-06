@@ -16,6 +16,7 @@ export default defineConfig({
     },
     include: [
       'test/**/*.test.{ts,tsx}',
+      'tests-new/**/*.test.{ts,tsx}',
       'app/**/*.test.{ts,tsx}',
       'components/**/*.test.{ts,tsx}',
       'lib/**/*.test.{ts,tsx}'
@@ -25,7 +26,12 @@ export default defineConfig({
       'dist',
       '.next',
       'coverage',
-      'test/e2e/**'
+      'test/e2e/**',
+      'tests-new/auth/**',
+      'tests-new/config/**',
+      'tests-new/agents/**',
+      'tests-new/helpers/**',
+      'tests-new/fixtures/**'
     ],
     coverage: {
       provider: 'v8',

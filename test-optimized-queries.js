@@ -32,7 +32,7 @@ async function testOptimizedQueries() {
   const teamId = '8b1acc7b-cdef-4ec6-a87f-9a1b4cce8e0c'
 
   console.log('🚀 Testing Optimized Queries with Supabase 2025 Best Practices')
-  console.log('Team ID:', _teamId)
+  console.log('Team ID:', teamId)
   console.log('='.repeat(70))
 
   // Test 1: Optimized building query with select columns
@@ -57,7 +57,7 @@ async function testOptimizedQueries() {
         )
       )
     `, { count: 'exact' })
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
     .order('name')
 
   const buildingTime = perf1.end()
@@ -82,7 +82,7 @@ async function testOptimizedQueries() {
     supabase
       .from('users')
       .select('*', { count: 'exact' })
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
       .order('name'),
 
     supabase
@@ -94,7 +94,7 @@ async function testOptimizedQueries() {
           building:building_id (name)
         )
       `)
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
       .limit(5)
       .order('created_at', { ascending: false }),
 
@@ -164,7 +164,7 @@ async function testOptimizedQueries() {
   const { data: page1, error: pageError, count: totalUsers } = await supabase
     .from('users')
     .select('*', { count: 'exact' })
-    .eq('team_id', _teamId)
+    .eq('team_id', teamId)
     .range(0, pageSize - 1)
     .order('name')
 

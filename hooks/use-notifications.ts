@@ -57,7 +57,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   const [error, setError] = useState<string | null>(null)
 
   const {
-    _teamId,
+    teamId,
     scope,
     read,
     type,
@@ -69,14 +69,14 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   const fetchNotifications = async () => {
     logger.info('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
       userId: user?.id,
-      _teamId,
+      teamId,
       scope,
       read,
       type,
       limit
     })
     
-    if (!user?.id || !_teamId) {
+    if (!user?.id || !teamId) {
       logger.info('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
       setLoading(false)
       return
@@ -95,7 +95,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
         params.append('user_id', user.id)
       }
       
-      if (_teamId) params.append('team_id', _teamId)
+      if (teamId) params.append('team_id', teamId)
       if (scope) params.append('scope', scope)
       if (read !== undefined) params.append('read', read.toString())
       if (type) params.append('type', type)
@@ -209,7 +209,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   // Fetch initial data
   useEffect(() => {
     fetchNotifications()
-  }, [user?.id, _teamId, read, type, limit])
+  }, [user?.id, teamId, read, type, limit])
 
   // Auto-refresh
   useEffect(() => {
@@ -217,7 +217,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
 
     const interval = setInterval(fetchNotifications, refreshInterval)
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, _teamId, read, type, limit])
+  }, [autoRefresh, refreshInterval, user?.id, teamId, read, type, limit])
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length

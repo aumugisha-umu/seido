@@ -72,7 +72,7 @@ export const ContactDetailHeader = ({
 }: ContactHeaderProps) => {
   // Configuration des rôles
   const getRoleConfig = (_role: string) => {
-    switch (role.toLowerCase()) {
+    switch (_role.toLowerCase()) {
       case "locataire":
         return {
           color: "bg-blue-100 text-blue-800 border-blue-200",
@@ -95,7 +95,7 @@ export const ContactDetailHeader = ({
         return {
           color: "bg-slate-100 text-slate-700 border-slate-200",
           dot: "bg-slate-500",
-          label: role,
+          label: _role,
         }
     }
   }

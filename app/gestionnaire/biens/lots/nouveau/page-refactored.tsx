@@ -31,7 +31,7 @@ import {
  * `─────────────────────────────────────────────────`
  */
 export default function NewLotPage() {
-  const _router = useRouter()
+  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
 
   // Handle team verification

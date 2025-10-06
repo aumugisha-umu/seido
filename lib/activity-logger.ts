@@ -155,7 +155,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'team',
-      entityId: _teamId,
+      entityId: teamId,
       entityName: teamName,
       description,
       metadata: details,
@@ -188,7 +188,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'building',
-      entityId: _buildingId,
+      entityId: buildingId,
       entityName: buildingName,
       description,
       metadata: details,
@@ -423,8 +423,8 @@ class ActivityLogger {
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (filters?._teamId) {
-        query = query.eq('team_id', filters._teamId)
+      if (filters?.teamId) {
+        query = query.eq('team_id', filters.teamId)
       }
       
       if (filters?._userId) {
@@ -495,7 +495,7 @@ class ActivityLogger {
       const { data, error } = await supabase
         .from('activity_logs')
         .select('action_type, entity_type, status')
-        .eq('team_id', _teamId)
+        .eq('team_id', teamId)
         .gte('created_at', startDate.toISOString())
 
       if (error) {

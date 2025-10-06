@@ -264,10 +264,10 @@ export const userService = {
     return response.data || null
   },
 
-  async getTeamUsers(_teamId: string) {
-    logger.info('🔍 [USER-SERVICE-COMPAT] Getting users for team:', _teamId)
+  async getTeamUsers(teamId: string) {
+    logger.info('🔍 [USER-SERVICE-COMPAT] Getting users for team:', teamId)
     const service = await getUserService()
-    const response = await service.getUsersByTeam(_teamId)
+    const response = await service.getUsersByTeam(teamId)
 
     if (!response.success) {
       logger.error('❌ [USER-SERVICE-COMPAT] Error getting team users:', response.error)
@@ -305,11 +305,11 @@ export const _buildingService = {
     }))
   },
 
-  async getTeamBuildings(_teamId: string) {
-    logger.info('🏢 [BUILDING-SERVICE-COMPAT] Getting buildings for team:', _teamId)
+  async getTeamBuildings(teamId: string) {
+    logger.info('🏢 [BUILDING-SERVICE-COMPAT] Getting buildings for team:', teamId)
 
     const service = await getBuildingService()
-    const response = await service.getByTeam(_teamId)
+    const response = await service.getByTeam(teamId)
 
     if (!response.success) {
       logger.error('❌ [BUILDING-SERVICE-COMPAT] Error getting team buildings:', response.error)
@@ -404,9 +404,9 @@ export const lotService = {
   },
 
   // Placeholder methods for building-specific operations
-  async getBuildingLots(_buildingId: string) {
+  async getBuildingLots(buildingId: string) {
     const service = await getLotService()
-    const response = await service.getByBuilding(_buildingId)
+    const response = await service.getByBuilding(buildingId)
     return unwrapArrayResponse(response)
   }
 }
@@ -481,7 +481,7 @@ export const validateAssignment = (user: AssignmentUser): boolean => {
 
 export const getActiveUsersByAssignmentType = async (teamId: string, assignmentType: string): Promise<AssignmentUser[]> => {
   // For now, delegate to userService and filter
-  const users = await userService.getTeamUsers(_teamId)
+  const users = await userService.getTeamUsers(teamId)
   return filterUsersByRole(users as AssignmentUser[], assignmentType)
 }
 

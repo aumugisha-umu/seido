@@ -54,7 +54,7 @@ interface DocumentData {
 
 export default function LotDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const _router = useRouter()
+  const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
 
@@ -748,3 +748,4 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     </div>
   )
 }
+

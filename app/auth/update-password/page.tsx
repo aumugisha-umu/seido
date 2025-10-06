@@ -23,7 +23,7 @@ export default function UpdatePasswordPage() {
   const [error, setError] = useState("")
   const [isValidSession, setIsValidSession] = useState(false)
   
-  const _router = useRouter()
+  const router = useRouter()
 
   useEffect(() => {
     logger.info("🔄 [UPDATE-PASSWORD] Checking session validity...")
@@ -387,3 +387,4 @@ export default function UpdatePasswordPage() {
     </div>
   )
 }
+

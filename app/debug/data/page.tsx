@@ -19,9 +19,9 @@ import { logger, logError } from '@/lib/logger'
  * Accessible uniquement aux gestionnaires en développement
  */
 
-async function createSampleData(_teamId: string) {
-  logger.info('🔧 [DEBUG] Creating sample data for team:', _teamId)
-  const result = await createSampleBuildingsForTeam({ _teamId, force: false })
+async function createSampleData(teamId: string) {
+  logger.info('🔧 [DEBUG] Creating sample data for team:', teamId)
+  const result = await createSampleBuildingsForTeam({ teamId, force: false })
   logger.info('🔧 [DEBUG] Sample data creation result:', result)
   return result
 }

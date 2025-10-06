@@ -519,7 +519,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     if (formData.mode === 'building') {
       setFormData(prev => {
         const data = prev as BuildingFormData
-        if (context?._lotId) {
+        if (context?.lotId) {
           return {
             ...data,
             lotContactAssignments: {
@@ -555,7 +555,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     if (formData.mode === 'building') {
       setFormData(prev => {
         const data = prev as BuildingFormData
-        if (context?._lotId) {
+        if (context?.lotId) {
           return {
             ...data,
             lotContactAssignments: {
@@ -675,11 +675,16 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
           lotContactAssignments: [], // TODO: Implement contact assignments
         })
 
+        // Verifier le succes de l'operation
+        if (!response.success) {
+          throw new Error(response.error || 'Échec de la création de l\'immeuble')
+        }
+
         result = {
-          building: response.building,
-          lots: response.lots,
+          building: response.data.building,
+          lots: response.data.lots,
           success: true,
-          message: `L'immeuble "${response.building.name}" avec ${response.lots.length} lot(s) a été créé.`,
+          message: `L'immeuble "${response.data.building.name}" avec ${response.data.lots.length} lot(s) a été créé.`,
         }
 
       } else {

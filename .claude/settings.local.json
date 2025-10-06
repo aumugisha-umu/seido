@@ -59,7 +59,9 @@
       "Bash(then rm -rf .next)",
       "Bash(else echo \"ℹ️ Pas de cache .next à supprimer\")",
       "Bash(npm run build:test:*)",
-      "Bash(npx pino-pretty:*)"
+      "Bash(npx pino-pretty:*)",
+      "Bash(do powershell -Command \"(Get-Content ''$file'') -replace ''_router'', ''router'' | Set-Content ''$file''\")",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

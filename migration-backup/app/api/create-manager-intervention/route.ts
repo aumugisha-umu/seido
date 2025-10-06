@@ -223,16 +223,16 @@ export async function POST(request: NextRequest) {
     } else if (selectedBuildingId) {
       // Building-wide intervention
       buildingId = selectedBuildingId.toString()
-      console.log("🏢 Creating building-wide intervention for building ID:", _buildingId)
+      console.log("🏢 Creating building-wide intervention for building ID:", buildingId)
       
-      if (!_buildingId) {
+      if (!buildingId) {
         return NextResponse.json({
           success: false,
           error: "ID du bâtiment invalide"
         }, { status: 400 })
       }
 
-      const building = await buildingService.getById(_buildingId)
+      const building = await buildingService.getById(buildingId)
       if (!building) {
         return NextResponse.json({
           success: false,
@@ -368,7 +368,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Add building_id only if it exists (for building-wide interventions)  
-    if (_buildingId) {
+    if (buildingId) {
       interventionData.building_id = buildingId
     }
 

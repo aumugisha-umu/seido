@@ -132,7 +132,7 @@ export function IntegratedAvailabilityCard({
   }
 
   const getStatusColor = (_status: string) => {
-    switch (status) {
+    switch (_status) {
       case 'demande': return 'bg-yellow-100 text-yellow-800'
       case 'approuvee': return 'bg-green-100 text-green-800'
       case 'planification': return 'bg-blue-100 text-blue-800'

@@ -69,7 +69,7 @@ Phase 2 consiste à tester la **gestion complète des contacts** dans l'interfac
 **Fichier**: `lib/services/domain/building.service.ts`
 
 **Problème**: Utilisation incorrecte de variables avec underscore prefix dans 3 méthodes:
-- `getBuildingsByTeam()`: `_teamId is not defined`
+- `getBuildingsByTeam()`: `teamId is not defined`
 - `getBuildingsByUser()`: `_userId is not defined`
 
 **Lignes affectées**: 217-227, 232-242
@@ -78,8 +78,8 @@ Phase 2 consiste à tester la **gestion complète des contacts** dans l'interfac
 ```typescript
 // ❌ AVANT
 async getBuildingsByTeam(teamId: string) {
-  const teamExists = await this.validateTeamExists(_teamId)  // Wrong!
-  return this.repository.findByTeam(_teamId)                 // Wrong!
+  const teamExists = await this.validateTeamExists(teamId)  // Wrong!
+  return this.repository.findByTeam(teamId)                 // Wrong!
 }
 
 // ✅ APRÈS

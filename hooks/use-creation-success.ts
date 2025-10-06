@@ -14,7 +14,7 @@ interface CreationSuccessOptions {
 }
 
 export function useCreationSuccess() {
-  const _router = useRouter()
+  const router = useRouter()
   const { toast } = useToast()
 
   const handleSuccess = useCallback(async ({
@@ -68,3 +68,4 @@ export function useCreationSuccess() {
 
   return { handleSuccess }
 }
+

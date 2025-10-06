@@ -710,7 +710,7 @@ export class InterventionService {
   async createIntervention(_data: unknown) {
     // Direct imports and usage
     const user = await userService.getCurrentUser()
-    const building = await buildingService.getBuilding(data._buildingId)
+    const building = await buildingService.getBuilding(data.buildingId)
     await notificationService.sendNotification(...)
     // ...
   }
@@ -738,7 +738,7 @@ export class InterventionService {
 
   async createIntervention(_data: unknown) {
     const user = await this.userService.getCurrentUser()
-    const building = await this.buildingService.getBuilding(data._buildingId)
+    const building = await this.buildingService.getBuilding(data.buildingId)
     await this.notificationService.sendNotification(...)
     // ...
   }

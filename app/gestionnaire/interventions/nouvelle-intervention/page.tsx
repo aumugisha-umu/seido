@@ -94,7 +94,7 @@ export default function NouvelleInterventionPage() {
   const [loading, setLoading] = useState(false)
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
-  const _router = useRouter()
+  const router = useRouter()
   // const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const searchParams = useSearchParams()
@@ -1654,3 +1654,4 @@ export default function NouvelleInterventionPage() {
     </div>
   )
 }
+

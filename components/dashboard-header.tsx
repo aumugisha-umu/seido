@@ -107,11 +107,11 @@ export default function DashboardHeader({
   const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
-      gestionnaire: "Gestionnaire", 
+      gestionnaire: "Gestionnaire",
       prestataire: "Prestataire",
       locataire: "Locataire"
     }
-    return roleNames[role as keyof typeof roleNames] || role.charAt(0).toUpperCase() + role.slice(1)
+    return roleNames[_role as keyof typeof roleNames] || _role.charAt(0).toUpperCase() + _role.slice(1)
   }
 
   const handleLogout = async () => {
@@ -127,7 +127,7 @@ export default function DashboardHeader({
   }
 
   const handleProfile = () => {
-    _router.push(`/${role}/profile`)
+    router.push(`/${role}/profile`)
   }
 
   // Fermer le menu mobile lors du changement de route
@@ -354,3 +354,4 @@ export default function DashboardHeader({
     </>
   )
 }
+

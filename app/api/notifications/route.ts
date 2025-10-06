@@ -78,14 +78,14 @@ export async function GET(request: NextRequest) {
       logger.info('🔍 [NOTIFICATIONS-API] Using personal scope filter')
       // Notifications personnelles : seulement celles adressées à l'utilisateur connecté avec is_personal = true
       query = query.eq('user_id', dbUserGet.id).eq('is_personal', true)
-      if (_teamId) {
-        query = query.eq('team_id', _teamId)
+      if (teamId) {
+        query = query.eq('team_id', teamId)
       }
     } else if (scope === 'team') {
       logger.info('🔍 [NOTIFICATIONS-API] Using team scope filter')
       // Notifications d'équipe : notifications de l'équipe avec is_personal = false ET destinées à l'utilisateur connecté
-      if (_teamId) {
-        query = query.eq('team_id', _teamId).eq('user_id', dbUserGet.id).eq('is_personal', false)
+      if (teamId) {
+        query = query.eq('team_id', teamId).eq('user_id', dbUserGet.id).eq('is_personal', false)
       } else {
         logger.info('❌ [NOTIFICATIONS-API] team_id required for team scope')
         // Si pas de teamId spécifié pour le scope team, renvoyer erreur
@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
       if (_userId) {
         query = query.eq('user_id', _userId)
       }
-      if (_teamId) {
-        query = query.eq('team_id', _teamId)
+      if (teamId) {
+        query = query.eq('team_id', teamId)
       }
     }
     

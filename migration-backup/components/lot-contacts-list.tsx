@@ -20,7 +20,7 @@ interface LotContactsListProps {
   onContactsUpdate?: (contacts: unknown[]) => void
 }
 
-export const LotContactsList = ({ _lotId, _buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+export const LotContactsList = ({ _lotId, buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
   const [contacts, setContacts] = useState<unknown[]>(propContacts)
   const [filteredContacts, setFilteredContacts] = useState<unknown[]>([])
   const [searchTerm, setSearchTerm] = useState("")

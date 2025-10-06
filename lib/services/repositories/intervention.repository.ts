@@ -301,12 +301,12 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions for a building (all lots in the building)
    */
-  async findByBuilding(_buildingId: string) {
+  async findByBuilding(buildingId: string) {
     // First get all lots for this building
     const { data: lots, error: lotsError } = await this.supabase
       .from('lots')
       .select('id')
-      .eq('building_id', _buildingId)
+      .eq('building_id', buildingId)
 
     if (lotsError) {
       return createErrorResponse(handleError(lotsError, 'intervention:findByBuilding'))

@@ -127,7 +127,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   /**
    * Get buildings by team
    */
-  async findByTeam(_teamId: string) {
+  async findByTeam(teamId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -148,7 +148,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .eq('team_id', _teamId)
+      .eq('team_id', teamId)
       .order('name')
 
     if (error) {
@@ -274,8 +274,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select('*')
       .or(`name.ilike.%${query}%,address.ilike.%${query}%,city.ilike.%${query}%`)
 
-    if (options?._teamId) {
-      queryBuilder = queryBuilder.eq('team_id', options._teamId)
+    if (options?.teamId) {
+      queryBuilder = queryBuilder.eq('team_id', options.teamId)
     }
 
     if (options?.city) {
@@ -305,8 +305,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         )
       `)
 
-    if (_teamId) {
-      queryBuilder = queryBuilder.eq('team_id', _teamId)
+    if (teamId) {
+      queryBuilder = queryBuilder.eq('team_id', teamId)
     }
 
     const { data, error } = await queryBuilder.order('name')
@@ -342,7 +342,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({ team_id: teamId })
-      .eq('id', _buildingId)
+      .eq('id', buildingId)
       .select()
       .single()
 
@@ -384,8 +384,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select('*')
       .eq('city', city)
 
-    if (options?._teamId) {
-      queryBuilder = queryBuilder.eq('team_id', options._teamId)
+    if (options?.teamId) {
+      queryBuilder = queryBuilder.eq('team_id', options.teamId)
     }
 
     const { data, error } = await queryBuilder.order('name')
@@ -429,8 +429,8 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select('id')
       .eq('name', name)
 
-    if (_teamId) {
-      queryBuilder = queryBuilder.eq('team_id', _teamId)
+    if (teamId) {
+      queryBuilder = queryBuilder.eq('team_id', teamId)
     }
 
     if (excludeId) {

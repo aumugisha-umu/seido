@@ -14,6 +14,7 @@ import {
   validateLength,
   validateEnum
 } from '../core/service-types'
+import { logger } from '@/lib/logger'
 
 /**
  * User Repository
@@ -82,21 +83,58 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
   async findByAuthUserId(authUserId: string) {
     validateRequired({ authUserId }, ['authUserId'])
 
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select('*')
-      .eq('auth_user_id', authUserId)
-      .single()
+    logger.info('🔍 [USER-REPOSITORY-DEBUG] findByAuthUserId called with:', authUserId)
+    logger.info('🔍 [USER-REPOSITORY-DEBUG] Table name:', this.tableName)
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // Not found
-        return { success: true as const, data: null }
+    // Verify supabase client is properly initialized
+    logger.info('🔍 [USER-REPOSITORY-DEBUG] Supabase client exists:', !!this.supabase)
+
+    try {
+      logger.info('🔍 [USER-REPOSITORY-DEBUG] Executing query: SELECT * FROM users WHERE auth_user_id =', authUserId)
+
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('auth_user_id', authUserId)
+        .single()
+
+      logger.info('🔍 [USER-REPOSITORY-DEBUG] Query completed:', {
+        hasData: !!data,
+        hasError: !!error,
+        errorCode: error?.code,
+        errorMessage: error?.message
+      })
+
+      if (error) {
+        logger.error('❌ [USER-REPOSITORY-DEBUG] Supabase error details:', {
+          code: error.code,
+          message: error.message,
+          details: (error as any).details,
+          hint: (error as any).hint,
+          statusCode: (error as any).statusCode
+        })
+
+        if (error.code === 'PGRST116') {
+          // Not found
+          logger.info('⚠️ [USER-REPOSITORY-DEBUG] User not found in users table for auth_user_id:', authUserId)
+          return { success: true as const, data: null }
+        }
+        return { success: false as const, error: handleError(error) }
       }
-      return { success: false as const, error: handleError(error) }
-    }
 
-    return { success: true as const, data }
+      logger.info('✅ [USER-REPOSITORY-DEBUG] User found:', {
+        id: data?.id,
+        email: data?.email,
+        role: data?.role,
+        team_id: data?.team_id
+      })
+
+      return { success: true as const, data }
+    } catch (exception) {
+      logger.error('❌ [USER-REPOSITORY-DEBUG] Exception during query:', exception)
+      logger.error('❌ [USER-REPOSITORY-DEBUG] Exception stack:', exception instanceof Error ? exception.stack : 'No stack')
+      throw exception
+    }
   }
 
   /**

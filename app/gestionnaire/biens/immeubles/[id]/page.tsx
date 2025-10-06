@@ -23,7 +23,7 @@ import { PropertyDetailHeader } from "@/components/property-detail-header"
 import { logger, logError } from '@/lib/logger'
 export default function BuildingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
-  const _router = useRouter()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const resolvedParams = use(params)
   const { user } = useAuth()
@@ -173,7 +173,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
   }
 
   const handleCustomAction = (_actionKey: string) => {
-    switch (actionKey) {
+    switch (_actionKey) {
       case "add-intervention":
         router.push(`/gestionnaire/interventions/nouvelle?buildingId=${building.id}`)
         break
@@ -181,7 +181,7 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
         break
       default:
-        logger.info("Action not implemented:", actionKey)
+        logger.info("Action not implemented:", _actionKey)
     }
   }
 
@@ -225,11 +225,11 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
         role: 'prestataire'
       } : undefined,
       documents: intervention.documents?.map((_doc: unknown) => ({
-        id: doc.id,
-        name: doc.original_filename || doc.filename,
-        size: doc.file_size,
-        type: doc.mime_type,
-        uploadedAt: doc.uploaded_at,
+        id: _doc.id,
+        name: _doc.original_filename || _doc.filename,
+        size: _doc.file_size,
+        type: _doc.mime_type,
+        uploadedAt: _doc.uploaded_at,
         uploadedBy: {
           name: 'Utilisateur', // Simplifie car on n'a plus les foreign keys
           role: 'user'
@@ -240,13 +240,13 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
 
   const handleDocumentView = (_document: unknown) => {
     // TODO: Implement document viewer
-    logger.info('Viewing document:', document)
+    logger.info('Viewing document:', _document)
     // For now, we can open in a new tab or show a modal
   }
 
   const handleDocumentDownload = (_document: unknown) => {
     // TODO: Implement document download
-    logger.info('Downloading document:', document)
+    logger.info('Downloading document:', _document)
     // For now, we can trigger a download or redirect to download URL
   }
 
@@ -716,3 +716,4 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     </div>
   )
 }
+

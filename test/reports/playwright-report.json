@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
-    "rootDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+    "configFile": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
+    "rootDir": "C:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 6
+      "actualWorkers": 1
     },
     "preserveOutput": "always",
     "reporter": [
@@ -33,15 +33,15 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 6
+          "actualWorkers": 1
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -49,15 +49,15 @@
         "timeout": 30000
       },
       {
-        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 6
+          "actualWorkers": 1
         },
         "id": "firefox",
         "name": "firefox",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -65,15 +65,15 @@
         "timeout": 30000
       },
       {
-        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 6
+          "actualWorkers": 1
         },
         "id": "webkit",
         "name": "webkit",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -81,15 +81,15 @@
         "timeout": 30000
       },
       {
-        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 6
+          "actualWorkers": 1
         },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -97,15 +97,15 @@
         "timeout": 30000
       },
       {
-        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 6
+          "actualWorkers": 1
         },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
-        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -117,7 +117,7 @@
     "updateSnapshots": "missing",
     "updateSourceMethod": "patch",
     "version": "1.55.1",
-    "workers": 6,
+    "workers": 1,
     "webServer": {
       "command": "npm run dev",
       "url": "http://localhost:3000",
@@ -129,20 +129,20 @@
   },
   "suites": [
     {
-      "title": "contacts\\invitation-flow-simple.spec.ts",
-      "file": "contacts/invitation-flow-simple.spec.ts",
+      "title": "buildings\\create-building.spec.ts",
+      "file": "buildings/create-building.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "🔐 Invitation Flow - Simplified E2E",
-          "file": "contacts/invitation-flow-simple.spec.ts",
-          "line": 35,
+          "title": "Building Creation - E2E Tests",
+          "file": "buildings/create-building.spec.ts",
+          "line": 42,
           "column": 6,
           "specs": [
             {
-              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
+              "title": "should create building with lot successfully",
               "ok": false,
               "tags": [],
               "tests": [
@@ -157,72 +157,80 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "timedOut",
-                      "duration": 60027,
+                      "duration": 40344,
                       "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts:43:8",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts",
+                          "column": 8,
+                          "line": 43
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 41 |\u001b[39m\n \u001b[90m 42 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'Building Creation - E2E Tests'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 43 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 44 |\u001b[39m     \u001b[90m// Login before each test\u001b[39m\n \u001b[90m 45 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 46 |\u001b[39m   })\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                        },
-                        {
                           "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts",
                             "column": 8,
-                            "line": 40
+                            "line": 43
                           },
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"afterEach\" hook.\u001b[39m\n\n  38 |   })\n  39 |\n> 40 |   test.afterEach(async ({ page }) => {\n     |        ^\n  41 |     await teardownTestIsolation(page)\n  42 |   })\n  43 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:40:8"
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  41 |\n  42 | test.describe('Building Creation - E2E Tests', () => {\n> 43 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  44 |     // Login before each test\n  45 |     await loginAsGestionnaire(page)\n  46 |   })\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts:43:8"
                         },
                         {
                           "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts",
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts",
                             "column": 14,
-                            "line": 337
+                            "line": 344
                           },
-                          "message": "Error: page.goto: net::ERR_ABORTED; maybe frame was detached?\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/login\", waiting until \"networkidle\"\u001b[22m\n\n\n   at helpers\\auth-helpers.ts:337\n\n  335 |\n  336 |   // Naviguer vers login\n> 337 |   await page.goto(`${TEST_CONFIG.baseURL}/auth/login`, { waitUntil: 'networkidle' })\n      |              ^\n  338 |\n  339 |   // Remplir et soumettre le formulaire\n  340 |   await fillLoginForm(page, credentials)\n    at login (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:337:14)\n    at loginAsGestionnaire (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:353:9)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:55:30"
+                          "message": "Error: page.waitForURL: net::ERR_ABORTED; maybe frame was detached?\n=========================== logs ===========================\nwaiting for navigation to \"**/dashboard\" until \"load\"\n  navigated to \"http://localhost:3000/auth/login\"\n============================================================\n\n   at helpers\\auth-helpers.ts:344\n\n  342 |\n  343 |   // Attendre redirection dashboard (timeout 45s pour auth + middleware)\n> 344 |   await page.waitForURL('**/dashboard', { timeout: 45000 })\n      |              ^\n  345 |\n  346 |   console.log(`✅ Logged in successfully as: ${credentials.email}`)\n  347 | }\n    at login (C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:344:14)\n    at loginAsGestionnaire (C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:353:3)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts:45:5"
                         }
                       ],
                       "stdout": [
                         {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "📧 Testing invitation for: test-invite-1759681796547-h3p953@seido.pm\n"
-                        },
-                        {
-                          "text": "📍 STEP 1: Login as gestionnaire\n"
-                        },
-                        {
                           "text": "🔐 Logging in as: arthur@seido.pm\n"
                         },
                         {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                          "text": "📝 Filling login form... { email: \u001b[32m'arthur@seido.pm'\u001b[39m }\n"
                         },
                         {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                          "text": "✅ Login form filled\n"
+                        },
+                        {
+                          "text": "🚀 Submitting login form...\n"
+                        },
+                        {
+                          "text": "✅ Login form submitted\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-05T16:29:47.983Z",
+                      "startTime": "2025-10-06T07:39:47.636Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--34a5c-lding-with-lot-successfully-chromium\\video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts",
+                        "column": 8,
+                        "line": 43
+                      }
                     }
                   ],
                   "status": "unexpected"
                 }
               ],
-              "id": "5be33770058e02c8c5cc-1def25e4231ad5fca109",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 44,
+              "id": "7928f5043eef35f09df2-f85351d2c606c0c66eda",
+              "file": "buildings/create-building.spec.ts",
+              "line": 48,
               "column": 7
             },
             {
-              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "title": "should detect duplicate building name",
               "ok": false,
               "tags": [],
               "tests": [
@@ -235,9 +243,9 @@
                   "results": [
                     {
                       "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "timedOut",
-                      "duration": 60023,
+                      "duration": 31237,
                       "error": {
                         "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
                         "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
@@ -248,616 +256,14 @@
                         },
                         {
                           "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 8,
-                            "line": 40
-                          },
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"afterEach\" hook.\u001b[39m\n\n  38 |   })\n  39 |\n> 40 |   test.afterEach(async ({ page }) => {\n     |        ^\n  41 |     await teardownTestIsolation(page)\n  42 |   })\n  43 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:40:8"
-                        },
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 16,
-                            "line": 167
-                          },
-                          "message": "Error: page.goto: net::ERR_ABORTED; maybe frame was detached?\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/callback\", waiting until \"load\"\u001b[22m\n\n\n  165 |\n  166 |     // Navigate to callback without valid session\n> 167 |     await page.goto('http://localhost:3000/auth/callback')\n      |                ^\n  168 |\n  169 |     // Wait 3 seconds and check URL\n  170 |     await page.waitForTimeout(3000)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:167:16"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "📍 TEST: Validating redirect loop detection\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:29:48.000Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-668df5d8de62c0a9f79e",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 161,
-              "column": 7
-            },
-            {
-              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "firefox",
-                  "projectName": "firefox",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 2,
-                      "status": "timedOut",
-                      "duration": 38092,
-                      "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
-                        "location": {
-                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                          "column": 8,
-                          "line": 36
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 8,
-                            "line": 36
-                          },
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
-                        },
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts",
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\building-helpers.ts",
                             "column": 14,
-                            "line": 95
+                            "line": 19
                           },
-                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/\", waiting until \"load\"\u001b[22m\n\n\n   at helpers\\index.ts:95\n\n  93 |   console.log('🧹 [SETUP] Cleaning browser state...')\n  94 |   await cleanBrowserState(page)\n> 95 |   await page.goto('http://localhost:3000')\n     |              ^\n  96 |   await waitForNetworkIdle(page)\n  97 |   console.log('✅ [SETUP] Test isolation ready')\n  98 | }\n    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts:95:14)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:37:5"
+                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/biens/immeubles/nouveau\", waiting until \"load\"\u001b[22m\n\n\n   at helpers\\building-helpers.ts:19\n\n  17 |\n  18 |   // Option 1: Direct URL\n> 19 |   await page.goto('http://localhost:3000/gestionnaire/biens/immeubles/nouveau')\n     |              ^\n  20 |\n  21 |   // Wait for page to load\n  22 |   await page.waitForLoadState('networkidle')\n    at navigateToBuildingCreation (C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\building-helpers.ts:19:14)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts:83:37"
                         }
                       ],
                       "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:29:48.041Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-firefox\\video.webm"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                        "column": 8,
-                        "line": 36
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-2c3345cc72bdaa3fb05b",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 44,
-              "column": 7
-            },
-            {
-              "title": "❌ Callback redirect loop validation (no infinite loop)",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "firefox",
-                  "projectName": "firefox",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 3,
-                      "status": "timedOut",
-                      "duration": 38715,
-                      "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
-                        "location": {
-                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                          "column": 8,
-                          "line": 36
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 8,
-                            "line": 36
-                          },
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
-                        },
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts",
-                            "column": 14,
-                            "line": 95
-                          },
-                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/\", waiting until \"load\"\u001b[22m\n\n\n   at helpers\\index.ts:95\n\n  93 |   console.log('🧹 [SETUP] Cleaning browser state...')\n  94 |   await cleanBrowserState(page)\n> 95 |   await page.goto('http://localhost:3000')\n     |              ^\n  96 |   await waitForNetworkIdle(page)\n  97 |   console.log('✅ [SETUP] Test isolation ready')\n  98 | }\n    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\index.ts:95:14)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:37:5"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:29:48.008Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--firefox\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--firefox\\video.webm"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                        "column": 8,
-                        "line": 36
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-06c7756a93e9450ba836",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 161,
-              "column": 7
-            },
-            {
-              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "webkit",
-                  "projectName": "webkit",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 4,
-                      "status": "timedOut",
-                      "duration": 34107,
-                      "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                      },
-                      "errors": [
-                        {
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                        },
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts",
-                            "column": 14,
-                            "line": 337
-                          },
-                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/login\", waiting until \"networkidle\"\u001b[22m\n\n\n   at helpers\\auth-helpers.ts:337\n\n  335 |\n  336 |   // Naviguer vers login\n> 337 |   await page.goto(`${TEST_CONFIG.baseURL}/auth/login`, { waitUntil: 'networkidle' })\n      |              ^\n  338 |\n  339 |   // Remplir et soumettre le formulaire\n  340 |   await fillLoginForm(page, credentials)\n    at login (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:337:14)\n    at loginAsGestionnaire (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\auth-helpers.ts:353:9)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:55:30"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "📧 Testing invitation for: test-invite-1759681797847-t967q8@seido.pm\n"
-                        },
-                        {
-                          "text": "📍 STEP 1: Login as gestionnaire\n"
-                        },
-                        {
-                          "text": "🔐 Logging in as: arthur@seido.pm\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:29:48.046Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-webkit\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-webkit\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-webkit\\error-context.md"
-                        }
-                      ]
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-df63e8a6981ee12c7786",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 44,
-              "column": 7
-            },
-            {
-              "title": "❌ Callback redirect loop validation (no infinite loop)",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "webkit",
-                  "projectName": "webkit",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 5,
-                      "status": "timedOut",
-                      "duration": 33749,
-                      "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                      },
-                      "errors": [
-                        {
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
-                        },
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 16,
-                            "line": 167
-                          },
-                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/auth/callback\", waiting until \"load\"\u001b[22m\n\n\n  165 |\n  166 |     // Navigate to callback without valid session\n> 167 |     await page.goto('http://localhost:3000/auth/callback')\n      |                ^\n  168 |\n  169 |     // Wait 3 seconds and check URL\n  170 |     await page.waitForTimeout(3000)\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:167:16"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "📍 TEST: Validating redirect loop detection\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:29:47.998Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--webkit\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--webkit\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--webkit\\error-context.md"
-                        }
-                      ]
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-d3320ae3deedce79109f",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 161,
-              "column": 7
-            },
-            {
-              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Mobile Chrome",
-                  "projectName": "Mobile Chrome",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 5,
-                      "status": "timedOut",
-                      "duration": 35588,
-                      "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
-                        "location": {
-                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                          "column": 8,
-                          "line": 36
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 8,
-                            "line": 36
-                          },
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:30:31.990Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Chrome\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Chrome\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Chrome\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                        "column": 8,
-                        "line": 36
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-78001a806e51c40b2aa6",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 44,
-              "column": 7
-            },
-            {
-              "title": "❌ Callback redirect loop validation (no infinite loop)",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Mobile Chrome",
-                  "projectName": "Mobile Chrome",
-                  "results": [
-                    {
-                      "workerIndex": 7,
-                      "parallelIndex": 4,
-                      "status": "timedOut",
-                      "duration": 35678,
-                      "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8",
-                        "location": {
-                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                          "column": 8,
-                          "line": 36
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 34 |\u001b[39m\n \u001b[90m 35 |\u001b[39m test\u001b[33m.\u001b[39mdescribe(\u001b[32m'🔐 Invitation Flow - Simplified E2E'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 36 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 37 |\u001b[39m     \u001b[36mawait\u001b[39m setupTestIsolation(page)\n \u001b[90m 38 |\u001b[39m   })\n \u001b[90m 39 |\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 8,
-                            "line": 36
-                          },
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  34 |\n  35 | test.describe('🔐 Invitation Flow - Simplified E2E', () => {\n> 36 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  37 |     await setupTestIsolation(page)\n  38 |   })\n  39 |\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:36:8"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-10-05T16:30:32.262Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Chrome\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Chrome\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Chrome\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                        "column": 8,
-                        "line": 36
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "5be33770058e02c8c5cc-dfdcd5039e425fed40f6",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 161,
-              "column": 7
-            },
-            {
-              "title": "✅ Complete invitation flow: Create → Accept → Set Password → Dashboard",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Mobile Safari",
-                  "projectName": "Mobile Safari",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 2,
-                      "status": "failed",
-                      "duration": 28481,
-                      "error": {
-                        "message": "Error: page.goto: Navigation to \"http://localhost:3000/gestionnaire/contacts\" is interrupted by another navigation to \"http://localhost:3000/gestionnaire/dashboard\"\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/contacts\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: Navigation to \"http://localhost:3000/gestionnaire/contacts\" is interrupted by another navigation to \"http://localhost:3000/gestionnaire/dashboard\"\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/contacts\", waiting until \"load\"\u001b[22m\n\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:60:16",
-                        "location": {
-                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                          "column": 16,
-                          "line": 60
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 58 |\u001b[39m     \u001b[90m// STEP 2: Navigate to contacts page and open form\u001b[39m\n \u001b[90m 59 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'📍 STEP 2: Navigate to contacts and open invitation form'\u001b[39m)\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 60 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3000/gestionnaire/contacts'\u001b[39m)\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 61 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\n \u001b[90m 62 |\u001b[39m\n \u001b[90m 63 |\u001b[39m     \u001b[36mconst\u001b[39m addContactButton \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'button:has-text(\"Ajouter un contact\")'\u001b[39m)\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 16,
-                            "line": 60
-                          },
-                          "message": "Error: page.goto: Navigation to \"http://localhost:3000/gestionnaire/contacts\" is interrupted by another navigation to \"http://localhost:3000/gestionnaire/dashboard\"\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/gestionnaire/contacts\", waiting until \"load\"\u001b[22m\n\n\n  58 |     // STEP 2: Navigate to contacts page and open form\n  59 |     console.log('📍 STEP 2: Navigate to contacts and open invitation form')\n> 60 |     await page.goto('http://localhost:3000/gestionnaire/contacts')\n     |                ^\n  61 |     await page.waitForLoadState('networkidle')\n  62 |\n  63 |     const addContactButton = page.locator('button:has-text(\"Ajouter un contact\")')\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:60:16"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
-                        },
-                        {
-                          "text": "✅ [SETUP] Test isolation ready\n"
-                        },
-                        {
-                          "text": "📧 Testing invitation for: test-invite-1759681864385-y16k23@seido.pm\n"
-                        },
-                        {
-                          "text": "📍 STEP 1: Login as gestionnaire\n"
-                        },
                         {
                           "text": "🔐 Logging in as: arthur@seido.pm\n"
                         },
@@ -877,53 +283,45 @@
                           "text": "✅ Logged in successfully as: arthur@seido.pm\n"
                         },
                         {
-                          "text": "📍 STEP 2: Navigate to contacts and open invitation form\n"
+                          "text": "🧪 TEST: Testing duplicate name detection\n"
                         },
                         {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
-                        },
-                        {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                          "text": "📍 Navigating to building creation page...\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-05T16:30:53.620Z",
+                      "startTime": "2025-10-06T07:40:41.994Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Safari\\test-failed-1.png"
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\\test-failed-1.png"
                         },
                         {
                           "name": "video",
                           "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Safari\\video.webm"
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\\video.webm"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-4bbaf--→-Set-Password-→-Dashboard-Mobile-Safari\\error-context.md"
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\\error-context.md"
                         }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                        "column": 16,
-                        "line": 60
-                      }
+                      ]
                     }
                   ],
                   "status": "unexpected"
                 }
               ],
-              "id": "5be33770058e02c8c5cc-7b62463dce1b7f433182",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 44,
+              "id": "7928f5043eef35f09df2-3810c67ddd70759a3fc3",
+              "file": "buildings/create-building.spec.ts",
+              "line": 77,
               "column": 7
             },
             {
-              "title": "❌ Callback redirect loop validation (no infinite loop)",
+              "title": "should use auto-generated name when name field is empty",
               "ok": false,
               "tags": [],
               "tests": [
@@ -931,88 +329,210 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Mobile Safari",
-                  "projectName": "Mobile Safari",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 9,
-                      "parallelIndex": 3,
-                      "status": "failed",
-                      "duration": 18226,
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "timedOut",
+                      "duration": 31591,
                       "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"/auth/callback\"\u001b[39m\nReceived string:        \u001b[31m\"http://localhost:3000\u001b[7m/auth/callback\u001b[27m\"\u001b[39m",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"/auth/callback\"\u001b[39m\nReceived string:        \u001b[31m\"http://localhost:3000\u001b[7m/auth/callback\u001b[27m\"\u001b[39m\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:176:26",
-                        "location": {
-                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                          "column": 26,
-                          "line": 176
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 174 |\u001b[39m\n \u001b[90m 175 |\u001b[39m     \u001b[90m// Should redirect to login or show error, NOT stay on callback\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m     expect(finalURL)\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoContain(\u001b[32m'/auth/callback'\u001b[39m)\n \u001b[90m     |\u001b[39m                          \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'✅ No infinite redirect loop detected (as expected)'\u001b[39m)\n \u001b[90m 178 |\u001b[39m   })\n \u001b[90m 179 |\u001b[39m })\u001b[0m"
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
                       },
                       "errors": [
                         {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
                           "location": {
-                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                            "column": 26,
-                            "line": 176
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\building-helpers.ts",
+                            "column": 14,
+                            "line": 22
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"/auth/callback\"\u001b[39m\nReceived string:        \u001b[31m\"http://localhost:3000\u001b[7m/auth/callback\u001b[27m\"\u001b[39m\n\n  174 |\n  175 |     // Should redirect to login or show error, NOT stay on callback\n> 176 |     expect(finalURL).not.toContain('/auth/callback')\n      |                          ^\n  177 |     console.log('✅ No infinite redirect loop detected (as expected)')\n  178 |   })\n  179 | })\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts:176:26"
+                          "message": "Error: page.waitForLoadState: Test timeout of 30000ms exceeded.\n\n   at helpers\\building-helpers.ts:22\n\n  20 |\n  21 |   // Wait for page to load\n> 22 |   await page.waitForLoadState('networkidle')\n     |              ^\n  23 |   await page.waitForTimeout(1000)  // Give React time to hydrate\n  24 |\n  25 |   console.log('✅ Building creation page loaded')\n    at navigateToBuildingCreation (C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\building-helpers.ts:22:14)\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\buildings\\create-building.spec.ts:116:5"
                         }
                       ],
                       "stdout": [
                         {
-                          "text": "🧹 [SETUP] Cleaning browser state...\n"
+                          "text": "🔐 Logging in as: arthur@seido.pm\n"
                         },
                         {
-                          "text": "✅ [SETUP] Test isolation ready\n"
+                          "text": "📝 Filling login form... { email: \u001b[32m'arthur@seido.pm'\u001b[39m }\n"
                         },
                         {
-                          "text": "📍 TEST: Validating redirect loop detection\n"
+                          "text": "✅ Login form filled\n"
                         },
                         {
-                          "text": "Final URL after 3s: http://localhost:3000/auth/callback\n"
+                          "text": "🚀 Submitting login form...\n"
                         },
                         {
-                          "text": "🧹 [TEARDOWN] Cleaning up...\n"
+                          "text": "✅ Login form submitted\n"
                         },
                         {
-                          "text": "✅ [TEARDOWN] Cleanup complete\n"
+                          "text": "✅ Logged in successfully as: arthur@seido.pm\n"
+                        },
+                        {
+                          "text": "🧪 TEST: Testing auto-generated building name\n"
+                        },
+                        {
+                          "text": "📍 Navigating to building creation page...\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-05T16:30:54.222Z",
+                      "startTime": "2025-10-06T07:41:21.613Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Safari\\test-failed-1.png"
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--db205-me-when-name-field-is-empty-chromium\\test-failed-1.png"
                         },
                         {
                           "name": "video",
                           "contentType": "video/webm",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Safari\\video.webm"
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--db205-me-when-name-field-is-empty-chromium\\video.webm"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-invitation-flow-s-f4b12-alidation-no-infinite-loop--Mobile-Safari\\error-context.md"
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\buildings-create-building--db205-me-when-name-field-is-empty-chromium\\error-context.md"
                         }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\invitation-flow-simple.spec.ts",
-                        "column": 26,
-                        "line": 176
-                      }
+                      ]
                     }
                   ],
                   "status": "unexpected"
                 }
               ],
-              "id": "5be33770058e02c8c5cc-fd5acfb30fa42596c3c5",
-              "file": "contacts/invitation-flow-simple.spec.ts",
-              "line": 161,
+              "id": "7928f5043eef35f09df2-308d8d238441f1b8568b",
+              "file": "buildings/create-building.spec.ts",
+              "line": 113,
+              "column": 7
+            },
+            {
+              "title": "should validate lot category is French enum value",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 28,
+                      "error": {
+                        "message": "Error: browserType.launch: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> C:\\Users\\arthu\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1193\\chrome-win\\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\arthu\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window\n<launched> pid=32448\nCall log:\n\u001b[2m  - <launching> C:\\Users\\arthu\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1193\\chrome-win\\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\arthu\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window\u001b[22m\n\u001b[2m  - <launched> pid=32448\u001b[22m\n\u001b[2m  - [pid=32448] <gracefully close start>\u001b[22m\n\u001b[2m  - [pid=32448] <kill>\u001b[22m\n\u001b[2m  - [pid=32448] <will force kill>\u001b[22m\n\u001b[2m  - [pid=32448] <process did exit: exitCode=3221225794, signal=null>\u001b[22m\n\u001b[2m  - [pid=32448] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=32448] finished temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=32448] <gracefully close end>\u001b[22m\n",
+                        "stack": "Error: browserType.launch: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> C:\\Users\\arthu\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1193\\chrome-win\\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\arthu\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window\n<launched> pid=32448\nCall log:\n\u001b[2m  - <launching> C:\\Users\\arthu\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1193\\chrome-win\\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\arthu\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window\u001b[22m\n\u001b[2m  - <launched> pid=32448\u001b[22m\n\u001b[2m  - [pid=32448] <gracefully close start>\u001b[22m\n\u001b[2m  - [pid=32448] <kill>\u001b[22m\n\u001b[2m  - [pid=32448] <will force kill>\u001b[22m\n\u001b[2m  - [pid=32448] <process did exit: exitCode=3221225794, signal=null>\u001b[22m\n\u001b[2m  - [pid=32448] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=32448] finished temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=32448] <gracefully close end>\u001b[22m\n"
+                      },
+                      "errors": [
+                        {
+                          "message": "Error: browserType.launch: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> C:\\Users\\arthu\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1193\\chrome-win\\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\arthu\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window\n<launched> pid=32448\nCall log:\n\u001b[2m  - <launching> C:\\Users\\arthu\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1193\\chrome-win\\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\arthu\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window\u001b[22m\n\u001b[2m  - <launched> pid=32448\u001b[22m\n\u001b[2m  - [pid=32448] <gracefully close start>\u001b[22m\n\u001b[2m  - [pid=32448] <kill>\u001b[22m\n\u001b[2m  - [pid=32448] <will force kill>\u001b[22m\n\u001b[2m  - [pid=32448] <process did exit: exitCode=3221225794, signal=null>\u001b[22m\n\u001b[2m  - [pid=32448] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=32448] finished temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=32448] <gracefully close end>\u001b[22m\n"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-06T07:42:01.004Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7928f5043eef35f09df2-3a8dfd911044fb542849",
+              "file": "buildings/create-building.spec.ts",
+              "line": 134,
+              "column": 7
+            },
+            {
+              "title": "should handle contact assignment without contact_type error",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
+                      },
+                      "errors": [
+                        {
+                          "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-06T07:42:01.542Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7928f5043eef35f09df2-49d2b51e9b09c9b51e6c",
+              "file": "buildings/create-building.spec.ts",
+              "line": 159,
+              "column": 7
+            },
+            {
+              "title": "should create building with multiple lots",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
+                      },
+                      "errors": [
+                        {
+                          "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-06T07:42:01.546Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7928f5043eef35f09df2-d8f656eab74900f0f29b",
+              "file": "buildings/create-building.spec.ts",
+              "line": 184,
               "column": 7
             }
           ]
@@ -1022,11 +542,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-05T16:29:25.469Z",
-    "duration": 116965.997,
+    "startTime": "2025-10-06T07:39:14.591Z",
+    "duration": 166957.936,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 10,
+    "unexpected": 6,
     "flaky": 0
   }
 }

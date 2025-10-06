@@ -1,581 +1,191 @@
-[1A[2K[2m[WebServer] [22m<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (108kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
 
-[1A[2K[2m[WebServer] [22m
-[2m[WebServer] [22m[2m[3015.81ms][22m [@tailwindcss/postcss] app\globals.css
-[2m[WebServer] [22m[2m[   0.11ms][22m  [2m ↳ [22mQuick bail check
-[2m[WebServer] [22m[2m[ 244.58ms][22m  [2m ↳ [22mSetup compiler
-[2m[WebServer] [22m[2m[   1.24ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
-[2m[WebServer] [22m[2m[ 243.29ms][22m    [2m ↳ [22mCreate compiler
-[2m[WebServer] [22m[2m[   0.38ms][22m  [2m ↳ [22mRegister full rebuild paths
-[2m[WebServer] [22m[2m[   2.33ms][22m  [2m ↳ [22mSetup scanner
-[2m[WebServer] [22m[2m[ 995.46ms][22m  [2m ↳ [22mScan for candidates
-[2m[WebServer] [22m[2m[1587.37ms][22m  [2m ↳ [22mRegister dependency messages
-[2m[WebServer] [22m[2m[ 138.85ms][22m  [2m ↳ [22mBuild utilities
-[2m[WebServer] [22m[2m[  18.44ms][22m  [2m ↳ [22mTransform Tailwind CSS AST into PostCSS AST
-[2m[WebServer] [22m[2m[  27.49ms][22m  [2m ↳ [22mUpdate PostCSS AST
-[2m[WebServer] [22m
+Running 6 tests using 1 worker
+
+[1A[2K[1/6] [chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully
+[1A[2K[chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully
+🔐 Logging in as: arthur@seido.pm
+
+[1A[2K📝 Filling login form... { email: [32m'arthur@seido.pm'[39m }
+
+[1A[2K✅ Login form filled
+
+[1A[2K🚀 Submitting login form...
+
+[1A[2K✅ Login form submitted
+
+[1A[2K  1) [chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully 
+
+    [31mTest timeout of 30000ms exceeded while running "beforeEach" hook.[39m
+
+      41 |
+      42 | test.describe('Building Creation - E2E Tests', () => {
+    > 43 |   test.beforeEach(async ({ page }) => {
+         |        ^
+      44 |     // Login before each test
+      45 |     await loginAsGestionnaire(page)
+      46 |   })
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:43:8
+
+    Error: page.waitForURL: net::ERR_ABORTED; maybe frame was detached?
+    =========================== logs ===========================
+    waiting for navigation to "**/dashboard" until "load"
+      navigated to "http://localhost:3000/auth/login"
+    ============================================================
+
+       at helpers\auth-helpers.ts:344
+
+      342 |
+      343 |   // Attendre redirection dashboard (timeout 45s pour auth + middleware)
+    > 344 |   await page.waitForURL('**/dashboard', { timeout: 45000 })
+          |              ^
+      345 |
+      346 |   console.log(`✅ Logged in successfully as: ${credentials.email}`)
+      347 | }
+        at login (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\auth-helpers.ts:344:14)
+        at loginAsGestionnaire (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\auth-helpers.ts:353:3)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:45:5
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\buildings-create-building--34a5c-lding-with-lot-successfully-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-Running 3 tests using 3 workers
+[1A[2K[2/6] [chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name
+[1A[2K[chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name
+🔐 Logging in as: arthur@seido.pm
 
-[1A[2K[2m[WebServer] [22m
-[2m[WebServer] [22m[2m[1739.79ms][22m [@tailwindcss/postcss] app\globals.css
-[2m[WebServer] [22m[2m[   0.01ms][22m  [2m ↳ [22mQuick bail check
-[2m[WebServer] [22m[2m[   0.33ms][22m  [2m ↳ [22mRegister full rebuild paths
-[2m[WebServer] [22m[2m[ 611.50ms][22m  [2m ↳ [22mScan for candidates
-[2m[WebServer] [22m[2m[1031.17ms][22m  [2m ↳ [22mRegister dependency messages
-[2m[WebServer] [22m[2m[  17.48ms][22m  [2m ↳ [22mBuild utilities
-[2m[WebServer] [22m[2m[  78.88ms][22m  [2m ↳ [22mUpdate PostCSS AST
-[2m[WebServer] [22m
+[1A[2K📝 Filling login form... { email: [32m'arthur@seido.pm'[39m }
 
-[1A[2K[1/3] [chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-[1A[2K[2/3] [chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-[1A[2K[3/3] [chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-[1A[2K[2m[WebServer] [22m
-[2m[WebServer] [22m[2m[2117.97ms][22m [@tailwindcss/postcss] app\globals.css
-[2m[WebServer] [22m[2m[   0.01ms][22m  [2m ↳ [22mQuick bail check
-[2m[WebServer] [22m[2m[   0.42ms][22m  [2m ↳ [22mRegister full rebuild paths
-[2m[WebServer] [22m[2m[1157.60ms][22m  [2m ↳ [22mScan for candidates
-[2m[WebServer] [22m[2m[ 917.12ms][22m  [2m ↳ [22mRegister dependency messages
-[2m[WebServer] [22m[2m[  12.81ms][22m  [2m ↳ [22mBuild utilities
-[2m[WebServer] [22m[2m[  29.82ms][22m  [2m ↳ [22mUpdate PostCSS AST
-[2m[WebServer] [22m
+[1A[2K✅ Login form filled
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-🔧 [SETUP] Initializing test isolation...
+[1A[2K🚀 Submitting login form...
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-🔧 [SETUP] Initializing test isolation...
+[1A[2K✅ Login form submitted
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-🔧 [SETUP] Initializing test isolation...
+[1A[2K✅ Logged in successfully as: arthur@seido.pm
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.
-    at UtilityScript.evaluate (<anonymous>:293:16)
-    at UtilityScript.<anonymous> (<anonymous>:1:44)
-    at cleanBrowserState [90m(c:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\helpers\test-isolation.ts:20:16[90m)[39m
-    at setupTestIsolation [90m(c:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\helpers\test-isolation.ts:90:3[90m)[39m
-    at [90mc:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\contact-invitation-complete.spec.ts:28:5 {
-  [[32mSymbol(step)[39m]: {
-    location: {
-      file: [32m'c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts'[39m,
-      line: [33m20[39m,
-      column: [33m16[39m,
-      function: [32m'cleanBrowserState'[39m
-    },
-    category: [32m'pw:api'[39m,
-    title: [32m'Evaluate'[39m,
-    apiName: [32m'page.evaluate'[39m,
-    params: {
-      expression: [32m'() => {\n'[39m +
-        [32m'      localStorage.clear();\n'[39m +
-        [32m'      sessionStorage.clear();\n'[39m +
-        [32m'    }'[39m,
-      isFunction: [33mtrue[39m,
-      arg: [36m[Object][39m
-    },
-    group: [90mundefined[39m,
-    stepId: [32m'pw:api@38'[39m,
-    boxedStack: [90mundefined[39m,
-    steps: [],
-    attachmentIndices: [],
-    info: TestStepInfoImpl {
-      annotations: [],
-      _testInfo: [36m[TestInfoImpl][39m,
-      _stepId: [32m'pw:api@38'[39m,
-      _title: [32m'Evaluate'[39m,
-      _parentStep: [36m[TestStepInfoImpl][39m,
-      skip: [36m[Function (anonymous)][39m
-    },
-    recoverFromStepError: [36m[AsyncFunction: recoverFromStepError][39m,
-    complete: [36m[Function: complete][39m,
-    endWallTime: [33m1759601424186[39m,
-    error: {
-      message: [32m"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n"[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'[39m,
-      stack: [32m"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n"[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\n'[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\n'[39m +
-        [32m'    at cleanBrowserState (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts:20:16)\n'[39m +
-        [32m'    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts:90:3)\n'[39m +
-        [32m'    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts:28:5'[39m,
-      cause: [90mundefined[39m
-    }
-  }
-}
+[1A[2K🧪 TEST: Testing duplicate name detection
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.
-    at UtilityScript.evaluate (<anonymous>:293:16)
-    at UtilityScript.<anonymous> (<anonymous>:1:44)
-    at cleanBrowserState [90m(c:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\helpers\test-isolation.ts:20:16[90m)[39m
-    at setupTestIsolation [90m(c:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\helpers\test-isolation.ts:90:3[90m)[39m
-    at [90mc:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\contact-invitation-complete.spec.ts:28:5 {
-  [[32mSymbol(step)[39m]: {
-    location: {
-      file: [32m'c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts'[39m,
-      line: [33m20[39m,
-      column: [33m16[39m,
-      function: [32m'cleanBrowserState'[39m
-    },
-    category: [32m'pw:api'[39m,
-    title: [32m'Evaluate'[39m,
-    apiName: [32m'page.evaluate'[39m,
-    params: {
-      expression: [32m'() => {\n'[39m +
-        [32m'      localStorage.clear();\n'[39m +
-        [32m'      sessionStorage.clear();\n'[39m +
-        [32m'    }'[39m,
-      isFunction: [33mtrue[39m,
-      arg: [36m[Object][39m
-    },
-    group: [90mundefined[39m,
-    stepId: [32m'pw:api@38'[39m,
-    boxedStack: [90mundefined[39m,
-    steps: [],
-    attachmentIndices: [],
-    info: TestStepInfoImpl {
-      annotations: [],
-      _testInfo: [36m[TestInfoImpl][39m,
-      _stepId: [32m'pw:api@38'[39m,
-      _title: [32m'Evaluate'[39m,
-      _parentStep: [36m[TestStepInfoImpl][39m,
-      skip: [36m[Function (anonymous)][39m
-    },
-    recoverFromStepError: [36m[AsyncFunction: recoverFromStepError][39m,
-    complete: [36m[Function: complete][39m,
-    endWallTime: [33m1759601424186[39m,
-    error: {
-      message: [32m"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n"[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'[39m,
-      stack: [32m"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n"[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\n'[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\n'[39m +
-        [32m'    at cleanBrowserState (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts:20:16)\n'[39m +
-        [32m'    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts:90:3)\n'[39m +
-        [32m'    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts:28:5'[39m,
-      cause: [90mundefined[39m
-    }
-  }
-}
+[1A[2K📍 Navigating to building creation page...
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-⚠️ Warning cleaning browser state: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.
-    at UtilityScript.evaluate (<anonymous>:293:16)
-    at UtilityScript.<anonymous> (<anonymous>:1:44)
-    at cleanBrowserState [90m(c:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\helpers\test-isolation.ts:20:16[90m)[39m
-    at setupTestIsolation [90m(c:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\helpers\test-isolation.ts:90:3[90m)[39m
-    at [90mc:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\contact-invitation-complete.spec.ts:28:5 {
-  [[32mSymbol(step)[39m]: {
-    location: {
-      file: [32m'c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts'[39m,
-      line: [33m20[39m,
-      column: [33m16[39m,
-      function: [32m'cleanBrowserState'[39m
-    },
-    category: [32m'pw:api'[39m,
-    title: [32m'Evaluate'[39m,
-    apiName: [32m'page.evaluate'[39m,
-    params: {
-      expression: [32m'() => {\n'[39m +
-        [32m'      localStorage.clear();\n'[39m +
-        [32m'      sessionStorage.clear();\n'[39m +
-        [32m'    }'[39m,
-      isFunction: [33mtrue[39m,
-      arg: [36m[Object][39m
-    },
-    group: [90mundefined[39m,
-    stepId: [32m'pw:api@38'[39m,
-    boxedStack: [90mundefined[39m,
-    steps: [],
-    attachmentIndices: [],
-    info: TestStepInfoImpl {
-      annotations: [],
-      _testInfo: [36m[TestInfoImpl][39m,
-      _stepId: [32m'pw:api@38'[39m,
-      _title: [32m'Evaluate'[39m,
-      _parentStep: [36m[TestStepInfoImpl][39m,
-      skip: [36m[Function (anonymous)][39m
-    },
-    recoverFromStepError: [36m[AsyncFunction: recoverFromStepError][39m,
-    complete: [36m[Function: complete][39m,
-    endWallTime: [33m1759601424186[39m,
-    error: {
-      message: [32m"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n"[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)'[39m,
-      stack: [32m"Error: page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n"[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\n'[39m +
-        [32m'    at UtilityScript.evaluate (<anonymous>:293:16)\n'[39m +
-        [32m'    at UtilityScript.<anonymous> (<anonymous>:1:44)\n'[39m +
-        [32m'    at cleanBrowserState (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts:20:16)\n'[39m +
-        [32m'    at setupTestIsolation (c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\helpers\\test-isolation.ts:90:3)\n'[39m +
-        [32m'    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts:28:5'[39m,
-      cause: [90mundefined[39m
-    }
-  }
-}
+[1A[2K  2) [chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name 
 
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-📝 [TEST-2] Starting contact creation WITH invitation...
+    [31mTest timeout of 30000ms exceeded.[39m
 
-[1A[2K🔑 [TEST-2-STEP-1] Login as gestionnaire...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-📝 [TEST-1] Starting contact creation WITHOUT invitation...
-
-[1A[2K🔑 [TEST-1-STEP-1] Login as gestionnaire...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-📝 [TEST-3] Starting invitation callback test...
-
-[1A[2K🔑 [TEST-3-STEP-1] Login as gestionnaire...
-
-[1A[2K[2m[WebServer] [22m
-[2m[WebServer] [22m[2m[1086.10ms][22m [@tailwindcss/postcss] app\globals.css
-[2m[WebServer] [22m[2m[   0.01ms][22m  [2m ↳ [22mQuick bail check
-[2m[WebServer] [22m[2m[   0.45ms][22m  [2m ↳ [22mRegister full rebuild paths
-[2m[WebServer] [22m[2m[ 596.45ms][22m  [2m ↳ [22mScan for candidates
-[2m[WebServer] [22m[2m[ 460.03ms][22m  [2m ↳ [22mRegister dependency messages
-[2m[WebServer] [22m[2m[   4.05ms][22m  [2m ↳ [22mBuild utilities
-[2m[WebServer] [22m[2m[  24.99ms][22m  [2m ↳ [22mUpdate PostCSS AST
-[2m[WebServer] [22m
-
-[1A[2K[2m[WebServer] [22m
-[2m[WebServer] [22m[2m[1774.03ms][22m [@tailwindcss/postcss] app\globals.css
-[2m[WebServer] [22m[2m[   0.01ms][22m  [2m ↳ [22mQuick bail check
-[2m[WebServer] [22m[2m[   0.48ms][22m  [2m ↳ [22mRegister full rebuild paths
-[2m[WebServer] [22m[2m[ 966.85ms][22m  [2m ↳ [22mScan for candidates
-[2m[WebServer] [22m[2m[ 785.28ms][22m  [2m ↳ [22mRegister dependency messages
-[2m[WebServer] [22m[2m[   4.03ms][22m  [2m ↳ [22mBuild utilities
-[2m[WebServer] [22m[2m[  17.21ms][22m  [2m ↳ [22mUpdate PostCSS AST
-[2m[WebServer] [22m
-
-[1A[2K[2m[WebServer] [22m
-[2m[WebServer] [22m[2m[2498.26ms][22m [@tailwindcss/postcss] app\globals.css
-[2m[WebServer] [22m[2m[   0.01ms][22m  [2m ↳ [22mQuick bail check
-[2m[WebServer] [22m[2m[   0.37ms][22m  [2m ↳ [22mRegister full rebuild paths
-[2m[WebServer] [22m[2m[1248.22ms][22m  [2m ↳ [22mScan for candidates
-[2m[WebServer] [22m[2m[1205.61ms][22m  [2m ↳ [22mRegister dependency messages
-[2m[WebServer] [22m[2m[   8.97ms][22m  [2m ↳ [22mBuild utilities
-[2m[WebServer] [22m[2m[  34.83ms][22m  [2m ↳ [22mUpdate PostCSS AST
-[2m[WebServer] [22m
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-🧭 [TEST-1-STEP-2] Navigate to contacts page...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-🧭 [TEST-3-STEP-2] Navigate to contacts page...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-🧭 [TEST-2-STEP-2] Navigate to contacts page...
-
-[1A[2K📋 [TEST-2-STEP-3] Opening contact creation modal...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-📋 [TEST-3-STEP-3] Opening contact creation modal...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-📋 [TEST-1-STEP-3] Opening contact creation modal...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-✍️ [TEST-2-STEP-4] Filling form WITH invitation...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-✍️ [TEST-1-STEP-4] Filling form without invitation...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-✍️ [TEST-3-STEP-4] Filling form for invitation...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-❌ [TEST-2] Test failed: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:
-    1) <input required="" type="text" value="Marie" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not…/> aka getByRole('textbox', { name: 'Prénom *' })
-    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })
-
-Call log:
-[2m  - waiting for getByLabel('Nom *')[22m
-
-    at [90mc:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\contact-invitation-complete.spec.ts:155:38 {
-  [[32mSymbol(step)[39m]: {
-    location: {
-      file: [32m'c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts'[39m,
-      line: [33m155[39m,
-      column: [33m38[39m
-    },
-    category: [32m'pw:api'[39m,
-    title: [32m`Fill "Martin" getByLabel('Nom *')`[39m,
-    apiName: [32m'locator.fill'[39m,
-    params: {
-      selector: [32m'internal:label="Nom *"i'[39m,
-      value: [32m'Martin'[39m,
-      strict: [33mtrue[39m,
-      timeout: [33m0[39m
-    },
-    group: [90mundefined[39m,
-    stepId: [32m'pw:api@112'[39m,
-    boxedStack: [90mundefined[39m,
-    steps: [],
-    attachmentIndices: [],
-    info: TestStepInfoImpl {
-      annotations: [],
-      _testInfo: [36m[TestInfoImpl][39m,
-      _stepId: [32m'pw:api@112'[39m,
-      _title: [32m`Fill "Martin" getByLabel('Nom *')`[39m,
-      _parentStep: [90mundefined[39m,
-      skip: [36m[Function (anonymous)][39m
-    },
-    recoverFromStepError: [36m[AsyncFunction: recoverFromStepError][39m,
-    complete: [36m[Function: complete][39m,
-    endWallTime: [33m1759601465834[39m,
-    error: {
-      message: [32m"Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:\n"[39m +
-        [32m`    1) <input required="" type="text" value="Marie" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not…/> aka getByRole('textbox', { name: 'Prénom *' })\n`[39m +
-        [32m`    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })\n`[39m +
-        [32m'\n'[39m +
-        [32m'Call log:\n'[39m +
-        [32m"\x1B[2m  - waiting for getByLabel('Nom *')\x1B[22m\n"[39m,
-      stack: [32m"Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:\n"[39m +
-        [32m`    1) <input required="" type="text" value="Marie" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not…/> aka getByRole('textbox', { name: 'Prénom *' })\n`[39m +
-        [32m`    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })\n`[39m +
-        [32m'\n'[39m +
-        [32m'Call log:\n'[39m +
-        [32m"\x1B[2m  - waiting for getByLabel('Nom *')\x1B[22m\n"[39m +
-        [32m'\n'[39m +
-        [32m'    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts:155:38'[39m,
-      cause: [90mundefined[39m
-    }
-  }
-}
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-❌ [TEST-1] Test failed: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:
-    1) <input required="" type="text" value="Jean" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-…/> aka getByRole('textbox', { name: 'Prénom *' })
-    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })
-
-Call log:
-[2m  - waiting for getByLabel('Nom *')[22m
-
-    at [90mc:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\contact-invitation-complete.spec.ts:69:38 {
-  [[32mSymbol(step)[39m]: {
-    location: {
-      file: [32m'c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts'[39m,
-      line: [33m69[39m,
-      column: [33m38[39m
-    },
-    category: [32m'pw:api'[39m,
-    title: [32m`Fill "Dupont" getByLabel('Nom *')`[39m,
-    apiName: [32m'locator.fill'[39m,
-    params: {
-      selector: [32m'internal:label="Nom *"i'[39m,
-      value: [32m'Dupont'[39m,
-      strict: [33mtrue[39m,
-      timeout: [33m0[39m
-    },
-    group: [90mundefined[39m,
-    stepId: [32m'pw:api@123'[39m,
-    boxedStack: [90mundefined[39m,
-    steps: [],
-    attachmentIndices: [],
-    info: TestStepInfoImpl {
-      annotations: [],
-      _testInfo: [36m[TestInfoImpl][39m,
-      _stepId: [32m'pw:api@123'[39m,
-      _title: [32m`Fill "Dupont" getByLabel('Nom *')`[39m,
-      _parentStep: [90mundefined[39m,
-      skip: [36m[Function (anonymous)][39m
-    },
-    recoverFromStepError: [36m[AsyncFunction: recoverFromStepError][39m,
-    complete: [36m[Function: complete][39m,
-    endWallTime: [33m1759601465837[39m,
-    error: {
-      message: [32m"Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:\n"[39m +
-        [32m`    1) <input required="" type="text" value="Jean" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-…/> aka getByRole('textbox', { name: 'Prénom *' })\n`[39m +
-        [32m`    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })\n`[39m +
-        [32m'\n'[39m +
-        [32m'Call log:\n'[39m +
-        [32m"\x1B[2m  - waiting for getByLabel('Nom *')\x1B[22m\n"[39m,
-      stack: [32m"Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:\n"[39m +
-        [32m`    1) <input required="" type="text" value="Jean" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-…/> aka getByRole('textbox', { name: 'Prénom *' })\n`[39m +
-        [32m`    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })\n`[39m +
-        [32m'\n'[39m +
-        [32m'Call log:\n'[39m +
-        [32m"\x1B[2m  - waiting for getByLabel('Nom *')\x1B[22m\n"[39m +
-        [32m'\n'[39m +
-        [32m'    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts:69:38'[39m,
-      cause: [90mundefined[39m
-    }
-  }
-}
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil
-❌ [TEST-3] Test failed: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:
-    1) <input required="" type="text" id="firstName" value="Callback" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-…/> aka getByRole('textbox', { name: 'Prénom *' })
-    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })
-
-Call log:
-[2m  - waiting for getByLabel('Nom *')[22m
-
-    at [90mc:\Users\arthu\Desktop\Coding\Seido-app\[39mtest\e2e\contact-invitation-complete.spec.ts:245:38 {
-  [[32mSymbol(step)[39m]: {
-    location: {
-      file: [32m'c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts'[39m,
-      line: [33m245[39m,
-      column: [33m38[39m
-    },
-    category: [32m'pw:api'[39m,
-    title: [32m`Fill "Tester" getByLabel('Nom *')`[39m,
-    apiName: [32m'locator.fill'[39m,
-    params: {
-      selector: [32m'internal:label="Nom *"i'[39m,
-      value: [32m'Tester'[39m,
-      strict: [33mtrue[39m,
-      timeout: [33m0[39m
-    },
-    group: [90mundefined[39m,
-    stepId: [32m'pw:api@113'[39m,
-    boxedStack: [90mundefined[39m,
-    steps: [],
-    attachmentIndices: [],
-    info: TestStepInfoImpl {
-      annotations: [],
-      _testInfo: [36m[TestInfoImpl][39m,
-      _stepId: [32m'pw:api@113'[39m,
-      _title: [32m`Fill "Tester" getByLabel('Nom *')`[39m,
-      _parentStep: [90mundefined[39m,
-      skip: [36m[Function (anonymous)][39m
-    },
-    recoverFromStepError: [36m[AsyncFunction: recoverFromStepError][39m,
-    complete: [36m[Function: complete][39m,
-    endWallTime: [33m1759601465892[39m,
-    error: {
-      message: [32m"Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:\n"[39m +
-        [32m`    1) <input required="" type="text" id="firstName" value="Callback" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-…/> aka getByRole('textbox', { name: 'Prénom *' })\n`[39m +
-        [32m`    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })\n`[39m +
-        [32m'\n'[39m +
-        [32m'Call log:\n'[39m +
-        [32m"\x1B[2m  - waiting for getByLabel('Nom *')\x1B[22m\n"[39m,
-      stack: [32m"Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:\n"[39m +
-        [32m`    1) <input required="" type="text" id="firstName" value="Callback" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-…/> aka getByRole('textbox', { name: 'Prénom *' })\n`[39m +
-        [32m`    2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })\n`[39m +
-        [32m'\n'[39m +
-        [32m'Call log:\n'[39m +
-        [32m"\x1B[2m  - waiting for getByLabel('Nom *')\x1B[22m\n"[39m +
-        [32m'\n'[39m +
-        [32m'    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\e2e\\contact-invitation-complete.spec.ts:245:38'[39m,
-      cause: [90mundefined[39m
-    }
-  }
-}
-
-[1A[2K🧹 [TEARDOWN] Cleaning up test state...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée)
-🧹 [TEARDOWN] Cleaning up test state...
-
-[1A[2K[chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée)
-🧹 [TEARDOWN] Cleaning up test state...
-
-[1A[2K  1) [chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée) 
-
-    Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:
-        1) <input required="" type="text" value="Jean" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-…/> aka getByRole('textbox', { name: 'Prénom *' })
-        2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })
-
+    Error: page.goto: Test timeout of 30000ms exceeded.
     Call log:
-    [2m  - waiting for getByLabel('Nom *')[22m
+    [2m  - navigating to "http://localhost:3000/gestionnaire/biens/immeubles/nouveau", waiting until "load"[22m
 
 
-      67 |       await page.getByLabel(/email/i).fill(email)
-      68 |       await page.getByLabel('Prénom *').fill('Jean')
-    > 69 |       await page.getByLabel('Nom *').fill('Dupont')
-         |                                      ^
-      70 |
-      71 |       // Sélectionner type (si visible)
-      72 |       const typeSelect = page.locator('select[name*="type"], button:has-text("Type de contact")')
-        at c:\Users\arthu\Desktop\Coding\Seido-app\test\e2e\contact-invitation-complete.spec.ts:69:38
+       at helpers\building-helpers.ts:19
+
+      17 |
+      18 |   // Option 1: Direct URL
+    > 19 |   await page.goto('http://localhost:3000/gestionnaire/biens/immeubles/nouveau')
+         |              ^
+      20 |
+      21 |   // Wait for page to load
+      22 |   await page.waitForLoadState('networkidle')
+        at navigateToBuildingCreation (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\building-helpers.ts:19:14)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:83:37
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results\contact-invitation-complet-7c06a-vitation-checkbox-décochée--chromium\test-failed-1.png
+    test-results\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results\contact-invitation-complet-7c06a-vitation-checkbox-décochée--chromium\video.webm
+    test-results\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: test-results\contact-invitation-complet-7c06a-vitation-checkbox-décochée--chromium\error-context.md
+    Error Context: test-results\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\error-context.md
 
 
-[1A[2K  2) [chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil 
+[1A[2K[3/6] [chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty
+[1A[2K[chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty
+🔐 Logging in as: arthur@seido.pm
 
-    Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:
-        1) <input required="" type="text" id="firstName" value="Callback" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-…/> aka getByRole('textbox', { name: 'Prénom *' })
-        2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })
+[1A[2K📝 Filling login form... { email: [32m'arthur@seido.pm'[39m }
 
-    Call log:
-    [2m  - waiting for getByLabel('Nom *')[22m
+[1A[2K✅ Login form filled
 
+[1A[2K🚀 Submitting login form...
 
-      243 |       await page.getByLabel(/email/i).fill(email)
-      244 |       await page.getByLabel('Prénom *').fill('Callback')
-    > 245 |       await page.getByLabel('Nom *').fill('Tester')
-          |                                      ^
-      246 |
-      247 |       console.log('📤 [TEST-3-STEP-5] Submitting form...')
-      248 |       await page.getByRole('button', { name: /créer/i }).click()
-        at c:\Users\arthu\Desktop\Coding\Seido-app\test\e2e\contact-invitation-complete.spec.ts:245:38
+[1A[2K✅ Login form submitted
+
+[1A[2K✅ Logged in successfully as: arthur@seido.pm
+
+[1A[2K🧪 TEST: Testing auto-generated building name
+
+[1A[2K📍 Navigating to building creation page...
+
+[1A[2K  3) [chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
+
+       at helpers\building-helpers.ts:22
+
+      20 |
+      21 |   // Wait for page to load
+    > 22 |   await page.waitForLoadState('networkidle')
+         |              ^
+      23 |   await page.waitForTimeout(1000)  // Give React time to hydrate
+      24 |
+      25 |   console.log('✅ Building creation page loaded')
+        at navigateToBuildingCreation (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\building-helpers.ts:22:14)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:116:5
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results\contact-invitation-complet-e0558-vitation-et-créer-le-profil-chromium\test-failed-1.png
+    test-results\buildings-create-building--db205-me-when-name-field-is-empty-chromium\test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results\contact-invitation-complet-e0558-vitation-et-créer-le-profil-chromium\video.webm
+    test-results\buildings-create-building--db205-me-when-name-field-is-empty-chromium\video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: test-results\contact-invitation-complet-e0558-vitation-et-créer-le-profil-chromium\error-context.md
+    Error Context: test-results\buildings-create-building--db205-me-when-name-field-is-empty-chromium\error-context.md
 
 
-[1A[2K  3) [chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée) 
+[1A[2K[4/6] [chromium] › tests-new\buildings\create-building.spec.ts:134:7 › Building Creation - E2E Tests › should validate lot category is French enum value
+[1A[2K  4) [chromium] › tests-new\buildings\create-building.spec.ts:134:7 › Building Creation - E2E Tests › should validate lot category is French enum value 
 
-    Error: locator.fill: Error: strict mode violation: getByLabel('Nom *') resolved to 2 elements:
-        1) <input required="" type="text" value="Marie" id="firstName" data-slot="input" placeholder="Jean" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not…/> aka getByRole('textbox', { name: 'Prénom *' })
-        2) <input value="" required="" type="text" id="lastName" data-slot="input" placeholder="Dupont" class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-all…/> aka getByRole('textbox', { name: 'Nom *', exact: true })
+    Error: browserType.launch: Target page, context or browser has been closed
+    Browser logs:
 
+    <launching> C:\Users\arthu\AppData\Local\ms-playwright\chromium_headless_shell-1193\chrome-win\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\Users\arthu\AppData\Local\Temp\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window
+    <launched> pid=32448
     Call log:
-    [2m  - waiting for getByLabel('Nom *')[22m
+    [2m  - <launching> C:\Users\arthu\AppData\Local\ms-playwright\chromium_headless_shell-1193\chrome-win\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\Users\arthu\AppData\Local\Temp\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window[22m
+    [2m  - <launched> pid=32448[22m
+    [2m  - [pid=32448] <gracefully close start>[22m
+    [2m  - [pid=32448] <kill>[22m
+    [2m  - [pid=32448] <will force kill>[22m
+    [2m  - [pid=32448] <process did exit: exitCode=3221225794, signal=null>[22m
+    [2m  - [pid=32448] starting temporary directories cleanup[22m
+    [2m  - [pid=32448] finished temporary directories cleanup[22m
+    [2m  - [pid=32448] <gracefully close end>[22m
 
 
-      153 |       await page.getByLabel(/email/i).fill(email)
-      154 |       await page.getByLabel('Prénom *').fill('Marie')
-    > 155 |       await page.getByLabel('Nom *').fill('Martin')
-          |                                      ^
-      156 |
-      157 |       // Sélectionner type locataire (checkbox cochée par défaut)
-      158 |       const typeSelect = page.locator('select[name*="type"], button:has-text("Type de contact")')
-        at c:\Users\arthu\Desktop\Coding\Seido-app\test\e2e\contact-invitation-complete.spec.ts:155:38
 
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results\contact-invitation-complet-da146-invitation-checkbox-cochée--chromium\test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
+[1A[2K[5/6] [chromium] › tests-new\buildings\create-building.spec.ts:159:7 › Building Creation - E2E Tests › should handle contact assignment without contact_type error
+[1A[2K  5) [chromium] › tests-new\buildings\create-building.spec.ts:159:7 › Building Creation - E2E Tests › should handle contact assignment without contact_type error 
 
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results\contact-invitation-complet-da146-invitation-checkbox-cochée--chromium\video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: test-results\contact-invitation-complet-da146-invitation-checkbox-cochée--chromium\error-context.md
+    Error: worker process exited unexpectedly (code=3221225794, signal=null)
 
 
-[1A[2K  3 failed
-    [chromium] › test\e2e\contact-invitation-complete.spec.ts:40:7 › Contact Creation & Invitation Flow › Doit créer un contact SANS invitation (checkbox décochée) 
-    [chromium] › test\e2e\contact-invitation-complete.spec.ts:126:7 › Contact Creation & Invitation Flow › Doit créer un contact AVEC invitation (checkbox cochée) 
-    [chromium] › test\e2e\contact-invitation-complete.spec.ts:208:7 › Contact Creation & Invitation Flow › Doit gérer le callback invitation et créer le profil 
+[1A[2K[6/6] [chromium] › tests-new\buildings\create-building.spec.ts:184:7 › Building Creation - E2E Tests › should create building with multiple lots
+[1A[2K  6) [chromium] › tests-new\buildings\create-building.spec.ts:184:7 › Building Creation - E2E Tests › should create building with multiple lots 
 
-[36m  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.[39m
+    Error: worker process exited unexpectedly (code=3221225794, signal=null)
+
+
+[1A[2K  6 failed
+    [chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully 
+    [chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name 
+    [chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty 
+    [chromium] › tests-new\buildings\create-building.spec.ts:134:7 › Building Creation - E2E Tests › should validate lot category is French enum value 
+    [chromium] › tests-new\buildings\create-building.spec.ts:159:7 › Building Creation - E2E Tests › should handle contact assignment without contact_type error 
+    [chromium] › tests-new\buildings\create-building.spec.ts:184:7 › Building Creation - E2E Tests › should create building with multiple lots 
+
+[36m  Serving HTML report at http://localhost:52534. Press Ctrl+C to quit.[39m

@@ -66,7 +66,7 @@ export function PropertiesList({
   contactContext,
   className = ""
 }: PropertiesListProps) {
-  const _router = useRouter()
+  const router = useRouter()
 
   // Get property type configuration
   const getPropertyTypeConfig = (_type: string) => {
@@ -369,3 +369,4 @@ export function PropertiesList({
     </div>
   )
 }
+

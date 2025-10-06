@@ -96,7 +96,7 @@ const ContactSelector = ({
     try {
       console.log('🆕 Création d\'un contact:', contactData)
       
-      if (!_teamId) {
+      if (!teamId) {
         console.error("❌ No team found")
         return
       }

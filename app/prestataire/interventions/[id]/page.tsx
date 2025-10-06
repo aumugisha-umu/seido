@@ -170,7 +170,7 @@ interface InterventionDetail {
 
 
 export default function PrestatairInterventionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const _router = useRouter()
+  const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false)
@@ -618,3 +618,4 @@ export default function PrestatairInterventionDetailsPage({ params }: { params: 
     </div>
   )
 }
+

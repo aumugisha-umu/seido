@@ -10,7 +10,7 @@ import { logger, logError } from '@/lib/logger'
  * Seulement les parties interactives du dashboard locataire
  */
 export function LocataireDashboardClient() {
-  const _router = useRouter()
+  const router = useRouter()
 
   // ✅ Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
@@ -34,3 +34,4 @@ export function LocataireDashboardClient() {
     </div>
   )
 }
+

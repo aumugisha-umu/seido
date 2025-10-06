@@ -15,7 +15,7 @@ import { getStatusActionMessage } from "@/lib/intervention-utils"
 export default function LocataireDashboard() {
   const { user } = useAuth()
   const { tenantData, tenantStats, tenantInterventions, loading, error } = useTenantData()
-  const _router = useRouter()
+  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
 
   // Afficher la vérification d'équipe en cours ou échoué
@@ -357,4 +357,5 @@ function getStatusLabel(_status: string) {
       return status
   }
 }
+
 

@@ -100,7 +100,7 @@ async function checkData() {
       const { data: teamBuildings } = await supabase
         .from('buildings')
         .select('id, name')
-        .eq('team_id', _teamId);
+        .eq('team_id', teamId);
 
       console.log(`  Buildings for team ${teamId}:`, teamBuildings?.length || 0);
       if (teamBuildings?.length > 0) {

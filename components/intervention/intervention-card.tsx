@@ -104,7 +104,7 @@ export function InterventionCard({
   actionHooks,
   onActionComplete
 }: InterventionCardProps) {
-  const _router = useRouter()
+  const router = useRouter()
 
   // Generate intervention URL based on user context
   const getInterventionUrl = (_interventionId: string) => {
@@ -657,3 +657,4 @@ export function InterventionCard({
     </Card>
   )
 }
+

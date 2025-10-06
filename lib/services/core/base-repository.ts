@@ -170,6 +170,9 @@ export abstract class BaseRepository<
         count: dataToReturn?.length || 0
       }
     } catch (error) {
+      console.error(`💥 [BaseRepository] Exception in findAll on table ${this.tableName}:`, error)
+      console.error(`💥 [BaseRepository] Error type:`, typeof error)
+      console.error(`💥 [BaseRepository] Error stringified:`, JSON.stringify(error, null, 2))
       return {
         data: [],
         error: handleError(error, `${this.tableName}:findAll`),

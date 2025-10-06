@@ -1037,7 +1037,7 @@ Failed to compile.
 171:17  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
 195:25  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
 216:21  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
-343:24  Warning: '_teamId' is defined but never used.  @typescript-eslint/no-unused-vars
+343:24  Warning: 'teamId' is defined but never used.  @typescript-eslint/no-unused-vars
 
 ./lib/database-service-compat.ts
 217:16  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars

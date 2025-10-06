@@ -5,8 +5,7 @@
 
 import {
   type InterventionStatus,
-  STATUS_LABELS_FR,
-  STATUS_MAPPING
+  STATUS_LABELS_FR
 } from '../core/service-types'
 
 /**
@@ -36,17 +35,17 @@ export const getStatusLabel = (
  */
 export const getStatusColor = (status: InterventionStatus): string => {
   const colorMap: Record<InterventionStatus, string> = {
-    pending: 'yellow',
-    rejected: 'red',
-    approved: 'green',
-    quote_requested: 'blue',
-    scheduling: 'indigo',
-    scheduled: 'purple',
-    in_progress: 'orange',
-    provider_completed: 'teal',
-    tenant_validated: 'cyan',
-    completed: 'emerald',
-    cancelled: 'gray'
+    demande: 'yellow',
+    rejetee: 'red',
+    approuvee: 'green',
+    demande_de_devis: 'blue',
+    planification: 'indigo',
+    planifiee: 'purple',
+    en_cours: 'orange',
+    cloturee_par_prestataire: 'teal',
+    cloturee_par_locataire: 'cyan',
+    cloturee_par_gestionnaire: 'emerald',
+    annulee: 'gray'
   }
   return colorMap[status] || 'gray'
 }
@@ -59,31 +58,34 @@ export const getStatusColor = (status: InterventionStatus): string => {
 export const getStatusBadgeVariant = (status: InterventionStatus):
   'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' => {
   const variantMap: Record<InterventionStatus, any> = {
-    pending: 'warning',
-    rejected: 'destructive',
-    approved: 'success',
-    quote_requested: 'default',
-    scheduling: 'secondary',
-    scheduled: 'secondary',
-    in_progress: 'default',
-    provider_completed: 'secondary',
-    tenant_validated: 'success',
-    completed: 'success',
-    cancelled: 'outline'
+    demande: 'warning',
+    rejetee: 'destructive',
+    approuvee: 'success',
+    demande_de_devis: 'default',
+    planification: 'secondary',
+    planifiee: 'secondary',
+    en_cours: 'default',
+    cloturee_par_prestataire: 'secondary',
+    cloturee_par_locataire: 'success',
+    cloturee_par_gestionnaire: 'success',
+    annulee: 'outline'
   }
   return variantMap[status] || 'default'
 }
 
 /**
- * Migrate legacy French status to new English status
- * @param legacyStatus - French status from legacy database
- * @returns English status for new architecture
+ * Validate if string is a valid intervention status
+ * @param status - Status string to validate
+ * @returns True if status is valid
  */
-export const migrateLegacyStatus = (
-  legacyStatus: string
-): InterventionStatus => {
-  const mapped = STATUS_MAPPING[legacyStatus as keyof typeof STATUS_MAPPING]
-  return mapped || 'pending'
+export const isValidStatus = (status: string): status is InterventionStatus => {
+  const validStatuses: InterventionStatus[] = [
+    'demande', 'rejetee', 'approuvee', 'demande_de_devis',
+    'planification', 'planifiee', 'en_cours',
+    'cloturee_par_prestataire', 'cloturee_par_locataire',
+    'cloturee_par_gestionnaire', 'annulee'
+  ]
+  return validStatuses.includes(status as InterventionStatus)
 }
 
 /**
@@ -140,17 +142,17 @@ export const isValidStatusTransition = (
   nextStatus: InterventionStatus
 ): boolean => {
   const validTransitions: Record<InterventionStatus, InterventionStatus[]> = {
-    pending: ['approved', 'rejected', 'cancelled'],
-    rejected: [],
-    approved: ['quote_requested', 'scheduling', 'cancelled'],
-    quote_requested: ['scheduling', 'cancelled'],
-    scheduling: ['scheduled', 'cancelled'],
-    scheduled: ['in_progress', 'cancelled'],
-    in_progress: ['provider_completed', 'cancelled'],
-    provider_completed: ['tenant_validated', 'cancelled'],
-    tenant_validated: ['completed', 'cancelled'],
-    completed: [],
-    cancelled: []
+    demande: ['approuvee', 'rejetee', 'annulee'],
+    rejetee: [],
+    approuvee: ['demande_de_devis', 'planification', 'annulee'],
+    demande_de_devis: ['planification', 'annulee'],
+    planification: ['planifiee', 'annulee'],
+    planifiee: ['en_cours', 'annulee'],
+    en_cours: ['cloturee_par_prestataire', 'annulee'],
+    cloturee_par_prestataire: ['cloturee_par_locataire', 'annulee'],
+    cloturee_par_locataire: ['cloturee_par_gestionnaire', 'annulee'],
+    cloturee_par_gestionnaire: [],
+    annulee: []
   }
 
   return validTransitions[currentStatus]?.includes(nextStatus) || false
@@ -167,17 +169,17 @@ export const getStatusDescription = (
   locale: 'fr' | 'en' = 'fr'
 ): string => {
   const descriptionsFR: Record<InterventionStatus, string> = {
-    pending: "En attente de validation par le gestionnaire",
-    rejected: "Demande rejetée par le gestionnaire",
-    approved: "Approuvée et en attente de devis ou planification",
-    quote_requested: "Devis demandé au prestataire",
-    scheduling: "Recherche d'un créneau de disponibilité",
-    scheduled: "Intervention planifiée à une date précise",
-    in_progress: "Travaux en cours par le prestataire",
-    provider_completed: "Travaux terminés, en attente de validation locataire",
-    tenant_validated: "Validée par le locataire, en attente de clôture gestionnaire",
-    completed: "Intervention terminée et clôturée",
-    cancelled: "Intervention annulée"
+    demande: "En attente de validation par le gestionnaire",
+    rejetee: "Demande rejetée par le gestionnaire",
+    approuvee: "Approuvée et en attente de devis ou planification",
+    demande_de_devis: "Devis demandé au prestataire",
+    planification: "Recherche d'un créneau de disponibilité",
+    planifiee: "Intervention planifiée à une date précise",
+    en_cours: "Travaux en cours par le prestataire",
+    cloturee_par_prestataire: "Travaux terminés, en attente de validation locataire",
+    cloturee_par_locataire: "Validée par le locataire, en attente de clôture gestionnaire",
+    cloturee_par_gestionnaire: "Intervention terminée et clôturée",
+    annulee: "Intervention annulée"
   }
 
   if (locale === 'fr') {

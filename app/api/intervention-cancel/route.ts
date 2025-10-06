@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { notificationService } from '@/lib/notification-service'
+import { logger } from '@/lib/logger'
+
 interface CancelRequest {
   interventionId: string
   cancellationReason: string
@@ -10,6 +13,9 @@ interface CancelRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   try {
     const { interventionId, cancellationReason, internalComment }: CancelRequest = 
       await request.json()

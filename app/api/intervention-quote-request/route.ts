@@ -4,11 +4,8 @@ import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
-
+import { logger } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis
@@ -90,6 +87,10 @@ async function getEligibleProviders(
 
 export async function POST(request: NextRequest) {
   logger.info("✅ intervention-quote-request API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
 
   try {
     // Initialize Supabase client

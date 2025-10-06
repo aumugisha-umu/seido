@@ -15,11 +15,6 @@ import {
   validateUUID,
   NotFoundException
 } from './error-handler'
-import {
-  convertStatusToDb,
-  convertStatusFromDb,
-  convertStatusArrayFromDb
-} from '../utils/status-converter'
 
 /**
  * Base repository class providing common CRUD operations
@@ -45,14 +40,9 @@ export abstract class BaseRepository<
    */
   async create(data: TInsert): Promise<RepositoryResponse<TRow>> {
     try {
-      // Convert French status to English for database if this is an intervention
-      const dataToInsert = this.tableName === 'interventions'
-        ? convertStatusToDb(data)
-        : data
-
       const { data: result, error } = await this.supabase
         .from(this.tableName as any)
-        .insert(dataToInsert as any)
+        .insert(data as any)
         .select()
         .single()
 
@@ -63,12 +53,7 @@ export abstract class BaseRepository<
       // Clear cache for this table
       this.clearTableCache()
 
-      // Convert English status back to French for frontend
-      const resultToReturn = this.tableName === 'interventions'
-        ? convertStatusFromDb(result)
-        : result
-
-      return createSuccessResponse(resultToReturn as unknown as TRow)
+      return createSuccessResponse(result as unknown as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:create`))
     }
@@ -102,17 +87,12 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(error, `${this.tableName}:findById`))
       }
 
-      // Convert English status to French for frontend if this is an intervention
-      const dataToReturn = this.tableName === 'interventions' && data
-        ? convertStatusFromDb(data)
-        : data
-
       // Cache the result
-      if (useCache && dataToReturn) {
-        this.setCache(`${this.tableName}:${id}`, dataToReturn)
+      if (useCache && data) {
+        this.setCache(`${this.tableName}:${id}`, data)
       }
 
-      return createSuccessResponse(dataToReturn as TRow)
+      return createSuccessResponse(data as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:findById`))
     }
@@ -158,16 +138,11 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(error, `${this.tableName}:findAll`))
       }
 
-      // Convert English status to French for frontend if this is an intervention
-      const dataToReturn = this.tableName === 'interventions' && data
-        ? convertStatusArrayFromDb(data)
-        : data
-
       return {
-        data: (dataToReturn || []) as TRow[],
+        data: (data || []) as TRow[],
         error: null,
         success: true,
-        count: dataToReturn?.length || 0
+        count: data?.length || 0
       }
     } catch (error) {
       console.error(`💥 [BaseRepository] Exception in findAll on table ${this.tableName}:`, error)
@@ -308,14 +283,9 @@ export abstract class BaseRepository<
         return existsResult
       }
 
-      // Convert French status to English for database if this is an intervention
-      const dataToUpdate = this.tableName === 'interventions'
-        ? convertStatusToDb(data)
-        : data
-
       const { data: result, error } = await this.supabase
         .from(this.tableName as keyof Database['public']['Tables'])
-        .update(dataToUpdate)
+        .update(data)
         .eq('id', id)
         .select()
         .single()
@@ -328,12 +298,7 @@ export abstract class BaseRepository<
       this.clearCache(`${this.tableName}:${id}`)
       this.clearTableCache()
 
-      // Convert English status back to French for frontend
-      const resultToReturn = this.tableName === 'interventions'
-        ? convertStatusFromDb(result)
-        : result
-
-      return createSuccessResponse(resultToReturn as unknown as TRow)
+      return createSuccessResponse(result as unknown as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:update`))
     }

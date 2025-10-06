@@ -296,6 +296,49 @@ test/e2e/              # Playwright E2E tests (mirrors docs/refacto/Tests)
 - **Custom Hooks**: 30+ React hooks for state management and business logic
 - **Refactoring Agents**: 5 specialized agents for code quality and validation
 
+#### 🔄 **Recent Architecture Improvements** (2025-10-06)
+
+**Intervention Workflow Refactoring**:
+- ✅ **Service Initialization**: All 10 intervention API routes now use new architecture
+  - `createServerUserService()` and `createServerInterventionService()` properly initialized
+  - Routes: approve, reject, start, complete, finalize, schedule, cancel, quote-request, quote-validate, validate-tenant
+- ✅ **Status Standardization**: Unified on French status values throughout the stack
+  - `InterventionStatus` type changed from English to French (e.g., 'pending' → 'demande')
+  - Database and UI now use the same French status values (single source of truth)
+  - i18n support prepared for future multi-language expansion
+- ✅ **Architecture Simplification**: Removed unnecessary status conversion layer
+  - Deleted `status-converter.ts` and `status-labels-fr.ts` (-315 lines)
+  - Removed conversion logic from `base-repository.ts` (6 occurrences)
+  - Updated `intervention-display.ts` with French keys for all Record types
+- ✅ **Code Quality**: -315 lines, improved maintainability, single source of truth
+
+**Intervention Status Values** (French):
+```typescript
+type InterventionStatus =
+  | 'demande'                        // Initial request
+  | 'rejetee'                        // Rejected by manager
+  | 'approuvee'                      // Approved by manager
+  | 'demande_de_devis'               // Quote requested
+  | 'planification'                  // Finding time slot
+  | 'planifiee'                      // Slot confirmed
+  | 'en_cours'                       // Work in progress
+  | 'cloturee_par_prestataire'       // Provider finished
+  | 'cloturee_par_locataire'         // Tenant validated
+  | 'cloturee_par_gestionnaire'      // Manager finalized
+  | 'annulee'                        // Cancelled
+```
+
+**Workflow Transitions Verified** (9 critical paths):
+1. demande → approuvee (manager approval)
+2. demande → rejetee (manager rejection)
+3. approuvee → demande_de_devis (quote request)
+4. planification → planifiee (scheduling confirmed)
+5. planifiee → en_cours (work started)
+6. en_cours → cloturee_par_prestataire (provider completed)
+7. cloturee_par_prestataire → cloturee_par_locataire (tenant validation)
+8. cloturee_par_locataire → cloturee_par_gestionnaire (final closure)
+9. * → annulee (cancellation from eligible statuses)
+
 ### User Roles & Authentication
 Four distinct roles with specific permissions and workflows:
 - **Admin**: System administration and oversight

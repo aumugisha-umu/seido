@@ -5,13 +5,14 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
-
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
   logger.info("❌ intervention-reject API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   
   try {
     // Initialize Supabase client

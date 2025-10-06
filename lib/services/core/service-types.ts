@@ -133,56 +133,38 @@ export interface LotUpdate {
 }
 
 /**
- * Intervention Status (11 states - English for DB, French for display)
- * DB stores English, UI displays localized labels
+ * Intervention Status (11 states - French)
+ * i18n will be added later when multiple languages are supported
  */
 export type InterventionStatus =
-  | 'pending'              // demande (initial request)
-  | 'rejected'             // rejetee (manager rejection)
-  | 'approved'             // approuvee (manager approval)
-  | 'quote_requested'      // demande_de_devis (waiting for quote)
-  | 'scheduling'           // planification (finding slot)
-  | 'scheduled'            // planifiee (slot confirmed)
-  | 'in_progress'          // en_cours (work started)
-  | 'provider_completed'   // cloturee_par_prestataire (provider finished)
-  | 'tenant_validated'     // cloturee_par_locataire (tenant approved)
-  | 'completed'            // cloturee_par_gestionnaire (manager finalized)
-  | 'cancelled'            // annulee (cancelled)
+  | 'demande'                        // Initial request from tenant
+  | 'rejetee'                        // Rejected by manager
+  | 'approuvee'                      // Approved by manager
+  | 'demande_de_devis'               // Quote requested from provider
+  | 'planification'                  // Finding available time slot
+  | 'planifiee'                      // Time slot confirmed
+  | 'en_cours'                       // Work in progress
+  | 'cloturee_par_prestataire'       // Provider finished work
+  | 'cloturee_par_locataire'         // Tenant validated work
+  | 'cloturee_par_gestionnaire'      // Manager finalized intervention
+  | 'annulee'                        // Cancelled
 
 /**
- * Legacy French status → New English status mapping
- * Used for migration and backward compatibility
- */
-export const STATUS_MAPPING = {
-  'demande': 'pending',
-  'rejetee': 'rejected',
-  'approuvee': 'approved',
-  'demande_de_devis': 'quote_requested',
-  'planification': 'scheduling',
-  'planifiee': 'scheduled',
-  'en_cours': 'in_progress',
-  'cloturee_par_prestataire': 'provider_completed',
-  'cloturee_par_locataire': 'tenant_validated',
-  'cloturee_par_gestionnaire': 'completed',
-  'annulee': 'cancelled'
-} as const
-
-/**
- * French labels for intervention status display
- * Use with getStatusLabel() utility
+ * Display labels for intervention status
+ * Currently identical to status values, will be used for i18n later
  */
 export const STATUS_LABELS_FR: Record<InterventionStatus, string> = {
-  pending: "En attente",
-  rejected: "Rejetée",
-  approved: "Approuvée",
-  quote_requested: "Devis demandé",
-  scheduling: "Planification",
-  scheduled: "Planifiée",
-  in_progress: "En cours",
-  provider_completed: "Clôturée par prestataire",
-  tenant_validated: "Clôturée par locataire",
-  completed: "Terminée",
-  cancelled: "Annulée"
+  demande: "Demande",
+  rejetee: "Rejetée",
+  approuvee: "Approuvée",
+  demande_de_devis: "Devis demandé",
+  planification: "Planification",
+  planifiee: "Planifiée",
+  en_cours: "En cours",
+  cloturee_par_prestataire: "Clôturée par prestataire",
+  cloturee_par_locataire: "Clôturée par locataire",
+  cloturee_par_gestionnaire: "Terminée",
+  annulee: "Annulée"
 }
 
 export interface Intervention {

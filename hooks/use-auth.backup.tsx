@@ -4,14 +4,6 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
 import { createClient } from '@/utils/supabase/client'
-import {
-  createCoordinationCookies,
-  clearCoordinationCookies,
-  setCoordinationCookiesClient,
-  getExponentialBackoffDelay,
-  AUTH_RETRY_CONFIG,
-  type AuthLoadingState
-} from '@/lib/auth-coordination'
 // Fonction simplifiée pour routing côté client (sans import DAL)
 function getSimpleRedirectPath(userRole: string): string {
   const routes = {
@@ -46,32 +38,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const isRedirectingRef = useRef(false) // Prevent infinite redirect loop
-  const authStateRef = useRef<AuthLoadingState>('idle')
-
-  // 🎯 PHASE 2.1: Helper pour mettre à jour l'état de coordination
-  const updateCoordinationState = (state: AuthLoadingState) => {
-    authStateRef.current = state
-    const cookies = createCoordinationCookies(state, pathname || '/')
-    setCoordinationCookiesClient(cookies)
-  }
 
   useEffect(() => {
     logger.info('🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...')
-
-    // 🎯 PHASE 2.1: Signaler que AuthProvider est en loading
-    updateCoordinationState('loading')
 
     // ✅ PATTERN OFFICIEL SUPABASE: Utiliser onAuthStateChange pour tous les événements
     const supabase = createClient()
 
     // ✅ TIMEOUT DE SÉCURITÉ: Forcer loading = false après 3.5s max
+    // Délai ajusté à 3.5s (login-form attend 2.5s + marge 1s)
+    // Permet de détecter les sessions même si onAuthStateChange est lent
+    // Évite le blocage infini si onAuthStateChange ne se déclenche jamais
     const loadingTimeout = setTimeout(() => {
       logger.warn('⚠️ [AUTH-PROVIDER] Loading timeout reached (3.5s) - forcing loading = false')
-      updateCoordinationState('error')
       setLoading(false)
-    }, AUTH_RETRY_CONFIG.TIMEOUT_MS)
+    }, 3500)
 
     // ✅ OPTIMISATION: Check immédiat de session au mount (non-bloquant)
+    // Permet détection rapide mais ne doit PAS bloquer si pas de session
     const checkInitialSession = async () => {
       try {
         logger.info('🔍 [AUTH-PROVIDER] Checking initial session immediately...')
@@ -82,8 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { user } = await authService.getCurrentUser()
           setUser(user)
           setLoading(false)
-          updateCoordinationState('loaded')
-          clearTimeout(loadingTimeout)
+          clearTimeout(loadingTimeout) // Annuler le timeout si succès
           return true
         } else {
           logger.info('ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...')
@@ -91,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         logger.error('❌ [AUTH-PROVIDER] Initial session check failed:', error)
       }
+      // Note: NE PAS mettre setLoading(false) ici car onAuthStateChange va le gérer
       return false
     }
 
@@ -102,75 +86,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       switch (event) {
         case 'INITIAL_SESSION':
-          clearTimeout(loadingTimeout)
+          // Session initiale - récupérer le profil utilisateur si session exists
+          clearTimeout(loadingTimeout) // Annuler le timeout de sécurité
           if (session?.user) {
             logger.info('🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...')
             try {
               const { user } = await authService.getCurrentUser()
               setUser(user)
-              updateCoordinationState('loaded')
             } catch (error) {
               logger.error('❌ [AUTH-STATE-CHANGE] Error loading initial user:', error)
               setUser(null)
-              updateCoordinationState('error')
             }
           } else {
             logger.info('🔍 [AUTH-STATE-CHANGE] No initial session')
             setUser(null)
-            updateCoordinationState('loaded')
           }
           setLoading(false)
           break
 
         case 'SIGNED_IN':
+          // Utilisateur vient de se connecter - récupérer le profil
           logger.info('✅ [AUTH-STATE-CHANGE] User signed in, loading profile...')
           try {
             const { user } = await authService.getCurrentUser()
             setUser(user)
-            updateCoordinationState('loaded')
             logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded:', user?.name)
           } catch (error) {
             logger.error('❌ [AUTH-STATE-CHANGE] Error loading signed-in user:', error)
-            // 🎯 PHASE 2.1: Retry avec exponential backoff
-            let retryCount = 0
-            const retryWithBackoff = async () => {
-              if (retryCount >= AUTH_RETRY_CONFIG.MAX_RETRIES) {
-                logger.error('❌ [AUTH-STATE-CHANGE] Max retries reached, giving up')
+            // Retry une fois après un délai court
+            setTimeout(async () => {
+              try {
+                const { user } = await authService.getCurrentUser()
+                setUser(user)
+                logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded on retry:', user?.name)
+              } catch (retryError) {
+                logger.error('❌ [AUTH-STATE-CHANGE] Retry also failed:', retryError)
                 setUser(null)
-                updateCoordinationState('error')
-                return
               }
-
-              const delay = getExponentialBackoffDelay(retryCount)
-              logger.info(`🔄 [AUTH-STATE-CHANGE] Retry ${retryCount + 1}/${AUTH_RETRY_CONFIG.MAX_RETRIES} in ${delay}ms...`)
-
-              setTimeout(async () => {
-                try {
-                  const { user } = await authService.getCurrentUser()
-                  setUser(user)
-                  updateCoordinationState('loaded')
-                  logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded on retry:', user?.name)
-                } catch (retryError) {
-                  logger.error(`❌ [AUTH-STATE-CHANGE] Retry ${retryCount + 1} failed:`, retryError)
-                  retryCount++
-                  retryWithBackoff()
-                }
-              }, delay)
-            }
-
-            retryWithBackoff()
+            }, 500)
           }
           break
 
         case 'SIGNED_OUT':
+          // Utilisateur déconnecté
           logger.info('🚪 [AUTH-STATE-CHANGE] User signed out')
           setUser(null)
-          updateCoordinationState('idle')
-          // 🎯 PHASE 2.1: Nettoyer les cookies de coordination
-          setCoordinationCookiesClient(clearCoordinationCookies())
           break
 
         case 'TOKEN_REFRESHED':
+          // Token rafraîchi - optionnellement recharger le profil
           logger.info('🔄 [AUTH-STATE-CHANGE] Token refreshed')
           break
 
@@ -180,10 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
-      clearTimeout(loadingTimeout)
+      clearTimeout(loadingTimeout) // Cleanup du timeout de sécurité
       subscription.unsubscribe()
-      // 🎯 PHASE 2.1: Nettoyer les signaux au démontage
-      setCoordinationCookiesClient(clearCoordinationCookies())
     }
   }, [])
 
@@ -197,23 +159,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const urlParams = new URLSearchParams(window.location.search)
       if (urlParams.get('reason') === 'session_invalid') {
         logger.info('🔄 [AUTH-PROVIDER] Server-initiated redirect detected, forcing session refresh...')
+        // Forcer un refresh de la session côté client
         getCurrentUser()
         return
       }
     }
 
     // ✅ Système de routage simplifié côté client
+    // Callback page gère maintenant sa propre redirection, AuthProvider gère les autres cas
     if (user && pathname.startsWith('/auth/') &&
             !pathname.includes('/callback') &&
             !pathname.includes('/reset-password') &&
-            !pathname.includes('/set-password') &&
-            !isRedirectingRef.current) {
+            !pathname.includes('/set-password') &&  // ✅ Permettre onboarding (password_set=false)
+            !isRedirectingRef.current) { // ✅ Prevent infinite loop
 
           const redirectPath = getSimpleRedirectPath(user.role)
           logger.info('🚀 [AUTH-PROVIDER] User already authenticated, redirecting immediately to:', redirectPath)
-          isRedirectingRef.current = true
+          isRedirectingRef.current = true // Mark as redirecting
           router.push(redirectPath)
 
+          // Reset flag after navigation completes (allow retries if navigation fails)
           setTimeout(() => {
             isRedirectingRef.current = false
           }, 2000)
@@ -221,34 +186,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
   }, [user, loading, pathname, router])
 
-  // 🎯 PHASE 2.1: getCurrentUser avec exponential backoff
   const getCurrentUser = async (retryCount = 0) => {
     try {
       logger.info('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...', retryCount > 0 ? `(retry ${retryCount})` : '')
 
+      // ✅ AMÉLIORATION: Retry logic pour détecter les sessions récentes
       const { user } = await authService.getCurrentUser()
 
       logger.info('✅ [AUTH-PROVIDER-REFACTORED] User loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
-      updateCoordinationState('loaded')
 
     } catch (error) {
       logger.error('❌ [AUTH-PROVIDER-REFACTORED] Error getting user:', error)
 
-      // 🎯 PHASE 2.1: Retry avec exponential backoff
-      if (retryCount < AUTH_RETRY_CONFIG.MAX_RETRIES &&
-          error.message?.includes('session missing') &&
-          window.location.pathname.startsWith('/auth/')) {
-
-        const delay = getExponentialBackoffDelay(retryCount)
-        logger.info(`🔄 [AUTH-PROVIDER-REFACTORED] Session may be syncing, retrying in ${delay}ms...`)
-
-        setTimeout(() => getCurrentUser(retryCount + 1), delay)
+      // ✅ RETRY: Si erreur session missing et qu'on est sur une page auth, retry une fois
+      if (retryCount === 0 && error.message?.includes('session missing') && window.location.pathname.startsWith('/auth/')) {
+        logger.info('🔄 [AUTH-PROVIDER-REFACTORED] Session may be syncing, retrying in 200ms...')
+        setTimeout(() => getCurrentUser(1), 200)
         return
       }
 
       setUser(null)
-      updateCoordinationState('error')
     } finally {
       if (retryCount === 0) {
         setLoading(false)
@@ -264,8 +222,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result.user) {
       logger.info('✅ [AUTH-PROVIDER-REFACTORED] SignIn successful, updating state')
       setUser(result.user)
-      updateCoordinationState('loaded')
 
+      // ✅ Login successful - let server-side routing handle redirection
       logger.info('🔄 [AUTH-PROVIDER] Login successful - letting server routing handle redirection')
     }
 
@@ -276,7 +234,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await authService.signUp(data)
     if (result.user) {
       setUser(result.user)
-      updateCoordinationState('loaded')
     }
     return result
   }
@@ -285,7 +242,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await authService.completeProfile(data)
     if (result.user) {
       setUser(result.user)
-      updateCoordinationState('loaded')
     }
     return result
   }
@@ -294,17 +250,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       logger.info('🚪 [AUTH-PROVIDER-REFACTORED] Starting simple sign out...')
 
+      // ✅ REFACTORISÉ: SignOut simple via authService
       await authService.signOut()
 
+      // ✅ Nettoyer l'état local
       setUser(null)
-      updateCoordinationState('idle')
-      setCoordinationCookiesClient(clearCoordinationCookies())
       logger.info('✅ [AUTH-PROVIDER-REFACTORED] Sign out completed')
 
     } catch (error) {
       logger.error('❌ [AUTH-PROVIDER-REFACTORED] Sign out error:', error)
+      // Toujours nettoyer l'état local même en cas d'erreur
       setUser(null)
-      updateCoordinationState('error')
     }
   }
 

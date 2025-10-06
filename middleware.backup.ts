@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { logger, logError } from '@/lib/logger'
 import { getUserProfileForMiddleware, getDashboardPath } from '@/lib/auth-dal'
-import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
 
 /**
  * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
@@ -19,11 +18,6 @@ import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
  * - Vérification compte actif (is_active)
  * - Vérification onboarding complet (password_set)
  * - Vérification rôle DB correspond au path
- *
- * 🎯 PHASE 2.1: COORDINATION MIDDLEWARE ↔ AUTHPROVIDER
- * - Vérification signaux de coordination avant auth check
- * - Respect du loading state AuthProvider
- * - Éviter race conditions sur redirections
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -82,26 +76,12 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // 🎯 PHASE 2.1: VÉRIFIER COORDINATION AVEC AUTHPROVIDER
-    const { canProceed, reason: coordReason } = await canProceedWithMiddlewareCheck(
-      { get: (name) => request.cookies.get(name) },
-      pathname
-    )
-
-    if (!canProceed) {
-      console.log('⏸️ [MIDDLEWARE] Coordination hold:', coordReason)
-      // Laisser AuthProvider terminer son chargement
-      return response
-    }
-
     try {
       // ✅ AUTHENTIFICATION RÉELLE: Vérifier et rafraîchir la session
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
         console.log('🚫 [MIDDLEWARE] Authentication failed:', error?.message || 'No user')
-        // Marquer que le middleware a vérifié
-        response.cookies.set('middleware-check', 'true', { maxAge: 5 })
         return NextResponse.redirect(new URL('/auth/login?reason=session_expired', request.url))
       }
 
@@ -144,9 +124,6 @@ export async function middleware(request: NextRequest) {
         }
         console.log(`✅ [MIDDLEWARE] Role check passed: ${userProfile.role} accessing ${roleFromPath}`)
       }
-
-      // ✅ PHASE 2.1: Marquer que le middleware check a réussi
-      response.cookies.set('middleware-check', 'true', { maxAge: 5 })
 
       return response
 

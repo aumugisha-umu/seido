@@ -64,7 +64,8 @@
       "Bash(echo:*)",
       "WebFetch(domain:getpino.io)",
       "Bash(chcp:*)",
-      "Bash(do echo \"=== $file ===\" grep -n \"createSupabaseServerClient\\|createServerSupabaseClient\" \"$file\")"
+      "Bash(do echo \"=== $file ===\" grep -n \"createSupabaseServerClient\\|createServerSupabaseClient\" \"$file\")",
+      "Bash(ESLINT_NO_DEV_ERRORS=true npm run build)"
     ],
     "deny": [],
     "ask": []

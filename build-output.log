@@ -688,7 +688,7 @@ Failed to compile.
 202:26  Warning: '_name' is defined but never used.  @typescript-eslint/no-unused-vars
 
 ./components/auth-guard.tsx
-9:32  Warning: '_userRole' is defined but never used.  @typescript-eslint/no-unused-vars
+9:32  Warning: 'userRole' is defined but never used.  @typescript-eslint/no-unused-vars
 19:18  Warning: 'logError' is defined but never used.  @typescript-eslint/no-unused-vars
 29:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 119:6  Warning: React Hook useEffect has an unnecessary dependency: 'router'. Either exclude it or remove the dependency array. Outer scope values like 'router' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
@@ -1246,11 +1246,11 @@ Failed to compile.
 
 ./lib/auth-router.ts
 14:18  Warning: 'logError' is defined but never used.  @typescript-eslint/no-unused-vars
-81:34  Warning: '_userRole' is defined but never used.  @typescript-eslint/no-unused-vars
-137:41  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
-233:36  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
-261:38  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
-316:36  Warning: '_pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+81:34  Warning: 'userRole' is defined but never used.  @typescript-eslint/no-unused-vars
+137:41  Warning: 'pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+233:36  Warning: 'pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+261:38  Warning: 'pathname' is defined but never used.  @typescript-eslint/no-unused-vars
+316:36  Warning: 'pathname' is defined but never used.  @typescript-eslint/no-unused-vars
 
 ./lib/auth-service.ts
 4:18  Warning: 'logError' is defined but never used.  @typescript-eslint/no-unused-vars

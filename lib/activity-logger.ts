@@ -1,10 +1,10 @@
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 
 // Types pour le système de logging
 type ActivityActionType = Database['public']['Enums']['activity_action_type']
-type ActivityEntityType = Database['public']['Enums']['activity_entity_type']  
+type ActivityEntityType = Database['public']['Enums']['activity_entity_type']
 type ActivityStatus = Database['public']['Enums']['activity_status']
 
 interface LogActivityParams {
@@ -30,7 +30,12 @@ interface ActivityLoggerContext {
 }
 
 class ActivityLogger {
+  private supabase: ServerSupabaseClient
   private context: ActivityLoggerContext = {}
+
+  constructor(supabase: ServerSupabaseClient) {
+    this.supabase = supabase
+  }
 
   /**
    * Configure le contexte global pour éviter de répéter les mêmes informations
@@ -65,7 +70,7 @@ class ActivityLogger {
         return null
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('activity_logs')
         .insert(logData)
         .select('id')
@@ -492,7 +497,7 @@ class ActivityLogger {
           break
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('activity_logs')
         .select('action_type, entity_type, status')
         .eq('team_id', teamId)
@@ -530,16 +535,28 @@ class ActivityLogger {
   }
 }
 
-// Instance singleton pour réutilisation
-export const activityLogger = new ActivityLogger()
-
-// Hook pour utiliser dans les composants React
-export const useActivityLogger = (context?: ActivityLoggerContext) => {
-  if (context) {
-    activityLogger.setContext(context)
-  }
-  
-  return activityLogger
+// Factory function for creating service instances (RECOMMENDED)
+export const createActivityLogger = async () => {
+  const supabase = await createServerSupabaseClient()
+  return new ActivityLogger(supabase)
 }
+
+// Legacy singleton for backward compatibility
+// @deprecated Use createActivityLogger() for proper server context
+// This uses a browser client as fallback - only for legacy code
+let _legacyInstance: ActivityLogger | null = null
+
+export const activityLogger = new Proxy({} as ActivityLogger, {
+  get(_target, prop) {
+    // Lazy initialization on first access
+    if (!_legacyInstance) {
+      // Import dynamically to avoid circular dependencies
+      const { createBrowserSupabaseClient } = require('./services')
+      const supabase = createBrowserSupabaseClient()
+      _legacyInstance = new ActivityLogger(supabase)
+    }
+    return (_legacyInstance as any)[prop]
+  }
+})
 
 export default ActivityLogger

@@ -1,12 +1,14 @@
 "use client"
 
 import { Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import NavigationDebugPanel from "@/components/debug/navigation-debug"
 import PropertySelector from "@/components/property-selector"
 
 export default function BiensPage() {
-  
+  const router = useRouter()
+
   // PropertySelector gère tout : données, onglets, loading, etc.
 
   return (
@@ -24,17 +26,17 @@ export default function BiensPage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button 
+              <Button
                 variant="outline"
                 className="flex items-center space-x-2"
-                onClick={() => window.location.href = '/gestionnaire/biens/lots/nouveau'}
+                onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
               >
                 <Plus className="h-4 w-4" />
                 <span>Lot</span>
               </Button>
-              <Button 
+              <Button
                 className="flex items-center space-x-2"
-                onClick={() => window.location.href = '/gestionnaire/biens/immeubles/nouveau'}
+                onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
               >
                 <Plus className="h-4 w-4" />
                 <span>Immeuble</span>

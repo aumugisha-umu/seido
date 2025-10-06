@@ -106,33 +106,52 @@ export function useBuildings() {
       const buildings = buildingsResult.data
       logger.info("🏗️ [BUILDINGS] Loaded buildings:", buildings.length)
 
-      // 3. Récupérer les lots pour chaque building
+      // 3. Récupérer les lots pour chaque building EN PARALLÈLE (⚡ optimisé)
       const lotService = createLotService()
+      logger.info("🏠 [BUILDINGS] Loading lots for", buildings.length, "buildings IN PARALLEL")
+
+      const lotsPromises = buildings.map(building =>
+        lotService.getLotsByBuilding(building.id)
+          .then(response => ({
+            buildingId: building.id,
+            buildingName: building.name,
+            lots: response.success ? response.data : [],
+            success: true
+          }))
+          .catch(error => ({
+            buildingId: building.id,
+            buildingName: building.name,
+            lots: [],
+            success: false,
+            error: String(error)
+          }))
+      )
+
+      const lotsResults = await Promise.all(lotsPromises)
       const allLots: Lot[] = []
 
-      for (const building of buildings) {
-        try {
-          const lotsResult = await lotService.getLotsByBuilding(building.id)
+      // Traiter les résultats et attacher aux buildings
+      lotsResults.forEach((result, index) => {
+        const building = buildings[index]
 
-          if (lotsResult.success && lotsResult.data) {
-            const buildingLots = lotsResult.data.map((lot: Lot) => ({
-              ...lot,
-              building_name: building.name
-            }))
+        if (result.success && result.lots) {
+          const buildingLots = result.lots.map((lot: Lot) => ({
+            ...lot,
+            building_name: building.name
+          }))
 
-            building.lots = buildingLots
-            allLots.push(...buildingLots)
-            logger.info(`✅ [BUILDINGS] Loaded ${buildingLots.length} lots for building:`, building.name)
-          } else {
-            building.lots = []
-          }
-        } catch (lotError) {
-          logger.error(`❌ [BUILDINGS] Error loading lots for building ${building.id}:`, lotError)
+          building.lots = buildingLots
+          allLots.push(...buildingLots)
+          logger.info(`✅ [BUILDINGS] Loaded ${buildingLots.length} lots for ${result.buildingName}`)
+        } else {
           building.lots = []
+          if (!result.success) {
+            logger.error(`❌ [BUILDINGS] Error loading lots for ${result.buildingName}:`, result.error)
+          }
         }
-      }
+      })
 
-      logger.info("🏠 [BUILDINGS] Total lots loaded:", allLots.length)
+      logger.info("🏠 [BUILDINGS] Total lots loaded:", allLots.length, "(parallel fetch)")
 
       if (mountedRef.current) {
         setData({

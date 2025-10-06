@@ -44,10 +44,14 @@ export default async function AdminDashboard() {
   }
 
   try {
+    // Récupérer l'utilisateur complet depuis la base de données
+    const userResult = await userService.getByAuthUserId(user.id)
+    const fullUser = userResult.success && userResult.data ? userResult.data : undefined
+
     // Utiliser StatsService pour les statistiques système
     logger.info('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
 
-    const systemStatsResult = await statsService.getSystemStats(user)
+    const systemStatsResult = await statsService.getSystemStats(fullUser as any)
 
     if (systemStatsResult.success && systemStatsResult.data) {
       systemStats = {

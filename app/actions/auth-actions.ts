@@ -37,6 +37,7 @@ const SignupSchema = z.object({
   firstName: z.string().min(1, 'Prénom requis').trim(),
   lastName: z.string().min(1, 'Nom requis').trim(),
   phone: z.string().optional(),
+  role: z.enum(['admin', 'gestionnaire', 'prestataire', 'locataire']).optional().default('gestionnaire'),
   acceptTerms: z.boolean().refine(val => val === true, 'Acceptation des conditions requise')
 })
 
@@ -125,10 +126,10 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
       const userData = userResult.data
       if ('role' in userData && userData.role) {
         dashboardPath = getDashboardPath(userData.role)
-        logger.info('🔄 [LOGIN-ACTION] Determined role-specific dashboard:', {
+        logger.info({
           role: userData.role,
           dashboard: dashboardPath
-        })
+        }, '🔄 [LOGIN-ACTION] Determined role-specific dashboard')
       } else {
         logger.info('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
       }
@@ -245,12 +246,12 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
       }
     }
 
-    logger.info('✅ [SIGNUP-ACTION] User created in auth.users:', {
+    logger.info({
       userId: linkData.user.id,
       email: linkData.user.email,
       hasActionLink: !!linkData.properties.action_link,
       properties: linkData.properties // 🔍 DEBUG: Voir toutes les propriétés disponibles
-    })
+    }, '✅ [SIGNUP-ACTION] User created in auth.users')
 
     // ✅ UTILISER NOTRE ROUTE /auth/confirm AVEC token_hash
     // Objectif: éviter les incohérences de redirect_to côté Supabase et unifier le flow
@@ -271,11 +272,11 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
 
     const confirmationUrl = internalConfirmUrl || fallbackActionLink
 
-    logger.info('🔗 [SIGNUP-ACTION] Built confirmation URL:', {
+    logger.info({
       internalConfirmUrl,
       usingInternal: !!internalConfirmUrl,
       hasFallbackActionLink: !!fallbackActionLink
-    })
+    }, '🔗 [SIGNUP-ACTION] Built confirmation URL')
 
     const emailResult = await emailService.sendSignupConfirmationEmail(validatedData.email, {
       firstName: validatedData.firstName,

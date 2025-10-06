@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { logger, logError } from '@/lib/logger'
+import { getUserProfileForMiddleware, getDashboardPath } from '@/lib/auth-dal'
 
 /**
  * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
@@ -11,6 +12,12 @@ import { logger, logError } from '@/lib/logger'
  * - Rafraîchissement automatique des tokens
  * - Redirections serveur pour sécurité optimale
  * - Centralisé pour éviter conflits avec AuthGuard client
+ *
+ * 🆕 PHASE 2.5: VÉRIFICATION PROFIL MULTI-COUCHES
+ * - Vérification profil DB (pas juste auth token)
+ * - Vérification compte actif (is_active)
+ * - Vérification onboarding complet (password_set)
+ * - Vérification rôle DB correspond au path
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -86,11 +93,36 @@ export async function middleware(request: NextRequest) {
 
       console.log('✅ [MIDDLEWARE] User authenticated:', user.id)
 
-      // Optionnel: Vérification basique des rôles par URL
+      // 🛡️ PHASE 2.5: VÉRIFICATION PROFIL + RÔLE MULTI-COUCHES
+      const userProfile = await getUserProfileForMiddleware(user.id)
+
+      // 🛡️ CHECK 1: Profil existe dans la table users
+      if (!userProfile) {
+        console.log('⚠️ [MIDDLEWARE] Auth user exists but no profile in DB:', user.email)
+        return NextResponse.redirect(new URL('/auth/login?reason=no_profile', request.url))
+      }
+
+      // 🛡️ CHECK 2: Compte actif
+      if (userProfile.is_active === false) {
+        console.log('⚠️ [MIDDLEWARE] User account is deactivated:', userProfile.email)
+        return NextResponse.redirect(new URL('/auth/unauthorized?reason=account_inactive', request.url))
+      }
+
+      // 🛡️ CHECK 3: Password configuré (onboarding terminé)
+      if (userProfile.password_set === false && pathname !== '/auth/set-password') {
+        console.log('📝 [MIDDLEWARE] Password not set, redirecting to onboarding:', userProfile.email)
+        return NextResponse.redirect(new URL('/auth/set-password', request.url))
+      }
+
+      // 🛡️ CHECK 4: Rôle correspond à la section accédée
       const roleFromPath = pathname.split('/')[1] // admin, gestionnaire, etc.
       if (roleFromPath && ['admin', 'gestionnaire', 'locataire', 'prestataire'].includes(roleFromPath)) {
-        // La vérification détaillée des rôles se fera dans les Server Components avec DAL
-        console.log(`🔍 [MIDDLEWARE] Access to ${roleFromPath} section - detailed role check in Server Component`)
+        if (userProfile.role !== roleFromPath) {
+          console.log(`⚠️ [MIDDLEWARE] Role mismatch: ${userProfile.role} trying to access ${roleFromPath}`)
+          const correctDashboard = getDashboardPath(userProfile.role)
+          return NextResponse.redirect(new URL(correctDashboard, request.url))
+        }
+        console.log(`✅ [MIDDLEWARE] Role check passed: ${userProfile.role} accessing ${roleFromPath}`)
       }
 
       return response

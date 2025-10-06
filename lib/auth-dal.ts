@@ -116,22 +116,27 @@ export async function requireAuth(redirectTo: string = '/auth/login') {
 }
 
 /**
- * ✅ PROTECTION RÔLE: Vérification role-based access
- * Pour protéger selon les rôles utilisateur
+ * ✅ PROTECTION RÔLE: Vérification role-based access (IMPLÉMENTÉE Phase 2.5)
+ * Pour protéger selon les rôles utilisateur - utilise le profil DB réel
  */
 export async function requireRole(allowedRoles: string[], redirectTo: string = '/auth/unauthorized') {
-  const user = await requireAuth()
+  // Récupérer profil complet avec rôle depuis DB
+  const userProfile = await getUserProfile()
 
-  // TODO: Récupérer le rôle depuis la base de données ou metadata
-  // const userRole = user.user_metadata?.role || 'user'
-  const userRole = 'admin' // Placeholder - à implémenter selon votre logique
+  if (!userProfile) {
+    logger.info('🚫 [AUTH-DAL] No user profile found, redirecting to login')
+    redirect('/auth/login?reason=no_profile')
+  }
+
+  const userRole = userProfile.profile.role
 
   if (!allowedRoles.includes(userRole)) {
     logger.info('🚫 [AUTH-DAL] Insufficient permissions. Required:', allowedRoles, 'Got:', userRole)
     redirect(redirectTo)
   }
 
-  return { user, role: userRole }
+  logger.info('✅ [AUTH-DAL] Role check passed:', { role: userRole, allowed: allowedRoles })
+  return { user: userProfile.supabaseUser, profile: userProfile.profile }
 }
 
 /**
@@ -148,6 +153,34 @@ export async function requireGuest(redirectTo: string = '/dashboard') {
   }
 
   return true
+}
+
+/**
+ * ✅ MIDDLEWARE HELPER: Récupération profil optimisée pour middleware
+ * Version légère sans cache React (pour middleware edge runtime)
+ */
+export async function getUserProfileForMiddleware(authUserId: string) {
+  try {
+    const userService = await createServerUserService()
+    const result = await userService.getByAuthUserId(authUserId)
+
+    if (!result.success || !result.data) {
+      logger.warn('⚠️ [AUTH-DAL] getUserProfileForMiddleware: No profile found for auth user:', authUserId)
+      return null
+    }
+
+    logger.info('✅ [AUTH-DAL] getUserProfileForMiddleware: Profile loaded:', {
+      userId: result.data.id,
+      role: result.data.role,
+      isActive: result.data.is_active,
+      passwordSet: result.data.password_set
+    })
+
+    return result.data
+  } catch (error) {
+    logger.error('❌ [AUTH-DAL] getUserProfileForMiddleware error:', error)
+    return null
+  }
 }
 
 /**

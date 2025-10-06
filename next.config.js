@@ -9,6 +9,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Externalize Supabase packages to avoid Edge Runtime conflicts (Next.js 15+)
+  serverExternalPackages: ['@supabase/supabase-js', '@supabase/ssr'],
+
   experimental: {
     optimizePackageImports: [
       'lucide-react',
@@ -16,8 +19,8 @@ const nextConfig = {
       '@radix-ui/react-dialog',
       'date-fns'
     ],
-    // Externalize Supabase packages to avoid Edge Runtime conflicts
-    serverComponentsExternalPackages: ['@supabase/supabase-js', '@supabase/ssr']
+    // Enable Node.js runtime support for middleware
+    nodeMiddleware: true
   },
 
   webpack: (config, { isServer }) => {

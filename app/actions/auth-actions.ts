@@ -79,7 +79,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
       password: formData.get('password') as string
     }
     validatedData = LoginSchema.parse(rawData)
-    logger.info('📝 [LOGIN-ACTION] Data validated for:', validatedData.email)
+    logger.info(`📝 [LOGIN-ACTION] Data validated for: ${validatedData.email}`)
   } catch (error) {
     if (error instanceof z.ZodError) {
       const firstError = error.errors[0]
@@ -96,7 +96,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   })
 
   if (error) {
-    logger.info('❌ [LOGIN-ACTION] Authentication failed:', error.message)
+    logger.info(`❌ [LOGIN-ACTION] Authentication failed: ${error.message}`)
 
     // ✅ GESTION ERREURS: Messages utilisateur-friendly
     if (error.message.includes('Invalid login credentials')) {
@@ -112,7 +112,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     return { success: false, error: 'Erreur de connexion inattendue' }
   }
 
-  logger.info('✅ [LOGIN-ACTION] User authenticated:', data.user.email)
+  logger.info(`✅ [LOGIN-ACTION] User authenticated: ${data.user.email}`)
 
   // ✅ DÉTERMINER REDIRECTION: Selon le rôle utilisateur
   let dashboardPath = '/admin/dashboard' // Fallback par défaut
@@ -131,7 +131,7 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
       logger.info('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
     }
   } catch (error) {
-    logger.info('⚠️ [LOGIN-ACTION] Error determining role, using fallback:', error)
+    logger.info(`⚠️ [LOGIN-ACTION] Error determining role, using fallback: ${error instanceof Error ? error.message : String(error)}`)
   }
 
   // ✅ WORKAROUND NEXT.JS 15 BUG #72842
@@ -192,7 +192,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     }
 
     const validatedData = SignupSchema.parse(rawData)
-    logger.info('📝 [SIGNUP-ACTION] Data validated for:', validatedData.email)
+    logger.info(`📝 [SIGNUP-ACTION] Data validated for: ${validatedData.email}`)
 
     // ✅ VÉRIFIER: Service admin disponible
     if (!isAdminConfigured()) {
@@ -225,7 +225,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     })
 
     if (linkError || !linkData) {
-      logger.error('❌ [SIGNUP-ACTION] Failed to generate signup link:', linkError)
+      logger.error(`❌ [SIGNUP-ACTION] Failed to generate signup link: ${linkError?.message || 'Unknown error'}`)
 
       // ✅ GESTION ERREURS: Messages utilisateur-friendly
       if (linkError?.message.includes('User already registered')) {
@@ -279,11 +279,11 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     })
 
     if (!emailResult.success) {
-      logger.error('❌ [SIGNUP-ACTION] Failed to send confirmation email:', emailResult.error)
+      logger.error(`❌ [SIGNUP-ACTION] Failed to send confirmation email: ${emailResult.error}`)
       // ⚠️ Ne pas bloquer l'inscription si l'email échoue - user existe déjà dans auth.users
       logger.warn('⚠️ [SIGNUP-ACTION] User created but email failed - manual intervention required')
     } else {
-      logger.info('✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend:', emailResult.emailId)
+      logger.info(`✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend: ${emailResult.emailId}`)
     }
 
     // ✅ NOTE: Le profil et l'équipe seront créés automatiquement par le Database Trigger
@@ -310,7 +310,7 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     }
 
   } catch (error) {
-    logger.error('❌ [SIGNUP-ACTION] Exception:', error)
+    logger.error(`❌ [SIGNUP-ACTION] Exception: ${error instanceof Error ? error.message : String(error)}`)
 
     // ✅ GESTION: Erreurs de validation Zod
     if (error instanceof z.ZodError) {
@@ -338,7 +338,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     }
 
     const validatedData = ResetPasswordSchema.parse(rawData)
-    logger.info('📝 [RESET-PASSWORD-ACTION] Data validated for:', validatedData.email)
+    logger.info(`📝 [RESET-PASSWORD-ACTION] Data validated for: ${validatedData.email}`)
 
     // ✅ AUTHENTIFICATION: Utiliser client server Supabase
     const supabase = await createServerSupabaseClient()
@@ -347,7 +347,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     })
 
     if (error) {
-      logger.info('❌ [RESET-PASSWORD-ACTION] Reset failed:', error.message)
+      logger.info(`❌ [RESET-PASSWORD-ACTION] Reset failed: ${error.message}`)
 
       // ✅ GESTION ERREURS: Messages utilisateur-friendly
       if (error.message.includes('User not found')) {
@@ -359,7 +359,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
       return { success: false, error: 'Erreur lors de l\'envoi de l\'email : ' + error.message }
     }
 
-    logger.info('✅ [RESET-PASSWORD-ACTION] Reset email sent to:', validatedData.email)
+    logger.info(`✅ [RESET-PASSWORD-ACTION] Reset email sent to: ${validatedData.email}`)
 
     // ✅ SUCCÈS: Retourner succès sans redirection
     return {
@@ -371,7 +371,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     }
 
   } catch (error) {
-    logger.error('❌ [RESET-PASSWORD-ACTION] Exception:', error)
+    logger.error(`❌ [RESET-PASSWORD-ACTION] Exception: ${error instanceof Error ? error.message : String(error)}`)
 
     // ✅ GESTION: Erreurs de validation Zod
     if (error instanceof z.ZodError) {
@@ -401,7 +401,7 @@ export async function logoutAction(): Promise<never> {
     redirect('/auth/login')
 
   } catch (error) {
-    logger.error('❌ [LOGOUT-ACTION] Exception:', error)
+    logger.error(`❌ [LOGOUT-ACTION] Exception: ${error instanceof Error ? error.message : String(error)}`)
 
     // ✅ FALLBACK: Redirection même en cas d'erreur
     redirect('/auth/login')

@@ -232,7 +232,7 @@ class ActivityLogger {
     return this.log({
       actionType,
       entityType: 'lot',
-      entityId: _lotId,
+      entityId: lotId,
       entityName: lotReference,
       description,
       metadata: details,

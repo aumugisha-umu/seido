@@ -15,9 +15,10 @@ export interface User {
   role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
   provider_category?: string | null
   speciality?: string | null
-  status: 'active' | 'inactive' | 'pending'
   phone?: string | null
   avatar_url?: string | null
+  company?: string | null
+  address?: string | null
   notes?: string | null
   team_id?: string | null
   is_active: boolean
@@ -36,9 +37,10 @@ export interface UserInsert {
   role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
   provider_category?: string | null
   speciality?: string | null
-  status?: 'active' | 'inactive' | 'pending'
   phone?: string | null
   avatar_url?: string | null
+  company?: string | null
+  address?: string | null
   notes?: string | null
   team_id?: string | null
   is_active?: boolean
@@ -57,9 +59,10 @@ export interface UserUpdate {
   role?: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
   provider_category?: string | null
   speciality?: string | null
-  status?: 'active' | 'inactive' | 'pending'
   phone?: string | null
   avatar_url?: string | null
+  company?: string | null
+  address?: string | null
   notes?: string | null
   team_id?: string | null
   is_active?: boolean

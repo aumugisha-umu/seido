@@ -260,7 +260,7 @@ export class InterventionService {
    */
   async getByLot(lotId: string) {
     try {
-      const result = await this.repository.findByLot(_lotId)
+      const result = await this.repository.findByLot(lotId)
       return result
     } catch (error) {
       throw error

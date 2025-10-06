@@ -205,7 +205,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions by lot
    */
-  async findByLot(_lotId: string) {
+  async findByLot(lotId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -221,7 +221,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           user:user_id(id, name, email, role, provider_category)
         )
       `)
-      .eq('lot_id', _lotId)
+      .eq('lot_id', lotId)
       .order('created_at', { ascending: false })
 
     if (error) {

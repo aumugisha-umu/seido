@@ -289,7 +289,7 @@ export const userService = {
  * Note: Some methods are placeholders that will fallback to legacy implementation
  * until the new building service is fully implemented with all required features.
  */
-export const _buildingService = {
+export const buildingService = {
   async getAll() {
     const service = await getBuildingService()
     const response = await service.getAll()

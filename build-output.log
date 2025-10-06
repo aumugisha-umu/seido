@@ -401,13 +401,13 @@ Failed to compile.
 353:6  Warning: React Hook useEffect has a missing dependency: 'lots'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 353:7  Warning: React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.  react-hooks/exhaustive-deps
 386:22  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
-394:31  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+394:31  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
 401:25  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
 471:57  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
 482:9  Warning: '_removeContact' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 482:27  Warning: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
-523:30  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
-763:32  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+523:30  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+763:32  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
 967:31  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
 1099:79  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
 1156:107  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
@@ -426,7 +426,7 @@ Failed to compile.
 26:9  Warning: '_router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 32:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 55:6  Warning: React Hook useEffect has a missing dependency: 'loadBuildingData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
-64:13  Warning: '_buildingService' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+64:13  Warning: 'buildingService' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 175:31  Warning: '_actionKey' is defined but never used.  @typescript-eslint/no-unused-vars
 212:6  Warning: React Hook useEffect has a missing dependency: 'loadInterventionsWithDocuments'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 227:47  Warning: '_doc' is defined but never used.  @typescript-eslint/no-unused-vars
@@ -1057,7 +1057,7 @@ Failed to compile.
 30:33  Warning: 'actions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 30:42  Warning: 'teamData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 36:9  Warning: 'buildingData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
-101:31  Warning: '_lotId' is defined but never used.  @typescript-eslint/no-unused-vars
+101:31  Warning: 'lotId' is defined but never used.  @typescript-eslint/no-unused-vars
 116:6  Warning: React Hook React.useEffect has a missing dependency: 'buildingData.lots'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 189:3  Warning: 'categoryCountsByTeam' is defined but never used.  @typescript-eslint/no-unused-vars
 369:77  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities

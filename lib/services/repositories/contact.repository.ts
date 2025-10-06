@@ -7,7 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Contact, ContactInsert, ContactUpdate } from '../core/service-types'
-import { ValidationException, NotFoundException } from '../core/error-handler'
+import { ValidationException, NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import {
   validateRequired,
   validateEnum
@@ -19,7 +19,7 @@ import {
  */
 export class ContactRepository extends BaseRepository<Contact, ContactInsert, ContactUpdate> {
   constructor(supabase: SupabaseClient) {
-    super(supabase, 'team_members')
+    super(supabase, 'lot_contacts')
   }
 
   /**
@@ -52,7 +52,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .from(this.tableName)
       .select(`
         *,
-        user:user_id(id, name, email, phone, role, provider_category),
+        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes),
         lot:lot_id(id, reference, building_id, building:building_id(name, address)),
         building:building_id(id, name, address, city)
       `)
@@ -63,7 +63,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       if (error.code === 'PGRST116') {
         throw new NotFoundException('Contact not found', this.tableName, _id)
       }
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data }
@@ -84,7 +84,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -98,7 +98,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .from(this.tableName)
       .select(`
         *,
-        user:user_id(id, name, email, phone, role, provider_category)
+        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes)
       `)
       .eq('lot_id', lotId)
 
@@ -109,7 +109,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await queryBuilder.order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -123,7 +123,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .from(this.tableName)
       .select(`
         *,
-        user:user_id(id, name, email, phone, role, provider_category)
+        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes)
       `)
       .eq('building_id', buildingId)
 
@@ -134,7 +134,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await queryBuilder.order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -148,7 +148,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .from(this.tableName)
       .select(`
         *,
-        user:user_id(id, name, email, phone, role, provider_category),
+        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes),
         lot:lot_id(id, reference, building:building_id(name)),
         building:building_id(id, name, address)
       `)
@@ -161,7 +161,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     const { data, error } = await queryBuilder.order('created_at', { ascending: false })
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -190,7 +190,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       if (error.code === 'PGRST116') {
         return { success: true as const, exists: false }
       }
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, exists: true }
@@ -206,7 +206,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select('type, status')
 
     if (typeError) {
-      return this.handleError(typeError)
+      return createErrorResponse(handleError(typeError, `${this.tableName}:query`))
     }
 
     // Calculate statistics
@@ -293,7 +293,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     if (!data || data.length === 0) {
@@ -315,7 +315,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     if (!data || data.length === 0) {

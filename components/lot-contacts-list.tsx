@@ -56,12 +56,16 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
       logger.info("📞 Loading contacts for lot:", lotId)
       
       // Adapter pour nouvelle architecture - récupérer les locataires pour ce lot
-      const lotContacts = await contactService.getLotContactsByType(lotId, 'tenant')
-      logger.info("✅ Lot contacts loaded:", lotContacts?.length || 0)
-      
+      const lotContactsResult = await contactService.getLotContacts(lotId, 'tenant')
+      if (!lotContactsResult.success) {
+        throw new Error(lotContactsResult.error?.message || 'Failed to load lot contacts')
+      }
+      const lotContacts = lotContactsResult.data || []
+      logger.info("✅ Lot contacts loaded:", lotContacts.length)
+
       clearTimeout(timeoutId)
-      setContacts(lotContacts || [])
-      setFilteredContacts(lotContacts || [])
+      setContacts(lotContacts)
+      setFilteredContacts(lotContacts)
       
     } catch (error) {
       logger.error("❌ Error loading lot contacts:", error)
@@ -90,11 +94,11 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
     if (searchTerm.trim() === "") {
       setFilteredContacts(contacts)
     } else {
-      const filtered = contacts.filter(contact => 
-        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = contacts.filter(contact =>
+        contact.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.user?.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.user?.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
       )
       setFilteredContacts(filtered)
     }
@@ -159,7 +163,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
     }
   }
 
-  const getContactTypeLabel = (_type: string) => {
+  const getContactTypeLabel = (type: string) => {
     const labels: { [key: string]: string } = {
       tenant: "Locataire",
       owner: "Propriétaire", 
@@ -173,7 +177,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
     return labels[type] || type
   }
 
-  const getSpecialityLabel = (_speciality: string) => {
+  const getSpecialityLabel = (speciality: string) => {
     const labels: { [key: string]: string } = {
       plumbing: "Plomberie",
       electricity: "Électricité",
@@ -185,6 +189,22 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
       other: "Autre"
     }
     return labels[speciality] || speciality
+  }
+
+  const getContactTypeBadgeStyle = (contact: ContactWithRelations) => {
+    const assignmentType = contact.user ? determineAssignmentType(contact.user) : 'other'
+
+    const styles = {
+      'tenant': 'bg-blue-100 text-blue-800',
+      'owner': 'bg-emerald-100 text-emerald-800',
+      'provider': 'bg-green-100 text-green-800',
+      'manager': 'bg-purple-100 text-purple-800',
+      'syndic': 'bg-orange-100 text-orange-800',
+      'notary': 'bg-gray-100 text-gray-800',
+      'insurance': 'bg-red-100 text-red-800',
+      'other': 'bg-gray-100 text-gray-600'
+    }
+    return styles[assignmentType as keyof typeof styles] || 'bg-gray-100 text-gray-600'
   }
 
   if (loading) {
@@ -284,16 +304,16 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-medium">{contact.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {getContactTypeLabel(determineAssignmentType(contact))}
+                        <span className="font-medium">{contact.user?.name}</span>
+                        <Badge variant="secondary" className={`${getContactTypeBadgeStyle(contact)} text-xs font-medium`}>
+                          {getContactTypeLabel(contact.user ? determineAssignmentType(contact.user) : 'other')}
                         </Badge>
-                        {contact.speciality && (
+                        {contact.user?.speciality && (
                           <Badge variant="secondary" className="text-xs">
-                            {getSpecialityLabel(contact.speciality)}
+                            {getSpecialityLabel(contact.user.speciality)}
                           </Badge>
                         )}
-                        {!contact.is_active && (
+                        {!contact.user?.is_active && (
                           <Badge variant="destructive" className="text-xs">
                             Inactif
                           </Badge>
@@ -303,25 +323,25 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-1">
                             <Mail className="h-3 w-3" />
-                            <span>{contact.email}</span>
+                            <span>{contact.user?.email}</span>
                           </div>
-                          {contact.phone && (
+                          {contact.user?.phone && (
                             <div className="flex items-center space-x-1">
                               <Phone className="h-3 w-3" />
-                              <span>{contact.phone}</span>
+                              <span>{contact.user.phone}</span>
                             </div>
                           )}
                         </div>
-                        {contact.company && (
+                        {contact.user?.company && (
                           <div className="flex items-center space-x-1">
                             <Building2 className="h-3 w-3" />
-                            <span>{contact.company}</span>
+                            <span>{contact.user.company}</span>
                           </div>
                         )}
-                        {contact.address && (
+                        {contact.user?.address && (
                           <div className="flex items-center space-x-1">
                             <MapPin className="h-3 w-3" />
-                            <span className="text-xs">{contact.address}</span>
+                            <span className="text-xs">{contact.user.address}</span>
                           </div>
                         )}
                       </div>
@@ -331,7 +351,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                      onClick={() => window.open(`mailto:${contact.user?.email}`, '_blank')}
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -346,7 +366,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
                       <Edit className="h-4 w-4" />
                     </Button>
                     <DeleteConfirmModal
-                      itemName={contact.name}
+                      itemName={contact.user?.name || 'ce contact'}
                       itemType="contact"
                       onConfirm={async () => {
                         setDeleteContact(contact)

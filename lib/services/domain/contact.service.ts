@@ -170,7 +170,7 @@ export class ContactService {
    */
   async getUserContacts(userId: string) {
     try {
-      const result = await this.repository.findByUser(_userId)
+      const result = await this.repository.findByUser(userId)
       return result
     } catch (error) {
       throw error
@@ -182,7 +182,7 @@ export class ContactService {
    */
   async getLotContacts(lotId: string, type?: Contact['type']) {
     try {
-      const result = await this.repository.findByLot(_lotId, type)
+      const result = await this.repository.findByLot(lotId, type)
       return result
     } catch (error) {
       throw error
@@ -222,9 +222,9 @@ export class ContactService {
       throw new Error('UserService is required for contact assignment')
     }
 
-    const userResult = await this.userService.getById(_userId)
+    const userResult = await this.userService.getById(userId)
     if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', _userId)
+      throw new NotFoundException('User not found', 'users', userId)
     }
 
     const user = userResult.data
@@ -234,10 +234,10 @@ export class ContactService {
     this.validateLotAssignment(user)
 
     try {
-      const result = await this.repository.addToLot(_lotId, _userId, contactType, _isPrimary)
+      const result = await this.repository.addToLot(lotId, userId, contactType, isPrimary)
 
       if (result.success && result.data) {
-        await this.logContactAssignment('lot', _lotId, _userId, contactType)
+        await this.logContactAssignment('lot', lotId, userId, contactType)
       }
 
       return result
@@ -255,9 +255,9 @@ export class ContactService {
       throw new Error('UserService is required for contact assignment')
     }
 
-    const userResult = await this.userService.getById(_userId)
+    const userResult = await this.userService.getById(userId)
     if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', _userId)
+      throw new NotFoundException('User not found', 'users', userId)
     }
 
     const user = userResult.data
@@ -267,10 +267,10 @@ export class ContactService {
     this.validateBuildingAssignment(user)
 
     try {
-      const result = await this.repository.addToBuilding(buildingId, _userId, contactType, _isPrimary)
+      const result = await this.repository.addToBuilding(buildingId, userId, contactType, isPrimary)
 
       if (result.success && result.data) {
-        await this.logContactAssignment('building', buildingId, _userId, contactType)
+        await this.logContactAssignment('building', buildingId, userId, contactType)
       }
 
       return result
@@ -605,7 +605,7 @@ export class ContactService {
     contactType: Contact['type']
   ) {
     // In production, this would use the activity-logger service
-    logger.info(`Contact assigned to ${assignmentType}:`, assignmentId, _userId, contactType)
+    logger.info(`Contact assigned to ${assignmentType}:`, assignmentId, userId, contactType)
   }
 
   /**
@@ -617,7 +617,7 @@ export class ContactService {
     userId: string
   ) {
     // In production, this would use the activity-logger service
-    logger.info(`Contact removed from ${assignmentType}:`, assignmentId, _userId)
+    logger.info(`Contact removed from ${assignmentType}:`, assignmentId, userId)
   }
 }
 

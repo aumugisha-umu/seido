@@ -322,7 +322,7 @@ export class LotService {
    */
   async updateOccupancy(lotId: string, isOccupied: boolean) {
     // Check if lot exists
-    const lot = await this.repository.findById(_lotId)
+    const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
       return {
         success: false as const,
@@ -333,7 +333,7 @@ export class LotService {
       }
     }
 
-    return this.repository.updateOccupancy(_lotId, isOccupied)
+    return this.repository.updateOccupancy(lotId, isOccupied)
   }
 
   /**
@@ -458,7 +458,7 @@ export class LotService {
     // This would typically update lot_contacts table
     // For now, we update the occupancy status
     // TODO: Implement actual tenant assignment logic using tenantId
-    return this.repository.updateOccupancy(_lotId, true)
+    return this.repository.updateOccupancy(lotId, true)
   }
 
   /**
@@ -466,9 +466,9 @@ export class LotService {
    */
   async removeTenant(lotId: string, tenantId: string) {
     // Check if lot exists
-    const lot = await this.repository.findByIdWithRelations(_lotId)
+    const lot = await this.repository.findByIdWithRelations(lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', _lotId)
+      throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
     // Check if this is the last tenant
@@ -476,7 +476,7 @@ export class LotService {
 
     // Update occupancy if no tenants remain
     if (remainingTenants.length === 0) {
-      return this.repository.updateOccupancy(_lotId, false)
+      return this.repository.updateOccupancy(lotId, false)
     }
 
     return { success: true as const, data: lot.data }
@@ -486,9 +486,9 @@ export class LotService {
    * Calculate rent total for lot
    */
   async calculateRentTotal(lotId: string) {
-    const lot = await this.repository.findById(_lotId)
+    const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', _lotId)
+      throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
     const monthlyRent = lot.data.monthly_rent || 0

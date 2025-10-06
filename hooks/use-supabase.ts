@@ -5,7 +5,7 @@ import type { User, Building, Lot, Intervention } from '@/lib/services/core/serv
 
 // Create service instances
 const userService = createBrowserUserService()
-const _buildingService = createBrowserBuildingService()
+const buildingService = createBrowserBuildingService()
 const lotService = createBrowserLotService()
 const interventionService = createBrowserInterventionService()
 

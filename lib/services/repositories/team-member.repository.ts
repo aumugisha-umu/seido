@@ -7,6 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import type { RepositoryResult } from '../core/service-types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
+import { handleError, createErrorResponse } from '../core/error-handler'
 import { logger, logError } from '@/lib/logger'
 /**
  * Team Member Type (from database)
@@ -99,7 +100,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       this.setCache(cacheKey, data, 300000) // 5 min cache
       return { success: true, data }
     } catch (error) {
-      return this.handleError(error, 'findByUserAndTeam')
+      return createErrorResponse(handleError(error, `${this.tableName}:findByUserAndTeam`))
     }
   }
 
@@ -147,7 +148,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       this.setCache(cacheKey, transformed, 300000) // 5 min cache
       return { success: true, data: transformed }
     } catch (error) {
-      return this.handleError(error, 'findTeamsByUser')
+      return createErrorResponse(handleError(error, `${this.tableName}:findTeamsByUser`))
     }
   }
 
@@ -208,7 +209,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       this.setCache(cacheKey, members, 300000)
       return { success: true, data: members }
     } catch (error) {
-      return this.handleError(error, 'findMembersByTeam')
+      return createErrorResponse(handleError(error, `${this.tableName}:findMembersByTeam`))
     }
   }
 
@@ -244,7 +245,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
 
       return { success: true, data }
     } catch (error) {
-      return this.handleError(error, 'addMember')
+      return createErrorResponse(handleError(error, `${this.tableName}:addMember`))
     }
   }
 
@@ -268,7 +269,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
 
       return { success: true, data: undefined }
     } catch (error) {
-      return this.handleError(error, 'removeMember')
+      return createErrorResponse(handleError(error, `${this.tableName}:removeMember`))
     }
   }
 
@@ -294,7 +295,7 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
 
       return { success: true, data }
     } catch (error) {
-      return this.handleError(error, 'updateMemberRole')
+      return createErrorResponse(handleError(error, `${this.tableName}:updateMemberRole`))
     }
   }
 

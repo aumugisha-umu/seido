@@ -61,41 +61,53 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       logger.info("🏢 Loading building data for ID:", resolvedParams.id)
 
       // Initialize services
-      const _buildingService = createBuildingService()
+      const buildingService = createBuildingService()
       const lotService = createLotService()
       const interventionService = createInterventionService()
 
       // 1. Charger les donnees de l'immeuble
-      const buildingData = await buildingService.getById(resolvedParams.id)
-      logger.info("🏢 Building loaded:", buildingData)
-      setBuilding(buildingData)
+      const buildingResult = await buildingService.getById(resolvedParams.id)
+      if (!buildingResult.success) {
+        throw new Error(buildingResult.error?.message || 'Failed to load building')
+      }
+      logger.info("🏢 Building loaded:", buildingResult.data)
+      setBuilding(buildingResult.data)
 
       // 2. Charger les lots de l'immeuble
-      const lotsData = await lotService.getByBuildingId(resolvedParams.id)
-      logger.info("🏠 Lots loaded:", lotsData?.length || 0)
-      setLots(lotsData || [])
+      const lotsResult = await lotService.getByBuilding(resolvedParams.id)
+      if (!lotsResult.success) {
+        throw new Error(lotsResult.error?.message || 'Failed to load lots')
+      }
+      logger.info("🏠 Lots loaded:", lotsResult.data?.length || 0)
+      setLots(lotsResult.data || [])
 
       // 3. Charger les interventions des lots
-      if (lotsData && lotsData.length > 0) {
-        const lotIds = lotsData.map(lot => lot.id)
+      if (lotsResult.data && lotsResult.data.length > 0) {
+        const lotIds = lotsResult.data.map(lot => lot.id)
         const allInterventions = []
-        
+
         for (const lotId of lotIds) {
           try {
-            const lotInterventions = await interventionService.getByLotId(_lotId)
-            allInterventions.push(...(lotInterventions || []))
+            const lotInterventionsResult = await interventionService.getByLot(lotId)
+            if (lotInterventionsResult.success && lotInterventionsResult.data) {
+              allInterventions.push(...lotInterventionsResult.data)
+            }
           } catch (error) {
-            logger.warn(`⚠️ Could not load interventions for lot ${lotId}:`, error)
+            logger.warn(`⚠️ Could not load interventions for lot ${lotId}:`, error?.message || error)
           }
         }
-        
+
         logger.info("🔧 Interventions loaded:", allInterventions.length)
         setInterventions(allInterventions)
       }
 
     } catch (error) {
-      logger.error("❌ Error loading building data:", error)
-      setError("Erreur lors du chargement des données de l'immeuble")
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorDetails = error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error }
+      logger.error("❌ Error loading building data:", { errorMessage, errorDetails })
+      setError(`Erreur lors du chargement des données de l'immeuble: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -151,14 +163,22 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
       logger.info("🗑️ Deleting building:", building.id)
 
       const buildingService = createBuildingService()
-      await buildingService.delete(building.id)
-      
+      const deleteResult = await buildingService.delete(building.id)
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error?.message || 'Failed to delete building')
+      }
+
       // Redirect to buildings list after successful deletion
       router.push('/gestionnaire/biens')
-      
+
     } catch (error) {
-      logger.error("❌ Error deleting building:", error)
-      setError("Erreur lors de la suppression de l'immeuble")
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorDetails = error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error }
+      logger.error("❌ Error deleting building:", { errorMessage, errorDetails })
+      setError(`Erreur lors de la suppression de l'immeuble: ${errorMessage}`)
       setIsDeleting(false)
       setShowDeleteModal(false)
     }
@@ -195,10 +215,39 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     setLoadingDocs(true)
     try {
       const interventionService = createInterventionService()
-      const interventionsData = await interventionService.getInterventionsWithDocumentsByBuildingId(resolvedParams.id)
-      setInterventionsWithDocs(interventionsData)
+
+      // Get interventions for this building
+      const interventionsResult = await interventionService.getByBuilding(resolvedParams.id)
+      if (!interventionsResult.success) {
+        throw new Error(interventionsResult.error?.message || 'Failed to load interventions')
+      }
+
+      // Fetch documents for each intervention
+      const interventionsWithDocsData = await Promise.all(
+        (interventionsResult.data || []).map(async (intervention) => {
+          try {
+            const docsResult = await interventionService.getDocuments(intervention.id)
+            return {
+              ...intervention,
+              documents: docsResult.success ? docsResult.data : []
+            }
+          } catch (error) {
+            logger.warn(`⚠️ Could not load documents for intervention ${intervention.id}:`, error?.message || error)
+            return {
+              ...intervention,
+              documents: []
+            }
+          }
+        })
+      )
+
+      setInterventionsWithDocs(interventionsWithDocsData)
     } catch (error) {
-      logger.error("❌ Error loading interventions with documents:", error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorDetails = error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error }
+      logger.error("❌ Error loading interventions with documents:", { errorMessage, errorDetails })
     } finally {
       setLoadingDocs(false)
     }

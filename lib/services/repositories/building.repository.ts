@@ -7,7 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Building, BuildingInsert, BuildingUpdate } from '../core/service-types'
-import { NotFoundException } from '../core/error-handler'
+import { NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import {
   validateRequired,
   validateLength,
@@ -95,7 +95,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error, count } = await query
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Post-process to extract primary managers
@@ -152,7 +152,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .order('name')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Post-process to extract primary managers
@@ -194,7 +194,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .order('name')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Post-process to extract primary managers
@@ -245,7 +245,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       if (error.code === 'PGRST116') {
         throw new NotFoundException('Building not found', this.tableName, _id)
       }
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Post-process to extract managers and tenants
@@ -285,7 +285,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error } = await queryBuilder.order('name')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -312,7 +312,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error } = await queryBuilder.order('name')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Calculate lot statistics
@@ -347,7 +347,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .single()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data }
@@ -369,7 +369,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -391,7 +391,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error } = await queryBuilder.order('name')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -414,7 +414,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .order('postal_code')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -440,7 +440,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     const { data, error } = await queryBuilder.limit(1)
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: (data && data.length > 0) }
@@ -458,7 +458,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .order('name')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -479,7 +479,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .single()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data as unknown as Building }

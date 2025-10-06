@@ -10,8 +10,7 @@ import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Search, Filter, AlertCir
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-
-
+import { createLotService, createInterventionService, createContactService } from '@/lib/services'
 
 import { determineAssignmentType } from '@/lib/services'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -74,7 +73,8 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     if (resolvedParams.id && user?.id) {
       loadLotData()
     }
-  }, [resolvedParams.id, user?.id, loadLotData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedParams.id, user?.id])
 
   const loadLotData = async () => {
     try {
@@ -82,24 +82,42 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       setError(null)
       logger.info("🏠 Loading lot data for ID:", resolvedParams.id)
 
+      // Initialize services
+      const lotService = createLotService()
+      const interventionService = createInterventionService()
+      const contactService = createContactService()
+
       // 1. Charger les données du lot
-      const lotData = await lotService.getById(resolvedParams.id)
-      logger.info("🏠 Lot loaded:", lotData)
-      setLot(lotData)
+      const lotResult = await lotService.getById(resolvedParams.id)
+      if (!lotResult.success) {
+        throw new Error(lotResult.error?.message || 'Failed to load lot')
+      }
+      logger.info("🏠 Lot loaded:", lotResult.data)
+      setLot(lotResult.data)
 
       // 2. Charger les interventions du lot
-      const interventionsData = await interventionService.getByLotId(resolvedParams.id)
-      logger.info("🔧 Interventions loaded:", interventionsData?.length || 0)
-      setInterventions(interventionsData || [])
+      const interventionsResult = await interventionService.getByLot(resolvedParams.id)
+      if (!interventionsResult.success) {
+        throw new Error(interventionsResult.error?.message || 'Failed to load interventions')
+      }
+      logger.info("🔧 Interventions loaded:", interventionsResult.data?.length || 0)
+      setInterventions(interventionsResult.data || [])
 
       // 3. Charger les contacts du lot
-      const contactsData = await contactService.getLotContacts(resolvedParams.id)
-      logger.info("👥 Contacts loaded:", contactsData?.length || 0)
-      setContacts(contactsData || [])
+      const contactsResult = await contactService.getLotContacts(resolvedParams.id)
+      if (!contactsResult.success) {
+        throw new Error(contactsResult.error?.message || 'Failed to load contacts')
+      }
+      logger.info("👥 Contacts loaded:", contactsResult.data?.length || 0)
+      setContacts(contactsResult.data || [])
 
     } catch (error) {
-      logger.error("❌ Error loading lot data:", error)
-      setError("Erreur lors du chargement des données du lot")
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorDetails = error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error }
+      logger.error("❌ Error loading lot data:", { errorMessage, errorDetails })
+      setError(`Erreur lors du chargement des données du lot: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -125,19 +143,28 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     try {
       setIsDeleting(true)
       logger.info("🗑️ Deleting lot:", lot.id)
-      
-      await lotService.delete(lot.id)
-      
+
+      const lotService = createLotService()
+      const deleteResult = await lotService.delete(lot.id)
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error?.message || 'Failed to delete lot')
+      }
+
       // Redirect to buildings list after successful deletion
       if (lot.building?.id) {
         router.push(`/gestionnaire/biens/immeubles/${lot.building.id}?lot=deleted`)
       } else {
         router.push('/gestionnaire/biens')
       }
-      
+
     } catch (error) {
-      logger.error("❌ Error deleting lot:", error)
-      setError("Erreur lors de la suppression du lot")
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorDetails = error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error }
+      logger.error("❌ Error deleting lot:", { errorMessage, errorDetails })
+      setError(`Erreur lors de la suppression du lot: ${errorMessage}`)
       setIsDeleting(false)
       setShowDeleteModal(false)
     }
@@ -149,13 +176,44 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
 
   const loadInterventionsWithDocuments = async () => {
     if (!resolvedParams.id) return
-    
+
     setLoadingDocs(true)
     try {
-      const interventionsData = await interventionService.getInterventionsWithDocumentsByLotId(resolvedParams.id)
-      setInterventionsWithDocs(interventionsData)
+      const interventionService = createInterventionService()
+
+      // Get interventions for this lot
+      const interventionsResult = await interventionService.getByLot(resolvedParams.id)
+      if (!interventionsResult.success) {
+        throw new Error(interventionsResult.error?.message || 'Failed to load interventions')
+      }
+
+      // Fetch documents for each intervention
+      const interventionsWithDocsData = await Promise.all(
+        (interventionsResult.data || []).map(async (intervention) => {
+          try {
+            const docsResult = await interventionService.getDocuments(intervention.id)
+            return {
+              ...intervention,
+              documents: docsResult.success ? docsResult.data : []
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error)
+            logger.warn(`⚠️ Could not load documents for intervention ${intervention.id}:`, errorMsg)
+            return {
+              ...intervention,
+              documents: []
+            }
+          }
+        })
+      )
+
+      setInterventionsWithDocs(interventionsWithDocsData)
     } catch (error) {
-      logger.error("❌ Error loading interventions with documents:", error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorDetails = error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error }
+      logger.error("❌ Error loading interventions with documents:", { errorMessage, errorDetails })
     } finally {
       setLoadingDocs(false)
     }
@@ -166,7 +224,8 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     if (resolvedParams.id && !loading) {
       loadInterventionsWithDocuments()
     }
-  }, [resolvedParams.id, loading, loadInterventionsWithDocuments])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedParams.id, loading])
 
   // Transform interventions data for documents component
   const transformInterventionsForDocuments = (interventionsData: InterventionData[]) => {
@@ -330,12 +389,12 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   }
 
   const handleCustomAction = (_actionKey: string) => {
-    switch (actionKey) {
+    switch (_actionKey) {
       case "add-intervention":
         router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
         break
       default:
-        logger.info("Action not implemented:", actionKey)
+        logger.info("Action not implemented:", _actionKey)
     }
   }
 

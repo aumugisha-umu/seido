@@ -433,10 +433,10 @@ export default function NewImmeubleePage() {
     setExpandedLots(newExpandedLots)
   }
 
-  const toggleLotExpansion = (_lotId: string) => {
+  const toggleLotExpansion = (lotId: string) => {
     setExpandedLots({
       ...expandedLots,
-      [_lotId]: !expandedLots[_lotId]
+      [lotId]: !expandedLots[lotId]
     })
   }
 
@@ -562,8 +562,8 @@ export default function NewImmeubleePage() {
   }
 
   // Fonction pour obtenir tous les contacts assignes a un lot
-  const getAllLotContacts = (_lotId: string): Contact[] => {
-    const lotAssignments = lotContactAssignments[_lotId] || {}
+  const getAllLotContacts = (lotId: string): Contact[] => {
+    const lotAssignments = lotContactAssignments[lotId] || {}
     return Object.values(lotAssignments).flat()
   }
 
@@ -653,9 +653,9 @@ export default function NewImmeubleePage() {
       }))
 
       // Preparer les assignations de contacts aux lots
-      const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([_lotId, assignments]) => {
+      const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
         // Trouver l'index du lot dans le tableau lotsData base sur l'ID
-        const lotIndex = lots.findIndex(lot => lot.id === _lotId)
+        const lotIndex = lots.findIndex(lot => lot.id === lotId)
         
         // Recuperer les contacts classiques assignes a ce lot
         const contactAssignments = Object.entries(assignments).flatMap(([contactType, contacts]) =>
@@ -667,7 +667,7 @@ export default function NewImmeubleePage() {
         )
         
         // Ajouter les gestionnaires assignes a ce lot
-        const managersForThisLot = assignedManagers[_lotId] || []
+        const managersForThisLot = assignedManagers[lotId] || []
         const managerAssignments = managersForThisLot.map((manager, index) => ({
           contactId: manager.user.id, // ✅ CORRECTION : utiliser manager.user.id au lieu de manager.id
           contactType: 'gestionnaire',
@@ -676,7 +676,7 @@ export default function NewImmeubleePage() {
         }))
         
         return {
-          lotId: _lotId,
+          lotId: lotId,
           lotIndex: lotIndex, // Index du lot dans le tableau lotsData
           assignments: [...contactAssignments, ...managerAssignments]
         }
@@ -780,8 +780,8 @@ export default function NewImmeubleePage() {
   }
 
   // Fonctions pour la gestion des gestionnaires assignes aux lots
-  const openManagerModal = (_lotId: string) => {
-    setSelectedLotForManager(_lotId)
+  const openManagerModal = (lotId: string) => {
+    setSelectedLotForManager(lotId)
     setIsManagerModalOpen(true)
   }
 
@@ -807,8 +807,8 @@ export default function NewImmeubleePage() {
     }))
   }
 
-  const getAssignedManagers = (_lotId: string) => {
-    return assignedManagers[_lotId] || []
+  const getAssignedManagers = (lotId: string) => {
+    return assignedManagers[lotId] || []
   }
 
   return (

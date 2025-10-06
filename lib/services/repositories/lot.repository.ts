@@ -7,7 +7,7 @@ import { BaseRepository } from '../core/base-repository'
 import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Lot, LotInsert, LotUpdate, User } from '../core/service-types'
-import { NotFoundException, handleError } from '../core/error-handler'
+import { NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import { logger } from '@/lib/logger'
 import {
   validateRequired,
@@ -117,7 +117,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error, count } = await query
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:findAllWithRelations`))
     }
 
     // Post-process to extract tenants and calculate is_occupied
@@ -170,7 +170,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .order('reference')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Post-process to extract tenants and calculate is_occupied
@@ -212,7 +212,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       if (error.code === 'PGRST116') {
         throw new NotFoundException('Lot not found', this.tableName, _id)
       }
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Post-process to extract tenants
@@ -293,7 +293,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         // Not found = reference doesn't exist
         return { success: true as const, exists: false }
       }
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, exists: true }
@@ -322,7 +322,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await queryBuilder.order('reference')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -350,7 +350,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await queryBuilder.order('reference')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -378,7 +378,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await queryBuilder.order('reference')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     // Filter for lots without tenants
@@ -399,12 +399,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({ is_occupied: isOccupied, updated_at: new Date().toISOString() })
-      .eq('id', _lotId)
+      .eq('id', lotId)
       .select()
       .single()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data }
@@ -422,7 +422,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .order('reference')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -453,7 +453,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     const { data, error } = await queryBuilder.order('reference')
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }
@@ -509,7 +509,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .select()
 
     if (error) {
-      return this.handleError(error)
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
     return { success: true as const, data: data || [] }

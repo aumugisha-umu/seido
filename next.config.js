@@ -18,9 +18,7 @@ const nextConfig = {
       '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-dialog',
       'date-fns'
-    ],
-    // Enable Node.js runtime support for middleware
-    nodeMiddleware: true
+    ]
   },
 
   webpack: (config, { isServer }) => {

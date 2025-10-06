@@ -85,55 +85,73 @@ export function useContactsData() {
       const team = userTeams[0]
       logger.info("🏢 [CONTACTS-DATA] Found team:", team.id, team.name)
 
-      // 2. Récupérer les membres de l'équipe depuis la table team_members (junction table)
-      // ✅ FIX: Utiliser team_members au lieu de users pour éviter les problèmes RLS
-      const { data: teamMembersData, error: membersError } = await supabase
-        .from('team_members')
-        .select(`
-          id,
-          user_id,
-          role,
-          joined_at,
-          user:user_id (
+      // ⚡ OPTIMISATION: Charger les 3 queries EN PARALLÈLE
+      logger.info("🏃 [CONTACTS-DATA] Loading team members, invitations, and status IN PARALLEL...")
+
+      const [membersResult, invitationsResult, statusResult] = await Promise.allSettled([
+        // Query 1: Team members
+        supabase
+          .from('team_members')
+          .select(`
             id,
-            name,
-            email,
-            phone,
-            company,
+            user_id,
             role,
-            provider_category,
-            speciality,
-            address,
-            is_active,
-            avatar_url,
-            notes,
-            first_name,
-            last_name
-          )
-        `)
-        .eq('team_id', team.id)
-        .order('joined_at', { ascending: false })
+            joined_at,
+            user:user_id (
+              id,
+              name,
+              email,
+              phone,
+              company,
+              role,
+              provider_category,
+              speciality,
+              address,
+              is_active,
+              avatar_url,
+              notes,
+              first_name,
+              last_name
+            )
+          `)
+          .eq('team_id', team.id)
+          .order('joined_at', { ascending: false }),
 
-      if (membersError) {
-        logger.error("❌ [CONTACTS-DATA] Error loading team members:", membersError)
-        throw new Error(`Failed to load team members: ${membersError.message}`)
-      }
-
-      // Extraire les users depuis la relation team_members
-      const teamContacts = teamMembersData
-        ?.map(tm => tm.user)
-        ?.filter(user => user !== null) || []
-      logger.info("✅ [CONTACTS-DATA] Team members loaded:", teamContacts.length)
-
-      // 3. Charger les invitations en attente depuis user_invitations
-      let invitations: unknown[] = []
-      try {
-        const { data: invitationsData, error: invError } = await supabase
+        // Query 2: Pending invitations
+        supabase
           .from('user_invitations')
           .select('*')
           .eq('team_id', team.id)
           .eq('status', 'pending')
-          .order('invited_at', { ascending: false })
+          .order('invited_at', { ascending: false }),
+
+        // Query 3: Invitation status
+        fetch(`/api/team-invitations?teamId=${team.id}`)
+      ])
+
+      // Traiter résultat membres
+      let teamContacts: unknown[] = []
+      if (membersResult.status === 'fulfilled') {
+        const { data: teamMembersData, error: membersError } = membersResult.value
+
+        if (membersError) {
+          logger.error("❌ [CONTACTS-DATA] Error loading team members:", membersError)
+          throw new Error(`Failed to load team members: ${membersError.message}`)
+        }
+
+        teamContacts = teamMembersData
+          ?.map((tm: any) => tm.user)
+          ?.filter((user: any) => user !== null) || []
+        logger.info("✅ [CONTACTS-DATA] Team members loaded:", teamContacts.length)
+      } else {
+        logger.error("❌ [CONTACTS-DATA] Team members query failed:", membersResult.reason)
+        throw new Error("Failed to load team members")
+      }
+
+      // Traiter résultat invitations
+      let invitations: unknown[] = []
+      if (invitationsResult.status === 'fulfilled') {
+        const { data: invitationsData, error: invError } = invitationsResult.value
 
         if (invError) {
           logger.error("❌ [CONTACTS-DATA] Error loading invitations:", invError)
@@ -142,38 +160,40 @@ export function useContactsData() {
           invitations = invitationsData || []
           logger.info("✅ [CONTACTS-DATA] Pending invitations loaded:", invitations.length)
         }
-      } catch (invitationError) {
-        logger.error("❌ [CONTACTS-DATA] Error loading pending invitations:", invitationError)
-        // Ne pas faire échouer le chargement principal pour les invitations
+      } else {
+        logger.error("❌ [CONTACTS-DATA] Invitations query failed:", invitationsResult.reason)
         invitations = []
       }
-      
-      // 4. Charger le statut d'invitation pour tous les contacts
+
+      // Traiter résultat invitation status
       let contactsInvitationStatus: { [key: string]: string } = {}
-      try {
-        logger.info("🔍 [CONTACTS-DATA] Loading invitation status for", teamContacts.length, "contacts...")
-        
-        const response = await fetch(`/api/team-invitations?teamId=${team.id}`)
-        
-        if (response.ok) {
-          const { invitations: teamInvitations } = await response.json()
-          logger.info("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
-          
-          // Marquer uniquement les contacts qui ont une invitation réelle
-          teamInvitations?.forEach((invitation: any) => {
-            if (invitation.email) {
-              contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
-            }
-          })
-          
-          logger.info("📊 [CONTACTS-DATA] Final invitation status mapping:", contactsInvitationStatus)
-        } else {
-          logger.warn("⚠️ [CONTACTS-DATA] Could not fetch team invitations, using empty status map")
+      if (statusResult.status === 'fulfilled') {
+        const response = statusResult.value
+
+        try {
+          if (response.ok) {
+            const { invitations: teamInvitations } = await response.json()
+            logger.info("📧 [CONTACTS-DATA] Found invitations:", teamInvitations?.length || 0)
+
+            // Marquer uniquement les contacts qui ont une invitation réelle
+            teamInvitations?.forEach((invitation: any) => {
+              if (invitation.email) {
+                contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
+              }
+            })
+
+            logger.info("📊 [CONTACTS-DATA] Final invitation status mapping:", contactsInvitationStatus)
+          } else {
+            logger.warn("⚠️ [CONTACTS-DATA] Could not fetch team invitations, using empty status map")
+          }
+        } catch (statusError) {
+          logger.error("❌ [CONTACTS-DATA] Error parsing invitation status:", statusError)
         }
-      } catch (statusError) {
-        logger.error("❌ [CONTACTS-DATA] Error loading contacts invitation status:", statusError)
-        // Ne pas faire échouer l'interface si les badges ne se chargent pas
+      } else {
+        logger.error("❌ [CONTACTS-DATA] Invitation status fetch failed:", statusResult.reason)
       }
+
+      logger.info("🏁 [CONTACTS-DATA] All parallel queries completed")
       
       if (mountedRef.current) {
         const newData = {

@@ -15,7 +15,9 @@ const nextConfig = {
       '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-dialog',
       'date-fns'
-    ]
+    ],
+    // Externalize Supabase packages to avoid Edge Runtime conflicts
+    serverComponentsExternalPackages: ['@supabase/supabase-js', '@supabase/ssr']
   },
 
   webpack: (config, { isServer }) => {

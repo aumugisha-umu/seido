@@ -121,14 +121,19 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     const userService = await createServerUserService()
     const userResult = await userService.getByAuthUserId(data.user.id)
 
-    if (userResult.success && userResult.data && userResult.data.role) {
-      dashboardPath = getDashboardPath(userResult.data.role)
-      logger.info('🔄 [LOGIN-ACTION] Determined role-specific dashboard:', {
-        role: userResult.data.role,
-        dashboard: dashboardPath
-      })
+    if (userResult.success && userResult.data) {
+      const userData = userResult.data
+      if ('role' in userData && userData.role) {
+        dashboardPath = getDashboardPath(userData.role)
+        logger.info('🔄 [LOGIN-ACTION] Determined role-specific dashboard:', {
+          role: userData.role,
+          dashboard: dashboardPath
+        })
+      } else {
+        logger.info('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
+      }
     } else {
-      logger.info('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
+      logger.info('⚠️ [LOGIN-ACTION] User not found, using default dashboard')
     }
   } catch (error) {
     logger.info(`⚠️ [LOGIN-ACTION] Error determining role, using fallback: ${error instanceof Error ? error.message : String(error)}`)

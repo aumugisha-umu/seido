@@ -17,8 +17,7 @@ import {
   PermissionException
 } from './error-handler'
 import type {
-import { logger, logError } from '@/lib/logger'
-User
+  User
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 } from './service-types'
 

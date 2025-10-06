@@ -2,18 +2,17 @@
 // Ce fichier contient des exemples pratiques pour différents cas d'usage
 
 import React, { useState, useEffect } from 'react'
-import { 
-  logger, 
-  authLogger, 
-  interventionLogger, 
-  logUserAction, 
-  logError 
+import {
+  logger,
+  authLogger,
+  interventionLogger,
+  logUserAction,
+  logError
 } from '@/lib/logger'
-import { 
-import { logger, logError } from '@/lib/logger'
-  useComponentLogger, 
-  useInteractionLogger, 
-  usePerformanceLogger 
+import {
+  useComponentLogger,
+  useInteractionLogger,
+  usePerformanceLogger
 } from '@/lib/react-logger'
 import { createSupabaseLogger } from '@/lib/supabase-logger'
 

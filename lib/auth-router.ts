@@ -304,7 +304,7 @@ export async function canAccessRoute(pathname: string): Promise<{ canAccess: boo
 
     logger.info(`✅ [AUTH-ROUTER] User ${user.role} can access ${pathname}`)
     return { canAccess: true, user }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('❌ [AUTH-ROUTER] Route access check failed:', error)
     return { canAccess: false, redirectTo: '/auth/login' }
   }
@@ -325,7 +325,7 @@ export async function protectRoute(pathname: string): Promise<{ user: AuthUser |
     dalFunctions.redirect(redirectTo)
   }
 
-  return { user }
+  return { user: user ?? null }
 }
 
 /**

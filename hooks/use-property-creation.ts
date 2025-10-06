@@ -23,8 +23,7 @@ import {
 } from "@/lib/services"
 import { getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import type {
-import { logger, logError } from '@/lib/logger'
-PropertyMode,
+  PropertyMode,
   PropertyFormData,
   BuildingFormData,
   LotFormData,

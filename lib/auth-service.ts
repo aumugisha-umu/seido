@@ -439,46 +439,69 @@ class AuthService {
         return { user, error: null }
       }
 
-      // ⚠️ FALLBACK JWT (2025-10-03): Profile manquant en DB
+      // ✅ SELF-HEALING (2025): Profile manquant en DB, création automatique
       // Ceci peut arriver si:
       // 1. Le trigger PostgreSQL a échoué (avant migration 20251003000001)
       // 2. La création server-side dans /auth/confirm a échoué
       // 3. L'utilisateur a été créé manuellement sans profil
-      logger.warn('⚠️ [AUTH-SERVICE-REFACTORED] CRITICAL: No profile in DB, using JWT fallback', {
+      logger.warn('⚠️ [AUTH-SERVICE-SELF-HEAL] CRITICAL: No profile in DB, attempting auto-creation...', {
         authUserId: authUser.id,
         email: authUser.email,
         emailConfirmed: authUser.email_confirmed_at ? 'YES' : 'NO',
-        timestamp: new Date().toISOString(),
-        suggestion: 'Profile should be created in /auth/confirm or via heal script'
+        timestamp: new Date().toISOString()
       })
 
-      // TODO: Considérer ajouter une métrique/alert ici pour monitorer ces cas en production
-      // TODO: Optionnel - créer le profil manquant à la volée (pattern "self-healing")
+      try {
+        // ✅ Auto-créer le profil manquant
+        const userSvc = await getUserService()
+        const createdProfileResult = await userSvc.create({
+          auth_user_id: authUser.id,
+          email: authUser.email!,
+          name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
+          first_name: authUser.user_metadata?.first_name || undefined,
+          last_name: authUser.user_metadata?.last_name || undefined,
+          role: authUser.user_metadata?.role || 'gestionnaire',
+          provider_category: null,
+          phone: authUser.user_metadata?.phone || undefined,
+          password_set: authUser.user_metadata?.password_set ?? true
+        })
 
-      const user: AuthUser = {
-        id: authUser.id,
-        email: authUser.email!,
-        name: authUser.user_metadata?.full_name || 'Utilisateur',
-        first_name: authUser.user_metadata?.first_name || undefined,
-        last_name: authUser.user_metadata?.last_name || undefined,
-        display_name: authUser.user_metadata?.display_name || undefined,
-        role: authUser.user_metadata?.role || 'gestionnaire', // ✅ Utiliser role du JWT si disponible
-        team_id: authUser.user_metadata?.team_id || undefined, // ✅ Utiliser team_id du JWT si disponible
-        phone: undefined,
-        avatar_url: undefined,
-        password_set: authUser.user_metadata?.password_set ?? true,  // ✅ CRITIQUE: Défaut true pour utilisateurs existants, false pour invitations
-        created_at: undefined,
-        updated_at: undefined,
+        if (!createdProfileResult.success || !createdProfileResult.data) {
+          throw new Error('Failed to create user profile: ' + (createdProfileResult as any).error)
+        }
+
+        const createdProfile = createdProfileResult.data
+
+        logger.info('✅ [AUTH-SERVICE-SELF-HEAL] Successfully auto-created missing profile:', {
+          id: createdProfile.id,
+          email: createdProfile.email,
+          role: createdProfile.role
+        })
+
+        // Retourner le profil nouvellement créé
+        const user: AuthUser = {
+          id: createdProfile.id,
+          email: createdProfile.email,
+          name: createdProfile.name,
+          first_name: createdProfile.first_name || undefined,
+          last_name: createdProfile.last_name || undefined,
+          display_name: authUser.user_metadata?.display_name || createdProfile.name,
+          role: createdProfile.role,
+          team_id: createdProfile.team_id,
+          phone: createdProfile.phone || undefined,
+          avatar_url: createdProfile.avatar_url || undefined,
+          password_set: createdProfile.password_set,
+          created_at: createdProfile.created_at || undefined,
+          updated_at: createdProfile.updated_at || undefined,
+        }
+
+        return { user, error: null }
+
+      } catch (healError) {
+        logger.error('❌ [AUTH-SERVICE-SELF-HEAL] Auto-creation failed:', healError)
+        // Échec critique - retourner null plutôt qu'un fallback JWT
+        return { user: null, error: null }
       }
-
-      logger.info('🔍 [GET-CURRENT-USER-FALLBACK] Created JWT fallback user with password_set:', {
-        metadata_value: authUser.user_metadata?.password_set,
-        final_value: user.password_set,
-        type: typeof user.password_set,
-        email: user.email
-      })
-
-      return { user, error: null }
 
     } catch (error) {
       logger.error('❌ [AUTH-SERVICE-REFACTORED] getCurrentUser failed:', error)
@@ -807,31 +830,57 @@ class AuthService {
             logger.warn('⚠️ [AUTH-STATE-CHANGE-FALLBACK] Direct query failed or timed out, proceeding with JWT-only:', directError.message)
           }
 
-          // ✅ Fallback final : JWT metadata (mais sans ID de profil incorrect)
-          logger.info('⚠️ [AUTH-STATE-CHANGE-JWT-ONLY] Using JWT-only fallback')
+          // ✅ SELF-HEALING: Profile manquant, création automatique au lieu de fallback JWT
+          logger.warn('⚠️ [AUTH-STATE-CHANGE-SELF-HEAL] Profile not found, attempting auto-creation...')
 
-          const fallbackUser: AuthUser = {
-            id: `jwt_${session.user.id}`, // ✅ CORRECTION: Préfixe pour éviter confusion avec IDs profil
-            email: session.user.email!,
-            name: session.user.user_metadata?.full_name || 'Utilisateur',
-            first_name: session.user.user_metadata?.first_name,
-            last_name: session.user.user_metadata?.last_name,
-            display_name: session.user.user_metadata?.display_name,
-            role: session.user.user_metadata?.role || 'gestionnaire',
-            phone: undefined,
-            password_set: session.user.user_metadata?.password_set ?? true,  // ✅ CRITIQUE: Défaut true pour utilisateurs existants, false pour invitations
-            created_at: undefined,
-            updated_at: undefined,
+          try {
+            const userSvc = await getUserService()
+            const createdProfileResult = await userSvc.create({
+              auth_user_id: session.user.id,
+              email: session.user.email!,
+              name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+              first_name: session.user.user_metadata?.first_name || undefined,
+              last_name: session.user.user_metadata?.last_name || undefined,
+              role: session.user.user_metadata?.role || 'gestionnaire',
+              provider_category: null,
+              phone: session.user.user_metadata?.phone || undefined,
+              password_set: session.user.user_metadata?.password_set ?? true
+            })
+
+            if (!createdProfileResult.success || !createdProfileResult.data) {
+              throw new Error('Failed to create user profile')
+            }
+
+            const createdProfile = createdProfileResult.data
+
+            logger.info('✅ [AUTH-STATE-CHANGE-SELF-HEAL] Successfully auto-created missing profile:', {
+              id: createdProfile.id,
+              email: createdProfile.email,
+              role: createdProfile.role
+            })
+
+            const healedUser: AuthUser = {
+              id: createdProfile.id,
+              email: createdProfile.email,
+              name: createdProfile.name,
+              first_name: createdProfile.first_name || undefined,
+              last_name: createdProfile.last_name || undefined,
+              display_name: session.user.user_metadata?.display_name || createdProfile.name,
+              role: createdProfile.role,
+              team_id: createdProfile.team_id,
+              phone: createdProfile.phone || undefined,
+              avatar_url: createdProfile.avatar_url || undefined,
+              password_set: createdProfile.password_set,
+              created_at: createdProfile.created_at || undefined,
+              updated_at: createdProfile.updated_at || undefined,
+            }
+
+            callback(healedUser)
+          } catch (healError) {
+            logger.error('❌ [AUTH-STATE-CHANGE-SELF-HEAL] Auto-creation failed:', healError)
+            // Échec critique - retourner null
+            callback(null)
           }
-
-          logger.info('🔍 [JWT-FALLBACK] Created fallback user with password_set:', {
-            metadata_value: session.user.user_metadata?.password_set,
-            final_value: fallbackUser.password_set,
-            type: typeof fallbackUser.password_set,
-            email: fallbackUser.email
-          })
-
-          callback(fallbackUser)
 
         } catch (error) {
           logger.error('❌ [AUTH-STATE-CHANGE-REFACTORED] Error processing profile:', error)

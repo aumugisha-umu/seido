@@ -1,5 +1,4 @@
 import { createBrowserClient, createServerClient } from '@supabase/ssr'
-import type { CookieOptions } from '@supabase/ssr'
 import type { Database } from '../../database.types'
 import { ENV_CONFIG, calculateRetryDelay } from '../../environment'
 import { logger, logError } from '@/lib/logger'
@@ -68,21 +67,17 @@ export async function createServerSupabaseClient() {
 
   return createServerClient<Database>(supabaseUrl!, supabaseAnonKey!, {
     cookies: {
-      get(_name: string) {
-        return cookieStore.get(_name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(name: string, value: string, options: CookieOptions) {
+      setAll(cookiesToSet) {
         try {
-          cookieStore.set({ name, value, ...options })
-        } catch {
-          // Handle error when setting cookies in Server Components
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value: '', ...options })
-        } catch {
-          // Handle error when removing cookies in Server Components
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+          })
+        } catch (error) {
+          // ✅ 2025: Graceful handling when setting cookies in Server Components
+          console.warn('⚠️ [SUPABASE-SERVER] Unable to set cookies:', error)
         }
       }
     },

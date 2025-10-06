@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
-import type { Building, Lot, Intervention, Contact, User } from './database-service'
+import type { Building, Lot, Intervention, Contact, User } from '@/lib/services/core/service-types'
 import { logger, logError } from '@/lib/logger'
 type NotificationType = Database['public']['Enums']['notification_type']
 type NotificationPriority = Database['public']['Enums']['notification_priority']

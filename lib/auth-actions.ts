@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from './database.types'
-import { userService, teamService } from './database-service'
+import { createServerUserService, createServerTeamService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 import { activityLogger } from './activity-logger'
 export interface SignUpData {
@@ -104,12 +104,14 @@ export async function signInAction(formData: FormData) {
     logger.info('✅ [AUTH-ACTION] User signed in:', data.user.id)
 
     // Vérifier que l'utilisateur a un profil
-    const userProfile = await userService.getByAuthUserId(data.user.id)
-    if (!userProfile) {
+    const userService = await createServerUserService()
+    const userProfileResult = await userService.getByAuthUserId(data.user.id)
+    if (!userProfileResult.success || !userProfileResult.data) {
       // Déconnecter si pas de profil
       await supabase.auth.signOut()
       return { error: 'Profil utilisateur non trouvé' }
     }
+    const userProfile = userProfileResult.data
 
     // Redirection basée sur le rôle
     const dashboardRoutes = {
@@ -165,7 +167,8 @@ export async function signUpAction(formData: FormData) {
     }
 
     // Créer le profil utilisateur
-    const userProfile = await userService.create({
+    const userService = await createServerUserService()
+    const userProfileResult = await userService.create({
       auth_user_id: authData.user.id,
       email: authData.user.email!,
       name,
@@ -176,12 +179,25 @@ export async function signUpAction(formData: FormData) {
       phone: phone || null,
     })
 
+    if (!userProfileResult.success || !userProfileResult.data) {
+      logger.error('❌ [AUTH-ACTION] Failed to create user profile')
+      return { error: 'Erreur création profil utilisateur' }
+    }
+    const userProfile = userProfileResult.data
+
     // Créer l'équipe personnelle
-    const team = await teamService.create({
+    const teamService = await createServerTeamService()
+    const teamResult = await teamService.create({
       name: `Équipe de ${name}`,
       description: `Équipe personnelle de ${name}`,
       created_by: userProfile.id
     })
+
+    if (!teamResult.success || !teamResult.data) {
+      logger.error('❌ [AUTH-ACTION] Failed to create team')
+      return { error: 'Erreur création équipe' }
+    }
+    const team = teamResult.data
 
     // Logs d'activité
     try {

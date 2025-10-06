@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit } from "lucide-react"
-import { useManagerStats } from "@/hooks/use-manager-stats"
+import { useBuildings } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
 import ContentNavigator from "@/components/content-navigator"
 
@@ -53,7 +53,7 @@ export default function PropertySelector({
     status: "all",
     interventions: "all"
   })
-  const { data, loading, error: _error } = useManagerStats()
+  const { data, loading, error: _error } = useBuildings()
 
   const buildings = data?.buildings || []
   const individualLots = data?.lots || []

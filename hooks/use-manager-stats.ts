@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "./use-auth"
-import { useDataRefresh } from "./use-cache-management"
 import { createStatsService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 export interface ManagerStats {
@@ -29,12 +28,11 @@ export function useManagerStats() {
   const [data, setData] = useState<ManagerData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Utiliser des refs pour éviter les re-renders inutiles
   const loadingRef = useRef(false)
   const lastUserIdRef = useRef<string | null>(null)
   const mountedRef = useRef(true)
-  const userIdRef = useRef<string | null>(null)  // ✅ NOUVEAU: Ref pour user.id stable
 
   const fetchStats = useCallback(async (userId: string, bypassCache = false) => {
     // ✅ NOUVEAU: Skip pour les utilisateurs JWT-only SANS sauvegarder lastUserIdRef
@@ -105,28 +103,8 @@ export function useManagerStats() {
     }
   }, [])  // ✅ CORRECTION: Dependency array vide - fetchStats n'a pas besoin de dépendances
 
-  // ✅ NOUVEAU: Intégration avec le système de cache pour refresh automatique
-  const refreshCallback = useCallback(() => {
-    const currentUserId = userIdRef.current
-    if (!currentUserId || currentUserId.startsWith('jwt_')) {
-      logger.info("🔒 [MANAGER-STATS] Skipping refresh - JWT-only or no user")
-      return
-    }
-
-    logger.info("🔄 [MANAGER-STATS] Cache refresh triggered")
-    lastUserIdRef.current = null
-    setData(null) // Clear data to show loading state
-    fetchStats(currentUserId, true)
-  }, [fetchStats])  // ✅ CORRECTION: Seule dépendance fetchStats (maintenant stable)
-
-  // Enregistrer le hook avec le système de cache
-  const { setCacheValid, invalidateCache, forceRefresh } = useDataRefresh('manager-stats', refreshCallback)
-
   // ✅ OPTIMISÉ: Effect avec debouncing réduit et intégration cache
   useEffect(() => {
-    // ✅ NOUVEAU: Mettre à jour la ref
-    userIdRef.current = user?.id || null
-
     if (!user?.id) {
       setLoading(false)
       setData(null)
@@ -152,33 +130,28 @@ export function useManagerStats() {
     }
   }, [])
 
-  // ✅ OPTIMISÉ: Refetch avec système de cache intégré
+  // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {
     if (user?.id) {
       logger.info("🔄 [MANAGER-STATS] Manual refetch requested")
-      // Invalider le cache et forcer le refetch
-      invalidateCache()
       lastUserIdRef.current = null
       setData(null) // Clear current data to show loading
       loadingRef.current = false
       fetchStats(user.id, true) // Bypass cache
     }
-  }, [user?.id, fetchStats, invalidateCache])
+  }, [user?.id, fetchStats])
 
   const forceRefetch = useCallback(async () => {
     if (user?.id) {
-      logger.info("🔄 [MANAGER-STATS] Force refresh requested - clearing service cache too")
-      // Vider le cache du service ET le cache local
-      // Note: clearStatsCache functionality would be handled by new architecture if needed
-      invalidateCache()
+      logger.info("🔄 [MANAGER-STATS] Force refresh requested")
       lastUserIdRef.current = null
       setData(null)
       loadingRef.current = false
-      
+
       // Force fetch
       await fetchStats(user.id, true)
     }
-  }, [user?.id, fetchStats, invalidateCache])
+  }, [user?.id, fetchStats])
 
   return {
     data,
@@ -223,7 +196,6 @@ export function useContactStats() {
   const loadingRef = useRef(false)
   const lastUserIdRef = useRef<string | null>(null)
   const mountedRef = useRef(true)
-  const userIdRef = useRef<string | null>(null)  // ✅ NOUVEAU: Ref pour user.id stable
 
   const fetchContactStats = useCallback(async (userId: string, bypassCache = false) => {
     // ✅ NOUVEAU: Skip pour les utilisateurs JWT-only SANS sauvegarder lastUserIdRef
@@ -298,28 +270,8 @@ export function useContactStats() {
     }
   }, [])  // ✅ CORRECTION: Dependency array vide - fetchContactStats n'a pas besoin de dépendances
 
-  // ✅ NOUVEAU: Intégration avec le système de cache pour refresh automatique
-  const refreshCallback = useCallback(() => {
-    const currentUserId = userIdRef.current
-    if (!currentUserId || currentUserId.startsWith('jwt_')) {
-      logger.info("🔒 [CONTACT-STATS] Skipping refresh - JWT-only or no user")
-      return
-    }
-
-    logger.info("🔄 [CONTACT-STATS] Cache refresh triggered")
-    lastUserIdRef.current = null
-    setContactStats(null)
-    fetchContactStats(currentUserId, true)
-  }, [fetchContactStats])  // ✅ CORRECTION: Seule dépendance fetchContactStats (maintenant stable)
-
-  // Enregistrer le hook avec le système de cache
-  const { setCacheValid, invalidateCache, forceRefresh } = useDataRefresh('contact-stats', refreshCallback)
-
-  // ✅ OPTIMISÉ: Effect avec debouncing réduit et intégration cache
+  // ✅ SIMPLIFIÉ: Effect standard React sans userIdRef
   useEffect(() => {
-    // ✅ NOUVEAU: Mettre à jour la ref
-    userIdRef.current = user?.id || null
-
     if (!user?.id) {
       setLoading(false)
       setContactStats(null)
@@ -345,33 +297,28 @@ export function useContactStats() {
     }
   }, [])
 
-  // ✅ OPTIMISÉ: Refetch avec système de cache intégré
+  // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {
     if (user?.id) {
       logger.info("🔄 [CONTACT-STATS] Manual refetch requested")
-      // Invalider le cache et forcer le refetch
-      invalidateCache()
       lastUserIdRef.current = null
       setContactStats(null)
       loadingRef.current = false
       fetchContactStats(user.id, true) // Bypass cache
     }
-  }, [user?.id, fetchContactStats, invalidateCache])
+  }, [user?.id, fetchContactStats])
 
   const forceRefetch = useCallback(async () => {
     if (user?.id) {
-      logger.info("🔄 [CONTACT-STATS] Force refresh requested - clearing service cache too")
-      // Vider le cache du service ET le cache local
-      // Note: clearStatsCache functionality would be handled by new architecture if needed
-      invalidateCache()
+      logger.info("🔄 [CONTACT-STATS] Force refresh requested")
       lastUserIdRef.current = null
       setContactStats(null)
       loadingRef.current = false
-      
+
       // Force fetch
       await fetchContactStats(user.id, true)
     }
-  }, [user?.id, fetchContactStats, invalidateCache])
+  }, [user?.id, fetchContactStats])
 
   return {
     contactStats: contactStats || {

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
-import { useDataRefresh } from "./use-cache-management"
 import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 export interface ContactsData {
@@ -200,21 +199,7 @@ export function useContactsData() {
     }
   }, [data.contacts.length])
 
-  // ✅ NOUVEAU: Intégration avec le système de cache pour refresh automatique
-  const refreshCallback = useCallback(() => {
-    if (user?.id) {
-      logger.info("🔄 [CONTACTS-DATA] Cache refresh triggered")
-      // Forcer le bypass du cache pour le refresh
-      lastUserIdRef.current = null
-      setData(prev => ({ ...prev, contacts: [], pendingInvitations: [] })) // Clear data to show loading state
-      fetchContactsData(user.id, true)
-    }
-  }, [user?.id, fetchContactsData])
-
-  // Enregistrer le hook avec le système de cache
-  const { setCacheValid, invalidateCache, forceRefresh } = useDataRefresh('contacts-data', refreshCallback)
-
-  // ✅ OPTIMISÉ: Effect avec debouncing réduit et intégration cache
+  // ✅ SIMPLIFIÉ: Effect standard React sans couche de cache
   useEffect(() => {
     if (!user?.id) {
       setLoading(false)
@@ -246,12 +231,10 @@ export function useContactsData() {
     }
   }, [])
 
-  // ✅ OPTIMISÉ: Refetch avec système de cache intégré
+  // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {
     if (user?.id) {
       logger.info("🔄 [CONTACTS-DATA] Manual refetch requested")
-      // Invalider le cache et forcer le refetch
-      invalidateCache()
       lastUserIdRef.current = null
       setData({
         contacts: [],
@@ -262,12 +245,11 @@ export function useContactsData() {
       loadingRef.current = false
       fetchContactsData(user.id, true) // Bypass cache
     }
-  }, [user?.id, fetchContactsData, invalidateCache])
+  }, [user?.id, fetchContactsData])
 
   const forceRefetch = useCallback(async () => {
     if (user?.id) {
       logger.info("🔄 [CONTACTS-DATA] Force refresh requested")
-      invalidateCache()
       lastUserIdRef.current = null
       setData({
         contacts: [],
@@ -276,11 +258,11 @@ export function useContactsData() {
         contactsInvitationStatus: {}
       })
       loadingRef.current = false
-      
+
       // Force fetch
       await fetchContactsData(user.id, true)
     }
-  }, [user?.id, fetchContactsData, invalidateCache])
+  }, [user?.id, fetchContactsData])
 
   return {
     data,

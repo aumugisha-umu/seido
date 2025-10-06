@@ -169,7 +169,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   /**
    * Get buildings for a user (via building_contacts or team_members)
    */
-  async findByUser(_userId: string) {
+  async findByUser(userId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -190,7 +190,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
           user:user_id(id, name, email, phone, role, provider_category)
         )
       `)
-      .or(`building_contacts.user_id.eq.${_userId},team_id.in.(select team_id from team_members where user_id = '${_userId}')`)
+      .or(`building_contacts.user_id.eq.${userId},team_id.in.(select team_id from team_members where user_id = '${userId}')`)
       .order('name')
 
     if (error) {

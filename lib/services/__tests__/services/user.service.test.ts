@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { UserService } from '../../domain/user.service'
 import { UserRepository } from '../../repositories/user.repository'
-import { UserTestDataFactory } from '../helpers/test-data'
+import { UserTestDataFactory, MockedObject } from '../helpers/test-data'
 import {
   ValidationException,
   ConflictException,
@@ -19,7 +19,7 @@ vi.mock('../../repositories/user.repository')
 
 describe('UserService', () => {
   let service: UserService
-  let mockRepository: unknown
+  let mockRepository: MockedObject<UserRepository>
 
   beforeEach(() => {
     // Reset mocks

@@ -25,7 +25,7 @@ const AllTheProviders = ({
   teamId = 'test-team-id'
 }: unknown) => {
   const mockUser = {
-    id: _userId,
+    id: userId,
     email: `test@${userRole}.fr`,
     name: `Test ${userRole}`,
     first_name: 'Test',

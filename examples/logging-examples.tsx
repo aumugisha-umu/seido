@@ -147,7 +147,7 @@ export const useAuthWithLogging = () => {
       await signOutUser()
       setUser(null)
       
-      logUserAction('sign_out', _userId)
+      logUserAction('sign_out', userId)
       authLogger.info('Déconnexion réussie', { userId })
     } catch (error) {
       logError(error as Error, 'sign_out')

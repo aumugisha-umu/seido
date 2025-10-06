@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BuildingService } from '../../domain/building.service'
 import { BuildingRepository } from '../../repositories/building.repository'
 import { UserService } from '../../domain/user.service'
-import { BuildingTestDataFactory, UserTestDataFactory } from '../helpers/test-data'
+import { BuildingTestDataFactory, UserTestDataFactory, MockedObject } from '../helpers/test-data'
 import {
   ValidationException
 } from '../../core/error-handler'
@@ -18,8 +18,8 @@ vi.mock('../../domain/user.service')
 
 describe('BuildingService (Simplified)', () => {
   let service: BuildingService
-  let mockRepository: Partial<BuildingRepository>
-  let mockUserService: Partial<UserService>
+  let mockRepository: MockedObject<BuildingRepository>
+  let mockUserService: MockedObject<UserService>
 
   beforeEach(() => {
     vi.clearAllMocks()

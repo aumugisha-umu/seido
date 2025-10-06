@@ -97,8 +97,8 @@ export async function GET(request: NextRequest) {
     } else {
       logger.info({}, '🔍 [NOTIFICATIONS-API] Using default scope filter')
       // Comportement par défaut (toutes les notifications selon les filtres)
-      if (_userId) {
-        query = query.eq('user_id', _userId)
+      if (userId) {
+        query = query.eq('user_id', userId)
       }
       if (teamId) {
         query = query.eq('team_id', teamId)

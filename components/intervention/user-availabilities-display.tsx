@@ -83,8 +83,8 @@ export function UserAvailabilitiesDisplay({
     filterRole: filterRole || 'none',
     excludedProviders: filterState?.excludedProviders || [],
     details: {
-      original: availabilities.map(a => ({ userId: a._userId, person: a.person, role: a.role })),
-      finalFiltered: filteredAvailabilities.map(a => ({ userId: a._userId, person: a.person, role: a.role }))
+      original: availabilities.map(a => ({ userId: a.userId, person: a.person, role: a.role })),
+      finalFiltered: filteredAvailabilities.map(a => ({ userId: a.userId, person: a.person, role: a.role }))
     }
   })
 
@@ -100,7 +100,7 @@ export function UserAvailabilitiesDisplay({
         acc[key] = {
           person: availability.person,
           role: availability.role,
-          userId: availability._userId,
+          userId: availability.userId,
           slots: []
         }
       }
@@ -124,7 +124,7 @@ export function UserAvailabilitiesDisplay({
     totalGroups: Object.keys(groupedAvailabilities).length,
     groups: Object.entries(groupedAvailabilities).map(([key, group]) => ({
       key,
-      userId: group._userId,
+      userId: group.userId,
       person: group.person,
       role: group.role,
       slotCount: group.slots.length

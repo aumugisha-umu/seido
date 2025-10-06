@@ -26,7 +26,7 @@ interface DebugPanelProps {
   isVisible?: boolean
 }
 
-export function SEIDODebugPanel({ userRole, _userId, isVisible = false }: DebugPanelProps) {
+export function SEIDODebugPanel({ userRole, userId, isVisible = false }: DebugPanelProps) {
   const [logs, setLogs] = useState<DebugLog[]>([])
   const [isExpanded, setIsExpanded] = useState(isVisible)
   const [activeTab, setActiveTab] = useState('logs')

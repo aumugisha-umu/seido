@@ -60,7 +60,7 @@ export class SEIDODebugger {
   ) {
     this.log('PERMISSION', authorized ? 'info' : 'error',
       `Permission ${authorized ? 'granted' : 'denied'} for ${operation}`,
-      { userRole, _userId, action: operation },
+      { userRole, userId, action: operation },
       { resource, reason }
     )
   }
@@ -131,7 +131,7 @@ export class SEIDODebugger {
   ) {
     this.log('DATABASE', result?.error ? 'error' : 'info',
       `${operation} on ${table}`,
-      { userRole, _userId, action: operation.toLowerCase() },
+      { userRole, userId, action: operation.toLowerCase() },
       { table, filters, result }
     )
   }

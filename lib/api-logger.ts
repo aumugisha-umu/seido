@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { logger, logError } from '@/lib/logger'
 import { logger, logApiCall, logError } from './logger'
 
 // Types pour les handlers API

@@ -120,6 +120,17 @@ export {
 // Base repository export
 export { BaseRepository } from './core/base-repository'
 
+// Type guards for repository responses
+export {
+  isSuccessResponse,
+  isErrorResponse,
+  isSuccessListResponse,
+  isErrorListResponse,
+  assertSuccessResponse,
+  extractData,
+  extractListData
+} from './core/type-guards'
+
 // Phase 2: Core Services Exports
 // User Service
 export {

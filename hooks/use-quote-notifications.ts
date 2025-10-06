@@ -10,7 +10,7 @@ interface UseQuoteNotificationsProps {
 }
 
 export function useQuoteNotifications({
-  _userId,
+  userId,
   userRole,
   enabled = true
 }: UseQuoteNotificationsProps) {
@@ -20,7 +20,7 @@ export function useQuoteNotifications({
 
   // Fonction pour récupérer les notifications
   const fetchNotifications = useCallback(async () => {
-    if (!enabled || !_userId) return
+    if (!enabled || !userId) return
 
     try {
       setIsLoading(true)
@@ -100,7 +100,7 @@ export function useQuoteNotifications({
     } finally {
       setIsLoading(false)
     }
-  }, [_userId, userRole, enabled])
+  }, [userId, userRole, enabled])
 
   // Fonction pour marquer une notification comme lue
   const markAsRead = useCallback(async (_notificationId: string) => {
@@ -124,7 +124,7 @@ export function useQuoteNotifications({
   const markAllAsRead = useCallback(async () => {
     try {
       // TODO: Appel API pour marquer toutes comme lues
-      // await fetch(`/api/notifications/mark-all-read`, { method: 'POST', body: { _userId, type: 'quote' } })
+      // await fetch(`/api/notifications/mark-all-read`, { method: 'POST', body: { userId, type: 'quote' } })
 
       setNotifications(prev =>
         prev.map(notification => ({ ...notification, read: true }))

@@ -37,25 +37,25 @@ export class TenantService {
   /**
    * Get comprehensive tenant data by user ID
    */
-  async getTenantData(_userId: string): Promise<TenantData | null> {
-    logger.info("👤 getTenantData called for userId:", _userId)
+  async getTenantData(userId: string): Promise<TenantData | null> {
+    logger.info("👤 getTenantData called for userId:", userId)
 
     try {
       // Handle JWT-only IDs
-      let actualUserId = _userId
-      if (_userId.startsWith('jwt_')) {
-        const authUserId = _userId.replace('jwt_', '')
+      let actualUserId = userId
+      if (userId.startsWith('jwt_')) {
+        const authUserId = userId.replace('jwt_', '')
         const userResult = await this.userService.getByAuthUserId?.(authUserId)
 
         if (userResult?.success && userResult.data) {
           actualUserId = userResult.data.id
           logger.info("🔄 [TENANT-SERVICE] Resolved JWT user ID:", {
-            original: _userId,
+            original: userId,
             authUserId,
             actualUserId: actualUserId
           })
         } else {
-          logger.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", _userId)
+          logger.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", userId)
           return null
         }
       }
@@ -99,7 +99,7 @@ export class TenantService {
   /**
    * Get lots associated with a tenant
    */
-  private async getTenantLots(_userId: string): Promise<Array<{
+  private async getTenantLots(userId: string): Promise<Array<{
     lot: Lot
     is_primary: boolean
     start_date?: string
@@ -108,7 +108,7 @@ export class TenantService {
     try {
       // This would require integration with contact service to get lot_contacts
       // For now, we'll return an empty array and implement proper logic later
-      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant:", _userId)
+      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant:", userId)
 
       // Get all lots and filter by tenant assignments
       const lotsResult = await this.lotService.getAll()
@@ -119,7 +119,7 @@ export class TenantService {
       // Filter lots where this user is assigned as tenant
       // This is a simplified implementation - in reality we'd query lot_contacts
       const tenantLots = lotsResult.data
-        .filter(lot => lot.tenant_id === _userId)
+        .filter(lot => lot.tenant_id === userId)
         .map(lot => ({
           lot,
           is_primary: true,
@@ -139,9 +139,9 @@ export class TenantService {
   /**
    * Get interventions for a tenant
    */
-  private async getTenantInterventions(_userId: string): Promise<Intervention[]> {
+  private async getTenantInterventions(userId: string): Promise<Intervention[]> {
     try {
-      logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", _userId)
+      logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", userId)
 
       // This would require intervention service integration
       // For now, return empty array and implement proper logic later
@@ -156,9 +156,9 @@ export class TenantService {
   /**
    * Validate if user is a tenant
    */
-  async validateTenant(_userId: string): Promise<boolean> {
+  async validateTenant(userId: string): Promise<boolean> {
     try {
-      const userResult = await this.userService.getById(_userId)
+      const userResult = await this.userService.getById(userId)
       if (!userResult.success) {
         return false
       }
@@ -175,14 +175,14 @@ export class TenantService {
   /**
    * Get tenant summary data
    */
-  async getTenantSummary(_userId: string): Promise<ServiceResult<{
+  async getTenantSummary(userId: string): Promise<ServiceResult<{
     user: User
     lotCount: number
     interventionCount: number
     activeStatus: boolean
   }>> {
     try {
-      const tenantData = await this.getTenantData(_userId)
+      const tenantData = await this.getTenantData(userId)
 
       if (!tenantData) {
         return {

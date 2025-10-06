@@ -69,7 +69,7 @@ interface ActionConfig {
 export function InterventionActionPanel({
   intervention,
   userRole,
-  _userId,
+  userId,
   onActionComplete,
   onOpenQuoteModal,
   onCancelQuote
@@ -324,7 +324,7 @@ export function InterventionActionPanel({
             confirmationMessage: 'Confirmer le début de l\'intervention ?'
           })
         }
-        if (userRole === 'locataire' && intervention.tenant_id === _userId) {
+        if (userRole === 'locataire' && intervention.tenant_id === userId) {
           actions.push(
             {
               key: 'modify_schedule',

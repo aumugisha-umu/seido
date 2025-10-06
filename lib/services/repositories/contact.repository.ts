@@ -72,7 +72,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   /**
    * Get all contacts for a specific user
    */
-  async findByUser(_userId: string) {
+  async findByUser(userId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -80,7 +80,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
         lot:lot_id(id, reference, building:building_id(name, address)),
         building:building_id(id, name, address, city)
       `)
-      .eq('user_id', _userId)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (error) {

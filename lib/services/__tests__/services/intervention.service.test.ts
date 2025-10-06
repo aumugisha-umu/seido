@@ -16,7 +16,7 @@ import {
   InterventionTestDataFactory,
   ContactTestDataFactory
 } from '../helpers/test-data'
-import type { Intervention, User } from '../../core/service-types'
+import type { Intervention, User, Lot } from '../../core/service-types'
 
 // Mock dependencies
 const mockRepository = {
@@ -57,7 +57,7 @@ describe('InterventionService', () => {
   let mockProvider: User
   let mockTenant: User
   let mockIntervention: Intervention
-  let mockLot: unknown
+  let mockLot: Lot
 
   beforeEach(() => {
     // Reset all mocks

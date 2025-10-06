@@ -920,7 +920,7 @@ class AuthService {
         return { success: false, error: result.error }
       }
 
-      logger.info('✅ User invited successfully:', result._userId)
+      logger.info('✅ User invited successfully:', result.userId)
       return { 
         success: true, 
         userId: result.userId 

@@ -190,7 +190,7 @@ export function InterventionDetailTabs({
   intervention,
   quoteRequests = [],
   userRole,
-  _userId,
+  userId,
   onDataChange,
   onDownloadAttachment,
   onResendRequest,
@@ -509,7 +509,7 @@ export function InterventionDetailTabs({
 
                     {/* Prestataires avec devis accepté - Visibles pour gestionnaires, locataires et autres prestataires */}
                     {getApprovedProviders()
-                      .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== _userId)
+                      .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== userId)
                       .map((provider) => (
                       <div key={provider.id} className="flex items-center space-x-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">

@@ -25,6 +25,7 @@ import {
   PermissionException,
   NotFoundException
 } from '../core/error-handler'
+import { isSuccessResponse, isErrorResponse } from '../core/type-guards'
 
 /**
  * Building Service
@@ -48,18 +49,8 @@ export class BuildingService {
    */
   async getById(id: string) {
     const result = await this.repository.findById(id)
-    if (!result.success) return result
-
-    if (!result.data) {
-      return {
-        success: false as const,
-        error: {
-          code: 'NOT_FOUND',
-          message: `Building with ID ${id} not found`
-        }
-      }
-    }
-
+    if (isErrorResponse(result)) return result
+    // TypeScript now knows result.data is non-null
     return result
   }
 
@@ -115,7 +106,7 @@ export class BuildingService {
     const result = await this.repository.create(processedData)
 
     // Log activity and send notifications (would be handled by activity service in production)
-    if (result.success && result.data) {
+    if (isSuccessResponse(result)) {
       await this.logBuildingCreation(result.data)
     }
 
@@ -128,17 +119,8 @@ export class BuildingService {
   async update(id: string, updates: BuildingUpdate) {
     // Check if building exists
     const existingBuilding = await this.repository.findById(id)
-    if (!existingBuilding.success) return existingBuilding
-
-    if (!existingBuilding.data) {
-      return {
-        success: false as const,
-        error: {
-          code: 'NOT_FOUND',
-          message: `Building with ID ${id} not found`
-        }
-      }
-    }
+    if (isErrorResponse(existingBuilding)) return existingBuilding
+    // TypeScript now knows existingBuilding.data is non-null
 
     // Check name uniqueness if changing name
     if (updates.name && updates.name !== existingBuilding.data.name && existingBuilding.data.team_id) {
@@ -168,7 +150,7 @@ export class BuildingService {
     const result = await this.repository.update(id, processedUpdates)
 
     // Log activity
-    if (result.success && result.data) {
+    if (isSuccessResponse(result)) {
       await this.logBuildingUpdate(result.data, updates)
     }
 
@@ -181,17 +163,8 @@ export class BuildingService {
   async delete(id: string) {
     // Check if building exists
     const existingBuilding = await this.repository.findByIdWithRelations(id)
-    if (!existingBuilding.success) return existingBuilding
-
-    if (!existingBuilding.data) {
-      return {
-        success: false as const,
-        error: {
-          code: 'NOT_FOUND',
-          message: `Building with ID ${id} not found`
-        }
-      }
-    }
+    if (isErrorResponse(existingBuilding)) return existingBuilding
+    // TypeScript now knows existingBuilding.data is non-null
 
     // Check if building has lots
     if (existingBuilding.data.lots && existingBuilding.data.lots.length > 0) {

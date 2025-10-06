@@ -196,8 +196,8 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         .eq('team_id', teamId)
         .gte('created_at', startDate.toISOString())
 
-      if (_userId) {
-        query = query.eq('user_id', _userId)
+      if (userId) {
+        query = query.eq('user_id', userId)
       }
 
       const { data, error } = await query
@@ -242,7 +242,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
           .sort((a, b) => a.date.localeCompare(b.date))
 
         stats.topUsers = Object.entries(userActivity)
-          .map(([_userId, count]) => ({ _userId, count }))
+          .map(([userId, count]) => ({ userId, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10)
 
@@ -338,8 +338,8 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
   /**
    * Get user statistics
    */
-  async getUserStats(_userId: string): Promise<{ success: true; data: UserStats }> {
-    const cacheKey = `user_stats_${_userId}`
+  async getUserStats(userId: string): Promise<{ success: true; data: UserStats }> {
+    const cacheKey = `user_stats_${userId}`
     const cached = this.getFromCache(cacheKey)
     if (cached) {
       return { success: true, data: cached }
@@ -350,7 +350,7 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       const { data: user, error: userError } = await this.supabase
         .from('users')
         .select('id, role, last_login_at')
-        .eq('id', _userId)
+        .eq('id', userId)
         .single()
 
       if (userError) throw userError
@@ -360,16 +360,16 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         this.supabase
           .from('interventions')
           .select('id', { count: 'exact' })
-          .eq('created_by', _userId),
+          .eq('created_by', userId),
         this.supabase
           .from('interventions')
           .select('id', { count: 'exact' })
-          .or(`assigned_gestionnaire.eq.${_userId},assigned_prestataire.eq.${_userId}`)
+          .or(`assigned_gestionnaire.eq.${userId},assigned_prestataire.eq.${userId}`)
           .in('status', ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']),
         this.supabase
           .from('activity_logs')
           .select('id, created_at', { count: 'exact' })
-          .eq('user_id', _userId)
+          .eq('user_id', userId)
           .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       ])
 
@@ -377,10 +377,10 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
       const { data: teamMemberships } = await this.supabase
         .from('team_members')
         .select('team_id')
-        .eq('user_id', _userId)
+        .eq('user_id', userId)
 
       const stats: UserStats = {
-        _userId,
+        userId,
         interventionsCreated: createdResult.count || 0,
         interventionsCompleted: completedResult.count || 0,
         avgResponseTime: 0, // Would need more detailed tracking

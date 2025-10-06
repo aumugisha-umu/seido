@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { LotService } from '../../domain/lot.service'
 import { LotRepository } from '../../repositories/lot.repository'
 import { BuildingService } from '../../domain/building.service'
-import { LotTestDataFactory, BuildingTestDataFactory } from '../helpers/test-data'
+import { LotTestDataFactory, BuildingTestDataFactory, MockedObject } from '../helpers/test-data'
 import {
   ValidationException,
   ConflictException,
@@ -20,8 +20,8 @@ vi.mock('../../domain/building.service')
 
 describe('LotService', () => {
   let service: LotService
-  let mockRepository: unknown
-  let mockBuildingService: unknown
+  let mockRepository: MockedObject<LotRepository>
+  let mockBuildingService: MockedObject<BuildingService>
 
   beforeEach(() => {
     vi.clearAllMocks()

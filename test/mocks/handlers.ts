@@ -137,7 +137,7 @@ export const handlers = [
     return HttpResponse.json([
       {
         id: 'notif-1',
-        user_id: _userId,
+        user_id: userId,
         type: 'intervention_created',
         title: 'Nouvelle intervention',
         message: 'Une nouvelle intervention a été créée',

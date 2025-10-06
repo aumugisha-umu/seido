@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { LotService } from '../../domain/lot.service'
 import { LotRepository } from '../../repositories/lot.repository'
 import { BuildingService } from '../../domain/building.service'
-import { LotTestDataFactory, BuildingTestDataFactory } from '../helpers/test-data'
+import { LotTestDataFactory, BuildingTestDataFactory, MockedObject } from '../helpers/test-data'
 import {
   ValidationException,
   NotFoundException
@@ -19,8 +19,8 @@ vi.mock('../../domain/building.service')
 
 describe('LotService (Simplified)', () => {
   let service: LotService
-  let mockRepository: Partial<LotRepository>
-  let mockBuildingService: Partial<BuildingService>
+  let mockRepository: MockedObject<LotRepository>
+  let mockBuildingService: MockedObject<BuildingService>
 
   beforeEach(() => {
     vi.clearAllMocks()

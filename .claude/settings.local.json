@@ -68,7 +68,9 @@
       "Bash(ESLINT_NO_DEV_ERRORS=true npm run build)",
       "mcp__ide__getDiagnostics",
       "Bash(python:*)",
-      "Bash(cut:*)"
+      "Bash(cut:*)",
+      "Bash(while read file)",
+      "Bash(do sed -i 's/_userId/userId/g' \"$file\" echo \"Fixed: $file\" done)"
     ],
     "deny": [],
     "ask": []

@@ -9,7 +9,7 @@ import { ContactRepository } from '../../repositories/contact.repository'
 import { UserService } from '../../domain/user.service'
 import { LotService } from '../../domain/lot.service'
 import { BuildingService } from '../../domain/building.service'
-import { UserTestDataFactory, LotTestDataFactory, BuildingTestDataFactory } from '../helpers/test-data'
+import { UserTestDataFactory, LotTestDataFactory, BuildingTestDataFactory, MockedObject } from '../helpers/test-data'
 import {
   ValidationException,
   ConflictException,
@@ -24,10 +24,10 @@ vi.mock('../../domain/building.service')
 
 describe('ContactService', () => {
   let service: ContactService
-  let mockRepository: unknown
-  let mockUserService: unknown
-  let mockLotService: unknown
-  let mockBuildingService: unknown
+  let mockRepository: MockedObject<ContactRepository>
+  let mockUserService: MockedObject<UserService>
+  let mockLotService: MockedObject<LotService>
+  let mockBuildingService: MockedObject<BuildingService>
 
   beforeEach(() => {
     vi.clearAllMocks()

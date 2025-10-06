@@ -27,7 +27,7 @@ interface QuoteNotificationsProps {
 }
 
 export function QuoteNotifications({
-  _userId,
+  userId,
   userRole,
   onNotificationClick,
   onMarkAsRead
@@ -82,7 +82,7 @@ export function QuoteNotifications({
     }
 
     fetchNotifications()
-  }, [_userId, userRole])
+  }, [userId, userRole])
 
   // Fonction pour obtenir l'icône selon le type (Design System)
   const getNotificationIcon = (type: QuoteNotification['type']) => {
@@ -224,7 +224,7 @@ export function QuoteNotifications({
 
 // Composant pour afficher les notifications dans un dropdown/panel
 export function QuoteNotificationsPanel({
-  _userId,
+  userId,
   userRole,
   onNotificationClick
 }: Omit<QuoteNotificationsProps, 'onMarkAsRead'>) {

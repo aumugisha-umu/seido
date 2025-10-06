@@ -432,8 +432,8 @@ class ActivityLogger {
         query = query.eq('team_id', filters.teamId)
       }
       
-      if (filters?._userId) {
-        query = query.eq('user_id', filters._userId)
+      if (filters?.userId) {
+        query = query.eq('user_id', filters.userId)
       }
       
       if (filters?.entityType) {

@@ -12,6 +12,17 @@ import type {
   CreateInterventionDTO,
   CreateContactDTO
 } from '../../core/service-types'
+import type { Mock } from 'vitest'
+
+/**
+ * Type helper for mocking objects in Vitest
+ * Converts all methods to vi.fn() mocks
+ */
+export type MockedObject<T> = {
+  [K in keyof T]: T[K] extends (...args: any[]) => any
+    ? Mock<Parameters<T[K]>, ReturnType<T[K]>>
+    : T[K]
+}
 
 /**
  * Factory functions for creating test data

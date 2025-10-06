@@ -86,10 +86,13 @@ BEGIN
     (NEW.raw_user_meta_data->>'provider_category')::provider_category,
     user_team_id,
     true,
-    CASE
-      WHEN is_invited AND (NEW.raw_user_meta_data->>'skip_password')::BOOLEAN THEN false
-      ELSE true
-    END,
+    COALESCE(
+      (NEW.raw_user_meta_data->>'password_set')::BOOLEAN,  -- ✅ Priorité: metadata (signup définit true)
+      CASE
+        WHEN is_invited AND (NEW.raw_user_meta_data->>'skip_password')::BOOLEAN THEN false
+        ELSE true
+      END
+    ),
     NOW(),
     NOW()
   )

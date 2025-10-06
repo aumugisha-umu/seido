@@ -218,7 +218,8 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
           last_name: validatedData.lastName,
           phone: validatedData.phone,
           role: validatedData.role || 'gestionnaire', // ✅ AJOUT: role requis pour le trigger
-          full_name: `${validatedData.firstName} ${validatedData.lastName}`
+          full_name: `${validatedData.firstName} ${validatedData.lastName}`,
+          password_set: true // ✅ SIGNUP: User définit son password lors de l'inscription
         }
       }
     })

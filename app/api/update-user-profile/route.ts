@@ -1,4 +1,4 @@
-import { getServerSession } from '@/lib/supabase-server'
+import { getServerSession } from '@/lib/services'
 import { createServerUserService } from '@/lib/services'
 import { NextResponse } from 'next/server'
 import { logger, logError } from '@/lib/logger'

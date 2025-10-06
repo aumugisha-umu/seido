@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createBrowserSupabaseClient } from '@/lib/services'
 
 // TODO: Initialize services for new architecture
 // Example: const userService = await createServerUserService()
@@ -16,6 +16,7 @@ interface DiagnosticResult {
 }
 
 export default function DebugPage() {
+  const supabase = createBrowserSupabaseClient()
   const [results, setResults] = useState<DiagnosticResult[]>([])
   const [isRunning, setIsRunning] = useState(false)
 

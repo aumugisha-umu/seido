@@ -31,18 +31,27 @@ Et pour les tests à créer et faire, réfère toi toujours au dossier C:\Users\
 
 ```bash
 # Development
-npm run dev              # Start development server (JSON structured logs)
-npm run dev:pretty       # Start dev server with colored pretty logs (recommended for development)
-npm run dev:pretty:full  # Start dev server with simplified pretty logs (message only)
-npm run dev:json         # Alias for npm run dev (JSON logs for parsing/debugging)
+npm run dev              # Start development server with pino-pretty (colored logs with emojis)
+npm run dev:pretty       # Alias of dev - colored logs with metadata visible
+npm run dev:pretty:full  # Colored logs with simplified view (message only)
+npm run dev:json         # Raw JSON logs (for parsing/debugging with grep, jq, etc.)
 npm run build            # Build for production
 npm run start            # Start production server
 npm run lint             # Lint code with ESLint
 
 # Logging Options
-# - dev:pretty       → Colored logs with metadata visible (best for development)
-# - dev:pretty:full  → Colored logs, message only (simplified view)
-# - dev / dev:json   → Raw JSON logs (for grep, jq, or log parsers)
+# - dev / dev:pretty       → Colored logs with emojis + metadata (UTF-8 required)
+# - dev:pretty:full        → Colored logs, message only (simplified view)
+# - dev:json               → Raw JSON logs (for grep, jq, or log parsers)
+
+# Windows-Specific Development (Encodage UTF-8)
+# ⚠️ Si les emojis apparaissent corrompus (�, Ô£à, ­ƒöì), utilisez ces commandes :
+npm run dev:utf8         # Force UTF-8 encoding (chcp 65001) then start dev server
+npm run dev:win          # PowerShell UTF-8 version (alternative for PowerShell users)
+npm run dev:no-emoji     # Development logs without emojis (fallback to text)
+
+# Diagnostic Encodage Terminal
+npx tsx scripts/check-pino-encoding.ts  # Check terminal encoding and get recommendations
 
 # Testing - Unit Tests (Vitest)
 npm test                 # Run all tests

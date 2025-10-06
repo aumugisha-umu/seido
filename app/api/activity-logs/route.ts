@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
 
     // Récupération des paramètres de requête
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
     const body = await request.json()
 
     // Validation des champs obligatoires

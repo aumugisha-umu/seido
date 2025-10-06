@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createBrowserSupabaseClient } from '@/lib/services'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { logger } from '@/lib/logger'
 
 export default function AuthCallback() {
+  const supabase = createBrowserSupabaseClient()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [message, setMessage] = useState('')

@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Building2, Mail, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-import { supabase } from "@/lib/supabase"
+import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 interface ContactFormModalProps {
   isOpen: boolean
@@ -86,6 +86,7 @@ const getContactTitle = (type: string) => {
 }
 
 const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", onSuccess }: ContactFormModalProps) => {
+  const supabase = createBrowserSupabaseClient()
   const { toast } = useToast()
   
   // Types de contacts qui doivent avoir la checkbox cochée par défaut

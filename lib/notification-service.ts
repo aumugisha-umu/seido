@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 import type { Building, Lot, Intervention, Contact, User } from '@/lib/services/core/service-types'
 import { logger, logError } from '@/lib/logger'
@@ -85,6 +85,12 @@ interface CreateNotificationParams {
 }
 
 class NotificationService {
+  private supabase: ServerSupabaseClient
+
+  constructor(supabase: ServerSupabaseClient) {
+    this.supabase = supabase
+  }
+
   /**
    * Créer une notification pour un utilisateur
    */
@@ -128,7 +134,7 @@ class NotificationService {
 
       logger.info('📬 [NOTIFICATION-SERVICE] Inserting notification data:', notificationData)
 
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('notifications')
         .insert(notificationData)
         .select('*')
@@ -174,7 +180,7 @@ class NotificationService {
       logger.info('📬 Creating team notification for team:', teamId)
 
       // Récupérer tous les membres de l'équipe
-      const { data: teamMembers, error: membersError } = await supabase
+      const { data: teamMembers, error: membersError } = await this.supabase
         .from('team_members')
         .select('user_id')
         .eq('team_id', teamId)
@@ -208,7 +214,7 @@ class NotificationService {
         related_entity_id: relatedEntityId
       }))
 
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('notifications')
         .insert(notifications)
         .select('*')
@@ -257,7 +263,7 @@ class NotificationService {
       
       if (lotId) {
         // Récupérer le lot avec son immeuble parent
-        const { data: lotData } = await supabase
+        const { data: lotData } = await this.supabase
           .from('lots')
           .select(`
             id,
@@ -277,7 +283,7 @@ class NotificationService {
       }
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -428,7 +434,7 @@ class NotificationService {
       
       if (lotId) {
         // Récupérer le lot avec son immeuble parent
-        const { data: lotData } = await supabase
+        const { data: lotData } = await this.supabase
           .from('lots')
           .select(`
             id,
@@ -448,7 +454,7 @@ class NotificationService {
       }
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -699,7 +705,7 @@ class NotificationService {
       logger.info('📬 Notifying building created:', { buildingId: building.id, teamId: building.team_id })
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -715,7 +721,7 @@ class NotificationService {
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
-      const { data: buildingContacts } = await supabase
+      const { data: buildingContacts } = await this.supabase
         .from('building_contacts')
         .select(`
           user_id, 
@@ -793,7 +799,7 @@ class NotificationService {
       if (!building.team_id || !_updatedBy) return
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -808,7 +814,7 @@ class NotificationService {
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
-      const { data: buildingContacts } = await supabase
+      const { data: buildingContacts } = await this.supabase
         .from('building_contacts')
         .select(`
           user_id, 
@@ -885,7 +891,7 @@ class NotificationService {
     try {
       if (!building.team_id || !deletedBy) return
 
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -900,7 +906,7 @@ class NotificationService {
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
-      const { data: buildingContacts } = await supabase
+      const { data: buildingContacts } = await this.supabase
         .from('building_contacts')
         .select(`
           user_id, 
@@ -975,7 +981,7 @@ class NotificationService {
     try {
       if (!lot.team_id || !createdBy) return
 
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -993,7 +999,7 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const { data: lotContacts } = await supabase
+      const { data: lotContacts } = await this.supabase
         .from('lot_contacts')
         .select(`
           user_id, 
@@ -1020,7 +1026,7 @@ class NotificationService {
       // 2. Gestionnaires de l'immeuble parent (building_contacts)
       const buildingPrimaryManagers = new Set<string>()
       if (building?.id) {
-        const { data: buildingContacts } = await supabase
+        const { data: buildingContacts } = await this.supabase
           .from('building_contacts')
           .select(`
             user_id, 
@@ -1125,7 +1131,7 @@ class NotificationService {
     try {
       if (!lot.team_id || !_updatedBy) return
 
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1143,7 +1149,7 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const { data: lotContacts } = await supabase
+      const { data: lotContacts } = await this.supabase
         .from('lot_contacts')
         .select(`
           user_id, 
@@ -1170,7 +1176,7 @@ class NotificationService {
       // 2. Gestionnaires de l'immeuble parent (building_contacts)
       const buildingPrimaryManagers = new Set<string>()
       if (building?.id) {
-        const { data: buildingContacts } = await supabase
+        const { data: buildingContacts } = await this.supabase
           .from('building_contacts')
           .select(`
             user_id, 
@@ -1275,7 +1281,7 @@ class NotificationService {
     try {
       if (!lot.team_id || !deletedBy) return
 
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1293,7 +1299,7 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const { data: lotContacts } = await supabase
+      const { data: lotContacts } = await this.supabase
         .from('lot_contacts')
         .select(`
           user_id, 
@@ -1320,7 +1326,7 @@ class NotificationService {
       // 2. Gestionnaires de l'immeuble parent (building_contacts)
       const buildingPrimaryManagers = new Set<string>()
       if (building?.id) {
-        const { data: buildingContacts } = await supabase
+        const { data: buildingContacts } = await this.supabase
           .from('building_contacts')
           .select(`
             user_id, 
@@ -1422,7 +1428,7 @@ class NotificationService {
       if (!contact.team_id || !createdBy) return
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1497,7 +1503,7 @@ class NotificationService {
    */
   private async getLotManagers(lotId: string): Promise<string[]> {
     try {
-      const { data: lotContacts } = await supabase
+      const { data: lotContacts } = await this.supabase
         .from('lot_contacts')
         .select(`
           user:user_id(
@@ -1527,7 +1533,7 @@ class NotificationService {
    */
   private async getBuildingManagers(buildingId: string): Promise<string[]> {
     try {
-      const { data: buildingContacts } = await supabase
+      const { data: buildingContacts } = await this.supabase
         .from('building_contacts')
         .select(`
           user:user_id(
@@ -1560,7 +1566,7 @@ class NotificationService {
 
     try {
       // Vérifier les liens avec les immeubles via building_contacts
-      const { data: buildingLinks } = await supabase
+      const { data: buildingLinks } = await this.supabase
         .from('building_contacts')
         .select(`
           building:buildings(id, name),
@@ -1573,7 +1579,7 @@ class NotificationService {
         const buildingIds = buildingLinks.map(link => link.building_id)
         
         if (buildingIds.length > 0) {
-          const { data: buildingManagers } = await supabase
+          const { data: buildingManagers } = await this.supabase
             .from('building_contacts')
             .select(`
               user_id,
@@ -1595,7 +1601,7 @@ class NotificationService {
       }
 
       // Vérifier les liens avec les lots via lot_contacts
-      const { data: lotLinks } = await supabase
+      const { data: lotLinks } = await this.supabase
         .from('lot_contacts')
         .select(`
           lot:lots(
@@ -1618,7 +1624,7 @@ class NotificationService {
         })
         
         if (uniqueBuildingIds.size > 0) {
-          const { data: lotBuildingManagers } = await supabase
+          const { data: lotBuildingManagers } = await this.supabase
             .from('building_contacts')
             .select(`
               user_id,
@@ -1640,7 +1646,7 @@ class NotificationService {
       }
 
       // Vérifier les liens avec les interventions via intervention_contacts
-      const { data: interventionLinks } = await supabase
+      const { data: interventionLinks } = await this.supabase
         .from('intervention_contacts')
         .select(`
           intervention:interventions(
@@ -1665,7 +1671,7 @@ class NotificationService {
         })
         
         if (interventionBuildingIds.size > 0) {
-          const { data: interventionBuildingManagers } = await supabase
+          const { data: interventionBuildingManagers } = await this.supabase
             .from('building_contacts')
             .select(`
               user_id,
@@ -1699,7 +1705,7 @@ class NotificationService {
     try {
       if (!contact.team_id || !_updatedBy) return
 
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1776,7 +1782,7 @@ class NotificationService {
     try {
       if (!contact.team_id || !deletedBy) return
 
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1854,7 +1860,7 @@ class NotificationService {
       // Récupérer les gestionnaires directement liés via intervention_contacts
       let directManagerIds: string[] = []
       
-      const { data: interventionContacts } = await supabase
+      const { data: interventionContacts } = await this.supabase
         .from('intervention_contacts')
         .select(`
           user:user_id(id, role)
@@ -1874,7 +1880,7 @@ class NotificationService {
       }
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await this.supabase
         .from('team_members')
         .select(`
           user_id,
@@ -2099,7 +2105,7 @@ class NotificationService {
       })
 
       // Récupérer les gestionnaires et prestataires assignés à l'intervention
-      const { data: interventionContacts } = await supabase
+      const { data: interventionContacts } = await this.supabase
         .from('intervention_contacts')
         .select(`
           user_id,
@@ -2211,5 +2217,26 @@ class NotificationService {
   }
 }
 
-// Instance singleton
-export const notificationService = new NotificationService()
+// Factory function for creating service instances (RECOMMENDED)
+export const createNotificationService = async () => {
+  const supabase = await createServerSupabaseClient()
+  return new NotificationService(supabase)
+}
+
+// Legacy singleton for backward compatibility
+// @deprecated Use createNotificationService() for proper server context
+// This uses a browser client as fallback - only for legacy code
+let _legacyInstance: NotificationService | null = null
+
+export const notificationService = new Proxy({} as NotificationService, {
+  get(_target, prop) {
+    // Lazy initialization on first access
+    if (!_legacyInstance) {
+      // Import dynamically to avoid circular dependencies
+      const { createBrowserSupabaseClient } = require('./services')
+      const supabase = createBrowserSupabaseClient()
+      _legacyInstance = new NotificationService(supabase)
+    }
+    return (_legacyInstance as any)[prop]
+  }
+})

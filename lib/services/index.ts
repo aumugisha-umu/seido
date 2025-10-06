@@ -12,7 +12,8 @@ export {
   supabase, // Legacy compatibility
   withRetry,
   getCurrentUserId,
-  isAuthenticated
+  isAuthenticated,
+  getServerSession
 } from './core/supabase-client'
 
 export type {

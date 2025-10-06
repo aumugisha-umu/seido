@@ -110,8 +110,14 @@ export const useInterventionQuoting = () => {
     logger.info('🔍 [ELIGIBLE-PROVIDERS] Fetching eligible providers for intervention:', _interventionId)
     setProvidersLoading(true)
     try {
-      // D'abord récupérer tous les prestataires
-      const allProvidersResponse = await fetch(`/api/team-contacts?teamId=${user.team_id}&type=prestataire`)
+      // ⚡ OPTIMISATION: Récupérer prestataires et devis EN PARALLÈLE
+      logger.info('🏃 [ELIGIBLE-PROVIDERS] Loading providers and quotes IN PARALLEL...')
+
+      const [allProvidersResponse, quotesResponse] = await Promise.all([
+        fetch(`/api/team-contacts?teamId=${user.team_id}&type=prestataire`),
+        fetch(`/api/intervention/${_interventionId}/quotes`)
+      ])
+
       if (!allProvidersResponse.ok) {
         throw new Error('Erreur lors de la récupération des prestataires')
       }
@@ -119,14 +125,13 @@ export const useInterventionQuoting = () => {
       const allProvidersData = await allProvidersResponse.json()
       const allProviders = allProvidersData.contacts || []
 
-      // Ensuite récupérer les devis existants pour cette intervention
-      const quotesResponse = await fetch(`/api/intervention/${_interventionId}/quotes`)
       let existingQuotes = []
-
       if (quotesResponse.ok) {
         const quotesData = await quotesResponse.json()
         existingQuotes = quotesData.quotes || []
       }
+
+      logger.info('✅ [ELIGIBLE-PROVIDERS] Parallel fetch complete')
 
       // Filtrer les prestataires éligibles (exclure ceux avec devis pending/approved)
       const ineligibleProviderIds = existingQuotes

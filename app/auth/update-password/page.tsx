@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 export default function UpdatePasswordPage() {
+  const supabase = createBrowserSupabaseClient()
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showNewPassword, setShowNewPassword] = useState(false)

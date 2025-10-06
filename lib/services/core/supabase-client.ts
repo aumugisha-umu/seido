@@ -162,6 +162,22 @@ export async function isAuthenticated(client?: ReturnType<typeof createBrowserSu
   }
 }
 
+/**
+ * Get server session (for API routes and Server Components)
+ * Helper for authentication checks on the server
+ */
+export async function getServerSession() {
+  const supabase = await createServerSupabaseClient()
+
+  const { data: { session }, error } = await supabase.auth.getSession()
+
+  if (error || !session) {
+    return null
+  }
+
+  return session
+}
+
 // Re-export types
 export type { Database } from '../../database.types'
 export type SupabaseClient = ReturnType<typeof createBrowserSupabaseClient>

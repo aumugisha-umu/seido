@@ -30,20 +30,31 @@ Par défaut, Windows Terminal utilise **CP1252** (Western European) au lieu d'**
 
 ---
 
-## ✅ Solution 1 : Utiliser `npm run dev:pretty` (RECOMMANDÉE)
+## ✅ Solution 1 : Utiliser les Scripts Windows Optimisés (RECOMMANDÉE)
 
 ### Avantage
 
-**Aucune configuration système nécessaire** - Fonctionne immédiatement
+**Configuration UTF-8 automatique** - Scripts qui forcent l'encodage UTF-8 avant de lancer le dev server
 
-### Commande
+### Commandes Disponibles
 
 ```bash
-npm run dev:pretty
+# Option 1 : Force UTF-8 avec chcp (CMD, Git Bash, Windows Terminal)
+npm run dev:utf8
+
+# Option 2 : Force UTF-8 avec PowerShell
+npm run dev:win
+
+# Option 3 : Alternative sans emojis (fonctionne avec tous les encodages)
+npm run dev:no-emoji
+
+# Option 4 : Diagnostic de votre configuration actuelle
+npx tsx scripts/check-pino-encoding.ts
 ```
 
-### Résultat
+### Résultat Attendu
 
+**Avec `npm run dev:utf8` ou `npm run dev:win`** :
 ```
 [13:08:59] INFO: ✅ [STEP-4] Activity logged successfully
     userId: "7d808b3b-1caf-4226-a5f4-459e9c7f7c38"
@@ -57,7 +68,21 @@ npm run dev:pretty
     teamId: "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2"
 ```
 
-**C'est la solution recommandée pour le développement quotidien.**
+**Avec `npm run dev:no-emoji`** (emojis remplacés par texte) :
+```
+[13:08:59] INFO: [OK] [STEP-4] Activity logged successfully
+    userId: "7d808b3b-1caf-4226-a5f4-459e9c7f7c38"
+    action: "invite_user"
+
+[13:08:59] INFO: [INVITE] [INVITE-USER-SIMPLE] Process completed successfully
+    invitationId: "abc-123-..."
+    email: "arthur+test@seido.pm"
+
+[13:09:00] INFO: [SEARCH] [TEAM-INVITATIONS] Fetching all invitations for team
+    teamId: "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2"
+```
+
+**✨ Solution recommandée** : `npm run dev:utf8` (CMD/Git Bash) ou `npm run dev:win` (PowerShell)
 
 ---
 
@@ -229,28 +254,43 @@ npm run dev
 
 ## 📊 Résumé : Quelle Solution Choisir ?
 
-| Solution | Difficulté | Permanent | Recommandation |
-|----------|------------|-----------|----------------|
-| `npm run dev:pretty` | ⭐ Facile | Non (à chaque session) | ✅ **RECOMMANDÉE pour développement** |
-| Configuration UTF-8 Terminal | ⭐⭐ Moyenne | ✅ Oui | ✅ **RECOMMANDÉE pour tous projets** |
-| `chcp 65001` temporaire | ⭐ Facile | Non (à chaque session) | ⚠️ Dépannage uniquement |
+| Solution | Difficulté | Permanent | UTF-8 | Recommandation |
+|----------|------------|-----------|-------|----------------|
+| `npm run dev:utf8` | ⭐ Facile | Non | ✅ Auto | ✅ **RECOMMANDÉE (CMD/Git Bash)** |
+| `npm run dev:win` | ⭐ Facile | Non | ✅ Auto | ✅ **RECOMMANDÉE (PowerShell)** |
+| `npm run dev:no-emoji` | ⭐ Facile | Non | ❌ N/A | ✅ **Fallback universel** |
+| Configuration UTF-8 Terminal | ⭐⭐ Moyenne | ✅ Oui | ✅ Manual | ✅ **Solution permanente** |
+| `chcp 65001` temporaire | ⭐ Facile | Non | ✅ Manual | ⚠️ Dépannage uniquement |
+| Script de diagnostic | ⭐ Facile | N/A | N/A | 🔍 **Analyse problèmes** |
 
 ---
 
 ## 🎯 Recommandation Finale
 
-**Pour développement SEIDO** :
+**Pour développement SEIDO (Solutions rapides)** :
 ```bash
-# Commande recommandée
-npm run dev:pretty
+# Option 1 : CMD / Git Bash / Windows Terminal
+npm run dev:utf8
+
+# Option 2 : PowerShell
+npm run dev:win
+
+# Option 3 : Fallback sans emojis (fonctionne partout)
+npm run dev:no-emoji
+
+# Diagnostic : Vérifier votre configuration
+npx tsx scripts/check-pino-encoding.ts
 ```
 
 **Pour configuration système permanente** :
 1. Suivre **Solution 2** (Windows Terminal Settings)
-2. Redémarrer le terminal
-3. Vérifier avec `chcp` ou `echo "✅"`
+2. Configurer "Page de codes" → UTF-8 (65001)
+3. Redémarrer le terminal
+4. Vérifier avec `chcp` (doit afficher 65001)
+5. Utiliser ensuite `npm run dev` ou `npm run dev:pretty` normalement
 
 ---
 
-**Dernière mise à jour** : 2025-10-05
+**Dernière mise à jour** : 2025-10-06
 **Testé sur** : Windows 11, Windows Terminal 1.20+
+**Scripts disponibles** : dev:utf8, dev:win, dev:no-emoji, check-pino-encoding.ts

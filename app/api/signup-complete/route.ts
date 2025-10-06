@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/services'
 import { createServerUserService, createServerTeamService } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     logger.info('🚀 [SIGNUP-SIMPLE] Starting simple signup process for:', email)
 
     // Créer le client Supabase
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
 
     // Initialize services
     const userService = await createServerUserService()

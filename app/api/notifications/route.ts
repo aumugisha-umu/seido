@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient, getServerSession } from '@/lib/supabase-server'
+import { createServerSupabaseClient, getServerSession } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       sessionUserId: session.user.id
     })
 
-    const supabaseGet = await createSupabaseServerClient()
+    const supabaseGet = await createServerSupabaseClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
     // Récupérer l'ID utilisateur de la table users à partir de l'ID Supabase Auth
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabasePost = await createSupabaseServerClient()
+    const supabasePost = await createServerSupabaseClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
     const { createServerUserService } = await import('@/lib/services')
@@ -288,7 +288,7 @@ export async function PATCH(request: NextRequest) {
         )
     }
 
-    const supabasePatch = await createSupabaseServerClient()
+    const supabasePatch = await createServerSupabaseClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
     const { createServerUserService } = await import('@/lib/services')

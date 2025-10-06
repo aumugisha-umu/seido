@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerUserService } from '@/lib/services'
-import { getServerSession } from '@/lib/supabase-server'
+import { getServerSession } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
 import type { Database } from '@/lib/database.types'

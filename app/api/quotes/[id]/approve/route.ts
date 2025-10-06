@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 export async function POST(
   request: NextRequest,
@@ -8,7 +8,7 @@ export async function POST(
   logger.info('🚀 [API-APPROVE] Starting quote approval API')
 
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
     const { comments } = await request.json()
     const { id } = await params
 

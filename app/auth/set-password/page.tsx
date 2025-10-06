@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, CheckCircle, Shield, Check, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
+import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 interface PasswordCriteria {
   minLength: boolean
@@ -21,6 +21,7 @@ interface PasswordCriteria {
 }
 
 export default function SetPasswordPage() {
+  const supabase = createBrowserSupabaseClient()
   const [_password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)

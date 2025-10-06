@@ -61,7 +61,10 @@
       "Bash(npm run build:test:*)",
       "Bash(npx pino-pretty:*)",
       "Bash(do powershell -Command \"(Get-Content ''$file'') -replace ''_router'', ''router'' | Set-Content ''$file''\")",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "WebFetch(domain:getpino.io)",
+      "Bash(chcp:*)",
+      "Bash(do echo \"=== $file ===\" grep -n \"createSupabaseServerClient\\|createServerSupabaseClient\" \"$file\")"
     ],
     "deny": [],
     "ask": []

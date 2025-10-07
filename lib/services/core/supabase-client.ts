@@ -58,8 +58,9 @@ export function createBrowserSupabaseClient() {
 }
 
 /**
- * Server client for server-side operations
- * Use this in Server Components, Server Actions, and API routes
+ * Server client for Server Components (READ-ONLY)
+ * Use this in Server Components where you can't modify cookies
+ * ⚠️ Cannot refresh session or modify auth state
  */
 export async function createServerSupabaseClient() {
   const { cookies } = await import('next/headers')
@@ -70,15 +71,41 @@ export async function createServerSupabaseClient() {
       getAll() {
         return cookieStore.getAll()
       },
+      setAll() {
+        // ✅ No-op in Server Components - cannot modify cookies
+        // Next.js 15: "Cookies can only be modified in a Server Action or Route Handler"
+      }
+    },
+    auth: {
+      flowType: 'pkce'
+    },
+    global: {
+      headers: {
+        'x-client-info': 'seido-app/1.0.0'
+      }
+    }
+  })
+}
+
+/**
+ * Server client for Server Actions and Route Handlers (READ-WRITE)
+ * Use this when you need to modify auth state or refresh sessions
+ * ✅ Can refresh session and modify cookies
+ */
+export async function createServerActionSupabaseClient() {
+  const { cookies } = await import('next/headers')
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(supabaseUrl!, supabaseAnonKey!, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
       setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
-          })
-        } catch (error) {
-          // ✅ 2025: Graceful handling when setting cookies in Server Components
-          console.warn('⚠️ [SUPABASE-SERVER] Unable to set cookies:', error)
-        }
+        // ✅ Allowed in Server Actions and Route Handlers
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options)
+        })
       }
     },
     auth: {

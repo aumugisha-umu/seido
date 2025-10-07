@@ -8,7 +8,8 @@
 // Core infrastructure exports
 export {
   createBrowserSupabaseClient,
-  createServerSupabaseClient,
+  createServerSupabaseClient, // Read-only for Server Components
+  createServerActionSupabaseClient, // Read-write for Server Actions
   supabase, // Legacy compatibility
   withRetry,
   getCurrentUserId,

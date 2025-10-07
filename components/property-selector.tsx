@@ -15,6 +15,12 @@ import ContentNavigator from "@/components/content-navigator"
 type Lot = LotType
 type Building = BuildingType
 
+interface BuildingsData {
+  buildings: Building[]
+  lots: Lot[]
+  teamId: string | null
+}
+
 interface PropertySelectorProps {
   mode: "view" | "select"
   onBuildingSelect?: (buildingId: string | null) => void
@@ -22,6 +28,7 @@ interface PropertySelectorProps {
   selectedBuildingId?: string
   selectedLotId?: string
   showActions?: boolean
+  initialData?: BuildingsData  // ✅ NEW: Optional server data
 }
 
 export default function PropertySelector({
@@ -31,6 +38,7 @@ export default function PropertySelector({
   selectedBuildingId,
   selectedLotId,
   showActions: _showActions = true,
+  initialData,  // ✅ NEW: Accept server data
 }: PropertySelectorProps) {
   const router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
@@ -39,7 +47,12 @@ export default function PropertySelector({
     status: "all",
     interventions: "all"
   })
-  const { data, loading, error: _error } = useBuildings()
+
+  // ✅ NEW: Use initialData if provided, otherwise fetch via hook
+  const hookData = useBuildings()
+  const data = initialData || hookData.data
+  const loading = initialData ? false : hookData.loading
+  const _error = initialData ? null : hookData.error
 
   const buildings = data?.buildings || []
   const individualLots = data?.lots || []

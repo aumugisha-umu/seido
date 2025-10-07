@@ -1,56 +1,136 @@
-"use client"
+import { BiensPageClient } from './biens-page-client'
+import {
+  createServerBuildingService,
+  createServerLotService,
+  createServerTeamService
+} from '@/lib/services'
+import { logger } from '@/lib/logger'
+import { requireRole } from '@/lib/dal'
 
-import { Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import PropertySelector from "@/components/property-selector"
+// ✅ Force dynamic rendering - cette page dépend toujours de la session
+export const dynamic = 'force-dynamic'
 
-export default function BiensPage() {
-  const router = useRouter()
+export default async function BiensPage() {
+  try {
+    // ✅ LAYER 1: Auth validation FIRST (Dashboard pattern)
+    logger.info("🔵 [BIENS-PAGE] Server-side fetch starting")
+    const user = await requireRole('gestionnaire')
 
-  // PropertySelector gère tout : données, onglets, loading, etc.
+    // ✅ LAYER 2: Create services AFTER auth validation
+    const teamService = await createServerTeamService()
+    const buildingService = await createServerBuildingService()
+    const lotService = await createServerLotService()
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Page Header - Harmonized */}
-        <div className="mb-6 lg:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                Mon Patrimoine
-              </h1>
-              <p className="text-slate-600">
-                Gérez vos immeubles et lots individuels
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Lot</span>
-              </Button>
-              <Button
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Immeuble</span>
-              </Button>
-            </div>
-          </div>
-        </div>
+    // 1. Récupérer l'équipe de l'utilisateur
+    const teamsResult = await teamService.getUserTeams(user.id)
+    const teams = teamsResult?.data || []
 
-        {/* Property Selector avec onglets intégrés */}
-        <PropertySelector
-          mode="view"
-          showActions={true}
+    if (!teams || teams.length === 0) {
+      logger.info("⚠️ [BIENS-PAGE] No team found for user")
+      return (
+        <BiensPageClient
+          initialBuildings={[]}
+          initialLots={[]}
+          teamId={null}
         />
-      </main>
+      )
+    }
 
-    </div>
-  )
+    const teamId = teams[0].id
+    logger.info(`🏢 [BIENS-PAGE] Found team: ${teamId}`)
+
+    // 2. Récupérer les buildings de l'équipe
+    const buildingsResult = await buildingService.getBuildingsByTeam(teamId)
+
+    if (!buildingsResult.success || !buildingsResult.data) {
+      logger.error("❌ [BIENS-PAGE] Error fetching buildings")
+      return (
+        <BiensPageClient
+          initialBuildings={[]}
+          initialLots={[]}
+          teamId={teamId}
+        />
+      )
+    }
+
+    const buildings = buildingsResult.data
+    logger.info(`🏗️ [BIENS-PAGE] Loaded ${buildings.length} buildings`)
+
+    // 3. Récupérer les lots pour chaque building EN PARALLÈLE
+    logger.info(`🏠 [BIENS-PAGE] Loading lots for ${buildings.length} buildings IN PARALLEL`)
+
+    const lotsPromises = buildings.map(building =>
+      lotService.getLotsByBuilding(building.id)
+        .then(response => ({
+          buildingId: building.id,
+          buildingName: building.name,
+          lots: response.success ? response.data : [],
+          success: true
+        }))
+        .catch(error => ({
+          buildingId: building.id,
+          buildingName: building.name,
+          lots: [],
+          success: false,
+          error: String(error)
+        }))
+    )
+
+    const lotsResults = await Promise.all(lotsPromises)
+    const allLots: any[] = []
+
+    // Traiter les résultats et attacher aux buildings
+    lotsResults.forEach((result, index) => {
+      const building = buildings[index]
+
+      if (result.success && result.lots) {
+        const buildingLots = result.lots.map((lot: any) => ({
+          ...lot,
+          building_name: building.name
+        }))
+
+        building.lots = buildingLots
+        allLots.push(...buildingLots)
+        logger.info(`✅ [BIENS-PAGE] Loaded ${buildingLots.length} lots for ${result.buildingName}`)
+      } else {
+        building.lots = []
+        if (!result.success) {
+          logger.error(`❌ [BIENS-PAGE] Error loading lots for ${result.buildingName}: ${result.error}`)
+        }
+      }
+    })
+
+    logger.info(`🏠 [BIENS-PAGE] Total lots loaded: ${allLots.length} (parallel fetch)`)
+    logger.info(`📊 [BIENS-PAGE] Server data ready - Buildings: ${buildings.length}, Lots: ${allLots.length}`)
+
+    // ✅ Pass data to Client Component
+    return (
+      <BiensPageClient
+        initialBuildings={buildings}
+        initialLots={allLots}
+        teamId={teamId}
+      />
+    )
+  } catch (error) {
+    logger.error("❌ [BIENS-PAGE] Server error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    })
+
+    // Re-throw NEXT_REDIRECT errors
+    if (error && typeof error === 'object' && 'digest' in error &&
+        typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
+
+    // For other errors, render empty state
+    return (
+      <BiensPageClient
+        initialBuildings={[]}
+        initialLots={[]}
+        teamId={null}
+      />
+    )
+  }
 }

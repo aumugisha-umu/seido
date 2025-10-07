@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "./use-auth"
-import { createStatsService } from "@/lib/services"
+import { createBrowserSupabaseClient, createStatsService } from "@/lib/services"
+import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 export interface ManagerStats {
   buildingsCount: number
@@ -46,9 +47,13 @@ export function useManagerStats() {
             occupiedLotsCount: 0,
             occupancyRate: 0,
             contactsCount: 0,
-            documentsCount: 0,
-            recentActivities: []
-          }
+            interventionsCount: 0
+          },
+          buildings: [],
+          lots: [],
+          contacts: [],
+          interventions: [],
+          recentInterventions: []
         })
         setLoading(false)
         setError(null)
@@ -80,7 +85,20 @@ export function useManagerStats() {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      logger.info("🔄 [MANAGER-STATS] Fetching manager stats for:", userId, bypassCache ? "(bypassing cache)" : "")
+      logger.info(`🔄 [MANAGER-STATS] Fetching manager stats for: ${userId} ${bypassCache ? '(bypassing cache)' : ''}`)
+
+      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
+      const supabase = createBrowserSupabaseClient()
+      try {
+        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
+        if (sessionErr || !sessionRes?.session) {
+          logger.warn('⚠️ [MANAGER-STATS] Session issue, attempting refresh...')
+          await supabase.auth.refreshSession()
+        }
+      } catch (sessionError) {
+        logger.warn(`⚠️ [MANAGER-STATS] Session check failed: ${sessionError}`)
+        // Continue anyway - let the service handle it
+      }
 
       const statsService = createStatsService()
       const result = await statsService.getManagerStats(userId)
@@ -129,6 +147,16 @@ export function useManagerStats() {
       mountedRef.current = false
     }
   }, [])
+
+  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
+  useDataRefresh('manager-stats', () => {
+    if (user?.id) {
+      // Forcer un refetch en bypassant le cache local de ce hook
+      lastUserIdRef.current = null
+      loadingRef.current = false
+      fetchStats(user.id, true)
+    }
+  })
 
   // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {

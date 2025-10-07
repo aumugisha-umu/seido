@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
+  createBrowserSupabaseClient,
   createInterventionService,
   createUserService,
   createContactInvitationService
 } from "@/lib/services"
+import { useDataRefresh } from './use-cache-management'
 import type { Intervention } from "@/lib/services/core/service-types"
 import { logger, logError } from '@/lib/logger'
 export interface PrestataireDashboardStats {
@@ -113,11 +115,42 @@ export const usePrestataireData = (userId: string) => {
     error: null
   })
 
-  const loadData = async () => {
-    logger.info("📊 Loading prestataire data for user:", userId)
+  // Utiliser des refs pour éviter les re-renders inutiles
+  const loadingRef = useRef(false)
+  const mountedRef = useRef(true)
+  const lastUserIdRef = useRef<string | null>(null)
+
+  const loadData = useCallback(async (bypassCache = false) => {
+    // Éviter les appels multiples
+    if (loadingRef.current || !mountedRef.current) {
+      logger.info("🔒 [PRESTATAIRE-DATA] Skipping fetch - already loading or unmounted")
+      return
+    }
+
+    // Éviter les refetch pour le même userId
+    if (lastUserIdRef.current === userId && !bypassCache) {
+      logger.info("🔒 [PRESTATAIRE-DATA] Skipping fetch - same userId")
+      return
+    }
+
+    logger.info("📊 Loading prestataire data for user:", userId, bypassCache ? "(bypassing cache)" : "")
 
     try {
+      loadingRef.current = true
       setData(prev => ({ ...prev, loading: true, error: null }))
+
+      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
+      const supabase = createBrowserSupabaseClient()
+      try {
+        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
+        if (sessionErr || !sessionRes?.session) {
+          logger.warn('⚠️ [PRESTATAIRE-DATA] Session issue, attempting refresh...')
+          await supabase.auth.refreshSession()
+        }
+      } catch (sessionError) {
+        logger.warn('⚠️ [PRESTATAIRE-DATA] Session check failed:', sessionError)
+        // Continue anyway - let the service handle it
+      }
 
       // ✅ CORRECTION: Nettoyer l'ID utilisateur si c'est un JWT-only ID
       const cleanUserId = userId.startsWith('jwt_') ? userId.replace('jwt_', '') : userId
@@ -228,33 +261,60 @@ export const usePrestataireData = (userId: string) => {
 
       logger.info("📊 Calculated stats:", stats)
 
-      setData({
-        stats,
-        interventions: transformedInterventions,
-        urgentInterventions,
-        loading: false,
-        error: null
-      })
+      if (mountedRef.current) {
+        setData({
+          stats,
+          interventions: transformedInterventions,
+          urgentInterventions,
+          loading: false,
+          error: null
+        })
+        lastUserIdRef.current = userId
+      }
 
     } catch (error) {
       logger.error("❌ Error loading prestataire data:", error)
-      setData(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      }))
-    }
-  }
-
-  useEffect(() => {
-    if (userId) {
-      loadData()
+      if (mountedRef.current) {
+        setData(prev => ({
+          ...prev,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Erreur inconnue'
+        }))
+      }
+    } finally {
+      loadingRef.current = false
     }
   }, [userId])
 
+  useEffect(() => {
+    if (userId) {
+      loadData(false)
+    }
+  }, [userId, loadData])
+
+  // Nettoyage au démontage
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
+  useDataRefresh('prestataire-data', () => {
+    // Forcer un refetch en bypassant le cache local
+    lastUserIdRef.current = null
+    loadingRef.current = false
+    loadData(true)
+  })
+
   return {
     ...data,
-    refetch: loadData
+    refetch: () => {
+      lastUserIdRef.current = null
+      loadingRef.current = false
+      loadData(true)
+    }
   }
 }
 

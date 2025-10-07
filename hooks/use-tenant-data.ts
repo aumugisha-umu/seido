@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { createTenantService } from '@/lib/services'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createBrowserSupabaseClient, createTenantService } from '@/lib/services'
 import { useAuth } from './use-auth'
 import { useResolvedUserId } from './use-resolved-user-id'
+import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 interface TenantData {
   id: string
@@ -63,57 +64,55 @@ export const useTenantData = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchTenantData = async () => {
-      // Attendre la résolution du user ID (JWT → UUID)
-      if (!resolvedUserId || !user || user.role !== 'locataire') {
-        setLoading(false)
-        return
-      }
+  // Utiliser des refs pour éviter les re-renders inutiles
+  const loadingRef = useRef(false)
+  const mountedRef = useRef(true)
+  const lastResolvedIdRef = useRef<string | null>(null)
 
-      try {
-        setLoading(true)
-        setError(null)
-
-        logger.info('📊 [useTenantData] Fetching tenant data', {
-          originalUserId: user.id,
-          resolvedUserId
-        })
-
-        // Fetch all tenant data in parallel avec l'ID résolu
-        const tenantService = createTenantService()
-        const [data, stats, interventions] = await Promise.all([
-          tenantService.getTenantData(resolvedUserId),
-          tenantService.getTenantStats(resolvedUserId),
-          tenantService.getTenantInterventions(resolvedUserId)
-        ])
-
-        setTenantData(data)
-        setTenantStats(stats)
-        setTenantInterventions(interventions)
-      } catch (err) {
-        logger.error('Error fetching tenant data:', err)
-        setError(err instanceof Error ? err.message : 'Une erreur est survenue')
-      } finally {
-        setLoading(false)
-      }
+  const fetchTenantData = useCallback(async (bypassCache = false) => {
+    // Attendre la résolution du user ID (JWT → UUID)
+    if (!resolvedUserId || !user || user.role !== 'locataire') {
+      setLoading(false)
+      return
     }
 
-    fetchTenantData()
-  }, [resolvedUserId, user])
+    // Éviter les appels multiples
+    if (loadingRef.current || !mountedRef.current) {
+      logger.info('🔒 [TENANT-DATA] Skipping fetch - already loading or unmounted')
+      return
+    }
 
-  const refreshData = async () => {
-    // Utiliser l'ID résolu pour le refresh également
-    if (!resolvedUserId || !user || user.role !== 'locataire') return
+    // Éviter les refetch pour le même resolvedUserId
+    if (lastResolvedIdRef.current === resolvedUserId && !bypassCache) {
+      logger.info('🔒 [TENANT-DATA] Skipping fetch - same resolvedUserId')
+      return
+    }
 
     try {
+      loadingRef.current = true
+      setLoading(true)
       setError(null)
 
-      logger.info('🔄 [useTenantData] Refreshing tenant data', {
+      logger.info('📊 [TENANT-DATA] Fetching tenant data', {
         originalUserId: user.id,
-        resolvedUserId
+        resolvedUserId,
+        bypassCache
       })
 
+      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
+      const supabase = createBrowserSupabaseClient()
+      try {
+        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
+        if (sessionErr || !sessionRes?.session) {
+          logger.warn('⚠️ [TENANT-DATA] Session issue, attempting refresh...')
+          await supabase.auth.refreshSession()
+        }
+      } catch (sessionError) {
+        logger.warn('⚠️ [TENANT-DATA] Session check failed:', sessionError)
+        // Continue anyway - let the service handle it
+      }
+
+      // Fetch all tenant data in parallel avec l'ID résolu
       const tenantService = createTenantService()
       const [data, stats, interventions] = await Promise.all([
         tenantService.getTenantData(resolvedUserId),
@@ -121,14 +120,51 @@ export const useTenantData = () => {
         tenantService.getTenantInterventions(resolvedUserId)
       ])
 
-      setTenantData(data)
-      setTenantStats(stats)
-      setTenantInterventions(interventions)
+      if (mountedRef.current) {
+        setTenantData(data)
+        setTenantStats(stats)
+        setTenantInterventions(interventions)
+        lastResolvedIdRef.current = resolvedUserId
+      }
     } catch (err) {
-      logger.error('Error refreshing tenant data:', err)
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue')
+      logger.error('Error fetching tenant data:', err)
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Une erreur est survenue')
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false)
+      }
+      loadingRef.current = false
     }
-  }
+  }, [resolvedUserId, user])
+
+  useEffect(() => {
+    fetchTenantData(false)
+  }, [fetchTenantData])
+
+  // Nettoyage au démontage
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
+  useDataRefresh('tenant-data', () => {
+    // Forcer un refetch en bypassant le cache local
+    lastResolvedIdRef.current = null
+    loadingRef.current = false
+    fetchTenantData(true)
+  })
+
+  const refreshData = useCallback(async () => {
+    logger.info('🔄 [TENANT-DATA] Manual refresh requested')
+    lastResolvedIdRef.current = null
+    loadingRef.current = false
+    await fetchTenantData(true)
+  }, [fetchTenantData])
 
   return {
     tenantData,

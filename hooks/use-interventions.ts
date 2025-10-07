@@ -53,7 +53,7 @@ export function useInterventions(): UseInterventionsReturn {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      logger.info('🔄 [useInterventions] Loading interventions...', bypassCache ? '(bypassing cache)' : '')
+      logger.info(`🔄 [useInterventions] Loading interventions... ${bypassCache ? '(bypassing cache)' : ''}`)
 
       // ✅ Initialiser le client Supabase et s'assurer que la session est prête
       const supabase = createBrowserSupabaseClient()
@@ -64,7 +64,7 @@ export function useInterventions(): UseInterventionsReturn {
           await supabase.auth.refreshSession()
         }
       } catch (sessionError) {
-        logger.warn('⚠️ [useInterventions] Session check failed:', sessionError)
+        logger.warn(`⚠️ [useInterventions] Session check failed: ${sessionError}`)
         // Continue anyway - let the service handle it
       }
 
@@ -78,11 +78,11 @@ export function useInterventions(): UseInterventionsReturn {
         if (result.success && result.data) {
           setInterventions(result.data)
           lastFetchTimeRef.current = Date.now()
-          logger.info('✅ [useInterventions] Loaded interventions:', result.data.length)
+          logger.info(`✅ [useInterventions] Loaded ${result.data.length} interventions`)
         } else {
-          const errorMsg = result.error || 'Failed to load interventions'
+          const errorMsg = 'Failed to load interventions'
           setError(errorMsg)
-          logger.error('❌ [useInterventions] Error:', errorMsg)
+          logger.error(`❌ [useInterventions] Error: ${errorMsg}`)
         }
       }
     } catch (err) {

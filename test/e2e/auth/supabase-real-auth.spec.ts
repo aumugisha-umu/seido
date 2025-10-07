@@ -54,7 +54,7 @@ test.describe('Supabase Authentication E2E Tests', () => {
 
       // 2. Fill login form
       await page.fill('input[type="email"]', user.email);
-      await page.fill('input[type="password"]', user._password);
+      await page.fill('input[type="password"]', user.password);
 
       // 3. Submit form
       await page.click('button[type="submit"]');
@@ -126,7 +126,7 @@ test.describe('Supabase Authentication E2E Tests', () => {
     // Login as gestionnaire
     await page.goto('/auth/login');
     await page.fill('input[type="email"]', TEST_USERS.gestionnaire.email);
-    await page.fill('input[type="password"]', TEST_USERS.gestionnaire._password);
+    await page.fill('input[type="password"]', TEST_USERS.gestionnaire.password);
     await page.click('button[type="submit"]');
 
     // Wait for dashboard
@@ -156,7 +156,7 @@ test.describe('Session Persistence', () => {
     // Login
     await page.goto('/auth/login');
     await page.fill('input[type="email"]', TEST_USERS.gestionnaire.email);
-    await page.fill('input[type="password"]', TEST_USERS.gestionnaire._password);
+    await page.fill('input[type="password"]', TEST_USERS.gestionnaire.password);
     await page.click('button[type="submit"]');
 
     await page.waitForURL(TEST_USERS.gestionnaire.dashboardUrl);
@@ -175,7 +175,7 @@ test.describe('Session Persistence', () => {
     // Login
     await page.goto('/auth/login');
     await page.fill('input[type="email"]', TEST_USERS.gestionnaire.email);
-    await page.fill('input[type="password"]', TEST_USERS.gestionnaire._password);
+    await page.fill('input[type="password"]', TEST_USERS.gestionnaire.password);
     await page.click('button[type="submit"]');
 
     await page.waitForURL(TEST_USERS.gestionnaire.dashboardUrl);

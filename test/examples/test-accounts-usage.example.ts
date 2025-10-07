@@ -18,7 +18,7 @@ describe('Test Accounts Usage Examples', () => {
       const account = TestAccountsHelper.generateTestAccount('gestionnaire')
       
       expect(account.email).toMatch(/^arthur\+\d{3}@seido\.pm$/)
-      expect(account._password).toBe('Wxcvbn123')
+      expect(account.password).toBe('Wxcvbn123')
       expect(account.role).toBe('gestionnaire')
       expect(account.name).toContain('Test Gestionnaire')
     })
@@ -27,7 +27,7 @@ describe('Test Accounts Usage Examples', () => {
       const account = TestAccountsHelper.generateCustomAccount('prestataire', '999')
       
       expect(account.email).toBe('arthur+999@seido.pm')
-      expect(account._password).toBe('Wxcvbn123')
+      expect(account.password).toBe('Wxcvbn123')
       expect(account.role).toBe('prestataire')
     })
 
@@ -122,8 +122,8 @@ describe('E2E Test Example', () => {
     
     expect(loginData.gestionnaire.email).toBe('arthur+000@seido.pm')
     expect(loginData.prestataire.email).toBe('arthur+001@seido.pm')
-    expect(loginData.gestionnaire._password).toBe('Wxcvbn123')
-    expect(loginData.prestataire._password).toBe('Wxcvbn123')
+    expect(loginData.gestionnaire.password).toBe('Wxcvbn123')
+    expect(loginData.prestataire.password).toBe('Wxcvbn123')
   })
 })
 

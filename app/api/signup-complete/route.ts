@@ -7,7 +7,7 @@ import { activityLogger } from '@/lib/activity-logger'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { email, _password, name, firstName, lastName, phone } = body
+    const { email, password, name, firstName, lastName, phone } = body
 
     logger.info({ email: email }, '🚀 [SIGNUP-SIMPLE] Starting simple signup process for:')
 
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     logger.info({}, '🔐 [STEP-3] Creating auth user and linking to profile...')
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      _password,
+      password,
       options: {
         data: {
           full_name: name,

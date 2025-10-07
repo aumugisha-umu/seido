@@ -25,7 +25,7 @@ test.describe('Phase 2 - Server Component Validation', () => {
       // Login
       await page.goto('/auth/login')
       await page.fill('input[name="email"]', email)
-      await page.fill('input[name="password"]', testAccounts._password)
+      await page.fill('input[name="password"]', testAccounts.password)
       await page.click('button[type="submit"]')
 
       // Wait for redirect to dashboard
@@ -51,7 +51,7 @@ test.describe('Phase 2 - Server Component Validation', () => {
     // Login as gestionnaire
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -75,7 +75,7 @@ test.describe('Phase 2 - Server Component Validation', () => {
     // Test error handling by navigating to a non-existent route
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -91,7 +91,7 @@ test.describe('Phase 2 - Server Component Validation', () => {
     // Login as gestionnaire
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -134,14 +134,14 @@ test.describe('Phase 2 - Server Component Validation', () => {
     // Login as gestionnaire
     await gestionnaireePage.goto('/auth/login')
     await gestionnaireePage.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await gestionnaireePage.fill('input[name="password"]', testAccounts._password)
+    await gestionnaireePage.fill('input[name="password"]', testAccounts.password)
     await gestionnaireePage.click('button[type="submit"]')
     await gestionnaireePage.waitForURL('/gestionnaire/dashboard')
 
     // Login as prestataire
     await prestatairePage.goto('/auth/login')
     await prestatairePage.fill('input[name="email"]', testAccounts.prestataire.email)
-    await prestatairePage.fill('input[name="password"]', testAccounts._password)
+    await prestatairePage.fill('input[name="password"]', testAccounts.password)
     await prestatairePage.click('button[type="submit"]')
     await prestatairePage.waitForURL('/prestataire/dashboard')
 
@@ -164,7 +164,7 @@ test.describe('Phase 2 - Server Component Validation', () => {
     // Login as gestionnaire
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -213,7 +213,7 @@ test.describe('Phase 2 - Server Component Validation', () => {
     // Login
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -251,7 +251,7 @@ test.describe('Phase 2 - Error Recovery', () => {
     // Login first
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -277,7 +277,7 @@ test.describe('Phase 2 - Error Recovery', () => {
     // Login
     await page.goto('/auth/login')
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 
@@ -294,7 +294,7 @@ test.describe('Phase 2 - Error Recovery', () => {
 
     // Can login again
     await page.fill('input[name="email"]', testAccounts.gestionnaire.email)
-    await page.fill('input[name="password"]', testAccounts._password)
+    await page.fill('input[name="password"]', testAccounts.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard')
 

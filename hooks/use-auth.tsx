@@ -31,10 +31,10 @@ interface AuthContextType {
   signUp: (data: { email: string; password: string; name: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   completeProfile: (data: { firstName: string; lastName: string; phone?: string }) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   signOut: () => Promise<void>
-  resetPassword: (_email: string) => Promise<{ error: AuthError | null }>
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
   updateProfile: (updates: Partial<AuthUser>) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   refreshUser: () => Promise<void>
-  resendConfirmation: (_email: string) => Promise<{ error: AuthError | null }>
+  resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>
   getCurrentAuthSession: () => Promise<{ authUser: unknown | null; error: AuthError | null }>
 }
 

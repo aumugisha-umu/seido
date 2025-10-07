@@ -84,7 +84,7 @@ test.describe('Authentification Multi-Rôles Complète', () => {
 
       // 2. Remplir le formulaire
       await page.fill('input[type="email"], input[name="email"], #email', account.email)
-      await page.fill('input[type="password"], input[name="password"], #password', account._password)
+      await page.fill('input[type="password"], input[name="password"], #password', account.password)
 
       // Capturer screenshot avant connexion
       await page.screenshot({
@@ -166,7 +166,7 @@ test.describe('Authentification Multi-Rôles Complète', () => {
       await waitForAppReady(page)
 
       await page.fill('input[type="email"], input[name="email"], #email', account.email)
-      await page.fill('input[type="password"], input[name="password"], #password', account._password)
+      await page.fill('input[type="password"], input[name="password"], #password', account.password)
       await page.click('button[type="submit"]:has-text("Se connecter"), button[type="submit"]:has-text("Connexion")')
 
       // Attendre la redirection
@@ -216,7 +216,7 @@ test.describe('Authentification Multi-Rôles Complète', () => {
 
       // Se connecter
       await page.fill('input[type="email"], input[name="email"], #email', account.email)
-      await page.fill('input[type="password"], input[name="password"], #password', account._password)
+      await page.fill('input[type="password"], input[name="password"], #password', account.password)
       await page.click('button[type="submit"]:has-text("Se connecter"), button[type="submit"]:has-text("Connexion")')
 
       // Attendre le dashboard
@@ -320,7 +320,7 @@ test.describe('Tests Mobile - Authentification Responsive', () => {
 
     // Se connecter
     await page.fill('input[type="email"], input[name="email"], #email', TEST_ACCOUNTS.gestionnaire.email)
-    await page.fill('input[type="password"], input[name="password"], #password', TEST_ACCOUNTS.gestionnaire._password)
+    await page.fill('input[type="password"], input[name="password"], #password', TEST_ACCOUNTS.gestionnaire.password)
     await page.click('button[type="submit"]:has-text("Se connecter"), button[type="submit"]:has-text("Connexion")')
 
     // Attendre le dashboard

@@ -47,7 +47,7 @@ test.describe('Authentication Migration Validation', () => {
 
       // Step 2: Fill login form
       await page.fill('input[type="email"]', account.email);
-      await page.fill('input[type="password"]', account._password);
+      await page.fill('input[type="password"]', account.password);
 
       // Step 3: Submit and wait for redirect
       await Promise.all([
@@ -133,7 +133,7 @@ test.describe('Dashboard Performance', () => {
       // Login first
       await page.goto('/auth/login');
       await page.fill('input[type="email"]', account.email);
-      await page.fill('input[type="password"]', account._password);
+      await page.fill('input[type="password"]', account.password);
 
       // Measure dashboard load time
       const startTime = Date.now();

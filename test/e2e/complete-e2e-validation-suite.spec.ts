@@ -45,7 +45,7 @@ async function loginAs(page: Page, role: keyof typeof TEST_CREDENTIALS) {
 
   // Remplir le formulaire de login
   await page.fill('input[type="email"]', creds.email)
-  await page.fill('input[type="password"]', creds._password)
+  await page.fill('input[type="password"]', creds.password)
 
   // Cliquer sur le bouton de connexion
   await page.click('button[type="submit"]')
@@ -360,7 +360,7 @@ test.describe('⚠️ TESTS DE GESTION DES ERREURS', () => {
 
     await page.goto('/auth/login')
     await page.fill('input[type="email"]', TEST_CREDENTIALS.gestionnaire.email)
-    await page.fill('input[type="password"]', TEST_CREDENTIALS.gestionnaire._password)
+    await page.fill('input[type="password"]', TEST_CREDENTIALS.gestionnaire.password)
 
     // Essayer de se connecter avec le réseau bloqué
     await page.click('button[type="submit"]')
@@ -464,7 +464,7 @@ test.describe('📈 TESTS DE PERFORMANCE', () => {
 
     const startTime = Date.now()
     await page.fill('input[type="email"]', TEST_CREDENTIALS.gestionnaire.email)
-    await page.fill('input[type="password"]', TEST_CREDENTIALS.gestionnaire._password)
+    await page.fill('input[type="password"]', TEST_CREDENTIALS.gestionnaire.password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/gestionnaire/dashboard', { timeout: 10000 })
     const loginTime = Date.now() - startTime

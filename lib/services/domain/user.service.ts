@@ -82,8 +82,8 @@ export class UserService {
 
     // Hash password if provided
     const processedData = { ...userData }
-    if ('password' in processedData && processedData._password) {
-      processedData.password = await hashPassword(processedData._password)
+    if ('password' in processedData && processedData.password) {
+      processedData.password = await hashPassword(processedData.password)
     }
 
     // Set default values
@@ -130,8 +130,8 @@ export class UserService {
 
     // Hash password if provided
     const processedUpdates = { ...updates }
-    if ('password' in processedUpdates && processedUpdates._password) {
-      processedUpdates.password = await hashPassword(processedUpdates._password)
+    if ('password' in processedUpdates && processedUpdates.password) {
+      processedUpdates.password = await hashPassword(processedUpdates.password)
     }
 
     // Update timestamp

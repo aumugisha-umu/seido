@@ -86,12 +86,12 @@ class AuthService {
     return createBrowserSupabaseClient()
   }
   // Inscription - Crée auth user + profil + équipe personnelle
-  async signUp({ email, _password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
+  async signUp({ email, password, name, first_name, last_name, phone }: SignUpData): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
       // Créer l'utilisateur auth
       const { data: authData, error: authError } = await this.getSupabaseClient().auth.signUp({
         email,
-        _password,
+        password,
         options: {
           data: {
             full_name: name,
@@ -278,7 +278,7 @@ class AuthService {
     try {
       const { data, error } = await this.getSupabaseClient().auth.signInWithPassword({
         email,
-        _password,
+        password,
       })
 
       if (error || !data.user) {

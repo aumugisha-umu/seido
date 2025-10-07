@@ -79,7 +79,7 @@ export async function signInAction(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
-  if (!email || !_password) {
+  if (!email || !password) {
     return { error: 'Email et mot de passe requis' }
   }
 
@@ -150,7 +150,7 @@ export async function signUpAction(formData: FormData) {
     // Créer l'utilisateur auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      _password,
+      password,
       options: {
         data: {
           full_name: name,

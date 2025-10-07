@@ -65,7 +65,7 @@ export async function loginAsRole(
 
   await page.goto('/auth/login')
   await page.fill('[name="email"]', creds.email)
-  await page.fill('[name="password"]', creds._password)
+  await page.fill('[name="password"]', creds.password)
   await page.click('button[type="submit"]')
 
   // Attendre la redirection

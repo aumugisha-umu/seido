@@ -22,7 +22,7 @@ async function measureAuthTime(page: Page, email: string, password: string): Pro
 
   // Remplir le formulaire
   await page.fill('input[name="email"]', email)
-  await page.fill('input[name="password"]', _password)
+  await page.fill('input[name="password"]', password)
 
   // Cliquer sur le bouton de connexion
   await page.click('button[type="submit"]')
@@ -50,7 +50,7 @@ test.describe('🎯 PHASE 1 - Validation complète des optimisations AUTH', () =
         console.log(`📧 Email: ${account.email}`)
 
         // 1. Mesurer le temps d'authentification
-        const authTime = await measureAuthTime(page, account.email, account._password)
+        const authTime = await measureAuthTime(page, account.email, account.password)
         console.log(`⏱️ Temps d'authentification: ${authTime}ms`)
 
         // Vérifier que le temps est < 3 secondes

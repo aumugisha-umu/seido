@@ -3,6 +3,7 @@
 import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
 import { GlobalLoadingIndicator } from "@/components/global-loading-indicator"
 import { useSessionFocusRefresh } from "@/hooks/use-session-focus-refresh"
+import { useSessionKeepalive } from "@/hooks/use-session-keepalive"
 
 /**
  * 🎯 GESTIONNAIRE LAYOUT CLIENT - Fonctionnalités interactives
@@ -16,6 +17,8 @@ export function GestionnaireLayoutClient() {
   useNavigationRefresh()
   // ✅ Refresh session on focus/visibility + soft refresh section
   useSessionFocusRefresh()
+  // ✅ Maintain session alive during user activity
+  useSessionKeepalive()
 
   return (
     <>

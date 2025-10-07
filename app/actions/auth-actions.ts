@@ -12,7 +12,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
+import { createServerSupabaseClient, createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
 import { getSupabaseAdmin, isAdminConfigured } from '@/lib/services/core/supabase-admin'
 import { requireGuest, invalidateAuth, getDashboardPath } from '@/lib/auth-dal'
 import { createServerUserService, createServerTeamService } from '@/lib/services'
@@ -89,8 +89,8 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     return { success: false, error: 'Données invalides' }
   }
 
-  // ✅ AUTHENTIFICATION: Utiliser client server Supabase
-  const supabase = await createServerSupabaseClient()
+  // ✅ AUTHENTIFICATION: Utiliser client server ACTION Supabase (READ-WRITE pour cookies)
+  const supabase = await createServerActionSupabaseClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email: validatedData.email,
     password: validatedData.password
@@ -114,6 +114,14 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   }
 
   logger.info(`✅ [LOGIN-ACTION] User authenticated: ${data.user.email}`)
+
+  // 🔍 DEBUG: Vérifier les détails de la session
+  logger.info('🔍 [LOGIN-DEBUG] Session details:', {
+    userId: data.user?.id,
+    userEmail: data.user?.email,
+    hasSession: !!data.session,
+    sessionExpiry: data.session?.expires_at
+  })
 
   // ✅ DÉTERMINER REDIRECTION: Selon le rôle utilisateur
   let dashboardPath = '/admin/dashboard' // Fallback par défaut

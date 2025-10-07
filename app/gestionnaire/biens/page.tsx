@@ -5,7 +5,7 @@ import {
   createServerTeamService
 } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { requireRole } from '@/lib/dal'
+import { requireRole } from '@/lib/auth-dal'
 
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,7 @@ export default async function BiensPage() {
   try {
     // ✅ LAYER 1: Auth validation FIRST (Dashboard pattern)
     logger.info("🔵 [BIENS-PAGE] Server-side fetch starting")
-    const user = await requireRole('gestionnaire')
+    const { user, profile } = await requireRole(['gestionnaire'])
 
     // ✅ LAYER 2: Create services AFTER auth validation
     const teamService = await createServerTeamService()
@@ -22,7 +22,8 @@ export default async function BiensPage() {
     const lotService = await createServerLotService()
 
     // 1. Récupérer l'équipe de l'utilisateur
-    const teamsResult = await teamService.getUserTeams(user.id)
+    // 🔍 CORRECTIF: Utiliser profile.id (users table ID) au lieu de user.id (auth_user_id)
+    const teamsResult = await teamService.getUserTeams(profile.id)
     const teams = teamsResult?.data || []
 
     if (!teams || teams.length === 0) {

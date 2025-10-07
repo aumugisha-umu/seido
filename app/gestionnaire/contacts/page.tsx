@@ -5,7 +5,7 @@ import {
   createServerTeamService
 } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { requireRole } from '@/lib/dal'
+import { requireRole } from '@/lib/auth-dal'
 
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
@@ -14,14 +14,15 @@ export default async function ContactsPage() {
   try {
     // ✅ LAYER 1: Auth validation FIRST (like Dashboard)
     logger.info("🔵 [CONTACTS-PAGE] Server-side fetch starting")
-    const user = await requireRole('gestionnaire')
+    const { user, profile } = await requireRole(['gestionnaire'])
 
     // ✅ LAYER 2: Create services AFTER auth validation
     const teamService = await createServerTeamService()
     const contactService = await createServerContactService()
 
     // Get user's team
-    const teamsResult = await teamService.getUserTeams(user.id)
+    // 🔍 CORRECTIF: Utiliser profile.id (users table ID) au lieu de user.id (auth_user_id)
+    const teamsResult = await teamService.getUserTeams(profile.id)
     const teams = teamsResult?.data || []
     const team = teams.length > 0 ? teams[0] : null
 

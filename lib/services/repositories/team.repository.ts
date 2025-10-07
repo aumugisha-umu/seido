@@ -322,11 +322,32 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
    */
   private async fetchUserTeamsFromDB(userId: string, cacheKey: string): Promise<{ success: true; data: TeamWithMembers[] }> {
     try {
+      // 🔍 DEBUG: Log user ID and session status
+      logger.info('🔍 [TEAM-REPO-DEBUG] Fetching teams for user:', userId)
+
+      // Check if Supabase session is valid
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession()
+      logger.info('🔍 [TEAM-REPO-DEBUG] Supabase session status:', {
+        hasSession: !!session,
+        sessionUserId: session?.user?.id,
+        sessionError: sessionError?.message,
+        requestedUserId: userId
+      })
+
       // STEP 1: Get user's team memberships (no JOIN to avoid RLS recursion)
       const { data: memberData, error: memberError } = await this.supabase
         .from('team_members')
         .select('team_id, role, id, joined_at, user_id')
         .eq('user_id', userId)
+
+      // 🔍 DEBUG: Log team_members query result
+      logger.info('🔍 [TEAM-REPO-DEBUG] team_members query result:', {
+        success: !memberError,
+        error: memberError?.message,
+        errorCode: memberError?.code,
+        dataLength: memberData?.length || 0,
+        data: memberData
+      })
 
       if (memberError) {
         throw memberError

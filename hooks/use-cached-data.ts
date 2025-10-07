@@ -15,11 +15,11 @@ import { logger, logError } from '@/lib/logger'
 // ✅ Hook pour utiliser le cache directement
 export function useCache() {
   return {
-    get: <T>(_key: string) => cache.get<T>(key),
+    get: <T>(_key: string) => cache.get<T>(_key),
     set: (key: string, data: unknown, ttl?: number) => cache.set(key, data, ttl),
     getOrSet: <T>(key: string, fetcher: () => Promise<T>, ttl?: number) =>
       cache.getOrSet<T>(key, fetcher, ttl),
-    invalidate: (_pattern: string) => cache.invalidate(pattern),
+    invalidate: (_pattern: string) => cache.invalidate(_pattern),
     metrics: () => cache.getMetrics(),
     status: () => cache.getStatus()
   }

@@ -69,6 +69,20 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
     super(supabase, 'teams')
   }
 
+  // Détecte les erreurs d'authentification (JWT expiré/401)
+  private isAuthError(error: unknown): boolean {
+    const err = error as { message?: string; code?: string; status?: number }
+    const msg = (err?.message || '').toLowerCase()
+    return (
+      err?.status === 401 ||
+      err?.code === '401' ||
+      msg.includes('jwt') ||
+      msg.includes('unauthorized') ||
+      msg.includes('invalid token') ||
+      msg.includes('expired')
+    )
+  }
+
   /**
    * Validation hook for team data
    */
@@ -268,15 +282,32 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       logger.info('🔄 Returning stale data while revalidating in background')
 
       // Background update without waiting
-      this.fetchUserTeamsFromDB(userId, cacheKey).catch(error => {
+      this.fetchUserTeamsFromDB(userId, cacheKey).catch(async (error) => {
+        if (this.isAuthError(error)) {
+          try {
+            await this.supabase.auth.refreshSession()
+            await this.fetchUserTeamsFromDB(userId, cacheKey)
+            return
+          } catch (retryError) {
+            logger.error('❌ Background team fetch retry failed:', retryError)
+          }
+        }
         logger.error('❌ Background team fetch failed:', error)
       })
 
       return { success: true, data: cached.data }
     }
 
-    // No valid cache, fetch fresh data
-    return this.fetchUserTeamsFromDB(userId, cacheKey)
+    // No valid cache, fetch fresh data (avec retry 401 unique)
+    try {
+      return await this.fetchUserTeamsFromDB(userId, cacheKey)
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        await this.supabase.auth.refreshSession()
+        return await this.fetchUserTeamsFromDB(userId, cacheKey)
+      }
+      throw error
+    }
   }
 
   /**

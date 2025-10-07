@@ -2,6 +2,7 @@
 
 import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
 import { GlobalLoadingIndicator } from "@/components/global-loading-indicator"
+import { useSessionFocusRefresh } from "@/hooks/use-session-focus-refresh"
 
 /**
  * 🎯 GESTIONNAIRE LAYOUT CLIENT - Fonctionnalités interactives
@@ -13,6 +14,8 @@ import { GlobalLoadingIndicator } from "@/components/global-loading-indicator"
 export function GestionnaireLayoutClient() {
   // ✅ Navigation refresh hook (client-side seulement)
   useNavigationRefresh()
+  // ✅ Refresh session on focus/visibility + soft refresh section
+  useSessionFocusRefresh()
 
   return (
     <>

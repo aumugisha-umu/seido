@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
+import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 export interface ContactsData {
   contacts: unknown[]
@@ -47,8 +48,14 @@ export function useContactsData() {
       setError(null)
       logger.info("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
 
-      // Initialiser le client Supabase
+      // Initialiser le client Supabase et s'assurer que la session est prête (post idle)
       const supabase = createBrowserSupabaseClient()
+      try {
+        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
+        if (sessionErr || !sessionRes?.session) {
+          await supabase.auth.refreshSession()
+        }
+      } catch {}
 
       // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
       let userTeams = []
@@ -219,6 +226,16 @@ export function useContactsData() {
     // ✅ OPTIMISATION: Appel immédiat pour réactivité maximale
     fetchContactsData(user.id, false) // Utilisation normale du cache
   }, [user?.id, fetchContactsData])
+  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
+  useDataRefresh('contacts-data', () => {
+    if (user?.id) {
+      // Forcer un refetch en bypassant le cache local de ce hook
+      lastUserIdRef.current = null
+      loadingRef.current = false
+      fetchContactsData(user.id, true)
+    }
+  })
+
 
   // Nettoyage au démontage
   useEffect(() => {

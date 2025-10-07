@@ -87,7 +87,7 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
         jitterRange: 1000 // 1s de jitter
       },
       fetch: {
-        timeout: 10000    // 10s timeout fetch
+        timeout: 15000    // 15s timeout fetch (plus tolérant après idle)
       }
     }
   }

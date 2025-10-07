@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/dal"
+import { requireRole } from "@/lib/auth-dal"
 import { EmailPreviewClient } from "./email-preview-client"
 import { renderEmail } from "@/emails/utils/render"
 import SignupConfirmationEmail from "@/emails/templates/auth/signup-confirmation"
@@ -15,11 +15,11 @@ import InvitationEmail from "@/emails/templates/auth/invitation"
  */
 export default async function EmailPreviewPage() {
   // ✅ Vérifier que l'utilisateur est bien gestionnaire
-  const user = await requireRole('gestionnaire')
+  const { user, profile } = await requireRole(['gestionnaire'])
 
   // Données de démo basées sur l'utilisateur connecté
   const userEmail = user.email || 'test@seido.pm'
-  const userFirstName = user.name?.split(' ')[0] || userEmail.split('@')[0]
+  const userFirstName = profile.name?.split(' ')[0] || userEmail.split('@')[0]
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
   // ✅ 1. Template: Signup Confirmation

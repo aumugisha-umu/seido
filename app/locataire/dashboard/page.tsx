@@ -5,12 +5,10 @@ import {
   User,
   MessageCircle
 } from "lucide-react"
-import { requireRole } from "@/lib/dal"
+import { requireRole } from "@/lib/auth-dal"
 import {
-  createServerUserService,
-  createServerLotService,
-  createServerBuildingService,
-  createServerInterventionService
+  createServerTenantService,
+  createServerBuildingService
 } from '@/lib/services'
 
 import { LocataireDashboardClient } from "./locataire-dashboard-client"
@@ -27,49 +25,48 @@ import { logger, logError } from '@/lib/logger'
 
 export default async function LocataireDashboard() {
   // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
-  const user = await requireRole('locataire')
+  const { user, profile } = await requireRole(['locataire'])
 
-  // Initialize services
-  const userService = await createServerUserService()
-  const lotService = await createServerLotService()
+  // ✅ CORRECTIF (2025-10-07): Use TenantService to properly query lot_contacts junction table
+  const tenantService = await createServerTenantService()
   const buildingService = await createServerBuildingService()
-  const interventionService = await createServerInterventionService()
 
-  // ✅ LAYER 2: Data Layer Security - Récupération données locataire
+  // ✅ LAYER 2: Data Layer Security - Récupération données locataire via TenantService
   let tenantData: { id: string; building_id?: string; building?: unknown; reference: string; category?: string; floor?: number; rooms?: string; surface_area?: number; charges_amount?: number } | null = null
   let tenantInterventions: { id: string; title: string; description: string; status: string; created_at: string; urgency_level?: string }[] = []
   let pendingActions: { id: string; type: string; title: string; description: string; priority: string; href: string }[] = []
   let error: string | null = null
 
   try {
-    logger.info('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data for user:', user.id)
+    logger.info('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data via TenantService for user:', profile.id)
 
-    // Récupérer les données du locataire
-    const userResult = await userService.getById(user.id)
-    if (userResult.success && userResult.data && userResult.data.lot_id) {
-      const userData = userResult.data
+    // ✅ NEW APPROACH: Use TenantService.getTenantData() which queries lot_contacts properly
+    const fullTenantData = await tenantService.getTenantData(profile.id)
 
-      // Récupérer le lot du locataire
-      const lotResult = await lotService.getById(userData.lot_id)
-      if (lotResult.success && lotResult.data) {
-        tenantData = lotResult.data
+    if (fullTenantData && fullTenantData.lots.length > 0) {
+      // Get primary lot or first lot
+      const primaryLotData = fullTenantData.lots.find(l => l.is_primary) || fullTenantData.lots[0]
+      tenantData = primaryLotData.lot
 
-        if (tenantData.building_id) {
-          // Récupérer les informations du bâtiment
-          const buildingResult = await buildingService.getById(tenantData.building_id)
-          if (buildingResult.success && buildingResult.data) {
-            tenantData.building = buildingResult.data
-          }
+      // Get building information if lot has building_id
+      if (tenantData.building_id) {
+        const buildingResult = await buildingService.getById(tenantData.building_id)
+        if (buildingResult.success && buildingResult.data) {
+          tenantData.building = buildingResult.data
         }
       }
 
-      // Récupérer les interventions du locataire
-      // TODO: Adapter quand InterventionService sera prêt
-      // const interventionsResult = await interventionService.getTenantInterventions(user.id)
-      // tenantInterventions = interventionsResult.success ? interventionsResult.data : []
-      tenantInterventions = [] // Temporairement vide
+      // Get interventions (already fetched by TenantService)
+      tenantInterventions = fullTenantData.interventions.map(i => ({
+        id: i.id,
+        title: i.title,
+        description: i.description || '',
+        status: i.status,
+        created_at: i.created_at,
+        urgency_level: i.urgency || 'normale'
+      }))
 
-      // Calculer les actions en attente
+      // Calculate pending actions
       pendingActions = tenantInterventions.filter(i =>
         i.status === 'cloturee_par_prestataire' ||
         i.status === 'demande'
@@ -81,9 +78,15 @@ export default async function LocataireDashboard() {
         priority: i.urgency_level || 'medium',
         href: `/locataire/interventions/${i.id}`
       }))
-    }
 
-    logger.info('✅ [LOCATAIRE-DASHBOARD] Tenant data loaded successfully')
+      logger.info('✅ [LOCATAIRE-DASHBOARD] Tenant data loaded successfully:', {
+        lotId: tenantData.id,
+        interventionsCount: tenantInterventions.length,
+        pendingActionsCount: pendingActions.length
+      })
+    } else {
+      logger.warn('⚠️ [LOCATAIRE-DASHBOARD] No lots found for tenant:', profile.id)
+    }
   } catch (err) {
     logger.error('❌ [LOCATAIRE-DASHBOARD] Error loading tenant data:', err)
     error = 'Erreur lors du chargement des données'
@@ -126,7 +129,7 @@ export default async function LocataireDashboard() {
       <div className="text-center lg:text-left mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user.display_name || user.name} 👋</h1>
+            <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {profile.display_name || profile.name} 👋</h1>
             <p className="text-slate-600">Signalez vos problèmes ici et faites-en le suivi facilement</p>
           </div>
           <LocataireDashboardClient />

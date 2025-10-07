@@ -248,7 +248,7 @@ export class InterventionService {
    */
   async getByTenant(tenantId: string) {
     try {
-      const result = await this.repository.findByTenant(_tenantId)
+      const result = await this.repository.findByTenant(tenantId)
       return result
     } catch (error) {
       throw error

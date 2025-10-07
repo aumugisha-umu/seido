@@ -12,6 +12,7 @@ import {
   validateRequired,
   validateEnum
 } from '../core/service-types'
+import { logger } from '@/lib/logger'
 
 /**
  * Contact Repository
@@ -77,13 +78,23 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .from(this.tableName)
       .select(`
         *,
-        lot:lot_id(id, reference, building:building_id(name, address)),
-        building:building_id(id, name, address, city)
+        lot:lot_id(
+          id,
+          reference,
+          building:building_id(id, name, address, city)
+        )
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (error) {
+      logger.error('[CONTACT-REPO-DEBUG] Raw Supabase error in findByUser:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        userId
+      })
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 

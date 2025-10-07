@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Building2, Home, Users, Wrench, Plus } from "lucide-react"
 import Link from "next/link"
-import { requireRole } from "@/lib/dal"
+import { requireRole } from "@/lib/auth-dal"
 import {
   createServerTeamService,
   createServerUserService,
@@ -35,7 +35,7 @@ const dashLogger: any = logger
 
 export default async function DashboardGestionnaire() {
   // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
-  const user = await requireRole('gestionnaire')
+  const { user, profile } = await requireRole(['gestionnaire'])
 
   // ✅ LAYER 2: Data Layer Security - Récupération données sécurisée
   let stats = {
@@ -66,8 +66,8 @@ export default async function DashboardGestionnaire() {
     const statsService = await createServerStatsService()
 
     // Récupérer l'équipe de l'utilisateur (structure actuelle: users.team_id)
-    dashLogger.info('🔍 [DASHBOARD] Getting teams for user:', user.id)
-    const teamsResult = await teamService.getUserTeams(user.id)
+    dashLogger.info('🔍 [DASHBOARD] Getting teams for user:', profile.id)
+    const teamsResult = await teamService.getUserTeams(profile.id)
     dashLogger.info('📦 [DASHBOARD] Teams result:', teamsResult)
 
     // Extraire les données selon le format RepositoryResult

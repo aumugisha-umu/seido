@@ -25,9 +25,10 @@ import { useRouter } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
-import { useTenantData } from "@/hooks/use-tenant-data"
 import { useAuth } from "@/hooks/use-auth"
 import { logger, logError } from '@/lib/logger'
+import { getTenantLots } from '../actions'
+
 interface UploadedFile {
   id: string
   name: string
@@ -40,11 +41,11 @@ export default function NouvelleDemandePage() {
   const router = useRouter()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
-  const { loading, error, refreshData } = useTenantData()
-  
+
   // ALL useState hooks must be declared before any conditional returns
   const [allTenantLots, setAllTenantLots] = useState<{ id: string; apartment_number?: string; reference: string; building?: { id: string; name: string; address: string; postal_code: string; city: string }; surface_area?: number }[]>([])
   const [lotsLoading, setLotsLoading] = useState(true)
+  const [lotsError, setLotsError] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -93,13 +94,13 @@ export default function NouvelleDemandePage() {
 
       try {
         setLotsLoading(true)
-        // Import du service tenant
-        const { createServerTenantService } = await import('@/lib/services')
-        const tenantService = createServerTenantService()
-        const lots = await tenantService.getAllTenantLots(user.id)
+        setLotsError(null)
+        // ✅ Use Server Action instead of direct service call
+        const lots = await getTenantLots(user.id)
         setAllTenantLots(lots || [])
       } catch (err) {
         logger.error('Error fetching tenant lots:', err)
+        setLotsError(err instanceof Error ? err.message : 'Erreur lors du chargement des logements')
         setAllTenantLots([])
       } finally {
         setLotsLoading(false)
@@ -139,16 +140,16 @@ export default function NouvelleDemandePage() {
 
   // Conditional returns AFTER all hooks
   if (!user) return <div>Chargement...</div>
-  
-  if (loading || lotsLoading) return <LoadingSkeleton />
-  
-  if (error) {
+
+  if (lotsLoading) return <LoadingSkeleton />
+
+  if (lotsError) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
-              Erreur lors du chargement des données: {error}
+              Erreur lors du chargement des données: {lotsError}
             </p>
           </CardContent>
         </Card>

@@ -107,7 +107,7 @@ export function InterventionCard({
   const router = useRouter()
 
   // Generate intervention URL based on user context
-  const getInterventionUrl = (_interventionId: string) => {
+  const getInterventionUrl = (interventionId: string) => {
     switch (userContext) {
       case 'prestataire':
         return `/prestataire/interventions/${interventionId}`

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
-import { requireRole } from "@/lib/dal"
+import { requireRole } from "@/lib/auth-dal"
 import {
   createServerUserService,
   createServerInterventionService,
@@ -23,7 +23,7 @@ import { logger, logError } from '@/lib/logger'
 
 export default async function AdminDashboard() {
   // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
-  const user = await requireRole('admin')
+  const { user, profile } = await requireRole(['admin'])
 
   // Initialize services
   const userService = await createServerUserService()
@@ -114,10 +114,10 @@ export default async function AdminDashboard() {
             <div className="flex items-center gap-3">
               <Badge variant="secondary" className="bg-red-100 text-red-800">
                 <Shield className="w-3 h-3 mr-1" />
-                {user.display_name || user.name}
+                {profile.display_name || profile.name}
               </Badge>
               {/* Actions rapides - Composant client sécurisé */}
-              <AdminDashboardClient userId={user.id} />
+              <AdminDashboardClient userId={profile.id} />
             </div>
           </div>
         </div>

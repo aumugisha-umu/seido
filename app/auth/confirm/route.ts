@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
+import { createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { createServerUserService } from '@/lib/services'
@@ -41,8 +41,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Créer client Supabase server
-    const supabase = await createServerSupabaseClient()
+    // ✅ CORRECTIF (2025-10-07): Utiliser client READ-WRITE pour écrire la session
+    // Le même bug que pour loginAction: verifyOtp() doit écrire les cookies de session
+    const supabase = await createServerActionSupabaseClient()
 
     logger.info('🔧 [AUTH-CONFIRM] Calling verifyOtp...')
 

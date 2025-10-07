@@ -10,7 +10,11 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
 
 
-import { determineAssignmentType } from '@/lib/services'
+import {
+  determineAssignmentType,
+  createBrowserInterventionService,
+  createBrowserContactService
+} from '@/lib/services'
 import { useAuth } from "@/hooks/use-auth"
 import { useInterventionCancellation } from "@/hooks/use-intervention-cancellation"
 import { InterventionDetailHeader } from "@/components/intervention/intervention-detail-header"
@@ -18,6 +22,10 @@ import { InterventionActionPanelHeader } from "@/components/intervention/interve
 import { CancelConfirmationModal } from "@/components/intervention/modals/cancel-confirmation-modal"
 import { InterventionDetailTabs } from "@/components/intervention/intervention-detail-tabs"
 import { logger, logError } from '@/lib/logger'
+
+// Initialize services for Client Component
+const interventionService = createBrowserInterventionService()
+const contactService = createBrowserContactService()
 // Types basés sur la structure de la base de données
 interface DatabaseContact {
   id: string

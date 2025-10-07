@@ -133,20 +133,36 @@ export default function AuthCallback() {
       }
     })
 
-    // 7. DÉCLENCHER setSession (asynchrone, non bloquant)
-    logger.info('🔑 [AUTH-CALLBACK] Triggering setSession (async)...')
-    supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken
-    }).catch(error => {
-      logger.error('❌ [AUTH-CALLBACK] setSession error:', error)
+    // ✅ CORRECTIF (2025-10-07): ÉTABLIR LA SESSION (BLOQUANT)
+    // Problème: setSession() non-bloquant → listener onAuthStateChange ne se déclenche pas → page bloquée
+    logger.info('🔑 [AUTH-CALLBACK] Setting session (awaiting)...')
+    try {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      })
+
+      if (sessionError) {
+        logger.error('❌ [AUTH-CALLBACK] setSession error:', sessionError)
+        subscription.unsubscribe()
+        setStatus('error')
+        setMessage(`❌ Erreur d'authentification : ${sessionError.message}`)
+        setTimeout(() => {
+          window.location.href = '/auth/login?error=callback_failed'
+        }, 3000)
+        return
+      }
+
+      logger.info('✅ [AUTH-CALLBACK] Session established successfully')
+    } catch (error) {
+      logger.error('❌ [AUTH-CALLBACK] setSession exception:', error)
       subscription.unsubscribe()
       setStatus('error')
-      setMessage(`❌ Erreur d'authentification : ${error.message}`)
+      setMessage(`❌ Erreur d'authentification`)
       setTimeout(() => {
         window.location.href = '/auth/login?error=callback_failed'
       }, 3000)
-    })
+    }
 
     // Cleanup function
     return () => {

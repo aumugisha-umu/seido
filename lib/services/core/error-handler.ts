@@ -217,7 +217,11 @@ export function handleError(error: unknown, context?: string): RepositoryError {
   // Handle Supabase PostgrestError
   if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
     const repositoryError = transformSupabaseError(error as PostgrestError)
-    logger.error(`${contextMessage}Supabase error:`, repositoryError)
+    logger.error(`${contextMessage}Supabase error:`, {
+      code: repositoryError.code,
+      message: repositoryError.message,
+      details: repositoryError.details
+    })
     return repositoryError
   }
 

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireRole } from '@/lib/dal'
+import { requireRole } from '@/lib/auth-dal'
 import { createServerTeamService, createServerContactInvitationService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 /**
@@ -36,8 +36,8 @@ export async function createContactAction(data: CreateContactData) {
     })
 
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
-    const user = await requireRole('gestionnaire')
-    logger.info('✅ [DASHBOARD-ACTION] User authenticated:', { userId: user.id, role: user.role })
+    const { user, profile } = await requireRole(['gestionnaire'])
+    logger.info('✅ [DASHBOARD-ACTION] User authenticated:', { userId: profile.id, role: profile.role })
 
     // ✅ FIX: Initialize services with await (Server Components)
     logger.info('📦 [DASHBOARD-ACTION] Initializing services...')
@@ -47,7 +47,7 @@ export async function createContactAction(data: CreateContactData) {
 
     // Vérifier que l'utilisateur peut créer des contacts pour cette équipe
     logger.info('🔍 [DASHBOARD-ACTION] Checking team access...')
-    const teamsResult = await teamService.getUserTeams(user.id)
+    const teamsResult = await teamService.getUserTeams(profile.id)
     const teams = teamsResult?.data || []
 
     logger.info('📊 [DASHBOARD-ACTION] User teams:', {
@@ -61,7 +61,7 @@ export async function createContactAction(data: CreateContactData) {
 
     if (!hasTeamAccess) {
       logger.error(`🚫 [DASHBOARD-ACTION] Access denied:`, {
-        userId: user.id,
+        userId: profile.id,
         requestedTeamId: data.teamId,
         userTeams: teams.map(t => t.id)
       })
@@ -132,7 +132,7 @@ export async function createContactAction(data: CreateContactData) {
 export async function createInterventionAction() {
   try {
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
-    await requireRole('gestionnaire')
+    await requireRole(['gestionnaire'])
 
     // TODO: Implémenter création intervention
     // Pour l'instant, redirection vers le formulaire

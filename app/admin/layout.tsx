@@ -1,5 +1,5 @@
 import type React from "react"
-import { requireRole } from "@/lib/dal"
+import { requireRole } from "@/lib/auth-dal"
 import DashboardHeader from "@/components/dashboard-header"
 import { AdminLayoutClient } from "./layout-client"
 
@@ -19,10 +19,10 @@ export default async function AdminLayout({
 }) {
   // ✅ AUTHENTIFICATION SERVEUR: Le middleware a déjà vérifié l'auth
   // requireRole() valide en plus le rôle spécifique côté serveur
-  const user = await requireRole('admin')
+  const { user, profile } = await requireRole(['admin'])
 
   // Préparer les données utilisateur pour éviter hydration mismatch
-  const userName = user.name || user.email?.split('@')[0] || 'Utilisateur'
+  const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (

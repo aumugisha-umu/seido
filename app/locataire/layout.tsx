@@ -1,5 +1,5 @@
 import type React from "react"
-import { requireRole } from "@/lib/dal"
+import { requireRole } from "@/lib/auth-dal"
 import TenantHeader from "@/components/tenant-header"
 import { LocataireLayoutClient } from "./layout-client"
 
@@ -19,10 +19,10 @@ export default async function LocataireLayout({
 }) {
   // ✅ AUTHENTIFICATION SERVEUR: Le middleware a déjà vérifié l'auth
   // requireRole() valide en plus le rôle spécifique côté serveur
-  const user = await requireRole('locataire')
+  const { user, profile } = await requireRole(['locataire'])
 
   // Préparer les données utilisateur pour éviter hydration mismatch
-  const userName = user.name || user.email?.split('@')[0] || 'Utilisateur'
+  const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (

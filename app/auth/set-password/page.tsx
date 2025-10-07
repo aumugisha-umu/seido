@@ -165,7 +165,7 @@ export default function SetPasswordPage() {
       } else {
         logger.info("✅ [SET-PASSWORD] Password set successfully")
 
-        // ✅ NOUVEAU: Marquer password_set à true en base de données
+        // ✅ ÉTAPE 1: Marquer password_set à true en base de données
         try {
           const response = await fetch('/api/update-user-profile', {
             method: 'PATCH',
@@ -182,26 +182,34 @@ export default function SetPasswordPage() {
           logger.warn("⚠️ [SET-PASSWORD] Error updating password_set:", dbError)
         }
 
+        // ✅ CORRECTIF (2025-10-07): Attendre propagation Supabase
+        logger.info("⏳ [SET-PASSWORD] Waiting for session propagation...")
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Vérifier que la session est bien mise à jour
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          logger.error("❌ [SET-PASSWORD] Session lost after password update")
+          setError("Session perdue. Veuillez vous reconnecter.")
+          setIsLoading(false)
+          return
+        }
+
+        logger.info("✅ [SET-PASSWORD] Session still valid after password update")
+
         setIsCompleted(true)
         setError("")
 
-        // ✅ Refresh user data pour s'assurer de la synchronisation, puis rediriger après 1 seconde
-        try {
-          await refreshUser()
-          logger.info("✅ [SET-PASSWORD] User data refreshed")
-        } catch (refreshError) {
-          logger.warn("⚠️ [SET-PASSWORD] Failed to refresh user data:", refreshError)
-        }
-
+        // ✅ CORRECTIF (2025-10-07): Hard redirect avec window.location (bypass Next.js cache)
         setTimeout(() => {
           if (user?.role) {
             const dashboardPath = `/${user.role}/dashboard`
-            logger.info("🔄 [SET-PASSWORD] Redirecting to dashboard:", dashboardPath)
-            router.push(dashboardPath)
+            logger.info("🔄 [SET-PASSWORD] Hard redirect to dashboard:", dashboardPath)
+            window.location.href = dashboardPath  // Hard redirect au lieu de router.push
           } else {
-            router.push('/auth/login')
+            window.location.href = '/auth/login'
           }
-        }, 1000)
+        }, 1500)  // Augmenté à 1.5s pour laisser temps à la session de se propager
       }
     } catch (error) {
       logger.error("❌ [SET-PASSWORD] Unexpected error:", error)
@@ -258,7 +266,11 @@ export default function SetPasswordPage() {
               <Button
                 onClick={() => {
                   if (user?.role) {
-                    router.push(`/${user.role}/dashboard`)
+                    const dashboardPath = `/${user.role}/dashboard`
+                    logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
+                    window.location.href = dashboardPath  // Hard redirect
+                  } else {
+                    window.location.href = '/auth/login'
                   }
                 }}
                 className="w-full bg-sky-600 hover:bg-sky-700 text-white"

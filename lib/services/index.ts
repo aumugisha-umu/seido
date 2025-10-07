@@ -183,6 +183,7 @@ export {
 export {
   ContactService,
   createContactService,
+  createContactService as createBrowserContactService, // Alias for client-side usage
   createServerContactService
 } from './domain/contact.service'
 

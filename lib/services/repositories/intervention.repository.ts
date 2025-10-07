@@ -177,7 +177,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions by tenant (user who requested)
    */
-  async findByTenant(_tenantId: string) {
+  async findByTenant(tenantId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -192,7 +192,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           user:user_id(id, name, email, role, provider_category)
         )
       `)
-      .eq('tenant_id', _tenantId)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -234,7 +234,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions assigned to a provider
    */
-  async findByProvider(_providerId: string) {
+  async findByProvider(providerId: string) {
     // Find interventions assigned via intervention_contacts (no direct assignment field anymore)
     const { data, error } = await this.supabase
       .from('intervention_contacts')
@@ -254,7 +254,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           )
         )
       `)
-      .eq('user_id', _providerId)
+      .eq('user_id', providerId)
       .eq('role', 'prestataire')
 
     if (error) {

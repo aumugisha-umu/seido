@@ -6,6 +6,7 @@
 import { UserService, createUserService, createServerUserService } from './user.service'
 import { LotService, createLotService, createServerLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService } from './contact.service'
+import { InterventionService, createInterventionService, createServerInterventionService } from './intervention.service'
 import type { ServiceResult, User, Lot, Intervention } from '../core/service-types'
 import { logger, logError } from '@/lib/logger'
 /**
@@ -31,7 +32,8 @@ export class TenantService {
   constructor(
     private userService: UserService,
     private lotService: LotService,
-    private contactService: ContactService
+    private contactService: ContactService,
+    private interventionService: InterventionService
   ) {}
 
   /**
@@ -97,7 +99,20 @@ export class TenantService {
   }
 
   /**
-   * Get lots associated with a tenant
+   * Get tenant lots in simple format (for forms/selection)
+   * PUBLIC method for Server Actions and Client Components
+   *
+   * @param userId - The tenant user ID
+   * @returns Array of Lot objects without metadata
+   */
+  async getSimpleTenantLots(userId: string): Promise<Lot[]> {
+    const lotsWithMetadata = await this.getTenantLots(userId)
+    return lotsWithMetadata.map(item => item.lot)
+  }
+
+  /**
+   * Get lots associated with a tenant via lot_contacts junction table
+   * ✅ CORRECTIF (2025-10-07): Use ContactService to query lot_contacts properly
    */
   private async getTenantLots(userId: string): Promise<Array<{
     lot: Lot
@@ -106,29 +121,46 @@ export class TenantService {
     end_date?: string
   }>> {
     try {
-      // This would require integration with contact service to get lot_contacts
-      // For now, we'll return an empty array and implement proper logic later
-      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant:", userId)
+      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant via lot_contacts:", userId)
 
-      // Get all lots and filter by tenant assignments
-      const lotsResult = await this.lotService.getAll()
-      if (!lotsResult.success) {
+      // Get all contacts for this user (queries lot_contacts table)
+      const contactsResult = await this.contactService.getUserContacts(userId)
+      if (!contactsResult.success) {
+        logger.warn("⚠️ [TENANT-SERVICE] Could not get user contacts:", contactsResult.error)
         return []
       }
 
-      // Filter lots where this user is assigned as tenant
-      // This is a simplified implementation - in reality we'd query lot_contacts
-      const tenantLots = lotsResult.data
-        .filter(lot => lot.tenant_id === userId)
-        .map(lot => ({
-          lot,
-          is_primary: true,
-          start_date: lot.created_at,
-          end_date: undefined
-        }))
+      // Filter contacts that are linked to lots (not just buildings)
+      const contactsWithLots = contactsResult.data.filter(contact => contact.lot_id)
 
-      logger.info("✅ [TENANT-SERVICE] Found tenant lots:", tenantLots.length)
-      return tenantLots
+      if (contactsWithLots.length === 0) {
+        logger.info("ℹ️ [TENANT-SERVICE] No lot contacts found for user:", userId)
+        return []
+      }
+
+      // Fetch full lot details for each contact
+      const lotPromises = contactsWithLots.map(async (contact) => {
+        const lotResult = await this.lotService.getById(contact.lot_id!)
+        if (lotResult.success && lotResult.data) {
+          return {
+            lot: lotResult.data,
+            is_primary: contact.is_primary || false,
+            start_date: contact.start_date || undefined,
+            end_date: contact.end_date || undefined
+          }
+        }
+        return null
+      })
+
+      const lotsWithDetails = (await Promise.all(lotPromises)).filter(Boolean) as Array<{
+        lot: Lot
+        is_primary: boolean
+        start_date?: string
+        end_date?: string
+      }>
+
+      logger.info("✅ [TENANT-SERVICE] Found tenant lots:", lotsWithDetails.length)
+      return lotsWithDetails
 
     } catch (error) {
       logger.error("❌ [TENANT-SERVICE] Error getting tenant lots:", error)
@@ -138,13 +170,19 @@ export class TenantService {
 
   /**
    * Get interventions for a tenant
+   * ✅ CORRECTIF (2025-10-07): Use InterventionService.getByTenant() to get tenant's interventions
    */
   private async getTenantInterventions(userId: string): Promise<Intervention[]> {
     try {
       logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", userId)
 
-      // This would require intervention service integration
-      // For now, return empty array and implement proper logic later
+      const result = await this.interventionService.getByTenant(userId)
+      if (result.success && result.data) {
+        logger.info("✅ [TENANT-SERVICE] Found tenant interventions:", result.data.length)
+        return result.data
+      }
+
+      logger.info("ℹ️ [TENANT-SERVICE] No interventions found for tenant:", userId)
       return []
 
     } catch (error) {
@@ -214,21 +252,24 @@ export class TenantService {
 export const createTenantService = (
   userService?: UserService,
   lotService?: LotService,
-  contactService?: ContactService
+  contactService?: ContactService,
+  interventionService?: InterventionService
 ) => {
   const users = userService || createUserService()
   const lots = lotService || createLotService()
   const contacts = contactService || createContactService()
+  const interventions = interventionService || createInterventionService()
 
-  return new TenantService(users, lots, contacts)
+  return new TenantService(users, lots, contacts, interventions)
 }
 
 export const createServerTenantService = async () => {
-  const [userService, lotService, contactService] = await Promise.all([
+  const [userService, lotService, contactService, interventionService] = await Promise.all([
     createServerUserService(),
     createServerLotService(),
-    createServerContactService()
+    createServerContactService(),
+    createServerInterventionService()
   ])
 
-  return new TenantService(userService, lotService, contactService)
+  return new TenantService(userService, lotService, contactService, interventionService)
 }

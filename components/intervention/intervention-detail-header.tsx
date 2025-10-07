@@ -38,8 +38,8 @@ interface InterventionHeaderProps {
     id: string
     title: string
     reference: string
-    status: string
-    urgency: string
+    status?: string  // 🔍 CORRECTIF: Optionnel pour éviter les crashes
+    urgency?: string  // 🔍 CORRECTIF: Optionnel pour éviter les crashes
     createdAt: string
     createdBy: string
     lot?: {
@@ -67,33 +67,36 @@ export const InterventionDetailHeader = ({
   displayMode = "dropdown",
   actionPanel,
 }: InterventionHeaderProps) => {
-  const getUrgencyConfig = (_urgency: string) => {
-    switch (urgency.toLowerCase()) {
+  const getUrgencyConfig = (urgency?: string) => {
+    // 🔍 CORRECTIF: Gérer les valeurs undefined/null avec une valeur par défaut
+    const safeUrgency = (urgency || 'normale').toLowerCase()
+    switch (safeUrgency) {
       case "urgent":
-        return { 
-          color: "bg-red-100 text-red-800 border-red-200", 
-          dot: "bg-red-500" 
+        return {
+          color: "bg-red-100 text-red-800 border-red-200",
+          dot: "bg-red-500"
         }
       case "normale":
-        return { 
-          color: "bg-blue-100 text-blue-800 border-blue-200", 
-          dot: "bg-blue-500" 
+        return {
+          color: "bg-blue-100 text-blue-800 border-blue-200",
+          dot: "bg-blue-500"
         }
       case "faible":
-        return { 
-          color: "bg-slate-100 text-slate-700 border-slate-200", 
-          dot: "bg-slate-500" 
+        return {
+          color: "bg-slate-100 text-slate-700 border-slate-200",
+          dot: "bg-slate-500"
         }
       default:
-        return { 
-          color: "bg-slate-100 text-slate-700 border-slate-200", 
-          dot: "bg-slate-500" 
+        return {
+          color: "bg-slate-100 text-slate-700 border-slate-200",
+          dot: "bg-slate-500"
         }
     }
   }
 
-  const getStatusConfig = (_status: string) => {
-    const statusLower = status.toLowerCase()
+  const getStatusConfig = (status?: string) => {
+    // 🔍 CORRECTIF: Gérer les valeurs undefined/null avec une valeur par défaut
+    const statusLower = (status || 'demande').toLowerCase()
     switch (statusLower) {
       case "demande":
         return { 
@@ -171,8 +174,9 @@ export const InterventionDetailHeader = ({
   }
 
   // Actions disponibles selon le statut
-  const getAvailableActions = (_status: string) => {
-    const statusLower = status.toLowerCase()
+  const getAvailableActions = (status?: string) => {
+    // 🔍 CORRECTIF: Gérer les valeurs undefined/null avec une valeur par défaut
+    const statusLower = (status || 'demande').toLowerCase()
     const actions = []
     
     switch (statusLower) {

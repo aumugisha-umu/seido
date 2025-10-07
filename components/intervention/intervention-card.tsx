@@ -144,7 +144,7 @@ export function InterventionCard({
       maintenance: { icon: Hammer, color: "bg-orange-100", iconColor: "text-orange-600" },
     }
 
-    return typeConfig[type?.toLowerCase() as keyof typeof typeConfig] || {
+    return typeConfig[_type?.toLowerCase() as keyof typeof typeConfig] || {
       icon: Wrench,
       color: "bg-amber-100",
       iconColor: "text-amber-600"

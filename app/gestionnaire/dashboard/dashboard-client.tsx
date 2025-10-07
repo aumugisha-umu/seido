@@ -125,42 +125,41 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
         <div className="hidden sm:flex items-center gap-2">
           <Button
             size="sm"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Ajouter une intervention</span>
+          </Button>
+
+          <Button
+            size="sm"
             variant="outline"
-            className="flex items-center gap-2 bg-transparent"
+            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
           >
-            <Building2 className="h-4 w-4" />
+            <Plus className="h-4 w-4" />
             <span>Ajouter un immeuble</span>
           </Button>
 
           <Button
             size="sm"
             variant="outline"
-            className="flex items-center gap-2 bg-transparent"
+            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
           >
-            <Home className="h-4 w-4" />
+            <Plus className="h-4 w-4" />
             <span>Ajouter un lot</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2 bg-transparent"
+            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => setIsContactModalOpen(true)}
           >
-            <UserPlus className="h-4 w-4" />
+            <Plus className="h-4 w-4" />
             <span>Ajouter un contact</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2 bg-transparent"
-            onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
-          >
-            <Wrench className="h-4 w-4" />
-            <span>Ajouter une intervention</span>
           </Button>
         </div>
       </div>

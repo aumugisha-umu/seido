@@ -100,7 +100,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city),
+        building:building_id(name, address, city, team_id),
         lot_contacts(
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)

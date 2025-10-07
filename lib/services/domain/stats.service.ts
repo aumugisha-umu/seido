@@ -596,7 +596,8 @@ export class StatsService {
         // Continue with empty array if building fetch fails
       }
 
-      // Fetch recent interventions requiring manager action
+      // Fetch all interventions and recent interventions requiring manager action
+      let allInterventions: any[] = []
       let recentInterventions: any[] = []
       if (this.interventionRepository) {
         try {
@@ -604,12 +605,20 @@ export class StatsService {
           const interventionsResult = await this.interventionRepository.findAllWithRelations({ limit: 100 })
 
           if (interventionsResult.success && interventionsResult.data) {
-            // Filter interventions for this team and requiring manager action, then limit to 10 most recent
-            recentInterventions = interventionsResult.data
+            // First, filter ALL interventions for this team
+            allInterventions = interventionsResult.data
               .filter((intervention: any) => {
-                // Check if intervention belongs to this team (via building relationship)
-                const belongsToTeam = intervention.building?.team_id === teamId
+                // Check if intervention belongs to this team
+                // Support both lot-based AND building-wide interventions
+                const belongsToTeam =
+                  intervention.lot?.building?.team_id === teamId ||  // Intervention on a specific lot
+                  intervention.building?.team_id === teamId           // Intervention on building (building-wide)
+                return belongsToTeam
+              })
 
+            // Then, create recentInterventions: filter by requiring action and limit to 10
+            recentInterventions = allInterventions
+              .filter((intervention: any) => {
                 // Check if intervention requires manager action
                 const requiresAction = [
                   'demande',
@@ -619,8 +628,7 @@ export class StatsService {
                   'planifiee',
                   'en_cours'
                 ].includes(intervention.status)
-
-                return belongsToTeam && requiresAction
+                return requiresAction
               })
               .sort((a: any, b: any) => {
                 // Sort by created_at descending (most recent first)
@@ -631,8 +639,8 @@ export class StatsService {
               .slice(0, 10) // Limit to 10 most recent
           }
         } catch (interventionError) {
-          logger.error('⚠️ Error fetching recent interventions:', interventionError)
-          // Continue with empty array if intervention fetch fails
+          logger.error('⚠️ Error fetching interventions:', interventionError)
+          // Continue with empty arrays if intervention fetch fails
         }
       }
 
@@ -648,7 +656,7 @@ export class StatsService {
         buildings: buildings,
         lots: [],
         contacts: [],
-        interventions: [],
+        interventions: allInterventions,
         recentInterventions
       }
 

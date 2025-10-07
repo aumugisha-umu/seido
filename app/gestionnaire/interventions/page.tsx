@@ -8,7 +8,7 @@ import {
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
-import { useManagerStats } from "@/hooks/use-manager-stats"
+import { useInterventions } from "@/hooks/use-interventions"
 import { useInterventionApproval } from "@/hooks/use-intervention-approval"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
@@ -38,7 +38,7 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 
 export default function InterventionsPage() {
   const router = useRouter()
-  const { data: managerData, loading, error } = useManagerStats()
+  const { interventions, loading, error } = useInterventions()
 
   // Hooks pour les différentes actions
   const approvalHook = useInterventionApproval()
@@ -46,9 +46,6 @@ export default function InterventionsPage() {
   const planningHook = useInterventionPlanning()
   const executionHook = useInterventionExecution()
   const finalizationHook = useInterventionFinalization()
-
-  // Get interventions from manager data
-  const interventions = managerData?.interventions || []
 
   // Show loading state
   if (loading) {

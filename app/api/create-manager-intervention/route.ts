@@ -125,13 +125,21 @@ export async function POST(request: NextRequest) {
     // ✅ Utiliser findByAuthUserId au lieu de getById pour la nouvelle structure DB
     let user
     try {
-      user = await userService.findByAuthUserId(authUser.id)
+      const userResult = await userService.findByAuthUserId(authUser.id)
+      if (userResult?.success === false) {
+        logger.error({ error: userResult.error }, "❌ findByAuthUserId returned error")
+      }
+      user = userResult?.data ?? null
       logger.info({ user: user ? { id: user.id, name: user.name, role: user.role } : null }, "✅ Found user via findByAuthUserId")
     } catch (error) {
       logger.error({ error }, "❌ Error with findByAuthUserId, trying getById")
       // Fallback: essayer avec getById au cas où
       try {
-        user = await userService.getById(authUser.id)
+        const byIdResult = await userService.getById(authUser.id)
+        if (byIdResult?.success === false) {
+          logger.error({ error: byIdResult.error }, "❌ getById returned error")
+        }
+        user = byIdResult?.data ?? null
         logger.info({ user: user ? { id: user.id, name: user.name, role: user.role } : null }, "✅ Found user via getById fallback")
       } catch (fallbackError) {
         logger.error({ fallbackError }, "❌ Both methods failed")
@@ -146,7 +154,10 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    if (user.role !== 'gestionnaire') {
+    // Accept both FR and EN role labels (DB may use FR 'gestionnaire')
+    const roleValue = (user.role || '').toString().toLowerCase()
+    const isManager = roleValue === 'gestionnaire' || roleValue === 'manager'
+    if (!isManager) {
       return NextResponse.json({
         success: false,
         error: 'Accès réservé aux gestionnaires'
@@ -161,9 +172,13 @@ export async function POST(request: NextRequest) {
     let tenantId: string | null = null
     let interventionTeamId = teamId
 
-    if (selectedLotId) {
+    // Sanitize IDs that might come as 'undefined' strings from the client
+    const safeSelectedLotId = selectedLotId && selectedLotId !== 'undefined' && selectedLotId !== 'null' ? selectedLotId : null
+    const safeSelectedBuildingId = selectedBuildingId && selectedBuildingId !== 'undefined' && selectedBuildingId !== 'null' ? selectedBuildingId : null
+
+    if (safeSelectedLotId) {
       // Lot-specific intervention
-      lotId = selectedLotId.toString()
+      lotId = safeSelectedLotId.toString()
       logger.info({ lotId }, "🏠 Creating lot-specific intervention for lot ID")
 
       if (!lotId) {
@@ -225,9 +240,9 @@ export async function POST(request: NextRequest) {
       if (lot.team_id) {
         interventionTeamId = lot.team_id
       }
-    } else if (selectedBuildingId) {
+    } else if (safeSelectedBuildingId) {
       // Building-wide intervention
-      buildingId = selectedBuildingId.toString()
+      buildingId = safeSelectedBuildingId.toString()
       logger.info({ buildingId }, "🏢 Creating building-wide intervention for building ID")
 
       if (!buildingId) {

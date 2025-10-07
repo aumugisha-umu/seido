@@ -136,8 +136,8 @@ export class InterventionService {
    * Create new intervention with validation and auto-assignment
    */
   async create(interventionData: InterventionInsert, requestedBy?: User) {
-    // Validate lot exists
-    if (this.lotService) {
+    // Validate lot exists only when a lot_id is provided (building-wide interventions won't have one)
+    if (this.lotService && interventionData.lot_id) {
       const lotResult = await this.lotService.getById(interventionData.lot_id)
       if (!lotResult.success || !lotResult.data) {
         throw new NotFoundException('Lot not found', 'lots', interventionData.lot_id)

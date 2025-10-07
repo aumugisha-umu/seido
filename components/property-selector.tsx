@@ -8,26 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit } from "lucide-react"
 import { useBuildings } from "@/hooks/use-buildings"
+import type { Building as BuildingType, Lot as LotType } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
 import ContentNavigator from "@/components/content-navigator"
 
-interface Lot {
-  id: string | number
-  reference: string
-  status: string
-  floor: number
-  interventions: number
-  lot_tenants?: Array<unknown>
-  tenant?: unknown
-  building_name?: string
-}
-
-interface Building {
-  id: string | number
-  name: string
-  address: string
-  lots: Lot[]
-}
+type Lot = LotType
+type Building = BuildingType
 
 interface PropertySelectorProps {
   mode: "view" | "select"
@@ -64,7 +50,7 @@ export default function PropertySelector({
     )
   }
 
-  const handleSearch = (_value: string) => {
+  const handleSearch = (value: string) => {
     setSearchTerm(value)
   }
 
@@ -82,7 +68,7 @@ export default function PropertySelector({
         const searchLower = searchTerm.toLowerCase()
         const matchesName = building.name.toLowerCase().includes(searchLower)
         const matchesAddress = building.address.toLowerCase().includes(searchLower)
-        const matchesLots = building.lots.some((lot: Lot) =>
+        const matchesLots = (building.lots || []).some((lot: Lot) =>
           lot.reference.toLowerCase().includes(searchLower)
         )
         if (!matchesName && !matchesAddress && !matchesLots) return false
@@ -90,14 +76,14 @@ export default function PropertySelector({
 
       // Status filter
       if (filters.status !== "all") {
-        const hasOccupiedLots = building.lots.some((lot: Lot) => lot.status === "occupied")
+        const hasOccupiedLots = (building.lots || []).some((lot: Lot) => lot.status === "occupied")
         if (filters.status === "occupied" && !hasOccupiedLots) return false
         if (filters.status === "vacant" && hasOccupiedLots) return false
       }
 
       // Interventions filter
       if (filters.interventions !== "all") {
-        const hasInterventions = building.lots.some((lot: Lot) => lot.interventions > 0)
+        const hasInterventions = (building.lots || []).some((lot: Lot) => (lot.interventions || 0) > 0)
         if (filters.interventions === "with" && !hasInterventions) return false
         if (filters.interventions === "without" && hasInterventions) return false
       }
@@ -124,7 +110,7 @@ export default function PropertySelector({
 
       // Interventions filter
       if (filters.interventions !== "all") {
-        const hasInterventions = lot.interventions > 0
+        const hasInterventions = (lot.interventions || 0) > 0
         if (filters.interventions === "with" && !hasInterventions) return false
         if (filters.interventions === "without" && hasInterventions) return false
       }
@@ -185,8 +171,8 @@ export default function PropertySelector({
           filteredBuildings.map((building) => {
             const buildingIdStr = building.id.toString()
             const isExpanded = expandedBuildings.includes(buildingIdStr)
-            const occupiedLots = building.lots.filter((lot: Lot) => lot.status === "occupied").length
-            const totalInterventions = building.lots.reduce((sum: number, lot: Lot) => sum + lot.interventions, 0)
+            const occupiedLots = (building.lots || []).filter((lot: Lot) => lot.status === "occupied").length
+            const totalInterventions = (building.lots || []).reduce((sum: number, lot: Lot) => sum + (lot.interventions || 0), 0)
             const isSelected = selectedBuildingId === buildingIdStr
 
             return (
@@ -255,7 +241,7 @@ export default function PropertySelector({
                             <div className="w-5 h-5 bg-amber-100 rounded-md flex items-center justify-center">
                               <Home className="h-3 w-3 text-amber-600" />
                             </div>
-                            <span className="text-sm font-medium text-slate-900">{building.lots.length}</span>
+                            <span className="text-sm font-medium text-slate-900">{(building.lots || []).length}</span>
                             <span className="text-xs text-slate-600">lots</span>
                           </div>
                           
@@ -277,7 +263,7 @@ export default function PropertySelector({
                           )}
                         </div>
 
-                        {building.lots.length > 0 && (
+                        {(building.lots || []).length > 0 && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -294,9 +280,9 @@ export default function PropertySelector({
                         )}
                       </div>
 
-                      {building.lots.length > 0 && !isExpanded && (
+                      {(building.lots || []).length > 0 && !isExpanded && (
                         <div className="grid grid-cols-1 gap-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">
-                          {building.lots.slice(0, 2).map((lot: Lot) => {
+                          {(building.lots || []).slice(0, 2).map((lot: Lot) => {
                             const isLotSelected = selectedLotId === lot.id.toString()
                             return (
                               <div
@@ -360,10 +346,8 @@ export default function PropertySelector({
                                         size="sm"
                                         className="h-6 px-2 text-xs"
                                         onClick={() => {
-                                          if (isLotSelected) {
-                                            onLotSelect?.(null)
-                                          } else {
-                                            onLotSelect?.(lot.id, building.id)
+                                          if (!isLotSelected) {
+                                            onLotSelect?.(lot.id.toString(), building.id.toString())
                                           }
                                         }}
                                       >
@@ -376,7 +360,7 @@ export default function PropertySelector({
                             )
                           })}
                           
-                          {building.lots.length > 2 && (
+                          {(building.lots || []).length > 2 && (
                             <div className="text-center">
                               <Button
                                 variant="ghost"
@@ -384,18 +368,18 @@ export default function PropertySelector({
                                 onClick={() => toggleBuildingExpansion(buildingIdStr)}
                                 className="h-7 px-3 text-xs text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 w-full"
                               >
-                                +{building.lots.length - 2} more lots
+                                +{(building.lots || []).length - 2} more lots
                               </Button>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {isExpanded && building.lots.length > 0 && (
+                      {isExpanded && (building.lots || []).length > 0 && (
                         <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
                           <div className="max-h-64 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 rounded-md">
                             <div className="space-y-2 pr-2">
-                              {building.lots.map((lot: Lot) => {
+                              {(building.lots || []).map((lot: Lot) => {
                                 const isLotSelected = selectedLotId === lot.id.toString()
                                 return (
                                   <div
@@ -418,7 +402,7 @@ export default function PropertySelector({
                                         
                                         <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0">
                                           <span>Floor {lot.floor}</span>
-                                          {lot.interventions > 0 && (
+                                          {(lot.interventions || 0) > 0 && (
                                             <div className="flex items-center text-amber-700">
                                               <Zap className="h-3 w-3 mr-1" />
                                               <span>{lot.interventions}</span>
@@ -457,9 +441,7 @@ export default function PropertySelector({
                                             size="sm"
                                             className="h-7 px-3 text-xs"
                                             onClick={() => {
-                                              if (isLotSelected) {
-                                                onLotSelect?.(null)
-                                              } else {
+                                              if (!isLotSelected) {
                                                 onLotSelect?.(lot.id.toString(), building.id.toString())
                                               }
                                             }}
@@ -511,11 +493,22 @@ export default function PropertySelector({
         ) : (
           filteredIndividualLots.map((lot) => {
             const isSelected = selectedLotId === lot.id?.toString()
-            
+
+            const lotForCard = {
+              id: lot.id?.toString() || "",
+              reference: lot.reference,
+              is_occupied: lot.status === "occupied",
+              lot_tenants: (lot as any).lot_tenants || [],
+              tenant: undefined as undefined | { id: string; name: string },
+              building: lot.building_name
+                ? { id: "", name: lot.building_name, address: undefined, city: undefined }
+                : undefined,
+            }
+
             return (
               <LotCard
-                key={lot.id}
-                lot={lot}
+                key={lot.id as any}
+                lot={lotForCard}
                 mode={mode}
                 isSelected={isSelected}
                 onSelect={onLotSelect}

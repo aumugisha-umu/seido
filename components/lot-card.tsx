@@ -66,9 +66,7 @@ export default function LotCard({
     }
     
     if (mode === "select" && onSelect) {
-      if (isSelected) {
-        onSelect(null)
-      } else {
+      if (!isSelected) {
         onSelect(lot.id, lot.building?.id)
       }
     }
@@ -117,9 +115,7 @@ export default function LotCard({
                     className="h-8 px-3 text-xs"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (isSelected) {
-                        onSelect?.(null)
-                      } else {
+                      if (!isSelected) {
                         onSelect?.(lot.id, lot.building?.id)
                       }
                     }}

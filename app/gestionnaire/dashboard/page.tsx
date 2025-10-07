@@ -1,17 +1,28 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Building2, Home, Users, Wrench, BarChart3 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Building2, Home, Users, Wrench, Plus } from "lucide-react"
+import Link from "next/link"
 import { requireRole } from "@/lib/dal"
 import {
   createServerTeamService,
   createServerUserService,
   createServerBuildingService,
   createServerLotService,
+  createServerInterventionService,
   createServerStatsService
 } from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
-import { logger, logError } from '@/lib/logger'
+import { logger as baseLogger, logError } from '@/lib/logger'
+import { InterventionsList } from "@/components/interventions/interventions-list"
+import type { InterventionWithRelations, Building, User } from "@/lib/services"
+
+// Relax logger typing locally to avoid strict method signature constraints for rich logs in this server component
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const logger: any = baseLogger
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dashLogger: any = logger
 /**
  * 🔐 DASHBOARD GESTIONNAIRE - SERVER COMPONENT (Bonnes Pratiques 2025)
  *
@@ -42,7 +53,8 @@ export default async function DashboardGestionnaire() {
     contactsByType: {} as Record<string, { total: number; active: number }>
   }
 
-  let recentInterventions: unknown[] = []
+  let recentInterventions: InterventionWithRelations[] = []
+  let allInterventions: InterventionWithRelations[] = []
 
   try {
     // Initialiser les services
@@ -50,59 +62,68 @@ export default async function DashboardGestionnaire() {
     const userService = await createServerUserService()
     const buildingService = await createServerBuildingService()
     const lotService = await createServerLotService()
+    const interventionService = await createServerInterventionService()
     const statsService = await createServerStatsService()
 
     // Récupérer l'équipe de l'utilisateur (structure actuelle: users.team_id)
-    logger.info('🔍 [DASHBOARD] Getting teams for user:', user.id)
+    dashLogger.info('🔍 [DASHBOARD] Getting teams for user:', user.id)
     const teamsResult = await teamService.getUserTeams(user.id)
-    logger.info('📦 [DASHBOARD] Teams result:', teamsResult)
+    dashLogger.info('📦 [DASHBOARD] Teams result:', teamsResult)
 
     // Extraire les données selon le format RepositoryResult
     const teams = teamsResult?.data || []
-    logger.info('📦 [DASHBOARD] Teams array:', teams)
-    logger.info('📦 [DASHBOARD] Teams count:', teams.length)
+    dashLogger.info('📦 [DASHBOARD] Teams array:', teams)
+    dashLogger.info('📦 [DASHBOARD] Teams count:', teams.length)
 
     if (teams && teams.length > 0) {
-      logger.info('📦 [DASHBOARD] First team:', teams[0])
+      dashLogger.info('📦 [DASHBOARD] First team:', teams[0])
       const userTeamId = teams[0].id
-      logger.info('📦 [DASHBOARD] Using team ID:', userTeamId)
+      dashLogger.info('📦 [DASHBOARD] Using team ID:', userTeamId)
 
       // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
-      logger.info('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', userTeamId)
+      dashLogger.info('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', userTeamId)
 
-      // ⚡ Phase 1: Charger buildings et users en parallèle
-      const [buildingsResult, usersResult] = await Promise.allSettled([
+      // ⚡ Phase 1: Charger buildings, users et interventions en parallèle
+      const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
         buildingService.getBuildingsByTeam(userTeamId),
-        userService.getUsersByTeam(userTeamId)
+        userService.getUsersByTeam(userTeamId),
+        interventionService.getAll({ limit: 100 })
       ])
 
       // Traiter résultats buildings
-      let buildings = []
+      let buildings: any[] = []
       if (buildingsResult.status === 'fulfilled' && buildingsResult.value.success) {
-        buildings = buildingsResult.value.data || []
-        logger.info('✅ [DASHBOARD] Buildings loaded:', buildings.length)
+        buildings = (buildingsResult.value.data || []) as any[]
+        dashLogger.info('✅ [DASHBOARD] Buildings loaded:', buildings.length)
       } else {
-        logger.error('❌ [DASHBOARD] Error loading buildings:',
+        dashLogger.error('❌ [DASHBOARD] Error loading buildings:',
           buildingsResult.status === 'rejected' ? buildingsResult.reason : 'No data')
       }
 
       // Traiter résultats users
-      let users = []
+      let users: any[] = []
       if (usersResult.status === 'fulfilled' && usersResult.value.success) {
-        users = usersResult.value.data || []
-        logger.info('✅ [DASHBOARD] Users loaded:', users.length)
+        users = (usersResult.value.data || []) as any[]
+        dashLogger.info('✅ [DASHBOARD] Users loaded:', users.length)
       } else {
-        logger.error('❌ [DASHBOARD] Error loading users:',
+        dashLogger.error('❌ [DASHBOARD] Error loading users:',
           usersResult.status === 'rejected' ? usersResult.reason : 'No data')
       }
 
-      // Interventions (temporairement vide)
-      const interventions = []
-      logger.info('✅ [DASHBOARD] Interventions: 0 (not yet implemented)')
+      // Traiter résultats interventions
+      let interventions: InterventionWithRelations[] = []
+      if (interventionsResult.status === 'fulfilled' && interventionsResult.value.success) {
+        interventions = (interventionsResult.value.data || []) as unknown as InterventionWithRelations[]
+        dashLogger.info('✅ [DASHBOARD] Interventions loaded:', interventions.length)
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error loading interventions:',
+          interventionsResult.status === 'rejected' ? interventionsResult.reason : 'No data')
+      }
+      allInterventions = interventions
 
       // ⚡ Phase 2: Charger TOUS les lots en parallèle
-      logger.info('🏠 [DASHBOARD] Loading lots for', buildings.length, 'buildings IN PARALLEL')
-      const lotsPromises = buildings.map(building =>
+      dashLogger.info('🏠 [DASHBOARD] Loading lots for', buildings.length, 'buildings IN PARALLEL')
+      const lotsPromises = (buildings as Building[]).map((building: Building) =>
         lotService.getLotsByBuilding(building.id)
           .then(response => ({
             buildingId: building.id,
@@ -122,39 +143,39 @@ export default async function DashboardGestionnaire() {
       const lotsResults = await Promise.all(lotsPromises)
       const allLots = lotsResults.flatMap(result => {
         if (result.success && result.lots) {
-          logger.info(`✅ [DASHBOARD] Lots loaded for ${result.buildingName}:`, result.lots.length)
+          dashLogger.info(`✅ [DASHBOARD] Lots loaded for ${result.buildingName}:`, result.lots.length)
           return result.lots
         } else {
-          logger.error(`❌ [DASHBOARD] Error loading lots for ${result.buildingName}:`, result.error)
+          dashLogger.error(`❌ [DASHBOARD] Error loading lots for ${result.buildingName}:`, (result as any).error)
           return []
         }
       })
 
-      logger.info('🏠 [DASHBOARD] Total lots loaded:', allLots.length)
+      dashLogger.info('🏠 [DASHBOARD] Total lots loaded:', allLots.length)
 
       // Calculer les statistiques
-      logger.info('📊 [DASHBOARD] Calculating stats with:')
-      logger.info('  - buildings array:', buildings)
-      logger.info('  - buildings length:', buildings?.length || 0)
-      logger.info('  - allLots length:', allLots?.length || 0)
-      logger.info('  - interventions length:', interventions?.length || 0)
+      dashLogger.info('📊 [DASHBOARD] Calculating stats with:')
+      dashLogger.info('  - buildings array:', buildings)
+      dashLogger.info('  - buildings length:', (buildings as any[])?.length || 0)
+      dashLogger.info('  - allLots length:', allLots?.length || 0)
+      dashLogger.info('  - interventions length:', interventions?.length || 0)
 
-      const occupiedLots = allLots.filter(lot => lot.is_occupied || lot.tenant)
+      const occupiedLots = allLots.filter(lot => (lot as any).is_occupied || (lot as any).tenant)
 
       stats = {
-        buildingsCount: buildings?.length || 0,
+        buildingsCount: (buildings as any[])?.length || 0,
         lotsCount: allLots?.length || 0,
         occupiedLotsCount: occupiedLots?.length || 0,
         occupancyRate: allLots.length > 0 ? Math.round((occupiedLots.length / allLots.length) * 100) : 0,
         interventionsCount: interventions?.length || 0
       }
 
-      logger.info('📊 [DASHBOARD] Final stats calculated:', stats)
-      logger.info('📊 [DASHBOARD] Stats object structure:', JSON.stringify(stats, null, 2))
+      dashLogger.info('📊 [DASHBOARD] Final stats calculated:', stats)
+      dashLogger.info('📊 [DASHBOARD] Stats object structure:', JSON.stringify(stats, null, 2))
 
       // Statistiques contacts
-      const activeUsers = users.filter(u => u.auth_user_id)
-      const contactsByType = users.reduce((acc, user) => {
+      const activeUsers = (users as any[]).filter((u: any) => u.auth_user_id)
+      const contactsByType = (users as any[]).reduce((acc: Record<string, { total: number; active: number }>, user: any) => {
         if (!acc[user.role]) {
           acc[user.role] = { total: 0, active: 0 }
         }
@@ -166,22 +187,22 @@ export default async function DashboardGestionnaire() {
       }, {} as Record<string, { total: number; active: number }>)
 
       contactStats = {
-        totalContacts: users.length,
+        totalContacts: (users as any[]).length,
         totalActiveAccounts: activeUsers.length,
-        invitationsPending: users.filter(u => !u.auth_user_id).length,
+        invitationsPending: (users as any[]).filter((u: any) => !u.auth_user_id).length,
         contactsByType
       }
 
-      // Interventions récentes (3 dernières)
-      recentInterventions = interventions
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 3)
+      // Interventions triées récentes
+      allInterventions = (allInterventions || [])
+        .sort((a, b) => (new Date(b.created_at ?? '').getTime() || 0) - (new Date(a.created_at ?? '').getTime() || 0))
+      recentInterventions = (allInterventions || []).slice(0, 3)
     } else {
-      logger.info('⚠️ [DASHBOARD] No teams found for user:', user.id)
-      logger.info('⚠️ [DASHBOARD] Using default stats (all zeros)')
+      dashLogger.info('⚠️ [DASHBOARD] No teams found for user:', user.id)
+      dashLogger.info('⚠️ [DASHBOARD] Using default stats (all zeros)')
     }
   } catch (error) {
-    logger.error('❌ [DASHBOARD] Error loading data:', error)
+    dashLogger.error('❌ [DASHBOARD] Error loading data:', error)
     // Les stats par défaut restent (valeurs 0)
   }
 
@@ -283,80 +304,37 @@ export default async function DashboardGestionnaire() {
           </div>
         </div>
 
-        {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Occupation Trends */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5" />
-                <span>Tendances d'occupation</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-48">
-                <div className="text-center">
-                  <div className="w-32 h-32 rounded-full border-8 border-blue-200 mx-auto mb-4 relative">
-                    <div
-                      className="absolute inset-0 rounded-full border-8 border-blue-600"
-                      style={{
-                        transform: `rotate(${(stats.occupancyRate / 100) * 360}deg)`,
-                        clipPath: 'polygon(50% 0%, 100% 0%, 100% 50%, 50% 50%)'
-                      }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-gray-700">{stats.occupancyRate}%</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-1">Taux d'occupation</p>
-                  <p className="text-xs text-gray-400">{stats.occupiedLotsCount} sur {stats.lotsCount} lots occupés</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Interventions récentes */}
+        {/* Interventions */}
+        <div className="mb-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Wrench className="h-5 w-5" />
-                  <span>Interventions récentes</span>
+                  <span>Interventions</span>
+                  <span className="text-sm text-gray-600 font-normal">({stats.interventionsCount} au total)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Link href="/gestionnaire/interventions/nouvelle-intervention">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter une intervention
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/gestionnaire/interventions">Voir toutes →</Link>
+                  </Button>
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {recentInterventions.length > 0 ? (
-                <div className="space-y-3">
-                  <div className="text-sm text-gray-600 mb-4">
-                    <span className="font-medium">{stats.interventionsCount}</span> interventions au total
-                  </div>
-                  {recentInterventions.map((intervention) => (
-                    <div key={intervention.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium text-sm">{intervention.title || 'Intervention'}</p>
-                        <p className="text-xs text-gray-500">{intervention.description}</p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(intervention.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge variant={
-                        intervention.status === 'completed' ? 'default' :
-                        intervention.status === 'in_progress' ? 'secondary' :
-                        'outline'
-                      }>
-                        {intervention.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Wrench className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p className="text-sm mb-2">Aucune intervention</p>
-                  <p className="text-xs text-gray-400">Les interventions apparaîtront ici une fois créées</p>
-                </div>
-              )}
+            <CardContent>
+              <InterventionsList
+                interventions={recentInterventions as any}
+                loading={false}
+                compact={true}
+                showStatusActions={false}
+                userContext={'gestionnaire'}
+              />
             </CardContent>
           </Card>
         </div>

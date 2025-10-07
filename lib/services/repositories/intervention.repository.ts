@@ -93,7 +93,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference, building_id,
-          building:building_id(id, name, address, city),
+          building:building_id(id, name, address, city, team_id),
           lot_contacts(
             is_primary,
             user:user_id(id, name, email, phone, role, provider_category)
@@ -142,7 +142,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address)
+          building:building_id(id, name, address, team_id)
         ),
         tenant:tenant_id(id, name, email, role),
         intervention_contacts(
@@ -184,7 +184,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address)
+          building:building_id(id, name, address, team_id)
         ),
         intervention_contacts(
           role,
@@ -212,7 +212,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address)
+          building:building_id(id, name, address, team_id)
         ),
         tenant:tenant_id(id, name, email, role),
         intervention_contacts(
@@ -244,7 +244,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           *,
           lot:lot_id(
             id, reference,
-            building:building_id(id, name, address)
+            building:building_id(id, name, address, team_id)
           ),
           tenant:tenant_id(id, name, email, role),
           intervention_contacts(
@@ -279,7 +279,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address)
+          building:building_id(id, name, address, team_id)
         ),
         tenant:tenant_id(id, name, email, role),
         intervention_contacts(
@@ -324,7 +324,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address)
+          building:building_id(id, name, address, team_id)
         ),
         tenant:tenant_id(id, name, email, role),
         intervention_contacts(

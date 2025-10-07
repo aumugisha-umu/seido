@@ -43,12 +43,13 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 
 
 
-import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService } from '@/lib/services'
+import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
 
 const teamService = createTeamService()
 const contactService = createContactService()
 const tenantService = createTenantService()
 const lotService = createLotService()
+const buildingService = createBuildingService()
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -196,8 +197,8 @@ export default function NouvelleInterventionPage() {
             address: lot.building?.address || "",
             buildingId: lot.building_id
           })
-          setSelectedLotId(lot.id)
-          setSelectedBuildingId(lot.building_id)
+          setSelectedLotId(String(lot.id))
+          setSelectedBuildingId(lot.building_id ? String(lot.building_id) : undefined)
           setCurrentStep(2) // Skip to step 2 since lot is pre-selected
         }
         // If multiple lots, let user choose in step 1
@@ -223,8 +224,8 @@ export default function NouvelleInterventionPage() {
           address: lot.building?.address || "",
           buildingId: lot.building_id
         })
-        setSelectedLotId(lot.id)
-        setSelectedBuildingId(lot.building_id)
+        setSelectedLotId(String(lot.id))
+        setSelectedBuildingId(lot.building_id ? String(lot.building_id) : undefined)
         setCurrentStep(2) // Skip to step 2 since lot is pre-selected
       }
     } catch (error) {
@@ -316,7 +317,7 @@ export default function NouvelleInterventionPage() {
   }
 
   // Fonctions de gestion des contacts
-  const handleManagerSelect = (_managerId: string) => {
+  const handleManagerSelect = (managerId: string) => {
     logger.info("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
     const normalizedManagerId = String(managerId)
     setSelectedManagerIds(prevIds => {
@@ -336,7 +337,7 @@ export default function NouvelleInterventionPage() {
     })
   }
 
-  const handleProviderSelect = (_providerId: string) => {
+  const handleProviderSelect = (providerId: string) => {
     logger.info("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
     logger.info("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
     const normalizedProviderId = String(providerId)
@@ -394,13 +395,32 @@ export default function NouvelleInterventionPage() {
   }
 
 
-  const handleBuildingSelect = (buildingId: string | null) => {
+  const handleBuildingSelect = async (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    if (buildingId) {
-      setSelectedLogement({ type: "building", id: buildingId })
-    } else {
+    if (!buildingId) {
       setSelectedLogement(null)
+      return
+    }
+
+    // Optimistic minimal selection
+    setSelectedLogement({ type: "building", id: buildingId })
+
+    try {
+      const result = await buildingService.getById(buildingId)
+      if (result && result.success && result.data) {
+        setSelectedLogement({
+          id: result.data.id,
+          name: result.data.name,
+          type: "building",
+          building: result.data.name,
+          address: result.data.address || "",
+          buildingId: result.data.id
+        })
+        setSelectedBuildingId(String(result.data.id))
+      }
+    } catch (err) {
+      logger.error("❌ Error loading building data:", err)
     }
   }
 
@@ -411,33 +431,42 @@ export default function NouvelleInterventionPage() {
       setSelectedLogement(null)
       return
     }
-    try {
-      // Load real lot data when selecting a lot
-      const lot = await lotService.getById(lotId)
+    // Optimistic UI update so the selection is visible immediately
+    const lotIdStr = String(lotId)
+    const buildingIdStr = buildingId ? String(buildingId) : undefined
+    setSelectedLotId(lotIdStr)
+    if (buildingIdStr) setSelectedBuildingId(buildingIdStr)
+    // Align behavior with building selection: always set current selection to the lot
+    setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
 
-      if (lot) {
+    try {
+      // Load real lot data with relations when selecting a lot
+      const lotResult = await lotService.getByIdWithRelations(lotIdStr)
+
+      if (lotResult && lotResult.success && lotResult.data) {
+        const lotData = lotResult.data as any
         setSelectedLogement({
-          id: lot.id,
-          name: lot.reference,
+          id: lotData.id,
+          name: lotData.reference,
           type: "lot",
-          building: lot.building?.name || "Immeuble",
-          address: lot.building?.address || "",
-          buildingId: lot.building_id
+          building: lotData.building?.name || "Immeuble",
+          address: lotData.building?.address || "",
+          buildingId: lotData.building_id || lotData.building?.id
         })
-        setSelectedLotId(lot.id)
-        setSelectedBuildingId(lot.building_id)
+        setSelectedLotId(String(lotData.id))
+        setSelectedBuildingId(lotData.building_id ? String(lotData.building_id) : (lotData.building?.id ? String(lotData.building.id) : undefined))
       } else {
         // Fallback to minimal data if lot not found
-        setSelectedLotId(lotId)
-        setSelectedBuildingId(buildingId)
-        setSelectedLogement({ type: "lot", id: lotId, buildingId })
+        setSelectedLotId(lotIdStr)
+        setSelectedBuildingId(buildingIdStr)
+        setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
       }
     } catch (error) {
       logger.error("❌ Error loading lot data:", error)
       // Fallback to minimal data
-      setSelectedLotId(lotId)
-      setSelectedBuildingId(buildingId)
-      setSelectedLogement({ type: "lot", id: lotId, buildingId })
+      setSelectedLotId(lotIdStr)
+      setSelectedBuildingId(buildingIdStr)
+      setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
     }
   }
 
@@ -530,6 +559,15 @@ export default function NouvelleInterventionPage() {
       logger.info("🏗️ Current team:", { id: currentUserTeam?.id, name: currentUserTeam?.name })
       
       // Prepare data for API call
+      // Normalize potentially undefined IDs to null so we don't send "undefined" strings
+      const normalizeIdValue = (value: unknown): string | null => {
+        const str = value != null ? String(value) : ''
+        if (!str || str === 'undefined' || str === 'null') return null
+        return str
+      }
+      const normalizedSelectedBuildingId = normalizeIdValue(selectedBuildingId)
+      const normalizedSelectedLotId = normalizeIdValue(selectedLotId)
+
       const interventionData = {
         // Basic intervention data
         title: formData.title,
@@ -539,8 +577,8 @@ export default function NouvelleInterventionPage() {
         
         // Housing selection
         selectedLogement,
-        selectedBuildingId,
-        selectedLotId,
+        selectedBuildingId: normalizedSelectedBuildingId,
+        selectedLotId: normalizedSelectedLotId,
         
         // Contact assignments
         selectedManagerIds,
@@ -622,7 +660,7 @@ export default function NouvelleInterventionPage() {
     }
   }
 
-  const handleNavigation = (_path: string) => {
+  const handleNavigation = (path: string) => {
     setShowSuccessModal(false)
     router.push(path)
   }

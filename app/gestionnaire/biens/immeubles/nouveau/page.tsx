@@ -155,6 +155,9 @@ export default function NewImmeubleePage() {
   const [error, setError] = useState<string>("")
   const [isCreating, setIsCreating] = useState(false)
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
+  // Validation état: nom unique immeuble
+  const [isNameDuplicate, setIsNameDuplicate] = useState(false)
+  const [isNameChecking, setIsNameChecking] = useState(false)
   
   // Etats pour la creation de gestionnaire
   const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
@@ -271,11 +274,13 @@ export default function NewImmeubleePage() {
         if (result.success) {
           setCategoryCountsByTeam(result.data || {})
         } else {
-          logger.error("Error loading category counts:", result.error)
+          // Si pas de lots trouvés (équipe sans immeubles), initialiser avec des comptes à 0
+          logger.info("No lots found for team, initializing with zero counts")
           setCategoryCountsByTeam({})
         }
       } catch (error) {
-        logger.error("Error loading category counts:", error)
+        // En cas d'erreur (pas d'immeubles encore), initialiser avec des comptes à 0
+        logger.info("Error loading category counts (likely no buildings yet), initializing with zero counts:", error instanceof Error ? error.message : String(error))
         setCategoryCountsByTeam({}) // Valeur par defaut en cas d'erreur
       }
     }
@@ -422,7 +427,23 @@ export default function NewImmeubleePage() {
   }
 
   const updateLot = (id: string, field: keyof Lot, value: string) => {
-    setLots(lots.map((lot) => (lot.id === id ? { ...lot, [field]: value } : lot)))
+    setLots(lots.map((lot) => {
+      if (lot.id === id) {
+        const updatedLot = { ...lot, [field]: value }
+        
+        // Si la catégorie change, recalculer la référence
+        if (field === 'category') {
+          const categoryConfig = getLotCategoryConfig(value)
+          const currentCategoryCount = categoryCountsByTeam[value] || 0
+          const existingLotsOfCategory = lots.filter(l => l.category === value && l.id !== id).length
+          const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
+          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
+        }
+        
+        return updatedLot
+      }
+      return lot
+    }))
   }
 
   const removeLot = (_id: string) => {
@@ -580,7 +601,11 @@ export default function NewImmeubleePage() {
 
   const canProceedToNextStep = () => {
     if (currentStep === 1) {
-      return buildingInfo.address.trim() !== ""
+      // Adresse requise et nom non dupliqué dans l'équipe
+      if (!buildingInfo.address.trim()) return false
+      if (isNameChecking) return false
+      if (isNameDuplicate) return false
+      return true
     }
     if (currentStep === 2) {
       return lots.length > 0
@@ -856,6 +881,10 @@ export default function NewImmeubleePage() {
                 showAddressSection={true}
                 buildingsCount={managerData?.buildings?.length || 0}
                 categoryCountsByTeam={categoryCountsByTeam}
+                onNameValidationChange={({ isChecking, isDuplicate }) => {
+                  setIsNameChecking(isChecking)
+                  setIsNameDuplicate(isDuplicate)
+                }}
               />
 
               <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-0">
@@ -909,8 +938,8 @@ export default function NewImmeubleePage() {
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleLotExpansion(lot.id)}>
-                                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                  {lots.length - index}
+                                <div className="px-3 py-1 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                                  Lot {lots.length - index}
                                 </div>
                                 <div className="ml-2">
                                   {expandedLots[lot.id] ? (
@@ -1207,55 +1236,38 @@ export default function NewImmeubleePage() {
 
                           {/* Section Contacts */}
                           <div className="border border-gray-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <User className="w-4 h-4 text-gray-600" />
-                              <span className="font-medium text-gray-900 text-sm">Contacts assignés</span>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {contactTypes.map((type) => {
-                                const Icon = type.icon
-                                const assignedContacts = getLotContactsByType(lot.id, type.key)
-
-                                return (
-                                  <div key={type.key} className="space-y-1.5">
-                                    <div className="flex items-center gap-1.5">
-                                      <Icon className={`w-3.5 h-3.5 ${type.color}`} />
-                                      <span className="font-medium text-xs">{type.label}</span>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                      {assignedContacts.map((contact) => (
-                                        <div
-                                          key={contact.id}
-                                          className="flex items-center justify-between p-2 bg-green-50 rounded text-xs"
-                                        >
-                                          <span className="truncate flex-1 mr-2">{contact.name || contact.email}</span>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => removeContactFromLot(lot.id, type.key, contact.id)}
-                                            className="text-red-500 hover:text-red-700 h-5 w-5 p-0 flex-shrink-0"
-                                          >
-                                            <X className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      ))}
-
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => openContactModalForType(type.key, lot.id)}
-                                        className="w-full text-xs py-1.5 h-7"
-                                      >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Ajouter
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
+                            <ContactSelector
+                              teamId={userTeam?.id}
+                              displayMode="compact"
+                              title="Contacts assignés"
+                              description="Contacts spécifiques à ce lot"
+                              selectedContacts={{
+                                tenant: getLotContactsByType(lot.id, 'tenant'),
+                                provider: getLotContactsByType(lot.id, 'provider'),
+                                syndic: getLotContactsByType(lot.id, 'syndic'),
+                                notary: getLotContactsByType(lot.id, 'notary'),
+                                insurance: getLotContactsByType(lot.id, 'insurance'),
+                                other: getLotContactsByType(lot.id, 'other'),
+                              }}
+                              onContactSelected={(contact, contactType, context) => {
+                                if (context?.lotId) {
+                                  handleContactAdd(contact, contactType, context)
+                                }
+                              }}
+                              onContactRemoved={(contactId, contactType, context) => {
+                                if (context?.lotId) {
+                                  removeContactFromLot(context.lotId, contactType, contactId)
+                                }
+                              }}
+                              onDirectContactRemove={(contactId, contactType, lotId) => {
+                                if (lotId) {
+                                  removeContactFromLot(lotId, contactType, contactId)
+                                }
+                              }}
+                              allowedContactTypes={["tenant", "provider", "syndic", "notary", "insurance", "other"]}
+                              lotId={lot.id}
+                              hideTitle={false}
+                            />
                           </div>
                         </div>
                         </CardContent>

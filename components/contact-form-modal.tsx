@@ -108,6 +108,18 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Sync defaultType from parent when modal opens or defaultType changes
+  useEffect(() => {
+    if (!isOpen) return
+    setFormData(prev => ({
+      ...prev,
+      type: defaultType,
+      speciality: defaultType === "provider" ? prev.speciality : "",
+      inviteToApp: shouldInviteByDefault(defaultType)
+    }))
+    setErrors({})
+  }, [defaultType, isOpen])
+
   // Mettre à jour la checkbox quand le type change
   useEffect(() => {
     setFormData(prev => ({

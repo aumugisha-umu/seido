@@ -205,10 +205,6 @@ export default async function DashboardGestionnaire() {
               <h1 className="font-bold text-gray-900 mb-[] mt-[] text-3xl">
                 Tableau de bord
               </h1>
-              {/* ✅ LAYER 3: UI Level Security - Affichage conditionnel basé sur rôle */}
-              <p className="text-gray-600 mt-2">
-                Bienvenue, {user.display_name || user.name} (Gestionnaire)
-              </p>
             </div>
 
             {/* Actions rapides - Composant client sécurisé */}

@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
 import PropertySelector from "@/components/property-selector"
 
 export default function BiensPage() {
@@ -22,7 +21,7 @@ export default function BiensPage() {
                 Mon Patrimoine
               </h1>
               <p className="text-slate-600">
-                Gérez vos biens immobiliers et leurs locataires
+                Gérez vos immeubles et lots individuels
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -52,8 +51,6 @@ export default function BiensPage() {
         />
       </main>
 
-      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
-      <NavigationDebugPanel />
     </div>
   )
 }

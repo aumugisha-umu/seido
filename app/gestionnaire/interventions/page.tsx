@@ -24,7 +24,6 @@ import { QuoteRequestSuccessModal } from "@/components/intervention/modals/quote
 import { ProgrammingModal } from "@/components/intervention/modals/programming-modal"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
 
 import { 
   getInterventionLocationText, 
@@ -220,8 +219,6 @@ export default function InterventionsPage() {
       {/* Manager global des modales d'annulation */}
       <InterventionCancellationManager />
 
-      {/* Debug Panel */}
-      <NavigationDebugPanel />
     </div>
   </InterventionCancellationProvider>
   )

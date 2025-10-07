@@ -168,9 +168,9 @@ export default function PropertySelector({
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Building2 className="h-8 w-8 text-slate-400" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">No buildings</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun immeuble trouvé </h3>
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Start by adding your first building to manage your real estate portfolio
+              Ajoutez votre premier immeuble pour gérer votre portefeuille immobilier
             </p>
             <Button 
               size="lg"
@@ -495,9 +495,9 @@ export default function PropertySelector({
             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Home className="h-8 w-8 text-amber-600" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">No individual lots</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun lot trouvé</h3>
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Add your first lot to manage your individual properties
+              Ajoutez votre premier lot pour gérer vos propriétés individuelles
             </p>
             <Button 
               size="lg"
@@ -505,7 +505,7 @@ export default function PropertySelector({
               className="w-full sm:w-auto"
             >
               <Home className="h-4 w-4 mr-2" />
-              Add lot
+              Ajouter un lot
             </Button>
           </div>
         ) : (
@@ -531,7 +531,7 @@ export default function PropertySelector({
   const tabs = [
     {
       id: "buildings",
-      label: "Buildings",
+      label: "Immeubles",
       icon: Building2,
       count: filteredBuildings.length,
       content: buildingsContent

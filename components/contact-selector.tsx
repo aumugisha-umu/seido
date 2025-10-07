@@ -22,9 +22,10 @@ import {
 import ContactFormModal from "@/components/contact-form-modal"
 
 
-import { determineAssignmentType, createContactService } from '@/lib/services'
+import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 const contactService = createContactService()
+const contactInvitationService = createContactInvitationService()
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -64,6 +65,8 @@ interface ContactSelectorProps {
   onContactSelected?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Callback quand un contact est retiré - AVEC CONTEXTE
   onContactRemoved?: (contactId: string, contactType: string, context?: { lotId?: string }) => void
+  // Callback pour suppression directe (depuis l'interface des lots)
+  onDirectContactRemove?: (contactId: string, contactType: string, lotId?: string) => void
   // Callback quand un nouveau contact est créé - AVEC CONTEXTE
   onContactCreated?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Classe CSS personnalisée
@@ -88,6 +91,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   selectedContacts = {},
   onContactSelected,
   onContactRemoved,
+  onDirectContactRemove,
   onContactCreated,
   className = "",
   hideTitle = false,
@@ -226,9 +230,24 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       logger.error('❌ [ContactSelector] onContactSelected callback is missing!')
     }
     
-    setIsContactModalOpen(false)
-    setSearchTerm("")
-    setExternalLotId(undefined)  // Nettoyer le contexte externe
+    // Ne pas fermer la modale pour permettre la sélection multiple
+    // setIsContactModalOpen(false)
+    // setSearchTerm("")
+    // setExternalLotId(undefined)  // Nettoyer le contexte externe
+  }
+
+  // Retirer un contact sélectionné
+  const handleRemoveSelectedContact = (contactId: string) => {
+    const contextLotId = externalLotId || lotId
+    
+    logger.info('🗑️ [ContactSelector] Contact removed:', contactId, 'type:', selectedContactType, 'lotId:', contextLotId)
+    
+    // Appeler le callback parent avec contexte
+    if (onContactRemoved) {
+      onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
+    } else {
+      logger.error('❌ [ContactSelector] onContactRemoved callback is missing!')
+    }
   }
 
   // Créer un contact (logique centralisée)
@@ -254,29 +273,41 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         teamId: teamId
       })
 
-      // Créer le contact pour l'état local
+      // Vérifier la réussite et sécuriser l'accès aux propriétés
+      const responseData: any = (result as any) || {}
+      const responseContact: any = responseData.contact || responseData.data?.contact || null
+
+      if (!responseContact) {
+        logger.warn('⚠️ [ContactSelector] Contact created but no contact payload returned. Proceeding with form data fallback')
+      }
+
+      // Créer le contact pour l'état local (fallbacks si certaines infos manquent)
       const newContact: Contact = {
-        id: result.contact.id,
-        name: result.contact.name,
-        email: result.contact.email,
+        id: responseContact?.id || '',
+        name: responseContact?.name || `${contactData.firstName} ${contactData.lastName}`.trim(),
+        email: responseContact?.email || contactData.email,
         type: selectedContactType,
-        phone: result.contact.phone,
-        speciality: result.contact.speciality,
+        phone: responseContact?.phone || contactData.phone,
+        speciality: responseContact?.speciality || contactData.speciality,
       }
       
       logger.info('✅ [ContactSelector] Contact created:', newContact.name)
       
+      // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
+      const contextLotId = externalLotId || lotId
+      
       // Appeler les callbacks parent
       if (onContactSelected) {
-        onContactSelected(newContact, selectedContactType)
+        onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
       }
       
       if (onContactCreated) {
-        onContactCreated(result.contact, selectedContactType)
+        onContactCreated(newContact, selectedContactType, { lotId: contextLotId })
       }
       
+      // Fermer seulement le modal de création, pas le modal de sélection
       setIsContactFormModalOpen(false)
-      cleanContactContext()
+      // Ne pas appeler cleanContactContext() pour garder la modale de sélection ouverte
       
     } catch (error) {
       logger.error("❌ Erreur lors de la création du contact:", error)
@@ -306,6 +337,12 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // Obtenir les contacts sélectionnés pour un type donné (centralisé)
   const getSelectedContactsByType = (_contactType: string): Contact[] => {
     return selectedContacts[_contactType] || []
+  }
+
+  // Vérifier si un contact est déjà sélectionné pour le type actuel
+  const isContactSelected = (contactId: string, contactType: string): boolean => {
+    const selectedContactsOfType = getSelectedContactsByType(contactType)
+    return selectedContactsOfType.some(contact => contact.id === contactId)
   }
 
   // Rendu en mode compact (pour création d'immeuble)
@@ -348,7 +385,13 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onContactRemoved?.(contact.id, type.key)}
+                      onClick={() => {
+                        if (onDirectContactRemove) {
+                          onDirectContactRemove(contact.id, type.key, lotId)
+                        } else {
+                          onContactRemoved?.(contact.id, type.key)
+                        }
+                      }}
                       className="text-red-500 hover:text-red-700 h-5 w-5 p-0 flex-shrink-0"
                     >
                       <X className="w-3 h-3" />
@@ -403,7 +446,13 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onContactRemoved?.(contact.id, type.key)}
+                      onClick={() => {
+                        if (onDirectContactRemove) {
+                          onDirectContactRemove(contact.id, type.key, lotId)
+                        } else {
+                          onContactRemoved?.(contact.id, type.key)
+                        }
+                      }}
                       className="h-6 w-6 p-0"
                     >
                       <X className="h-3 w-3" />
@@ -443,6 +492,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               {selectedContactType === 'insurance' && <Car className="w-5 h-5" />}
               {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
               Sélectionner un {getSelectedContactTypeInfo().label.toLowerCase()}
+              {getSelectedContactsByType(selectedContactType).length > 0 && (
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  {getSelectedContactsByType(selectedContactType).length} sélectionné(s)
+                </Badge>
+              )}
             </DialogTitle>
             <DialogDescription>
               {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
@@ -478,32 +532,52 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               <div className="max-h-64 overflow-y-auto">
                 {getFilteredContacts().length > 0 ? (
                   <div className="space-y-2">
-                    {getFilteredContacts().map((contact) => (
-                      <div
-                        key={contact.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium">{contact.name}</div>
-                          <div className="text-sm text-gray-500">{contact.email}</div>
-                          {contact.phone && (
-                            <div className="text-xs text-gray-400">{contact.phone}</div>
-                          )}
-                          {contact.speciality && (
-                            <div className="text-xs text-green-600 capitalize mt-1">
-                              {contact.speciality}
-                            </div>
-                          )}
-                        </div>
-                        <Button 
-                          onClick={() => handleAddExistingContact(contact)} 
-                          className="bg-blue-600 text-white hover:bg-blue-700"
-                          size="sm"
+                    {getFilteredContacts().map((contact) => {
+                      const isSelected = isContactSelected(contact.id, selectedContactType)
+                      return (
+                        <div
+                          key={contact.id}
+                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                            isSelected 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'hover:bg-gray-50'
+                          }`}
                         >
-                          Sélectionner
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="flex-1">
+                            <div className="font-medium flex items-center gap-2">
+                              {contact.name}
+                              {isSelected && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                  Sélectionné
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">{contact.email}</div>
+                            {contact.phone && (
+                              <div className="text-xs text-gray-400">{contact.phone}</div>
+                            )}
+                            {contact.speciality && (
+                              <div className="text-xs text-green-600 capitalize mt-1">
+                                {contact.speciality}
+                              </div>
+                            )}
+                          </div>
+                          <Button 
+                            onClick={() => isSelected 
+                              ? handleRemoveSelectedContact(contact.id)
+                              : handleAddExistingContact(contact)
+                            } 
+                            className={isSelected 
+                              ? "bg-red-600 text-white hover:bg-red-700" 
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                            }
+                            size="sm"
+                          >
+                            {isSelected ? "Retirer" : "Sélectionner"}
+                          </Button>
+                        </div>
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8">
@@ -538,12 +612,28 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                 <Plus className="w-4 h-4" />
                 Ajouter un {getSelectedContactTypeInfo().label.toLowerCase()}
               </Button>
-              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => {
-                setIsContactModalOpen(false)
-                cleanContactContext()
-              }}>
-                Annuler
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="default" 
+                  className="w-full sm:w-auto" 
+                  onClick={() => {
+                    setIsContactModalOpen(false)
+                    cleanContactContext()
+                  }}
+                >
+                  Terminé
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full sm:w-auto" 
+                  onClick={() => {
+                    setIsContactModalOpen(false)
+                    cleanContactContext()
+                  }}
+                >
+                  Annuler
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>

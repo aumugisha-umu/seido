@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,6 +20,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
+import { createBuildingService } from "@/lib/services"
 
 const countries = [
   "Belgique",
@@ -90,6 +92,53 @@ export const BuildingInfoForm = ({
   categoryCountsByTeam = {},
 }: BuildingInfoFormProps) => {
   const { user } = useAuth()
+
+  // Team-scoped building name uniqueness
+  const [isCheckingName, setIsCheckingName] = useState(false)
+  const [isDuplicateName, setIsDuplicateName] = useState(false)
+  const [duplicateMessage, setDuplicateMessage] = useState("")
+
+  useEffect(() => {
+    let cancelled = false
+    const teamId = userTeam?.id
+    const name = buildingInfo.name?.trim()
+
+    // Reset state when empty or no team
+    if (!teamId || !name) {
+      setIsDuplicateName(false)
+      setDuplicateMessage("")
+      return
+    }
+
+    setIsCheckingName(true)
+    const timeout = setTimeout(async () => {
+      try {
+        const buildingService = createBuildingService()
+        const res = await buildingService.nameExists(name, teamId)
+        if (cancelled) return
+        const exists = !!res?.success && !!res.data
+        setIsDuplicateName(exists)
+        setDuplicateMessage(
+          exists
+            ? `Un immeuble avec le nom "${name}" existe déjà dans votre équipe. Choisissez un autre nom.`
+            : ""
+        )
+      } catch {
+        if (!cancelled) {
+          setIsDuplicateName(false)
+          setDuplicateMessage("")
+        }
+      } finally {
+        if (!cancelled) setIsCheckingName(false)
+      }
+    }, 450)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildingInfo.name, userTeam?.id])
 
 
   return (
@@ -180,10 +229,12 @@ export const BuildingInfoForm = ({
         </Label>
         <Input
           id="name"
+          name="name"
           placeholder={entityType === "lot" ? "Lot 1, LOT-A-01, etc." : "Ex: Résidence des Champs-Élysées, Immeuble 1"}
           value={buildingInfo.name}
           onChange={(e) => setBuildingInfo({ ...buildingInfo, name: e.target.value })}
-          className="mt-1 h-10 sm:h-11"
+          className={`mt-1 h-10 sm:h-11 ${isDuplicateName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+          aria-invalid={isDuplicateName}
           required
         />
         <p className="text-xs text-gray-500 mt-1">
@@ -192,6 +243,9 @@ export const BuildingInfoForm = ({
             : "Référence unique pour identifier facilement votre immeuble (requis)"
           }
         </p>
+        {isDuplicateName && (
+          <p className="text-xs text-red-600 mt-1" role="alert">{duplicateMessage}</p>
+        )}
       </div>
 
       

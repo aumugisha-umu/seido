@@ -579,6 +579,23 @@ export class StatsService {
       // Get team stats which includes building/lot counts
       const teamStatsResult = await this.repository.getTeamStats(teamId)
 
+      // Fetch actual buildings for this team
+      let buildings: any[] = []
+      try {
+        const buildingsResult = await this.repository.supabase
+          .from('buildings')
+          .select('id, name, address, city, postal_code, created_at')
+          .eq('team_id', teamId)
+          .order('created_at', { ascending: false })
+
+        if (buildingsResult.data) {
+          buildings = buildingsResult.data
+        }
+      } catch (buildingError) {
+        logger.error('⚠️ Error fetching buildings:', buildingError)
+        // Continue with empty array if building fetch fails
+      }
+
       // Fetch recent interventions requiring manager action
       let recentInterventions: any[] = []
       if (this.interventionRepository) {
@@ -621,14 +638,14 @@ export class StatsService {
 
       const result = {
         stats: {
-          buildingsCount: teamStatsResult.data.buildingCount || 0,
+          buildingsCount: teamStatsResult.data.buildingsCount || 0,
           lotsCount: teamStatsResult.data.lotCount || 0,
           occupiedLotsCount: teamStatsResult.data.occupiedLots || 0,
           occupancyRate: teamStatsResult.data.occupancyRate || 0,
           contactsCount: teamStatsResult.data.contactCount || 0,
-          interventionsCount: teamStatsResult.data.interventionCount || 0
+          interventionsCount: teamStatsResult.data.interventionsCount || 0
         },
-        buildings: [],
+        buildings: buildings,
         lots: [],
         contacts: [],
         interventions: [],

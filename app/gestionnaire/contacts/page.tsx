@@ -25,7 +25,6 @@ import { useContactsData } from "@/hooks/use-contacts-data"
 
 
 import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
 import { logger, logError } from '@/lib/logger'
 export default function ContactsPage() {
   const router = useRouter()
@@ -1397,8 +1396,6 @@ export default function ContactsPage() {
         defaultType="tenant"
       />
 
-      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
-      <NavigationDebugPanel />
     </div>
   )
 }

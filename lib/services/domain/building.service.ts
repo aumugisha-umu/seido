@@ -114,6 +114,17 @@ export class BuildingService {
   }
 
   /**
+   * Check if a building name already exists, optionally scoped to a team
+   */
+  async nameExists(name: string, teamId?: string, excludeId?: string) {
+    if (!name || !name.trim()) {
+      return { success: true as const, data: false }
+    }
+    const check = await this.repository.nameExists(name.trim(), teamId, excludeId)
+    return check
+  }
+
+  /**
    * Update building with validation
    */
   async update(id: string, updates: BuildingUpdate) {

@@ -165,9 +165,25 @@ export const useInterventionQuoting = (options?: UseInterventionQuotingOptions) 
   const handleQuoteRequest = async (intervention: any) => {
     console.log('🎯 [QUOTE-REQUEST] Opening quote request modal for intervention:', intervention.id)
 
+    // Charger les détails complets de l'intervention depuis l'API
+    let fullIntervention = intervention
+    try {
+      console.log('📡 [QUOTE-REQUEST] Fetching full intervention details...')
+      const response = await fetch(`/api/intervention/${intervention.id}/quote-requests`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.intervention) {
+          fullIntervention = data.intervention
+          console.log('✅ [QUOTE-REQUEST] Full intervention details loaded:', fullIntervention)
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ [QUOTE-REQUEST] Could not load full intervention details, using minimal data:', err)
+    }
+
     setQuoteRequestModal({
       isOpen: true,
-      intervention,
+      intervention: fullIntervention,
     })
 
     // Calculer une deadline par défaut (7 jours)

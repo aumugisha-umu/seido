@@ -136,12 +136,12 @@ export const MultiQuoteRequestModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header amélioré avec gradient subtil */}
-        <DialogHeader className="bg-gradient-to-r from-sky-50 to-blue-50 -m-6 mb-0 p-6 pb-4 rounded-t-lg border-b border-sky-100">
+        {/* Header */}
+        <DialogHeader className="bg-gradient-to-r from-slate-50 to-gray-50 -m-6 mb-0 p-6 pb-4 rounded-t-lg border-b border-slate-200">
           <div className="flex items-start justify-between">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <DialogTitle className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-sky-700 to-sky-600 bg-clip-text text-transparent">
+                <DialogTitle className="text-xl lg:text-2xl font-bold text-slate-900">
                   Demander des devis - {intervention.title}
                 </DialogTitle>
                 <Badge
@@ -159,7 +159,7 @@ export const MultiQuoteRequestModal = ({
               </p>
             </div>
             {selectedProviderIds.length > 0 && (
-              <Badge className="bg-sky-100 text-sky-700 border-sky-200 animate-in fade-in duration-300">
+              <Badge className="bg-slate-100 text-slate-700 border-slate-200 animate-in fade-in duration-300">
                 {selectedProviderIds.length} sélectionné{selectedProviderIds.length > 1 ? 's' : ''}
               </Badge>
             )}
@@ -168,34 +168,81 @@ export const MultiQuoteRequestModal = ({
 
         {/* Contenu scrollable avec padding optimisé */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 scrollbar-thin">
-          {/* Carte intervention améliorée - Version compacte */}
-          <Card className="border-sky-200 bg-gradient-to-br from-white to-sky-50/30 shadow-sm hover:shadow-md transition-all duration-200">
-            <CardContent className="pt-5 space-y-3">
-              {/* Infos clés avec icônes améliorées */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-100">
-                  <MapPin className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm text-slate-700 font-medium">
-                    {getInterventionLocationText(intervention)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-100">
-                  <Building2 className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm text-slate-700 font-medium capitalize">
-                    {intervention.type || "Non spécifié"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-100">
-                  <Calendar className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm text-slate-700 font-medium">
-                    {new Date(intervention.created_at).toLocaleDateString("fr-FR")}
-                  </span>
+          {/* Carte intervention */}
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardContent className="pt-5 space-y-4">
+              {/* Informations du lot/bâtiment */}
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-slate-600 mt-0.5" />
+                  <div className="flex-1 space-y-1">
+                    {intervention.lot_id || intervention.lot ? (
+                      <>
+                        <p className="text-sm font-semibold text-slate-900">
+                          Lot {intervention.lot?.reference || intervention.lot_reference || 'N/A'}
+                        </p>
+                        {intervention.lot?.building && (
+                          <p className="text-xs text-slate-600">
+                            {intervention.lot.building.address || intervention.building?.address}
+                            {intervention.lot.building.city && `, ${intervention.lot.building.city}`}
+                            {intervention.lot.building.postal_code && ` ${intervention.lot.building.postal_code}`}
+                          </p>
+                        )}
+                        {intervention.building && !intervention.lot?.building && (
+                          <p className="text-xs text-slate-600">
+                            {intervention.building.address}
+                            {intervention.building.city && `, ${intervention.building.city}`}
+                            {intervention.building.postal_code && ` ${intervention.building.postal_code}`}
+                          </p>
+                        )}
+                      </>
+                    ) : intervention.building_id || intervention.building ? (
+                      <>
+                        <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                          Bâtiment entier
+                          <Badge variant="secondary" className="text-xs">
+                            Intervention globale
+                          </Badge>
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          {intervention.building?.address}
+                          {intervention.building?.city && `, ${intervention.building.city}`}
+                          {intervention.building?.postal_code && ` ${intervention.building.postal_code}`}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-600">Localisation non spécifiée</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Description avec style amélioré */}
+              {/* Informations clés */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                  <Wrench className="h-4 w-4 text-slate-500" />
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500">Type d'intervention</p>
+                    <p className="text-sm text-slate-700 font-medium capitalize">
+                      {intervention.type || "Non spécifié"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                  <Calendar className="h-4 w-4 text-slate-500" />
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500">Date de création</p>
+                    <p className="text-sm text-slate-700 font-medium">
+                      {intervention.created_at ? new Date(intervention.created_at).toLocaleDateString("fr-FR") : "Non disponible"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
               {intervention.description && (
-                <div className="p-3 bg-white rounded-lg border border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <p className="text-xs text-slate-500 mb-1">Description</p>
                   <p className="text-sm text-slate-700 leading-relaxed">
                     {intervention.description}
                   </p>
@@ -204,11 +251,11 @@ export const MultiQuoteRequestModal = ({
             </CardContent>
           </Card>
 
-          {/* Section Instructions avec meilleur groupement visuel */}
+          {/* Section Instructions */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="notes" className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-sky-600" />
+                <MessageSquare className="h-4 w-4 text-slate-600" />
                 Instructions générales
               </Label>
               <Badge variant="outline" className="text-xs">
@@ -222,15 +269,15 @@ export const MultiQuoteRequestModal = ({
               value={additionalNotes}
               onChange={(e) => onNotesChange(e.target.value)}
               rows={4}
-              className="resize-none border-slate-200 focus:border-sky-300 focus:ring-sky-200/50 transition-colors"
+              className="resize-none border-slate-200 focus:border-slate-300 focus:ring-slate-200/50 transition-colors"
             />
 
-            <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
               <p className="text-xs text-slate-600 flex items-start gap-1.5">
-                <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5" />
+                <Info className="h-3.5 w-3.5 text-slate-500 mt-0.5" />
                 Ces informations seront envoyées à tous les prestataires sélectionnés
               </p>
-              <p className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
+              <p className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
                 Date limite de réponse : {deadlineDate.toLocaleDateString("fr-FR", {
                   day: 'numeric',
@@ -241,11 +288,11 @@ export const MultiQuoteRequestModal = ({
             </div>
           </div>
 
-          {/* Sélection des prestataires avec design amélioré */}
+          {/* Sélection des prestataires */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <Users className="h-4 w-4 text-sky-600" />
+                <Users className="h-4 w-4 text-slate-600" />
                 Sélection des prestataires
               </Label>
               {filteredProviders.length > 0 && (
@@ -279,12 +326,12 @@ export const MultiQuoteRequestModal = ({
             )}
           </div>
 
-          {/* Messages individualisés avec animations */}
+          {/* Messages individualisés */}
           {selectedProviders.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-sky-600" />
+                  <MessageSquare className="h-4 w-4 text-slate-600" />
                   Messages personnalisés
                 </Label>
                 <Badge variant="outline" className="text-xs">
@@ -302,7 +349,7 @@ export const MultiQuoteRequestModal = ({
                     key={provider.id}
                     className={cn(
                       "transition-all duration-200 border-slate-200",
-                      hoveredCard === provider.id && "shadow-md border-sky-200 scale-[1.02]"
+                      hoveredCard === provider.id && "shadow-md border-slate-300 scale-[1.02]"
                     )}
                     onMouseEnter={() => setHoveredCard(provider.id)}
                     onMouseLeave={() => setHoveredCard(null)}
@@ -310,8 +357,8 @@ export const MultiQuoteRequestModal = ({
                     <CardHeader className="pb-3 bg-gradient-to-r from-slate-50 to-white">
                       <CardTitle className="text-sm font-medium flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-sky-100 rounded">
-                            <User className="h-3.5 w-3.5 text-sky-600" />
+                          <div className="p-1.5 bg-slate-100 rounded">
+                            <User className="h-3.5 w-3.5 text-slate-600" />
                           </div>
                           <span className="text-slate-900">{provider.name}</span>
                         </div>
@@ -326,7 +373,7 @@ export const MultiQuoteRequestModal = ({
                         onChange={(e) => onIndividualMessageChange(provider.id, e.target.value)}
                         placeholder={`Instructions spécifiques pour ${provider.name}...`}
                         rows={3}
-                        className="resize-none text-sm border-slate-200 focus:border-sky-300 focus:ring-sky-200/50 transition-colors"
+                        className="resize-none text-sm border-slate-200 focus:border-slate-300 focus:ring-slate-200/50 transition-colors"
                       />
                       {individualMessages[provider.id] && (
                         <div className="mt-2 flex items-center gap-1 text-xs text-green-600 animate-in fade-in duration-300">
@@ -357,8 +404,8 @@ export const MultiQuoteRequestModal = ({
           )}
         </div>
 
-        {/* Footer amélioré avec progression visuelle */}
-        <DialogFooter className="border-t bg-gradient-to-r from-slate-50 to-white px-6 py-4">
+        {/* Footer */}
+        <DialogFooter className="border-t bg-white px-6 py-4">
           <div className="flex items-center justify-between w-full">
             <div className="text-sm text-slate-600">
               {selectedProviderIds.length > 0 && (
@@ -380,12 +427,7 @@ export const MultiQuoteRequestModal = ({
               <Button
                 onClick={handleSubmit}
                 disabled={selectedProviderIds.length === 0 || isLoading}
-                className={cn(
-                  "min-w-[160px] transition-all duration-200",
-                  selectedProviderIds.length > 0
-                    ? "bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 shadow-md hover:shadow-lg"
-                    : "bg-slate-300"
-                )}
+                className="min-w-[160px]"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -396,7 +438,7 @@ export const MultiQuoteRequestModal = ({
                   <div className="flex items-center gap-2">
                     <Send className="h-4 w-4" />
                     <span>
-                      Demander {selectedProviderIds.length > 0 ? selectedProviderIds.length : ''} devis
+                      Demander devis
                     </span>
                   </div>
                 )}

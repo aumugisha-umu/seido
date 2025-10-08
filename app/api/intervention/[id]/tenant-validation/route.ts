@@ -73,28 +73,12 @@ export async function POST(
       }, { status: 400 })
     }
 
-    if (!comments?.trim()) {
+    // Pour la contestation, le commentaire est obligatoire
+    if (validationType === 'contest' && !comments?.trim()) {
       return NextResponse.json({
         success: false,
-        error: 'Les commentaires sont requis'
+        error: 'Le commentaire est obligatoire pour contester les travaux'
       }, { status: 400 })
-    }
-
-    if (validationType === 'approve') {
-      const approvalValues = Object.values(workApproval || {})
-      if (!approvalValues.every(val => val === true)) {
-        return NextResponse.json({
-          success: false,
-          error: 'Tous les points de contrôle doivent être validés pour approuver'
-        }, { status: 400 })
-      }
-    } else if (validationType === 'contest') {
-      if (!issues?.description?.trim()) {
-        return NextResponse.json({
-          success: false,
-          error: 'La description du problème est requise'
-        }, { status: 400 })
-      }
     }
 
     // Get intervention
@@ -139,7 +123,7 @@ export async function POST(
       validation_type: validationType,
       satisfaction: JSON.stringify(satisfaction || {}),
       work_approval: JSON.stringify(workApproval || {}),
-      comments: comments.trim(),
+      comments: comments?.trim() || null,
       issues: issues ? JSON.stringify({
         ...issues,
         photos: processedIssuePhotos

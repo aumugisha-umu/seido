@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { TimePicker } from "@/components/ui/time-picker"
 import {
   Building2,
   Home,
@@ -44,6 +46,7 @@ import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
+import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 
 export default function NouvelleInterventionPage() {
   console.log("🚀 NouvelleInterventionPage - Composant initialisé")
@@ -82,6 +85,7 @@ export default function NouvelleInterventionPage() {
   // États pour les données réelles
   const [managers, setManagers] = useState<any[]>([])
   const [providers, setProviders] = useState<any[]>([])
+  const [tenants, setTenants] = useState<any[]>([])  // Locataires du lot sélectionné
   const [loading, setLoading] = useState(false)
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
@@ -227,6 +231,45 @@ export default function NouvelleInterventionPage() {
     console.log("🔄 Chargement des contacts pour user:", user?.email)
     loadRealData()
   }, [user?.id])
+
+  // Load tenants when lot is selected
+  useEffect(() => {
+    const loadTenants = async () => {
+      console.log("🏠 Loading tenants for lot:", selectedLotId)
+
+      if (!selectedLotId) {
+        console.log("❌ No lot selected, clearing tenants")
+        setTenants([])
+        return
+      }
+
+      try {
+        // Utiliser contactService.getLotContacts avec filtre 'tenant'
+        const lotContacts = await contactService.getLotContacts(selectedLotId, 'tenant')
+        console.log("👥 Lot contacts (tenants):", lotContacts)
+
+        if (lotContacts && lotContacts.length > 0) {
+          const tenantsData = lotContacts.map((contact: any) => ({
+            id: contact.id,
+            name: contact.name,
+            email: contact.email,
+            phone: contact.phone || "",
+            type: "locataire" as const
+          }))
+          console.log("✅ Setting tenants:", tenantsData)
+          setTenants(tenantsData)
+        } else {
+          console.log("⚠️ No tenants found for this lot")
+          setTenants([])
+        }
+      } catch (error) {
+        console.error("❌ Error loading tenants:", error)
+        setTenants([])
+      }
+    }
+
+    loadTenants()
+  }, [selectedLotId])
 
   useEffect(() => {
     if (isPreFilled) return // Prevent re-execution if already pre-filled
@@ -811,29 +854,31 @@ export default function NouvelleInterventionPage() {
                 {formData.availabilities.length > 0 && (
                   <div className="space-y-3">
                     {formData.availabilities.map((availability, index) => (
-                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <Input
-                          type="date"
-                          value={availability.date}
-                          onChange={(e) => updateAvailability(index, "date", e.target.value)}
-                          className="flex-1 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                        />
-                        <Input
-                          type="time"
-                          value={availability.startTime}
-                          onChange={(e) => updateAvailability(index, "startTime", e.target.value)}
-                          className="w-32 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                        />
-                        <span className="text-gray-500">à</span>
-                        <Input
-                          type="time"
-                          value={availability.endTime}
-                          onChange={(e) => updateAvailability(index, "endTime", e.target.value)}
-                          className="w-32 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                        />
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeAvailability(index)}>
-                          <X className="h-4 w-4" />
-                        </Button>
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <DateTimePicker
+                            mode="datetime"
+                            dateValue={availability.date}
+                            timeValue={availability.startTime}
+                            onDateChange={(date) => updateAvailability(index, "date", date)}
+                            onTimeChange={(time) => updateAvailability(index, "startTime", time)}
+                            dateLabel="Date"
+                            timeLabel="Début"
+                          />
+                        </div>
+                        <div className="flex items-end gap-2 pb-3">
+                          <div className="flex flex-col gap-3">
+                            <Label className="text-sm font-medium text-gray-700 px-1">Fin</Label>
+                            <TimePicker
+                              value={availability.endTime}
+                              onChange={(time) => updateAvailability(index, "endTime", time)}
+                              className="w-32"
+                            />
+                          </div>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeAvailability(index)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -863,333 +908,40 @@ export default function NouvelleInterventionPage() {
                 Assignez l'intervention à un ou plusieurs gestionnaires/prestataires et définissez la planification.
               </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h4 className="font-medium mb-3">Assigner l'intervention à</h4>
-                <p className="text-sm text-gray-600 mb-4">
-                  Sélectionnez un ou plusieurs gestionnaires et optionnellement des prestataires.
-                </p>
+            <CardContent>
+              <AssignmentSectionV2
+                managers={managers}
+                providers={providers}
+                tenants={tenants}
+                selectedManagerIds={selectedManagerIds}
+                selectedProviderIds={selectedProviderIds}
+                onManagerSelect={handleManagerSelect}
+                onProviderSelect={handleProviderSelect}
+                onContactCreated={handleContactCreated}
+                schedulingType={schedulingType}
+                onSchedulingTypeChange={setSchedulingType}
+                fixedDateTime={fixedDateTime}
+                onFixedDateTimeChange={setFixedDateTime}
+                timeSlots={timeSlots}
+                onAddTimeSlot={addTimeSlot}
+                onUpdateTimeSlot={updateTimeSlot}
+                onRemoveTimeSlot={removeTimeSlot}
+                expectsQuote={expectsQuote}
+                onExpectsQuoteChange={setExpectsQuote}
+                globalMessage={globalMessage}
+                onGlobalMessageChange={setGlobalMessage}
+                individualMessages={individualMessages}
+                onIndividualMessageChange={(contactId, message) => {
+                  setIndividualMessages(prev => ({
+                    ...prev,
+                    [contactId]: message
+                  }))
+                }}
+                teamId={currentUserTeam?.id || ""}
+                isLoading={loading}
+              />
 
-                {/* Contact Selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  {/* Gestionnaire */}
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <User className="h-4 w-4" />
-                      <span>Gestionnaires *</span>
-                    </label>
-                    <ContactSelector
-                      contacts={managers}
-                      selectedContactIds={selectedManagerIds}
-                      onContactSelect={handleManagerSelect}
-                      onContactCreated={handleContactCreated}
-                      contactType="gestionnaire"
-                      placeholder="Sélectionner des gestionnaires"
-                      isLoading={loading}
-                      teamId={currentUserTeam?.id || ""}
-                    />
-                  </div>
-
-                  {/* Prestataire */}
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <Wrench className="h-4 w-4" />
-                      <span>Prestataires</span>
-                    </label>
-                    <ContactSelector
-                      contacts={providers}
-                      selectedContactIds={selectedProviderIds}
-                      onContactSelect={handleProviderSelect}
-                      onContactCreated={handleContactCreated}
-                      contactType="prestataire"
-                      placeholder="Sélectionner un prestataire"
-                      isLoading={loading}
-                      teamId={currentUserTeam?.id || ""}
-                    />
-                  </div>
-                </div>
-
-                {/* Selected Contacts Display */}
-                {(selectedManagerIds.length > 0 || selectedProviderIds.length > 0) && (
-                  <div className="space-y-3">
-                    <h5 className="font-medium text-sm text-gray-700">
-                      Personnes assignées ({getSelectedContacts().length})
-                    </h5>
-                    {/* Debug info */}
-                    {console.log("🔍 État de sélection:", { 
-                      selectedManagerIds, 
-                      selectedProviderIds, 
-                      selectedContactsCount: getSelectedContacts().length 
-                    })}
-                    {getSelectedContacts().map((contact) => (
-                      <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium">
-                                {contact.name}
-                                {contact.isCurrentUser && <span className="text-blue-600">(Vous)</span>}
-                              </span>
-                              <Badge variant={contact.role === "Gestionnaire" ? "default" : "secondary"}>
-                                {contact.role}
-                              </Badge>
-                              {contact.speciality && (
-                                <Badge variant="outline" className="text-xs">
-                                  {contact.speciality}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              {contact.email} • {contact.phone}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (contact.type === "gestionnaire") {
-                              setSelectedManagerIds(prev => prev.filter(id => String(id) !== String(contact.id)))
-                            } else if (contact.type === "prestataire") {
-                              setSelectedProviderIds(prev => prev.filter(id => String(id) !== String(contact.id)))
-                            }
-                          }}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Scheduling Options */}
-              <div>
-                <h4 className="font-medium mb-4">Planification</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      id="flexible"
-                      name="scheduling"
-                      checked={schedulingType === "flexible"}
-                      onChange={() => setSchedulingType("flexible")}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <label htmlFor="flexible" className="font-medium">
-                      Horaire à définir
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      id="fixed"
-                      name="scheduling"
-                      checked={schedulingType === "fixed"}
-                      onChange={() => setSchedulingType("fixed")}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <label htmlFor="fixed" className="font-medium">
-                      Date et heure fixe
-                    </label>
-                  </div>
-
-                  {schedulingType === "fixed" && (
-                    <div className="ml-7 flex items-center space-x-3">
-                      <Input
-                        type="date"
-                        value={fixedDateTime.date}
-                        onChange={(e) => setFixedDateTime((prev) => ({ ...prev, date: e.target.value }))}
-                        className="border-2 border-gray-300 focus:border-blue-500"
-                      />
-                      <Input
-                        type="time"
-                        value={fixedDateTime.time}
-                        onChange={(e) => setFixedDateTime((prev) => ({ ...prev, time: e.target.value }))}
-                        className="border-2 border-gray-300 focus:border-blue-500"
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      id="slots"
-                      name="scheduling"
-                      checked={schedulingType === "slots"}
-                      onChange={() => setSchedulingType("slots")}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <label htmlFor="slots" className="font-medium">
-                      Proposer des créneaux
-                    </label>
-                  </div>
-
-                  {schedulingType === "slots" && (
-                    <div className="ml-7 space-y-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addTimeSlot}
-                        className="flex items-center space-x-2 bg-transparent"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Ajouter un créneau</span>
-                      </Button>
-
-                      {timeSlots.map((slot, index) => (
-                        <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                          <Input
-                            type="date"
-                            value={slot.date}
-                            onChange={(e) => updateTimeSlot(index, "date", e.target.value)}
-                            className="flex-1 border-2 border-gray-300 focus:border-blue-500"
-                          />
-                          <Input
-                            type="time"
-                            value={slot.startTime}
-                            onChange={(e) => updateTimeSlot(index, "startTime", e.target.value)}
-                            className="w-32 border-2 border-gray-300 focus:border-blue-500"
-                          />
-                          <span className="text-gray-500">à</span>
-                          <Input
-                            type="time"
-                            value={slot.endTime}
-                            onChange={(e) => updateTimeSlot(index, "endTime", e.target.value)}
-                            className="w-32 border-2 border-gray-300 focus:border-blue-500"
-                          />
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeTimeSlot(index)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Message Options */}
-              {(selectedManagerIds.length > 0 || selectedProviderIds.length > 0) && (
-                <div>
-                  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        id="expectsQuote"
-                        checked={expectsQuote}
-                        onChange={(e) => setExpectsQuote(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label htmlFor="expectsQuote" className="font-medium text-blue-900">
-                        Demander un devis
-                      </label>
-                    </div>
-                    <p className="text-sm text-blue-700 mt-2 ml-7">
-                      Les prestataires assignés devront fournir un devis avant de commencer l'intervention
-                    </p>
-                  </div>
-
-                  {getSelectedContacts().length > 1 ? (
-                    <>
-                      <h4 className="font-medium mb-2">Demande au groupe ou individuelle ?</h4>
-                      <div className="space-y-4">
-                        <div className="flex items-start space-x-3">
-                          <input
-                            type="radio"
-                            id="group"
-                            name="messageType"
-                            value="global"
-                            checked={messageType === "global"}
-                            onChange={(e) => setMessageType(e.target.value as "global" | "individual")}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <label htmlFor="group" className="font-medium">
-                              Demande au groupe
-                            </label>
-                            <p className="text-sm text-gray-600 mb-2">
-                              Ces instructions ne seront pas vues par le locataire
-                            </p>
-                            {messageType === "global" && (
-                              <Textarea
-                                placeholder="Instructions à communiquer à tous les assignés de cette intervention..."
-                                value={globalMessage}
-                                onChange={(e) => setGlobalMessage(e.target.value)}
-                                className="min-h-[80px] border-2 border-gray-300 focus:border-blue-500"
-                              />
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-start space-x-3">
-                          <input
-                            type="radio"
-                            id="individual"
-                            name="messageType"
-                            value="individual"
-                            checked={messageType === "individual"}
-                            onChange={(e) => setMessageType(e.target.value as "global" | "individual")}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <label htmlFor="individual" className="font-medium">
-                              Demandes individuelles
-                            </label>
-                            <p className="text-sm text-gray-600 mb-2">
-                              Seule la personne concernée pourra voir ses instructions
-                            </p>
-                            {messageType === "individual" && (
-                              <div className="space-y-3 mt-3">
-                                {getSelectedContacts().map((contact) => {
-                                  return contact ? (
-                                    <div key={contact.id} className="border rounded-lg p-3">
-                                      <div className="flex items-center space-x-2 mb-2">
-                                        {contact.type === "gestionnaire" ? (
-                                          <UserCheck className="h-4 w-4 text-blue-600" />
-                                        ) : (
-                                          <Wrench className="h-4 w-4 text-green-600" />
-                                        )}
-                                        <span className="font-medium">{contact.name}</span>
-                                        <span className="text-sm text-gray-500">({contact.type})</span>
-                                      </div>
-                                      <Textarea
-                                        placeholder={`Instructions spécifiques pour ${contact.name}...`}
-                                        value={individualMessages[contact.id] || ""}
-                                        onChange={(e) =>
-                                          setIndividualMessages((prev) => ({
-                                            ...prev,
-                                            [contact.id]: e.target.value,
-                                          }))
-                                        }
-                                        className="min-h-[60px] border-2 border-gray-300 focus:border-blue-500"
-                                      />
-                                    </div>
-                                  ) : null
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h4 className="font-medium mb-2">Instructions à communiquer</h4>
-                      <p className="text-sm text-gray-600 mb-4">Ces instructions ne seront pas vues par le locataire</p>
-                      <Textarea
-                        placeholder="Instructions à communiquer à l'assigné de cette intervention..."
-                        value={globalMessage}
-                        onChange={(e) => setGlobalMessage(e.target.value)}
-                        className="min-h-[80px] border-2 border-gray-300 focus:border-blue-500"
-                      />
-                    </>
-                  )}
-                </div>
-              )}
-
+              {/* Navigation buttons */}
               <div className="flex justify-between pt-6">
                 <Button variant="outline" onClick={handleBack}>
                   Retour

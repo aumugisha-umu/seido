@@ -26,6 +26,8 @@ import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { TimePicker } from "@/components/ui/time-picker"
 import { cn } from "@/lib/utils"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 import ContactSelector from "@/components/ui/contact-selector"
@@ -278,42 +280,26 @@ export const ProgrammingModal = ({
                       </h3>
                     </div>
 
-                    <div className="grid gap-4 p-4 bg-gradient-to-br from-sky-50/30 to-transparent border border-sky-200 rounded-lg">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Date de l'intervention
-                        </label>
-                        <input
-                          type="date"
-                          value={directSchedule.date}
-                          onChange={(e) => onDirectScheduleChange({ ...directSchedule, date: e.target.value })}
-                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
-                        />
-                      </div>
+                    <div className="p-4 bg-gradient-to-br from-sky-50/30 to-transparent border border-sky-200 rounded-lg space-y-4">
+                      <DateTimePicker
+                        mode="datetime"
+                        dateValue={directSchedule.date}
+                        timeValue={directSchedule.startTime}
+                        onDateChange={(date) => onDirectScheduleChange({ ...directSchedule, date })}
+                        onTimeChange={(time) => onDirectScheduleChange({ ...directSchedule, startTime: time })}
+                        dateLabel="Date de l'intervention"
+                        timeLabel="Heure de début"
+                      />
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">
-                            Heure de début
-                          </label>
-                          <input
-                            type="time"
-                            value={directSchedule.startTime}
-                            onChange={(e) => onDirectScheduleChange({ ...directSchedule, startTime: e.target.value })}
-                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">
-                            Heure de fin
-                          </label>
-                          <input
-                            type="time"
-                            value={directSchedule.endTime}
-                            onChange={(e) => onDirectScheduleChange({ ...directSchedule, endTime: e.target.value })}
-                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
-                          />
-                        </div>
+                      <div className="flex flex-col gap-3 flex-1">
+                        <Label className="text-sm font-medium text-slate-700 px-1">
+                          Heure de fin
+                        </Label>
+                        <TimePicker
+                          value={directSchedule.endTime}
+                          onChange={(time) => onDirectScheduleChange({ ...directSchedule, endTime: time })}
+                          className="w-full"
+                        />
                       </div>
                     </div>
                   </div>
@@ -348,27 +334,22 @@ export const ProgrammingModal = ({
                             )}
                           </div>
 
-                          <div className="grid gap-3">
-                            <input
-                              type="date"
-                              value={slot.date}
-                              onChange={(e) => onUpdateProposedSlot(index, "date", e.target.value)}
-                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
+                          <div className="space-y-3">
+                            <DateTimePicker
+                              mode="datetime"
+                              dateValue={slot.date}
+                              timeValue={slot.startTime}
+                              onDateChange={(date) => onUpdateProposedSlot(index, "date", date)}
+                              onTimeChange={(time) => onUpdateProposedSlot(index, "startTime", time)}
+                              dateLabel="Date"
+                              timeLabel="Heure début"
                             />
-                            <div className="grid grid-cols-2 gap-3">
-                              <input
-                                type="time"
-                                value={slot.startTime}
-                                onChange={(e) => onUpdateProposedSlot(index, "startTime", e.target.value)}
-                                className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
-                                placeholder="Début"
-                              />
-                              <input
-                                type="time"
+                            <div className="flex flex-col gap-3">
+                              <Label className="text-sm font-medium text-slate-700 px-1">Heure fin</Label>
+                              <TimePicker
                                 value={slot.endTime}
-                                onChange={(e) => onUpdateProposedSlot(index, "endTime", e.target.value)}
-                                className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
-                                placeholder="Fin"
+                                onChange={(time) => onUpdateProposedSlot(index, "endTime", time)}
+                                className="w-full"
                               />
                             </div>
                           </div>

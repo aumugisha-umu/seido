@@ -143,15 +143,14 @@ export const FinalizationDecision = ({
           {/* Internal Comments - Responsive sizing */}
           <div>
             <Label htmlFor="internalComments" className="text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 block text-gray-800">
-              Commentaires internes *
+              Commentaires internes <span className="text-gray-500 font-normal">(optionnel)</span>
             </Label>
             <Textarea
               id="internalComments"
               value={formData.internalComments}
               onChange={(e) => setFormData(prev => ({ ...prev, internalComments: e.target.value }))}
               placeholder="Vos notes pour l'équipe de gestion..."
-              className="min-h-[50px] sm:min-h-[60px] resize-none text-xs sm:text-sm"
-              required
+              className="min-h-[50px] sm:min-h-[60px] resize-none text-xs sm:text-sm bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
@@ -261,7 +260,7 @@ export const FinalizationDecision = ({
 
           <Button
             onClick={onSubmit}
-            disabled={submitting || !formData.internalComments.trim() || (formData.decision === 'reject' && !formData.providerFeedback.trim())}
+            disabled={submitting || (formData.decision === 'reject' && !formData.providerFeedback.trim())}
             className={cn(
               "flex-1 h-9 sm:h-8 text-[11px] sm:text-xs font-medium transition-all",
               formData.decision === 'validate'

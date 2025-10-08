@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { TimePicker } from "@/components/ui/time-picker"
 
 interface TenantAvailability {
   date: string
@@ -266,50 +268,42 @@ export function TenantAvailabilityInput({
                   hasConflict ? 'bg-green-50 border-green-200' :
                   isValid ? 'bg-slate-50 border-slate-200' : 'bg-white border-gray-200'
                 }`}>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div>
-                      <Label className="text-sm font-medium text-slate-700">Date</Label>
-                      <Input
-                        type="date"
-                        value={avail.date}
-                        onChange={(e) => updateAvailability(index, 'date', e.target.value)}
-                        className="mt-1"
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-slate-700">Heure début</Label>
-                      <Input
-                        type="time"
-                        value={avail.startTime}
-                        onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-slate-700">Heure fin</Label>
-                      <Input
-                        type="time"
-                        value={avail.endTime}
-                        onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="flex items-end gap-2">
-                      {hasConflict && (
-                        <Badge className="bg-green-100 text-green-800 text-xs">
-                          Compatible
-                        </Badge>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAvailability(index)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <DateTimePicker
+                      mode="datetime"
+                      dateValue={avail.date}
+                      timeValue={avail.startTime}
+                      onDateChange={(date) => updateAvailability(index, 'date', date)}
+                      onTimeChange={(time) => updateAvailability(index, 'startTime', time)}
+                      dateLabel="Date"
+                      timeLabel="Heure début"
+                      minDate={new Date().toISOString().split('T')[0]}
+                    />
+                    <div className="flex gap-4 items-end">
+                      <div className="flex flex-col gap-3 flex-1">
+                        <Label className="text-sm font-medium text-slate-700 px-1">Heure fin</Label>
+                        <TimePicker
+                          value={avail.endTime}
+                          onChange={(time) => updateAvailability(index, 'endTime', time)}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pb-3">
+                        {hasConflict && (
+                          <Badge className="bg-green-100 text-green-800 text-xs">
+                            Compatible
+                          </Badge>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAvailability(index)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 

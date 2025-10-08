@@ -70,7 +70,7 @@ export function QuotesList({
     }
 
     // Pour les gestionnaires, utiliser la logique contextuelle
-    const contextualMessage = getQuoteEmptyStateMessage(quotes)
+    const contextualMessage = getQuoteEmptyStateMessage(quotes, userContext)
     const iconMap = {
       'info': Clock,
       'warning': AlertCircle,
@@ -89,7 +89,7 @@ export function QuotesList({
 
   if (quotes.length === 0) {
     const state = analyzeQuoteState(quotes)
-    const contextualMessage = getQuoteEmptyStateMessage(quotes)
+    const contextualMessage = getQuoteEmptyStateMessage(quotes, userContext)
 
     // Couleur de l'icône selon le contexte
     const iconColorClass = contextualMessage.variant === 'warning' ? 'text-yellow-500' :

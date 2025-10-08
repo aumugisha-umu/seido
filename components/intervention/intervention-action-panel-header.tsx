@@ -27,9 +27,11 @@ import { interventionActionsService } from "@/lib/intervention-actions-service"
 import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
-import { TenantValidationForm } from "./tenant-validation-form"
+import { TenantValidationSimple } from "./tenant-validation-simple"
 import { SimplifiedFinalizationModal } from "./simplified-finalization-modal"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
+import { ScheduleRejectionModal } from "./modals/schedule-rejection-modal"
+import { ProviderAvailabilityModal } from "./modals/provider-availability-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import { useAuth } from "@/hooks/use-auth"
@@ -39,7 +41,7 @@ import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import { ProgrammingModal } from "./modals/programming-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
+import type { WorkCompletionReportData } from "./closure/types"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
 
 interface InterventionActionPanelHeaderProps {
@@ -102,9 +104,12 @@ export function InterventionActionPanelHeader({
   // States for closure modals
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
   const [showSimpleWorkCompletionModal, setShowSimpleWorkCompletionModal] = useState(false)
-  const [showTenantValidationModal, setShowTenantValidationModal] = useState(false)
+  const [showTenantApproveModal, setShowTenantApproveModal] = useState(false)
+  const [showTenantRejectModal, setShowTenantRejectModal] = useState(false)
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
+  const [showScheduleRejectionModal, setShowScheduleRejectionModal] = useState(false)
+  const [showProviderAvailabilityModal, setShowProviderAvailabilityModal] = useState(false)
 
   // Hooks for quote and planning management
   const quoting = useInterventionQuoting({ onActionComplete })
@@ -121,6 +126,26 @@ export function InterventionActionPanelHeader({
   }
 
   const currentUserQuote = getCurrentUserQuote()
+
+  // Fonction pour vérifier si le prestataire actuel a déjà des disponibilités
+  const hasCurrentUserAvailabilities = () => {
+    if (userRole !== 'prestataire' || !intervention.availabilities) return false
+
+    // Vérifier par userId si disponible, sinon par role
+    const userAvailabilities = intervention.availabilities.filter(avail => {
+      // Priorité 1: vérifier userId si présent
+      if (avail.userId && (avail.userId === userId || avail.userId === user?.id)) {
+        return true
+      }
+      // Priorité 2: vérifier par role (si c'est un prestataire)
+      if (avail.role === 'prestataire') {
+        return true
+      }
+      return false
+    })
+
+    return userAvailabilities.length > 0
+  }
 
   // Fonction de mapping couleurs selon le Design System
   const getActionStyling = (actionKey: string, userRole: string) => {
@@ -334,13 +359,35 @@ export function InterventionActionPanelHeader({
           })
         }
         if (userRole === 'prestataire') {
-          actions.push({
-            key: 'add_availabilities',
-            label: 'Ajouter mes disponibilités',
-            icon: Calendar,
-            variant: 'default',
-            description: 'Saisir vos créneaux de disponibilité'
-          })
+          // Si date fixe proposée → accepter/refuser
+          if (intervention.scheduled_date) {
+            actions.push(
+              {
+                key: 'accept_schedule',
+                label: 'Accepter le planning',
+                icon: CheckCircle,
+                variant: 'default',
+                description: 'Confirmer que le créneau proposé vous convient'
+              },
+              {
+                key: 'reject_schedule',
+                label: 'Refuser le planning',
+                icon: XCircle,
+                variant: 'destructive',
+                description: 'Refuser le créneau et proposer une alternative'
+              }
+            )
+          } else {
+            // Si pas de date fixe → ajouter/modifier disponibilités
+            const hasAvailabilities = hasCurrentUserAvailabilities()
+            actions.push({
+              key: 'add_availabilities',
+              label: hasAvailabilities ? 'Modifier mes disponibilités' : 'Ajouter mes disponibilités',
+              icon: Calendar,
+              variant: hasAvailabilities ? 'secondary' : 'default',
+              description: hasAvailabilities ? 'Modifier vos créneaux de disponibilité' : 'Saisir vos créneaux de disponibilité'
+            })
+          }
         }
         break
 
@@ -414,18 +461,14 @@ export function InterventionActionPanelHeader({
               label: 'Valider les travaux',
               icon: CheckCircle,
               variant: 'default',
-              description: 'Confirmer que les travaux sont satisfaisants',
-              requiresComment: false,
-              confirmationMessage: 'Confirmer que les travaux sont bien terminés ?'
+              description: 'Confirmer que les travaux sont satisfaisants'
             },
             {
               key: 'contest_work',
               label: 'Contester',
               icon: AlertTriangle,
               variant: 'destructive',
-              description: 'Signaler un problème avec les travaux',
-              requiresComment: true,
-              confirmationMessage: 'Signaler un problème nécessitera une révision.'
+              description: 'Signaler un problème avec les travaux'
             }
           )
         }
@@ -583,21 +626,26 @@ export function InterventionActionPanelHeader({
           window.location.href = `/locataire/interventions/${intervention.id}?action=modify-schedule`
           return
 
-        case 'reject_schedule':
-          result = await interventionActionsService.rejectIntervention({
-            id: intervention.id,
-            title: intervention.title,
-            status: intervention.status
-          }, comment)
+        case 'accept_schedule':
+          // Prestataire accepte le planning proposé → passer à "planifiée"
+          result = await interventionActionsService.acceptSchedule(intervention.id)
           break
+
+        case 'reject_schedule':
+          // Prestataire refuse le planning → ouvrir modale de refus
+          setShowScheduleRejectionModal(true)
+          return
 
         case 'complete_work':
           setShowSimpleWorkCompletionModal(true)
           return
 
         case 'validate_work':
+          setShowTenantApproveModal(true)
+          return
+
         case 'contest_work':
-          setShowTenantValidationModal(true)
+          setShowTenantRejectModal(true)
           return
 
         case 'finalize':
@@ -607,6 +655,11 @@ export function InterventionActionPanelHeader({
         case 'confirm_slot':
           // Ouvrir la modale de confirmation de créneau
           setShowSlotConfirmationModal(true)
+          return
+
+        case 'add_availabilities':
+          // Ouvrir la modale d'ajout de disponibilités
+          setShowProviderAvailabilityModal(true)
           return
 
         case 'cancel':
@@ -733,10 +786,21 @@ export function InterventionActionPanelHeader({
     }
   }
 
-  // Handler for tenant validation
-  const handleTenantValidation = async (validationData: TenantValidationData): Promise<boolean> => {
+  // Handler for tenant approval
+  const handleTenantApproval = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
     try {
       setIsProcessing(true)
+
+      const validationData = {
+        validationType: 'approve',
+        comments: data.comments,
+        photos: data.photos.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }))
+      }
 
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation`, {
         method: 'POST',
@@ -745,7 +809,7 @@ export function InterventionActionPanelHeader({
       })
 
       if (response.ok) {
-        setShowTenantValidationModal(false)
+        setShowTenantApproveModal(false)
         onActionComplete?.()
         return true
       } else {
@@ -755,6 +819,45 @@ export function InterventionActionPanelHeader({
       }
     } catch (error) {
       setError('Erreur lors de la validation')
+      return false
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Handler for tenant rejection
+  const handleTenantRejection = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+    try {
+      setIsProcessing(true)
+
+      const validationData = {
+        validationType: 'contest',
+        comments: data.comments,
+        photos: data.photos.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }))
+      }
+
+      const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validationData)
+      })
+
+      if (response.ok) {
+        setShowTenantRejectModal(false)
+        onActionComplete?.()
+        return true
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Erreur lors du rejet')
+        return false
+      }
+    } catch (error) {
+      setError('Erreur lors du rejet')
       return false
     } finally {
       setIsProcessing(false)
@@ -935,13 +1038,26 @@ export function InterventionActionPanelHeader({
         isLoading={isProcessing}
       />
 
-      {/* Tenant Validation Modal */}
-      <TenantValidationForm
+      {/* Tenant Approval Modal */}
+      <TenantValidationSimple
         intervention={intervention}
-        isOpen={showTenantValidationModal}
-        onClose={() => setShowTenantValidationModal(false)}
-        onSubmit={handleTenantValidation}
+        isOpen={showTenantApproveModal}
+        onClose={() => setShowTenantApproveModal(false)}
+        onApprove={handleTenantApproval}
+        onReject={async () => false}
         isLoading={isProcessing}
+        mode="approve"
+      />
+
+      {/* Tenant Rejection Modal */}
+      <TenantValidationSimple
+        intervention={intervention}
+        isOpen={showTenantRejectModal}
+        onClose={() => setShowTenantRejectModal(false)}
+        onApprove={async () => false}
+        onReject={handleTenantRejection}
+        isLoading={isProcessing}
+        mode="reject"
       />
 
       {/* Simplified Finalization Modal */}
@@ -1007,6 +1123,30 @@ export function InterventionActionPanelHeader({
           onActionComplete?.()
         }}
         isFormValid={planning.isProgrammingFormValid}
+      />
+
+      {/* Schedule Rejection Modal */}
+      <ScheduleRejectionModal
+        open={showScheduleRejectionModal}
+        onOpenChange={setShowScheduleRejectionModal}
+        scheduledDate={intervention.scheduled_date}
+        onConfirm={async (reason, proposedAlternative) => {
+          await interventionActionsService.rejectSchedule(
+            intervention.id,
+            reason,
+            proposedAlternative
+          )
+          onActionComplete?.()
+        }}
+      />
+
+      {/* Provider Availability Modal */}
+      <ProviderAvailabilityModal
+        isOpen={showProviderAvailabilityModal}
+        onClose={() => setShowProviderAvailabilityModal(false)}
+        interventionId={intervention.id}
+        interventionTitle={intervention.title}
+        onSuccess={onActionComplete}
       />
     </>
   )

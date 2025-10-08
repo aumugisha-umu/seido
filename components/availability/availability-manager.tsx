@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { TimePicker } from "@/components/ui/time-picker"
+import { Label } from "@/components/ui/label"
 import { useAvailabilityManagement, UserAvailability } from "@/hooks/use-availability-management"
 
 interface AvailabilityManagerProps {
@@ -354,41 +357,31 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
             {localAvailabilities.length > 0 ? (
               <div className="space-y-3">
                 {localAvailabilities.map((avail, index) => (
-                  <div key={index} className="grid grid-cols-4 gap-3 p-3 border rounded-lg">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Date</label>
-                      <input
-                        type="date"
-                        value={avail.date}
-                        onChange={(e) => handleUpdateLocal(index, 'date', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Début</label>
-                      <input
-                        type="time"
-                        value={avail.startTime}
-                        onChange={(e) => handleUpdateLocal(index, 'startTime', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Fin</label>
-                      <input
-                        type="time"
-                        value={avail.endTime}
-                        onChange={(e) => handleUpdateLocal(index, 'endTime', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div className="flex items-end">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 border rounded-lg">
+                    <DateTimePicker
+                      mode="datetime"
+                      dateValue={avail.date}
+                      timeValue={avail.startTime}
+                      onDateChange={(date) => handleUpdateLocal(index, 'date', date)}
+                      onTimeChange={(time) => handleUpdateLocal(index, 'startTime', time)}
+                      dateLabel="Date"
+                      timeLabel="Début"
+                      minDate={new Date().toISOString().split('T')[0]}
+                    />
+                    <div className="flex gap-3 items-end">
+                      <div className="flex flex-col gap-3 flex-1">
+                        <Label className="text-sm font-medium px-1">Fin</Label>
+                        <TimePicker
+                          value={avail.endTime}
+                          onChange={(time) => handleUpdateLocal(index, 'endTime', time)}
+                          className="w-full"
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleRemoveLocal(index)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 mb-3"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

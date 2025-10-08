@@ -194,6 +194,58 @@ export class InterventionActionsService {
     return result
   }
 
+  async acceptSchedule(interventionId: string): Promise<any> {
+    console.log(`✅ Provider accepting schedule for intervention ${interventionId}`)
+
+    const response = await fetch('/api/intervention-schedule-accept', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors de l'acceptation du planning: ${response.status}`)
+    }
+
+    console.log(`✅ Schedule accepted successfully: ${result.intervention.id}`)
+    return result
+  }
+
+  async rejectSchedule(interventionId: string, reason: string): Promise<any> {
+    console.log(`❌ Provider rejecting schedule for intervention ${interventionId}`)
+    console.log(`📝 Rejection reason: ${reason}`)
+
+    if (!reason) {
+      throw new Error('Le motif de refus est requis')
+    }
+
+    const response = await fetch('/api/intervention-schedule-reject', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId,
+        rejectionReason: reason
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Erreur lors du refus du planning: ${response.status}`)
+    }
+
+    console.log(`❌ Schedule rejected successfully: ${result.intervention.id}`)
+    return result
+  }
+
   async validateByTenant(intervention: InterventionAction): Promise<any> {
     console.log(`✅ Validating intervention ${intervention.id} by tenant`)
 

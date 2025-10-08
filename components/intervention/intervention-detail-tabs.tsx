@@ -675,7 +675,15 @@ export function InterventionDetailTabs({
           {intervention.scheduling.type === "tbd" && (
             <div className="p-3 bg-yellow-50 rounded-lg">
               <h4 className="font-medium text-yellow-900">Horaire à définir</h4>
-              <p className="text-sm text-yellow-800 mt-1">La planification sera définie ultérieurement</p>
+              <p className="text-sm text-yellow-800 mt-1">
+                {userRole === 'prestataire'
+                  ? "L'horaire sera fixé une fois que le locataire aura choisi parmi vos disponibilités proposées"
+                  : userRole === 'locataire'
+                  ? "L'horaire sera fixé une fois que vous aurez choisi parmi les disponibilités proposées"
+                  : "L'horaire sera fixé une fois que le locataire aura validé une des disponibilités proposées"}
+              </p>
+
+              {/* Affichage en lecture seule pour tous les rôles */}
               <UserAvailabilitiesDisplay
                 availabilities={intervention.availabilities}
                 quotes={intervention.quotes}

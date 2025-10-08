@@ -171,7 +171,10 @@ export function getExistingQuotesManagementConfig(quotes: Quote[] = []): QuoteAc
 /**
  * Génère un message d'état vide contextuel pour la section des devis
  */
-export function getQuoteEmptyStateMessage(quotes: Quote[] = []): {
+export function getQuoteEmptyStateMessage(
+  quotes: Quote[] = [],
+  userRole?: 'gestionnaire' | 'prestataire' | 'locataire'
+): {
   title: string
   description: string
   actionLabel?: string
@@ -180,10 +183,20 @@ export function getQuoteEmptyStateMessage(quotes: Quote[] = []): {
   const state = analyzeQuoteState(quotes)
 
   if (state.isEmpty) {
+    // Message différent selon le rôle
+    if (userRole === 'prestataire') {
+      return {
+        title: 'Aucun devis soumis',
+        description: 'Vous n\'avez pas encore soumis de devis pour cette intervention.',
+        variant: 'info'
+      }
+    }
+
+    // Pour gestionnaire ou par défaut
     return {
       title: 'En attente de devis',
       description: 'Les prestataires contactés n\'ont pas encore soumis leurs propositions. Vous recevrez une notification dès qu\'un devis sera disponible.',
-      actionLabel: 'Relancer les prestataires',
+      actionLabel: userRole === 'gestionnaire' ? 'Relancer les prestataires' : undefined,
       variant: 'info'
     }
   }

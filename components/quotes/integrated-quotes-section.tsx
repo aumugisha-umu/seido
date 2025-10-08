@@ -121,7 +121,7 @@ export function IntegratedQuotesSection({
     }
 
     // Pour les gestionnaires, utiliser la logique contextuelle
-    const contextualMessage = getQuoteEmptyStateMessage(quotes)
+    const contextualMessage = getQuoteEmptyStateMessage(quotes, userContext)
     return {
       title: contextualMessage.title,
       description: contextualMessage.description,

@@ -132,9 +132,11 @@ export function UserAvailabilitiesDisplay({
     }))
   })
 
-  // Déterminer le titre par défaut selon le contexte
+  // Déterminer le titre par défaut selon le contexte et le rôle de l'utilisateur
   const defaultTitle = filterRole
     ? `Disponibilités du ${filterRole}`
+    : userRole === 'prestataire'
+    ? "Vos disponibilités proposées"
     : "Disponibilités par personne"
 
   const displayTitle = title || defaultTitle

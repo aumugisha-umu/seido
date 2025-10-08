@@ -7,10 +7,10 @@ import { notificationService } from '@/lib/notification-service'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const interventionId = params.id
+    const interventionId = (await params).id
 
     // Initialize Supabase client
     const cookieStore = await cookies()
@@ -82,31 +82,6 @@ export async function POST(
       }, { status: 400 })
     }
 
-    if (!adminComments?.trim()) {
-      return NextResponse.json({
-        success: false,
-        error: 'Les commentaires administratifs sont requis'
-      }, { status: 400 })
-    }
-
-    // Check quality control requirements
-    const qcValues = Object.values(qualityControl || {})
-    if (!qcValues.every(val => val === true)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Tous les points de contrôle qualité doivent être validés'
-      }, { status: 400 })
-    }
-
-    // Check documentation requirements
-    const docValues = Object.values(documentation || {})
-    if (!docValues.every(val => val === true)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Tous les documents doivent être confirmés'
-      }, { status: 400 })
-    }
-
     // Validate financial data
     if (!financialSummary?.finalCost || financialSummary.finalCost <= 0) {
       return NextResponse.json({
@@ -162,7 +137,7 @@ export async function POST(
       intervention_id: interventionId,
       manager_id: user.id,
       final_status: finalStatus,
-      admin_comments: adminComments.trim(),
+      admin_comments: adminComments?.trim() || '',
       quality_control: JSON.stringify(qualityControl || {}),
       financial_summary: JSON.stringify(financialSummary || {}),
       documentation: JSON.stringify(documentation || {}),

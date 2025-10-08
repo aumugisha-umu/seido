@@ -27,14 +27,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { interventionActionsService } from "@/lib/intervention-actions-service"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
-import { TenantValidationForm } from "./tenant-validation-form"
+import { TenantValidationSimple } from "./tenant-validation-simple"
 import { SimplifiedFinalizationModal } from "./simplified-finalization-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
-import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
+import type { WorkCompletionReportData } from "./closure/types"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
 
 interface InterventionActionPanelProps {
@@ -85,7 +85,8 @@ export function InterventionActionPanel({
   // States for closure modals
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
   const [showSimpleWorkCompletionModal, setShowSimpleWorkCompletionModal] = useState(false)
-  const [showTenantValidationModal, setShowTenantValidationModal] = useState(false)
+  const [showTenantApproveModal, setShowTenantApproveModal] = useState(false)
+  const [showTenantRejectModal, setShowTenantRejectModal] = useState(false)
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
 
   // Hook for quote management
@@ -385,18 +386,14 @@ export function InterventionActionPanel({
               label: 'Valider les travaux',
               icon: CheckCircle,
               variant: 'default',
-              description: 'Confirmer que les travaux sont satisfaisants',
-              requiresComment: false,
-              confirmationMessage: 'Confirmer que les travaux sont bien terminés ?'
+              description: 'Confirmer que les travaux sont satisfaisants'
             },
             {
               key: 'contest_work',
               label: 'Contester',
               icon: AlertTriangle,
               variant: 'destructive',
-              description: 'Signaler un problème avec les travaux',
-              requiresComment: true,
-              confirmationMessage: 'Signaler un problème nécessitera une révision.'
+              description: 'Signaler un problème avec les travaux'
             }
           )
         }
@@ -548,9 +545,11 @@ export function InterventionActionPanel({
           return
 
         case 'validate_work':
+          setShowTenantApproveModal(true)
+          return
+
         case 'contest_work':
-          // Open tenant validation modal
-          setShowTenantValidationModal(true)
+          setShowTenantRejectModal(true)
           return
 
         case 'finalize':
@@ -675,12 +674,22 @@ export function InterventionActionPanel({
     }
   }
 
-  // Handler for tenant validation
-  const handleTenantValidation = async (validationData: TenantValidationData): Promise<boolean> => {
+  // Handler for tenant approval
+  const handleTenantApproval = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
     try {
       setIsProcessing(true)
 
-      // TODO: Replace with actual API call
+      const validationData = {
+        validationType: 'approve',
+        comments: data.comments,
+        photos: data.photos.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }))
+      }
+
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -688,7 +697,7 @@ export function InterventionActionPanel({
       })
 
       if (response.ok) {
-        setShowTenantValidationModal(false)
+        setShowTenantApproveModal(false)
         onActionComplete?.()
         return true
       } else {
@@ -698,6 +707,45 @@ export function InterventionActionPanel({
       }
     } catch (error) {
       setError('Erreur lors de la validation')
+      return false
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Handler for tenant rejection
+  const handleTenantRejection = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+    try {
+      setIsProcessing(true)
+
+      const validationData = {
+        validationType: 'contest',
+        comments: data.comments,
+        photos: data.photos.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }))
+      }
+
+      const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validationData)
+      })
+
+      if (response.ok) {
+        setShowTenantRejectModal(false)
+        onActionComplete?.()
+        return true
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Erreur lors du rejet')
+        return false
+      }
+    } catch (error) {
+      setError('Erreur lors du rejet')
       return false
     } finally {
       setIsProcessing(false)
@@ -896,13 +944,26 @@ export function InterventionActionPanel({
         isLoading={isProcessing}
       />
 
-      {/* Tenant Validation Modal */}
-      <TenantValidationForm
+      {/* Tenant Approval Modal */}
+      <TenantValidationSimple
         intervention={intervention}
-        isOpen={showTenantValidationModal}
-        onClose={() => setShowTenantValidationModal(false)}
-        onSubmit={handleTenantValidation}
+        isOpen={showTenantApproveModal}
+        onClose={() => setShowTenantApproveModal(false)}
+        onApprove={handleTenantApproval}
+        onReject={async () => false}
         isLoading={isProcessing}
+        mode="approve"
+      />
+
+      {/* Tenant Rejection Modal */}
+      <TenantValidationSimple
+        intervention={intervention}
+        isOpen={showTenantRejectModal}
+        onClose={() => setShowTenantRejectModal(false)}
+        onApprove={async () => false}
+        onReject={handleTenantRejection}
+        isLoading={isProcessing}
+        mode="reject"
       />
 
       {/* Simplified Finalization Modal */}

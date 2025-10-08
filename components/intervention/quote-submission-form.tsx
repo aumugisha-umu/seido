@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { useQuoteToast } from "@/hooks/use-quote-toast"
 import {
   getInterventionLocationText,
@@ -675,40 +676,33 @@ export function QuoteSubmissionForm({
                 <div className="space-y-3">
                   {formData.providerAvailabilities.map((avail, index) => (
                     <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Date</Label>
-                          <Input
-                            type="date"
-                            value={avail.date}
-                            onChange={(e) => updateAvailability(index, 'date', e.target.value)}
-                            className="mt-1"
-                            min={new Date().toISOString().split('T')[0]}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                        <div className="md:col-span-2">
+                          <DateTimePicker
+                            mode="datetime"
+                            dateValue={avail.date}
+                            timeValue={avail.startTime}
+                            onDateChange={(date) => updateAvailability(index, 'date', date)}
+                            onTimeChange={(time) => updateAvailability(index, 'startTime', time)}
+                            dateLabel="Date"
+                            timeLabel="Heure début"
+                            minDate={new Date().toISOString().split('T')[0]}
                           />
                         </div>
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Heure début</Label>
-                          <Input
-                            type="time"
-                            value={avail.startTime}
-                            onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Fin estimée</Label>
-                          <div className="mt-1 p-2 text-sm text-slate-600 flex items-center gap-1 min-h-[40px]">
-                            <Clock className="h-3 w-3" />
-                            {avail.startTime && formData.estimatedDurationHours ? calculateEndTime(avail.startTime) : '--:--'}
+                        <div className="flex gap-3 items-end">
+                          <div className="flex flex-col gap-3 flex-1">
+                            <Label className="text-sm font-medium text-slate-700 px-1">Fin estimée</Label>
+                            <div className="p-2 text-sm text-slate-600 flex items-center gap-1 min-h-[40px] bg-white rounded-md border">
+                              <Clock className="h-3 w-3" />
+                              {avail.startTime && formData.estimatedDurationHours ? calculateEndTime(avail.startTime) : '--:--'}
+                            </div>
                           </div>
-                        </div>
-                        <div className="md:col-span-1">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => removeAvailability(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 mb-3"
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Supprimer

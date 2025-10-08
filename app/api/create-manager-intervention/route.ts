@@ -507,6 +507,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ✅ CORRECTION: Créer les quote_requests si expectsQuote et prestataires assignés
+    // Cela garantit que les prestataires pourront soumettre des devis
+    if (expectsQuote && selectedProviderIds && selectedProviderIds.length > 0 && interventionStatus === 'demande_de_devis') {
+      console.log("📋 Creating quote requests for", selectedProviderIds.length, "providers...")
+
+      const quoteRequests = selectedProviderIds.map((providerId: string) => ({
+        intervention_id: intervention.id,
+        provider_id: providerId,
+        status: 'sent' as const,
+        individual_message: messageType === 'individual' ? individualMessages?.[providerId] : globalMessage,
+        deadline: null, // Pas de deadline spécifiée lors de création directe
+        sent_at: new Date().toISOString(),
+        created_by: user.id
+      }))
+
+      const { error: quoteRequestsError } = await supabase
+        .from('quote_requests')
+        .insert(quoteRequests)
+
+      if (quoteRequestsError) {
+        console.error("⚠️ Error creating quote requests:", quoteRequestsError)
+        // Don't fail the entire operation, just log the error
+      } else {
+        console.log(`✅ Quote requests created for ${quoteRequests.length} provider(s)`)
+      }
+    }
+
     // Handle scheduling slots if provided
     if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
       console.log("📅 Creating time slots:", timeSlots.length)

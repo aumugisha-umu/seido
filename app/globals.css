@@ -374,6 +374,16 @@
   .scrollbar-thumb-slate-300::-webkit-scrollbar-thumb {
     background: #cbd5e1;
   }
+
+  /* Hide scrollbar completely but keep scroll functionality */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes gradient {

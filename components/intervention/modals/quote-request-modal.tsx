@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -211,16 +212,13 @@ export const QuoteRequestModal = ({
 
           {/* Date limite */}
           <div className="space-y-3">
-            <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
-              Date limite pour le devis
-            </Label>
-            <Input
-              id="deadline"
-              type="date"
-              value={deadline}
-              onChange={(e) => onDeadlineChange(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full"
+            <DateTimePicker
+              mode="date"
+              dateValue={deadline}
+              onDateChange={onDeadlineChange}
+              dateLabel="Date limite pour le devis"
+              datePlaceholder="Sélectionner une date"
+              minDate={new Date().toISOString().split('T')[0]}
             />
             <p className="text-xs text-slate-500">
               Le prestataire sera notifié de cette échéance

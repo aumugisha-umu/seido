@@ -188,15 +188,6 @@ export function SimplifiedFinalizationModal({
     if (!contextData) return
 
     // Validation
-    if (!formData.internalComments.trim()) {
-      toast({
-        title: "Commentaires requis",
-        description: "Les commentaires internes sont obligatoires",
-        variant: "destructive"
-      })
-      return
-    }
-
     if (formData.decision === 'reject' && !formData.providerFeedback.trim()) {
       toast({
         title: "Feedback requis",
@@ -230,9 +221,9 @@ export function SimplifiedFinalizationModal({
           warrantyDocumented: true
         },
         financialSummary: {
-          finalCost: contextData.intervention.final_cost || contextData.selectedQuote?.amount || 0,
+          finalCost: contextData.intervention.final_cost || contextData.selectedQuote?.amount || 1,
           budgetVariance: contextData.intervention.estimated_cost
-            ? ((contextData.intervention.final_cost || 0) - contextData.intervention.estimated_cost) / contextData.intervention.estimated_cost * 100
+            ? ((contextData.intervention.final_cost || 1) - contextData.intervention.estimated_cost) / contextData.intervention.estimated_cost * 100
             : 0,
           costJustification: formData.decision === 'reject' ? formData.providerFeedback : '',
           paymentStatus: 'pending'

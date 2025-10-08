@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 
 interface ExternalQuoteRequestModalProps {
   isOpen: boolean
@@ -178,15 +179,13 @@ export const ExternalQuoteRequestModal = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Date limite */}
             <div className="space-y-3">
-              <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
-                Date limite pour le devis
-              </Label>
-              <Input
-                id="deadline"
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+              <DateTimePicker
+                mode="date"
+                dateValue={deadline}
+                onDateChange={setDeadline}
+                dateLabel="Date limite pour le devis"
+                datePlaceholder="Sélectionner une date"
+                minDate={new Date().toISOString().split('T')[0]}
               />
             </div>
 

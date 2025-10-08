@@ -175,24 +175,19 @@ export const FinalizationTabs = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Reference and Type */}
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Référence</Label>
-                <p className="font-mono text-sm font-semibold text-gray-900">{contextData.intervention.reference}</p>
-              </div>
-              <div>
-                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Type</Label>
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs">
-                    {contextData.intervention.type}
+            {/* Type and Urgency */}
+            <div>
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Type et Urgence</Label>
+              <div className="flex gap-2 flex-wrap">
+                <Badge variant="outline" className="text-xs">
+                  {contextData.intervention.type}
+                </Badge>
+                {contextData.intervention.urgency && (
+                  <Badge variant={contextData.intervention.urgency === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
+                    {contextData.intervention.urgency === 'urgent' ? 'Urgent' :
+                     contextData.intervention.urgency === 'normal' ? 'Normal' : 'Faible'}
                   </Badge>
-                  {contextData.intervention.urgency === 'urgent' && (
-                    <Badge variant="destructive" className="text-xs">
-                      Urgent
-                    </Badge>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
@@ -202,35 +197,6 @@ export const FinalizationTabs = ({
               <p className="text-sm text-gray-700">{contextData.intervention.title}</p>
               {contextData.intervention.description && (
                 <p className="text-xs text-gray-600 mt-1">{contextData.intervention.description}</p>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Cost Information - Compact for mobile */}
-            <div className="space-y-2">
-              <div>
-                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Coût final</Label>
-                <div className="flex items-center gap-1">
-                  <Euro className="h-4 w-4 text-emerald-600" />
-                  <span className="text-lg font-bold text-emerald-700">
-                    {(contextData.intervention.final_cost || 0).toFixed(2)}€
-                  </span>
-                </div>
-              </div>
-              {contextData.intervention.estimated_cost && (
-                <div className="text-xs text-gray-600">
-                  Estimation: {contextData.intervention.estimated_cost.toFixed(2)}€
-                  {contextData.intervention.final_cost && (
-                    <span className={cn(
-                      "ml-2 font-medium",
-                      contextData.intervention.final_cost > contextData.intervention.estimated_cost ? "text-red-600" : "text-green-600"
-                    )}>
-                      ({contextData.intervention.final_cost > contextData.intervention.estimated_cost ? '+' : ''}
-                      {(contextData.intervention.final_cost - contextData.intervention.estimated_cost).toFixed(2)}€)
-                    </span>
-                  )}
-                </div>
               )}
             </div>
 
@@ -374,20 +340,17 @@ export const FinalizationTabs = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Reference and Title */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Référence</Label>
-                    <p className="font-mono text-sm font-semibold text-gray-900">{contextData.intervention.reference}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Type</Label>
+                {/* Type and Urgency */}
+                <div>
+                  <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Type et Urgence</Label>
+                  <div className="flex gap-2 flex-wrap">
                     <Badge variant="outline" className="text-xs">
                       {contextData.intervention.type}
                     </Badge>
-                    {contextData.intervention.urgency === 'urgent' && (
-                      <Badge variant="destructive" className="ml-2 text-xs">
-                        Urgent
+                    {contextData.intervention.urgency && (
+                      <Badge variant={contextData.intervention.urgency === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
+                        {contextData.intervention.urgency === 'urgent' ? 'Urgent' :
+                         contextData.intervention.urgency === 'normal' ? 'Normal' : 'Faible'}
                       </Badge>
                     )}
                   </div>
@@ -399,43 +362,6 @@ export const FinalizationTabs = ({
                   <p className="text-sm text-gray-700">{contextData.intervention.title}</p>
                   {contextData.intervention.description && (
                     <p className="text-xs text-gray-600 mt-1">{contextData.intervention.description}</p>
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* Cost Information */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Coût final</Label>
-                    <div className="flex items-center gap-1">
-                      <Euro className="h-4 w-4 text-emerald-600" />
-                      <span className="text-lg font-bold text-emerald-700">
-                        {(contextData.intervention.final_cost || 0).toFixed(2)}€
-                      </span>
-                    </div>
-                  </div>
-                  {contextData.intervention.estimated_cost && (
-                    <div>
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Estimation</Label>
-                      <p className="text-sm text-gray-600">{contextData.intervention.estimated_cost.toFixed(2)}€</p>
-                    </div>
-                  )}
-                  {contextData.intervention.estimated_cost && contextData.intervention.final_cost && (
-                    <div>
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Écart</Label>
-                      <p className={cn(
-                        "text-sm font-medium",
-                        contextData.intervention.final_cost > contextData.intervention.estimated_cost ? "text-red-600" : "text-green-600"
-                      )}>
-                        {contextData.intervention.final_cost > contextData.intervention.estimated_cost ? (
-                          <><TrendingUp className="h-3 w-3 inline mr-1" />+</>
-                        ) : (
-                          <><TrendingDown className="h-3 w-3 inline mr-1" /></>
-                        )}
-                        {Math.abs(contextData.intervention.final_cost - contextData.intervention.estimated_cost).toFixed(2)}€
-                      </p>
-                    </div>
                   )}
                 </div>
 

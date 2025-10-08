@@ -1,0 +1,19 @@
+[2025-10-04T10:28:48.426Z] GET http://localhost:3000/auth/login → 200 (1364ms)
+
+[2025-10-04T10:28:49.811Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759573729667 → 200 (67ms)
+
+[2025-10-04T10:28:49.811Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759573729667 → 200 (82ms)
+
+[2025-10-04T10:28:49.814Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (283ms)
+
+[2025-10-04T10:28:49.815Z] GET http://localhost:3000/_next/static/chunks/app/auth/login/page.js → 200 (419ms)
+
+[2025-10-04T10:28:49.815Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (1506ms)
+
+[2025-10-04T10:28:49.812Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759573729667 → 200 (2108ms)
+
+[2025-10-04T10:28:52.535Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (65ms)
+
+[2025-10-04T10:28:52.664Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (80ms)
+
+[2025-10-04T10:28:52.895Z] POST http://localhost:3000/auth/login → 200 (1173ms)

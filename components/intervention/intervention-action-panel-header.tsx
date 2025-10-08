@@ -127,11 +127,11 @@ export function InterventionActionPanelHeader({
     // Types d'actions selon le Design System
     const actionTypes = {
       // Actions positives (succès, validation)
-      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes'],
+      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'confirm_slot', 'request_quotes', 'add_availabilities', 'submit_quote'],
       // Actions destructives (suppression, rejet, annulation)
       destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote'],
       // Actions neutres (planification, demande, gestion)
-      neutral: ['start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'submit_quote', 'modify_planning', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
+      neutral: ['start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'modify_planning', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
       // Actions informatives (consultation)
       informative: ['view', 'consult', 'check', 'view_quote']
     }
@@ -148,21 +148,21 @@ export function InterventionActionPanelHeader({
     // Mapping selon le rôle et le type d'action
     const styleMapping = {
       locataire: {
-        positive: { variant: 'default' as const, className: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500' },
+        positive: { variant: 'default' as const, className: '' },
         destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
+        neutral: { variant: 'outline' as const, className: '' },
         informative: { variant: 'ghost' as const, className: '' }
       },
       gestionnaire: {
-        positive: { variant: 'default' as const, className: 'bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500' },
+        positive: { variant: 'default' as const, className: '' },
         destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
+        neutral: { variant: 'outline' as const, className: '' },
         informative: { variant: 'ghost' as const, className: '' }
       },
       prestataire: {
-        positive: { variant: 'default' as const, className: 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500' },
+        positive: { variant: 'default' as const, className: '' },
         destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
+        neutral: { variant: 'outline' as const, className: '' },
         informative: { variant: 'ghost' as const, className: '' }
       }
     }
@@ -223,16 +223,16 @@ export function InterventionActionPanelHeader({
           actions.push(
             {
               key: 'request_quotes',
-              label: 'Demander des devis',
+              label: 'Demander de devis',
               icon: FileText,
               variant: 'default',
               description: 'Solliciter des devis auprès de prestataires'
             },
             {
               key: 'start_planning',
-              label: 'Organiser la planification',
+              label: 'Planification',
               icon: Calendar,
-              variant: 'outline',
+              variant: 'secondary',
               description: 'Commencer le processus de planification'
             }
           )
@@ -295,7 +295,7 @@ export function InterventionActionPanelHeader({
                 key: 'view_quote',
                 label: 'Voir le devis',
                 icon: FileText,
-                variant: 'outline',
+                variant: 'ghost',
                 description: 'Consulter votre devis approuvé'
               })
             }
@@ -319,7 +319,7 @@ export function InterventionActionPanelHeader({
               key: 'modify_planning',
               label: 'Modifier la planification',
               icon: Clock,
-              variant: 'outline',
+              variant: 'secondary',
               description: 'Modifier les options de planification'
             }
           )
@@ -338,7 +338,7 @@ export function InterventionActionPanelHeader({
             key: 'add_availabilities',
             label: 'Ajouter mes disponibilités',
             icon: Calendar,
-            variant: 'outline',
+            variant: 'default',
             description: 'Saisir vos créneaux de disponibilité'
           })
         }
@@ -347,12 +347,11 @@ export function InterventionActionPanelHeader({
       case 'planifiee':
         if (userRole === 'prestataire') {
           actions.push({
-            key: 'start_work',
-            label: 'Commencer l\'intervention',
-            icon: Play,
+            key: 'complete_work',
+            label: 'Marquer comme terminé',
+            icon: CheckCircle,
             variant: 'default',
-            description: 'Marquer le début des travaux',
-            confirmationMessage: 'Confirmer le début de l\'intervention ?'
+            description: 'Signaler la fin des travaux'
           })
         }
         if (userRole === 'locataire' && intervention.tenant_id === userId) {
@@ -361,7 +360,7 @@ export function InterventionActionPanelHeader({
               key: 'modify_schedule',
               label: 'Modifier le créneau',
               icon: Calendar,
-              variant: 'outline',
+              variant: 'secondary',
               description: 'Modifier le créneau planifié'
             },
             {
@@ -380,7 +379,7 @@ export function InterventionActionPanelHeader({
             key: 'reschedule',
             label: 'Replanifier',
             icon: Calendar,
-            variant: 'outline',
+            variant: 'secondary',
             description: 'Modifier la planification'
           })
         }

@@ -294,9 +294,6 @@ export default function NotificationsPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                 Notifications & Activité
               </h1>
-              <p className="text-sm sm:text-base text-gray-600 hidden sm:block">
-                Gérez vos notifications et suivez l'activité de votre équipe
-              </p>
               <p className="text-sm text-gray-600 sm:hidden">
                 Notifications et activité
               </p>
@@ -328,23 +325,10 @@ export default function NotificationsPage() {
         </div>
 
         {/* Système d'onglets */}
-        <Tabs defaultValue="team" className="space-y-4 sm:space-y-6">
+        <Tabs defaultValue="personal" className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-            <TabsTrigger 
-              value="team" 
-              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="hidden sm:inline truncate">Équipe</span>
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-red-500">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="personal" 
+            <TabsTrigger
+              value="personal"
               className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
@@ -355,9 +339,22 @@ export default function NotificationsPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            
-            <TabsTrigger 
-              value="activity" 
+
+            <TabsTrigger
+              value="team"
+              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            >
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline truncate">Équipe</span>
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-red-500">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="activity"
               className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />

@@ -1,0 +1,707 @@
+[2025-10-04T10:26:48.736Z] [INFO] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o
+{
+  "location": {
+    "url": "http://localhost:3000/auth/signup",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-04T10:26:48.736Z] [INFO] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o
+{
+  "location": {
+    "url": "http://localhost:3000/auth/signup",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-04T10:26:50.853Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:26:50.956Z] [INFO] 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/environment.ts",
+    "lineNumber": 32,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-04T10:26:51.002Z] [INFO] %c%s%c 🔄 [SIGNUP-SERVER] Signup page rendered server-side background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server  
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/auth/signup/page.tsx?0",
+    "lineNumber": 24,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-04T10:26:51.276Z] [INFO] 🌍 [ENV-INFO] Environment Configuration: {hostname: localhost, nodeEnv: development, isProduction: false, authTimeout: 8000, gracePeriods: Object}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/environment.ts",
+    "lineNumber": 99,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:26:51.277Z] [INFO] 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 39,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:26:51.277Z] [INFO] 🔍 [AUTH-PROVIDER] Checking initial session immediately...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 57,
+    "columnNumber": 32
+  }
+}
+
+[2025-10-04T10:26:51.317Z] [INFO] 🔐 Auth state changed: INITIAL_SESSION false
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/connection-manager.ts",
+    "lineNumber": 21,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:26:51.346Z] [INFO] ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 68,
+    "columnNumber": 36
+  }
+}
+
+[2025-10-04T10:26:51.412Z] [INFO] 🔄 [AUTH-STATE-CHANGE] Event: INITIAL_SESSION Has session: false
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 81,
+    "columnNumber": 28
+  }
+}
+
+[2025-10-04T10:26:51.412Z] [INFO] 🔍 [AUTH-STATE-CHANGE] No initial session
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 97,
+    "columnNumber": 40
+  }
+}
+
+[2025-10-04T10:26:51.550Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:26:51.551Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /auth/signup, path: /auth/signup}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:26:51.553Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/auth/signup color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/auth/signup, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759573611548}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:26:55.255Z] [INFO] %c%s%c 🔄 [SIGNUP-SERVER] Signup page rendered server-side background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server  
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/auth/signup/page.tsx?0",
+    "lineNumber": 24,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-04T10:26:55.776Z] [INFO] 🚀 [SIGNUP-FORM] Signup successful, navigating in 500ms to: /auth/signup-success?email=test-gestionnaire-1759573604270%40seido-test.com
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./app/auth/signup/signup-form.tsx",
+    "lineNumber": 87,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:26:56.287Z] [INFO] 🔄 [SIGNUP-FORM] Executing navigation with window.location.href...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./app/auth/signup/signup-form.tsx",
+    "lineNumber": 91,
+    "columnNumber": 32
+  }
+}
+
+[2025-10-04T10:26:59.435Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:26:59.513Z] [INFO] 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/environment.ts",
+    "lineNumber": 32,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-04T10:26:59.564Z] [INFO] %c%s%c 📧 [SIGNUP-SUCCESS-SERVER] Page rendered for email: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   test-gestionnaire-1759573604270@seido-test.com
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/auth/signup-success/page.tsx?9",
+    "lineNumber": 22,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-04T10:26:59.830Z] [INFO] 🌍 [ENV-INFO] Environment Configuration: {hostname: localhost, nodeEnv: development, isProduction: false, authTimeout: 8000, gracePeriods: Object}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/environment.ts",
+    "lineNumber": 99,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:26:59.830Z] [INFO] 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 39,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:26:59.830Z] [INFO] 🔍 [AUTH-PROVIDER] Checking initial session immediately...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 57,
+    "columnNumber": 32
+  }
+}
+
+[2025-10-04T10:26:59.866Z] [INFO] 🔐 Auth state changed: INITIAL_SESSION false
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/connection-manager.ts",
+    "lineNumber": 21,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:26:59.909Z] [INFO] ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 68,
+    "columnNumber": 36
+  }
+}
+
+[2025-10-04T10:26:59.986Z] [INFO] 🔄 [AUTH-STATE-CHANGE] Event: INITIAL_SESSION Has session: false
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 81,
+    "columnNumber": 28
+  }
+}
+
+[2025-10-04T10:26:59.986Z] [INFO] 🔍 [AUTH-STATE-CHANGE] No initial session
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 97,
+    "columnNumber": 40
+  }
+}
+
+[2025-10-04T10:26:59.994Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:26:59.994Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /auth/signup-success, path: /auth/signup-success}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:26:59.995Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759573604270%40seido-test.com color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759573604270%40seido-test.com, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759573619990}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:27:07.348Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.429Z] [INFO] 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/environment.ts",
+    "lineNumber": 32,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-04T10:27:07.506Z] [INFO] %c%s%c ✅ [DAL] Valid session found for user: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   5d29badb-74f0-4f10-b31f-a6a441c9434f
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./lib/dal.ts?9",
+    "lineNumber": 68,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.507Z] [INFO] %c%s%c ✅ [DAL] Complete user profile loaded: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {id: f567119a-9b1c-466b-979a-1d9dcc22b8e1, email: test-gestionnaire-1759573604270@seido-test.com, name: Test User, display_name: Test User, role: gestionnaire}
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./lib/dal.ts?12",
+    "lineNumber": 95,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.508Z] [INFO] %c%s%c 🔍 [DASHBOARD] Getting teams for user: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   f567119a-9b1c-466b-979a-1d9dcc22b8e1
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?13",
+    "lineNumber": 59,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.509Z] [INFO] %c%s%c 📦 [DASHBOARD] Teams result: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {success: true, data: Array(1)}
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?14",
+    "lineNumber": 61,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.510Z] [INFO] %c%s%c 📦 [DASHBOARD] Teams array: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   [Object]
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?15",
+    "lineNumber": 64,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.512Z] [INFO] %c%s%c 📦 [DASHBOARD] Teams count: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   1
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?16",
+    "lineNumber": 65,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.513Z] [INFO] %c%s%c 📦 [DASHBOARD] First team: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {id: ee86e911-4f82-4c0c-91bd-205b8955c209, name: Équipe de test-gestionnaire-1759573604270, description: Équipe personnelle, created_by: f567119a-9b1c-466b-979a-1d9dcc22b8e1, created_at: 2025-10-04T10:27:02.456+00:00}
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?17",
+    "lineNumber": 67,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.513Z] [INFO] %c%s%c 📦 [DASHBOARD] Using team ID: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   ee86e911-4f82-4c0c-91bd-205b8955c209
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?18",
+    "lineNumber": 69,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.513Z] [INFO] %c%s%c 🏗️ [DASHBOARD] Starting PARALLEL data loading for team: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   ee86e911-4f82-4c0c-91bd-205b8955c209
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?19",
+    "lineNumber": 71,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.513Z] [INFO] %c%s%c ✅ [DASHBOARD] Buildings loaded: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   0
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?20",
+    "lineNumber": 81,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:07.515Z] [INFO] %c%s%c ✅ [DASHBOARD] Users loaded: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   1
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?21",
+    "lineNumber": 89,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:07.515Z] [INFO] %c%s%c ✅ [DASHBOARD] Interventions: 0 (not yet implemented) background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server  
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?22",
+    "lineNumber": 95,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.515Z] [INFO] %c%s%c 🏠 [DASHBOARD] Loading lots for background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   0 buildings IN PARALLEL
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?23",
+    "lineNumber": 97,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.515Z] [INFO] %c%s%c 🏠 [DASHBOARD] Total lots loaded: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   0
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?24",
+    "lineNumber": 120,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.515Z] [INFO] %c%s%c 📊 [DASHBOARD] Calculating stats with: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server  
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?25",
+    "lineNumber": 122,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.516Z] [INFO] %c%s%c   - buildings array: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   []
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?26",
+    "lineNumber": 123,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.516Z] [INFO] %c%s%c   - buildings length: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   0
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?27",
+    "lineNumber": 124,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.517Z] [INFO] %c%s%c   - allLots length: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   0
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?28",
+    "lineNumber": 125,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.517Z] [INFO] %c%s%c   - interventions length: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   0
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?29",
+    "lineNumber": 126,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.517Z] [INFO] %c%s%c 📊 [DASHBOARD] Final stats calculated: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {buildingsCount: 0, lotsCount: 0, occupiedLotsCount: 0, occupancyRate: 0, interventionsCount: 0}
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?30",
+    "lineNumber": 135,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.517Z] [INFO] %c%s%c 📊 [DASHBOARD] Stats object structure: background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   {
+  "buildingsCount": 0,
+  "lotsCount": 0,
+  "occupiedLotsCount": 0,
+  "occupancyRate": 0,
+  "interventionsCount": 0
+}
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/gestionnaire/dashboard/page.tsx?31",
+    "lineNumber": 136,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.801Z] [INFO] 🔐 Auth state changed: SIGNED_IN true
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/connection-manager.ts",
+    "lineNumber": 21,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:07.801Z] [INFO] 🔐 Auth state changed: INITIAL_SESSION true
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/connection-manager.ts",
+    "lineNumber": 21,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:07.813Z] [INFO] 🌍 [ENV-INFO] Environment Configuration: {hostname: localhost, nodeEnv: development, isProduction: false, authTimeout: 8000, gracePeriods: Object}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/environment.ts",
+    "lineNumber": 99,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:07.814Z] [INFO] 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 39,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.814Z] [INFO] 🔍 [AUTH-PROVIDER] Checking initial session immediately...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 57,
+    "columnNumber": 32
+  }
+}
+
+[2025-10-04T10:27:07.868Z] [INFO] ✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 60,
+    "columnNumber": 36
+  }
+}
+
+[2025-10-04T10:27:07.869Z] [INFO] 🔍 [AUTH-SERVICE-REFACTORED] Getting current user...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/auth-service.ts",
+    "lineNumber": 324,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:07.910Z] [INFO] 🔄 [AUTH-STATE-CHANGE] Event: INITIAL_SESSION Has session: true
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 81,
+    "columnNumber": 28
+  }
+}
+
+[2025-10-04T10:27:07.911Z] [INFO] 🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-auth.tsx",
+    "lineNumber": 88,
+    "columnNumber": 40
+  }
+}
+
+[2025-10-04T10:27:07.911Z] [INFO] 🔍 [AUTH-SERVICE-REFACTORED] Getting current user...
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/auth-service.ts",
+    "lineNumber": 324,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:08.180Z] [INFO] ⚙️ [CACHE] Added invalidation config: {routePatterns: Array(3), cacheKeys: Array(2), forceRefresh: false}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-cache-management.ts",
+    "lineNumber": 227,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:08.181Z] [INFO] 🛣️ [CACHE] Route changed to: /gestionnaire/dashboard
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-cache-management.ts",
+    "lineNumber": 190,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:27:08.182Z] [INFO] 🧭 [NAV-REFRESH] Navigation detected to: /gestionnaire/dashboard
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-navigation-refresh.ts",
+    "lineNumber": 24,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:08.196Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:27:08.198Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /gestionnaire/dashboard, path: /gestionnaire/dashboard}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:27:08.198Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/gestionnaire/dashboard color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/gestionnaire/dashboard, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759573628195}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-04T10:27:08.235Z] [INFO] 🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for: 5d29badb-74f0-4f10-b31f-a6a441c9434f
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/auth-service.ts",
+    "lineNumber": 339,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:08.391Z] [INFO] 🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for: 5d29badb-74f0-4f10-b31f-a6a441c9434f
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/auth-service.ts",
+    "lineNumber": 339,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:08.393Z] [INFO] 🏠 [NAV-REFRESH] Dashboard section - refreshing stats
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-navigation-refresh.ts",
+    "lineNumber": 34,
+    "columnNumber": 40
+  }
+}
+
+[2025-10-04T10:27:08.397Z] [INFO] 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/cache/cache-manager.ts",
+    "lineNumber": 33,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:08.542Z] [INFO] ✅ [AUTH-SERVICE-REFACTORED] User profile found: {id: f567119a-9b1c-466b-979a-1d9dcc22b8e1, email: test-gestionnaire-1759573604270@seido-test.com, name: Test User, role: gestionnaire}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/auth-service.ts",
+    "lineNumber": 360,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:08.557Z] [INFO] 🧪 [TEAM-STATUS] Environment check: {NODE_ENV: development, isDev: true, hostname: localhost}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-team-status.tsx",
+    "lineNumber": 32,
+    "columnNumber": 20
+  }
+}
+
+[2025-10-04T10:27:08.557Z] [INFO] 🧪 [TEAM-STATUS] Development mode detected - auto-approving team access
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./hooks/use-team-status.tsx",
+    "lineNumber": 38,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-04T10:27:08.615Z] [INFO] ✅ [AUTH-SERVICE-REFACTORED] User profile found: {id: f567119a-9b1c-466b-979a-1d9dcc22b8e1, email: test-gestionnaire-1759573604270@seido-test.com, name: Test User, role: gestionnaire}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/auth-service.ts",
+    "lineNumber": 360,
+    "columnNumber": 24
+  }
+}

@@ -1,0 +1,458 @@
+[2025-10-07T19:05:17.778Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-07T19:05:17.902Z] [INFO] {time: 1759863917889, level: 30, msg: 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.297Z] [INFO] {time: 1759863918250, level: 30, msg: 🔐 Auth state changed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.298Z] [INFO] {time: 1759863918284, level: 30, msg: 🌍 [ENV-INFO] Environment Configuration:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.298Z] [INFO] {time: 1759863918287, level: 30, msg: 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.298Z] [INFO] {time: 1759863918288, level: 30, msg: 🔍 [AUTH-PROVIDER] Checking initial session immediately...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.414Z] [INFO] {time: 1759863918384, level: 30, msg: ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.465Z] [INFO] {time: 1759863918462, level: 30, msg: 🔄 [AUTH-STATE-CHANGE] Event:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.466Z] [INFO] {time: 1759863918463, level: 30, msg: 🔍 [AUTH-STATE-CHANGE] No initial session}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:18.761Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:18.761Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /auth/signup, path: /auth/signup}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:18.762Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/auth/signup color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/auth/signup, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759863918754}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:22.144Z] [INFO] {time: 1759863922141, level: 30, msg: 🚀 [SIGNUP-FORM] Signup successful, navigating in 500ms to:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:22.647Z] [INFO] {time: 1759863922646, level: 30, msg: 🔄 [SIGNUP-FORM] Executing navigation with window.location.href...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:22.980Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:05:23.851Z] [INFO] [Fast Refresh] done in 870ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-07T19:05:24.643Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-07T19:05:24.696Z] [INFO] {time: 1759863924695, level: 30, msg: 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:24.986Z] [INFO] {time: 1759863924947, level: 30, msg: 🔐 Auth state changed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:24.986Z] [INFO] {time: 1759863924960, level: 30, msg: 🌍 [ENV-INFO] Environment Configuration:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:24.986Z] [INFO] {time: 1759863924962, level: 30, msg: 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:24.986Z] [INFO] {time: 1759863924963, level: 30, msg: 🔍 [AUTH-PROVIDER] Checking initial session immediately...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:25.036Z] [INFO] {time: 1759863925032, level: 30, msg: ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:25.080Z] [INFO] {time: 1759863925079, level: 30, msg: 🔄 [AUTH-STATE-CHANGE] Event:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:25.080Z] [INFO] {time: 1759863925079, level: 30, msg: 🔍 [AUTH-STATE-CHANGE] No initial session}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:25.119Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:25.120Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /auth/signup-success, path: /auth/signup-success}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:25.120Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759863914623%40seido-test.com color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759863914623%40seido-test.com, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759863925110}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:25.387Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:05:26.348Z] [INFO] [Fast Refresh] done in 959ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-07T19:05:28.537Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:05:30.752Z] [INFO] [Fast Refresh] done in 2213ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-07T19:05:33.368Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-07T19:05:33.443Z] [INFO] {time: 1759863933441, level: 30, msg: 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.831Z] [INFO] {time: 1759863933725, level: 30, msg: 🔐 Auth state changed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.831Z] [INFO] {time: 1759863933751, level: 30, msg: 🌍 [ENV-INFO] Environment Configuration:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.831Z] [INFO] {time: 1759863933753, level: 30, msg: 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.831Z] [INFO] {time: 1759863933754, level: 30, msg: 🔍 [AUTH-PROVIDER] Checking initial session immediately...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.833Z] [INFO] {time: 1759863933817, level: 30, msg: ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.900Z] [INFO] {time: 1759863933868, level: 30, msg: 🔄 [AUTH-STATE-CHANGE] Event:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.901Z] [INFO] {time: 1759863933869, level: 30, msg: 🔍 [AUTH-STATE-CHANGE] No initial session}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-07T19:05:33.916Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:33.916Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /auth/login, path: /auth/login}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:05:33.917Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/auth/login?reason=session_expired color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/auth/login?reason=session_expired, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759863933908}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-07T19:06:04.012Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:06:06.857Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:06:06.948Z] [INFO] [Fast Refresh] done in 89ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-07T19:06:09.687Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:06:09.850Z] [INFO] [Fast Refresh] done in 162ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-07T19:06:11.573Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-07T19:06:11.684Z] [INFO] [Fast Refresh] done in 109ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}

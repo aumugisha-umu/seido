@@ -7,6 +7,10 @@ import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
 import { useGlobalNotifications } from "@/hooks/use-global-notifications"
+import { useNotificationPopover } from "@/hooks/use-notification-popover"
+import { useTeamStatus } from "@/hooks/use-team-status"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import NotificationPopover from "@/components/notification-popover"
 
 interface NavigationItem {
   href: string
@@ -67,14 +71,60 @@ const roleConfigs: Record<string, HeaderConfig> = {
 
 export default function DashboardHeader({ role }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false)
+  const [userTeamId, setUserTeamId] = useState<string | undefined>(undefined)
+
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
+  const { teamStatus, hasTeam } = useTeamStatus()
   const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications()
-  
+
   const userName = user?.display_name || user?.name || "Utilisateur"
   const userInitial = userName.charAt(0).toUpperCase()
+
+  // Charger l'équipe de l'utilisateur pour le popover
+  useEffect(() => {
+    const fetchUserTeam = async () => {
+      if (!user?.id || teamStatus !== 'verified') return
+
+      try {
+        const { teamService } = await import('@/lib/database-service')
+        const teams = await teamService.getUserTeams(user.id)
+        if (teams && teams.length > 0) {
+          setUserTeamId(teams[0].id)
+        }
+      } catch (error) {
+        console.error('Error fetching user team:', error)
+      }
+    }
+
+    fetchUserTeam()
+  }, [user?.id, teamStatus])
+
+  // Hook pour le popover de notifications
+  const {
+    notifications: popoverNotifications,
+    loading: loadingPopoverNotifications,
+    error: popoverNotificationsError,
+    markAsRead,
+    markAsUnread,
+    archive,
+    refetch: refetchPopoverNotifications
+  } = useNotificationPopover({
+    teamId: userTeamId,
+    limit: 10,
+    autoRefresh: isNotificationPopoverOpen,
+    refreshInterval: 30000
+  })
+
+  // Fonction pour marquer toutes les notifications comme lues
+  const handleMarkAllAsRead = async () => {
+    const unreadNotifications = popoverNotifications.filter(n => !n.read)
+    await Promise.all(unreadNotifications.map(n => markAsRead(n.id)))
+    refetchGlobalNotifications() // Refresh le compteur global
+  }
 
   const isActivePage = (href: string) => {
     // Correspondance exacte pour toutes les pages
@@ -186,24 +236,47 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
             <div className="flex items-center space-x-2">
               {/* Notifications - toujours visible */}
               {config.showUserElements && (
-                <Link
-                  href={`/${role}/notifications`}
-                  className={`
-                    relative p-2 rounded-lg transition-all duration-200 border min-w-[44px] min-h-[44px] flex items-center justify-center
-                    ${pathname.includes('/notifications') 
-                      ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
-                      : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300'
-                    }
-                  `}
-                  aria-label="Notifications"
-                >
-                  <Bell className="h-5 w-5" />
-                  {globalUnreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium shadow-sm">
-                      {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
-                    </span>
-                  )}
-                </Link>
+                <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={`
+                        relative p-2 rounded-lg transition-all duration-200 border min-w-[44px] min-h-[44px] flex items-center justify-center
+                        ${pathname.includes('/notifications') || isNotificationPopoverOpen
+                          ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
+                          : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300'
+                        }
+                      `}
+                      aria-label="Notifications"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {globalUnreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium shadow-sm">
+                          {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
+                        </span>
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="p-0 border-0 shadow-xl z-[100] w-[380px]"
+                    align="end"
+                    sideOffset={8}
+                    side="bottom"
+                    avoidCollisions={true}
+                    collisionPadding={16}
+                  >
+                    <NotificationPopover
+                      notifications={popoverNotifications}
+                      loading={loadingPopoverNotifications}
+                      error={popoverNotificationsError}
+                      onMarkAsRead={markAsRead}
+                      onMarkAsUnread={markAsUnread}
+                      onArchive={archive}
+                      onMarkAllAsRead={handleMarkAllAsRead}
+                      role={role}
+                      onClose={() => setIsNotificationPopoverOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
               )}
 
               {/* Menu utilisateur - caché sur mobile, visible sur desktop */}

@@ -1,9 +1,34 @@
 "use client"
 
-import { Calendar, Clock, Plus, Trash2, Check } from "lucide-react"
+import { useState } from "react"
+import {
+  Calendar,
+  Clock,
+  Plus,
+  Trash2,
+  Check,
+  User,
+  Users,
+  Search,
+  ChevronRight,
+  CalendarDays,
+  UserCheck,
+  Info,
+  MessageSquare,
+  CheckCircle2,
+  Home,
+  Wrench
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
+import ContactSelector from "@/components/ui/contact-selector"
 
 interface TimeSlot {
   date: string
@@ -11,7 +36,18 @@ interface TimeSlot {
   endTime: string
 }
 
-interface ProgrammingModalProps {
+interface Contact {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  role?: string
+  type?: 'provider' | 'tenant'
+  speciality?: string
+  availability?: "available" | "busy" | "unknown"
+}
+
+interface ProgrammingModalEnhancedProps {
   isOpen: boolean
   onClose: () => void
   intervention: InterventionAction | null
@@ -25,6 +61,18 @@ interface ProgrammingModalProps {
   onRemoveProposedSlot: (index: number) => void
   onConfirm: () => void
   isFormValid: boolean
+
+  // New props for contact selection
+  teamId: string
+  providers?: Contact[]
+  tenants?: Contact[]
+  selectedContactIds?: string[]
+  onContactSelect?: (contactId: string) => void
+  onContactCreated?: (contact: any) => void
+
+  // New props for personalized messages
+  individualMessages?: Record<string, string>
+  onIndividualMessageChange?: (contactId: string, message: string) => void
 }
 
 export const ProgrammingModal = ({
@@ -41,308 +89,539 @@ export const ProgrammingModal = ({
   onRemoveProposedSlot,
   onConfirm,
   isFormValid,
-}: ProgrammingModalProps) => {
+  teamId,
+  providers = [],
+  tenants = [],
+  selectedContactIds = [],
+  onContactSelect = () => {},
+  onContactCreated = () => {},
+  individualMessages = {},
+  onIndividualMessageChange = () => {}
+}: ProgrammingModalEnhancedProps) => {
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  const [activeContactType, setActiveContactType] = useState<'provider' | 'tenant'>('provider')
+
+  // Get selected contacts
+  const selectedProviders = providers.filter(p => selectedContactIds.includes(p.id))
+  const selectedTenants = tenants.filter(t => selectedContactIds.includes(t.id))
+  const allSelectedContacts = [...selectedProviders, ...selectedTenants]
+
+  // Planning option configuration
+  const planningOptions = [
+    {
+      id: "direct",
+      icon: CalendarDays,
+      title: "Fixer directement la date",
+      description: "Définissez un créneau précis pour l'intervention",
+      color: "sky"
+    },
+    {
+      id: "propose",
+      icon: Clock,
+      title: "Proposer des disponibilités",
+      description: "Les parties choisissent parmi vos créneaux",
+      color: "emerald"
+    },
+    {
+      id: "organize",
+      icon: Users,
+      title: "Laisser s'organiser",
+      description: "Coordination directe entre les parties",
+      color: "slate"
+    }
+  ]
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[calc(100%-1rem)] max-w-[95vw] sm:w-[calc(100%-2rem)] sm:max-w-[600px] md:max-w-[768px] lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 border-b border-slate-200 bg-gradient-to-r from-sky-50 to-white sticky top-0 z-10">
-          <DialogTitle className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg lg:text-xl font-semibold text-slate-900">
-            <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-sky-600" />
-            <span>Programmer l'intervention</span>
+      <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden flex flex-col">
+        {/* Header - Enhanced with better visual hierarchy */}
+        <DialogHeader className="px-6 py-4 bg-gradient-to-r from-sky-50 via-sky-50/50 to-transparent border-b flex-shrink-0">
+          <DialogTitle className="flex items-center gap-3 text-lg font-semibold">
+            <div className="p-2 bg-sky-100 rounded-lg shadow-sm">
+              <Calendar className="h-5 w-5 text-sky-600" />
+            </div>
+            <div>
+              <span className="text-slate-900">Programmer l'intervention</span>
+              {intervention?.title && (
+                <span className="ml-2 text-sm font-normal text-slate-600">- {intervention.title}</span>
+              )}
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className={`grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 ${
-            intervention?.availabilities && intervention.availabilities.length > 0
-              ? 'lg:grid-cols-[minmax(350px,2fr)_minmax(450px,3fr)]'
-              : 'lg:grid-cols-1'
-          }`}>
-            {/* Left Column - Intervention Details */}
-            <div className="space-y-4 sm:space-y-5 lg:space-y-6">
-              <div className="bg-gradient-to-br from-sky-50 to-sky-100/50 p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl border border-sky-200 shadow-sm hover:shadow-md transition-all duration-300">
-                <h3 className="font-semibold text-sky-900 text-sm sm:text-base lg:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                  <div className="h-1 w-8 bg-sky-500 rounded-full" />
-                  Détails de l'intervention
-                </h3>
-
-                {/* Grid layout for compact display */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2.5 mb-4">
-                  <div>
-                    <p className="text-xs font-medium text-sky-800 mb-0.5">Titre</p>
-                    <p className="text-xs sm:text-sm text-slate-700">{intervention?.title || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-sky-800 mb-0.5">Type</p>
-                    <p className="text-xs sm:text-sm text-slate-700">{intervention?.type || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-sky-800 mb-0.5">Priorité</p>
-                    <p className="text-xs sm:text-sm text-slate-700">{intervention?.priority || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-sky-800 mb-0.5">Assigné à</p>
-                    <p className="text-xs sm:text-sm text-slate-700">{intervention?.assignedTo || '-'}</p>
-                  </div>
-                </div>
-
-                {/* Description */}
-                {intervention?.description && (
-                  <div className="pt-3 border-t border-sky-200">
-                    <p className="text-xs font-medium text-sky-800 mb-1.5">Description</p>
-                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">{intervention.description}</p>
-                  </div>
-                )}
-
-                {/* Attachments */}
-                {intervention?.hasFiles && (
-                  <div className="pt-3 border-t border-sky-200 mt-3">
-                    <p className="text-xs font-medium text-sky-800 mb-1.5">Pièces jointes</p>
-                    <p className="text-xs sm:text-sm text-slate-600 italic">
-                      {intervention.filesCount || 'Plusieurs'} fichier(s) joint(s) à cette intervention
-                    </p>
-                  </div>
-                )}
-              </div>
-
-            {/* Existing Availabilities - Only show if intervention has availabilities */}
-            {intervention?.availabilities && intervention.availabilities.length > 0 && (
-              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl border border-emerald-200 shadow-sm hover:shadow-md transition-all duration-300">
-                <h3 className="font-semibold text-emerald-900 text-sm sm:text-base lg:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                  <div className="h-1 w-8 bg-emerald-500 rounded-full" />
-                  Disponibilités existantes
-                </h3>
-                <div className="space-y-3 sm:space-y-4">
-                  {/* Display actual availabilities from intervention data */}
-                  {intervention.availabilities.map((availability, index) => (
-                    <div key={index}>
-                      <p className="text-xs sm:text-sm font-semibold text-emerald-800 mb-2 capitalize">
-                        {availability.role || availability.person}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-emerald-700">
-                        <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                        <span>
-                          {new Date(availability.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                          {' de '}
-                          {availability.startTime} à {availability.endTime}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Planning Options */}
-          <div className={`space-y-4 sm:space-y-5 lg:space-y-6 ${
-            (!intervention?.availabilities || intervention.availabilities.length === 0)
-              ? 'lg:max-w-full'
-              : ''
-          }`}>
-            <p className="text-slate-700 font-semibold text-sm sm:text-base lg:text-lg mb-4 sm:mb-6">Comment souhaitez-vous organiser la planification ?</p>
-
-            {/* Two-column layout: radio options on left, forms on right */}
-            <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-4 sm:gap-6 lg:gap-8">
-              {/* Left: Radio Options */}
-              <div className="space-y-3 sm:space-y-4">
-              <label
-                className={`relative flex items-start gap-3 sm:gap-4 p-3 sm:p-4 lg:p-5 border-2 rounded-lg sm:rounded-xl cursor-pointer transition-all duration-300 hover:border-sky-300 hover:bg-sky-50/30 hover:shadow-md hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-sky-500 focus-within:ring-offset-2 ${
-                  programmingOption === "direct" ? "border-sky-500 bg-sky-50 shadow-lg" : "border-slate-200"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="programming"
-                  value="direct"
-                  checked={programmingOption === "direct"}
-                  onChange={(e) => onProgrammingOptionChange(e.target.value as "direct")}
-                  className="mt-0.5 sm:mt-1 w-4 h-4 sm:w-5 sm:h-5 text-sky-600 border-2 border-slate-300 focus:ring-2 focus:ring-sky-500"
-                />
-                <div className="flex-1 space-y-1">
-                  <p className="font-semibold text-slate-900 text-sm sm:text-base lg:text-lg">Fixer directement la date et heure</p>
-                  <p className="text-xs sm:text-sm lg:text-base text-slate-600 leading-relaxed">Vous définissez un créneau précis pour l'intervention</p>
-                </div>
-              </label>
-
-              <label
-                className={`relative flex items-start gap-3 sm:gap-4 p-3 sm:p-4 lg:p-5 border-2 rounded-lg sm:rounded-xl cursor-pointer transition-all duration-300 hover:border-sky-300 hover:bg-sky-50/30 hover:shadow-md hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-sky-500 focus-within:ring-offset-2 ${
-                  programmingOption === "propose" ? "border-sky-500 bg-sky-50 shadow-lg" : "border-slate-200"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="programming"
-                  value="propose"
-                  checked={programmingOption === "propose"}
-                  onChange={(e) => onProgrammingOptionChange(e.target.value as "propose")}
-                  className="mt-0.5 sm:mt-1 w-4 h-4 sm:w-5 sm:h-5 text-sky-600 border-2 border-slate-300 focus:ring-2 focus:ring-sky-500"
-                />
-                <div className="flex-1 space-y-1">
-                  <p className="font-semibold text-slate-900 text-sm sm:text-base lg:text-lg">Proposer des disponibilités</p>
-                  <p className="text-xs sm:text-sm lg:text-base text-slate-600 leading-relaxed">Les autres parties choisissent parmi vos créneaux</p>
-                </div>
-              </label>
-
-              <label
-                className={`relative flex items-start gap-3 sm:gap-4 p-3 sm:p-4 lg:p-5 border-2 rounded-lg sm:rounded-xl cursor-pointer transition-all duration-300 hover:border-sky-300 hover:bg-sky-50/30 hover:shadow-md hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-sky-500 focus-within:ring-offset-2 ${
-                  programmingOption === "organize" ? "border-sky-500 bg-sky-50 shadow-lg" : "border-slate-200"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="programming"
-                  value="organize"
-                  checked={programmingOption === "organize"}
-                  onChange={(e) => onProgrammingOptionChange(e.target.value as "organize")}
-                  className="mt-0.5 sm:mt-1 w-4 h-4 sm:w-5 sm:h-5 text-sky-600 border-2 border-slate-300 focus:ring-2 focus:ring-sky-500"
-                />
-                <div className="flex-1 space-y-1">
-                  <p className="font-semibold text-slate-900 text-sm sm:text-base lg:text-lg">Laisser les autres s'organiser</p>
-                  <p className="text-xs sm:text-sm lg:text-base text-slate-600 leading-relaxed">Le locataire et le prestataire se coordonnent directement</p>
-                </div>
-              </label>
-              </div>
-
-              {/* Right: Conditional Forms */}
-              <div className="min-h-[200px]">
-                {/* Direct Schedule Form */}
-                {programmingOption === "direct" && (
-              <div className="p-4 sm:p-5 lg:p-6 bg-gradient-to-br from-sky-50 to-sky-100/30 border-2 border-sky-200 rounded-lg sm:rounded-xl animate-in slide-in-from-top-2 duration-300">
-                <h4 className="font-semibold text-sky-900 text-sm sm:text-base lg:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-sky-600" />
-                  Définir la date et heure
-                </h4>
-                <div className="space-y-3 sm:space-y-4">
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Date de l'intervention</label>
-                    <input
-                      type="date"
-                      value={directSchedule.date}
-                      onChange={(e) => onDirectScheduleChange({ ...directSchedule, date: e.target.value })}
-                      className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border-2 border-slate-300 rounded-md sm:rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 hover:border-sky-400"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Heure de début</label>
-                      <input
-                        type="time"
-                        value={directSchedule.startTime}
-                        onChange={(e) => onDirectScheduleChange({ ...directSchedule, startTime: e.target.value })}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border-2 border-slate-300 rounded-md sm:rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 hover:border-sky-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Heure de fin</label>
-                      <input
-                        type="time"
-                        value={directSchedule.endTime}
-                        onChange={(e) => onDirectScheduleChange({ ...directSchedule, endTime: e.target.value })}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border-2 border-slate-300 rounded-md sm:rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 hover:border-sky-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-                {/* Proposed Slots Form */}
-                {programmingOption === "propose" && (
-              <div className="p-4 sm:p-5 lg:p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/30 border-2 border-emerald-200 rounded-lg sm:rounded-xl animate-in slide-in-from-top-2 duration-300">
-                <h4 className="font-semibold text-emerald-900 text-sm sm:text-base lg:text-lg mb-3 sm:mb-4 flex items-center gap-2">
-                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-                  Proposer des créneaux
-                </h4>
-                <div className="space-y-3 sm:space-y-4">
-                  {proposedSlots.map((slot, index) => (
-                    <div key={index} className="p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border-2 border-emerald-200 shadow-sm space-y-3">
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Date</label>
-                        <input
-                          type="date"
-                          value={slot.date}
-                          onChange={(e) => onUpdateProposedSlot(index, "date", e.target.value)}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border-2 border-slate-300 rounded-md sm:rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Début</label>
-                          <input
-                            type="time"
-                            value={slot.startTime}
-                            onChange={(e) => onUpdateProposedSlot(index, "startTime", e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border-2 border-slate-300 rounded-md sm:rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">Fin</label>
-                          <input
-                            type="time"
-                            value={slot.endTime}
-                            onChange={(e) => onUpdateProposedSlot(index, "endTime", e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border-2 border-slate-300 rounded-md sm:rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400"
-                          />
-                        </div>
-                      </div>
-                      {proposedSlots.length > 1 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onRemoveProposedSlot(index)}
-                          className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 hover:border-red-400 text-xs sm:text-sm"
-                        >
-                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                          Supprimer
-                        </Button>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+          {/* Intervention Summary - More compact and informative */}
+          {intervention && (
+            <div className="py-3 bg-gradient-to-b from-slate-50/50 to-transparent border-b -mx-6 px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <Badge variant="outline" className="gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
+                      {intervention?.type || "Type"}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "gap-1.5",
+                        intervention?.priority === "Urgent" && "border-red-200 bg-red-50 text-red-700",
+                        intervention?.priority === "Normal" && "border-amber-200 bg-amber-50 text-amber-700",
+                        intervention?.priority === "Faible" && "border-green-200 bg-green-50 text-green-700"
                       )}
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    onClick={onAddProposedSlot}
-                    className="w-full border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800 transition-all duration-200 text-xs sm:text-sm py-2 sm:py-2.5"
-                  >
-                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                    Ajouter un créneau
-                  </Button>
+                    >
+                      {intervention?.priority || "Priorité"}
+                    </Badge>
+                    {intervention?.assignedTo && (
+                      <Badge variant="outline" className="gap-1.5">
+                        <User className="h-3 w-3" />
+                        {intervention.assignedTo}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              </div>
-                )}
 
-                {/* Info message when "organize" is selected */}
-                {programmingOption === "organize" && (
-                  <div className="p-4 sm:p-5 lg:p-6 bg-gradient-to-br from-slate-50 to-slate-100/30 border-2 border-slate-200 rounded-lg sm:rounded-xl animate-in slide-in-from-top-2 duration-300">
-                    <p className="text-slate-700 text-sm sm:text-base">
-                      Le locataire et le prestataire recevront une notification pour organiser directement la planification entre eux.
-                    </p>
+                {intervention?.description && (
+                  <div className="group relative">
+                    <Info className="h-5 w-5 text-slate-400 cursor-help transition-colors group-hover:text-sky-600" />
+                    <div className="absolute right-0 top-6 z-50 hidden group-hover:block w-72 p-3 bg-white rounded-lg shadow-xl border text-sm text-slate-600">
+                      <div className="font-medium text-slate-900 mb-1">Description</div>
+                      {intervention.description}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
+          )}
+
+          {/* Section Title with better styling */}
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-slate-900">
+                Méthode de planification
+              </h2>
+              <p className="text-sm text-slate-500">
+                Choisissez comment organiser cette intervention avec les parties concernées
+              </p>
+            </div>
+
+            {/* Planning Options - Enhanced design */}
+            <div className="grid gap-3">
+              {planningOptions.map((option) => {
+                const Icon = option.icon
+                const isSelected = programmingOption === option.id
+
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => onProgrammingOptionChange(option.id as any)}
+                    className={cn(
+                      "group relative w-full text-left p-4 rounded-xl border-2 transition-all duration-200",
+                      "hover:shadow-md hover:border-sky-300",
+                      isSelected ? [
+                        "border-sky-500 bg-gradient-to-r from-sky-50 to-sky-50/30 shadow-sm",
+                        "after:absolute after:inset-y-0 after:left-0 after:w-1 after:bg-sky-500 after:rounded-l-lg"
+                      ] : "border-slate-200 bg-white hover:bg-slate-50/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={cn(
+                        "mt-0.5 p-2 rounded-lg transition-all duration-200",
+                        isSelected ? "bg-sky-100 shadow-sm" : "bg-slate-100 group-hover:bg-sky-100"
+                      )}>
+                        <Icon className={cn(
+                          "h-5 w-5 transition-colors",
+                          isSelected ? "text-sky-600" : "text-slate-500 group-hover:text-sky-600"
+                        )} />
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className={cn(
+                            "font-medium transition-colors",
+                            isSelected ? "text-sky-900" : "text-slate-900"
+                          )}>
+                            {option.title}
+                          </h3>
+                          {isSelected && (
+                            <div className="animate-in zoom-in-50 duration-200">
+                              <Check className="h-4 w-4 text-sky-600" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-sm text-slate-600">
+                          {option.description}
+                        </p>
+                      </div>
+
+                      <ChevronRight className={cn(
+                        "h-5 w-5 transition-all duration-200",
+                        isSelected ? "text-sky-600 translate-x-1" : "text-slate-400 group-hover:text-sky-600 group-hover:translate-x-1"
+                      )} />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Conditional Forms - Better integrated */}
+            {programmingOption && (
+              <div className="animate-in slide-in-from-top-2 duration-300 space-y-6">
+                <Separator />
+
+                {/* Direct Schedule Form */}
+                {programmingOption === "direct" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-5 w-5 text-sky-600" />
+                      <h3 className="font-medium text-slate-900">
+                        Définir le créneau
+                      </h3>
+                    </div>
+
+                    <div className="grid gap-4 p-4 bg-gradient-to-br from-sky-50/30 to-transparent border border-sky-200 rounded-lg">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Date de l'intervention
+                        </label>
+                        <input
+                          type="date"
+                          value={directSchedule.date}
+                          onChange={(e) => onDirectScheduleChange({ ...directSchedule, date: e.target.value })}
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Heure de début
+                          </label>
+                          <input
+                            type="time"
+                            value={directSchedule.startTime}
+                            onChange={(e) => onDirectScheduleChange({ ...directSchedule, startTime: e.target.value })}
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Heure de fin
+                          </label>
+                          <input
+                            type="time"
+                            value={directSchedule.endTime}
+                            onChange={(e) => onDirectScheduleChange({ ...directSchedule, endTime: e.target.value })}
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Proposed Slots Form */}
+                {programmingOption === "propose" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-emerald-600" />
+                      <h3 className="font-medium text-slate-900">
+                        Proposer des créneaux
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      {proposedSlots.map((slot, index) => (
+                        <div key={index} className="p-4 bg-white border border-slate-200 rounded-lg space-y-3 hover:border-emerald-300 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-700">
+                              Créneau {index + 1}
+                            </span>
+                            {proposedSlots.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onRemoveProposedSlot(index)}
+                                className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="grid gap-3">
+                            <input
+                              type="date"
+                              value={slot.date}
+                              onChange={(e) => onUpdateProposedSlot(index, "date", e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <input
+                                type="time"
+                                value={slot.startTime}
+                                onChange={(e) => onUpdateProposedSlot(index, "startTime", e.target.value)}
+                                className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
+                                placeholder="Début"
+                              />
+                              <input
+                                type="time"
+                                value={slot.endTime}
+                                onChange={(e) => onUpdateProposedSlot(index, "endTime", e.target.value)}
+                                className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
+                                placeholder="Fin"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button
+                        variant="outline"
+                        onClick={onAddProposedSlot}
+                        className="w-full border-dashed border-2 hover:border-emerald-400 hover:bg-emerald-50 transition-all duration-200"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter un créneau
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Let Others Organize */}
+                {programmingOption === "organize" && (
+                  <div className="p-4 bg-gradient-to-br from-slate-50 to-transparent border border-slate-200 rounded-lg">
+                    <div className="flex gap-3">
+                      <Users className="h-5 w-5 text-slate-500 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-slate-700 font-medium mb-1">
+                          Organisation autonome
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          Les parties concernées recevront une notification pour organiser directement la planification entre eux.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact Selection Section - NEW */}
+                <Separator className="my-6" />
+
+                <div className="bg-white rounded-xl border-2 border-sky-200 shadow-md p-6 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <div className="p-2 bg-sky-100 rounded-lg">
+                          <UserCheck className="h-5 w-5 text-sky-600" />
+                        </div>
+                        Sélection des participants
+                      </h3>
+                      <p className="text-sm text-slate-600 mt-2">
+                        Choisissez les prestataires et locataires concernés par cette planification
+                      </p>
+                    </div>
+                    {allSelectedContacts.length > 0 && (
+                      <Badge className="bg-sky-100 text-sky-700 border-sky-200 text-sm px-3 py-1">
+                        {allSelectedContacts.length} sélectionné(s)
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Contact Type Tabs */}
+                  <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+                    <button
+                      onClick={() => setActiveContactType('provider')}
+                      className={cn(
+                        "flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                        activeContactType === 'provider'
+                          ? "bg-white text-sky-600 shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      <Wrench className="h-4 w-4 inline-block mr-2" />
+                      Prestataires ({providers.length})
+                    </button>
+                    <button
+                      onClick={() => setActiveContactType('tenant')}
+                      className={cn(
+                        "flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+                        activeContactType === 'tenant'
+                          ? "bg-white text-sky-600 shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      <Home className="h-4 w-4 inline-block mr-2" />
+                      Locataires ({tenants.length})
+                    </button>
+                  </div>
+
+                  {/* Contact Selector */}
+                  <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                    <ContactSelector
+                      contacts={activeContactType === 'provider'
+                        ? providers.map(p => ({
+                            id: p.id,
+                            name: p.name,
+                            email: p.email,
+                            phone: p.phone,
+                            speciality: p.speciality
+                          }))
+                        : tenants.map(t => ({
+                            id: t.id,
+                            name: t.name,
+                            email: t.email,
+                            phone: t.phone
+                          }))
+                      }
+                      selectedContactIds={selectedContactIds}
+                      onContactSelect={onContactSelect}
+                      onContactCreated={onContactCreated}
+                      contactType={activeContactType === 'provider' ? 'prestataire' : 'gestionnaire'}
+                      placeholder={
+                        activeContactType === 'provider'
+                          ? "Rechercher et sélectionner des prestataires..."
+                          : "Rechercher et sélectionner des locataires..."
+                      }
+                      teamId={teamId}
+                    />
+                  </div>
+
+                  {/* Selected Contacts Display */}
+                  {allSelectedContacts.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {allSelectedContacts.map(contact => (
+                        <Badge
+                          key={contact.id}
+                          variant="secondary"
+                          className="gap-1.5 px-3 py-1.5"
+                        >
+                          {contact.type === 'provider' ? (
+                            <Wrench className="h-3 w-3" />
+                          ) : (
+                            <Home className="h-3 w-3" />
+                          )}
+                          {contact.name}
+                          <button
+                            onClick={() => onContactSelect(contact.id)}
+                            className="ml-1 hover:text-red-600 transition-colors"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Personalized Messages Section - NEW */}
+                {allSelectedContacts.length > 0 && (
+                  <>
+                    <Separator className="my-6" />
+
+                    <div className="bg-white rounded-xl border-2 border-amber-200 shadow-md p-6 space-y-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <div className="p-2 bg-amber-100 rounded-lg">
+                              <MessageSquare className="h-5 w-5 text-amber-600" />
+                            </div>
+                            Messages personnalisés
+                          </h3>
+                          <p className="text-sm text-slate-600 mt-2">
+                            Ajoutez des instructions spécifiques pour chaque participant
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+                          Optionnel
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-4">
+                        {allSelectedContacts.map((contact) => (
+                          <Card
+                            key={contact.id}
+                            className={cn(
+                              "transition-all duration-200 border-slate-200",
+                              hoveredCard === contact.id && "shadow-md border-sky-200"
+                            )}
+                            onMouseEnter={() => setHoveredCard(contact.id)}
+                            onMouseLeave={() => setHoveredCard(null)}
+                          >
+                            <CardHeader className="pb-3 bg-gradient-to-r from-slate-50 to-white">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <div className="p-1.5 bg-sky-100 rounded flex-shrink-0">
+                                    {contact.type === 'provider' ? (
+                                      <Wrench className="h-3.5 w-3.5 text-sky-600" />
+                                    ) : (
+                                      <Home className="h-3.5 w-3.5 text-sky-600" />
+                                    )}
+                                  </div>
+                                  <CardTitle className="text-sm font-medium text-slate-900 truncate">
+                                    {contact.name}
+                                  </CardTitle>
+                                </div>
+                                <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                  {contact.type === 'provider' ? contact.speciality || 'Prestataire' : 'Locataire'}
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-3">
+                              <Textarea
+                                value={individualMessages[contact.id] || ''}
+                                onChange={(e) => onIndividualMessageChange(contact.id, e.target.value)}
+                                placeholder={`Instructions spécifiques pour ${contact.name}...`}
+                                rows={3}
+                                className="resize-none text-sm border-slate-200 focus:border-sky-300 focus:ring-sky-200/50 transition-colors"
+                              />
+                              {individualMessages[contact.id] && (
+                                <div className="mt-2 flex items-center gap-1 text-xs text-green-600 animate-in fade-in duration-300">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Message personnalisé ajouté
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
-        </div>
 
-        <DialogFooter className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white sticky bottom-0 z-10 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-between">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 text-sm sm:text-base border-2 hover:bg-slate-50 transition-all duration-200"
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={!isFormValid}
-            className="w-full sm:w-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 text-sm sm:text-base bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:scale-105"
-          >
-            <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-            Confirmer la programmation
-          </Button>
+        {/* Footer - Enhanced with better visual hierarchy */}
+        <DialogFooter className="px-6 py-4 bg-gradient-to-r from-slate-50 to-transparent border-t flex-shrink-0">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-sm text-slate-500">
+              {programmingOption && allSelectedContacts.length > 0 && (
+                <span>{allSelectedContacts.length} participant(s) seront notifiés</span>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="min-w-[100px]"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={onConfirm}
+                disabled={!isFormValid || (programmingOption && allSelectedContacts.length === 0)}
+                className="min-w-[140px] bg-sky-600 hover:bg-sky-700 disabled:opacity-50 shadow-sm"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Confirmer
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
+
+export default ProgrammingModal

@@ -1,0 +1,91 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] contacts\invitation-acceptance-flow.spec.ts:141:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard
+[1A[2Kcontacts\invitation-acceptance-flow.spec.ts:141:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard
+
+🧹 [SETUP] Setting up test isolation...
+
+[1A[2K🧹 [SETUP] Cleaning browser state...
+
+[1A[2K✅ [SETUP] Test isolation ready
+
+[1A[2K
+📍 STEP 1: Create invitation via API
+
+[1A[2K📧 [INVITATION-TEST] Creating invitation via API for: test-prestataire-invite+test-1759672651456-xnk11n@seido.pm
+
+[1A[2K❌ [SUPABASE-HELPER] Missing environment variables
+
+[1A[2KNEXT_PUBLIC_SUPABASE_URL: [33mfalse[39m
+
+[1A[2KSUPABASE_SERVICE_ROLE_KEY: [33mfalse[39m
+
+[1A[2K❌ Failed to create invitation via API: Error: SUPABASE credentials not configured for tests. Please ensure .env.local is loaded.
+    at createTestSupabaseClient [90m(C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\[39mhelpers\supabase-helpers.ts:27:11[90m)[39m
+    at getSupabase [90m(C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\[39mcontacts\invitation-acceptance-flow.spec.ts:40:45[90m)[39m
+    at createInvitationViaAPI [90m(C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\[39mcontacts\invitation-acceptance-flow.spec.ts:67:20[90m)[39m
+    at [90mC:\Users\arthu\Desktop\Coding\Seido-app\tests-new\[39mcontacts\invitation-acceptance-flow.spec.ts:154:28
+    at C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\workerMain.js:309:15
+    at C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\testInfo.js:326:17
+    at TimeoutManager.withRunnable (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\timeoutManager.js:68:9)
+    at TestInfoImpl._runWithTimeout (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\testInfo.js:324:34)
+    at C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\workerMain.js:307:22
+    at WorkerMain._runTest (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\workerMain.js:282:5)
+    at WorkerMain.runTestGroup (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\worker\workerMain.js:194:11)
+    at process.<anonymous> (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\[4mplaywright[24m\lib\common\process.js:65:22)
+
+[1A[2K
+🧹 [TEARDOWN] Cleaning up test isolation...
+
+[1A[2K🧹 [TEARDOWN] Cleaning up...
+
+[1A[2K✅ [TEARDOWN] Cleanup complete
+
+[1A[2K  1) contacts\invitation-acceptance-flow.spec.ts:141:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard 
+
+    Error: SUPABASE credentials not configured for tests. Please ensure .env.local is loaded.
+
+       at helpers\supabase-helpers.ts:27
+
+      25 |
+      26 |     // Essayer de les récupérer via fetch de l'API test
+    > 27 |     throw new Error('SUPABASE credentials not configured for tests. Please ensure .env.local is loaded.')
+         |           ^
+      28 |   }
+      29 |
+      30 |   console.log('✅ [SUPABASE-HELPER] Creating admin client')
+        at createTestSupabaseClient (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\supabase-helpers.ts:27:11)
+        at getSupabase (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\contacts\invitation-acceptance-flow.spec.ts:40:45)
+        at createInvitationViaAPI (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\contacts\invitation-acceptance-flow.spec.ts:67:20)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\contacts\invitation-acceptance-flow.spec.ts:154:28
+
+    Error Context: ..\test-results\contacts-invitation-accept-c6f14--→-Set-password-→-Dashboard\error-context.md
+
+
+[1A[2K[2/2] contacts\invitation-acceptance-flow.spec.ts:288:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ❌ Validation: Boucle de redirection détectée si bug présent
+[1A[2Kcontacts\invitation-acceptance-flow.spec.ts:288:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ❌ Validation: Boucle de redirection détectée si bug présent
+
+🧹 [SETUP] Setting up test isolation...
+
+[1A[2K🧹 [SETUP] Cleaning browser state...
+
+[1A[2K✅ [SETUP] Test isolation ready
+
+[1A[2K
+📍 TEST: Validating redirect loop detection
+
+[1A[2KFinal URL after 3s: http://localhost:3000/auth/login?error=callback_failed
+
+[1A[2K✅ No infinite redirect loop detected (as expected)
+
+[1A[2K
+🧹 [TEARDOWN] Cleaning up test isolation...
+
+[1A[2K🧹 [TEARDOWN] Cleaning up...
+
+[1A[2K✅ [TEARDOWN] Cleanup complete
+
+[1A[2K  1 failed
+    contacts\invitation-acceptance-flow.spec.ts:141:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard 
+  1 passed (14.9s)

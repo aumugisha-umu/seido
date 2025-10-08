@@ -150,9 +150,9 @@ export default function PropertySelector({
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Building2 className="h-8 w-8 text-slate-400" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">No buildings</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun immeuble</h3>
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Start by adding your first building to manage your real estate portfolio
+              Commencez par ajouter votre premier immeuble pour gérer votre patrimoine immobilier
             </p>
             <Button 
               size="lg"
@@ -204,7 +204,7 @@ export default function PropertySelector({
                                 }
                               }}
                             >
-                              {isSelected ? "Selected" : "Select"}
+                              {isSelected ? "Sélectionné" : "Sélectionner"}
                             </Button>
                           ) : (
                             <>
@@ -213,7 +213,7 @@ export default function PropertySelector({
                                 size="sm"
                                 className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)}
-                                title="Edit building"
+                                title="Modifier l'immeuble"
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>
@@ -224,7 +224,7 @@ export default function PropertySelector({
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
                               >
                                 <Eye className="h-3 w-3 mr-1" />
-                                Details
+                                Détails
                               </Button>
                             </>
                           )}
@@ -246,7 +246,7 @@ export default function PropertySelector({
                               <Users className="h-3 w-3 text-emerald-600" />
                             </div>
                             <span className="text-sm font-medium text-slate-900">{occupiedLots}</span>
-                            <span className="text-xs text-slate-600 hidden sm:inline">occupied</span>
+                            <span className="text-xs text-slate-600 hidden sm:inline">occupés</span>
                           </div>
 
                           {totalInterventions > 0 && (
@@ -270,7 +270,7 @@ export default function PropertySelector({
                               <ChevronDown className="h-3 w-3" />
                             </div>
                             <span className="ml-1 hidden sm:inline">
-                              {isExpanded ? "Collapse" : "Lots"}
+                              {isExpanded ? "Réduire" : "Lots"}
                             </span>
                           </Button>
                         )}
@@ -294,7 +294,7 @@ export default function PropertySelector({
                                       variant={lot.status === "occupied" ? "default" : "secondary"}
                                       className="text-xs h-4 px-1.5"
                                     >
-                                      {lot.status === "occupied" ? "Occupied" : "Vacant"}
+                                      {lot.status === "occupied" ? "Occupé" : "Libre"}
                                     </Badge>
                                     
                                     {(() => {
@@ -320,7 +320,7 @@ export default function PropertySelector({
                                           size="sm"
                                           className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
-                                          title="Edit lot"
+                                          title="Modifier le lot"
                                         >
                                           <Edit className="h-3 w-3" />
                                         </Button>
@@ -329,7 +329,7 @@ export default function PropertySelector({
                                           size="sm"
                                           className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                          title="View lot details"
+                                          title="Voir les détails du lot"
                                         >
                                           <Eye className="h-3 w-3" />
                                         </Button>
@@ -349,7 +349,7 @@ export default function PropertySelector({
                                           }
                                         }}
                                       >
-                                        {isLotSelected ? "OK" : "Select"}
+                                        {isLotSelected ? "OK" : "Sélectionner"}
                                       </Button>
                                     )}
                                   </div>
@@ -366,7 +366,7 @@ export default function PropertySelector({
                                 onClick={() => toggleBuildingExpansion(buildingIdStr)}
                                 className="h-7 px-3 text-xs text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 w-full"
                               >
-                                +{building.lots.length - 2} more lots
+                                +{building.lots.length - 2} autres lots
                               </Button>
                             </div>
                           )}
@@ -394,12 +394,12 @@ export default function PropertySelector({
                                             variant={lot.status === "occupied" ? "default" : "secondary"}
                                             className="text-xs h-3 px-1.5"
                                           >
-                                            {lot.status === "occupied" ? "Occupied" : "Vacant"}
+                                            {lot.status === "occupied" ? "Occupé" : "Libre"}
                                           </Badge>
                                         </div>
                                         
                                         <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0">
-                                          <span>Floor {lot.floor}</span>
+                                          <span>Étage {lot.floor}</span>
                                           {lot.interventions > 0 && (
                                             <div className="flex items-center text-amber-700">
                                               <Zap className="h-3 w-3 mr-1" />
@@ -417,7 +417,7 @@ export default function PropertySelector({
                                               size="sm"
                                               className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                               onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
-                                              title="Edit lot"
+                                              title="Modifier le lot"
                                             >
                                               <Edit className="h-3 w-3" />
                                             </Button>
@@ -426,7 +426,7 @@ export default function PropertySelector({
                                               size="sm"
                                               className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                               onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                              title="View lot details"
+                                              title="Voir les détails du lot"
                                             >
                                               <Eye className="h-3 w-3" />
                                             </Button>
@@ -446,7 +446,7 @@ export default function PropertySelector({
                                               }
                                             }}
                                           >
-                                            {isLotSelected ? "OK" : "Select"}
+                                            {isLotSelected ? "OK" : "Sélectionner"}
                                           </Button>
                                         )}
                                       </div>
@@ -477,17 +477,17 @@ export default function PropertySelector({
             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Home className="h-8 w-8 text-amber-600" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">No individual lots</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun lot individuel</h3>
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Add your first lot to manage your individual properties
+              Ajoutez votre premier lot pour gérer vos biens individuels
             </p>
-            <Button 
+            <Button
               size="lg"
               onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
               className="w-full sm:w-auto"
             >
               <Home className="h-4 w-4 mr-2" />
-              Add lot
+              Ajouter un lot
             </Button>
           </div>
         ) : (
@@ -513,13 +513,13 @@ export default function PropertySelector({
   const tabs = [
     {
       id: "buildings",
-      label: "Buildings",
+      label: "Immeubles",
       icon: Building2,
       count: filteredBuildings.length,
       content: buildingsContent
     },
     {
-      id: "individual-lots", 
+      id: "individual-lots",
       label: "Lots",
       icon: Home,
       count: filteredIndividualLots.length,
@@ -530,11 +530,11 @@ export default function PropertySelector({
   const filterConfigs = [
     {
       id: "status",
-      label: "Status",
+      label: "Statut",
       options: [
-        { value: "all", label: "All" },
-        { value: "occupied", label: "Occupied" },
-        { value: "vacant", label: "Vacant" }
+        { value: "all", label: "Tous" },
+        { value: "occupied", label: "Occupés" },
+        { value: "vacant", label: "Libres" }
       ],
       defaultValue: "all"
     },
@@ -542,9 +542,9 @@ export default function PropertySelector({
       id: "interventions",
       label: "Interventions",
       options: [
-        { value: "all", label: "All" },
-        { value: "with", label: "With interventions" },
-        { value: "without", label: "Without interventions" }
+        { value: "all", label: "Toutes" },
+        { value: "with", label: "Avec interventions" },
+        { value: "without", label: "Sans interventions" }
       ],
       defaultValue: "all"
     }
@@ -554,7 +554,7 @@ export default function PropertySelector({
     <ContentNavigator
       tabs={tabs}
       defaultTab="buildings"
-      searchPlaceholder="Search properties..."
+      searchPlaceholder="Rechercher un bien..."
       filters={filterConfigs}
       onSearch={handleSearch}
       onFilterChange={handleFilterChange}

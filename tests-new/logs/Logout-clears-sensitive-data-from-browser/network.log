@@ -1,0 +1,13 @@
+[2025-10-04T10:24:56.363Z] GET http://localhost:3000/auth/signup → 200 (2345ms)
+
+[2025-10-04T10:24:58.727Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759573498597 → 200 (48ms)
+
+[2025-10-04T10:24:58.728Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759573498597 → 200 (56ms)
+
+[2025-10-04T10:24:58.729Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (224ms)
+
+[2025-10-04T10:24:58.730Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (460ms)
+
+[2025-10-04T10:24:58.730Z] GET http://localhost:3000/_next/static/chunks/app/auth/signup/page.js → 200 (595ms)
+
+[2025-10-04T10:24:58.728Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759573498597 → 200 (3508ms)

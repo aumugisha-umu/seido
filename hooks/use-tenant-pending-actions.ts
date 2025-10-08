@@ -51,11 +51,12 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
       const actionsRequirantes = interventions.filter((intervention: any) => {
         // Statuts nécessitant une action du locataire
         return [
-          'planification',     // Renseigner ses disponibilités
-          'quote_submitted',   // Consulter/valider les devis reçus
-          'demande',          // Suivi de la demande initiale
-          'planifiee',        // Intervention planifiée - être informé
-          'en_cours'          // Intervention en cours - suivi
+          'planification',            // Renseigner ses disponibilités
+          'quote_submitted',          // Consulter/valider les devis reçus
+          'demande',                  // Suivi de la demande initiale
+          'planifiee',                // Intervention planifiée - être informé
+          'en_cours',                 // Intervention en cours - suivi
+          'cloturee_par_prestataire'  // Valider ou contester les travaux terminés
         ].includes(intervention.status)
       })
 
@@ -80,6 +81,9 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
             break
           case 'en_cours':
             description = 'L\'intervention est actuellement en cours'
+            break
+          case 'cloturee_par_prestataire':
+            description = 'Intervention terminée - Merci de valider'
             break
           default:
             description = 'Action requise pour cette intervention'

@@ -1,0 +1,81 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] contacts\invitation-acceptance-flow.spec.ts:149:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard
+[1A[2Kcontacts\invitation-acceptance-flow.spec.ts:149:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard
+
+🧹 [SETUP] Setting up test isolation...
+
+[1A[2K🧹 [SETUP] Cleaning browser state...
+
+[1A[2K✅ [SETUP] Test isolation ready
+
+[1A[2K
+📍 STEP 1: Login as gestionnaire
+
+[1A[2K
+🧹 [TEARDOWN] Cleaning up test isolation...
+
+[1A[2K🧹 [TEARDOWN] Cleaning up...
+
+[1A[2K✅ [TEARDOWN] Cleanup complete
+
+[1A[2K  1) contacts\invitation-acceptance-flow.spec.ts:149:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard 
+
+    TypeError: (0 , _helpers.loginAsGestionnaire) is not a function
+
+      152 |     // ========================================================================
+      153 |     console.log('\n📍 STEP 1: Login as gestionnaire')
+    > 154 |     await loginAsGestionnaire(page)
+          |                              ^
+      155 |
+      156 |     // Vérifier que le login a réussi
+      157 |     await expect(page.locator('text=Tableau de bord')).toBeVisible({ timeout: 10000 })
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\contacts\invitation-acceptance-flow.spec.ts:154:30
+
+    Error Context: ..\test-results\contacts-invitation-accept-c6f14--→-Set-password-→-Dashboard\error-context.md
+
+
+[1A[2K[2/2] contacts\invitation-acceptance-flow.spec.ts:316:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ❌ Validation: Boucle de redirection détectée si bug présent
+[1A[2Kcontacts\invitation-acceptance-flow.spec.ts:316:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ❌ Validation: Boucle de redirection détectée si bug présent
+
+🧹 [SETUP] Setting up test isolation...
+
+[1A[2K🧹 [SETUP] Cleaning browser state...
+
+[1A[2K✅ [SETUP] Test isolation ready
+
+[1A[2K
+📍 TEST: Validating redirect loop detection
+
+[1A[2KFinal URL after 3s: http://localhost:3000/auth/callback
+
+[1A[2K
+🧹 [TEARDOWN] Cleaning up test isolation...
+
+[1A[2K🧹 [TEARDOWN] Cleaning up...
+
+[1A[2K✅ [TEARDOWN] Cleanup complete
+
+[1A[2K  2) contacts\invitation-acceptance-flow.spec.ts:316:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ❌ Validation: Boucle de redirection détectée si bug présent 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mnot[2m.[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected substring: not [32m"/auth/callback"[39m
+    Received string:        [31m"http://localhost:3000[7m/auth/callback[27m"[39m
+
+      333 |
+      334 |     // Validation: On ne doit PAS rester bloqué sur /auth/callback
+    > 335 |     expect(finalUrl).not.toContain('/auth/callback')
+          |                          ^
+      336 |
+      337 |     console.log('✅ No infinite redirect loop detected (as expected)')
+      338 |   })
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\contacts\invitation-acceptance-flow.spec.ts:335:26
+
+    Error Context: ..\test-results\contacts-invitation-accept-b65c8-ion-détectée-si-bug-présent\error-context.md
+
+
+[1A[2K  2 failed
+    contacts\invitation-acceptance-flow.spec.ts:149:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ✅ Gestionnaire invite prestataire → Acceptation → Set password → Dashboard 
+    contacts\invitation-acceptance-flow.spec.ts:316:7 › 🔐 Invitation Acceptance Flow - Auto-Healing › ❌ Validation: Boucle de redirection détectée si bug présent 

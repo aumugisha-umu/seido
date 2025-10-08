@@ -2144,6 +2144,119 @@ class NotificationService {
       throw error
     }
   }
+
+  /**
+   * Marquer une notification comme lue
+   */
+  async markAsRead(notificationId: string): Promise<void> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Marking notification as read:', notificationId)
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          read: true,
+          read_at: new Date().toISOString()
+        })
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error marking notification as read:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Notification marked as read successfully')
+    } catch (error) {
+      console.error('❌ Exception marking notification as read:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Marquer une notification comme non lue
+   */
+  async markAsUnread(notificationId: string): Promise<void> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Marking notification as unread:', notificationId)
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          read: false,
+          read_at: null
+        })
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error marking notification as unread:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Notification marked as unread successfully')
+    } catch (error) {
+      console.error('❌ Exception marking notification as unread:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Archiver une notification
+   */
+  async archiveNotification(notificationId: string): Promise<void> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Archiving notification:', notificationId)
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          archived: true
+        })
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error archiving notification:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Notification archived successfully')
+    } catch (error) {
+      console.error('❌ Exception archiving notification:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Récupérer les notifications récentes d'un utilisateur
+   */
+  async getRecentNotifications(userId: string, teamId: string, limit: number = 10): Promise<any[]> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Fetching recent notifications:', { userId, teamId, limit })
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select(`
+          *,
+          created_by_user:users!notifications_created_by_fkey(id, name, email),
+          team:teams(id, name)
+        `)
+        .eq('user_id', userId)
+        .eq('team_id', teamId)
+        .eq('archived', false)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error fetching recent notifications:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Recent notifications fetched:', data?.length || 0)
+      return data || []
+    } catch (error) {
+      console.error('❌ Exception fetching recent notifications:', error)
+      throw error
+    }
+  }
 }
 
 // Instance singleton

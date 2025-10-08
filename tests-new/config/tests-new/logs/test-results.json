@@ -1,0 +1,554 @@
+{
+  "config": {
+    "configFile": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\config\\playwright.config.ts",
+    "rootDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\global-setup.ts",
+    "globalTeardown": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\helpers\\global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "tests-new/logs/playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests-new/logs/test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium-headed",
+        "name": "chromium-headed",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "c:/Users/arthu/Desktop/Coding/Seido-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium-headless",
+        "name": "chromium-headless",
+        "testDir": "c:/Users/arthu/Desktop/Coding/Seido-app/tests-new",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.spec.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "stdout": "pipe",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "contacts\\create-contact.spec.ts",
+      "file": "contacts/create-contact.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Contacts - Create Contact",
+          "file": "contacts/create-contact.spec.ts",
+          "line": 39,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Create contact WITHOUT invitation (checkbox unchecked)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-headed",
+                  "projectName": "chromium-headed",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 51979,
+                      "error": {
+                        "message": "TimeoutError: locator.getAttribute: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[role=\"checkbox\"]').filter({ has: locator('text=/inviter.*application/i') }).or(locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\u001b[22m\n",
+                        "stack": "TimeoutError: locator.getAttribute: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[role=\"checkbox\"]').filter({ has: locator('text=/inviter.*application/i') }).or(locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\u001b[22m\n\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts:135:46",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts",
+                          "column": 46,
+                          "line": 135
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 133 |\u001b[39m       })\u001b[33m.\u001b[39mor(page\u001b[33m.\u001b[39mlocator(\u001b[32m'label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'\u001b[39m))\n \u001b[90m 134 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 135 |\u001b[39m       \u001b[36mconst\u001b[39m isChecked \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m inviteCheckbox\u001b[33m.\u001b[39mgetAttribute(\u001b[32m'data-state'\u001b[39m)\n \u001b[90m     |\u001b[39m                                              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 136 |\u001b[39m       console\u001b[33m.\u001b[39mlog(\u001b[32m'📊 Checkbox initial state:'\u001b[39m\u001b[33m,\u001b[39m isChecked)\n \u001b[90m 137 |\u001b[39m\n \u001b[90m 138 |\u001b[39m       \u001b[36mif\u001b[39m (isChecked \u001b[33m===\u001b[39m \u001b[32m'checked'\u001b[39m) {\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts",
+                            "column": 46,
+                            "line": 135
+                          },
+                          "message": "TimeoutError: locator.getAttribute: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[role=\"checkbox\"]').filter({ has: locator('text=/inviter.*application/i') }).or(locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\u001b[22m\n\n\n  133 |       }).or(page.locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\n  134 |\n> 135 |       const isChecked = await inviteCheckbox.getAttribute('data-state')\n      |                                              ^\n  136 |       console.log('📊 Checkbox initial state:', isChecked)\n  137 |\n  138 |       if (isChecked === 'checked') {\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts:135:46"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "✅ [LOG-COLLECTOR] Initialized for test: Create contact WITHOUT invitation (checkbox unchecked)\n"
+                        },
+                        {
+                          "text": "\n🧪 Starting test: Create contact WITHOUT invitation (checkbox unchecked)\n"
+                        },
+                        {
+                          "text": "📊 Logs will be saved to: tests-new/logs/Create-contact-WITHOUT-invitation--checkbox-unchecked-\n\n"
+                        },
+                        {
+                          "text": "🧪 Starting contact creation test (WITHOUT invitation)\n"
+                        },
+                        {
+                          "text": "📧 Gestionnaire: test-gestionnaire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "📧 Contact: test-locataire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 1: Create and authenticate gestionnaire\n"
+                        },
+                        {
+                          "text": "🔗 Navigating to signup page...\n"
+                        },
+                        {
+                          "text": "✅ On signup page\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for form to be ready...\n"
+                        },
+                        {
+                          "text": "✅ Form is ready\n"
+                        },
+                        {
+                          "text": "📝 Filling signup form... { email: \u001b[32m'test-gestionnaire-1759578120644@seido-test.com'\u001b[39m }\n"
+                        },
+                        {
+                          "text": "✅ Signup form filled\n"
+                        },
+                        {
+                          "text": "🚀 Submitting signup form...\n"
+                        },
+                        {
+                          "text": "✅ Signup form submitted\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for signup success page...\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for redirect to: /auth/signup-success\n"
+                        },
+                        {
+                          "text": "✅ Redirected to: http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759578120644%40seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ Signup success page displayed\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for user to be created in Supabase: test-gestionnaire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "🔍 Checking if user exists: test-gestionnaire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ User exists\n"
+                        },
+                        {
+                          "text": "✅ User found in Supabase\n"
+                        },
+                        {
+                          "text": "🔍 Fetching confirmation link for: test-gestionnaire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "🔗 Confirmation link received: http://localhost:3000/auth/confirm?token_hash=59f3d9d9266af558b78d35bad5b5cde0e8489605c9341f7e42090ec0&type=email\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for dashboard redirect: /gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for redirect to: /gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "✅ Redirected to: http://localhost:3000/gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "✅ Redirected to dashboard: /gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "🔐 Checking authentication status...\n"
+                        },
+                        {
+                          "text": "✅ User is authenticated\n"
+                        },
+                        {
+                          "text": "✅ Gestionnaire created and authenticated\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 2: Open contact creation form\n"
+                        },
+                        {
+                          "text": "🔍 Looking for \"Ajouter un contact\" button...\n"
+                        },
+                        {
+                          "text": "✅ Clicked \"Ajouter un contact\" button\n"
+                        },
+                        {
+                          "text": "✅ Contact form modal opened\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 3: Fill contact form\n"
+                        },
+                        {
+                          "text": "✅ Selected contact type: Locataire\n"
+                        },
+                        {
+                          "text": "✅ Form fields filled\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 4: Uncheck invitation checkbox\n"
+                        },
+                        {
+                          "text": "🧹 Cleaning up test user: test-gestionnaire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ Test user cleaned up: test-gestionnaire-1759578120644@seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ [LOG-COLLECTOR] Logs saved to: tests-new/logs/Create-contact-WITHOUT-invitation--checkbox-unchecked-\n"
+                        },
+                        {
+                          "text": "📄 [LOG-COLLECTOR] Report generated: tests-new/logs/Create-contact-WITHOUT-invitation--checkbox-unchecked-/report.md\n"
+                        },
+                        {
+                          "text": "\n✅ Test passed: Create contact WITHOUT invitation (checkbox unchecked) (50792ms)\n\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "\n❌ CONTACT CREATION TEST FAILED\n\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-10-04T11:41:59.888Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headed\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headed\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headed\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headed\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts",
+                        "column": 46,
+                        "line": 135
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "bf813b4763a7b0008b14-f2fe2f1694d7a0127d90",
+              "file": "contacts/create-contact.spec.ts",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "Create contact WITHOUT invitation (checkbox unchecked)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-headless",
+                  "projectName": "chromium-headless",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 33797,
+                      "error": {
+                        "message": "TimeoutError: locator.getAttribute: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[role=\"checkbox\"]').filter({ has: locator('text=/inviter.*application/i') }).or(locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\u001b[22m\n",
+                        "stack": "TimeoutError: locator.getAttribute: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[role=\"checkbox\"]').filter({ has: locator('text=/inviter.*application/i') }).or(locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\u001b[22m\n\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts:135:46",
+                        "location": {
+                          "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts",
+                          "column": 46,
+                          "line": 135
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 133 |\u001b[39m       })\u001b[33m.\u001b[39mor(page\u001b[33m.\u001b[39mlocator(\u001b[32m'label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'\u001b[39m))\n \u001b[90m 134 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 135 |\u001b[39m       \u001b[36mconst\u001b[39m isChecked \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m inviteCheckbox\u001b[33m.\u001b[39mgetAttribute(\u001b[32m'data-state'\u001b[39m)\n \u001b[90m     |\u001b[39m                                              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 136 |\u001b[39m       console\u001b[33m.\u001b[39mlog(\u001b[32m'📊 Checkbox initial state:'\u001b[39m\u001b[33m,\u001b[39m isChecked)\n \u001b[90m 137 |\u001b[39m\n \u001b[90m 138 |\u001b[39m       \u001b[36mif\u001b[39m (isChecked \u001b[33m===\u001b[39m \u001b[32m'checked'\u001b[39m) {\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts",
+                            "column": 46,
+                            "line": 135
+                          },
+                          "message": "TimeoutError: locator.getAttribute: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button[role=\"checkbox\"]').filter({ has: locator('text=/inviter.*application/i') }).or(locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\u001b[22m\n\n\n  133 |       }).or(page.locator('label:has-text(\"Inviter\") ~ button[role=\"checkbox\"]'))\n  134 |\n> 135 |       const isChecked = await inviteCheckbox.getAttribute('data-state')\n      |                                              ^\n  136 |       console.log('📊 Checkbox initial state:', isChecked)\n  137 |\n  138 |       if (isChecked === 'checked') {\n    at c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts:135:46"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "✅ [LOG-COLLECTOR] Initialized for test: Create contact WITHOUT invitation (checkbox unchecked)\n"
+                        },
+                        {
+                          "text": "\n🧪 Starting test: Create contact WITHOUT invitation (checkbox unchecked)\n"
+                        },
+                        {
+                          "text": "📊 Logs will be saved to: tests-new/logs/Create-contact-WITHOUT-invitation--checkbox-unchecked-\n\n"
+                        },
+                        {
+                          "text": "🧪 Starting contact creation test (WITHOUT invitation)\n"
+                        },
+                        {
+                          "text": "📧 Gestionnaire: test-gestionnaire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "📧 Contact: test-locataire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 1: Create and authenticate gestionnaire\n"
+                        },
+                        {
+                          "text": "🔗 Navigating to signup page...\n"
+                        },
+                        {
+                          "text": "✅ On signup page\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for form to be ready...\n"
+                        },
+                        {
+                          "text": "✅ Form is ready\n"
+                        },
+                        {
+                          "text": "📝 Filling signup form... { email: \u001b[32m'test-gestionnaire-1759578176200@seido-test.com'\u001b[39m }\n"
+                        },
+                        {
+                          "text": "✅ Signup form filled\n"
+                        },
+                        {
+                          "text": "🚀 Submitting signup form...\n"
+                        },
+                        {
+                          "text": "✅ Signup form submitted\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for signup success page...\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for redirect to: /auth/signup-success\n"
+                        },
+                        {
+                          "text": "✅ Redirected to: http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759578176200%40seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ Signup success page displayed\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for user to be created in Supabase: test-gestionnaire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "🔍 Checking if user exists: test-gestionnaire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ User exists\n"
+                        },
+                        {
+                          "text": "✅ User found in Supabase\n"
+                        },
+                        {
+                          "text": "🔍 Fetching confirmation link for: test-gestionnaire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "🔗 Confirmation link received: http://localhost:3000/auth/confirm?token_hash=cbdfcf1dea4ce480ab9e35aac4c85ee9f456abad21a40999f8824277&type=email\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for dashboard redirect: /gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "⏳ Waiting for redirect to: /gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "✅ Redirected to: http://localhost:3000/gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "✅ Redirected to dashboard: /gestionnaire/dashboard\n"
+                        },
+                        {
+                          "text": "🔐 Checking authentication status...\n"
+                        },
+                        {
+                          "text": "✅ User is authenticated\n"
+                        },
+                        {
+                          "text": "✅ Gestionnaire created and authenticated\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 2: Open contact creation form\n"
+                        },
+                        {
+                          "text": "🔍 Looking for \"Ajouter un contact\" button...\n"
+                        },
+                        {
+                          "text": "✅ Clicked \"Ajouter un contact\" button\n"
+                        },
+                        {
+                          "text": "✅ Contact form modal opened\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 3: Fill contact form\n"
+                        },
+                        {
+                          "text": "✅ Selected contact type: Locataire\n"
+                        },
+                        {
+                          "text": "✅ Form fields filled\n"
+                        },
+                        {
+                          "text": "\n📍 PHASE 4: Uncheck invitation checkbox\n"
+                        },
+                        {
+                          "text": "🧹 Cleaning up test user: test-gestionnaire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ Test user cleaned up: test-gestionnaire-1759578176200@seido-test.com\n"
+                        },
+                        {
+                          "text": "✅ [LOG-COLLECTOR] Logs saved to: tests-new/logs/Create-contact-WITHOUT-invitation--checkbox-unchecked-\n"
+                        },
+                        {
+                          "text": "📄 [LOG-COLLECTOR] Report generated: tests-new/logs/Create-contact-WITHOUT-invitation--checkbox-unchecked-/report.md\n"
+                        },
+                        {
+                          "text": "\n✅ Test passed: Create contact WITHOUT invitation (checkbox unchecked) (31736ms)\n\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "\n❌ CONTACT CREATION TEST FAILED\n\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-10-04T11:42:54.692Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headless\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headless\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headless\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test-results\\contacts-create-contact-Co-5aa28-itation-checkbox-unchecked--chromium-headless\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "c:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\tests-new\\contacts\\create-contact.spec.ts",
+                        "column": 46,
+                        "line": 135
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "bf813b4763a7b0008b14-42e0ae5ee4e0e6fca2af",
+              "file": "contacts/create-contact.spec.ts",
+              "line": 40,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-10-04T11:41:54.550Z",
+    "duration": 96074.554,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

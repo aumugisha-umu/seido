@@ -1,0 +1,18 @@
+Error: supabaseUrl is required.
+
+   at contacts\invitation-acceptance-flow.spec.ts:39
+
+  37 | const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  38 |
+> 39 | const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+     |                                   ^
+  40 |   auth: {
+  41 |     autoRefreshToken: false,
+  42 |     persistSession: false
+    at SupabaseClient (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\@supabase\supabase-js\src\SupabaseClient.ts:104:29)
+    at createClient (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\@supabase\supabase-js\src\index.ts:46:10)
+    at Object.<anonymous> (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\contacts\invitation-acceptance-flow.spec.ts:39:35)
+Error: No tests found.
+Make sure that arguments are regular expressions matching test files.
+You may need to escape symbols like "$" or "*" and quote the arguments.
+

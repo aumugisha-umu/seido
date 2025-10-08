@@ -1,0 +1,40 @@
+[2025-10-04T10:24:59.056Z] [INFO] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o
+{
+  "location": {
+    "url": "http://localhost:3000/auth/signup",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-04T10:24:59.056Z] [INFO] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o
+{
+  "location": {
+    "url": "http://localhost:3000/auth/signup",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-04T10:24:59.193Z] [ERROR] Page Error: Invalid or unexpected token
+{
+  "stack": ""
+}
+
+[2025-10-04T10:25:02.355Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-04T10:25:02.421Z] [INFO] %c%s%c 🔄 [SIGNUP-SERVER] Signup page rendered server-side background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server  
+{
+  "location": {
+    "url": "rsc://React/Server/webpack-internal:///(rsc)/./app/auth/signup/page.tsx?0",
+    "lineNumber": 24,
+    "columnNumber": 12
+  }
+}

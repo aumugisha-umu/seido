@@ -198,6 +198,17 @@ export function PendingActionsCard({
             buttonText: "Planifier"
           }
         case "programmee":
+          return {
+            bgColor: "bg-emerald-50",
+            borderColor: "border-emerald-200",
+            iconBg: "bg-emerald-100",
+            iconColor: "text-emerald-600",
+            textColor: "text-emerald-900",
+            subtextColor: "text-emerald-700",
+            icon: Wrench,
+            actionLabel: "À réaliser",
+            buttonText: "Terminer"
+          }
         case "en_cours":
           return {
             bgColor: "bg-emerald-50",
@@ -208,7 +219,7 @@ export function PendingActionsCard({
             subtextColor: "text-emerald-700",
             icon: Wrench,
             actionLabel: "À réaliser",
-            buttonText: "Commencer"
+            buttonText: "Terminer"
           }
         default:
           return {

@@ -1,0 +1,261 @@
+[2025-10-04T10:26:44.294Z] GET http://localhost:3000/auth/signup → 200 (2395ms)
+
+[2025-10-04T10:26:46.715Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759573606565 → 200 (85ms)
+
+[2025-10-04T10:26:46.716Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759573606565 → 200 (107ms)
+
+[2025-10-04T10:26:46.717Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (1983ms)
+
+[2025-10-04T10:26:46.718Z] GET http://localhost:3000/_next/static/chunks/app/auth/signup/page.js → 200 (2151ms)
+
+[2025-10-04T10:26:46.717Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (3301ms)
+
+[2025-10-04T10:26:46.716Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759573606565 → 200 (3993ms)
+
+[2025-10-04T10:26:51.312Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (73ms)
+
+[2025-10-04T10:26:51.469Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (76ms)
+
+[2025-10-04T10:26:52.193Z] POST http://localhost:3000/auth/signup → 200 (2960ms)
+
+[2025-10-04T10:26:55.455Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759573612851 → 200 (155ms)
+
+[2025-10-04T10:26:56.292Z] GET http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759573604270%40seido-test.com → 200 (747ms)
+
+[2025-10-04T10:26:57.063Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759573616923 → 200 (71ms)
+
+[2025-10-04T10:26:57.064Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759573616923 → 200 (87ms)
+
+[2025-10-04T10:26:57.067Z] GET http://localhost:3000/_next/static/chunks/app/auth/signup-success/page.js → 200 (300ms)
+
+[2025-10-04T10:26:57.066Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (326ms)
+
+[2025-10-04T10:26:57.066Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (1524ms)
+
+[2025-10-04T10:26:57.064Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759573616923 → 200 (2227ms)
+
+[2025-10-04T10:26:59.862Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (80ms)
+
+[2025-10-04T10:26:59.988Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (2ms)
+
+[2025-10-04T10:27:01.418Z] GET http://localhost:3000/auth/confirm?token_hash=4a6b8c3070f92df44ab8a8775193ee453db716a9ab9a89307eb50554&type=email → 307 (2331ms)
+
+[2025-10-04T10:27:03.748Z] GET http://localhost:3000/gestionnaire/dashboard → 200 (729ms)
+
+[2025-10-04T10:27:04.496Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759573624406 → 200 (52ms)
+
+[2025-10-04T10:27:04.497Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759573624406 → 200 (65ms)
+
+[2025-10-04T10:27:04.498Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (168ms)
+
+[2025-10-04T10:27:04.499Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (1633ms)
+
+[2025-10-04T10:27:06.130Z] GET http://localhost:3000/_next/image?url=%2Fimages%2FSeido_Main_Side_last.png&w=256&q=75 → 200 (167ms)
+
+[2025-10-04T10:27:04.964Z] GET http://localhost:3000/_next/static/chunks/app/gestionnaire/layout.js → 200 (2073ms)
+
+[2025-10-04T10:27:04.498Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759573624406 → 200 (2779ms)
+
+[2025-10-04T10:27:07.854Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (62ms)
+
+[2025-10-04T10:27:06.095Z] GET http://localhost:3000/_next/static/chunks/app/gestionnaire/dashboard/page.js → 200 (1827ms)
+
+[2025-10-04T10:27:08.192Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (1ms)
+
+[2025-10-04T10:27:08.158Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/auth/v1/user → 200 (74ms)
+Response Body:
+{
+  "id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+  "aud": "authenticated",
+  "role": "authenticated",
+  "email": "test-gestionnaire-1759573604270@seido-test.com",
+  "email_confirmed_at": "2025-10-04T10:26:29.084989Z",
+  "phone": "",
+  "confirmation_sent_at": "2025-10-04T10:26:28.418608Z",
+  "confirmed_at": "2025-10-04T10:26:29.084989Z",
+  "last_sign_in_at": "2025-10-04T10:26:29.087313Z",
+  "app_metadata": {
+    "provider": "email",
+    "providers": [
+      "email"
+    ]
+  },
+  "user_metadata": {
+    "email_verified": true,
+    "first_name": "Test",
+    "full_name": "Test User",
+    "last_name": "User",
+    "phone": "+33612345678",
+    "role": "gestionnaire"
+  },
+  "identities": [
+    {
+      "identity_id": "01df8463-a84b-4087-aec7-fbe1939c64bb",
+      "id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+      "user_id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+      "identity_data": {
+        "email": "test-gestionnaire-1759573604270@seido-test.com",
+        "email_verified": true,
+        "phone_verified": false,
+        "sub": "5d29badb-74f0-4f10-b31f-a6a441c9434f"
+      },
+      "provider": "email",
+      "last_sign_in_at": "2025-10-04T10:26:20.502601Z",
+      "created_at": "2025-10-04T10:26:20.502648Z",
+      "updated_at": "2025-10-04T10:26:20.502648Z",
+      "email": "test-gestionnaire-1759573604270@seido-test.com"
+    }
+  ],
+  "created_at": "2025-10-04T10:26:20.500585Z",
+  "updated_at": "2025-10-04T10:26:29.089313Z",
+  "is_anonymous": false
+}
+
+[2025-10-04T10:27:08.236Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/auth/v1/user → 200 (150ms)
+Response Body:
+{
+  "id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+  "aud": "authenticated",
+  "role": "authenticated",
+  "email": "test-gestionnaire-1759573604270@seido-test.com",
+  "email_confirmed_at": "2025-10-04T10:26:29.084989Z",
+  "phone": "",
+  "confirmation_sent_at": "2025-10-04T10:26:28.418608Z",
+  "confirmed_at": "2025-10-04T10:26:29.084989Z",
+  "last_sign_in_at": "2025-10-04T10:26:29.087313Z",
+  "app_metadata": {
+    "provider": "email",
+    "providers": [
+      "email"
+    ]
+  },
+  "user_metadata": {
+    "email_verified": true,
+    "first_name": "Test",
+    "full_name": "Test User",
+    "last_name": "User",
+    "phone": "+33612345678",
+    "role": "gestionnaire"
+  },
+  "identities": [
+    {
+      "identity_id": "01df8463-a84b-4087-aec7-fbe1939c64bb",
+      "id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+      "user_id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+      "identity_data": {
+        "email": "test-gestionnaire-1759573604270@seido-test.com",
+        "email_verified": true,
+        "phone_verified": false,
+        "sub": "5d29badb-74f0-4f10-b31f-a6a441c9434f"
+      },
+      "provider": "email",
+      "last_sign_in_at": "2025-10-04T10:26:20.502601Z",
+      "created_at": "2025-10-04T10:26:20.502648Z",
+      "updated_at": "2025-10-04T10:26:20.502648Z",
+      "email": "test-gestionnaire-1759573604270@seido-test.com"
+    }
+  ],
+  "created_at": "2025-10-04T10:26:20.500585Z",
+  "updated_at": "2025-10-04T10:26:29.089313Z",
+  "is_anonymous": false
+}
+
+[2025-10-04T10:27:08.399Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=*&auth_user_id=eq.5d29badb-74f0-4f10-b31f-a6a441c9434f → 200 (139ms)
+Response Body:
+{
+  "id": "f567119a-9b1c-466b-979a-1d9dcc22b8e1",
+  "auth_user_id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+  "email": "test-gestionnaire-1759573604270@seido-test.com",
+  "name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "phone": "+33612345678",
+  "avatar_url": null,
+  "address": null,
+  "company": null,
+  "speciality": null,
+  "role": "gestionnaire",
+  "provider_category": null,
+  "notes": null,
+  "is_active": true,
+  "password_set": true,
+  "team_id": "ee86e911-4f82-4c0c-91bd-205b8955c209",
+  "created_at": "2025-10-04T10:27:02.322+00:00",
+  "updated_at": "2025-10-04T10:26:29.739181+00:00"
+}
+
+[2025-10-04T10:27:08.402Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=*&auth_user_id=eq.5d29badb-74f0-4f10-b31f-a6a441c9434f → 200 (210ms)
+Response Body:
+{
+  "id": "f567119a-9b1c-466b-979a-1d9dcc22b8e1",
+  "auth_user_id": "5d29badb-74f0-4f10-b31f-a6a441c9434f",
+  "email": "test-gestionnaire-1759573604270@seido-test.com",
+  "name": "Test User",
+  "first_name": "Test",
+  "last_name": "User",
+  "phone": "+33612345678",
+  "avatar_url": null,
+  "address": null,
+  "company": null,
+  "speciality": null,
+  "role": "gestionnaire",
+  "provider_category": null,
+  "notes": null,
+  "is_active": true,
+  "password_set": true,
+  "team_id": "ee86e911-4f82-4c0c-91bd-205b8955c209",
+  "created_at": "2025-10-04T10:27:02.322+00:00",
+  "updated_at": "2025-10-04T10:26:29.739181+00:00"
+}
+
+[2025-10-04T10:27:08.584Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/team_members?select=team_id%2Crole%2Cid%2Cjoined_at%2Cuser_id&user_id=eq.f567119a-9b1c-466b-979a-1d9dcc22b8e1 → 200 (125ms)
+Response Body:
+[
+  {
+    "team_id": "ee86e911-4f82-4c0c-91bd-205b8955c209",
+    "role": "admin",
+    "id": "db9bac05-4118-4e85-b265-9d1cd49b65ec",
+    "joined_at": "2025-10-04T10:27:02.693+00:00",
+    "user_id": "f567119a-9b1c-466b-979a-1d9dcc22b8e1"
+  }
+]
+
+[2025-10-04T10:27:08.718Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/teams?select=*%2Ccreated_by_user%3Acreated_by%28name%2Cemail%29&id=in.%28ee86e911-4f82-4c0c-91bd-205b8955c209%29&order=name.asc → 200 (132ms)
+Response Body:
+[
+  {
+    "id": "ee86e911-4f82-4c0c-91bd-205b8955c209",
+    "name": "Équipe de test-gestionnaire-1759573604270",
+    "description": "Équipe personnelle",
+    "created_by": "f567119a-9b1c-466b-979a-1d9dcc22b8e1",
+    "created_at": "2025-10-04T10:27:02.456+00:00",
+    "updated_at": "2025-10-04T10:27:02.456+00:00",
+    "created_by_user": {
+      "name": "Test User",
+      "email": "test-gestionnaire-1759573604270@seido-test.com"
+    }
+  }
+]
+
+[2025-10-04T10:27:08.854Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/team_members?select=id%2Cteam_id%2Cuser_id%2Crole%2Cjoined_at&team_id=in.%28ee86e911-4f82-4c0c-91bd-205b8955c209%29 → 200 (153ms)
+Response Body:
+[
+  {
+    "id": "db9bac05-4118-4e85-b265-9d1cd49b65ec",
+    "team_id": "ee86e911-4f82-4c0c-91bd-205b8955c209",
+    "user_id": "f567119a-9b1c-466b-979a-1d9dcc22b8e1",
+    "role": "admin",
+    "joined_at": "2025-10-04T10:27:02.693+00:00"
+  }
+]
+
+[2025-10-04T10:27:09.010Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=id%2Cname%2Cemail%2Crole&id=in.%28f567119a-9b1c-466b-979a-1d9dcc22b8e1%29 → 200 (121ms)
+Response Body:
+[
+  {
+    "id": "f567119a-9b1c-466b-979a-1d9dcc22b8e1",
+    "name": "Test User",
+    "email": "test-gestionnaire-1759573604270@seido-test.com",
+    "role": "gestionnaire"
+  }
+]

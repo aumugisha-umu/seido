@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -307,48 +307,57 @@ export default function NewImmeubleePage() {
     }
   }, [currentStep, lots])
 
+  // Créer une clé stable pour détecter les changements de catégorie
+  const lotCategoriesKey = useMemo(() =>
+    lots.map(lot => `${lot.id}:${lot.category}`).join('|'),
+    [lots]
+  )
+
   // Mettre à jour automatiquement la référence des lots quand leur catégorie change
   useEffect(() => {
     if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
       return // Attendre que les données de catégorie soient chargées
     }
 
-    // Créer dynamiquement le pattern basé sur tous les labels de catégorie possibles
-    const allCategories = getAllLotCategories()
-    const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
+    setLots(currentLots => {
+      // Créer dynamiquement le pattern basé sur tous les labels de catégorie possibles
+      const allCategories = getAllLotCategories()
+      const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
 
-    // Vérifier chaque lot pour voir si sa référence doit être mise à jour
-    const lotsToUpdate: { id: string; newReference: string }[] = []
+      // Vérifier chaque lot pour voir si sa référence doit être mise à jour
+      const lotsToUpdate: { id: string; newReference: string }[] = []
 
-    lots.forEach(lot => {
-      const category = lot.category || "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const lotsOfSameCategory = lots.filter(l => l.category === category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const lotIndex = lotsOfSameCategory.findIndex(l => l.id === lot.id)
-      const nextNumber = currentCategoryCount + lotIndex + 1
-      const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
+      currentLots.forEach(lot => {
+        const category = lot.category || "appartement"
+        const categoryConfig = getLotCategoryConfig(category)
+        const lotsOfSameCategory = currentLots.filter(l => l.category === category)
+        const currentCategoryCount = categoryCountsByTeam[category] || 0
+        const lotIndex = lotsOfSameCategory.findIndex(l => l.id === lot.id)
+        const nextNumber = currentCategoryCount + lotIndex + 1
+        const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
 
-      const currentReference = lot.reference
-      const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
+        const currentReference = lot.reference
+        const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
 
-      // Ne mettre à jour que si la référence est vide ou générée par défaut
-      if (isEmptyOrDefault && currentReference !== newDefaultReference) {
-        lotsToUpdate.push({ id: lot.id, newReference: newDefaultReference })
-      }
-    })
+        // Ne mettre à jour que si la référence est vide ou générée par défaut
+        if (isEmptyOrDefault && currentReference !== newDefaultReference) {
+          lotsToUpdate.push({ id: lot.id, newReference: newDefaultReference })
+        }
+      })
 
-    // Appliquer toutes les mises à jour en une seule fois
-    if (lotsToUpdate.length > 0) {
-      setLots(prevLots =>
-        prevLots.map(lot => {
+      // Appliquer toutes les mises à jour en une seule fois
+      if (lotsToUpdate.length > 0) {
+        return currentLots.map(lot => {
           const update = lotsToUpdate.find(u => u.id === lot.id)
           return update ? { ...lot, reference: update.newReference } : lot
         })
-      )
-    }
-  }, [lots.map(lot => lot.category).join(','), categoryCountsByTeam])
+      }
+
+      // Aucune mise à jour nécessaire
+      return currentLots
+    })
+  }, [lotCategoriesKey, categoryCountsByTeam])
 
   // Pré-remplir automatiquement le premier lot quand on arrive à l'étape 2
   useEffect(() => {
@@ -876,11 +885,9 @@ export default function NewImmeubleePage() {
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleLotExpansion(lot.id)}>
-                                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                  {lots.length - index}
-                                </div>
-                                <div>
-                                  <h3 className="font-medium">{lot.reference}</h3>
+                                <div className="px-3 py-1.5 bg-blue-600 text-white rounded-full flex items-center justify-center gap-1.5 text-sm font-medium">
+                                  <span>Lot</span>
+                                  <span>{lots.length - index}</span>
                                 </div>
                                 <div className="ml-2">
                                   {expandedLots[lot.id] ? (

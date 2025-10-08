@@ -1,0 +1,130 @@
+[2025-10-07T19:05:14.662Z] GET http://localhost:3000/auth/signup → 200 (2383ms)
+
+[2025-10-07T19:05:17.066Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759863916733 → 200 (8ms)
+
+[2025-10-07T19:05:17.067Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759863916733 → 200 (17ms)
+
+[2025-10-07T19:05:17.069Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (133ms)
+
+[2025-10-07T19:05:17.070Z] GET http://localhost:3000/_next/static/chunks/app/auth/signup/page.js → 200 (150ms)
+
+[2025-10-07T19:05:17.070Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (396ms)
+
+[2025-10-07T19:05:17.068Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759863916733 → 200 (601ms)
+
+[2025-10-07T19:05:18.356Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (52ms)
+
+[2025-10-07T19:05:18.595Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (157ms)
+
+[2025-10-07T19:05:19.813Z] POST http://localhost:3000/auth/signup → 200 (2241ms)
+
+[2025-10-07T19:05:22.081Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759863919904 → 200 (11ms)
+
+[2025-10-07T19:05:23.813Z] GET http://localhost:3000/_next/static/webpack/4e4c34267d39a166.webpack.hot-update.json → 200 (23ms)
+
+[2025-10-07T19:05:23.838Z] GET http://localhost:3000/_next/static/webpack/webpack.4e4c34267d39a166.hot-update.js → 200 (10ms)
+
+[2025-10-07T19:05:22.657Z] GET http://localhost:3000/auth/signup-success?email=test-gestionnaire-1759863914623%40seido-test.com → 200 (1449ms)
+
+[2025-10-07T19:05:24.137Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759863923917 → 200 (25ms)
+
+[2025-10-07T19:05:24.137Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759863923917 → 200 (28ms)
+
+[2025-10-07T19:05:24.142Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (106ms)
+
+[2025-10-07T19:05:24.143Z] GET http://localhost:3000/_next/static/chunks/app/auth/signup-success/page.js → 200 (106ms)
+
+[2025-10-07T19:05:24.143Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (267ms)
+
+[2025-10-07T19:05:24.138Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759863923917 → 200 (408ms)
+
+[2025-10-07T19:05:25.018Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (13ms)
+
+[2025-10-07T19:05:25.118Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (17ms)
+
+[2025-10-07T19:05:26.230Z] GET http://localhost:3000/_next/static/webpack/a7bb10fc74889a85.webpack.hot-update.json → 200 (32ms)
+Response Body:
+{
+  "c": [
+    "webpack"
+  ],
+  "r": [],
+  "m": []
+}
+
+[2025-10-07T19:05:26.266Z] GET http://localhost:3000/_next/static/webpack/webpack.a7bb10fc74889a85.hot-update.js → 200 (78ms)
+
+[2025-10-07T19:05:30.224Z] GET http://localhost:3000/_next/static/webpack/396fc94d1fbb3c99.webpack.hot-update.json → 200 (27ms)
+
+[2025-10-07T19:05:30.254Z] GET http://localhost:3000/_next/static/webpack/webpack.396fc94d1fbb3c99.hot-update.js → 200 (496ms)
+
+[2025-10-07T19:05:26.877Z] GET http://localhost:3000/auth/confirm?token_hash=58331add88eb3d91c25c9487b04bab3210bdda8b325247e7c5481c59&type=email → 307 (5420ms)
+
+[2025-10-07T19:05:32.296Z] GET http://localhost:3000/gestionnaire/dashboard → 307 (31ms)
+
+[2025-10-07T19:05:32.327Z] GET http://localhost:3000/auth/login?reason=session_expired → 200 (436ms)
+
+[2025-10-07T19:05:32.782Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759863932491 → 200 (5ms)
+
+[2025-10-07T19:05:32.782Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759863932491 → 200 (6ms)
+
+[2025-10-07T19:05:32.783Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (44ms)
+
+[2025-10-07T19:05:32.784Z] GET http://localhost:3000/_next/static/chunks/app/auth/login/page.js → 200 (84ms)
+
+[2025-10-07T19:05:32.784Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (293ms)
+
+[2025-10-07T19:05:32.783Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759863932491 → 200 (481ms)
+
+[2025-10-07T19:05:33.832Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (2ms)
+
+[2025-10-07T19:05:33.912Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (5ms)
+
+[2025-10-07T19:06:06.816Z] GET http://localhost:3000/_next/static/webpack/7df3ab7bb2bf7840.webpack.hot-update.json → 200 (71ms)
+Response Body:
+{
+  "c": [
+    "app/layout",
+    "webpack"
+  ],
+  "r": [],
+  "m": []
+}
+
+[2025-10-07T19:06:06.893Z] GET http://localhost:3000/_next/static/webpack/webpack.7df3ab7bb2bf7840.hot-update.js → 200 (38ms)
+
+[2025-10-07T19:06:06.892Z] GET http://localhost:3000/_next/static/webpack/app/layout.7df3ab7bb2bf7840.hot-update.js → 200 (52ms)
+
+[2025-10-07T19:06:09.685Z] GET http://localhost:3000/_next/static/webpack/29e3e79864ae26ab.webpack.hot-update.json → 200 (28ms)
+Response Body:
+{
+  "c": [
+    "app/layout",
+    "webpack"
+  ],
+  "r": [],
+  "m": []
+}
+
+[2025-10-07T19:06:09.718Z] GET http://localhost:3000/_next/static/webpack/webpack.29e3e79864ae26ab.hot-update.js → 200 (117ms)
+
+[2025-10-07T19:06:09.717Z] GET http://localhost:3000/_next/static/webpack/app/layout.29e3e79864ae26ab.hot-update.js → 200 (130ms)
+
+[2025-10-07T19:06:09.676Z] GET http://localhost:3000/auth/login?reason=session_expired&_rsc=hoso1 → 200 (1707ms)
+
+[2025-10-07T19:06:11.572Z] GET http://localhost:3000/_next/static/webpack/425bea6f96a2047f.webpack.hot-update.json → 200 (57ms)
+Response Body:
+{
+  "c": [
+    "app/layout",
+    "webpack"
+  ],
+  "r": [],
+  "m": []
+}
+
+[2025-10-07T19:06:11.548Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759863971355 → 200 (85ms)
+
+[2025-10-07T19:06:11.635Z] GET http://localhost:3000/_next/static/webpack/webpack.425bea6f96a2047f.hot-update.js → 200 (34ms)
+
+[2025-10-07T19:06:11.635Z] GET http://localhost:3000/_next/static/webpack/app/layout.425bea6f96a2047f.hot-update.js → 200 (46ms)

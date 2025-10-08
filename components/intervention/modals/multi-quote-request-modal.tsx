@@ -1,17 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, Calendar, MessageSquare, MapPin, Wrench, Clock, AlertTriangle, Plus, Minus, X } from "lucide-react"
+import { FileText, User, Calendar, MessageSquare, MapPin, Wrench, Clock, AlertTriangle, ChevronRight, Building2, Users, Info, Send, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import ContactSelector from "@/components/ui/contact-selector"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -64,6 +64,8 @@ export const MultiQuoteRequestModal = ({
   teamId
 }: MultiQuoteRequestModalProps) => {
   const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  const { toast } = useToast()
 
   // Callback pour la sélection de contact via le ContactSelector
   const handleContactSelect = (contactId: string) => {
@@ -75,9 +77,7 @@ export const MultiQuoteRequestModal = ({
 
   // Callback pour la création d'un nouveau contact
   const handleContactCreated = (contact: any) => {
-    // Pour l'instant, nous ne gérons pas la création depuis la modale de devis
     console.log('Nouveau contact créé:', contact)
-    // TODO: Ajouter le nouveau prestataire à la liste des providers
   }
 
   useEffect(() => {
@@ -86,35 +86,30 @@ export const MultiQuoteRequestModal = ({
       return
     }
 
-    // Filtrer les prestataires selon le type d'intervention avec logique plus inclusive
+    // Filtrer les prestataires selon le type d'intervention
     const relevantProviders = providers.filter(provider => {
-      // Si le prestataire n'a pas de catégorie définie, l'inclure par défaut
       if (!provider.provider_category) return true
-      
-      // Si l'intervention n'a pas de type spécifié, inclure tous les prestataires
       if (!intervention.type) return true
 
-      // Correspondances type intervention -> catégorie prestataire (plus inclusives)
       const typeMapping: Record<string, string[]> = {
-        'plomberie': ['prestataire', 'autre'], // Inclut prestataires génériques
+        'plomberie': ['prestataire', 'autre'],
         'electricite': ['prestataire', 'autre'],
         'chauffage': ['prestataire', 'autre'],
         'serrurerie': ['prestataire', 'autre'],
         'peinture': ['prestataire', 'autre'],
         'menage': ['prestataire', 'autre'],
         'jardinage': ['prestataire', 'autre'],
-        'autre': ['prestataire', 'autre', 'syndic', 'assurance', 'notaire', 'proprietaire'] // Très inclusif pour "autre"
+        'autre': ['prestataire', 'autre', 'syndic', 'assurance', 'notaire', 'proprietaire']
       }
 
       const relevantCategories = typeMapping[intervention.type] || ['prestataire', 'autre']
       return relevantCategories.includes(provider.provider_category)
     })
 
-    // Logique de fallback : si aucun prestataire ne correspond au filtrage, afficher tous les prestataires
     const finalProviders = relevantProviders.length === 0 && providers.length > 0 ? providers : relevantProviders
 
     if (relevantProviders.length === 0 && providers.length > 0) {
-      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+      console.warn(`Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
     }
 
     setFilteredProviders(finalProviders)
@@ -125,87 +120,141 @@ export const MultiQuoteRequestModal = ({
   const handleSubmit = () => {
     if (selectedProviderIds.length === 0) return
     onSubmit()
+
+    // Afficher la notification de succès
+    toast({
+      title: "✅ Demandes de devis envoyées",
+      description: `${selectedProviderIds.length} prestataire${selectedProviderIds.length > 1 ? 's ont' : ' a'} reçu votre demande de devis pour "${intervention.title}"`,
+      variant: "success"
+    })
   }
+
+  // Calcul de la date limite
+  const deadlineDate = new Date()
+  deadlineDate.setDate(deadlineDate.getDate() + 30)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="space-y-3 pb-6">
-          <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demander des devis - Multi-prestataires
-          </DialogTitle>
-          <p className="text-slate-600">
-            Sélectionnez plusieurs prestataires et personnalisez les messages pour chacun
-          </p>
+      <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header amélioré avec gradient subtil */}
+        <DialogHeader className="bg-gradient-to-r from-sky-50 to-blue-50 -m-6 mb-0 p-6 pb-4 rounded-t-lg border-b border-sky-100">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <DialogTitle className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-sky-700 to-sky-600 bg-clip-text text-transparent">
+                  Demander des devis - {intervention.title}
+                </DialogTitle>
+                <Badge
+                  className={cn(
+                    "text-xs font-medium",
+                    getPriorityColor(intervention.urgency)
+                  )}
+                >
+                  {getPriorityLabel(intervention.urgency)}
+                </Badge>
+              </div>
+              <p className="text-sm text-slate-600 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Sélectionnez plusieurs prestataires et personnalisez les messages
+              </p>
+            </div>
+            {selectedProviderIds.length > 0 && (
+              <Badge className="bg-sky-100 text-sky-700 border-sky-200 animate-in fade-in duration-300">
+                {selectedProviderIds.length} sélectionné{selectedProviderIds.length > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Résumé de l'intervention */}
-          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+        {/* Contenu scrollable avec padding optimisé */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 scrollbar-thin">
+          {/* Carte intervention améliorée - Version compacte */}
+          <Card className="border-sky-200 bg-gradient-to-br from-white to-sky-50/30 shadow-sm hover:shadow-md transition-all duration-200">
+            <CardContent className="pt-5 space-y-3">
+              {/* Infos clés avec icônes améliorées */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-100">
+                  <MapPin className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm text-slate-700 font-medium">
+                    {getInterventionLocationText(intervention)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-100">
+                  <Building2 className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm text-slate-700 font-medium capitalize">
+                    {intervention.type || "Non spécifié"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-100">
+                  <Calendar className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm text-slate-700 font-medium">
+                    {new Date(intervention.created_at).toLocaleDateString("fr-FR")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Description avec style amélioré */}
+              {intervention.description && (
+                <div className="p-3 bg-white rounded-lg border border-slate-100">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {intervention.description}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Section Instructions avec meilleur groupement visuel */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Wrench className="h-5 w-5 text-slate-600" />
-                {intervention.title}
-              </h3>
-              <Badge className={`${getPriorityColor(intervention.urgency)} text-xs`}>
-                {getPriorityLabel(intervention.urgency)}
+              <Label htmlFor="notes" className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-sky-600" />
+                Instructions générales
+              </Label>
+              <Badge variant="outline" className="text-xs">
+                Obligatoire
               </Badge>
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-slate-600">
-              <div className="flex items-center gap-1.5">
-                {getInterventionLocationIcon(intervention) === "building" ? (
-                  <MapPin className="h-4 w-4" />
-                ) : (
-                  <MapPin className="h-4 w-4" />
-                )}
-                <span>{getInterventionLocationText(intervention)}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <Wrench className="h-4 w-4" />
-                <span className="capitalize">{intervention.type || "Non spécifié"}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span>{new Date(intervention.created_at).toLocaleDateString("fr-FR")}</span>
-              </div>
-            </div>
-
-            {intervention.description && (
-              <p className="text-sm text-slate-700 bg-white rounded px-3 py-2">
-                {intervention.description}
-              </p>
-            )}
-          </div>
-
-          {/* Instructions générales */}
-          <div className="space-y-3">
-            <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
-              Instructions générales
-            </Label>
             <Textarea
               id="notes"
-              placeholder="Instructions communes à tous les prestataires..."
+              placeholder="Décrivez les détails importants pour cette intervention (accès, contraintes, attentes...)"
               value={additionalNotes}
               onChange={(e) => onNotesChange(e.target.value)}
               rows={4}
-              className="resize-none"
+              className="resize-none border-slate-200 focus:border-sky-300 focus:ring-sky-200/50 transition-colors"
             />
-            <p className="text-xs text-slate-500">
-              Ces informations seront envoyées à tous les prestataires sélectionnés
-            </p>
-            <p className="text-xs text-slate-500 font-medium">
-              📅 Date limite automatique : 30 jours à partir d'aujourd'hui
-            </p>
+
+            <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <p className="text-xs text-slate-600 flex items-start gap-1.5">
+                <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5" />
+                Ces informations seront envoyées à tous les prestataires sélectionnés
+              </p>
+              <p className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Date limite de réponse : {deadlineDate.toLocaleDateString("fr-FR", {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
           </div>
 
-          {/* Sélection des prestataires avec ContactSelector */}
-          <div className="space-y-4">
-            <Label className="text-sm font-medium text-slate-900">
-              Sélection des prestataires
-            </Label>
+          {/* Sélection des prestataires avec design amélioré */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Users className="h-4 w-4 text-sky-600" />
+                Sélection des prestataires
+              </Label>
+              {filteredProviders.length > 0 && (
+                <span className="text-xs text-slate-500">
+                  {filteredProviders.length} disponible{filteredProviders.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
             <ContactSelector
               contacts={providers.map(p => ({
                 id: p.id,
@@ -218,41 +267,73 @@ export const MultiQuoteRequestModal = ({
               onContactSelect={handleContactSelect}
               onContactCreated={handleContactCreated}
               contactType="prestataire"
-              placeholder="Sélectionnez les prestataires pour cette intervention"
+              placeholder="Rechercher et sélectionner des prestataires..."
               teamId={teamId}
             />
+
+            {selectedProviderIds.length === 0 && (
+              <p className="text-xs text-amber-600 bg-amber-50 p-2.5 rounded-lg border border-amber-100 flex items-start gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                Sélectionnez au moins un prestataire pour continuer
+              </p>
+            )}
           </div>
 
-          {/* Messages individualisés */}
+          {/* Messages individualisés avec animations */}
           {selectedProviders.length > 0 && (
             <div className="space-y-4">
-              <Label className="text-sm font-medium text-slate-900">
-                Messages individualisés
-              </Label>
-              <p className="text-xs text-slate-500">
-                Personnalisez le message pour chaque prestataire sélectionné
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-sky-600" />
+                  Messages personnalisés
+                </Label>
+                <Badge variant="outline" className="text-xs">
+                  Optionnel
+                </Badge>
+              </div>
+
+              <p className="text-sm text-slate-600">
+                Ajoutez des instructions spécifiques pour chaque prestataire
               </p>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {selectedProviders.map((provider) => (
-                  <Card key={provider.id}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {provider.name}
-                        <Badge variant="outline" className="text-xs">
-                          {provider.provider_category}
+                  <Card
+                    key={provider.id}
+                    className={cn(
+                      "transition-all duration-200 border-slate-200",
+                      hoveredCard === provider.id && "shadow-md border-sky-200 scale-[1.02]"
+                    )}
+                    onMouseEnter={() => setHoveredCard(provider.id)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    <CardHeader className="pb-3 bg-gradient-to-r from-slate-50 to-white">
+                      <CardTitle className="text-sm font-medium flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-sky-100 rounded">
+                            <User className="h-3.5 w-3.5 text-sky-600" />
+                          </div>
+                          <span className="text-slate-900">{provider.name}</span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {provider.provider_category || 'Prestataire'}
                         </Badge>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0">
+                    <CardContent className="pt-3">
                       <Textarea
-                        value={individualMessages[provider.id] || additionalNotes}
+                        value={individualMessages[provider.id] || ''}
                         onChange={(e) => onIndividualMessageChange(provider.id, e.target.value)}
-                        placeholder={`Message spécifique pour ${provider.name}...`}
+                        placeholder={`Instructions spécifiques pour ${provider.name}...`}
                         rows={3}
-                        className="resize-none"
+                        className="resize-none text-sm border-slate-200 focus:border-sky-300 focus:ring-sky-200/50 transition-colors"
                       />
+                      {individualMessages[provider.id] && (
+                        <div className="mt-2 flex items-center gap-1 text-xs text-green-600 animate-in fade-in duration-300">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Message personnalisé ajouté
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -260,42 +341,68 @@ export const MultiQuoteRequestModal = ({
             </div>
           )}
 
-          {/* Erreur */}
+          {/* Message d'erreur amélioré */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">{error}</span>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-in slide-in-from-top duration-300">
+              <div className="flex items-start gap-2.5">
+                <div className="p-1 bg-red-100 rounded">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">Erreur</p>
+                  <p className="text-sm text-red-700 mt-0.5">{error}</p>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <DialogFooter className="pt-6 border-t">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={selectedProviderIds.length === 0 || isLoading}
-            className="min-w-[140px]"
-          >
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Envoi...</span>
-              </div>
-            ) : (
-              <>
-                <FileText className="h-4 w-4 mr-2" />
-                Demander {selectedProviderIds.length} devis
-              </>
-            )}
-          </Button>
+        {/* Footer amélioré avec progression visuelle */}
+        <DialogFooter className="border-t bg-gradient-to-r from-slate-50 to-white px-6 py-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-sm text-slate-600">
+              {selectedProviderIds.length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Prêt à envoyer
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+                className="hover:bg-slate-50 transition-colors"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={selectedProviderIds.length === 0 || isLoading}
+                className={cn(
+                  "min-w-[160px] transition-all duration-200",
+                  selectedProviderIds.length > 0
+                    ? "bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 shadow-md hover:shadow-lg"
+                    : "bg-slate-300"
+                )}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Envoi en cours...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    <span>
+                      Demander {selectedProviderIds.length > 0 ? selectedProviderIds.length : ''} devis
+                    </span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

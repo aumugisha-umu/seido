@@ -1,0 +1,530 @@
+[2025-10-05T15:10:59.177Z] [INFO] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+{
+  "location": {
+    "url": "http://localhost:3000/auth/login",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-05T15:11:00.709Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-05T15:11:00.886Z] [INFO] {time: 1759677060868, level: 30, msg: 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.459Z] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found)
+{
+  "location": {
+    "url": "http://localhost:3000/favicon.ico",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-05T15:11:01.461Z] [INFO] {time: 1759677061455, level: 30, msg: 🔐 Auth state changed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.549Z] [INFO] {time: 1759677061543, level: 30, msg: 🌍 [ENV-INFO] Environment Configuration:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.554Z] [INFO] {time: 1759677061548, level: 30, msg: 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.557Z] [INFO] {time: 1759677061550, level: 30, msg: 🔍 [AUTH-PROVIDER] Checking initial session immediately...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.715Z] [INFO] {time: 1759677061712, level: 30, msg: ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.767Z] [INFO] {time: 1759677061764, level: 30, msg: 🔄 [AUTH-STATE-CHANGE] Event:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.768Z] [INFO] {time: 1759677061765, level: 30, msg: 🔍 [AUTH-STATE-CHANGE] No initial session}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.860Z] [INFO] {time: 1759677061817, level: 30, msg: 🔍 [SEIDO-DEBUG-EFFECT] About to call handleInvitationCallback, conditions:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:01.860Z] [INFO] {time: 1759677061823, level: 30, msg: 🔍 [SEIDO-DEBUG-EFFECT] handleInvitationCallback completed, handled:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:02.110Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-05T15:11:02.110Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /auth/login, path: /auth/login}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-05T15:11:02.111Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/auth/login color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/auth/login, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759677062074}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-05T15:11:04.347Z] [INFO] {time: 1759677064342, level: 30, msg: 🚀 [LOGIN-FORM] Login successful, navigating in 1000ms to:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:05.348Z] [INFO] {time: 1759677065346, level: 30, msg: 🔄 [LOGIN-FORM] Executing full page navigation with window.location.href...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:06.946Z] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js",
+    "lineNumber": 24914,
+    "columnNumber": 16
+  }
+}
+
+[2025-10-05T15:11:07.014Z] [INFO] {time: 1759677067013, level: 30, msg: 🌍 [ENV-CONFIG] Environment detected: DEVELOPMENT}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.319Z] [INFO] {time: 1759677067278, level: 30, msg: 🔐 Auth state changed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.597Z] [INFO] {time: 1759677067596, level: 30, msg: 🔐 Auth state changed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.631Z] [INFO] {time: 1759677067628, level: 30, msg: 🌍 [ENV-INFO] Environment Configuration:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.632Z] [INFO] {time: 1759677067630, level: 30, msg: 🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.633Z] [INFO] {time: 1759677067631, level: 30, msg: 🔍 [AUTH-PROVIDER] Checking initial session immediately...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.706Z] [INFO] {time: 1759677067702, level: 30, msg: ✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.708Z] [INFO] {time: 1759677067703, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Getting current user...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.749Z] [INFO] {time: 1759677067748, level: 30, msg: 🔄 [AUTH-STATE-CHANGE] Event:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.750Z] [INFO] {time: 1759677067748, level: 30, msg: 🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.750Z] [INFO] {time: 1759677067749, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Getting current user...}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.871Z] [INFO] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-05T15:11:07.872Z] [INFO] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /gestionnaire/dashboard, path: /gestionnaire/dashboard}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-05T15:11:07.872Z] [INFO] %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/gestionnaire/dashboard color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/gestionnaire/dashboard, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.5.0, ts: 1759677067866}
+{
+  "location": {
+    "url": "https://va.vercel-scripts.com/v1/script.debug.js",
+    "lineNumber": 0,
+    "columnNumber": 461
+  }
+}
+
+[2025-10-05T15:11:07.967Z] [INFO] {time: 1759677067962, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:07.967Z] [INFO] {time: 1759677067962, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Auth user metadata:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.057Z] [INFO] {time: 1759677068049, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.057Z] [INFO] {time: 1759677068050, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Auth user metadata:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.176Z] [INFO] {time: 1759677068167, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Profile query result:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.177Z] [INFO] {time: 1759677068167, level: 30, msg: ✅ [AUTH-SERVICE-REFACTORED] User profile found:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.177Z] [INFO] {time: 1759677068171, level: 30, msg: 🧪 [TEAM-STATUS] Environment check:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.179Z] [INFO] {time: 1759677068173, level: 30, msg: 🧪 [TEAM-STATUS] Development mode detected - auto-approving team access}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.179Z] [INFO] {time: 1759677068175, level: 30, msg: 🔍 [SEIDO-DEBUG-EFFECT] About to call handleInvitationCallback, conditions:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.180Z] [INFO] {time: 1759677068176, level: 30, msg: 🔍 [SEIDO-DEBUG-EFFECT] handleInvitationCallback completed, handled:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.677Z] [INFO] {time: 1759677068559, level: 30, msg: 🔍 [AUTH-SERVICE-REFACTORED] Profile query result:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.678Z] [INFO] {time: 1759677068560, level: 30, msg: ✅ [AUTH-SERVICE-REFACTORED] User profile found:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.678Z] [INFO] {time: 1759677068561, level: 30, msg: 🔍 [SEIDO-DEBUG-EFFECT] About to call handleInvitationCallback, conditions:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.678Z] [INFO] {time: 1759677068568, level: 30, msg: 🔍 [SEIDO-DEBUG-EFFECT] handleInvitationCallback completed, handled:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.709Z] [INFO] {time: 1759677068652, level: 30, msg: ⚙️ [CACHE] Added invalidation config:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.709Z] [INFO] {time: 1759677068654, level: 30, msg: 🛣️ [CACHE] Route changed to: /gestionnaire/dashboard}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:08.709Z] [INFO] {time: 1759677068655, level: 30, msg: 🧭 [NAV-REFRESH] Navigation detected to: /gestionnaire/dashboard}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:09.186Z] [INFO] {time: 1759677069185, level: 30, msg: 🏠 [NAV-REFRESH] Dashboard section - refreshing stats}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:09.211Z] [INFO] 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/cache/cache-manager.ts",
+    "lineNumber": 33,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-05T15:11:11.360Z] [ERROR] Failed to load resource: the server responded with a status of 406 ()
+{
+  "location": {
+    "url": "https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=id&email=eq.test-locataire-1759677057780%40seido-test.com&limit=1",
+    "lineNumber": 0,
+    "columnNumber": 0
+  }
+}
+
+[2025-10-05T15:11:11.362Z] [INFO] {time: 1759677071358, level: 30, msg: [DASHBOARD-CLIENT] Contact creation:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+    "lineNumber": 32,
+    "columnNumber": 41
+  }
+}
+
+[2025-10-05T15:11:11.876Z] [ERROR] {time: 1759677071870, level: 50, msg: [DASHBOARD-CLIENT] Contact creation failed:}
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/globals/intercept-console-error.js",
+    "lineNumber": 49,
+    "columnNumber": 31
+  }
+}
+
+[2025-10-05T15:11:17.014Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-05T15:11:18.619Z] [INFO] [Fast Refresh] done in 1612ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}
+
+[2025-10-05T15:11:20.090Z] [INFO] [Fast Refresh] rebuilding
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 241,
+    "columnNumber": 24
+  }
+}
+
+[2025-10-05T15:11:22.036Z] [INFO] [Fast Refresh] done in 1936ms
+{
+  "location": {
+    "url": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js",
+    "lineNumber": 73,
+    "columnNumber": 12
+  }
+}

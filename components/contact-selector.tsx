@@ -208,22 +208,25 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       phone: contact.phone,
       speciality: contact.speciality,
     }
-    
+
     // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
     const contextLotId = externalLotId || lotId
-    
+
     console.log('✅ [ContactSelector] Contact selected:', newContact.name, 'type:', selectedContactType, 'lotId:', contextLotId)
-    
+
+    // Créer le contexte uniquement si lotId existe
+    const context = contextLotId ? { lotId: contextLotId } : undefined
+
     // Appeler le callback parent avec contexte
     if (onContactSelected) {
-      onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
+      onContactSelected(newContact, selectedContactType, context)
     } else {
       console.error('❌ [ContactSelector] onContactSelected callback is missing!')
     }
-    
+
     setIsContactModalOpen(false)
     setSearchTerm("")
-    setExternalLotId(undefined)  // Nettoyer le contexte externe
+    cleanContactContext()  // Nettoyer le contexte (y compris externalLotId)
   }
 
   // Créer un contact (logique centralisée)
@@ -260,17 +263,20 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         speciality: result.contact.speciality,
       }
       
-      console.log('✅ [ContactSelector] Contact created:', newContact.name)
-      
-      // Appeler les callbacks parent
+      console.log('✅ [ContactSelector] Contact created:', newContact.name, 'externalLotId:', externalLotId)
+
+      // Créer le contexte avec lotId si disponible
+      const context = externalLotId ? { lotId: externalLotId } : undefined
+
+      // Appeler les callbacks parent avec le contexte
       if (onContactSelected) {
-        onContactSelected(newContact, selectedContactType)
+        onContactSelected(newContact, selectedContactType, context)
       }
-      
+
       if (onContactCreated) {
-        onContactCreated(result.contact, selectedContactType)
+        onContactCreated(result.contact, selectedContactType, context)
       }
-      
+
       setIsContactFormModalOpen(false)
       cleanContactContext()
       
@@ -283,6 +289,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const cleanContactContext = () => {
     setSelectedContactType("")
     setPrefilledContactType("")
+    setExternalLotId(undefined)  // Nettoyer aussi le lotId externe
   }
 
   // Filtrer les contacts selon le terme de recherche

@@ -280,21 +280,31 @@ export default function InterventionDetailPage({ params }: { params: Promise<{ i
       }
       
       const organizedContacts = {
-        locataires: contacts.filter((contact: any) => 
+        locataires: contacts.filter((contact: any) =>
           getContactAssignmentType(contact) === 'tenant'
         ).map((contact: any) => ({
           ...contact,
           inChat: false // Par défaut, pas dans le chat (sera géré plus tard)
         })),
-        syndics: contacts.filter((contact: any) => 
+        syndics: contacts.filter((contact: any) =>
           getContactAssignmentType(contact) === 'syndic'
         ).map((contact: any) => ({
           ...contact,
           inChat: false
         })),
-        autres: contacts.filter((contact: any) => 
-          !['tenant', 'syndic'].includes(getContactAssignmentType(contact))
-        ).map((contact: any) => ({
+        autres: contacts.filter((contact: any) => {
+          const type = getContactAssignmentType(contact)
+
+          // Exclure locataires, syndics et prestataires (ils viennent des devis approuvés)
+          if (['tenant', 'syndic', 'provider'].includes(type)) return false
+
+          // Dédupliquer: exclure si ce contact est le gestionnaire de l'intervention
+          if (interventionData.manager && contact.id === interventionData.manager.id) {
+            return false
+          }
+
+          return true
+        }).map((contact: any) => ({
           ...contact,
           inChat: false
         }))

@@ -1,0 +1,750 @@
+[2025-10-05T15:10:57.825Z] GET http://localhost:3000/auth/login → 200 (940ms)
+
+[2025-10-05T15:10:58.828Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759677058198 → 200 (44ms)
+
+[2025-10-05T15:10:58.829Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759677058198 → 200 (106ms)
+
+[2025-10-05T15:10:58.831Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (194ms)
+
+[2025-10-05T15:10:58.838Z] GET http://localhost:3000/_next/static/chunks/app/auth/login/page.js → 200 (341ms)
+
+[2025-10-05T15:10:58.832Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (1575ms)
+
+[2025-10-05T15:10:58.830Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759677058198 → 200 (1714ms)
+
+[2025-10-05T15:11:01.667Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (41ms)
+
+[2025-10-05T15:11:01.968Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (112ms)
+
+[2025-10-05T15:11:02.383Z] POST http://localhost:3000/auth/login → 200 (1734ms)
+
+[2025-10-05T15:11:04.199Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759677062830 → 200 (25ms)
+
+[2025-10-05T15:11:05.361Z] GET http://localhost:3000/gestionnaire/dashboard → 200 (547ms)
+
+[2025-10-05T15:11:05.943Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759677065810 → 200 (7ms)
+
+[2025-10-05T15:11:05.944Z] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1759677065810 → 200 (13ms)
+
+[2025-10-05T15:11:05.945Z] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js → 200 (54ms)
+
+[2025-10-05T15:11:05.948Z] GET http://localhost:3000/_next/static/chunks/app/layout.js → 200 (584ms)
+
+[2025-10-05T15:11:05.945Z] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1759677065810 → 200 (809ms)
+
+[2025-10-05T15:11:06.300Z] GET http://localhost:3000/_next/static/chunks/app/gestionnaire/layout.js → 200 (1016ms)
+
+[2025-10-05T15:11:07.614Z] GET http://localhost:3000/_next/image?url=%2Fimages%2FSeido_Main_Side_last.png&w=256&q=75 → 200 (78ms)
+
+[2025-10-05T15:11:07.684Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js → 200 (17ms)
+
+[2025-10-05T15:11:07.867Z] GET https://va.vercel-scripts.com/v1/script.debug.js → 200 (6ms)
+
+[2025-10-05T15:11:07.790Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/auth/v1/user → 200 (173ms)
+Response Body:
+{
+  "id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+  "aud": "authenticated",
+  "role": "authenticated",
+  "email": "arthur@seido.pm",
+  "email_confirmed_at": "2025-10-03T09:16:53.471081Z",
+  "phone": "",
+  "confirmed_at": "2025-10-03T09:16:53.471081Z",
+  "last_sign_in_at": "2025-10-05T15:10:29.237164Z",
+  "app_metadata": {
+    "provider": "email",
+    "providers": [
+      "email"
+    ]
+  },
+  "user_metadata": {
+    "display_name": "Arthur Umugisha",
+    "email": "arthur@seido.pm",
+    "email_verified": true,
+    "first_name": "Arthur",
+    "full_name": "Arthur Umugisha",
+    "last_name": "Umugisha",
+    "phone_verified": false,
+    "sub": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38"
+  },
+  "identities": [
+    {
+      "identity_id": "5119b112-6b82-47f6-9005-2960dc3cb444",
+      "id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+      "user_id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+      "identity_data": {
+        "display_name": "Arthur Umugisha",
+        "email": "arthur@seido.pm",
+        "email_verified": false,
+        "first_name": "Arthur",
+        "full_name": "Arthur Umugisha",
+        "last_name": "Umugisha",
+        "phone_verified": false,
+        "sub": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38"
+      },
+      "provider": "email",
+      "last_sign_in_at": "2025-10-03T09:16:53.466741Z",
+      "created_at": "2025-10-03T09:16:53.466789Z",
+      "updated_at": "2025-10-03T09:16:53.466789Z",
+      "email": "arthur@seido.pm"
+    }
+  ],
+  "created_at": "2025-10-03T09:16:53.462856Z",
+  "updated_at": "2025-10-05T15:10:29.23906Z",
+  "is_anonymous": false
+}
+
+[2025-10-05T15:11:07.979Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/auth/v1/user → 200 (72ms)
+Response Body:
+{
+  "id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+  "aud": "authenticated",
+  "role": "authenticated",
+  "email": "arthur@seido.pm",
+  "email_confirmed_at": "2025-10-03T09:16:53.471081Z",
+  "phone": "",
+  "confirmed_at": "2025-10-03T09:16:53.471081Z",
+  "last_sign_in_at": "2025-10-05T15:10:29.237164Z",
+  "app_metadata": {
+    "provider": "email",
+    "providers": [
+      "email"
+    ]
+  },
+  "user_metadata": {
+    "display_name": "Arthur Umugisha",
+    "email": "arthur@seido.pm",
+    "email_verified": true,
+    "first_name": "Arthur",
+    "full_name": "Arthur Umugisha",
+    "last_name": "Umugisha",
+    "phone_verified": false,
+    "sub": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38"
+  },
+  "identities": [
+    {
+      "identity_id": "5119b112-6b82-47f6-9005-2960dc3cb444",
+      "id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+      "user_id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+      "identity_data": {
+        "display_name": "Arthur Umugisha",
+        "email": "arthur@seido.pm",
+        "email_verified": false,
+        "first_name": "Arthur",
+        "full_name": "Arthur Umugisha",
+        "last_name": "Umugisha",
+        "phone_verified": false,
+        "sub": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38"
+      },
+      "provider": "email",
+      "last_sign_in_at": "2025-10-03T09:16:53.466741Z",
+      "created_at": "2025-10-03T09:16:53.466789Z",
+      "updated_at": "2025-10-03T09:16:53.466789Z",
+      "email": "arthur@seido.pm"
+    }
+  ],
+  "created_at": "2025-10-03T09:16:53.462856Z",
+  "updated_at": "2025-10-05T15:10:29.23906Z",
+  "is_anonymous": false
+}
+
+[2025-10-05T15:11:08.061Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=*&auth_user_id=eq.7d808b3b-1caf-4226-a5f4-459e9c7f7c38 → 200 (107ms)
+Response Body:
+{
+  "id": "25311bea-3381-4cf7-ab12-027e8cb15519",
+  "auth_user_id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+  "email": "arthur@seido.pm",
+  "name": "Arthur Umugisha",
+  "first_name": "Arthur",
+  "last_name": "Umugisha",
+  "phone": null,
+  "avatar_url": null,
+  "address": null,
+  "company": null,
+  "speciality": null,
+  "role": "gestionnaire",
+  "provider_category": null,
+  "notes": null,
+  "is_active": true,
+  "password_set": false,
+  "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+  "created_at": "2025-10-03T09:16:52.191231+00:00",
+  "updated_at": "2025-10-03T09:16:53.619155+00:00"
+}
+
+[2025-10-05T15:11:07.584Z] GET http://localhost:3000/_next/static/chunks/app/gestionnaire/dashboard/page.js → 200 (621ms)
+
+[2025-10-05T15:11:08.059Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=*&auth_user_id=eq.7d808b3b-1caf-4226-a5f4-459e9c7f7c38 → 200 (606ms)
+Response Body:
+{
+  "id": "25311bea-3381-4cf7-ab12-027e8cb15519",
+  "auth_user_id": "7d808b3b-1caf-4226-a5f4-459e9c7f7c38",
+  "email": "arthur@seido.pm",
+  "name": "Arthur Umugisha",
+  "first_name": "Arthur",
+  "last_name": "Umugisha",
+  "phone": null,
+  "avatar_url": null,
+  "address": null,
+  "company": null,
+  "speciality": null,
+  "role": "gestionnaire",
+  "provider_category": null,
+  "notes": null,
+  "is_active": true,
+  "password_set": false,
+  "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+  "created_at": "2025-10-03T09:16:52.191231+00:00",
+  "updated_at": "2025-10-03T09:16:53.619155+00:00"
+}
+
+[2025-10-05T15:11:08.719Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/team_members?select=team_id%2Crole%2Cid%2Cjoined_at%2Cuser_id&user_id=eq.25311bea-3381-4cf7-ab12-027e8cb15519 → 200 (460ms)
+Response Body:
+[
+  {
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "role": "admin",
+    "id": "5909735e-71ac-46a7-8d35-6b6ab383c301",
+    "joined_at": "2025-10-03T09:16:52.467936+00:00",
+    "user_id": "25311bea-3381-4cf7-ab12-027e8cb15519"
+  }
+]
+
+[2025-10-05T15:11:09.222Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/teams?select=*%2Ccreated_by_user%3Acreated_by%28name%2Cemail%29&id=in.%28f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2%29&order=name.asc → 200 (96ms)
+Response Body:
+[
+  {
+    "id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "name": "Équipe de Arthur Umugisha",
+    "description": "Équipe personnelle de Arthur Umugisha",
+    "created_by": "25311bea-3381-4cf7-ab12-027e8cb15519",
+    "created_at": "2025-10-03T09:16:52.335497+00:00",
+    "updated_at": "2025-10-03T09:16:52.335497+00:00",
+    "created_by_user": {
+      "name": "Arthur Umugisha",
+      "email": "arthur@seido.pm"
+    }
+  }
+]
+
+[2025-10-05T15:11:09.325Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/team_members?select=id%2Cteam_id%2Cuser_id%2Crole%2Cjoined_at&team_id=in.%28f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2%29 → 200 (90ms)
+Response Body:
+[
+  {
+    "id": "5909735e-71ac-46a7-8d35-6b6ab383c301",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "25311bea-3381-4cf7-ab12-027e8cb15519",
+    "role": "admin",
+    "joined_at": "2025-10-03T09:16:52.467936+00:00"
+  },
+  {
+    "id": "11989967-66df-4487-a92c-afc2a6b683ae",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "9b871fb4-976f-48df-8651-e6ed757d96ac",
+    "role": "member",
+    "joined_at": "2025-10-03T09:18:15.490086+00:00"
+  },
+  {
+    "id": "aaf519e2-a310-4850-9c97-58985e7600d7",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "f7643ec8-1b2d-4c54-a095-23cea06c9d88",
+    "role": "member",
+    "joined_at": "2025-10-03T09:18:42.625748+00:00"
+  },
+  {
+    "id": "9362a959-3d06-42b5-9caa-c112f7e518fb",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "b9386747-6f11-4311-8ba4-067d7e82c1e5",
+    "role": "member",
+    "joined_at": "2025-10-03T09:19:15.223995+00:00"
+  },
+  {
+    "id": "ca1b4b3a-e4ba-4df0-b35b-7f65c3c1a9e4",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "9c0b3a39-5901-453e-801f-15a3e5d10a7b",
+    "role": "member",
+    "joined_at": "2025-10-05T07:32:41.268+00:00"
+  },
+  {
+    "id": "54dbfdab-9383-4aff-a836-86721c10a092",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "f87ad7cf-2ea3-4247-bfe0-d98729ca50af",
+    "role": "member",
+    "joined_at": "2025-10-05T07:34:00.755+00:00"
+  },
+  {
+    "id": "cc5d0241-b976-4ac1-b8ff-5688f02b25d1",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "0739578b-bc8b-4625-adbc-8f39e1b63d93",
+    "role": "member",
+    "joined_at": "2025-10-05T07:41:57.3+00:00"
+  },
+  {
+    "id": "2ce6cdde-f5d2-47de-b2a0-6d83f6bd3ebf",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "0e5e78a6-526b-431d-8f35-ad33d8cf0ff4",
+    "role": "member",
+    "joined_at": "2025-10-05T08:01:04.614+00:00"
+  },
+  {
+    "id": "543a56e4-51f1-4385-815d-65518fc977fa",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "05c3269a-025e-4736-881b-61daeaca324a",
+    "role": "member",
+    "joined_at": "2025-10-05T08:18:02.812+00:00"
+  },
+  {
+    "id": "1055e41d-d16a-4f60-b136-2ebda3d44b0e",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "cb9cc0af-2656-44c2-9c92-f19877d6b0f5",
+    "role": "member",
+    "joined_at": "2025-10-05T09:08:56.588+00:00"
+  },
+  {
+    "id": "dcf7f0fc-2262-4818-842d-00ffba4d338b",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "75748f45-5090-4c2a-b5aa-dd0c0552b22d",
+    "role": "member",
+    "joined_at": "2025-10-05T09:17:49.584+00:00"
+  },
+  {
+    "id": "a62e7ebb-9791-4906-b9fb-86e87268e7a9",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "b62784c9-ed75-4444-8f99-955f981037e3",
+    "role": "member",
+    "joined_at": "2025-10-05T09:35:58.506+00:00"
+  },
+  {
+    "id": "e8af0720-7b43-4f92-b0a9-2a0ab81063d9",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "c6c4dbdc-dc67-49e9-9016-f3d133422c76",
+    "role": "member",
+    "joined_at": "2025-10-05T09:59:50.398+00:00"
+  },
+  {
+    "id": "58ad9192-dd08-4539-8a8e-4573e7ff2652",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "1905fc34-3746-416c-8abb-b1e9b00b13e6",
+    "role": "member",
+    "joined_at": "2025-10-05T10:57:40.463+00:00"
+  },
+  {
+    "id": "d745fbfa-972c-44c1-b461-19d207bd6b78",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "4673d53c-7fce-4fc2-aab3-cfbd34c618e3",
+    "role": "member",
+    "joined_at": "2025-10-05T12:12:34.633+00:00"
+  },
+  {
+    "id": "b7ea83c5-aa07-4fbb-9d73-41f4d077b19c",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "6a2dcb40-f23f-474d-9dd5-36ab0809d5b5",
+    "role": "member",
+    "joined_at": "2025-10-05T13:08:58.113+00:00"
+  },
+  {
+    "id": "798bc152-f58f-4bf5-9e77-a55cc2b498d9",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "c31bb70c-a5b2-47fa-a75c-86d2d201cebf",
+    "role": "member",
+    "joined_at": "2025-10-05T13:15:57.541+00:00"
+  },
+  {
+    "id": "f8233ecf-732f-43a2-abde-10261bca98c6",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "b9489786-01aa-41d6-b1a4-8f99e666dda0",
+    "role": "member",
+    "joined_at": "2025-10-05T13:22:47.857+00:00"
+  },
+  {
+    "id": "47915484-9544-4936-aa2a-51652a233c7e",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "3fef525c-242a-47ce-ac3b-7712118cff29",
+    "role": "member",
+    "joined_at": "2025-10-05T13:59:55.539+00:00"
+  },
+  {
+    "id": "d47c5a71-2158-4ae2-9d2f-77b952e5aa8e",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "a05d176a-23cd-451f-8bac-8bd1b8bf88e2",
+    "role": "member",
+    "joined_at": "2025-10-05T14:15:47.341+00:00"
+  },
+  {
+    "id": "543bc251-6f8a-4ab5-89ef-72556b078789",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "a9ed7a7b-4028-4a6e-88bd-fecd11aafbc6",
+    "role": "member",
+    "joined_at": "2025-10-05T14:35:46.121+00:00"
+  },
+  {
+    "id": "73fbadc6-5933-43ba-95e8-e402a85df3ce",
+    "team_id": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2",
+    "user_id": "5b38cdb4-3892-431a-a59f-48e5d1881fc4",
+    "role": "member",
+    "joined_at": "2025-10-05T15:10:24.137961+00:00"
+  }
+]
+
+[2025-10-05T15:11:09.422Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=id%2Cname%2Cemail%2Crole&id=in.%2825311bea-3381-4cf7-ab12-027e8cb15519%2C9b871fb4-976f-48df-8651-e6ed757d96ac%2Cf7643ec8-1b2d-4c54-a095-23cea06c9d88%2Cb9386747-6f11-4311-8ba4-067d7e82c1e5%2C9c0b3a39-5901-453e-801f-15a3e5d10a7b%2Cf87ad7cf-2ea3-4247-bfe0-d98729ca50af%2C0739578b-bc8b-4625-adbc-8f39e1b63d93%2C0e5e78a6-526b-431d-8f35-ad33d8cf0ff4%2C05c3269a-025e-4736-881b-61daeaca324a%2Ccb9cc0af-2656-44c2-9c92-f19877d6b0f5%2C75748f45-5090-4c2a-b5aa-dd0c0552b22d%2Cb62784c9-ed75-4444-8f99-955f981037e3%2Cc6c4dbdc-dc67-49e9-9016-f3d133422c76%2C1905fc34-3746-416c-8abb-b1e9b00b13e6%2C4673d53c-7fce-4fc2-aab3-cfbd34c618e3%2C6a2dcb40-f23f-474d-9dd5-36ab0809d5b5%2Cc31bb70c-a5b2-47fa-a75c-86d2d201cebf%2Cb9489786-01aa-41d6-b1a4-8f99e666dda0%2C3fef525c-242a-47ce-ac3b-7712118cff29%2Ca05d176a-23cd-451f-8bac-8bd1b8bf88e2%2Ca9ed7a7b-4028-4a6e-88bd-fecd11aafbc6%2C5b38cdb4-3892-431a-a59f-48e5d1881fc4%29 → 200 (187ms)
+Response Body:
+[
+  {
+    "id": "1905fc34-3746-416c-8abb-b1e9b00b13e6",
+    "name": "SDFG ZERGH",
+    "email": "arthur+14@seido.pm",
+    "role": "locataire"
+  },
+  {
+    "id": "25311bea-3381-4cf7-ab12-027e8cb15519",
+    "name": "Arthur Umugisha",
+    "email": "arthur@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "b9386747-6f11-4311-8ba4-067d7e82c1e5",
+    "name": "Arthur Gestionnaire 1",
+    "email": "arthur+gest1@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "9b871fb4-976f-48df-8651-e6ed757d96ac",
+    "name": "Arthur locataire 1",
+    "email": "arthur+loc1@seido.pm",
+    "role": "locataire"
+  },
+  {
+    "id": "f7643ec8-1b2d-4c54-a095-23cea06c9d88",
+    "name": "Arthur Prestataire 1",
+    "email": "arthur+prest1@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "4673d53c-7fce-4fc2-aab3-cfbd34c618e3",
+    "name": "SFDGFCHGVHB FGVHJ.",
+    "email": "arthur+15@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "6a2dcb40-f23f-474d-9dd5-36ab0809d5b5",
+    "name": "Gestionnaire hgjkhgd",
+    "email": "arthur+16@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "c31bb70c-a5b2-47fa-a75c-86d2d201cebf",
+    "name": "Gestionnaire Dupont",
+    "email": "arthur+18@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "b9489786-01aa-41d6-b1a4-8f99e666dda0",
+    "name": "sdfkglmhg kjh",
+    "email": "arthur+19@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "3fef525c-242a-47ce-ac3b-7712118cff29",
+    "name": "gfbdfs ghfgdsf",
+    "email": "arthur+20@seido.pm",
+    "role": "locataire"
+  },
+  {
+    "id": "a05d176a-23cd-451f-8bac-8bd1b8bf88e2",
+    "name": "Gestionnaire dfgh",
+    "email": "arthur+21@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "a9ed7a7b-4028-4a6e-88bd-fecd11aafbc6",
+    "name": "Locataire rdfhg",
+    "email": "arthur+23@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "5b38cdb4-3892-431a-a59f-48e5d1881fc4",
+    "name": "SFDGFHGJH GFHGJHK",
+    "email": "arthur+25@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "9c0b3a39-5901-453e-801f-15a3e5d10a7b",
+    "name": "ZERTY ERTYU",
+    "email": "arthur+01@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "f87ad7cf-2ea3-4247-bfe0-d98729ca50af",
+    "name": "Locataire 14",
+    "email": "arthur+02@seido.pm",
+    "role": "locataire"
+  },
+  {
+    "id": "0739578b-bc8b-4625-adbc-8f39e1b63d93",
+    "name": "sdfghj edfghj",
+    "email": "arthur+03@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "0e5e78a6-526b-431d-8f35-ad33d8cf0ff4",
+    "name": "sfdgfhgk fhgjhjh",
+    "email": "arthur+4@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "05c3269a-025e-4736-881b-61daeaca324a",
+    "name": "Arthur zertre",
+    "email": "arthur+5@seido.pm",
+    "role": "gestionnaire"
+  },
+  {
+    "id": "cb9cc0af-2656-44c2-9c92-f19877d6b0f5",
+    "name": "FEGRT ZERTGH",
+    "email": "arthur+6@seido.pm",
+    "role": "prestataire"
+  },
+  {
+    "id": "75748f45-5090-4c2a-b5aa-dd0c0552b22d",
+    "name": "azertyui rtyui",
+    "email": "arthur+8@seido.pm",
+    "role": "locataire"
+  },
+  {
+    "id": "b62784c9-ed75-4444-8f99-955f981037e3",
+    "name": "Gestionnaire Umugisha",
+    "email": "arthur+12@seido.pm",
+    "role": "locataire"
+  },
+  {
+    "id": "c6c4dbdc-dc67-49e9-9016-f3d133422c76",
+    "name": "sdfghj sdfgh",
+    "email": "arthur+13@seido.pm",
+    "role": "gestionnaire"
+  }
+]
+
+[2025-10-05T15:11:11.259Z] GET https://yfmybfmflghwvylqjfbc.supabase.co/rest/v1/users?select=id&email=eq.test-locataire-1759677057780%40seido-test.com&limit=1 → 406 (99ms)
+Response Body:
+{
+  "code": "PGRST116",
+  "details": "The result contains 0 rows",
+  "hint": null,
+  "message": "Cannot coerce the result to a single JSON object"
+}
+
+[2025-10-05T15:11:11.362Z] GET http://localhost:3000/_next/static/chunks/_app-pages-browser_app_gestionnaire_dashboard_actions_ts.js → 200 (23ms)
+
+[2025-10-05T15:11:11.411Z] POST http://localhost:3000/gestionnaire/dashboard → 200 (454ms)
+Request Body:
+[
+  {
+    "type": "tenant",
+    "firstName": "Marie",
+    "lastName": "Martin",
+    "email": "test-locataire-1759677057780@seido-test.com",
+    "phone": "+33634567890",
+    "speciality": "",
+    "notes": "Contact de test AVEC invitation",
+    "inviteToApp": true,
+    "teamId": "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2"
+  }
+]
+
+[2025-10-05T15:11:12.019Z] POST http://localhost:3000/__nextjs_original-stack-frames → 200 (31ms)
+Request Body:
+{
+  "frames": [
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/errors/console-error.js",
+      "methodName": "createUnhandledError",
+      "arguments": [],
+      "lineNumber": 27,
+      "column": 71
+    },
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/errors/use-error-handler.js",
+      "methodName": "handleClientError",
+      "arguments": [],
+      "lineNumber": 45,
+      "column": 56
+    },
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/globals/intercept-console-error.js",
+      "methodName": "console.error",
+      "arguments": [],
+      "lineNumber": 47,
+      "column": 56
+    },
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./lib/logger.ts",
+      "methodName": "Object.error",
+      "arguments": [],
+      "lineNumber": 34,
+      "column": 43
+    },
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./node_modules/pino/browser.js",
+      "methodName": "Object.LOG [as error]",
+      "arguments": [],
+      "lineNumber": 328,
+      "column": 15
+    },
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./app/gestionnaire/dashboard/dashboard-client.tsx",
+      "methodName": "handleContactSubmit",
+      "arguments": [],
+      "lineNumber": 54,
+      "column": 65
+    },
+    {
+      "file": "webpack-internal:///(app-pages-browser)/./components/contact-form-modal.tsx",
+      "methodName": "async handleSubmit",
+      "arguments": [],
+      "lineNumber": 275,
+      "column": 13
+    }
+  ],
+  "isServer": false,
+  "isEdgeServer": false,
+  "isAppDirectory": true
+}
+Response Body:
+[
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "..\\src\\client\\components\\errors\\console-error.ts",
+        "lineNumber": 18,
+        "column": 35,
+        "methodName": "createUnhandledError",
+        "arguments": [],
+        "ignored": true
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 16 |\u001b[39m )\u001b[33m:\u001b[39m \u001b[33mUnhandledError\u001b[39m {\u001b[0m\n\u001b[0m \u001b[90m 17 |\u001b[39m   \u001b[36mconst\u001b[39m error \u001b[33m=\u001b[39m (\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 18 |\u001b[39m     \u001b[36mtypeof\u001b[39m message \u001b[33m===\u001b[39m \u001b[32m'string'\u001b[39m \u001b[33m?\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(message) \u001b[33m:\u001b[39m message\u001b[0m\n\u001b[0m \u001b[90m    |\u001b[39m                                   \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 19 |\u001b[39m   ) \u001b[36mas\u001b[39m \u001b[33mUnhandledError\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 20 |\u001b[39m   error[digestSym] \u001b[33m=\u001b[39m \u001b[32m'NEXT_UNHANDLED_ERROR'\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 21 |\u001b[39m   error[consoleTypeSym] \u001b[33m=\u001b[39m \u001b[36mtypeof\u001b[39m message \u001b[33m===\u001b[39m \u001b[32m'string'\u001b[39m \u001b[33m?\u001b[39m \u001b[32m'string'\u001b[39m \u001b[33m:\u001b[39m \u001b[32m'error'\u001b[39m\u001b[0m"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "..\\src\\client\\components\\errors\\use-error-handler.ts",
+        "lineNumber": 31,
+        "column": 13,
+        "methodName": "handleClientError",
+        "arguments": [],
+        "ignored": true
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 29 |\u001b[39m     \u001b[36mconst\u001b[39m formattedErrorMessage \u001b[33m=\u001b[39m formatConsoleArgs(consoleErrorArgs)\u001b[0m\n\u001b[0m \u001b[90m 30 |\u001b[39m     \u001b[36mconst\u001b[39m { environmentName } \u001b[33m=\u001b[39m parseConsoleArgs(consoleErrorArgs)\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 31 |\u001b[39m     error \u001b[33m=\u001b[39m createUnhandledError(formattedErrorMessage\u001b[33m,\u001b[39m environmentName)\u001b[0m\n\u001b[0m \u001b[90m    |\u001b[39m             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 32 |\u001b[39m   } \u001b[36melse\u001b[39m {\u001b[0m\n\u001b[0m \u001b[90m 33 |\u001b[39m     error \u001b[33m=\u001b[39m capturedFromConsole\u001b[0m\n\u001b[0m \u001b[90m 34 |\u001b[39m       \u001b[33m?\u001b[39m createUnhandledError(originError)\u001b[0m"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "..\\src\\client\\components\\globals\\intercept-console-error.ts",
+        "lineNumber": 32,
+        "column": 9,
+        "methodName": "console.error",
+        "arguments": [],
+        "ignored": true
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 30 |\u001b[39m     \u001b[36mif\u001b[39m (\u001b[33m!\u001b[39misNextRouterError(maybeError)) {\u001b[0m\n\u001b[0m \u001b[90m 31 |\u001b[39m       \u001b[36mif\u001b[39m (process\u001b[33m.\u001b[39menv\u001b[33m.\u001b[39m\u001b[33mNODE_ENV\u001b[39m \u001b[33m!==\u001b[39m \u001b[32m'production'\u001b[39m) {\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 32 |\u001b[39m         handleClientError(\u001b[0m\n\u001b[0m \u001b[90m    |\u001b[39m         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 33 |\u001b[39m           \u001b[90m// replayed errors have their own complex format string that should be used,\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 34 |\u001b[39m           \u001b[90m// but if we pass the error directly, `handleClientError` will ignore it\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 35 |\u001b[39m           maybeError\u001b[33m,\u001b[39m\u001b[0m"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "lib\\logger.ts",
+        "lineNumber": 17,
+        "column": 60,
+        "methodName": "Object.error",
+        "arguments": [],
+        "ignored": false
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 15 |\u001b[39m         write\u001b[33m:\u001b[39m {\u001b[0m\n\u001b[0m \u001b[90m 16 |\u001b[39m           info\u001b[33m:\u001b[39m (obj\u001b[33m:\u001b[39m \u001b[33mRecord\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m,\u001b[39m unknown\u001b[33m>\u001b[39m) \u001b[33m=>\u001b[39m console\u001b[33m.\u001b[39minfo(obj)\u001b[33m,\u001b[39m\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 17 |\u001b[39m           error\u001b[33m:\u001b[39m (obj\u001b[33m:\u001b[39m \u001b[33mRecord\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m,\u001b[39m unknown\u001b[33m>\u001b[39m) \u001b[33m=>\u001b[39m console\u001b[33m.\u001b[39merror(obj)\u001b[33m,\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m    |\u001b[39m                                                            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 18 |\u001b[39m           warn\u001b[33m:\u001b[39m (obj\u001b[33m:\u001b[39m \u001b[33mRecord\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m,\u001b[39m unknown\u001b[33m>\u001b[39m) \u001b[33m=>\u001b[39m console\u001b[33m.\u001b[39mwarn(obj)\u001b[33m,\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 19 |\u001b[39m           debug\u001b[33m:\u001b[39m (obj\u001b[33m:\u001b[39m \u001b[33mRecord\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m,\u001b[39m unknown\u001b[33m>\u001b[39m) \u001b[33m=>\u001b[39m console\u001b[33m.\u001b[39mdebug(obj)\u001b[33m,\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 20 |\u001b[39m         }\u001b[0m"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "node_modules\\pino\\browser.js",
+        "lineNumber": 328,
+        "column": 1,
+        "methodName": "Object.LOG [as error]",
+        "arguments": [],
+        "ignored": true
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 326 |\u001b[39m       }\u001b[0m\n\u001b[0m \u001b[90m 327 |\u001b[39m       \u001b[36mif\u001b[39m (opts\u001b[33m.\u001b[39masObject \u001b[33m||\u001b[39m opts\u001b[33m.\u001b[39mformatters) {\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 328 |\u001b[39m         write\u001b[33m.\u001b[39mcall(proto\u001b[33m,\u001b[39m \u001b[33m...\u001b[39masObject(\u001b[36mthis\u001b[39m\u001b[33m,\u001b[39m level\u001b[33m,\u001b[39m args\u001b[33m,\u001b[39m ts\u001b[33m,\u001b[39m opts))\u001b[0m\n\u001b[0m \u001b[90m     |\u001b[39m \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 329 |\u001b[39m       } \u001b[36melse\u001b[39m write\u001b[33m.\u001b[39mapply(proto\u001b[33m,\u001b[39m args)\u001b[0m\n\u001b[0m \u001b[90m 330 |\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 331 |\u001b[39m       \u001b[36mif\u001b[39m (opts\u001b[33m.\u001b[39mtransmit) {\u001b[0m"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "app\\gestionnaire\\dashboard\\dashboard-client.tsx",
+        "lineNumber": 48,
+        "column": 16,
+        "methodName": "handleContactSubmit",
+        "arguments": [],
+        "ignored": false
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 46 |\u001b[39m         router\u001b[33m.\u001b[39mrefresh()\u001b[0m\n\u001b[0m \u001b[90m 47 |\u001b[39m       } \u001b[36melse\u001b[39m {\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 48 |\u001b[39m         logger\u001b[33m.\u001b[39merror(\u001b[32m'[DASHBOARD-CLIENT] Contact creation failed:'\u001b[39m\u001b[33m,\u001b[39m result\u001b[33m.\u001b[39merror)\u001b[0m\n\u001b[0m \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 49 |\u001b[39m       }\u001b[0m\n\u001b[0m \u001b[90m 50 |\u001b[39m     } \u001b[36mcatch\u001b[39m (error) {\u001b[0m\n\u001b[0m \u001b[90m 51 |\u001b[39m       logger\u001b[33m.\u001b[39merror(\u001b[32m'[DASHBOARD-CLIENT] Error creating contact:'\u001b[39m\u001b[33m,\u001b[39m error)\u001b[0m"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "originalStackFrame": {
+        "file": "components\\contact-form-modal.tsx",
+        "lineNumber": 228,
+        "column": 7,
+        "methodName": "async handleSubmit",
+        "arguments": [],
+        "ignored": false
+      },
+      "originalCodeFrame": "\u001b[0m \u001b[90m 226 |\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 227 |\u001b[39m       \u001b[90m// Appeler la fonction onSubmit et attendre sa completion\u001b[39m\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 228 |\u001b[39m       \u001b[36mawait\u001b[39m onSubmit(formData)\u001b[0m\n\u001b[0m \u001b[90m     |\u001b[39m       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 229 |\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 230 |\u001b[39m       \u001b[90m// Construire le message de succès adapté selon l'invitation\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 231 |\u001b[39m       \u001b[36mconst\u001b[39m contactName \u001b[33m=\u001b[39m \u001b[32m`${formData.firstName} ${formData.lastName}`\u001b[39m\u001b[0m"
+    }
+  }
+]
+
+[2025-10-05T15:11:12.080Z] GET http://localhost:3000/__nextjs_font/geist-latin.woff2 → 200 (59ms)
+
+[2025-10-05T15:11:17.354Z] GET http://localhost:3000/__nextjs_font/geist-mono-latin.woff2 → 200 (96ms)
+
+[2025-10-05T15:11:18.401Z] GET http://localhost:3000/_next/static/webpack/6705ec49e6a29af7.webpack.hot-update.json → 200 (146ms)
+Response Body:
+{
+  "c": [
+    "app/api/test/get-confirmation-link/route",
+    "webpack"
+  ],
+  "r": [],
+  "m": []
+}
+
+[2025-10-05T15:11:18.551Z] GET http://localhost:3000/_next/static/webpack/webpack.6705ec49e6a29af7.hot-update.js → 200 (64ms)
+
+[2025-10-05T15:11:18.382Z] GET http://localhost:3000/gestionnaire/dashboard?_rsc=10ese → 200 (1053ms)
+
+[2025-10-05T15:11:19.654Z] GET http://localhost:3000/_next/static/css/app/layout.css?v=1759677079377 → 200 (44ms)
+
+[2025-10-05T15:11:21.820Z] GET http://localhost:3000/_next/static/webpack/6bfeec5088dca18f.webpack.hot-update.json → 200 (45ms)
+Response Body:
+{
+  "c": [
+    "app/api/test/cleanup-user/route",
+    "webpack"
+  ],
+  "r": [],
+  "m": [
+    "(app-pages-browser)/./lib/services/core/supabase-admin.ts",
+    "(app-pages-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22C%3A%5C%5CUsers%5C%5Carthu%5C%5CDesktop%5C%5CCoding%5C%5CSeido-app%5C%5Clib%5C%5Cservices%5C%5Ccore%5C%5Csupabase-admin.ts%22%2C%22ids%22%3A%5B%22isAdminConfigured%22%2C%22getSupabaseAdmin%22%5D%7D&server=false!"
+  ]
+}
+
+[2025-10-05T15:11:21.869Z] GET http://localhost:3000/_next/static/webpack/webpack.6bfeec5088dca18f.hot-update.js → 200 (161ms)
+
+[2025-10-05T15:11:21.804Z] GET http://localhost:3000/gestionnaire/dashboard?_rsc=10ese → 200 (2128ms)

@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     // ✅ LOGIQUE CORRIGÉE : Vérifier d'ABORD les invitations (priorité sur auth_user_id)
     const { data: invitation, error: invitationError } = await supabase
       .from("user_invitations")
-      .select("id, status, created_at, expires_at, invitation_code")
+      .select("id, status, created_at, expires_at, invitation_token")
       .eq("email", contact.email)
       .eq("team_id", contact.team_id)
       .order("created_at", { ascending: false })
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
         id: invitation.id,
         created_at: invitation.created_at,
         expires_at: invitation.expires_at,
-        invitation_code: invitation.invitation_code
+        invitation_token: invitation.invitation_token
       }
     })
     }

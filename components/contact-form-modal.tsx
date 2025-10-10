@@ -18,6 +18,7 @@ interface ContactFormModalProps {
   onClose: () => void
   onSubmit: (contactData: ContactFormData) => Promise<void>
   defaultType?: string
+  teamId: string // ✅ AJOUT: ID de l'équipe pour validation multi-équipes
   onSuccess?: () => Promise<void> | void // Fonction optionnelle appelée après création réussie
 }
 
@@ -85,7 +86,7 @@ const getContactTitle = (type: string) => {
   }
 }
 
-const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", onSuccess }: ContactFormModalProps) => {
+const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", teamId, onSuccess }: ContactFormModalProps) => {
   const supabase = createBrowserSupabaseClient()
   const { toast } = useToast()
   
@@ -143,25 +144,49 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
     return phoneRegex.test(_phone.replace(/\s/g, ''))
   }
 
-  // Fonction pour vérifier si l'email existe déjà
-  const checkEmailExists = async (_email: string): Promise<boolean> => {
+  // ✅ NOUVELLE FONCTION: Vérifier email avec support multi-équipes (via API avec Service Role)
+  const checkEmailAndTeam = async (_email: string): Promise<{
+    existsInCurrentTeam: boolean
+    existsInOtherTeams: boolean
+    canCreate: boolean
+    message: string
+  }> => {
     try {
-      const { data, error} = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', _email.trim().toLowerCase())
-        .limit(1)
-        .single()
+      logger.info({ email: _email, teamId }, '🔍 [CONTACT-FORM] Checking email availability for team')
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        logger.error('Erreur lors de la vérification de l\'email:', error)
-        return false
+      const response = await fetch('/api/check-email-team', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: _email.trim().toLowerCase(),
+          teamId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        logger.error({ error: errorData }, '❌ [CONTACT-FORM] Email validation API error')
+        return {
+          existsInCurrentTeam: false,
+          existsInOtherTeams: false,
+          canCreate: true, // En cas d'erreur, permettre la création (le backend fera la validation finale)
+          message: 'Erreur de validation, veuillez réessayer'
+        }
       }
 
-      return data !== null
+      const result = await response.json()
+      logger.info({ result }, '✅ [CONTACT-FORM] Email validation result')
+      return result
     } catch (error) {
-      logger.error('Erreur lors de la vérification de l\'email:', error)
-      return false
+      logger.error({ error }, '❌ [CONTACT-FORM] Exception in email validation')
+      return {
+        existsInCurrentTeam: false,
+        existsInOtherTeams: false,
+        canCreate: true, // En cas d'erreur, permettre la création
+        message: 'Erreur de validation'
+      }
     }
   }
 
@@ -193,10 +218,13 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
     } else if (!isValidEmail(formData.email)) {
       newErrors.email = "Le format de l'email n'est pas valide"
     } else {
-      // Vérifier si l'email existe déjà
-      const emailExists = await checkEmailExists(formData.email)
-      if (emailExists) {
-        newErrors.email = "Un contact avec cet email existe déjà"
+      // ✅ Vérifier si l'email existe dans l'équipe courante (support multi-équipes)
+      const emailCheck = await checkEmailAndTeam(formData.email)
+      if (emailCheck.existsInCurrentTeam) {
+        newErrors.email = "Un contact avec cet email existe déjà dans votre équipe"
+      } else if (emailCheck.existsInOtherTeams) {
+        // ℹ️ Email existe dans autre équipe → permis mais on informe l'utilisateur
+        logger.info({ email: formData.email }, '📝 [CONTACT-FORM] Email exists in other team, creation allowed')
       }
     }
 

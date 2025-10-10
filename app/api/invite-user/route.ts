@@ -125,61 +125,70 @@ export async function POST(request: Request) {
     let authUserId: string | null = null
 
     // ============================================================================
-    // ÉTAPE 1 (COMMUNE): Créer le profil utilisateur SANS auth
+    // ÉTAPE 1 (COMMUNE): Créer le profil utilisateur SANS auth (SUPPORT MULTI-ÉQUIPES)
     // ============================================================================
-    logger.info({}, '👤 [STEP-1] Creating user profile (common step)...')
+    logger.info({}, '👤 [STEP-1] Creating user profile (multi-team support)...')
 
     try {
-      // Vérifier si l'utilisateur existe déjà en utilisant supabaseAdmin pour bypasser RLS
-      const { data: existingUser, error: checkError } = await supabaseAdmin
+      // ✅ MULTI-ÉQUIPES: Vérifier si l'utilisateur existe dans L'ÉQUIPE COURANTE uniquement
+      const { data: existingUserInCurrentTeam, error: checkError } = await supabaseAdmin
         .from('users')
         .select('*')
         .eq('email', email)
-        .single()
+        .eq('team_id', teamId) // ✅ Vérifier dans l'équipe courante uniquement
+        .is('deleted_at', null) // ✅ FIX: Utiliser .is() pour vérifier NULL sur colonne timestamp
+        .maybeSingle()
 
-      // Si checkError avec code PGRST116, c'est que l'utilisateur n'existe pas (ce qui est OK)
-      if (existingUser && !checkError) {
-        logger.info({ user: existingUser.id }, '✅ [STEP-1] User already exists:')
-        userProfile = existingUser
-        authUserId = existingUser.auth_user_id
-      } else if (!existingUser || checkError?.code === 'PGRST116') {
-        // Créer profil SANS auth en utilisant supabaseAdmin pour bypasser RLS
-        const { data: newUser, error: createError } = await supabaseAdmin
-          .from('users')
-          .insert({
-            auth_user_id: null, // Sera lié après si invitation
-            email: email,
-            name: `${firstName} ${lastName}`,
-            first_name: firstName,
-            last_name: lastName,
-            role: validUserRole,
-            provider_category: finalProviderCategory,
-            speciality: speciality || null,
-            phone: phone || null,
-            notes: notes || null,
-            team_id: teamId,
-            is_active: true,
-            password_set: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single()
-
-        if (createError || !newUser) {
-          logger.error({ user: createError }, '❌ [STEP-1] User profile creation failed:')
-          throw new Error('Failed to create user profile: ' + (createError?.message || 'Unknown error'))
-        }
-
-        userProfile = newUser
-        logger.info({ user: userProfile.id }, '✅ [STEP-1] User profile created:')
-      } else {
-        // Autre erreur lors de la vérification
-        logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user:')
+      if (checkError && checkError.code !== 'PGRST116') {
+        logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user in current team:')
         throw new Error('Failed to check existing user: ' + checkError?.message)
       }
+
+      // ✅ CAS 1: Utilisateur existe déjà dans l'équipe courante → ERREUR
+      if (existingUserInCurrentTeam) {
+        logger.warn({ user: existingUserInCurrentTeam.id, teamId }, '⚠️ [STEP-1] User already exists in current team - blocking')
+        return NextResponse.json(
+          { error: 'Un contact avec cet email existe déjà dans votre équipe.' },
+          { status: 409 } // Conflict
+        )
+      }
+
+      // ✅ CAS 2: Utilisateur n'existe pas dans l'équipe courante → CRÉER nouvelle entrée
+      // (même si l'email existe dans une autre équipe, on crée une nouvelle entrée public.users)
+      logger.info({}, '📝 [STEP-1] Creating new user profile for this team...')
+      const { data: newUser, error: createError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          auth_user_id: null, // Sera lié après si invitation
+          email: email,
+          name: `${firstName} ${lastName}`,
+          first_name: firstName,
+          last_name: lastName,
+          role: validUserRole,
+          provider_category: finalProviderCategory,
+          speciality: speciality || null,
+          phone: phone || null,
+          notes: notes || null,
+          team_id: teamId,
+          is_active: true,
+          password_set: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (createError || !newUser) {
+        logger.error({ error: createError }, '❌ [STEP-1] User profile creation failed:')
+        throw new Error('Failed to create user profile: ' + (createError?.message || 'Unknown error'))
+      }
+
+      userProfile = newUser
+      authUserId = newUser.auth_user_id // Sera null sauf si l'email existe dans autre équipe avec auth
+      logger.info({ user: userProfile.id, teamId }, '✅ [STEP-1] User profile created for team:')
+
     } catch (userError) {
-      logger.error({ user: userError }, '❌ [STEP-1] Failed to create user profile:')
+      logger.error({ error: userError }, '❌ [STEP-1] Failed to create user profile:')
       return NextResponse.json(
         { error: 'Erreur lors de la création du profil utilisateur: ' + (userError instanceof Error ? userError.message : String(userError)) },
         { status: 500 }

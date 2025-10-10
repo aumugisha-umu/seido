@@ -103,7 +103,7 @@ export function PropertiesNavigator({
   const filteredLots = applySearchAndFilters(lots, 'lot')
 
   // Function to render properties list
-  const renderPropertiesList = (_tabId: string) => {
+  const renderPropertiesList = (tabId: string) => {
     const propertiesData = tabId === "buildings" ? filteredBuildings : filteredLots
     
     const defaultEmptyConfig = {
@@ -190,7 +190,7 @@ export function PropertiesNavigator({
     }
   ] : []
 
-  const handleSearch = (_value: string) => {
+  const handleSearch = (value: string) => {
     setSearchTerm(value)
   }
 

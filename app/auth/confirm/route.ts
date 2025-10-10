@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
               role: userRole,
               phone: phone || null,
               is_active: true,
-              password_set: true,
+              password_set: true,  // ✅ SIGNUP: User a défini son password
               team_id: null, // Sera mis à jour après création team si gestionnaire
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()

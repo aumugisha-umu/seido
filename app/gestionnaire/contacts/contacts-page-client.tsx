@@ -962,6 +962,7 @@ export function ContactsPageClient({
         onSubmit={handleContactSubmit}
         onSuccess={refetchContacts}
         defaultType="tenant"
+        teamId={userTeam.id} // ✅ AJOUT: Passer teamId pour validation multi-équipes
       />
     </div>
   )

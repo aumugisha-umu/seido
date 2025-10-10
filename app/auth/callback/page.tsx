@@ -17,158 +17,162 @@ export default function AuthCallback() {
   const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
-    logger.info('🚀 [AUTH-CALLBACK] Starting callback processing')
-    logger.info('🔍 [AUTH-CALLBACK] URL:', window.location.href)
+    const processCallback = async () => {
+      logger.info('🚀 [AUTH-CALLBACK] Starting callback processing')
+      logger.info('🔍 [AUTH-CALLBACK] URL:', window.location.href)
 
-    // 1. EXTRAIRE TOKENS DU HASH
-    const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const accessToken = hashParams.get('access_token')
-    const refreshToken = hashParams.get('refresh_token')
-    const errorParam = hashParams.get('error') || searchParams.get('error')
-    const errorCode = hashParams.get('error_code') || searchParams.get('error_code')
-    const errorDescription = hashParams.get('error_description') || searchParams.get('error_description')
+      // 1. EXTRAIRE TOKENS DU HASH
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const errorParam = hashParams.get('error') || searchParams.get('error')
+      const errorCode = hashParams.get('error_code') || searchParams.get('error_code')
+      const errorDescription = hashParams.get('error_description') || searchParams.get('error_description')
 
-    // Gestion des erreurs
-    if (errorParam === 'access_denied' && errorCode === 'otp_expired') {
-      logger.info('⏰ [AUTH-CALLBACK] Magic link expired')
-      setStatus('error')
-      setMessage('🔗 Lien d\'invitation expiré. Demandez un nouveau lien d\'invitation à l\'administrateur.')
-      return
-    }
-
-    if (errorParam && errorParam !== 'access_denied') {
-      logger.error('❌ [AUTH-CALLBACK] URL error:', errorParam)
-      setStatus('error')
-      setMessage(`❌ Erreur d'authentification: ${errorDescription ? decodeURIComponent(errorDescription) : errorParam}`)
-      return
-    }
-
-    if (!accessToken || !refreshToken) {
-      logger.error('❌ [AUTH-CALLBACK] Missing tokens in URL')
-      setStatus('error')
-      setMessage('❌ Tokens manquants dans l\'URL')
-      // Redirect to login after short delay
-      setTimeout(() => {
-        window.location.href = '/auth/login?error=missing_tokens'
-      }, 2000)
-      return
-    }
-
-    // Log détaillé des tokens extraits
-    logger.info('🔑 [AUTH-CALLBACK] Tokens extracted:', {
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
-      accessTokenLength: accessToken?.length || 0,
-      refreshTokenLength: refreshToken?.length || 0,
-      urlType: hashParams.get('type') || searchParams.get('type'),
-      expiresAt: hashParams.get('expires_at'),
-      expiresIn: hashParams.get('expires_in')
-    })
-
-    // 2. SETUP AUTH STATE LISTENER (Pattern officiel Supabase SSR)
-    logger.info('🎧 [AUTH-CALLBACK] Setting up auth state listener...')
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      logger.info('🔔 [AUTH-CALLBACK] Auth state change event:', event)
-
-      if (event === 'SIGNED_IN' && session) {
-        logger.info('✅ [AUTH-CALLBACK] User signed in successfully')
-
-        const user = session.user
-        logger.info('👤 [AUTH-CALLBACK] User details:', {
-          id: user.id,
-          email: user.email,
-          metadata: user.user_metadata
-        })
-
-        // 3. EXTRAIRE PROFIL DES MÉTADONNÉES
-        const profile = {
-          id: user.id,
-          email: user.email!,
-          role: (user.user_metadata?.role || 'gestionnaire') as string,
-          password_set: (user.user_metadata?.password_set ?? true) as boolean,
-          name: (user.user_metadata?.full_name || user.user_metadata?.display_name || user.email) as string
-        }
-
-        logger.info('📋 [AUTH-CALLBACK] Profile extracted from metadata:', profile)
-
-        // 4. DÉCISION DE REDIRECTION
-        const destination = profile.password_set === false
-          ? '/auth/set-password'
-          : `/${profile.role}/dashboard`
-
-        logger.info('🎯 [AUTH-CALLBACK] Redirect destination:', {
-          destination,
-          reason: profile.password_set === false ? 'password_not_set' : 'password_already_set',
-          role: profile.role
-        })
-
-        // 5. MISE À JOUR UI
-        setStatus('success')
-        setMessage(
-          profile.password_set === false
-            ? '✅ Authentification réussie ! Redirection vers la configuration du mot de passe...'
-            : `✅ Authentification réussie ! Redirection vers votre espace ${profile.role}...`
-        )
-        setUserRole(profile.role)
-
-        // 6. REDIRECTION GARANTIE
-        logger.info(`🔄 [AUTH-CALLBACK] Navigating to: ${destination}`)
-
-        // Nettoyer le listener avant redirection
-        subscription.unsubscribe()
-
-        // Rediriger après un court délai pour que l'UI se mette à jour
-        setTimeout(() => {
-          window.location.href = destination
-        }, 1000)
-      } else if (event === 'SIGNED_OUT') {
-        logger.warn('⚠️ [AUTH-CALLBACK] User signed out unexpectedly')
-        subscription.unsubscribe()
+      // Gestion des erreurs
+      if (errorParam === 'access_denied' && errorCode === 'otp_expired') {
+        logger.info('⏰ [AUTH-CALLBACK] Magic link expired')
         setStatus('error')
-        setMessage('❌ Session expirée ou invalide')
-        setTimeout(() => {
-          window.location.href = '/auth/login?error=session_expired'
-        }, 2000)
-      }
-    })
-
-    // ✅ CORRECTIF (2025-10-07): ÉTABLIR LA SESSION (BLOQUANT)
-    // Problème: setSession() non-bloquant → listener onAuthStateChange ne se déclenche pas → page bloquée
-    logger.info('🔑 [AUTH-CALLBACK] Setting session (awaiting)...')
-    try {
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      })
-
-      if (sessionError) {
-        logger.error('❌ [AUTH-CALLBACK] setSession error:', sessionError)
-        subscription.unsubscribe()
-        setStatus('error')
-        setMessage(`❌ Erreur d'authentification : ${sessionError.message}`)
-        setTimeout(() => {
-          window.location.href = '/auth/login?error=callback_failed'
-        }, 3000)
+        setMessage('🔗 Lien d\'invitation expiré. Demandez un nouveau lien d\'invitation à l\'administrateur.')
         return
       }
 
-      logger.info('✅ [AUTH-CALLBACK] Session established successfully')
-    } catch (error) {
-      logger.error('❌ [AUTH-CALLBACK] setSession exception:', error)
-      subscription.unsubscribe()
-      setStatus('error')
-      setMessage(`❌ Erreur d'authentification`)
-      setTimeout(() => {
-        window.location.href = '/auth/login?error=callback_failed'
-      }, 3000)
+      if (errorParam && errorParam !== 'access_denied') {
+        logger.error('❌ [AUTH-CALLBACK] URL error:', errorParam)
+        setStatus('error')
+        setMessage(`❌ Erreur d'authentification: ${errorDescription ? decodeURIComponent(errorDescription) : errorParam}`)
+        return
+      }
+
+      if (!accessToken || !refreshToken) {
+        logger.error('❌ [AUTH-CALLBACK] Missing tokens in URL')
+        setStatus('error')
+        setMessage('❌ Tokens manquants dans l\'URL')
+        // Redirect to login after short delay
+        setTimeout(() => {
+          window.location.href = '/auth/login?error=missing_tokens'
+        }, 2000)
+        return
+      }
+
+      // Log détaillé des tokens extraits
+      logger.info('🔑 [AUTH-CALLBACK] Tokens extracted:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        accessTokenLength: accessToken?.length || 0,
+        refreshTokenLength: refreshToken?.length || 0,
+        urlType: hashParams.get('type') || searchParams.get('type'),
+        expiresAt: hashParams.get('expires_at'),
+        expiresIn: hashParams.get('expires_in')
+      })
+
+      // 2. SETUP AUTH STATE LISTENER (Pattern officiel Supabase SSR)
+      logger.info('🎧 [AUTH-CALLBACK] Setting up auth state listener...')
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        logger.info('🔔 [AUTH-CALLBACK] Auth state change event:', event)
+
+        if (event === 'SIGNED_IN' && session) {
+          logger.info('✅ [AUTH-CALLBACK] User signed in successfully')
+
+          const user = session.user
+          logger.info('👤 [AUTH-CALLBACK] User details:', {
+            id: user.id,
+            email: user.email,
+            metadata: user.user_metadata
+          })
+
+          // 3. EXTRAIRE PROFIL DES MÉTADONNÉES
+          const profile = {
+            id: user.id,
+            email: user.email!,
+            role: (user.user_metadata?.role || 'gestionnaire') as string,
+            password_set: (user.user_metadata?.password_set ?? true) as boolean,
+            name: (user.user_metadata?.full_name || user.user_metadata?.display_name || user.email) as string
+          }
+
+          logger.info('📋 [AUTH-CALLBACK] Profile extracted from metadata:', profile)
+
+          // 4. DÉCISION DE REDIRECTION
+          const destination = profile.password_set === false
+            ? '/auth/set-password'
+            : `/${profile.role}/dashboard`
+
+          logger.info('🎯 [AUTH-CALLBACK] Redirect destination:', {
+            destination,
+            reason: profile.password_set === false ? 'password_not_set' : 'password_already_set',
+            role: profile.role
+          })
+
+          // 5. MISE À JOUR UI
+          setStatus('success')
+          setMessage(
+            profile.password_set === false
+              ? '✅ Authentification réussie ! Redirection vers la configuration du mot de passe...'
+              : `✅ Authentification réussie ! Redirection vers votre espace ${profile.role}...`
+          )
+          setUserRole(profile.role)
+
+          // 6. REDIRECTION GARANTIE
+          logger.info(`🔄 [AUTH-CALLBACK] Navigating to: ${destination}`)
+
+          // Nettoyer le listener avant redirection
+          subscription.unsubscribe()
+
+          // Rediriger après un court délai pour que l'UI se mette à jour
+          setTimeout(() => {
+            window.location.href = destination
+          }, 1000)
+        } else if (event === 'SIGNED_OUT') {
+          logger.warn('⚠️ [AUTH-CALLBACK] User signed out unexpectedly')
+          subscription.unsubscribe()
+          setStatus('error')
+          setMessage('❌ Session expirée ou invalide')
+          setTimeout(() => {
+            window.location.href = '/auth/login?error=session_expired'
+          }, 2000)
+        }
+      })
+
+      // ✅ CORRECTIF (2025-10-07): ÉTABLIR LA SESSION (BLOQUANT)
+      // Problème: setSession() non-bloquant → listener onAuthStateChange ne se déclenche pas → page bloquée
+      logger.info('🔑 [AUTH-CALLBACK] Setting session (awaiting)...')
+      try {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        })
+
+        if (sessionError) {
+          logger.error('❌ [AUTH-CALLBACK] setSession error:', sessionError)
+          subscription.unsubscribe()
+          setStatus('error')
+          setMessage(`❌ Erreur d'authentification : ${sessionError.message}`)
+          setTimeout(() => {
+            window.location.href = '/auth/login?error=callback_failed'
+          }, 3000)
+          return
+        }
+
+        logger.info('✅ [AUTH-CALLBACK] Session established successfully')
+      } catch (error) {
+        logger.error('❌ [AUTH-CALLBACK] setSession exception:', error)
+        subscription.unsubscribe()
+        setStatus('error')
+        setMessage(`❌ Erreur d'authentification`)
+        setTimeout(() => {
+          window.location.href = '/auth/login?error=callback_failed'
+        }, 3000)
+      }
+
+      // Cleanup function
+      return () => {
+        logger.info('🧹 [AUTH-CALLBACK] Cleaning up auth listener')
+        subscription.unsubscribe()
+      }
     }
 
-    // Cleanup function
-    return () => {
-      logger.info('🧹 [AUTH-CALLBACK] Cleaning up auth listener')
-      subscription.unsubscribe()
-    }
+    processCallback()
   }, [searchParams])
 
   return (

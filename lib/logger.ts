@@ -1,59 +1,24 @@
-import pino from 'pino'
+import type { BaseLogger } from './logger-types'
+import { clientLogger } from './logger-client'
 
-// Configuration du logger pour différents environnements
-const createLogger = () => {
-  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined
-  const isTest = process.env.NODE_ENV === 'test'
-  const isBrowser = typeof window !== 'undefined'
+// Sélection d'implémentation sans importer Pino côté client
+const isBrowser = typeof window !== 'undefined'
+let serverLoggerCache: BaseLogger | null = null
 
-  // Browser-side: use simple console wrapper (no Pino serialization issues)
-  if (isBrowser) {
-    return pino({
-      level: isDevelopment ? 'debug' : 'info',
-      browser: {
-        asObject: true,
-        write: {
-          info: (obj: Record<string, unknown>) => console.info(obj),
-          error: (obj: Record<string, unknown>) => console.error(obj),
-          warn: (obj: Record<string, unknown>) => console.warn(obj),
-          debug: (obj: Record<string, unknown>) => console.debug(obj),
-        }
-      }
-    })
+const getServerLogger = (): BaseLogger => {
+  if (!serverLoggerCache) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createServerLogger } = require('./logger-server') as typeof import('./logger-server')
+    serverLoggerCache = createServerLogger()
   }
-
-  // Server-side configuration
-  const baseConfig = {
-    level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-    timestamp: pino.stdTimeFunctions.isoTime,
-  }
-
-  // Configuration pour le développement
-  // Note: pino-pretty transport uses worker threads which are incompatible with Next.js Edge Runtime
-  // Solution: Use JSON output + pipe to pino-pretty in package.json scripts (external process)
-  if (isDevelopment) {
-    return pino(baseConfig)
-  }
-
-  // Configuration pour les tests (logs désactivés)
-  if (isTest) {
-    return pino({
-      ...baseConfig,
-      level: 'silent', // Pas de logs pendant les tests
-    })
-  }
-
-  // Configuration pour la production (JSON structuré)
-  return pino(baseConfig)
+  return serverLoggerCache
 }
 
 // Logger principal
-export const logger = createLogger()
+export const logger: BaseLogger = isBrowser ? clientLogger : getServerLogger()
 
 // Loggers spécialisés pour différents contextes
-export const createContextLogger = (context: string) => {
-  return logger.child({ context })
-}
+export const createContextLogger = (context: string) => (isBrowser ? clientLogger.child({ context }) : getServerLogger().child({ context }))
 
 // Loggers spécialisés pour les différents domaines de l'application
 export const authLogger = createContextLogger('auth')
@@ -99,16 +64,19 @@ export const logError = (error: Error, context?: string, metadata?: Record<strin
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const logSupabaseOperation = (operation: string, table: string, success: boolean, metadata?: Record<string, any>) => {
-  const level = success ? 'info' : 'error'
   const emoji = success ? '✅' : '❌'
-  
-  logger[level]({
+  const payload = {
     type: 'supabase_operation',
     operation,
     table,
     success,
     metadata
-  }, `${emoji} Supabase ${operation} on ${table}`)
+  }
+  if (success) {
+    logger.info(payload, `${emoji} Supabase ${operation} on ${table}`)
+  } else {
+    logger.error(payload, `${emoji} Supabase ${operation} on ${table}`)
+  }
 }
 
 // Hook pour capturer les erreurs non gérées

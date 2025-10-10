@@ -207,32 +207,54 @@ Frontend Migration:  ██████░░░░░░░░░░░░░�
 
 ##### 🔐 RLS Policies à Créer
 
-**Policies `buildings`** (4 policies)
-- [ ] `buildings_select_by_team` - SELECT pour membres de l'équipe
-- [ ] `buildings_insert_by_managers` - INSERT pour gestionnaires/admins
-- [ ] `buildings_update_by_managers` - UPDATE pour gestionnaires/admins
-- [ ] `buildings_delete_soft_by_managers` - Soft delete pour gestionnaires/admins
+> **⚠️ APPROCHE RECOMMANDÉE**: Utiliser le pattern **Helper Functions** (best practice officielle Supabase)
+> 📚 **Documentation**: `migration-phase2-rls-best-practices.md` | `migration-phase2-buildings-lots.md`
 
-**Policies `lots`** (4 policies)
-- [ ] `lots_select_by_team` - SELECT pour membres de l'équipe + locataires du lot
-- [ ] `lots_insert_by_managers` - INSERT pour gestionnaires/admins
-- [ ] `lots_update_by_managers` - UPDATE pour gestionnaires/admins
-- [ ] `lots_delete_soft_by_managers` - Soft delete pour gestionnaires/admins
+**Architecture RLS (Pattern Helper Functions)**:
+1. **10 Fonctions Helper** (`SECURITY DEFINER STABLE`) - Logique centralisée
+2. **16 Policies Simples** (4 par table) - Utilisent les fonctions helper
 
-**Policies `lot_contacts`** (4 policies)
-- [ ] `lot_contacts_select_by_team` - SELECT pour membres de l'équipe + contacts liés
-- [ ] `lot_contacts_insert_by_managers` - INSERT pour gestionnaires/admins
-- [ ] `lot_contacts_update_by_managers` - UPDATE pour gestionnaires/admins
-- [ ] `lot_contacts_delete_by_managers` - DELETE pour gestionnaires/admins
+**Avantages**:
+- ✅ **DRY**: Zéro duplication de code
+- ✅ **Performance**: Fonctions `STABLE` inlinées par PostgreSQL
+- ✅ **Maintenabilité**: Modifier une fonction = toutes les policies héritent
+- ✅ **Testabilité**: Tester `SELECT is_admin()` directement
 
-##### 🛠️ Fonctions Utilitaires à Créer
+**📋 Fonctions Helper à Créer** (10 fonctions)
+- [ ] `is_admin()` - Vérifie si l'utilisateur est admin
+- [ ] `is_gestionnaire()` - Vérifie si l'utilisateur est gestionnaire
+- [ ] `user_in_team(team_id UUID)` - Vérifie appartenance à une équipe
+- [ ] `is_team_manager(team_id UUID)` - Vérifie si gestionnaire d'une équipe donnée
+- [ ] `can_view_building(building_id UUID)` - Logique SELECT consolidée (admin + équipe + prestataire + locataire)
+- [ ] `can_view_lot(lot_id UUID)` - Logique SELECT consolidée (admin + équipe + gestionnaire direct + prestataire + locataire)
+- [ ] `get_building_team_id(building_id UUID)` - Récupère le team_id d'un building
+- [ ] `get_lot_team_id(lot_id UUID)` - Récupère le team_id d'un lot (via building parent)
+- [ ] `is_assigned_to_building(building_id UUID)` - Vérifie assignation prestataire au building
+- [ ] `is_tenant_of_lot(lot_id UUID)` - Vérifie si locataire du lot (tenant_id OU lot_contacts)
 
-- [ ] `can_view_building(building_id UUID)` - Vérifier accès lecture immeuble
-- [ ] `can_manage_building(building_id UUID)` - Vérifier accès gestion immeuble
-- [ ] `can_view_lot(lot_id UUID)` - Vérifier accès lecture lot (inclut locataires)
-- [ ] `can_manage_lot(lot_id UUID)` - Vérifier accès gestion lot
-- [ ] `get_building_team_id(building_id UUID)` - Récupérer team_id d'un immeuble
-- [ ] `is_lot_tenant(lot_id UUID)` - Vérifier si utilisateur est locataire du lot
+**📋 Policies `buildings`** (4 policies utilisant les fonctions)
+- [ ] `buildings_select` → Utilise `can_view_building(id)`
+- [ ] `buildings_insert` → Utilise `is_admin() OR is_team_manager(team_id)`
+- [ ] `buildings_update` → Utilise `is_admin() OR is_team_manager(team_id)`
+- [ ] `buildings_delete` → Utilise `is_admin() OR is_team_manager(team_id)`
+
+**📋 Policies `lots`** (4 policies utilisant les fonctions)
+- [ ] `lots_select` → Utilise `can_view_lot(id)`
+- [ ] `lots_insert` → Utilise `is_admin() OR is_team_manager(get_building_team_id(building_id))`
+- [ ] `lots_update` → Utilise `is_admin() OR is_team_manager(...) OR (gestionnaire_id = auth.uid())`
+- [ ] `lots_delete` → Utilise `is_admin() OR is_team_manager(get_lot_team_id(id))`
+
+**📋 Policies `building_contacts`** (4 policies)
+- [ ] `building_contacts_select` → Utilise `can_view_building(building_id)`
+- [ ] `building_contacts_insert` → Utilise `is_admin() OR is_team_manager(...)`
+- [ ] `building_contacts_update` → Utilise `is_admin() OR is_team_manager(...)`
+- [ ] `building_contacts_delete` → Utilise `is_admin() OR is_team_manager(...)`
+
+**📋 Policies `lot_contacts`** (4 policies)
+- [ ] `lot_contacts_select` → Utilise `can_view_lot(lot_id)`
+- [ ] `lot_contacts_insert` → Utilise `is_admin() OR is_team_manager(...)`
+- [ ] `lot_contacts_update` → Utilise `is_admin() OR is_team_manager(...)`
+- [ ] `lot_contacts_delete` → Utilise `is_admin() OR is_team_manager(...)`
 
 ##### ⚡ Triggers à Créer
 

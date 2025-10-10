@@ -160,7 +160,8 @@ export default async function DashboardGestionnaire() {
       dashLogger.info('  - allLots length:', allLots?.length || 0)
       dashLogger.info('  - interventions length:', interventions?.length || 0)
 
-      const occupiedLots = allLots.filter(lot => (lot as any).is_occupied || (lot as any).tenant)
+      // Phase 2: Occupancy determined by tenant_id presence
+      const occupiedLots = allLots.filter(lot => (lot as any).tenant_id || (lot as any).tenant)
 
       stats = {
         buildingsCount: (buildings as any[])?.length || 0,

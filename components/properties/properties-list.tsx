@@ -96,8 +96,10 @@ export function PropertiesList({
   // Get occupancy status for lots
   const getOccupancyStatus = (property: Property) => {
     if (property.type !== 'lot') return null
-    
-    return property.is_occupied ? {
+
+    // Phase 2: Occupancy determined by tenant_id presence
+    const isOccupied = !!property.tenant_id
+    return isOccupied ? {
       label: "Occupé",
       className: "bg-green-100 text-green-800"
     } : {

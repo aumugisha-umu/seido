@@ -128,7 +128,8 @@ export default function BuildingDetailsPage({ params }: { params: Promise<{ id: 
     }
 
     const totalLots = lots.length
-    const occupiedLots = lots.filter(lot => lot.is_occupied).length // ✅ Utiliser seulement is_occupied (calcule automatiquement)
+    // Phase 2: Occupancy determined by tenant_id presence
+    const occupiedLots = lots.filter(lot => lot.tenant_id).length
     const vacantLots = totalLots - occupiedLots
     const occupancyRate = totalLots > 0 ? Math.round((occupiedLots / totalLots) * 100) : 0
 

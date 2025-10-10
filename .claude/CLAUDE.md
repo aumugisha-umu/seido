@@ -339,12 +339,105 @@ type InterventionStatus =
 8. cloturee_par_locataire → cloturee_par_gestionnaire (final closure)
 9. * → annulee (cancellation from eligible statuses)
 
+### Database Schema & Migrations
+
+#### **Migration Status** (2025-10-10)
+- ✅ **Phase 1**: Users, Teams, Companies, Invitations (Applied)
+- ✅ **Phase 2**: Buildings, Lots, Property Documents (Applied)
+- ⏳ **Phase 3**: Interventions + Document Sharing (Planned)
+
+#### **Key Architectural Decisions**
+
+**1. Unified Team Membership Model** (Phase 1)
+```typescript
+// team_member_role ENUM (4 valeurs - mappé sur user_role)
+type TeamMemberRole = 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
+```
+
+**Rationale**: Simplifie la logique RLS en unifiant les rôles utilisateur et membre d'équipe. Tous les utilisateurs (gestionnaires, locataires, prestataires) deviennent membres d'équipe avec des permissions basées sur leur rôle.
+
+**Benefits**:
+- Logique RLS simplifiée (un seul rôle à vérifier au lieu de multiples relations)
+- Gestion unifiée des permissions multi-rôles
+- Facilite l'ajout de nouveaux rôles à l'avenir
+
+**2. Simplified Document Visibility** (Phase 2)
+```typescript
+// document_visibility_level ENUM (2 niveaux)
+type DocumentVisibilityLevel = 'equipe' | 'locataire'
+
+// Phase 3 ajoutera: 'intervention' (partage temporaire prestataires)
+```
+
+**Rationale**: Favorise la collaboration entre gestionnaires en supprimant le niveau 'privé'. Tous les documents sont visibles par l'équipe ou partagés avec le locataire.
+
+**Benefits**:
+- Collaboration renforcée (si un gestionnaire absent, collègues accèdent aux docs)
+- Modèle plus simple (2 niveaux au lieu de 4)
+- Partage prestataire contrôlé via `document_intervention_shares` (Phase 3)
+
+**3. Phase-Based Migration Strategy**
+- **Phase 1**: Foundation (users, teams, auth)
+- **Phase 2**: Properties (buildings, lots, documents - sans interventions)
+- **Phase 3**: Workflows (interventions + partage temporaire documents)
+
+**Rationale**: Évite les dépendances circulaires et permet des déploiements incrémentaux testables.
+
+#### **Database Tables** (After Phase 1 + Phase 2)
+
+**Phase 1 Tables** (8 tables):
+- `users` - Unified users table (auth + contacts)
+- `teams` - Team management with JSONB settings
+- `team_members` - Multi-team membership with role enum
+- `companies` - Company regrouping (optional)
+- `user_invitations` - Invitation workflow with status enum
+
+**Phase 2 Tables** (5 tables):
+- `buildings` - Property management with denormalized counters
+- `lots` - Units (standalone or linked to building)
+- `building_contacts` - Building-user relationships
+- `lot_contacts` - Lot-user relationships
+- `property_documents` - Document management with 2-level visibility
+
+**Enums** (7 total):
+```sql
+-- Phase 1
+user_role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
+team_member_role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
+provider_category: 'prestataire' | 'assurance' | 'notaire' | 'syndic' | 'proprietaire' | 'autre'
+intervention_type: 'plomberie' | 'electricite' | 'chauffage' | 'serrurerie' | 'peinture' | 'menage' | 'jardinage' | 'autre'
+invitation_status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+
+-- Phase 2
+country: 'belgique' | 'france' | 'allemagne' | 'pays-bas' | 'suisse' | 'luxembourg' | 'autre'
+lot_category: 'appartement' | 'collocation' | 'maison' | 'garage' | 'local_commercial' | 'parking' | 'autre'
+property_document_type: 'bail' | 'garantie' | 'facture' | 'diagnostic' | 'photo_compteur' | 'plan' | 'reglement_copropriete' | 'etat_des_lieux' | 'certificat' | 'manuel_utilisation' | 'photo_generale' | 'autre'
+document_visibility_level: 'equipe' | 'locataire' (Phase 3 ajoutera 'intervention')
+```
+
+**RLS Helper Functions** (8 total):
+```sql
+-- Phase 1 (implicit via Phase 2)
+is_admin() - Vérifie si user est admin
+is_gestionnaire() - Vérifie si user est gestionnaire
+is_team_manager(team_id) - Vérifie si user est gestionnaire de l'équipe
+
+-- Phase 2
+get_building_team_id(building_id) - Récupère team_id d'un building
+get_lot_team_id(lot_id) - Récupère team_id d'un lot (standalone ou non)
+is_tenant_of_lot(lot_id) - Vérifie si user est locataire du lot
+can_view_building(building_id) - Vérifie permissions building
+can_view_lot(lot_id) - Vérifie permissions lot
+```
+
 ### User Roles & Authentication
 Four distinct roles with specific permissions and workflows:
 - **Admin**: System administration and oversight
 - **Gestionnaire**: Property and intervention management
 - **Prestataire**: Service execution and quote management
 - **Locataire**: Intervention requests and tracking
+
+**Team Membership**: Tous les utilisateurs sont membres d'équipe (`team_members`) avec un rôle mappé sur `user_role`.
 
 Demo users available in `lib/auth.ts` with predefined emails for each role.
 

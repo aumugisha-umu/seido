@@ -59,10 +59,12 @@ CREATE TYPE intervention_type AS ENUM (
     'autre'
 );
 
--- Rôles team_members (type safety)
+-- Rôles team_members (type safety) - Mappé sur user_role pour simplifier logique
 CREATE TYPE team_member_role AS ENUM (
     'admin',
-    'member'
+    'gestionnaire',
+    'locataire',
+    'prestataire'
 );
 
 -- Statuts invitation
@@ -165,8 +167,8 @@ CREATE TABLE team_members (
     team_id UUID NOT NULL,  -- Référence ajoutée après
     user_id UUID NOT NULL,  -- Référence ajoutée après
 
-    -- ✅ NOUVEAU: ENUM pour type safety
-    role team_member_role NOT NULL DEFAULT 'member',
+    -- ✅ NOUVEAU: ENUM pour type safety (mappé sur user_role)
+    role team_member_role NOT NULL DEFAULT 'gestionnaire',
 
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
@@ -178,6 +180,7 @@ CREATE TABLE team_members (
 );
 
 COMMENT ON TABLE team_members IS 'Appartenance multi-équipe - Un user peut être membre de N équipes';
+COMMENT ON COLUMN team_members.role IS 'Rôle membre équipe (mappé sur users.role) - Simplifie logique RLS multi-rôles';
 COMMENT ON COLUMN team_members.left_at IS 'Soft delete membership - Historique complet appartenances (audit + analytics)';
 
 -- =============================================================================
@@ -486,9 +489,9 @@ BEGIN
       COALESCE((NEW.raw_user_meta_data->>'password_set')::boolean, false)  -- ✅ INVITATION: false si non défini
     );
 
-    -- Ajouter à team_members
+    -- Ajouter à team_members (mapper user_role → team_member_role)
     INSERT INTO public.team_members (team_id, user_id, role)
-    SELECT v_team_id, id, 'member'::team_member_role
+    SELECT v_team_id, id, v_role::team_member_role
     FROM public.users WHERE auth_user_id = NEW.id;
 
     -- Mettre à jour invitation
@@ -963,9 +966,9 @@ BEGIN
     RAISE NOTICE '   • user_invitations + user_id + invitation_token VARCHAR(255) + status ENUM';
     RAISE NOTICE '';
     RAISE NOTICE '✅ TYPES ENUM:';
-    RAISE NOTICE '   • user_role (4 valeurs)';
+    RAISE NOTICE '   • user_role (4 valeurs: admin, gestionnaire, locataire, prestataire)';
     RAISE NOTICE '   • provider_category (6 valeurs)';
-    RAISE NOTICE '   • team_member_role (2 valeurs)';
+    RAISE NOTICE '   • team_member_role (4 valeurs: admin, gestionnaire, locataire, prestataire)';
     RAISE NOTICE '   • invitation_status (4 valeurs)';
     RAISE NOTICE '';
     RAISE NOTICE '✅ FONCTIONS & TRIGGERS:';

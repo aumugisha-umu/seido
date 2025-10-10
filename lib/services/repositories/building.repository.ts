@@ -293,6 +293,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
   /**
    * Get buildings with lot count statistics
+   * Uses tenant_id to determine occupancy (Phase 2 schema)
    */
   async findWithLotStats(teamId?: string) {
     let queryBuilder = this.supabase
@@ -301,7 +302,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         *,
         lots(
           id,
-          is_occupied
+          tenant_id
         )
       `)
 
@@ -315,11 +316,11 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    // Calculate lot statistics
+    // Calculate lot statistics (occupied = has tenant_id)
     const processedData = data?.map(building => {
       const lots = building.lots || []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const occupiedLots = lots.filter((_lot: unknown) => lot.is_occupied)
+      const occupiedLots = lots.filter((lot: any) => lot.tenant_id !== null)
 
       return {
         ...building,
@@ -446,15 +447,15 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     return { success: true as const, data: (data && data.length > 0) }
   }
   /**
-   * Find buildings by manager ID
+   * Find buildings by gestionnaire (primary manager) ID
    */
-  async findByManager(managerId: string) {
-    validateRequired({ managerId }, ['managerId'])
+  async findByGestionnaire(gestionnaireId: string) {
+    validateRequired({ gestionnaireId }, ['gestionnaireId'])
 
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select('*')
-      .eq('manager_id', managerId)
+      .eq('gestionnaire_id', gestionnaireId)
       .order('name')
 
     if (error) {
@@ -465,13 +466,13 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   }
 
   /**
-   * Update building manager assignment
+   * Update building gestionnaire assignment
    */
-  async updateManager(buildingId: string, managerId: string | null) {
+  async updateGestionnaire(buildingId: string, gestionnaireId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .update({
-        manager_id: managerId,
+        gestionnaire_id: gestionnaireId,
         updated_at: new Date().toISOString()
       })
       .eq('id', buildingId)

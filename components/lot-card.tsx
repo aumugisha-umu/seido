@@ -16,8 +16,7 @@ interface LotCardProps {
     surface_area?: number
     rooms?: number
     apartment_number?: string
-    is_occupied?: boolean
-    tenant_id?: string
+    tenant_id?: string | null // Phase 2: Primary occupancy indicator
     building_id?: string
     has_active_tenants?: boolean
     tenant?: {
@@ -44,9 +43,9 @@ interface LotCardProps {
   showBuilding?: boolean
 }
 
-export default function LotCard({ 
-  lot, 
-  interventions = [], 
+export default function LotCard({
+  lot,
+  interventions = [],
   mode = "view",
   isSelected = false,
   onSelect,
@@ -54,7 +53,8 @@ export default function LotCard({
 }: LotCardProps) {
   const router = useRouter()
   const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
-  const isOccupied = lot.is_occupied || lot.tenant_id || lot.has_active_tenants
+  // Phase 2: Occupancy determined by tenant_id presence
+  const isOccupied = !!lot.tenant_id || lot.has_active_tenants
   const tenantName = lot.tenant?.name || (lot.lot_tenants?.[0]?.contact?.name) || null
   const tenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
   const buildingAddress = lot.building ? `${lot.building.address}, ${lot.building.city}` : 'Adresse non disponible'

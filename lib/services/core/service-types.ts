@@ -70,67 +70,36 @@ export interface UserUpdate {
   updated_at?: string
 }
 
-export interface Building {
-  id: string
-  name: string
-  address: string
-  city: string
-  postal_code: string
-  team_id?: string | null
-  total_lots?: number
-  description?: string | null
-  created_at: string
-  updated_at: string
-}
+// ===================================
+// PHASE 2 TYPES: Use generated types from database.types.ts
+// ===================================
 
-export interface BuildingInsert {
-  name: string
-  address: string
-  city: string
-  postal_code: string
-  team_id?: string | null
-  total_lots?: number
-  description?: string | null
-  created_at?: string
-  updated_at?: string
-}
+export type Building = Database['public']['Tables']['buildings']['Row']
+export type BuildingInsert = Database['public']['Tables']['buildings']['Insert']
+export type BuildingUpdate = Database['public']['Tables']['buildings']['Update']
 
-export interface BuildingUpdate {
-  name?: string
-  address?: string
-  city?: string
-  postal_code?: string
-  team_id?: string | null
-  total_lots?: number
-  description?: string | null
-  updated_at?: string
-}
+export type Lot = Database['public']['Tables']['lots']['Row']
+export type LotInsert = Database['public']['Tables']['lots']['Insert']
+export type LotUpdate = Database['public']['Tables']['lots']['Update']
 
-export interface Lot {
-  id: string
-  building_id: string
-  reference: string
-  type: 'apartment' | 'commercial' | 'parking' | 'storage'
-  size?: number | null
-  description?: string | null
-  created_at: string
-  updated_at: string
-}
+export type PropertyDocument = Database['public']['Tables']['property_documents']['Row']
+export type PropertyDocumentInsert = Database['public']['Tables']['property_documents']['Insert']
+export type PropertyDocumentUpdate = Database['public']['Tables']['property_documents']['Update']
 
-export interface LotInsert {
-  building_id: string
-  reference: string
-  type: 'apartment' | 'commercial' | 'parking' | 'storage'
-  size?: number | null
-  description?: string | null
-}
+export type BuildingContact = Database['public']['Tables']['building_contacts']['Row']
+export type BuildingContactInsert = Database['public']['Tables']['building_contacts']['Insert']
+export type BuildingContactUpdate = Database['public']['Tables']['building_contacts']['Update']
 
-export interface LotUpdate {
-  reference?: string
-  type?: 'apartment' | 'commercial' | 'parking' | 'storage'
-  size?: number | null
-  description?: string | null
-}
+export type LotContact = Database['public']['Tables']['lot_contacts']['Row']
+export type LotContactInsert = Database['public']['Tables']['lot_contacts']['Insert']
+export type LotContactUpdate = Database['public']['Tables']['lot_contacts']['Update']
+
+// Enums from Phase 2
+export type Country = Database['public']['Enums']['country']
+export type LotCategory = Database['public']['Enums']['lot_category']
+export type PropertyDocumentType = Database['public']['Enums']['property_document_type']
+export type DocumentVisibilityLevel = Database['public']['Enums']['document_visibility_level']
+export type TeamMemberRole = Database['public']['Enums']['team_member_role']
 
 /**
  * Intervention Status (11 states - French)
@@ -402,30 +371,64 @@ export interface UpdateUserDTO {
 export interface CreateBuildingDTO {
   name: string
   address: string
-  description?: string
-  manager_id: string
+  city: string
+  postal_code: string
+  country?: Country
+  description?: string | null
+  team_id: string
+  gestionnaire_id: string  // ✅ Primary manager for the building
 }
 
 export interface UpdateBuildingDTO {
   name?: string
   address?: string
-  description?: string
-  manager_id?: string
+  city?: string
+  postal_code?: string
+  country?: Country
+  description?: string | null
+  gestionnaire_id?: string
 }
 
 export interface CreateLotDTO {
   building_id: string
   reference: string
-  type: Lot['type']
-  size?: number
-  description?: string
+  team_id: string
+  category?: LotCategory
+  floor?: number | null
+  description?: string | null
 }
 
 export interface UpdateLotDTO {
   reference?: string
-  type?: Lot['type']
-  size?: number
-  description?: string
+  category?: LotCategory
+  floor?: number | null
+  description?: string | null
+}
+
+export interface CreatePropertyDocumentDTO {
+  building_id?: string | null
+  lot_id?: string | null
+  team_id: string
+  document_type: PropertyDocumentType
+  visibility_level?: DocumentVisibilityLevel
+  title?: string | null
+  description?: string | null
+  filename: string
+  original_filename: string
+  file_size: number
+  mime_type: string
+  storage_path: string
+  storage_bucket?: string
+}
+
+export interface UpdatePropertyDocumentDTO {
+  title?: string | null
+  description?: string | null
+  visibility_level?: DocumentVisibilityLevel
+  document_date?: string | null
+  expiry_date?: string | null
+  is_archived?: boolean
+  tags?: string[] | null
 }
 
 export interface CreateInterventionDTO {

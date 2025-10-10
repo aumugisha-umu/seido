@@ -111,10 +111,9 @@ export class LotService {
       )
     }
 
-    // Set default values
+    // Set default values (Phase 2: no is_occupied, use tenant_id)
     const processedData = {
       ...lotData,
-      is_occupied: lotData.is_occupied ?? false,
       floor: lotData.floor ?? 0,
       created_at: lotData.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -237,12 +236,12 @@ export class LotService {
       }
     }
 
-    // Check if lot is occupied
-    if (existingLot.data.is_occupied || (existingLot.data.tenants && existingLot.data.tenants.length > 0)) {
+    // Check if lot is occupied (Phase 2: check tenant_id presence)
+    if (existingLot.data.tenant_id || (existingLot.data.tenants && existingLot.data.tenants.length > 0)) {
       throw new ValidationException(
         'Cannot delete an occupied lot. Please remove all tenants first.',
-        'is_occupied',
-        true
+        'tenant_id',
+        existingLot.data.tenant_id
       )
     }
 
@@ -318,9 +317,11 @@ export class LotService {
   }
 
   /**
-   * Update lot occupancy
+   * Update lot tenant (Phase 2: replaces updateOccupancy)
+   * @param lotId - Lot ID
+   * @param tenantId - Tenant user ID (null to mark vacant)
    */
-  async updateOccupancy(lotId: string, isOccupied: boolean) {
+  async updateTenantAssignment(lotId: string, tenantId: string | null) {
     // Check if lot exists
     const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
@@ -333,7 +334,7 @@ export class LotService {
       }
     }
 
-    return this.repository.updateOccupancy(lotId, isOccupied)
+    return this.repository.updateTenant(lotId, tenantId)
   }
 
   /**
@@ -446,7 +447,7 @@ export class LotService {
   }
 
   /**
-   * Assign tenant to lot
+   * Assign tenant to lot (Phase 2: uses tenant_id field)
    */
   async assignTenant(lotId: string, tenantId: string) {
     // Check if lot exists
@@ -455,14 +456,12 @@ export class LotService {
       throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
-    // This would typically update lot_contacts table
-    // For now, we update the occupancy status
-    // TODO: Implement actual tenant assignment logic using tenantId
-    return this.repository.updateOccupancy(lotId, true)
+    // Phase 2: Update tenant_id field directly
+    return this.repository.updateTenant(lotId, tenantId)
   }
 
   /**
-   * Remove tenant from lot
+   * Remove tenant from lot (Phase 2: clears tenant_id)
    */
   async removeTenant(lotId: string, tenantId: string) {
     // Check if lot exists
@@ -471,15 +470,17 @@ export class LotService {
       throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
-    // Check if this is the last tenant
-    const remainingTenants = lot.data.tenants?.filter(t => t.id !== _tenantId) || []
-
-    // Update occupancy if no tenants remain
-    if (remainingTenants.length === 0) {
-      return this.repository.updateOccupancy(lotId, false)
+    // Verify the tenant is actually assigned
+    if (lot.data.tenant_id !== tenantId) {
+      throw new ValidationException(
+        'This tenant is not assigned to this lot',
+        'tenant_id',
+        tenantId
+      )
     }
 
-    return { success: true as const, data: lot.data }
+    // Phase 2: Clear tenant_id to mark as vacant
+    return this.repository.updateTenant(lotId, null)
   }
 
   /**
@@ -530,7 +531,10 @@ export class LotService {
     const stats = lots.data.reduce(
       (acc, lot) => {
         acc.total++
-        if (lot.is_occupied) {
+        // Phase 2: occupied = tenant_id IS NOT NULL
+        const isOccupied = lot.tenant_id !== null
+
+        if (isOccupied) {
           acc.occupied++
         } else {
           acc.vacant++
@@ -541,7 +545,7 @@ export class LotService {
           acc.by_category[lot.category] = { total: 0, occupied: 0, vacant: 0 }
         }
         acc.by_category[lot.category].total++
-        if (lot.is_occupied) {
+        if (isOccupied) {
           acc.by_category[lot.category].occupied++
         } else {
           acc.by_category[lot.category].vacant++
@@ -555,7 +559,7 @@ export class LotService {
         // Sum rent
         if (lot.monthly_rent) {
           acc.total_monthly_rent += lot.monthly_rent
-          if (lot.is_occupied) {
+          if (isOccupied) {
             acc.actual_monthly_rent += lot.monthly_rent
           }
         }
@@ -614,6 +618,7 @@ export class LotService {
 
   /**
    * Assign multiple contacts to lot (tenant, owner, etc.)
+   * Phase 2: Uses tenant_id for primary tenant
    */
   async assignContacts(lotId: string, contacts: Array<{ contactId: string; type: 'tenant' | 'owner' | 'emergency' }>) {
     const lotResult = await this.repository.findById(lotId)
@@ -622,15 +627,16 @@ export class LotService {
     }
 
     // TODO: Implement actual contact assignment using ContactService when available
-    // For now, update basic occupancy status
-    const hasActiveTenant = contacts.some(c => c.type === 'tenant')
+    // For now, update tenant_id for primary tenant
+    const primaryTenant = contacts.find(c => c.type === 'tenant')
+    const wasOccupied = lotResult.data.tenant_id !== null
 
-    if (hasActiveTenant !== lotResult.data.is_occupied) {
-      const updateResult = await this.repository.update(lotId, {
-        is_occupied: hasActiveTenant,
-        updated_at: new Date().toISOString()
-      })
-
+    if (primaryTenant && lotResult.data.tenant_id !== primaryTenant.contactId) {
+      const updateResult = await this.repository.updateTenant(lotId, primaryTenant.contactId)
+      if (!updateResult.success) return updateResult
+    } else if (!primaryTenant && lotResult.data.tenant_id) {
+      // No tenant in contacts, clear tenant_id
+      const updateResult = await this.repository.updateTenant(lotId, null)
       if (!updateResult.success) return updateResult
     }
 
@@ -639,13 +645,13 @@ export class LotService {
       data: {
         lotId,
         contacts: contacts,
-        occupancy_updated: hasActiveTenant !== lotResult.data.is_occupied
+        occupancy_updated: wasOccupied !== (primaryTenant !== undefined)
       }
     }
   }
 
   /**
-   * Remove contact from lot
+   * Remove contact from lot (Phase 2: clears tenant_id if removing tenant)
    */
   async removeContact(lotId: string, contactId: string, contactType: 'tenant' | 'owner' | 'emergency') {
     const lotResult = await this.repository.findById(lotId)
@@ -654,13 +660,9 @@ export class LotService {
     }
 
     // TODO: Implement actual contact removal using ContactService when available
-    // For now, if removing tenant, update occupancy
+    // Phase 2: If removing tenant, clear tenant_id
     if (contactType === 'tenant') {
-      const updateResult = await this.repository.update(lotId, {
-        is_occupied: false,
-        updated_at: new Date().toISOString()
-      })
-
+      const updateResult = await this.repository.updateTenant(lotId, null)
       if (!updateResult.success) return updateResult
     }
 
@@ -717,6 +719,9 @@ export class LotService {
     // TODO: Include maintenance costs from intervention service
     const estimatedMaintenanceCosts = annualRent * 0.1 // 10% estimate
 
+    // Phase 2: occupancy based on tenant_id presence
+    const isOccupied = lot.tenant_id !== null
+
     const profitability = {
       lotId,
       monthly_rent: monthlyRent,
@@ -724,7 +729,7 @@ export class LotService {
       estimated_maintenance: estimatedMaintenanceCosts,
       net_annual_income: annualRent - estimatedMaintenanceCosts,
       profitability_ratio: annualRent > 0 ? ((annualRent - estimatedMaintenanceCosts) / annualRent) * 100 : 0,
-      occupancy_rate: lot.is_occupied ? 100 : 0
+      occupancy_rate: isOccupied ? 100 : 0
     }
 
     return {
@@ -772,9 +777,9 @@ export class LotService {
       throw new ValidationException('Reference is required', 'lots', 'reference')
     }
 
-    // Validate data types and ranges
-    if (data.size !== undefined && data.size < 0) {
-      throw new ValidationException('Size must be positive', 'lots', 'size')
+    // Validate data types and ranges (Phase 2: surface_area instead of size)
+    if (data.surface_area !== undefined && data.surface_area < 0) {
+      throw new ValidationException('Surface area must be positive', 'lots', 'surface_area')
     }
 
     // Validate category if provided (must match PostgreSQL enum lot_category)
@@ -788,53 +793,55 @@ export class LotService {
    */
 
   /**
-   * Get lots by type
+   * Get lots by type (alias for getLotsByCategory)
    */
   async getByType(type: Lot['category']) {
-    try {
-      const result = await this.repository.findByCategory(type)
-      return { success: true as const, data: result }
-    } catch (error) {
-      return this.errorHandler.handleError(error)
-    }
+    return this.getLotsByCategory(type)
   }
 
   /**
-   * Get lots by building
+   * Get lots by building (alias)
    */
   async getByBuilding(buildingId: string) {
     return this.getLotsByBuilding(buildingId)
   }
 
   /**
-   * Get available lots
+   * Get available lots (alias for getVacantLots)
    */
   async getAvailable() {
-    try {
-      const result = await this.repository.findVacant()
-      return { success: true as const, data: result }
-    } catch (error) {
-      return this.errorHandler.handleError(error)
-    }
+    return this.getVacantLots()
   }
 
   /**
-   * Get occupied lots
+   * Get occupied lots (alias)
    */
   async getOccupied() {
     return this.getOccupiedLots()
   }
 
   /**
-   * Get occupancy statistics
+   * Get occupancy statistics (Phase 2: uses tenant_id for occupancy)
    */
   async getOccupancyStats() {
     try {
-      const [occupied, vacant] = await Promise.all([
+      const [occupiedResult, vacantResult] = await Promise.all([
         this.repository.findOccupied(),
         this.repository.findVacant()
       ])
 
+      if (!occupiedResult.success || !vacantResult.success) {
+        return {
+          success: false as const,
+          error: {
+            code: 'STATS_ERROR',
+            message: 'Failed to fetch occupancy statistics'
+          }
+        }
+      }
+
+      const occupied = occupiedResult.data || []
+      const vacant = vacantResult.data || []
       const total = occupied.length + vacant.length
       const occupancyRate = total > 0 ? (occupied.length / total) * 100 : 0
 
@@ -848,7 +855,14 @@ export class LotService {
         }
       }
     } catch (error) {
-      return this.errorHandler.handleError(error)
+      logger.error({ error }, '❌ [LOT-SERVICE] getOccupancyStats error')
+      return {
+        success: false as const,
+        error: {
+          code: 'STATS_ERROR',
+          message: 'Failed to calculate occupancy statistics'
+        }
+      }
     }
   }
 
@@ -860,7 +874,14 @@ export class LotService {
       const result = await this.repository.count()
       return { success: true as const, data: result }
     } catch (error) {
-      return this.errorHandler.handleError(error)
+      logger.error({ error }, '❌ [LOT-SERVICE] count error')
+      return {
+        success: false as const,
+        error: {
+          code: 'COUNT_ERROR',
+          message: 'Failed to count lots'
+        }
+      }
     }
   }
 }

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "13.0.5"
   }
   graphql_public: {
     Tables: {
@@ -39,148 +39,35 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_logs: {
-        Row: {
-          action_type: Database["public"]["Enums"]["activity_action_type"]
-          created_at: string | null
-          description: string
-          entity_id: string | null
-          entity_name: string | null
-          entity_type: Database["public"]["Enums"]["activity_entity_type"]
-          error_message: string | null
-          id: string
-          ip_address: unknown | null
-          metadata: Json | null
-          status: Database["public"]["Enums"]["activity_status"]
-          team_id: string
-          updated_at: string | null
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          action_type: Database["public"]["Enums"]["activity_action_type"]
-          created_at?: string | null
-          description: string
-          entity_id?: string | null
-          entity_name?: string | null
-          entity_type: Database["public"]["Enums"]["activity_entity_type"]
-          error_message?: string | null
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          status?: Database["public"]["Enums"]["activity_status"]
-          team_id: string
-          updated_at?: string | null
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          action_type?: Database["public"]["Enums"]["activity_action_type"]
-          created_at?: string | null
-          description?: string
-          entity_id?: string | null
-          entity_name?: string | null
-          entity_type?: Database["public"]["Enums"]["activity_entity_type"]
-          error_message?: string | null
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          status?: Database["public"]["Enums"]["activity_status"]
-          team_id?: string
-          updated_at?: string | null
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_logs_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      availability_matches: {
-        Row: {
-          created_at: string | null
-          id: string
-          intervention_id: string
-          match_score: number | null
-          matched_date: string
-          matched_end_time: string
-          matched_start_time: string
-          overlap_duration: number
-          participant_user_ids: string[]
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          intervention_id: string
-          match_score?: number | null
-          matched_date: string
-          matched_end_time: string
-          matched_start_time: string
-          overlap_duration: number
-          participant_user_ids: string[]
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          intervention_id?: string
-          match_score?: number | null
-          matched_date?: string
-          matched_end_time?: string
-          matched_start_time?: string
-          overlap_duration?: number
-          participant_user_ids?: string[]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "availability_matches_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       building_contacts: {
         Row: {
           building_id: string
-          created_at: string | null
-          end_date: string | null
+          created_at: string
           id: string
           is_primary: boolean | null
-          start_date: string | null
-          updated_at: string | null
+          notes: string | null
+          role: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
           building_id: string
-          created_at?: string | null
-          end_date?: string | null
+          created_at?: string
           id?: string
           is_primary?: boolean | null
-          start_date?: string | null
-          updated_at?: string | null
+          notes?: string | null
+          role?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
           building_id?: string
-          created_at?: string | null
-          end_date?: string | null
+          created_at?: string
           id?: string
           is_primary?: boolean | null
-          start_date?: string | null
-          updated_at?: string | null
+          notes?: string | null
+          role?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -202,48 +89,83 @@ export type Database = {
       }
       buildings: {
         Row: {
+          active_interventions: number | null
           address: string
           city: string
-          construction_year: number | null
-          country: string | null
-          created_at: string | null
+          country: Database["public"]["Enums"]["country"]
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
+          gestionnaire_id: string
           id: string
+          metadata: Json | null
           name: string
+          occupied_lots: number | null
           postal_code: string
-          team_id: string | null
+          team_id: string
+          total_interventions: number | null
           total_lots: number | null
-          updated_at: string | null
+          updated_at: string
+          vacant_lots: number | null
         }
         Insert: {
+          active_interventions?: number | null
           address: string
           city: string
-          construction_year?: number | null
-          country?: string | null
-          created_at?: string | null
+          country?: Database["public"]["Enums"]["country"]
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
+          gestionnaire_id: string
           id?: string
+          metadata?: Json | null
           name: string
+          occupied_lots?: number | null
           postal_code: string
-          team_id?: string | null
+          team_id: string
+          total_interventions?: number | null
           total_lots?: number | null
-          updated_at?: string | null
+          updated_at?: string
+          vacant_lots?: number | null
         }
         Update: {
+          active_interventions?: number | null
           address?: string
           city?: string
-          construction_year?: number | null
-          country?: string | null
-          created_at?: string | null
+          country?: Database["public"]["Enums"]["country"]
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
+          gestionnaire_id?: string
           id?: string
+          metadata?: Json | null
           name?: string
+          occupied_lots?: number | null
           postal_code?: string
-          team_id?: string | null
+          team_id?: string
+          total_interventions?: number | null
           total_lots?: number | null
-          updated_at?: string | null
+          updated_at?: string
+          vacant_lots?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "buildings_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buildings_gestionnaire_id_fkey"
+            columns: ["gestionnaire_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "buildings_team_id_fkey"
             columns: ["team_id"]
@@ -253,713 +175,113 @@ export type Database = {
           },
         ]
       }
-      intervention_contacts: {
+      companies: {
         Row: {
-          assigned_at: string | null
+          address: string | null
+          city: string | null
+          country: string | null
           created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          email: string | null
           id: string
-          individual_message: string | null
-          intervention_id: string
-          is_primary: boolean | null
-          role: string
+          legal_name: string | null
+          logo_url: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          registration_number: string | null
+          team_id: string
           updated_at: string | null
-          user_id: string
+          website: string | null
         }
         Insert: {
-          assigned_at?: string | null
+          address?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          email?: string | null
           id?: string
-          individual_message?: string | null
-          intervention_id: string
-          is_primary?: boolean | null
-          role: string
+          legal_name?: string | null
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          registration_number?: string | null
+          team_id: string
           updated_at?: string | null
-          user_id: string
+          website?: string | null
         }
         Update: {
-          assigned_at?: string | null
+          address?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          email?: string | null
           id?: string
-          individual_message?: string | null
-          intervention_id?: string
-          is_primary?: boolean | null
-          role?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          registration_number?: string | null
+          team_id?: string
           updated_at?: string | null
-          user_id?: string
+          website?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "intervention_contacts_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_contacts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_documents: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          document_type: string | null
-          file_size: number
-          filename: string
-          id: string
-          intervention_id: string
-          is_validated: boolean | null
-          mime_type: string
-          original_filename: string
-          storage_bucket: string | null
-          storage_path: string
-          updated_at: string | null
-          uploaded_at: string | null
-          uploaded_by: string | null
-          validated_at: string | null
-          validated_by: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          document_type?: string | null
-          file_size: number
-          filename: string
-          id?: string
-          intervention_id: string
-          is_validated?: boolean | null
-          mime_type: string
-          original_filename: string
-          storage_bucket?: string | null
-          storage_path: string
-          updated_at?: string | null
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-          validated_at?: string | null
-          validated_by?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          document_type?: string | null
-          file_size?: number
-          filename?: string
-          id?: string
-          intervention_id?: string
-          is_validated?: boolean | null
-          mime_type?: string
-          original_filename?: string
-          storage_bucket?: string | null
-          storage_path?: string
-          updated_at?: string | null
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-          validated_at?: string | null
-          validated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_documents_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_magic_links: {
-        Row: {
-          accessed_at: string | null
-          created_at: string | null
-          created_by: string
-          expires_at: string
-          id: string
-          individual_message: string | null
-          intervention_id: string
-          provider_email: string
-          provider_id: string | null
-          quote_submitted: boolean | null
-          status: string | null
-          token: string
-          updated_at: string | null
-        }
-        Insert: {
-          accessed_at?: string | null
-          created_at?: string | null
-          created_by: string
-          expires_at: string
-          id?: string
-          individual_message?: string | null
-          intervention_id: string
-          provider_email: string
-          provider_id?: string | null
-          quote_submitted?: boolean | null
-          status?: string | null
-          token: string
-          updated_at?: string | null
-        }
-        Update: {
-          accessed_at?: string | null
-          created_at?: string | null
-          created_by?: string
-          expires_at?: string
-          id?: string
-          individual_message?: string | null
-          intervention_id?: string
-          provider_email?: string
-          provider_id?: string | null
-          quote_submitted?: boolean | null
-          status?: string | null
-          token?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_magic_links_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "fk_companies_deleted_by"
+            columns: ["deleted_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_magic_links_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_magic_links_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_manager_finalizations: {
-        Row: {
-          additional_documents: Json | null
-          admin_comments: string
-          archival_data: Json
-          created_at: string | null
-          documentation: Json
-          final_status: string
-          finalized_at: string
-          financial_summary: Json
-          follow_up_actions: Json | null
-          id: string
-          intervention_id: string
-          manager_id: string
-          quality_control: Json
-          updated_at: string | null
-        }
-        Insert: {
-          additional_documents?: Json | null
-          admin_comments: string
-          archival_data: Json
-          created_at?: string | null
-          documentation: Json
-          final_status: string
-          finalized_at: string
-          financial_summary: Json
-          follow_up_actions?: Json | null
-          id?: string
-          intervention_id: string
-          manager_id: string
-          quality_control: Json
-          updated_at?: string | null
-        }
-        Update: {
-          additional_documents?: Json | null
-          admin_comments?: string
-          archival_data?: Json
-          created_at?: string | null
-          documentation?: Json
-          final_status?: string
-          finalized_at?: string
-          financial_summary?: Json
-          follow_up_actions?: Json | null
-          id?: string
-          intervention_id?: string
-          manager_id?: string
-          quality_control?: Json
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_manager_finalizations_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: true
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_manager_finalizations_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_quotes: {
-        Row: {
-          attachments: Json | null
-          created_at: string | null
-          description: string
-          estimated_duration_hours: number | null
-          estimated_start_date: string | null
-          id: string
-          intervention_id: string
-          labor_cost: number
-          materials_cost: number | null
-          provider_id: string
-          quote_request_id: string | null
-          rejection_reason: string | null
-          review_comments: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: Database["public"]["Enums"]["quote_status"] | null
-          submitted_at: string | null
-          terms_and_conditions: string | null
-          total_amount: number | null
-          updated_at: string | null
-          work_details: string | null
-        }
-        Insert: {
-          attachments?: Json | null
-          created_at?: string | null
-          description: string
-          estimated_duration_hours?: number | null
-          estimated_start_date?: string | null
-          id?: string
-          intervention_id: string
-          labor_cost: number
-          materials_cost?: number | null
-          provider_id: string
-          quote_request_id?: string | null
-          rejection_reason?: string | null
-          review_comments?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: Database["public"]["Enums"]["quote_status"] | null
-          submitted_at?: string | null
-          terms_and_conditions?: string | null
-          total_amount?: number | null
-          updated_at?: string | null
-          work_details?: string | null
-        }
-        Update: {
-          attachments?: Json | null
-          created_at?: string | null
-          description?: string
-          estimated_duration_hours?: number | null
-          estimated_start_date?: string | null
-          id?: string
-          intervention_id?: string
-          labor_cost?: number
-          materials_cost?: number | null
-          provider_id?: string
-          quote_request_id?: string | null
-          rejection_reason?: string | null
-          review_comments?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: Database["public"]["Enums"]["quote_status"] | null
-          submitted_at?: string | null
-          terms_and_conditions?: string | null
-          total_amount?: number | null
-          updated_at?: string | null
-          work_details?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_quotes_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_quotes_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_quotes_quote_request_id_fkey"
-            columns: ["quote_request_id"]
-            isOneToOne: false
-            referencedRelation: "quote_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_quotes_quote_request_id_fkey"
-            columns: ["quote_request_id"]
-            isOneToOne: false
-            referencedRelation: "quote_requests_with_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_quotes_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_tenant_validations: {
-        Row: {
-          additional_comments: string | null
-          comments: string
-          created_at: string | null
-          id: string
-          intervention_id: string
-          issues: Json | null
-          recommend_provider: boolean | null
-          satisfaction: Json | null
-          submitted_at: string
-          tenant_id: string
-          updated_at: string | null
-          validation_type: string
-          work_approval: Json | null
-        }
-        Insert: {
-          additional_comments?: string | null
-          comments: string
-          created_at?: string | null
-          id?: string
-          intervention_id: string
-          issues?: Json | null
-          recommend_provider?: boolean | null
-          satisfaction?: Json | null
-          submitted_at: string
-          tenant_id: string
-          updated_at?: string | null
-          validation_type: string
-          work_approval?: Json | null
-        }
-        Update: {
-          additional_comments?: string | null
-          comments?: string
-          created_at?: string | null
-          id?: string
-          intervention_id?: string
-          issues?: Json | null
-          recommend_provider?: boolean | null
-          satisfaction?: Json | null
-          submitted_at?: string
-          tenant_id?: string
-          updated_at?: string | null
-          validation_type?: string
-          work_approval?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_tenant_validations_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_tenant_validations_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_time_slots: {
-        Row: {
-          created_at: string | null
-          end_time: string
-          id: string
-          intervention_id: string
-          is_selected: boolean | null
-          slot_date: string
-          start_time: string
-        }
-        Insert: {
-          created_at?: string | null
-          end_time: string
-          id?: string
-          intervention_id: string
-          is_selected?: boolean | null
-          slot_date: string
-          start_time: string
-        }
-        Update: {
-          created_at?: string | null
-          end_time?: string
-          id?: string
-          intervention_id?: string
-          is_selected?: boolean | null
-          slot_date?: string
-          start_time?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_time_slots_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      intervention_work_completions: {
-        Row: {
-          actual_cost: number | null
-          actual_duration_hours: number
-          after_photos: Json | null
-          before_photos: Json | null
-          created_at: string | null
-          documents: Json | null
-          id: string
-          intervention_id: string
-          issues_encountered: string | null
-          materials_used: string | null
-          provider_id: string
-          quality_assurance: Json
-          recommendations: string | null
-          submitted_at: string
-          updated_at: string | null
-          work_details: string
-          work_summary: string
-        }
-        Insert: {
-          actual_cost?: number | null
-          actual_duration_hours: number
-          after_photos?: Json | null
-          before_photos?: Json | null
-          created_at?: string | null
-          documents?: Json | null
-          id?: string
-          intervention_id: string
-          issues_encountered?: string | null
-          materials_used?: string | null
-          provider_id: string
-          quality_assurance: Json
-          recommendations?: string | null
-          submitted_at: string
-          updated_at?: string | null
-          work_details: string
-          work_summary: string
-        }
-        Update: {
-          actual_cost?: number | null
-          actual_duration_hours?: number
-          after_photos?: Json | null
-          before_photos?: Json | null
-          created_at?: string | null
-          documents?: Json | null
-          id?: string
-          intervention_id?: string
-          issues_encountered?: string | null
-          materials_used?: string | null
-          provider_id?: string
-          quality_assurance?: Json
-          recommendations?: string | null
-          submitted_at?: string
-          updated_at?: string | null
-          work_details?: string
-          work_summary?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "intervention_work_completions_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_work_completions_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      interventions: {
-        Row: {
-          building_id: string | null
-          completed_date: string | null
-          created_at: string | null
-          description: string
-          estimated_cost: number | null
-          final_cost: number | null
-          finalized_at: string | null
-          has_attachments: boolean | null
-          id: string
-          lot_id: string | null
-          manager_comment: string | null
-          provider_comment: string | null
-          quote_deadline: string | null
-          quote_notes: string | null
-          reference: string
-          requested_date: string | null
-          requires_quote: boolean | null
-          scheduled_date: string | null
-          scheduling_type: string | null
-          selected_quote_id: string | null
-          specific_location: string | null
-          status: Database["public"]["Enums"]["intervention_status"]
-          team_id: string | null
-          tenant_comment: string | null
-          tenant_id: string | null
-          title: string
-          type: Database["public"]["Enums"]["intervention_type"]
-          updated_at: string | null
-          urgency: Database["public"]["Enums"]["intervention_urgency"]
-        }
-        Insert: {
-          building_id?: string | null
-          completed_date?: string | null
-          created_at?: string | null
-          description: string
-          estimated_cost?: number | null
-          final_cost?: number | null
-          finalized_at?: string | null
-          has_attachments?: boolean | null
-          id?: string
-          lot_id?: string | null
-          manager_comment?: string | null
-          provider_comment?: string | null
-          quote_deadline?: string | null
-          quote_notes?: string | null
-          reference: string
-          requested_date?: string | null
-          requires_quote?: boolean | null
-          scheduled_date?: string | null
-          scheduling_type?: string | null
-          selected_quote_id?: string | null
-          specific_location?: string | null
-          status?: Database["public"]["Enums"]["intervention_status"]
-          team_id?: string | null
-          tenant_comment?: string | null
-          tenant_id?: string | null
-          title: string
-          type: Database["public"]["Enums"]["intervention_type"]
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["intervention_urgency"]
-        }
-        Update: {
-          building_id?: string | null
-          completed_date?: string | null
-          created_at?: string | null
-          description?: string
-          estimated_cost?: number | null
-          final_cost?: number | null
-          finalized_at?: string | null
-          has_attachments?: boolean | null
-          id?: string
-          lot_id?: string | null
-          manager_comment?: string | null
-          provider_comment?: string | null
-          quote_deadline?: string | null
-          quote_notes?: string | null
-          reference?: string
-          requested_date?: string | null
-          requires_quote?: boolean | null
-          scheduled_date?: string | null
-          scheduling_type?: string | null
-          selected_quote_id?: string | null
-          specific_location?: string | null
-          status?: Database["public"]["Enums"]["intervention_status"]
-          team_id?: string | null
-          tenant_comment?: string | null
-          tenant_id?: string | null
-          title?: string
-          type?: Database["public"]["Enums"]["intervention_type"]
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["intervention_urgency"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interventions_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_selected_quote_id_fkey"
-            columns: ["selected_quote_id"]
-            isOneToOne: false
-            referencedRelation: "intervention_quotes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_selected_quote_id_fkey"
-            columns: ["selected_quote_id"]
-            isOneToOne: false
-            referencedRelation: "quote_requests_with_details"
-            referencedColumns: ["quote_id"]
-          },
-          {
-            foreignKeyName: "interventions_team_id_fkey"
+            foreignKeyName: "fk_companies_team"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
       }
       lot_contacts: {
         Row: {
-          created_at: string | null
-          end_date: string | null
+          created_at: string
           id: string
           is_primary: boolean | null
           lot_id: string
-          start_date: string | null
-          updated_at: string | null
+          notes: string | null
+          role: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
-          end_date?: string | null
+          created_at?: string
           id?: string
           is_primary?: boolean | null
           lot_id: string
-          start_date?: string | null
-          updated_at?: string | null
+          notes?: string | null
+          role?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
-          end_date?: string | null
+          created_at?: string
           id?: string
           is_primary?: boolean | null
           lot_id?: string
-          start_date?: string | null
-          updated_at?: string | null
+          notes?: string | null
+          role?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -981,43 +303,70 @@ export type Database = {
       }
       lots: {
         Row: {
-          apartment_number: string | null
+          active_interventions: number | null
           building_id: string | null
-          category: Database["public"]["Enums"]["lot_category"] | null
-          charges_amount: number | null
-          created_at: string | null
+          category: Database["public"]["Enums"]["lot_category"]
+          city: string | null
+          country: Database["public"]["Enums"]["country"] | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
           floor: number | null
+          gestionnaire_id: string | null
           id: string
-          is_occupied: boolean | null
+          metadata: Json | null
+          postal_code: string | null
           reference: string
-          team_id: string | null
-          updated_at: string | null
+          street: string | null
+          team_id: string
+          tenant_id: string | null
+          total_interventions: number | null
+          updated_at: string
         }
         Insert: {
-          apartment_number?: string | null
+          active_interventions?: number | null
           building_id?: string | null
-          category?: Database["public"]["Enums"]["lot_category"] | null
-          charges_amount?: number | null
-          created_at?: string | null
+          category?: Database["public"]["Enums"]["lot_category"]
+          city?: string | null
+          country?: Database["public"]["Enums"]["country"] | null
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
           floor?: number | null
+          gestionnaire_id?: string | null
           id?: string
-          is_occupied?: boolean | null
+          metadata?: Json | null
+          postal_code?: string | null
           reference: string
-          team_id?: string | null
-          updated_at?: string | null
+          street?: string | null
+          team_id: string
+          tenant_id?: string | null
+          total_interventions?: number | null
+          updated_at?: string
         }
         Update: {
-          apartment_number?: string | null
+          active_interventions?: number | null
           building_id?: string | null
-          category?: Database["public"]["Enums"]["lot_category"] | null
-          charges_amount?: number | null
-          created_at?: string | null
+          category?: Database["public"]["Enums"]["lot_category"]
+          city?: string | null
+          country?: Database["public"]["Enums"]["country"] | null
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
           floor?: number | null
+          gestionnaire_id?: string | null
           id?: string
-          is_occupied?: boolean | null
+          metadata?: Json | null
+          postal_code?: string | null
           reference?: string
-          team_id?: string | null
-          updated_at?: string | null
+          street?: string | null
+          team_id?: string
+          tenant_id?: string | null
+          total_interventions?: number | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1028,154 +377,146 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lots_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_gestionnaire_id_fkey"
+            columns: ["gestionnaire_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lots_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      notifications: {
+      property_documents: {
         Row: {
-          archived: boolean | null
-          created_at: string | null
-          created_by: string | null
+          building_id: string | null
+          category: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          document_date: string | null
+          document_type: Database["public"]["Enums"]["property_document_type"]
+          expiry_date: string | null
+          file_size: number
+          filename: string
           id: string
-          is_personal: boolean | null
-          message: string
-          metadata: Json | null
-          priority: Database["public"]["Enums"]["notification_priority"] | null
-          read: boolean | null
-          read_at: string | null
-          related_entity_id: string | null
-          related_entity_type: string | null
-          team_id: string | null
-          title: string
-          type: Database["public"]["Enums"]["notification_type"]
-          user_id: string | null
+          is_archived: boolean | null
+          lot_id: string | null
+          mime_type: string
+          original_filename: string
+          storage_bucket: string
+          storage_path: string
+          tags: string[] | null
+          team_id: string
+          title: string | null
+          updated_at: string | null
+          uploaded_at: string
+          uploaded_by: string
+          visibility_level: Database["public"]["Enums"]["document_visibility_level"]
         }
         Insert: {
-          archived?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
+          building_id?: string | null
+          category?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          document_date?: string | null
+          document_type: Database["public"]["Enums"]["property_document_type"]
+          expiry_date?: string | null
+          file_size: number
+          filename: string
           id?: string
-          is_personal?: boolean | null
-          message: string
-          metadata?: Json | null
-          priority?: Database["public"]["Enums"]["notification_priority"] | null
-          read?: boolean | null
-          read_at?: string | null
-          related_entity_id?: string | null
-          related_entity_type?: string | null
-          team_id?: string | null
-          title: string
-          type: Database["public"]["Enums"]["notification_type"]
-          user_id?: string | null
+          is_archived?: boolean | null
+          lot_id?: string | null
+          mime_type: string
+          original_filename: string
+          storage_bucket?: string
+          storage_path: string
+          tags?: string[] | null
+          team_id: string
+          title?: string | null
+          updated_at?: string | null
+          uploaded_at?: string
+          uploaded_by: string
+          visibility_level?: Database["public"]["Enums"]["document_visibility_level"]
         }
         Update: {
-          archived?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
+          building_id?: string | null
+          category?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          document_date?: string | null
+          document_type?: Database["public"]["Enums"]["property_document_type"]
+          expiry_date?: string | null
+          file_size?: number
+          filename?: string
           id?: string
-          is_personal?: boolean | null
-          message?: string
-          metadata?: Json | null
-          priority?: Database["public"]["Enums"]["notification_priority"] | null
-          read?: boolean | null
-          read_at?: string | null
-          related_entity_id?: string | null
-          related_entity_type?: string | null
-          team_id?: string | null
-          title?: string
-          type?: Database["public"]["Enums"]["notification_type"]
-          user_id?: string | null
+          is_archived?: boolean | null
+          lot_id?: string | null
+          mime_type?: string
+          original_filename?: string
+          storage_bucket?: string
+          storage_path?: string
+          tags?: string[] | null
+          team_id?: string
+          title?: string | null
+          updated_at?: string | null
+          uploaded_at?: string
+          uploaded_by?: string
+          visibility_level?: Database["public"]["Enums"]["document_visibility_level"]
         }
         Relationships: [
           {
-            foreignKeyName: "notifications_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "property_documents_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_documents_deleted_by_fkey"
+            columns: ["deleted_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notifications_team_id_fkey"
+            foreignKeyName: "property_documents_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_documents_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quote_requests: {
-        Row: {
-          created_at: string | null
-          created_by: string
-          deadline: string | null
-          id: string
-          individual_message: string | null
-          intervention_id: string
-          provider_id: string
-          responded_at: string | null
-          sent_at: string
-          status: Database["public"]["Enums"]["quote_request_status"]
-          updated_at: string | null
-          viewed_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by: string
-          deadline?: string | null
-          id?: string
-          individual_message?: string | null
-          intervention_id: string
-          provider_id: string
-          responded_at?: string | null
-          sent_at?: string
-          status?: Database["public"]["Enums"]["quote_request_status"]
-          updated_at?: string | null
-          viewed_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string
-          deadline?: string | null
-          id?: string
-          individual_message?: string | null
-          intervention_id?: string
-          provider_id?: string
-          responded_at?: string | null
-          sent_at?: string
-          status?: Database["public"]["Enums"]["quote_request_status"]
-          updated_at?: string | null
-          viewed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quote_requests_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_requests_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_requests_provider_id_fkey"
-            columns: ["provider_id"]
+            foreignKeyName: "property_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1186,34 +527,37 @@ export type Database = {
         Row: {
           id: string
           joined_at: string | null
-          role: string | null
+          left_at: string | null
+          role: Database["public"]["Enums"]["team_member_role"]
           team_id: string
           user_id: string
         }
         Insert: {
           id?: string
           joined_at?: string | null
-          role?: string | null
+          left_at?: string | null
+          role?: Database["public"]["Enums"]["team_member_role"]
           team_id: string
           user_id: string
         }
         Update: {
           id?: string
           joined_at?: string | null
-          role?: string | null
+          left_at?: string | null
+          role?: Database["public"]["Enums"]["team_member_role"]
           team_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "team_members_team_id_fkey"
+            foreignKeyName: "fk_team_members_team"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "team_members_user_id_fkey"
+            foreignKeyName: "fk_team_members_user"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1225,149 +569,47 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
           id: string
           name: string
+          settings: Json | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           id?: string
           name: string
+          settings?: Json | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           id?: string
           name?: string
+          settings?: Json | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "teams_created_by_fkey"
+            foreignKeyName: "fk_teams_created_by"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      trigger_debug_logs: {
-        Row: {
-          auth_user_id: string | null
-          created_at: string | null
-          email: string | null
-          id: string
-          message: string | null
-          metadata: Json | null
-          status: string
-          step: string
-          trigger_name: string
-        }
-        Insert: {
-          auth_user_id?: string | null
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          message?: string | null
-          metadata?: Json | null
-          status: string
-          step: string
-          trigger_name: string
-        }
-        Update: {
-          auth_user_id?: string | null
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          message?: string | null
-          metadata?: Json | null
-          status?: string
-          step?: string
-          trigger_name?: string
-        }
-        Relationships: []
-      }
-      user_availabilities: {
-        Row: {
-          created_at: string | null
-          date: string
-          end_time: string
-          id: string
-          intervention_id: string
-          quote_id: string | null
-          quote_request_id: string | null
-          start_time: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          date: string
-          end_time: string
-          id?: string
-          intervention_id: string
-          quote_id?: string | null
-          quote_request_id?: string | null
-          start_time: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          date?: string
-          end_time?: string
-          id?: string
-          intervention_id?: string
-          quote_id?: string | null
-          quote_request_id?: string | null
-          start_time?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "user_availabilities_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_availabilities_quote_id_fkey"
-            columns: ["quote_id"]
-            isOneToOne: false
-            referencedRelation: "intervention_quotes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_availabilities_quote_id_fkey"
-            columns: ["quote_id"]
-            isOneToOne: false
-            referencedRelation: "quote_requests_with_details"
-            referencedColumns: ["quote_id"]
-          },
-          {
-            foreignKeyName: "user_availabilities_quote_request_id_fkey"
-            columns: ["quote_request_id"]
-            isOneToOne: false
-            referencedRelation: "quote_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_availabilities_quote_request_id_fkey"
-            columns: ["quote_request_id"]
-            isOneToOne: false
-            referencedRelation: "quote_requests_with_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_availabilities_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "fk_teams_deleted_by"
+            columns: ["deleted_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1437,21 +679,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "user_invitations_invited_by_fkey"
+            foreignKeyName: "fk_user_invitations_invited_by"
             columns: ["invited_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_invitations_team_id_fkey"
+            foreignKeyName: "fk_user_invitations_team"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_invitations_user_id_fkey"
+            foreignKeyName: "fk_user_invitations_user"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1465,7 +707,10 @@ export type Database = {
           auth_user_id: string | null
           avatar_url: string | null
           company: string | null
+          company_id: string | null
           created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           email: string
           first_name: string | null
           id: string
@@ -1478,9 +723,11 @@ export type Database = {
           provider_category:
             | Database["public"]["Enums"]["provider_category"]
             | null
+          provider_rating: number | null
           role: Database["public"]["Enums"]["user_role"]
           speciality: Database["public"]["Enums"]["intervention_type"] | null
           team_id: string | null
+          total_interventions: number | null
           updated_at: string | null
         }
         Insert: {
@@ -1488,7 +735,10 @@ export type Database = {
           auth_user_id?: string | null
           avatar_url?: string | null
           company?: string | null
+          company_id?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email: string
           first_name?: string | null
           id?: string
@@ -1501,9 +751,11 @@ export type Database = {
           provider_category?:
             | Database["public"]["Enums"]["provider_category"]
             | null
+          provider_rating?: number | null
           role?: Database["public"]["Enums"]["user_role"]
           speciality?: Database["public"]["Enums"]["intervention_type"] | null
           team_id?: string | null
+          total_interventions?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -1511,7 +763,10 @@ export type Database = {
           auth_user_id?: string | null
           avatar_url?: string | null
           company?: string | null
+          company_id?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string
           first_name?: string | null
           id?: string
@@ -1524,12 +779,28 @@ export type Database = {
           provider_category?:
             | Database["public"]["Enums"]["provider_category"]
             | null
+          provider_rating?: number | null
           role?: Database["public"]["Enums"]["user_role"]
           speciality?: Database["public"]["Enums"]["intervention_type"] | null
           team_id?: string | null
+          total_interventions?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_users_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_users_deleted_by"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_users_team"
             columns: ["team_id"]
@@ -1541,129 +812,36 @@ export type Database = {
       }
     }
     Views: {
-      activity_logs_with_user: {
-        Row: {
-          action_type:
-            | Database["public"]["Enums"]["activity_action_type"]
-            | null
-          created_at: string | null
-          description: string | null
-          entity_id: string | null
-          entity_name: string | null
-          entity_type:
-            | Database["public"]["Enums"]["activity_entity_type"]
-            | null
-          error_message: string | null
-          id: string | null
-          ip_address: unknown | null
-          metadata: Json | null
-          status: Database["public"]["Enums"]["activity_status"] | null
-          team_id: string | null
-          team_name: string | null
-          updated_at: string | null
-          user_agent: string | null
-          user_email: string | null
-          user_id: string | null
-          user_name: string | null
-          user_role: Database["public"]["Enums"]["user_role"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_logs_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quote_requests_with_details: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          deadline: string | null
-          id: string | null
-          individual_message: string | null
-          intervention_id: string | null
-          intervention_reference: string | null
-          intervention_title: string | null
-          intervention_type:
-            | Database["public"]["Enums"]["intervention_type"]
-            | null
-          intervention_urgency:
-            | Database["public"]["Enums"]["intervention_urgency"]
-            | null
-          provider_email: string | null
-          provider_id: string | null
-          provider_name: string | null
-          provider_speciality:
-            | Database["public"]["Enums"]["intervention_type"]
-            | null
-          quote_amount: number | null
-          quote_id: string | null
-          quote_status: Database["public"]["Enums"]["quote_status"] | null
-          responded_at: string | null
-          sent_at: string | null
-          status: Database["public"]["Enums"]["quote_request_status"] | null
-          updated_at: string | null
-          viewed_at: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quote_requests_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_requests_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_requests_provider_id_fkey"
-            columns: ["provider_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
+      can_manager_update_user: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
+      can_view_building: {
+        Args: { building_uuid: string }
+        Returns: boolean
+      }
+      can_view_lot: {
+        Args: { lot_uuid: string }
+        Returns: boolean
+      }
       expire_old_invitations: {
         Args: Record<PropertyKey, never>
         Returns: number
       }
-      expire_old_quote_requests: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      generate_intervention_reference: {
-        Args: Record<PropertyKey, never>
+      get_building_team_id: {
+        Args: { building_uuid: string }
         Returns: string
       }
-      get_current_user_id: {
+      get_current_user_role: {
         Args: Record<PropertyKey, never>
-        Returns: string
+        Returns: Database["public"]["Enums"]["user_role"]
       }
-      get_user_teams: {
-        Args: { user_uuid: string }
-        Returns: {
-          team_id: string
-          team_name: string
-          user_role: string
-        }[]
+      get_lot_team_id: {
+        Args: { lot_uuid: string }
+        Returns: string
       }
       get_user_teams_v2: {
         Args: Record<PropertyKey, never>
@@ -1671,119 +849,45 @@ export type Database = {
           team_id: string
         }[]
       }
-      log_activity: {
-        Args: {
-          p_action_type: Database["public"]["Enums"]["activity_action_type"]
-          p_description?: string
-          p_entity_id?: string
-          p_entity_name?: string
-          p_entity_type: Database["public"]["Enums"]["activity_entity_type"]
-          p_ip_address?: unknown
-          p_metadata?: Json
-          p_status?: Database["public"]["Enums"]["activity_status"]
-          p_team_id: string
-          p_user_agent?: string
-          p_user_id: string
-        }
-        Returns: string
-      }
-      log_trigger_step: {
-        Args: {
-          p_auth_user_id: string
-          p_email: string
-          p_message?: string
-          p_metadata?: Json
-          p_status: string
-          p_step: string
-          p_trigger_name: string
-        }
-        Returns: undefined
-      }
-      mark_all_notifications_as_read: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-      mark_notification_as_read: {
-        Args: { notification_id: string }
-        Returns: undefined
-      }
-      mark_quote_request_as_viewed: {
-        Args: { request_id: string }
-        Returns: undefined
-      }
-      user_belongs_to_team: {
-        Args: { team_uuid: string; user_uuid: string }
+      is_admin: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      is_gestionnaire: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_team_manager: {
+        Args: { check_team_id: string }
+        Returns: boolean
+      }
+      is_tenant_of_lot: {
+        Args: { lot_uuid: string }
+        Returns: boolean
+      }
+      revoke_contact_access: {
+        Args: {
+          p_contact_id: string
+          p_invitation_id: string
+          p_team_id: string
+        }
+        Returns: Json
       }
       user_belongs_to_team_v2: {
         Args: { check_team_id: string }
         Returns: boolean
       }
-      view_recent_trigger_logs: {
-        Args: { p_limit?: number }
-        Returns: {
-          created_at: string
-          email: string
-          message: string
-          metadata: Json
-          status: string
-          step: string
-        }[]
-      }
     }
     Enums: {
-      activity_action_type:
-        | "create"
-        | "update"
-        | "delete"
-        | "assign"
-        | "unassign"
-        | "approve"
-        | "reject"
-        | "complete"
-        | "cancel"
-        | "upload"
-        | "download"
-        | "invite"
-        | "accept_invite"
-        | "status_change"
-        | "login"
-        | "logout"
-      activity_entity_type:
-        | "user"
-        | "team"
-        | "team_member"
-        | "building"
-        | "lot"
-        | "contact"
-        | "intervention"
-        | "document"
-        | "invitation"
-        | "session"
-      activity_status: "success" | "failed" | "in_progress" | "cancelled"
-      intervention_status:
-        | "demande"
-        | "rejetee"
-        | "approuvee"
-        | "demande_de_devis"
-        | "planification"
-        | "planifiee"
-        | "en_cours"
-        | "cloturee_par_prestataire"
-        | "cloturee_par_locataire"
-        | "cloturee_par_gestionnaire"
-        | "annulee"
-        | "pending"
-        | "rejected"
-        | "approved"
-        | "quote_requested"
-        | "scheduling"
-        | "scheduled"
-        | "in_progress"
-        | "provider_completed"
-        | "tenant_validated"
-        | "completed"
-        | "cancelled"
+      country:
+        | "belgique"
+        | "france"
+        | "allemagne"
+        | "pays-bas"
+        | "suisse"
+        | "luxembourg"
+        | "autre"
+      document_visibility_level: "equipe" | "locataire"
       intervention_type:
         | "plomberie"
         | "electricite"
@@ -1793,7 +897,6 @@ export type Database = {
         | "menage"
         | "jardinage"
         | "autre"
-      intervention_urgency: "basse" | "normale" | "haute" | "urgente"
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       lot_category:
         | "appartement"
@@ -1803,16 +906,19 @@ export type Database = {
         | "local_commercial"
         | "parking"
         | "autre"
-      notification_priority: "low" | "normal" | "high" | "urgent"
-      notification_type:
-        | "intervention"
-        | "payment"
-        | "document"
-        | "system"
-        | "team_invite"
-        | "assignment"
-        | "status_change"
-        | "reminder"
+      property_document_type:
+        | "bail"
+        | "garantie"
+        | "facture"
+        | "diagnostic"
+        | "photo_compteur"
+        | "plan"
+        | "reglement_copropriete"
+        | "etat_des_lieux"
+        | "certificat"
+        | "manuel_utilisation"
+        | "photo_generale"
+        | "autre"
       provider_category:
         | "prestataire"
         | "assurance"
@@ -1820,18 +926,7 @@ export type Database = {
         | "syndic"
         | "proprietaire"
         | "autre"
-      quote_request_status:
-        | "sent"
-        | "viewed"
-        | "responded"
-        | "expired"
-        | "cancelled"
-      quote_status:
-        | "pending"
-        | "approved"
-        | "rejected"
-        | "expired"
-        | "cancelled"
+      team_member_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
       user_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
     }
     CompositeTypes: {
@@ -1963,61 +1058,16 @@ export const Constants = {
   },
   public: {
     Enums: {
-      activity_action_type: [
-        "create",
-        "update",
-        "delete",
-        "assign",
-        "unassign",
-        "approve",
-        "reject",
-        "complete",
-        "cancel",
-        "upload",
-        "download",
-        "invite",
-        "accept_invite",
-        "status_change",
-        "login",
-        "logout",
+      country: [
+        "belgique",
+        "france",
+        "allemagne",
+        "pays-bas",
+        "suisse",
+        "luxembourg",
+        "autre",
       ],
-      activity_entity_type: [
-        "user",
-        "team",
-        "team_member",
-        "building",
-        "lot",
-        "contact",
-        "intervention",
-        "document",
-        "invitation",
-        "session",
-      ],
-      activity_status: ["success", "failed", "in_progress", "cancelled"],
-      intervention_status: [
-        "demande",
-        "rejetee",
-        "approuvee",
-        "demande_de_devis",
-        "planification",
-        "planifiee",
-        "en_cours",
-        "cloturee_par_prestataire",
-        "cloturee_par_locataire",
-        "cloturee_par_gestionnaire",
-        "annulee",
-        "pending",
-        "rejected",
-        "approved",
-        "quote_requested",
-        "scheduling",
-        "scheduled",
-        "in_progress",
-        "provider_completed",
-        "tenant_validated",
-        "completed",
-        "cancelled",
-      ],
+      document_visibility_level: ["equipe", "locataire"],
       intervention_type: [
         "plomberie",
         "electricite",
@@ -2028,7 +1078,6 @@ export const Constants = {
         "jardinage",
         "autre",
       ],
-      intervention_urgency: ["basse", "normale", "haute", "urgente"],
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       lot_category: [
         "appartement",
@@ -2039,16 +1088,19 @@ export const Constants = {
         "parking",
         "autre",
       ],
-      notification_priority: ["low", "normal", "high", "urgent"],
-      notification_type: [
-        "intervention",
-        "payment",
-        "document",
-        "system",
-        "team_invite",
-        "assignment",
-        "status_change",
-        "reminder",
+      property_document_type: [
+        "bail",
+        "garantie",
+        "facture",
+        "diagnostic",
+        "photo_compteur",
+        "plan",
+        "reglement_copropriete",
+        "etat_des_lieux",
+        "certificat",
+        "manuel_utilisation",
+        "photo_generale",
+        "autre",
       ],
       provider_category: [
         "prestataire",
@@ -2058,14 +1110,7 @@ export const Constants = {
         "proprietaire",
         "autre",
       ],
-      quote_request_status: [
-        "sent",
-        "viewed",
-        "responded",
-        "expired",
-        "cancelled",
-      ],
-      quote_status: ["pending", "approved", "rejected", "expired", "cancelled"],
+      team_member_role: ["admin", "gestionnaire", "locataire", "prestataire"],
       user_role: ["admin", "gestionnaire", "locataire", "prestataire"],
     },
   },

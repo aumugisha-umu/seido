@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
+import { logger } from "@/lib/logger"
 import {
   createServerTeamService,
   createServerBuildingService,
@@ -658,6 +659,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
           description: data.buildingInfo.description.trim(),
           construction_year: data.buildingInfo.constructionYear ? parseInt(data.buildingInfo.constructionYear) : undefined,
           team_id: teamData.userTeam.id,
+          gestionnaire_id: data.selectedManagerId, // Phase 2: Required field
         }
 
         const lotsData = data.lots.map((lot) => ({

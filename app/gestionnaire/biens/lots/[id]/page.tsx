@@ -408,7 +408,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
           reference: lot.reference,
           createdAt: lot.created_at,
           createdBy: lot.manager?.name,
-          isOccupied: lot.is_occupied,
+          isOccupied: !!lot.tenant_id, // Phase 2: Occupancy determined by tenant_id presence
           apartmentNumber: lot.apartment_number,
           floor: lot.floor,
           building: lot.building ? {
@@ -509,8 +509,8 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                 <div className="flex justify-between">
                   <span className="text-gray-600">Statut d'occupation</span>
                   <span className="font-medium">
-                    <Badge variant={lot.is_occupied ? "default" : "secondary"}>
-                      {lot.is_occupied ? "Occupé" : "Vacant"}
+                    <Badge variant={lot.tenant_id ? "default" : "secondary"}>
+                      {lot.tenant_id ? "Occupé" : "Vacant"}
                     </Badge>
                   </span>
                 </div>

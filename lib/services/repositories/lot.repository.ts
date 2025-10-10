@@ -393,12 +393,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   }
 
   /**
-   * Update lot occupancy status
+   * Update lot tenant (Phase 2: occupancy is determined by tenant_id presence)
    */
-  async updateOccupancy(lotId: string, isOccupied: boolean) {
+  async updateTenant(lotId: string, tenantId: string | null) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .update({ is_occupied: isOccupied, updated_at: new Date().toISOString() })
+      .update({ tenant_id: tenantId, updated_at: new Date().toISOString() })
       .eq('id', lotId)
       .select()
       .single()

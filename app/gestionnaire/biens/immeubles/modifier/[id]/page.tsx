@@ -123,8 +123,8 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         description: buildingData.description || "",
       })
       
-      // TODO: Migrer vers le nouveau système de building_contacts
-      // setSelectedManagerId(buildingData.manager_id || "")
+      // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
+      // setSelectedManagerId(buildingData.gestionnaire_id || "")
 
     } catch (error) {
       logger.error("❌ Error loading building data:", error)
@@ -170,8 +170,8 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         description: buildingInfo.description.trim(),
         construction_year: buildingInfo.constructionYear ? parseInt(buildingInfo.constructionYear) : undefined,
         floors: buildingInfo.floors ? parseInt(buildingInfo.floors) : undefined,
-        // TODO: Migrer vers le nouveau système de building_contacts
-        // manager_id: selectedManagerId,
+        // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
+        // gestionnaire_id: selectedManagerId,
       }
 
       await buildingService.update(resolvedParams.id, updateData)

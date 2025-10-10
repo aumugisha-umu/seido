@@ -365,42 +365,34 @@ export class BuildingService {
   }
 
   /**
-   * Assign manager to building
+   * Assign gestionnaire to building (Phase 2: uses gestionnaire_id field)
    */
-  async assignManager(buildingId: string, managerId: string) {
+  async assignGestionnaire(buildingId: string, gestionnaireId: string) {
     // Check if building exists
     const building = await this.repository.findById(buildingId)
     if (!building.success || !building.data) {
       throw new NotFoundException('Building not found', 'buildings', buildingId)
     }
 
-    // Validate manager exists and has correct role
+    // Validate gestionnaire exists and has correct role
     if (this.userService) {
-      const managerResult = await this.userService.getById(managerId)
-      if (!managerResult.success || !managerResult.data) {
-        throw new NotFoundException('Manager not found', 'users', managerId)
+      const gestionnaireResult = await this.userService.getById(gestionnaireId)
+      if (!gestionnaireResult.success || !gestionnaireResult.data) {
+        throw new NotFoundException('Gestionnaire not found', 'users', gestionnaireId)
       }
 
-      if (managerResult.data.role !== 'gestionnaire') {
+      if (gestionnaireResult.data.role !== 'gestionnaire') {
         throw new PermissionException(
           'User must have gestionnaire role to be assigned as building manager',
           'buildings',
-          'assign_manager',
-          managerId
+          'assign_gestionnaire',
+          gestionnaireId
         )
       }
     }
 
-    // This would typically update building_contacts table
-    // For now, we return a success response
-    return {
-      success: true as const,
-      data: {
-        building_id: buildingId,
-        manager_id: managerId,
-        assigned_at: new Date().toISOString()
-      }
-    }
+    // Update gestionnaire_id field
+    return this.repository.updateGestionnaire(buildingId, gestionnaireId)
   }
 
   /**
@@ -484,20 +476,19 @@ export class BuildingService {
   }
 
   /**
-   * Remove building manager
+   * Remove building gestionnaire (Phase 2)
+   * Note: This will fail if gestionnaire_id is required. Consider reassigning instead.
    */
-  async removeManager(buildingId: string) {
-    return this.repository.update(buildingId, {
-      manager_id: null,
-      updated_at: new Date().toISOString()
-    })
+  async removeGestionnaire(buildingId: string, newGestionnaireId: string) {
+    // Phase 2 schema requires gestionnaire_id, so we reassign instead of removing
+    return this.repository.updateGestionnaire(buildingId, newGestionnaireId)
   }
 
   /**
-   * Get buildings managed by a specific contact
+   * Get buildings managed by a specific gestionnaire
    */
-  async getBuildingsByManager(managerId: string) {
-    return this.repository.findByManager(managerId)
+  async getBuildingsByGestionnaire(gestionnaireId: string) {
+    return this.repository.findByGestionnaire(gestionnaireId)
   }
 
   /**

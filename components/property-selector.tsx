@@ -510,7 +510,7 @@ export default function PropertySelector({
             const lotForCard = {
               id: lot.id?.toString() || "",
               reference: lot.reference,
-              is_occupied: lot.status === "occupied",
+              tenant_id: lot.status === "occupied" ? "occupied" : null, // Phase 2: Use tenant_id for occupancy
               lot_tenants: (lot as any).lot_tenants || [],
               tenant: undefined as undefined | { id: string; name: string },
               building: lot.building_name

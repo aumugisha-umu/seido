@@ -87,8 +87,10 @@ export function PropertiesNavigator({
     if (filters.status !== "all") {
       result = result.filter(property => {
         if (propertyType === 'lot') {
-          if (filters.status === "occupied") return property.is_occupied
-          if (filters.status === "vacant") return !property.is_occupied
+          // Phase 2: Occupancy determined by tenant_id presence
+          const isOccupied = !!property.tenant_id
+          if (filters.status === "occupied") return isOccupied
+          if (filters.status === "vacant") return !isOccupied
         }
         // For buildings, we could check if they have occupied lots
         // but let's keep it simple for now

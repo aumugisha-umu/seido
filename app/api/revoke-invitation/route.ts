@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Chercher l'invitation active pour cette équipe
     const { data: invitation, error: invitationError } = await supabase
       .from("user_invitations")
-      .select("id, status, invitation_code")
+      .select("id, status, invitation_token")
       .eq("email", contactEmail)
       .eq("team_id", contact.team_id)
       .order("created_at", { ascending: false })

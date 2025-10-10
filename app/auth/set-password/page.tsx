@@ -182,6 +182,22 @@ export default function SetPasswordPage() {
           logger.warn("⚠️ [SET-PASSWORD] Error updating password_set:", dbError)
         }
 
+        // ✅ ÉTAPE 2: Mettre à jour statut invitation si applicable
+        try {
+          const invitationResponse = await fetch('/api/accept-invitation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          })
+
+          if (invitationResponse.ok) {
+            logger.info("✅ [SET-PASSWORD] Invitation marked as accepted")
+          } else {
+            logger.warn("⚠️ [SET-PASSWORD] Failed to update invitation status (non-blocking)")
+          }
+        } catch (invError) {
+          logger.warn("⚠️ [SET-PASSWORD] Error updating invitation:", invError)
+        }
+
         // ✅ CORRECTIF (2025-10-07): Attendre propagation Supabase
         logger.info("⏳ [SET-PASSWORD] Waiting for session propagation...")
         await new Promise(resolve => setTimeout(resolve, 500))

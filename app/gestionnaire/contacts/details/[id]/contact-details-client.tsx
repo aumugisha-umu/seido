@@ -5,13 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Eye,
   User,
   Wrench,
   Plus,
   AlertCircle,
-  Home
+  Home,
+  Mail,
+  RefreshCw,
+  X,
+  UserX,
+  Loader2
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
@@ -24,6 +31,7 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
 import { ContactDetailHeader } from "@/components/contact-detail-header"
 import { logger } from '@/lib/logger'
+import { useToast } from "@/hooks/use-toast"
 
 // ============================================================================
 // TYPES & CONSTANTS
@@ -89,11 +97,21 @@ export function ContactDetailsClient({
   const [activeTab, setActiveTab] = useState("overview")
   const [invitationStatus, setInvitationStatus] = useState<string | null>(initialInvitationStatus ?? null)
   const [invitationLoading, setInvitationLoading] = useState(false)
+  const [invitationId, setInvitationId] = useState<string | null>(null)
+
+  // Modal states
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showResendModal, setShowResendModal] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showRevokeModal, setShowRevokeModal] = useState(false)
+  const [revokeConfirmChecked, setRevokeConfirmChecked] = useState(false)
 
   // Utiliser les données initiales du Server Component
   const contact = initialContact
   const interventions = initialInterventions
   const properties = initialProperties
+
+  const { toast } = useToast()
 
   // ============================================================================
   // HANDLERS (Actions utilisateur)
@@ -136,84 +154,197 @@ export function ContactDetailsClient({
   }
 
   const handleSendInvitation = async () => {
-    if (!contact?.email || !currentUser?.team_id) return
+    if (!contact?.id) return
 
     try {
       setInvitationLoading(true)
-      logger.info("🔄 Sending invitation to:", contact.email)
+      logger.info("🔄 Sending invitation to existing contact:", contact.id)
 
-      const response = await fetch("/api/invite-user", {
+      const response = await fetch("/api/send-existing-contact-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: contact.email,
-          role: contact.role,
-          teamId: currentUser.team_id,
+          contactId: contact.id
         }),
       })
 
       if (response.ok) {
-        logger.info("✅ Invitation sent successfully")
+        const { invitationId, isNewAuthUser } = await response.json()
+        setInvitationId(invitationId)
+        logger.info("✅ Invitation sent successfully", { isNewAuthUser })
+
+        toast({
+          title: "✅ Invitation envoyée",
+          description: isNewAuthUser
+            ? `Une invitation a été envoyée à ${contact.email}`
+            : `${contact.name} a été ajouté à votre équipe (compte existant)`,
+          variant: "default"
+        })
+
         await loadInvitationStatus()
       } else {
-        logger.error("❌ Failed to send invitation")
+        const error = await response.json()
+        logger.error("❌ Failed to send invitation:", error)
+        toast({
+          title: "❌ Erreur",
+          description: error.error || "Impossible d'envoyer l'invitation",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       logger.error("❌ Error sending invitation:", error)
+      toast({
+        title: "❌ Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive"
+      })
     } finally {
       setInvitationLoading(false)
+      setShowInviteModal(false)
     }
   }
 
   const handleResendInvitation = async () => {
-    if (!contact?.email) return
+    if (!invitationId) {
+      toast({
+        title: "❌ Erreur",
+        description: "ID d'invitation manquant",
+        variant: "destructive"
+      })
+      return
+    }
 
     try {
       setInvitationLoading(true)
-      logger.info("🔄 Resending invitation to:", contact.email)
+      logger.info("🔄 Resending invitation:", invitationId)
 
       const response = await fetch("/api/resend-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: contact.email }),
+        body: JSON.stringify({ invitationId }),
       })
 
       if (response.ok) {
         logger.info("✅ Invitation resent successfully")
+        toast({
+          title: "✅ Invitation renvoyée",
+          description: `Un nouvel email a été envoyé à ${contact.email}`,
+          variant: "default"
+        })
         await loadInvitationStatus()
       } else {
-        logger.error("❌ Failed to resend invitation")
+        const error = await response.json()
+        logger.error("❌ Failed to resend invitation:", error)
+        toast({
+          title: "❌ Erreur",
+          description: error.error || "Impossible de renvoyer l'invitation",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       logger.error("❌ Error resending invitation:", error)
+      toast({
+        title: "❌ Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive"
+      })
     } finally {
       setInvitationLoading(false)
+      setShowResendModal(false)
     }
   }
 
-  const handleRevokeInvitation = async () => {
-    if (!contact?.email) return
+  const handleCancelInvitation = async () => {
+    if (!contact?.email || !contact?.id) return
 
     try {
       setInvitationLoading(true)
-      logger.info("🔄 Revoking invitation for:", contact.email)
+      logger.info("🔄 Cancelling invitation for:", contact.email)
 
       const response = await fetch("/api/revoke-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: contact.email }),
+        body: JSON.stringify({
+          contactEmail: contact.email,
+          contactId: contact.id
+        }),
       })
 
       if (response.ok) {
-        logger.info("✅ Invitation revoked successfully")
+        logger.info("✅ Invitation cancelled successfully")
+        toast({
+          title: "✅ Invitation annulée",
+          description: `L'invitation de ${contact.name} a été annulée`,
+          variant: "default"
+        })
         await loadInvitationStatus()
       } else {
-        logger.error("❌ Failed to revoke invitation")
+        const error = await response.json()
+        logger.error("❌ Failed to cancel invitation:", error)
+        toast({
+          title: "❌ Erreur",
+          description: error.error || "Impossible d'annuler l'invitation",
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      logger.error("❌ Error revoking invitation:", error)
+      logger.error("❌ Error cancelling invitation:", error)
+      toast({
+        title: "❌ Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive"
+      })
     } finally {
       setInvitationLoading(false)
+      setShowCancelModal(false)
+    }
+  }
+
+  const handleRevokeAccess = async () => {
+    if (!contact?.email || !contact?.id) return
+    if (!revokeConfirmChecked) return
+
+    try {
+      setInvitationLoading(true)
+      logger.info("🔄 Revoking access for:", contact.email)
+
+      const response = await fetch("/api/revoke-invitation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactEmail: contact.email,
+          contactId: contact.id
+        }),
+      })
+
+      if (response.ok) {
+        logger.info("✅ Access revoked successfully")
+        toast({
+          title: "✅ Accès révoqué",
+          description: `${contact.name} ne peut plus se connecter à l'application`,
+          variant: "default"
+        })
+        await loadInvitationStatus()
+      } else {
+        const error = await response.json()
+        logger.error("❌ Failed to revoke access:", error)
+        toast({
+          title: "❌ Erreur",
+          description: error.error || "Impossible de révoquer l'accès",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      logger.error("❌ Error revoking access:", error)
+      toast({
+        title: "❌ Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive"
+      })
+    } finally {
+      setInvitationLoading(false)
+      setRevokeConfirmChecked(false)
+      setShowRevokeModal(false)
     }
   }
 
@@ -225,16 +356,19 @@ export function ContactDetailsClient({
       const response = await fetch(`/api/contact-invitation-status?contactId=${contactId}`)
 
       if (response.ok) {
-        const { status } = await response.json()
+        const { status, invitationId } = await response.json()
         setInvitationStatus(status)
+        setInvitationId(invitationId) // 🆕 Store invitationId for resend action
         logger.info("✅ Invitation status loaded:", status)
       } else {
         logger.info("ℹ️ No invitation found for this contact")
         setInvitationStatus(null)
+        setInvitationId(null) // 🆕 Clear invitationId
       }
     } catch (error) {
       logger.error("❌ Error loading invitation status:", error)
       setInvitationStatus(null)
+      setInvitationId(null) // 🆕 Clear invitationId
     } finally {
       setInvitationLoading(false)
     }
@@ -321,6 +455,75 @@ export function ContactDetailsClient({
 
   const getSpecialityLabel = (speciality: string) => {
     return specialities.find(s => s.value === speciality)?.label || speciality
+  }
+
+  const getAccessActions = () => {
+    if (invitationLoading) {
+      return (
+        <Button disabled className="w-full" size="sm" variant="outline">
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Chargement...
+        </Button>
+      )
+    }
+
+    // CAS 1: Pas d'invitation (null ou cancelled) → Inviter
+    if (!invitationStatus || invitationStatus === 'cancelled') {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => setShowInviteModal(true)}
+        >
+          <Mail className="h-4 w-4 mr-2" />
+          Inviter
+        </Button>
+      )
+    }
+
+    // CAS 2: Invitation pending ou expired → Relancer + Annuler
+    if (invitationStatus === 'pending' || invitationStatus === 'expired') {
+      return (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => setShowResendModal(true)}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Relancer
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => setShowCancelModal(true)}
+          >
+            <X className="h-4 w-4 mr-2" />
+            Annuler
+          </Button>
+        </div>
+      )
+    }
+
+    // CAS 3: Invitation accepted → Retirer l'accès
+    if (invitationStatus === 'accepted') {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={() => setShowRevokeModal(true)}
+        >
+          <UserX className="h-4 w-4 mr-2" />
+          Retirer l'accès
+        </Button>
+      )
+    }
+
+    return null
   }
 
   // ============================================================================
@@ -500,14 +703,7 @@ export function ContactDetailsClient({
                       </div>
                     )}
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => router.push(`/gestionnaire/contacts/modifier/${contactId}`)}
-                    >
-                      Gérer l'accès
-                    </Button>
+                    {getAccessActions()}
                   </CardContent>
                 </Card>
 
@@ -742,6 +938,119 @@ export function ContactDetailsClient({
           </div>
         </Tabs>
       </div>
+
+      {/* ========================================================================== */}
+      {/* MODALES DE CONFIRMATION */}
+      {/* ========================================================================== */}
+
+      {/* Modale 1: Inviter (nouveau contact) */}
+      <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Inviter {contact.name}</DialogTitle>
+            <DialogDescription>
+              Un email d'invitation sera envoyé à <strong>{contact.email}</strong> pour créer son compte et accéder à l'application.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInviteModal(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSendInvitation} disabled={invitationLoading}>
+              {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Envoyer l'invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale 2: Relancer (invitation pending/expired) */}
+      <Dialog open={showResendModal} onOpenChange={setShowResendModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Relancer l'invitation</DialogTitle>
+            <DialogDescription>
+              Un nouvel email d'invitation sera envoyé à <strong>{contact.email}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResendModal(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleResendInvitation} disabled={invitationLoading}>
+              {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Renvoyer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale 3: Annuler (invitation pending) */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler l'invitation</DialogTitle>
+            <DialogDescription>
+              L'invitation de <strong>{contact.name}</strong> sera annulée. Vous pourrez toujours envoyer une nouvelle invitation plus tard.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelModal(false)}>
+              Retour
+            </Button>
+            <Button variant="destructive" onClick={handleCancelInvitation} disabled={invitationLoading}>
+              {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Annuler l'invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale 4: Retirer l'accès (invitation accepted) */}
+      <Dialog open={showRevokeModal} onOpenChange={(open) => {
+        setShowRevokeModal(open)
+        if (!open) setRevokeConfirmChecked(false) // Reset checkbox when closing
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Retirer l'accès de {contact.name}</DialogTitle>
+            <DialogDescription>
+              Cette action révoquera définitivement l'accès de <strong>{contact.name}</strong> à l'application. Il ne pourra plus se connecter.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex items-center space-x-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <Checkbox
+                id="revoke-confirm"
+                checked={revokeConfirmChecked}
+                onCheckedChange={(checked) => setRevokeConfirmChecked(checked === true)}
+              />
+              <label
+                htmlFor="revoke-confirm"
+                className="text-sm font-medium text-amber-800 cursor-pointer"
+              >
+                Je confirme vouloir révoquer l'accès de ce contact
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowRevokeModal(false)
+              setRevokeConfirmChecked(false)
+            }}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRevokeAccess}
+              disabled={!revokeConfirmChecked || invitationLoading}
+            >
+              {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Retirer l'accès
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

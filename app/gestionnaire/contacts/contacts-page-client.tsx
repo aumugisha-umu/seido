@@ -79,6 +79,13 @@ export function ContactsPageClient({
   const [contactsInvitationStatus, setContactsInvitationStatus] = useState<Record<string, string>>(initialContactsInvitationStatus)
   const [loading, setLoading] = useState(false)
 
+  // ✅ Synchroniser les états locaux avec les props quand elles changent (après router.refresh)
+  useEffect(() => {
+    setContacts(initialContacts)
+    setPendingInvitations(initialInvitations)
+    setContactsInvitationStatus(initialContactsInvitationStatus)
+  }, [initialContacts, initialInvitations, initialContactsInvitationStatus])
+
   // ✅ Instancier les services nécessaires
   const contactService = createContactService()
   const contactInvitationService = createContactInvitationService()
@@ -249,19 +256,12 @@ export function ContactsPageClient({
     setFilteredInvitations(filteredInvitationsResult)
   }, [contacts, pendingInvitations, debouncedSearchTerm, filters, contactsInvitationStatus])
 
-  // ✅ Refetch via router.refresh() + mutation API
+  // ✅ Refetch via router.refresh() pour déclencher le re-render du Server Component
   const refetchContacts = async () => {
     try {
       setLoading(true)
-      // Re-fetch via API route pour mettre à jour les données
-      const res = await fetch(`/api/contacts?teamId=${userTeam.id}`)
-      const data = await res.json()
-      if (data.success) {
-        setContacts(data.contacts || [])
-        setPendingInvitations(data.invitations || [])
-        setContactsInvitationStatus(data.invitationStatus || {})
-      }
-      // Alternative: utiliser router.refresh() pour server re-fetch
+      // Utiliser router.refresh() pour déclencher un nouveau render du Server Component
+      // qui re-fetch les données côté serveur (pas besoin d'API route /api/contacts)
       router.refresh()
     } catch (error) {
       logger.error("❌ Error refetching contacts:", error)

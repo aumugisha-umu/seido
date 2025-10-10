@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import { createContactService, createContactInvitationService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 interface ContactData {
@@ -36,6 +37,7 @@ interface ContactData {
   speciality?: string
   notes?: string
   team_id?: string
+  auth_user_id?: string | null // ✅ Lien vers l'utilisateur authentifié (null si pas de compte)
 }
 
 // ✅ Rôles principaux basés sur le nouvel enum user_role de la DB
@@ -136,10 +138,18 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       logger.info("📞 Loading contact:", resolvedParams.id)
 
       const contactService = createContactService()
-      const contactData = await contactService.getById(resolvedParams.id)
-      logger.info("✅ Contact loaded:", contactData)
-      
-      setContact(contactData as ContactData)
+      const result = await contactService.getById(resolvedParams.id)
+      logger.info("✅ Contact service response:", result)
+
+      // ✅ CORRECTIF: Extraire data de la réponse du service
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || 'Contact non trouvé')
+      }
+
+      const contactData = result.data
+      logger.info("✅ Contact data extracted:", contactData)
+
+      setContact(contactData)
       setFormData({
         id: contactData.id,
         name: contactData.name || "", // Valeur existante
@@ -151,9 +161,10 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         provider_category: contactData.provider_category || "prestataire", // ✅ Catégorie directe
         speciality: contactData.speciality || "",
         notes: contactData.notes || "",
-        team_id: contactData.team_id || undefined
+        team_id: contactData.team_id || undefined,
+        auth_user_id: contactData.auth_user_id || null // ✅ Extraire le lien d'authentification
       })
-      
+
     } catch (error) {
       logger.error("❌ Error loading contact:", error)
       setError("Erreur lors du chargement du contact")
@@ -221,7 +232,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         name: `${formData.first_name} ${formData.last_name}`.trim(), // Généré à partir prénom + nom
         first_name: formData.first_name || null,
         last_name: formData.last_name || null,
-        email: formData.email,
+        // ✅ PROTECTION: Si l'utilisateur est lié à un compte authentifié, conserver l'email d'origine
+        email: contact?.auth_user_id ? contact.email : formData.email,
         phone: formData.phone || null,
         role: formData.role, // ✅ Utilisation directe du rôle
         provider_category: formData.provider_category, // ✅ Utilisation directe de la catégorie
@@ -311,44 +323,41 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   const handleRevokeInvitation = async () => {
     try {
       setRevoking(true)
-      logger.info("🚫 Revoking invitation for contact:", contact?.email)
-      
+      logger.info("🚫 Revoking access for contact:", contact?.id)
+
       const response = await fetch('/api/revoke-invitation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          contactEmail: contact?.email,
-          contactId: contact?.id 
+        body: JSON.stringify({
+          contactId: contact?.id,     // ✅ Changement: contact ID au lieu de email
+          teamId: contact?.team_id    // ✅ Ajout: team ID pour validation
         })
       })
 
       const result = await response.json()
-      
+
       if (response.ok && result.success) {
-        logger.info("✅ Invitation/Access revoked successfully")
-        
-        // ✅ Réinitialiser le statut selon l'action effectuée
-        const wasPending = invitationStatus === 'pending'
-        setInvitationStatus(wasPending ? 'cancelled' : null)
+        logger.info("✅ Access revoked successfully")
+
+        // Réinitialiser le statut d'invitation
+        setInvitationStatus('cancelled')
         setShowRevokeModal(false)
-        
+
         toast({
-          title: wasPending ? "Invitation annulée" : "Accès révoqué", 
-          description: result.message || `L'action sur ${contact?.name} a été effectuée avec succès`
+          title: "Accès révoqué",
+          description: result.message || "L'accès de ce contact a été révoqué avec succès"
         })
       } else {
         throw new Error(result.error || 'Erreur lors de la révocation')
       }
-      
+
     } catch (error) {
-      logger.error("❌ Error revoking invitation:", error)
-      const errorMessage = error instanceof Error ? error.message : "Erreur lors de la révocation"
-      
+      logger.error("❌ Error revoking access:", error)
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "Erreur lors de la révocation",
         variant: "destructive"
       })
     } finally {
@@ -593,11 +602,21 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="Ex: jean.dupont@email.com"
-                    className={`w-full pl-10 ${validationErrors.email ? "border-red-500" : ""}`}
+                    disabled={!!contact?.auth_user_id}
+                    className={`w-full pl-10 ${validationErrors.email ? "border-red-500" : ""} ${contact?.auth_user_id ? "bg-slate-50 text-slate-600 cursor-not-allowed" : ""}`}
                   />
                 </div>
                 {validationErrors.email && (
                   <p className="text-sm text-red-600">{validationErrors.email}</p>
+                )}
+                {/* ✅ Message explicatif si l'email est lié à un compte authentifié */}
+                {contact?.auth_user_id && (
+                  <Alert className="bg-amber-50 border-amber-200">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-sm text-amber-800">
+                      Cet email est lié à un compte utilisateur et ne peut pas être modifié. Pour changer l'email, vous devez révoquer l'accès du contact puis créer un nouveau contact.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
 

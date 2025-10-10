@@ -393,6 +393,42 @@ $$;
 
 COMMENT ON FUNCTION get_current_user_role IS 'Retourne rôle utilisateur connecté (STABLE, évite récursion RLS)';
 
+-- Fonction: Vérifier si gestionnaire peut modifier un utilisateur (SECURITY DEFINER STABLE)
+CREATE OR REPLACE FUNCTION public.can_manager_update_user(target_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER STABLE
+AS $$
+DECLARE
+  current_user_id UUID;
+  current_user_role TEXT;
+BEGIN
+  -- Récupérer l'utilisateur connecté (bypass RLS avec SECURITY DEFINER)
+  SELECT u.id, u.role INTO current_user_id, current_user_role
+  FROM public.users u
+  WHERE u.auth_user_id = auth.uid()
+  AND u.deleted_at IS NULL;
+
+  -- Vérifier que l'utilisateur existe et est gestionnaire/admin
+  IF current_user_id IS NULL OR current_user_role NOT IN ('gestionnaire', 'admin') THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Vérifier que les deux sont dans la même équipe (active members only)
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.team_members tm_target
+    INNER JOIN public.team_members tm_manager ON tm_manager.team_id = tm_target.team_id
+    WHERE tm_target.user_id = target_user_id
+    AND tm_manager.user_id = current_user_id
+    AND tm_target.left_at IS NULL
+    AND tm_manager.left_at IS NULL
+  );
+END;
+$$;
+
+COMMENT ON FUNCTION can_manager_update_user IS 'Vérifie si un gestionnaire/admin peut modifier un utilisateur de son équipe (STABLE, évite récursion RLS)';
+
 -- =============================================================================
 -- TRIGGER AUTO-CRÉATION PROFIL (Version Finale - handle_new_user_confirmed)
 -- =============================================================================
@@ -649,6 +685,15 @@ TO authenticated
 USING (auth_user_id = auth.uid())
 WITH CHECK (auth_user_id = auth.uid());
 
+-- UPDATE: Gestionnaires/Admins peuvent modifier les membres de leur équipe
+-- ✅ Version v2: Utilise fonction SECURITY DEFINER pour éviter récursion RLS
+DROP POLICY IF EXISTS "users_update_by_team_managers" ON users;
+
+CREATE POLICY "users_update_by_team_managers" ON users FOR UPDATE
+TO authenticated
+USING (can_manager_update_user(users.id))
+WITH CHECK (can_manager_update_user(users.id));
+
 -- DELETE: Admin only (soft delete via deleted_at)
 CREATE POLICY "users_delete_by_admin" ON users FOR DELETE
 TO authenticated
@@ -860,6 +905,45 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION expire_old_invitations IS 'Marque invitations expirées (batch job quotidien recommandé)';
 
+-- Fonction: Révoquer accès contact (soft delete pattern)
+CREATE OR REPLACE FUNCTION revoke_contact_access(
+  p_contact_id UUID,
+  p_team_id UUID,
+  p_invitation_id UUID
+) RETURNS JSONB AS $$
+BEGIN
+  -- 1. Retirer lien auth (le contact reste mais ne peut plus se connecter)
+  UPDATE users
+  SET auth_user_id = NULL, updated_at = NOW()
+  WHERE id = p_contact_id;
+
+  -- 2. Soft delete team membership (historique préservé)
+  UPDATE team_members
+  SET left_at = NOW()
+  WHERE team_id = p_team_id
+    AND user_id = p_contact_id
+    AND left_at IS NULL;
+
+  -- 3. Annuler l'invitation
+  UPDATE user_invitations
+  SET status = 'cancelled'::invitation_status, updated_at = NOW()
+  WHERE id = p_invitation_id;
+
+  RETURN jsonb_build_object(
+    'success', TRUE,
+    'message', 'Accès révoqué avec succès'
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+      'success', FALSE,
+      'error', SQLERRM
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION revoke_contact_access IS 'Révoque accès contact: déconnecte auth + soft delete team_members + annule invitation (transaction atomique)';
+
 -- =============================================================================
 -- VALIDATION ET RÉSUMÉ
 -- =============================================================================
@@ -888,12 +972,14 @@ BEGIN
     RAISE NOTICE '   • handle_new_user_confirmed() - Auto-création profil + résout dépendance circulaire';
     RAISE NOTICE '   • get_user_teams_v2() - Liste équipes (STABLE, évite récursion RLS)';
     RAISE NOTICE '   • get_current_user_role() - Rôle utilisateur (STABLE, évite récursion RLS)';
+    RAISE NOTICE '   • can_manager_update_user() - Vérifie permissions modification utilisateur (STABLE, évite récursion RLS)';
     RAISE NOTICE '   • user_belongs_to_team_v2() - Vérifie appartenance (STABLE)';
     RAISE NOTICE '   • expire_old_invitations() - Marque invitations expirées';
+    RAISE NOTICE '   • revoke_contact_access() - Révoque accès (soft delete auth + team_members + invitation)';
     RAISE NOTICE '   • update_updated_at_column() - Mise à jour automatique timestamps';
     RAISE NOTICE '';
     RAISE NOTICE '✅ RLS POLICIES:';
-    RAISE NOTICE '   • users: 6 policies granulaires (3 pour SELECT, évite récursion + visibilité contacts)';
+    RAISE NOTICE '   • users: 7 policies granulaires (3 SELECT, 2 UPDATE, 1 INSERT, 1 DELETE)';
     RAISE NOTICE '   • teams: 3 policies (SELECT membres, INSERT gestionnaires, UPDATE admin only)';
     RAISE NOTICE '   • team_members: 5 policies granulaires (protection escalade privilèges)';
     RAISE NOTICE '   • companies: 4 policies (admin only)';
@@ -926,7 +1012,7 @@ BEGIN
     RAISE NOTICE '   • 4 types ENUM';
     RAISE NOTICE '   • 27 index optimisés';
     RAISE NOTICE '   • 22 policies RLS (+4 vs v2.0)';
-    RAISE NOTICE '   • 6 fonctions utilitaires (+1 get_current_user_role)';
+    RAISE NOTICE '   • 8 fonctions utilitaires (+can_manager_update_user, +revoke_contact_access)';
     RAISE NOTICE '   • 5 triggers automatiques';
     RAISE NOTICE '';
     RAISE NOTICE '⏭️  PROCHAINES ÉTAPES:';

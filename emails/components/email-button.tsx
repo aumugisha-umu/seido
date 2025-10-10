@@ -18,42 +18,60 @@ interface EmailButtonProps {
 }
 
 export const EmailButton = ({ href, children, variant = 'primary' }: EmailButtonProps) => {
-  // Couleurs selon variante (pas de hover car non supporté dans les emails)
-  const colors = {
-    primary: 'bg-[#3b82f6]',
-    secondary: 'bg-[#64748b]',
-    danger: 'bg-[#ef4444]',
+  // Configuration des styles selon la variante
+  const variantStyles = {
+    primary: {
+      background: 'linear-gradient(135deg, #5b8def 0%, #4a7ad9 100%)',
+      backgroundColor: '#5b8def', // Fallback
+      boxShadow: '0 4px 14px rgba(91, 141, 239, 0.4)',
+    },
+    secondary: {
+      background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+      backgroundColor: '#64748b',
+      boxShadow: '0 4px 14px rgba(100, 116, 139, 0.3)',
+    },
+    danger: {
+      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+      backgroundColor: '#ef4444',
+      boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
+    },
   }
 
+  const style = variantStyles[variant]
+
   return (
-    <div className="text-center my-8">
-      <Button
-        href={href}
-        className={`
-          ${colors[variant]}
-          text-white
-          px-8 py-4
-          rounded-lg
-          text-base font-semibold
-          no-underline
-          inline-block
-          min-h-[44px]
-        `}
-        style={{
-          // Fallback styles pour clients email qui ne supportent pas Tailwind
-          backgroundColor: variant === 'primary' ? '#3b82f6' : variant === 'danger' ? '#ef4444' : '#64748b',
-          color: '#ffffff',
-          padding: '16px 32px',
-          borderRadius: '8px',
-          fontSize: '16px',
-          fontWeight: '600',
-          textDecoration: 'none',
-          display: 'inline-block',
-          minHeight: '44px',
-        }}
-      >
-        {children}
-      </Button>
+    <div style={{ textAlign: 'center', margin: '32px 0' }}>
+      {/* Table approach pour contrôle total (standard email) */}
+      <table cellPadding="0" cellSpacing="0" border={0} style={{ display: 'inline-block', margin: '0 auto' }}>
+        <tr>
+          <td
+            style={{
+              background: style.background,
+              backgroundColor: style.backgroundColor,
+              borderRadius: '8px',
+              boxShadow: style.boxShadow,
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+            }}
+          >
+            <Button
+              href={href}
+              style={{
+                color: '#ffffff',
+                fontSize: '16px',
+                fontWeight: '600',
+                textDecoration: 'none',
+                display: 'block',
+                padding: '14px 28px',
+                lineHeight: '1',
+                letterSpacing: '0.2px',
+                margin: 0,
+              }}
+            >
+              {children}
+            </Button>
+          </td>
+        </tr>
+      </table>
     </div>
   )
 }

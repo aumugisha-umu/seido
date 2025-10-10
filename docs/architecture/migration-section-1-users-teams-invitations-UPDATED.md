@@ -1,14 +1,52 @@
 # Migration Section 1 : Utilisateurs, Équipes et Invitations (Version Complète)
 
-**Date**: 2025-10-09
+**Date**: 2025-10-09 (Dernière mise à jour: 2025-10-10)
 **Version**: v2.0 - Migration Consolidée (Analyse de 26 migrations + Feedbacks Utilisateur)
-**Status**: ⏳ **EN ATTENTE VALIDATION 6 POINTS**
+**Status**: ✅ **PHASE 1 COMPLÉTÉE** (Section 1 déployée avec corrections post-production)
 
 ---
 
 ## 📌 Résumé Rapide (TL;DR)
 
-### ✅ **4 Corrections Appliquées Après Vos Remarques**
+### ✅ **CORRECTIONS SESSION 2 (2025-10-10) - POST-DÉPLOIEMENT**
+
+#### 1. **RLS Infinite Recursion Fix**
+**Problème**: Erreur `42P17: infinite recursion detected in policy for relation "users"` lors de l'édition de contacts
+- **Contexte**: Policy `users_update_by_team_managers` utilisait `INNER JOIN users` créant une boucle récursive
+- **Localisation**: Éditeur de contacts (`app/gestionnaire/contacts/details/[id]/page.tsx`)
+- **Solution Implémentée**:
+  - **Fonction `can_manager_update_user()`** (SECURITY DEFINER)
+    - Lignes 396-430 dans `20251009000001_phase1_users_teams_companies_invitations.sql`
+    - Bypass RLS avec permissions superuser
+    - Validation via `team_members` uniquement (pas de récursion vers `users`)
+  - **Policy simplifiée** (lignes 688-695)
+    - `USING (can_manager_update_user(users.id))`
+    - `WITH CHECK (can_manager_update_user(users.id))`
+- **Résultat**: ✅ Édition contacts fonctionnelle, récursion éliminée
+- **Statistiques mises à jour**: 7 → 8 fonctions utilitaires
+
+#### 2. **Email Templates Redesign**
+**Templates affectés**: 5 templates transactionnels (invitation, confirmation, etc.)
+
+**Composant `email-header.tsx`**:
+- Logo repositionné top-left (100x32px, réduit de la taille d'origine)
+- Titre centré sur ligne 2 (32px, white, bold)
+- Architecture table-based pour compatibilité clients email
+
+**Composant `email-button.tsx`**:
+- Gradient background: `linear-gradient(135deg, #5b8def 0%, #4a7ad9 100%)`
+- Box-shadow: `0 4px 14px rgba(91, 141, 239, 0.4)` (effet 3D)
+- Border semi-transparent: `1px solid rgba(255, 255, 255, 0.2)`
+- Dimensions optimisées: padding 14px×28px, border-radius 8px
+- **Fix espacement vertical**: Architecture table-based (`<td>` contient styles visuels, `<Button>` avec `display: block`)
+  - Problème résolu: Espace fantôme sous le texte du bouton (descent inline)
+  - Solution: Table-based layout (standard industrie email HTML)
+
+**Build Validation**: ✅ `npm run build` réussi (84 pages, 0 erreurs)
+
+---
+
+### ✅ **4 Corrections Appliquées Après Vos Remarques** (Session 1 - 2025-10-09)
 1. ✅ **`users.speciality intervention_type`** : CONSERVÉ (matching auto prestataire ↔ intervention)
 2. ✅ **`user_invitations.status`** : CONSERVÉ (ENUM avec pending, accepted, expired, cancelled)
 3. ✅ **Support multi-équipe** : AJOUTÉ (`team_members` avec `left_at` pour historique)

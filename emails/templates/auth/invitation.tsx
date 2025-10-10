@@ -35,12 +35,12 @@ export const InvitationEmail = ({
     },
     prestataire: {
       title: 'Prestataire',
-      description: 'Vous recevrez des demandes d\'intervention et pourrez soumettre vos devis.',
+      description: 'Vous recevrez des demandes d\'intervention et pourrez en faire le suivi complet.',
       permissions: ['Réception de demandes d\'intervention', 'Soumission de devis', 'Gestion de vos disponibilités'],
     },
     locataire: {
       title: 'Locataire',
-      description: 'Vous pourrez soumettre des demandes d\'intervention pour votre logement.',
+      description: 'Vous pourrez soumettre des demandes d\'intervention pour votre logement et suivre leur progression.',
       permissions: ['Création de demandes d\'intervention', 'Suivi de vos demandes', 'Communication avec les gestionnaires'],
     },
   }
@@ -60,8 +60,7 @@ export const InvitationEmail = ({
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-5">
-          <strong>{inviterName}</strong> vous invite à rejoindre l'équipe{' '}
-          <strong>{teamName}</strong> sur SEIDO, la plateforme de gestion immobilière.
+          <strong>{inviterName}</strong> vous invite à rejoindre son organisation sur SEIDO, la plateforme de gestion immobilière.
         </Text>
 
         {/* Informations sur le rôle */}
@@ -85,19 +84,6 @@ export const InvitationEmail = ({
           </Text>
         </div>
 
-        {/* Informations équipe */}
-        <div className="bg-gray-50 p-5 rounded-lg mb-6">
-          <Text className="text-gray-900 font-semibold text-sm mb-2 mt-0">
-            À propos de l'équipe
-          </Text>
-          <Text className="text-gray-600 text-sm leading-relaxed m-0">
-            <strong>Équipe :</strong> {teamName}
-            <br />
-            <strong>Invité par :</strong> {inviterName}
-            <br />
-            <strong>Plateforme :</strong> SEIDO - Gestion immobilière simplifiée
-          </Text>
-        </div>
 
         {/* Bouton CTA */}
         <EmailButton href={invitationUrl}>

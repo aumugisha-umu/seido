@@ -1,12 +1,11 @@
 /**
- * Contact Service - Phase 3
- * Business logic for contact management with permissions and relations
+ * Contact Service - Phase 3 (Updated for New Schema)
+ * Business logic for contact management with team-based relationships
+ * NEW SCHEMA: Contacts are users managed via team_members table
  */
 
 import { ContactRepository, createContactRepository, createServerContactRepository } from '../repositories/contact.repository'
 import { UserService, createUserService, createServerUserService } from './user.service'
-import { LotService, createLotService, createServerLotService } from './lot.service'
-import { BuildingService, createBuildingService, createServerBuildingService } from './building.service'
 import { ValidationException, NotFoundException } from '../core/error-handler'
 import { logger, logError } from '@/lib/logger'
 import type {
@@ -18,14 +17,12 @@ import type {
 
 /**
  * Contact Service
- * Manages contact assignments between users and lots/buildings with business rules
+ * NEW SCHEMA: Manages users (contacts) with team-based relationships
  */
 export class ContactService {
   constructor(
     private repository: ContactRepository,
-    private userService?: UserService,
-    private lotService?: LotService,
-    private buildingService?: BuildingService
+    private userService?: UserService
   ) {}
 
   /**
@@ -65,39 +62,25 @@ export class ContactService {
   }
 
   /**
-   * Create new contact with validation
+   * Create new contact (user) with validation
+   * NEW SCHEMA: Creates user record in users table
    */
   async create(contactData: ContactInsert) {
-    // Validate user exists
-    if (this.userService) {
-      const userResult = await this.userService.getById(contactData.user_id)
-      if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('User not found', 'users', contactData.user_id)
-      }
-
-      // Validate role-based assignment rules
-      await this.validateRoleAssignment(userResult.data, contactData)
+    // Validate required fields for new schema
+    if (!contactData.email || !contactData.name) {
+      throw new ValidationException('Email and name are required', 'users', 'email')
     }
 
-    // Validate lot or building exists
-    if (contactData.lot_id && this.lotService) {
-      const lotResult = await this.lotService.getById(contactData.lot_id)
-      if (!lotResult.success || !lotResult.data) {
-        throw new NotFoundException('Lot not found', 'lots', contactData.lot_id)
-      }
+    // Check if email already exists
+    const emailCheck = await this.repository.emailExists(contactData.email)
+    if (emailCheck.success && emailCheck.exists) {
+      throw new ValidationException('Email already exists', 'users', 'email')
     }
 
-    if (contactData.building_id && this.buildingService) {
-      const buildingResult = await this.buildingService.getById(contactData.building_id)
-      if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', contactData.building_id)
-      }
-    }
-
-    // Set default values
+    // Set default values for users table
     const processedData = {
       ...contactData,
-      status: contactData.status || 'active' as const,
+      is_active: contactData.is_active !== undefined ? contactData.is_active : true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -178,11 +161,11 @@ export class ContactService {
   }
 
   /**
-   * Get all contacts for a lot
+   * Get contacts by role (NEW SCHEMA: queries users by role)
    */
-  async getLotContacts(lotId: string, type?: Contact['type']) {
+  async getContactsByRole(role: string, teamId?: string) {
     try {
-      const result = await this.repository.findByLot(lotId, type)
+      const result = await this.repository.findByRole(role, teamId)
       return result
     } catch (error) {
       throw error
@@ -190,54 +173,23 @@ export class ContactService {
   }
 
   /**
-   * Get all contacts for a building
+   * Add user to team
+   * NEW SCHEMA: Creates team_members entry
    */
-  async getBuildingContacts(buildingId: string, type?: Contact['type']) {
-    try {
-      const result = await this.repository.findByBuilding(buildingId, type)
-      return result
-    } catch (error) {
-      throw error
+  async addContactToTeam(teamId: string, userId: string, role: 'admin' | 'member' = 'member') {
+    // Validate user exists
+    if (this.userService) {
+      const userResult = await this.userService.getById(userId)
+      if (!userResult.success || !userResult.data) {
+        throw new NotFoundException('User not found', 'users', userId)
+      }
     }
-  }
-
-  /**
-   * Get contacts by type
-   */
-  async getContactsByType(type: Contact['type'], options?: { status?: Contact['status'] }) {
-    try {
-      const result = await this.repository.findByType(type, options)
-      return result
-    } catch (error) {
-      throw error
-    }
-  }
-
-  /**
-   * Add user to lot with role validation
-   */
-  async addContactToLot(lotId: string, userId: string, isPrimary: boolean = false) {
-    // Get user to determine contact type
-    if (!this.userService) {
-      throw new Error('UserService is required for contact assignment')
-    }
-
-    const userResult = await this.userService.getById(userId)
-    if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', userId)
-    }
-
-    const user = userResult.data
-    const contactType = this.mapUserRoleToContactType(user)
-
-    // Validate role can be assigned to lots
-    this.validateLotAssignment(user)
 
     try {
-      const result = await this.repository.addToLot(lotId, userId, contactType, isPrimary)
+      const result = await this.repository.addToTeam(teamId, userId, role)
 
       if (result.success && result.data) {
-        await this.logContactAssignment('lot', lotId, userId, contactType)
+        await this.logTeamAssignment(teamId, userId, role)
       }
 
       return result
@@ -247,64 +199,15 @@ export class ContactService {
   }
 
   /**
-   * Add user to building with role validation
+   * Remove user from team (soft delete)
+   * NEW SCHEMA: Sets left_at on team_members
    */
-  async addContactToBuilding(buildingId: string, userId: string, isPrimary: boolean = false) {
-    // Get user to determine contact type
-    if (!this.userService) {
-      throw new Error('UserService is required for contact assignment')
-    }
-
-    const userResult = await this.userService.getById(userId)
-    if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', userId)
-    }
-
-    const user = userResult.data
-    const contactType = this.mapUserRoleToContactType(user)
-
-    // Validate role can be assigned to buildings
-    this.validateBuildingAssignment(user)
-
+  async removeContactFromTeam(teamId: string, userId: string) {
     try {
-      const result = await this.repository.addToBuilding(buildingId, userId, contactType, isPrimary)
-
-      if (result.success && result.data) {
-        await this.logContactAssignment('building', buildingId, userId, contactType)
-      }
-
-      return result
-    } catch (error) {
-      throw error
-    }
-  }
-
-  /**
-   * Remove user from lot
-   */
-  async removeContactFromLot(lotId: string, userId: string) {
-    try {
-      const result = await this.repository.removeFromLot(lotId, userId)
+      const result = await this.repository.removeFromTeam(teamId, userId)
 
       if (result.success) {
-        await this.logContactRemoval('lot', lotId, userId)
-      }
-
-      return result
-    } catch (error) {
-      throw error
-    }
-  }
-
-  /**
-   * Remove user from building
-   */
-  async removeContactFromBuilding(buildingId: string, userId: string) {
-    try {
-      const result = await this.repository.removeFromBuilding(buildingId, userId)
-
-      if (result.success) {
-        await this.logContactRemoval('building', buildingId, userId)
+        await this.logTeamRemoval(teamId, userId)
       }
 
       return result
@@ -315,10 +218,11 @@ export class ContactService {
 
   /**
    * Get contact statistics
+   * NEW SCHEMA: Statistics by role and status
    */
-  async getContactStats() {
+  async getContactStats(teamId?: string) {
     try {
-      const result = await this.repository.getContactStats()
+      const result = await this.repository.getContactStats(teamId)
       return result
     } catch (error) {
       throw error
@@ -392,103 +296,30 @@ export class ContactService {
   }
 
   /**
-   * Get contacts by role (tenants, owners, managers, etc.)
-   */
-  async getContactsByRole(role: User['role'], options?: { teamId?: string; buildingId?: string }) {
-    try {
-      const allContactsResult = await this.repository.findAll()
-      const allContacts = allContactsResult.data || []
-
-      let filteredContacts = allContacts.filter(contact =>
-        contact.user && contact.user.role === role
-      )
-
-      // Apply additional filters if provided
-      if (options?.buildingId) {
-        filteredContacts = filteredContacts.filter(contact =>
-          contact.building_id === options.buildingId
-        )
-      }
-
-      // Filter by team if specified
-      if (options?.teamId && this.userService) {
-        const teamUsersResponse = await this.userService.getUsersByTeam(options.teamId)
-        if (teamUsersResponse.success && teamUsersResponse.data) {
-          const teamUserIds = new Set(teamUsersResponse.data.map(u => u.id))
-          filteredContacts = filteredContacts.filter(contact =>
-            teamUserIds.has(contact.user_id)
-          )
-        }
-      }
-
-      return { success: true as const, data: filteredContacts }
-    } catch (error) {
-      throw error
-    }
-  }
-
-  /**
-   * Get tenant contacts for a building
-   */
-  async getTenantsByBuilding(buildingId: string) {
-    return this.getContactsByRole('locataire', { buildingId })
-  }
-
-  /**
-   * Get manager contacts for buildings
-   */
-  async getBuildingManagers(teamId?: string) {
-    return this.getContactsByRole('gestionnaire', { teamId })
-  }
-
-  /**
-   * Get emergency contacts for a lot
-   */
-  async getEmergencyContacts(lotId: string) {
-    try {
-      // TODO: Implement emergency contact type in repository
-      // For now, return contacts associated with the lot
-      const allContactsResult = await this.repository.findAll()
-      const allContacts = allContactsResult.data || []
-      const emergencyContacts = allContacts.filter(contact =>
-        contact.lot_id === lotId
-      )
-
-      return { success: true as const, data: emergencyContacts }
-    } catch (error) {
-      throw error
-    }
-  }
-
-  /**
    * Search contacts by name or email
+   * NEW SCHEMA: Searches users table directly
    */
   async searchContacts(query: string, options?: { role?: User['role']; teamId?: string }) {
     try {
       const allContactsResult = await this.repository.findAll()
       const allContacts = allContactsResult.data || []
 
-      const filteredContacts = allContacts.filter(contact => {
-        // Search in user name and email
-        const searchText = `${contact.user?.name || ''} ${contact.user?.email || ''}`.toLowerCase()
+      let filteredContacts = allContacts.filter(contact => {
+        // Search in name and email (users table fields)
+        const searchText = `${contact.name || ''} ${contact.email || ''}`.toLowerCase()
         const matchesQuery = searchText.includes(query.toLowerCase())
 
         // Apply role filter if specified
-        const matchesRole = !options?.role || (contact.user?.role === options.role)
+        const matchesRole = !options?.role || (contact.role === options.role)
 
         return matchesQuery && matchesRole
       })
 
       // Filter by team if specified
-      if (options?.teamId && this.userService) {
-        const teamUsersResponse = await this.userService.getUsersByTeam(options.teamId)
-        if (teamUsersResponse.success && teamUsersResponse.data) {
-          const teamUserIds = new Set(teamUsersResponse.data.map(u => u.id))
-          return {
-            success: true as const,
-            data: filteredContacts.filter(contact => teamUserIds.has(contact.user_id))
-          }
-        }
+      if (options?.teamId) {
+        filteredContacts = filteredContacts.filter(contact =>
+          contact.team_id === options.teamId
+        )
       }
 
       return { success: true as const, data: filteredContacts }
@@ -498,149 +329,67 @@ export class ContactService {
   }
 
   /**
-   * Validate role-based assignment rules
-   */
-  private async validateRoleAssignment(user: User, contactData: ContactInsert) {
-    const contactType = this.mapUserRoleToContactType(user)
-
-    // Validate assignment rules
-    if (contactData.lot_id) {
-      this.validateLotAssignment(user)
-    }
-
-    if (contactData.building_id) {
-      this.validateBuildingAssignment(user)
-    }
-
-    // Validate contact type matches user role
-    if (contactData.type && contactData.type !== contactType) {
-      throw new ValidationException(
-        `Contact type '${contactData.type}' does not match user role '${user.role}'`,
-        'contacts',
-        'type'
-      )
-    }
-  }
-
-  /**
-   * Map user role to contact type
-   */
-  private mapUserRoleToContactType(user: User): Contact['type'] {
-    switch (user.role) {
-      case 'locataire':
-        return 'tenant'
-      case 'gestionnaire':
-      case 'admin':
-        return 'manager'
-      case 'prestataire':
-        return 'provider'
-      default:
-        return 'owner' // Default fallback
-    }
-  }
-
-  /**
-   * Validate user can be assigned to lots
-   */
-  private validateLotAssignment(user: User) {
-    // All roles can be assigned to lots
-    const allowedRoles = ['locataire', 'gestionnaire', 'prestataire', 'admin']
-
-    if (!allowedRoles.includes(user.role)) {
-      throw new ValidationException(
-        `User with role '${user.role}' cannot be assigned to lots`,
-        'contacts',
-        'user_role'
-      )
-    }
-  }
-
-  /**
-   * Validate user can be assigned to buildings
-   */
-  private validateBuildingAssignment(user: User) {
-    // Tenants should typically be assigned to lots, not buildings directly
-    const allowedRoles = ['gestionnaire', 'prestataire', 'admin']
-
-    if (!allowedRoles.includes(user.role)) {
-      throw new ValidationException(
-        `User with role '${user.role}' cannot be assigned to buildings. Tenants should be assigned to lots.`,
-        'contacts',
-        'user_role'
-      )
-    }
-  }
-
-  /**
-   * Log contact creation activity
+   * Log contact creation activity (NEW SCHEMA)
    */
   private async logContactCreation(contact: Contact) {
     // In production, this would use the activity-logger service
-    logger.info('Contact created:', contact.id, contact.type, contact.user_id)
+    logger.info('User/Contact created:', contact.id, contact.email, contact.role)
   }
 
   /**
-   * Log contact update activity
+   * Log contact update activity (NEW SCHEMA)
    */
   private async logContactUpdate(contact: Contact, changes: ContactUpdate) {
     // In production, this would use the activity-logger service
-    logger.info('Contact updated:', contact.id, changes)
+    logger.info('User/Contact updated:', contact.id, changes)
   }
 
   /**
-   * Log contact deletion activity
+   * Log contact deletion activity (NEW SCHEMA)
    */
   private async logContactDeletion(contact: Contact) {
     // In production, this would use the activity-logger service
-    logger.info('Contact deleted:', contact.id, contact.type, contact.user_id)
+    logger.info('User/Contact deleted:', contact.id, contact.email, contact.role)
   }
 
   /**
-   * Log contact assignment activity
+   * Log team assignment activity (NEW SCHEMA)
    */
-  private async logContactAssignment(
-    assignmentType: 'lot' | 'building',
-    assignmentId: string,
+  private async logTeamAssignment(
+    teamId: string,
     userId: string,
-    contactType: Contact['type']
+    role: 'admin' | 'member'
   ) {
     // In production, this would use the activity-logger service
-    logger.info(`Contact assigned to ${assignmentType}:`, assignmentId, userId, contactType)
+    logger.info('User added to team:', { teamId, userId, role })
   }
 
   /**
-   * Log contact removal activity
+   * Log team removal activity (NEW SCHEMA)
    */
-  private async logContactRemoval(
-    assignmentType: 'lot' | 'building',
-    assignmentId: string,
+  private async logTeamRemoval(
+    teamId: string,
     userId: string
   ) {
     // In production, this would use the activity-logger service
-    logger.info(`Contact removed from ${assignmentType}:`, assignmentId, userId)
+    logger.info('User removed from team:', { teamId, userId })
   }
 }
 
-// Factory functions for creating service instances
+// Factory functions for creating service instances (NEW SCHEMA)
 export const createContactService = (
   repository?: ContactRepository,
-  userService?: UserService,
-  lotService?: LotService,
-  buildingService?: BuildingService
+  userService?: UserService
 ) => {
   const repo = repository || createContactRepository()
   const users = userService || createUserService()
-  const lots = lotService || createLotService()
-  const buildings = buildingService || createBuildingService()
-  return new ContactService(repo, users, lots, buildings)
+  return new ContactService(repo, users)
 }
 
 export const createServerContactService = async () => {
-  const [repository, userService, lotService, buildingService] = await Promise.all([
+  const [repository, userService] = await Promise.all([
     createServerContactRepository(),
-    createServerUserService(),
-    createServerLotService(),
-    createServerBuildingService()
+    createServerUserService()
   ])
-  return new ContactService(repository, userService, lotService, buildingService)
+  return new ContactService(repository, userService)
 }

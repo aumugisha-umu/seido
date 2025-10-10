@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react'
-import { Section, Text } from '@react-email/components'
+import { Section, Text, Img } from '@react-email/components'
 
 interface EmailHeaderProps {
   /** Sujet de l'email (affiché sous le logo) */
@@ -14,67 +14,52 @@ interface EmailHeaderProps {
 }
 
 export const EmailHeader = ({ subject }: EmailHeaderProps) => {
+  // URL de base de l'application (utilise variable d'environnement)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const logoUrl = `${baseUrl}/images/Logo/Logo_Seido_White.png`
+
   return (
     <Section
-      className="bg-primary rounded-t-lg px-8 py-8"
+      className="bg-primary rounded-t-lg px-8 py-6"
       style={{ backgroundColor: '#5b8def', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}
     >
-      {/* Logo SEIDO - Centré */}
-      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-        <div
-          style={{
-            width: '56px',
-            height: '56px',
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '12px'
-          }}
-        >
-          <Text
-            style={{
-              color: '#5b8def',
-              fontWeight: 'bold',
-              fontSize: '28px',
-              margin: 0,
-              lineHeight: 1
-            }}
-          >
-            S
-          </Text>
-        </div>
+      {/* Layout 2 lignes : Logo en haut à gauche, Titre centré en dessous */}
+      <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
+        {/* Ligne 1 : Logo en haut à gauche */}
+        <tr>
+          <td>
+            <Img
+              src={logoUrl}
+              alt="SEIDO"
+              width="100"
+              height="32"
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                height: 'auto'
+              }}
+            />
+          </td>
+        </tr>
 
-        {/* Nom SEIDO */}
-        <Text
-          style={{
-            color: '#ffffff',
-            fontWeight: '600',
-            fontSize: '24px',
-            margin: 0,
-            lineHeight: 1,
-            marginTop: '8px'
-          }}
-        >
-          SEIDO
-        </Text>
-      </div>
-
-      {/* Sujet de l'email - Centré */}
-      <Text
-        style={{
-          color: '#1f2937',  // Gris foncé pour meilleure lisibilité
-          fontSize: '15px',
-          fontWeight: '500',
-          margin: 0,
-          marginTop: '16px',
-          textAlign: 'center',
-          lineHeight: 1.4
-        }}
-      >
-        {subject}
-      </Text>
+        {/* Ligne 2 : Titre centré */}
+        <tr>
+          <td style={{ paddingTop: '20px' }}>
+            <Text
+              style={{
+                color: '#ffffff',
+                fontSize: '32px',
+                fontWeight: '600',
+                margin: 0,
+                lineHeight: 1.3,
+                textAlign: 'center'
+              }}
+            >
+              {subject}
+            </Text>
+          </td>
+        </tr>
+      </table>
     </Section>
   )
 }

@@ -1,200 +1,76 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { Database } from "@/lib/database.types"
-import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerContactInvitationService } from '@/lib/services'
+import { logger } from '@/lib/logger'
+
 /**
  * POST /api/revoke-invitation
- * Révoque l'accès d'un contact (annule l'invitation ou supprime l'auth)
+ * Révoque l'accès d'un contact (soft delete pattern)
+ * - Retrait lien auth (users.auth_user_id = NULL)
+ * - Soft delete team membership (team_members.left_at = NOW())
+ * - Annulation invitation (user_invitations.status = 'cancelled')
  */
 export async function POST(request: NextRequest) {
   try {
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
+    // 1. Récupérer la session utilisateur
+    const userService = await createServerUserService()
+    const session = await userService['repository']['supabase'].auth.getUser()
 
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
+    if (!session.data.user) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
 
-    // Récupérer l'utilisateur depuis la base pour vérifier le rôle
-    const { data: dbUser, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", authUser.id)
-      .single()
+    // 2. Récupérer et vérifier le profil gestionnaire
+    const managerResult = await userService.getByAuthUserId(session.data.user.id)
 
-    if (userError || !dbUser || dbUser.role !== "gestionnaire") {
+    if (!managerResult.success || !managerResult.data) {
+      return NextResponse.json({ error: "Profil non trouvé" }, { status: 404 })
+    }
+
+    if (managerResult.data.role !== 'gestionnaire' && managerResult.data.role !== 'admin') {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
     }
 
-    // Récupération des données de la requête
-    const { contactEmail, contactId } = await request.json()
+    // 3. Parser les données de la requête
+    const { contactId, teamId } = await request.json()
 
-    if (!contactEmail || !contactId) {
-      return NextResponse.json({ 
-        error: "Email et ID du contact requis" 
+    if (!contactId || !teamId) {
+      return NextResponse.json({
+        error: "Contact ID et Team ID requis"
       }, { status: 400 })
     }
 
-    logger.info({ contactEmail, contactId }, "🚫 Revoking access for contact:")
+    logger.info({
+      contactId,
+      teamId,
+      managerId: managerResult.data.id
+    }, "🚫 Starting revocation process")
 
-    // Vérifier que le contact existe
-    const { data: contact, error: contactError } = await supabase
-      .from("users")
-      .select("id, email, role, auth_user_id, team_id")
-      .eq("id", contactId)
-      .single()
+    // 4. Déléguer la révocation au service
+    const invitationService = await createServerContactInvitationService()
+    const result = await invitationService.revokeAccess(
+      contactId,
+      teamId
+    )
 
-    if (contactError || !contact) {
-      logger.info({ contactError: contactError }, "❌ Contact not found:")
-      return NextResponse.json({ error: "Contact non trouvé" }, { status: 404 })
+    if (!result.success) {
+      const statusCode = result.error.code === 'FORBIDDEN' ? 403
+                        : result.error.code === 'NOT_FOUND' ? 404
+                        : 400
+
+      return NextResponse.json(
+        { error: result.error.message },
+        { status: statusCode }
+      )
     }
 
-    // Vérifier que le contact appartient à la même équipe que le gestionnaire
-    const { data: managerTeam } = await supabase
-      .from("users")
-      .select("team_id")
-      .eq("id", dbUser.id)
-      .single()
-
-    if (!managerTeam || contact.team_id !== managerTeam.team_id) {
-      logger.info({}, "❌ Contact not in same team as manager")
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
-    }
-
-    if (contact.email !== contactEmail) {
-      return NextResponse.json({ error: "Email du contact incorrect" }, { status: 400 })
-    }
-
-    // Chercher l'invitation active pour cette équipe
-    const { data: invitation, error: invitationError } = await supabase
-      .from("user_invitations")
-      .select("id, status, invitation_token")
-      .eq("email", contactEmail)
-      .eq("team_id", contact.team_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single()
-
-    if (invitationError && invitationError.code !== 'PGRST116') {
-      logger.error({ error: invitationError }, "❌ Error fetching invitation:")
-      return NextResponse.json({ error: "Erreur lors de la récupération" }, { status: 500 })
-    }
-
-    // Actions selon le statut d'invitation
-    if (invitation) {
-      // Marquer l'invitation comme annulée/révoquée
-      const { error: updateError } = await supabase
-        .from("user_invitations")
-        .update({ 
-          status: "cancelled",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", invitation.id)
-
-      if (updateError) {
-        logger.error({ error: updateError }, "❌ Error updating invitation status:")
-        return NextResponse.json({ 
-          error: "Erreur lors de la mise à jour de l'invitation" 
-        }, { status: 500 })
-      }
-
-      logger.info({}, "✅ Invitation status updated to cancelled")
-    }
-
-    // ✅ LOGIQUE CORRIGÉE : Déterminer le type d'action basée sur l'invitation
-    let needsAuthDeletion = false
-    let actionMessage = "Invitation annulée avec succès"
-    
-    // Si une invitation existe, prioriser son statut
-    if (invitation) {
-      if (invitation.status === "accepted") {
-        logger.info({}, "🔍 Invitation accepted, revoking active access")
-        needsAuthDeletion = true
-        actionMessage = "Accès révoqué avec succès"
-      } else if (invitation.status === "pending") {
-        logger.info({}, "🔍 Invitation pending, cancelling invitation")
-        needsAuthDeletion = false // Juste annuler, pas de suppression auth nécessaire
-        actionMessage = "Invitation annulée avec succès"
-      }
-    } 
-    // Si pas d'invitation mais auth_user_id existe (cas legacy)
-    else if (contact.auth_user_id) {
-      logger.info({}, "🔍 Legacy case: has auth account but no invitation, revoking access")
-      needsAuthDeletion = true
-      actionMessage = "Accès révoqué avec succès"
-    }
-
-    // Supprimer l'accès d'authentification si nécessaire
-    if (needsAuthDeletion) {
-      try {
-        let authUserIdToDelete = contact.auth_user_id
-
-        // Si pas d'auth_user_id direct, chercher via l'email
-        if (!authUserIdToDelete) {
-          const { data: authUsers, error: authListError } = await supabase.auth.admin.listUsers()
-          
-          if (!authListError && authUsers?.users) {
-            const authUser = authUsers.users.find(u => u.email === contactEmail)
-            if (authUser) {
-              authUserIdToDelete = authUser.id
-            }
-          }
-        }
-
-        if (authUserIdToDelete) {
-          // Supprimer l'utilisateur de Supabase Auth
-          const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(authUserIdToDelete)
-
-          if (deleteAuthError) {
-            logger.warn({ user: deleteAuthError }, "⚠️ Could not delete auth user:")
-          } else {
-            logger.info({}, "✅ Auth user deleted successfully")
-            
-            // Mettre à jour le contact pour supprimer la référence auth
-            await supabase
-              .from("users")
-              .update({ auth_user_id: null })
-              .eq("id", contactId)
-          }
-        }
-
-        logger.info({}, "ℹ️ Contact remains in users table but auth access removed")
-
-      } catch (authError) {
-        logger.warn({ error: authError }, "⚠️ Error during auth deletion:")
-      }
-    }
-
+    // 5. Retour succès
     return NextResponse.json({
       success: true,
-      message: actionMessage
+      message: result.data.message
     })
 
   } catch (error) {
-    logger.error({ error: error }, "❌ Error in revoke-invitation API:")
+    logger.error({ error }, "❌ Error in revoke-invitation API")
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }

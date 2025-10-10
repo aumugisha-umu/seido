@@ -236,6 +236,82 @@ export class ContactInvitationService {
   }
 
   /**
+   * Revoke access for a contact (soft delete pattern)
+   * - Disconnects auth link (users.auth_user_id = NULL)
+   * - Soft deletes team membership (team_members.left_at = NOW())
+   * - Cancels invitation (user_invitations.status = 'cancelled')
+   */
+  async revokeAccess(
+    contactId: string,
+    teamId: string
+  ): Promise<ServiceResult<{ message: string }>> {
+    try {
+      logger.info({ contactId, teamId }, '🚫 [CONTACT-INVITATION-SERVICE] Starting revocation')
+
+      // 1. Récupérer invitation pour validation
+      const { data: invitation, error: invError } = await this.contactService['repository']['supabase']
+        .from('user_invitations')
+        .select('id, status')
+        .eq('user_id', contactId)
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (invError && invError.code !== 'PGRST116') {
+        logger.error({ error: invError }, '❌ Error fetching invitation')
+        return {
+          success: false,
+          error: { code: 'DB_ERROR', message: invError.message }
+        }
+      }
+
+      if (!invitation) {
+        return {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Invitation non trouvée' }
+        }
+      }
+
+      // 2. Appeler RPC atomique
+      const { data, error } = await this.contactService['repository']['supabase']
+        .rpc('revoke_contact_access', {
+          p_contact_id: contactId,
+          p_team_id: teamId,
+          p_invitation_id: invitation.id
+        })
+
+      if (error) {
+        logger.error({ error }, '❌ Failed to revoke access via RPC')
+        return {
+          success: false,
+          error: { code: 'DB_ERROR', message: error.message }
+        }
+      }
+
+      if (!data.success) {
+        return {
+          success: false,
+          error: { code: 'REVOKE_FAILED', message: data.error }
+        }
+      }
+
+      logger.info({ contactId, teamId }, '✅ Access revoked successfully')
+
+      return {
+        success: true,
+        data: { message: data.message }
+      }
+    } catch (error) {
+      logger.error({ error }, '❌ Unexpected error in revokeAccess')
+      return {
+        success: false,
+        error: { code: 'UNKNOWN', message: error instanceof Error ? error.message : 'Unknown error' }
+      }
+    }
+  }
+
+  /**
    * Get pending invitations for a team
    */
   async getPendingInvitations(teamId: string): Promise<any[]> {

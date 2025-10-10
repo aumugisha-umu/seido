@@ -1,8 +1,74 @@
 # SEIDO - Schéma de Base de Données Optimal
 
-**Date**: 2025-10-09
+**Date**: 2025-10-09 (Dernière mise à jour: 2025-10-10)
 **Version**: 2.0 (Migration vers nouvelle instance Supabase)
-**Status**: 🎯 **PROPOSITION POUR VALIDATION**
+**Status**: ⏳ **EN COURS - Migration progressive par sections**
+
+---
+
+## 📊 État d'Avancement de la Migration
+
+### Vue d'Ensemble
+
+```
+Section 1 (Users, Teams, Invitations):  ████████████████████ 100% ✅ COMPLÉTÉE
+Section 2 (Buildings, Lots, Contacts):  ░░░░░░░░░░░░░░░░░░░░   0% ❌ À FAIRE
+Section 3 (Interventions, Devis):       ░░░░░░░░░░░░░░░░░░░░   0% ❌ À FAIRE
+
+Progression Globale:                     ██████░░░░░░░░░░░░░░  33%
+```
+
+### Section 1: ✅ COMPLÉTÉE (2025-10-10)
+
+**Référence**: `20251009000001_phase1_users_teams_companies_invitations.sql`
+**Documentation**: `migration-section-1-users-teams-invitations-UPDATED.md`
+
+**Tables Déployées**:
+- ✅ `users` (avec soft delete, compteurs dénormalisés)
+- ✅ `teams` (avec `settings` JSONB, soft delete)
+- ✅ `team_members` (multi-équipe avec `left_at`)
+- ✅ `companies` (regroupement prestataires)
+- ✅ `invitations` (avec `user_id`, `invitation_token` VARCHAR(255))
+
+**Corrections Post-Déploiement** (Session 2025-10-10):
+- ✅ **RLS Infinite Recursion Fix**: Fonction `can_manager_update_user()` SECURITY DEFINER
+  - Résolution erreur `42P17` lors de l'édition de contacts
+  - Policy simplifiée (lignes 688-695 dans migration)
+  - 8 fonctions utilitaires au total
+- ✅ **Email Templates Redesign**: Logo repositionné, bouton CTA avec gradient
+  - `emails/components/email-header.tsx` optimisé
+  - `emails/components/email-button.tsx` optimisé (architecture table-based)
+
+**RLS Policies**: 15 policies actives
+**Fonctions Utilitaires**: 8 fonctions (dont `can_manager_update_user()`)
+**Indexes**: 19 indexes de performance
+
+### Section 2: ❌ À FAIRE (Prochaine étape)
+
+**Tables à Créer**:
+- ❌ `buildings` (avec compteurs dénormalisés)
+- ❌ `lots` (avec relation `tenant_id`)
+- ❌ `lot_contacts` (association lots ↔ contacts)
+
+**Estimation**: 5 jours (backend 2j, services 1j, API 1j, frontend 1j)
+
+**Voir**: `MIGRATION-MASTER-GUIDE.md` section "Phase 2" pour détails complets
+
+### Section 3: ❌ À FAIRE (Après Section 2)
+
+**Tables à Créer**:
+- ❌ `interventions` (statuts FR, workflow complet)
+- ❌ `quotes` (devis avec validation)
+- ❌ `intervention_documents`
+- ❌ `intervention_messages`
+- ❌ `availability_slots`
+
+**Nouvelles Fonctionnalités**:
+- ❌ Chat temps réel (5 tables)
+- ❌ Commentaires internes gestionnaires (4 tables)
+- ❌ Rapports d'intervention structurés (4 tables)
+
+**Voir**: Ce document (sections suivantes) pour schéma complet
 
 ---
 

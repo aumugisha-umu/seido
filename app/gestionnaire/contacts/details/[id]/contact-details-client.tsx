@@ -255,18 +255,18 @@ export function ContactDetailsClient({
   }
 
   const handleCancelInvitation = async () => {
-    if (!contact?.email || !contact?.id) return
+    if (!contact?.id) return
 
     try {
       setInvitationLoading(true)
-      logger.info("🔄 Cancelling invitation for:", contact.email)
+      logger.info("🔄 Cancelling invitation for contact:", contact.id)
 
       const response = await fetch("/api/revoke-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contactEmail: contact.email,
-          contactId: contact.id
+          contactId: contact.id,
+          teamId: contact.team_id || currentUser.team_id
         }),
       })
 
@@ -301,19 +301,19 @@ export function ContactDetailsClient({
   }
 
   const handleRevokeAccess = async () => {
-    if (!contact?.email || !contact?.id) return
+    if (!contact?.id) return
     if (!revokeConfirmChecked) return
 
     try {
       setInvitationLoading(true)
-      logger.info("🔄 Revoking access for:", contact.email)
+      logger.info("🔄 Revoking access for contact:", contact.id)
 
       const response = await fetch("/api/revoke-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contactEmail: contact.email,
-          contactId: contact.id
+          contactId: contact.id,
+          teamId: contact.team_id || currentUser.team_id
         }),
       })
 

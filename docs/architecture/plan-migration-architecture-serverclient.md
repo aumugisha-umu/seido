@@ -1,8 +1,9 @@
 # Plan de Migration Architecture Server/Client Components
 
-**Date de création** : 2025-10-09
+**Date de création** : 2025-10-09 (Dernière mise à jour: 2025-10-10)
 **Objectif** : Migrer progressivement les pages SEIDO vers l'architecture hybride Next.js 15 (Server Component + Client Component)
 **Pattern de référence** : `/gestionnaire/contacts/details/[id]` (Phase 1 - COMPLÉTÉE ✅)
+**Status**: ⏳ **EN COURS** - Phase 1 complétée, Phase 2-3 en attente
 
 ---
 
@@ -588,14 +589,23 @@ interface InterventionDetailsClientProps {
 
 ## 📊 Roadmap Globale
 
-| **Phase** | **Section**       | **Pages**                          | **Statut**       |
-|-----------|-------------------|------------------------------------|------------------|
-| Phase 1   | Contacts          | `/contacts/details/[id]`           | ✅ COMPLÉTÉ      |
-| Phase 2   | Biens Immeubles   | `/biens/immeubles/[id]`            | 🔵 À FAIRE       |
-| Phase 2   | Biens Lots        | `/biens/lots/[id]`                 | 🔵 À FAIRE       |
-| Phase 3   | Interventions (G) | `/gestionnaire/interventions/[id]` | 🔵 À FAIRE       |
-| Phase 3   | Interventions (P) | `/prestataire/interventions/[id]`  | 🔵 À FAIRE       |
-| Phase 3   | Interventions (L) | `/locataire/interventions/[id]`    | 🔵 À FAIRE       |
+| **Phase** | **Section**       | **Pages**                          | **Statut**       | **Date**       |
+|-----------|-------------------|------------------------------------|------------------|----------------|
+| Phase 1   | Contacts          | `/contacts/details/[id]`           | ✅ **COMPLÉTÉE** | 2025-10-10     |
+| Phase 2   | Biens Immeubles   | `/biens/immeubles/[id]`            | ❌ À FAIRE       | -              |
+| Phase 2   | Biens Lots        | `/biens/lots/[id]`                 | ❌ À FAIRE       | -              |
+| Phase 3   | Interventions (G) | `/gestionnaire/interventions/[id]` | ❌ À FAIRE       | -              |
+| Phase 3   | Interventions (P) | `/prestataire/interventions/[id]`  | ❌ À FAIRE       | -              |
+| Phase 3   | Interventions (L) | `/locataire/interventions/[id]`    | ❌ À FAIRE       | -              |
+
+### Notes de Phase 1 (2025-10-10)
+- ✅ Pattern Server Component + Client Component validé et documenté
+- ✅ Authentication SSR avec `createServerUserService()` fonctionnelle
+- ✅ Data fetching optimisé côté serveur (0 N+1 queries)
+- ✅ Props TypeScript strictement typées
+- ✅ Build réussi sans erreurs ni warnings
+- ✅ **RLS Fix appliqué**: Fonction `can_manager_update_user()` permet édition contacts
+- ✅ **Email Templates**: Design finalisé avec logo repositionné et CTA optimisé
 
 ---
 
@@ -651,6 +661,7 @@ interface InterventionDetailsClientProps {
 
 ---
 
-**Dernière mise à jour** : 2025-10-09
+**Dernière mise à jour** : 2025-10-10
 **Maintenu par** : Claude Code (Anthropic)
 **Référence** : [Next.js 15 Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components)
+**Prochaine étape** : Phase 2 - Migration Section Biens (Buildings + Lots) selon MIGRATION-MASTER-GUIDE.md

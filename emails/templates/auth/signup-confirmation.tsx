@@ -31,20 +31,10 @@ export const SignupConfirmationEmail = ({
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-5">
-          Merci de vous être inscrit sur <strong>SEIDO</strong>, la plateforme de gestion
-          immobilière simplifiée ! Pour activer votre compte et commencer à utiliser nos
+          Merci de vous être inscrit sur <strong>SEIDO</strong>! Pour activer votre compte et commencer à utiliser nos
           services, veuillez confirmer votre adresse email.
         </Text>
 
-        {/* Info importante */}
-        <div className="bg-blue-50 border-l-4 border-primary p-4 rounded mb-6">
-          <Text className="text-gray-700 text-sm leading-relaxed m-0">
-            <strong>Pourquoi confirmer ?</strong>
-            <br />
-            Cette étape garantit la sécurité de votre compte et vous permet de recevoir
-            les notifications importantes concernant vos interventions et biens immobiliers.
-          </Text>
-        </div>
 
         {/* Bouton CTA */}
         <EmailButton href={confirmationUrl}>

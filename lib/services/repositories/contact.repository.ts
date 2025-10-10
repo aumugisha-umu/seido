@@ -16,48 +16,53 @@ import { logger } from '@/lib/logger'
 
 /**
  * Contact Repository
- * Manages all database operations for contacts with advanced relations and permissions
+ * Manages all database operations for contacts (users table)
+ * NEW SCHEMA: Contacts are now users with team_members for relationships
  */
 export class ContactRepository extends BaseRepository<Contact, ContactInsert, ContactUpdate> {
   constructor(supabase: SupabaseClient) {
-    super(supabase, 'lot_contacts')
+    super(supabase, 'users')  // ✅ Updated to new simplified schema
   }
 
   /**
-   * Validation hook for contact data
+   * Validation hook for contact data (users table)
    */
   protected async validate(data: ContactInsert | ContactUpdate): Promise<void> {
-    if ('user_id' in data && data.user_id) {
-      validateRequired({ user_id: data.user_id }, ['user_id'])
+    // Validate email if present
+    if ('email' in data && data.email) {
+      validateRequired({ email: data.email }, ['email'])
     }
 
-    if ('type' in data && data.type) {
-      validateEnum(data.type, ['tenant', 'owner', 'manager', 'provider'], 'type')
+    // Validate name if present
+    if ('name' in data && data.name) {
+      validateRequired({ name: data.name }, ['name'])
     }
 
-    if ('status' in data && data.status) {
-      validateEnum(data.status, ['active', 'inactive', 'pending'], 'status')
+    // Validate role if present
+    if ('role' in data && data.role) {
+      validateEnum(data.role, ['admin', 'gestionnaire', 'locataire', 'prestataire'], 'role')
     }
 
-    // Validate that either lot_id or building_id is provided, but not both
-    if ('lot_id' in data && 'building_id' in data && data.lot_id && data.building_id) {
-      throw new ValidationException('Contact cannot be assigned to both lot and building', 'contacts', 'assignment')
+    // Validate provider_category if present
+    if ('provider_category' in data && data.provider_category) {
+      validateEnum(data.provider_category, ['prestataire', 'assurance', 'notaire', 'syndic', 'proprietaire', 'autre'], 'provider_category')
     }
   }
 
   /**
-   * Get contact with all relations (user, lot, building)
+   * Get contact (user) with team relations
+   * NEW SCHEMA: Queries users table directly with team_members
    */
   async findByIdWithRelations(_id: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes),
-        lot:lot_id(id, reference, building_id, building:building_id(name, address)),
-        building:building_id(id, name, address, city)
+        team:team_id(id, name, description),
+        company:company_id(id, name, address, city)
       `)
       .eq('id', _id)
+      .eq('deleted_at', null)  // Exclude soft-deleted users
       .single()
 
     if (error) {
@@ -71,23 +76,26 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
-   * Get all contacts for a specific user
+   * Get user by ID (same as findById, kept for compatibility)
+   * NEW SCHEMA: Returns user record directly
    */
   async findByUser(userId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        lot:lot_id(
-          id,
-          reference,
-          building:building_id(id, name, address, city)
-        )
+        team:team_id(id, name, description),
+        company:company_id(id, name, address, city)
       `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .eq('id', userId)
+      .eq('deleted_at', null)
+      .single()
 
     if (error) {
+      if (error.code === 'PGRST116') {
+        logger.info('[CONTACT-REPO] User not found:', userId)
+        return { success: true as const, data: null }
+      }
       logger.error('[CONTACT-REPO-DEBUG] Raw Supabase error in findByUser:', {
         code: error.code,
         message: error.message,
@@ -98,23 +106,77 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    return { success: true as const, data: data || [] }
+    return { success: true as const, data: data ? [data] : [] }
   }
 
   /**
-   * Get all contacts for a specific lot
+   * Get contacts by team
+   * NEW SCHEMA: Queries team_members → users
    */
-  async findByLot(lotId: string, type?: Contact['type']) {
+  async findByTeam(teamId: string, role?: string) {
+    let queryBuilder = this.supabase
+      .from('team_members')
+      .select(`
+        id,
+        user_id,
+        role,
+        joined_at,
+        user:user_id (
+          id,
+          name,
+          email,
+          phone,
+          company,
+          role,
+          provider_category,
+          speciality,
+          address,
+          is_active,
+          avatar_url,
+          notes,
+          first_name,
+          last_name,
+          created_at,
+          updated_at
+        )
+      `)
+      .eq('team_id', teamId)
+      .is('left_at', null)  // Only active members
+
+    if (role) {
+      // This needs to query the user role, not team_member role
+      queryBuilder = queryBuilder.filter('user.role', 'eq', role)
+    }
+
+    const { data, error } = await queryBuilder.order('joined_at', { ascending: false })
+
+    if (error) {
+      return createErrorResponse(handleError(error, 'team_members:query'))
+    }
+
+    // Extract users from team_members relation
+    const contacts = data?.map(tm => tm.user).filter(user => user !== null) || []
+    return { success: true as const, data: contacts }
+  }
+
+  /**
+   * Get contacts by role
+   * NEW SCHEMA: Queries users table directly by role
+   */
+  async findByRole(role: string, teamId?: string) {
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select(`
         *,
-        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes)
+        team:team_id(id, name, description),
+        company:company_id(id, name, address, city)
       `)
-      .eq('lot_id', lotId)
+      .eq('role', role)
+      .eq('deleted_at', null)
+      .eq('is_active', true)
 
-    if (type) {
-      queryBuilder = queryBuilder.eq('type', type)
+    if (teamId) {
+      queryBuilder = queryBuilder.eq('team_id', teamId)
     }
 
     const { data, error } = await queryBuilder.order('created_at', { ascending: false })
@@ -127,75 +189,16 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
-   * Get all contacts for a specific building
+   * Check if email already exists
+   * NEW SCHEMA: Users table has unique email constraint
    */
-  async findByBuilding(buildingId: string, type?: Contact['type']) {
-    let queryBuilder = this.supabase
-      .from(this.tableName)
-      .select(`
-        *,
-        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes)
-      `)
-      .eq('building_id', buildingId)
-
-    if (type) {
-      queryBuilder = queryBuilder.eq('type', type)
-    }
-
-    const { data, error } = await queryBuilder.order('created_at', { ascending: false })
-
-    if (error) {
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
-    }
-
-    return { success: true as const, data: data || [] }
-  }
-
-  /**
-   * Get contacts by type across all lots/buildings
-   */
-  async findByType(type: Contact['type'], options?: { status?: Contact['status'] }) {
-    let queryBuilder = this.supabase
-      .from(this.tableName)
-      .select(`
-        *,
-        user:user_id(id, name, email, phone, role, provider_category, company, speciality, address, is_active, avatar_url, first_name, last_name, notes),
-        lot:lot_id(id, reference, building:building_id(name)),
-        building:building_id(id, name, address)
-      `)
-      .eq('type', type)
-
-    if (options?.status) {
-      queryBuilder = queryBuilder.eq('status', options.status)
-    }
-
-    const { data, error } = await queryBuilder.order('created_at', { ascending: false })
-
-    if (error) {
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
-    }
-
-    return { success: true as const, data: data || [] }
-  }
-
-  /**
-   * Check if a user is already assigned to a lot or building
-   */
-  async userExists(userId: string, lotId?: string, buildingId?: string) {
-    let queryBuilder = this.supabase
+  async emailExists(email: string) {
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .select('id')
-      .eq('user_id', userId)
-
-    if (lotId) {
-      queryBuilder = queryBuilder.eq('lot_id', lotId)
-    }
-
-    if (buildingId) {
-      queryBuilder = queryBuilder.eq('building_id', buildingId)
-    }
-
-    const { data, error } = await queryBuilder.single()
+      .eq('email', email)
+      .eq('deleted_at', null)
+      .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -209,39 +212,49 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
 
   /**
    * Get contact statistics for dashboard
+   * NEW SCHEMA: Count users by role and status
    */
-  async getContactStats() {
-    // Count by type and status
-    const { data: typeStats, error: typeError } = await this.supabase
+  async getContactStats(teamId?: string) {
+    let queryBuilder = this.supabase
       .from(this.tableName)
-      .select('type, status')
+      .select('role, is_active')
+      .eq('deleted_at', null)
 
-    if (typeError) {
-      return createErrorResponse(handleError(typeError, `${this.tableName}:query`))
+    if (teamId) {
+      queryBuilder = queryBuilder.eq('team_id', teamId)
+    }
+
+    const { data: roleStats, error: roleError } = await queryBuilder
+
+    if (roleError) {
+      return createErrorResponse(handleError(roleError, `${this.tableName}:query`))
     }
 
     // Calculate statistics
     const stats = {
-      total: typeStats?.length || 0,
-      byType: {
-        tenant: 0,
-        owner: 0,
-        manager: 0,
-        provider: 0
+      total: roleStats?.length || 0,
+      byRole: {
+        admin: 0,
+        gestionnaire: 0,
+        locataire: 0,
+        prestataire: 0
       },
       byStatus: {
         active: 0,
-        inactive: 0,
-        pending: 0
+        inactive: 0
       }
     }
 
-    typeStats?.forEach(contact => {
-      if (contact.type) {
-        stats.byType[contact.type as keyof typeof stats.byType]++
+    roleStats?.forEach(user => {
+      if (user.role) {
+        stats.byRole[user.role as keyof typeof stats.byRole]++
       }
-      if (contact.status) {
-        stats.byStatus[contact.status as keyof typeof stats.byStatus]++
+      if (user.is_active !== undefined) {
+        if (user.is_active) {
+          stats.byStatus.active++
+        } else {
+          stats.byStatus.inactive++
+        }
       }
     })
 
@@ -249,88 +262,60 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
-   * Add contact to lot (specialized method)
+   * Add user to team
+   * NEW SCHEMA: Creates team_members entry
    */
-  async addToLot(lotId: string, userId: string, type: Contact['type'], isPrimary: boolean = false) {
-    // Check if user is already assigned to this lot
-    const existingCheck = await this.userExists(userId, lotId)
-    if (!existingCheck.success) return existingCheck
-
-    if (existingCheck.exists) {
-      throw new ValidationException('User is already assigned to this lot', 'contacts', 'user_id')
-    }
-
-    const contactData: ContactInsert = {
-      user_id: userId,
-      lot_id: lotId,
-      type,
-      status: 'active'
-    }
-
-    return this.create(contactData)
-  }
-
-  /**
-   * Add contact to building (specialized method)
-   */
-  async addToBuilding(buildingId: string, userId: string, type: Contact['type'], isPrimary: boolean = false) {
-    // Check if user is already assigned to this building
-    const existingCheck = await this.userExists(userId, undefined, buildingId)
-    if (!existingCheck.success) return existingCheck
-
-    if (existingCheck.exists) {
-      throw new ValidationException('User is already assigned to this building', 'contacts', 'user_id')
-    }
-
-    const contactData: ContactInsert = {
-      user_id: userId,
-      building_id: buildingId,
-      type,
-      status: 'active'
-    }
-
-    return this.create(contactData)
-  }
-
-  /**
-   * Remove contact from lot
-   */
-  async removeFromLot(lotId: string, userId: string) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .delete()
-      .eq('lot_id', lotId)
+  async addToTeam(teamId: string, userId: string, role: 'admin' | 'member' = 'member') {
+    // Check if user is already in team
+    const { data: existing, error: checkError } = await this.supabase
+      .from('team_members')
+      .select('id')
+      .eq('team_id', teamId)
       .eq('user_id', userId)
+      .is('left_at', null)
+      .single()
+
+    if (existing) {
+      throw new ValidationException('User is already a member of this team', 'team_members', 'user_id')
+    }
+
+    // Create team_members entry
+    const { data, error } = await this.supabase
+      .from('team_members')
+      .insert({
+        team_id: teamId,
+        user_id: userId,
+        role: role
+      })
+      .select()
+      .single()
+
+    if (error) {
+      return createErrorResponse(handleError(error, 'team_members:insert'))
+    }
+
+    return { success: true as const, data }
+  }
+
+  /**
+   * Remove user from team (soft delete)
+   * NEW SCHEMA: Sets left_at on team_members
+   */
+  async removeFromTeam(teamId: string, userId: string) {
+    const { data, error } = await this.supabase
+      .from('team_members')
+      .update({ left_at: new Date().toISOString() })
+      .eq('team_id', teamId)
+      .eq('user_id', userId)
+      .is('left_at', null)
       .select()
 
     if (error) {
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+      return createErrorResponse(handleError(error, 'team_members:update'))
     }
 
     if (!data || data.length === 0) {
-      throw new NotFoundException('Contact assignment not found', this.tableName, `${lotId}-${userId}`)
-    }
-
-    return { success: true as const, data: data[0] }
-  }
-
-  /**
-   * Remove contact from building
-   */
-  async removeFromBuilding(buildingId: string, userId: string) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .delete()
-      .eq('building_id', buildingId)
-      .eq('user_id', userId)
-      .select()
-
-    if (error) {
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
-    }
-
-    if (!data || data.length === 0) {
-      throw new NotFoundException('Contact assignment not found', this.tableName, `${buildingId}-${userId}`)
+      throw new NotFoundException('Team membership not found', 'team_members', `${teamId}-${userId}`)
     }
 
     return { success: true as const, data: data[0] }

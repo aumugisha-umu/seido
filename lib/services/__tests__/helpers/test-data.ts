@@ -404,7 +404,7 @@ export class TeamMemberTestDataFactory {
       id: generateId(),
       team_id: generateId(),
       user_id: generateId(),
-      role: 'member',
+      role: 'gestionnaire',
       joined_at: new Date().toISOString(),
       ...overrides
     }
@@ -423,7 +423,7 @@ export class TeamMemberTestDataFactory {
     return this.create({
       team_id: team.id,
       user_id: user.id,
-      role: 'member',
+      role: 'gestionnaire',
       ...overrides
     })
   }

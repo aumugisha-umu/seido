@@ -7,6 +7,7 @@
 
 import * as React from 'react'
 import { Section, Text, Img } from '@react-email/components'
+import { getLogoBase64 } from '@/emails/utils/assets'
 
 interface EmailHeaderProps {
   /** Sujet de l'email (affiché sous le logo) */
@@ -14,29 +15,31 @@ interface EmailHeaderProps {
 }
 
 export const EmailHeader = ({ subject }: EmailHeaderProps) => {
-  // URL de base de l'application (utilise variable d'environnement)
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const logoUrl = `${baseUrl}/images/Logo/Logo_Seido_White.png`
+  // Logo encodé en base64 pour garantir l'affichage dans tous les clients email
+  const logoUrl = getLogoBase64()
 
   return (
     <Section
       className="bg-primary rounded-t-lg px-8 py-6"
       style={{ backgroundColor: '#5b8def', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}
     >
-      {/* Layout 2 lignes : Logo en haut à gauche, Titre centré en dessous */}
+      {/* Layout 2 lignes : Logo centré en haut, Titre centré en dessous */}
       <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
-        {/* Ligne 1 : Logo en haut à gauche */}
+        {/* Ligne 1 : Logo centré */}
         <tr>
-          <td>
+          <td style={{ textAlign: 'center' }}>
             <Img
               src={logoUrl}
               alt="SEIDO"
-              width="100"
-              height="32"
+              width="200"
               style={{
                 display: 'block',
+                maxHeight: '50px',
+                height: 'auto',
+                width: 'auto',
                 maxWidth: '100%',
-                height: 'auto'
+                margin: '0 auto',
+                objectFit: 'contain'
               }}
             />
           </td>

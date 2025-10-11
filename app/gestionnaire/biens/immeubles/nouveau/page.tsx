@@ -787,7 +787,7 @@ export default function NewImmeubleePage() {
           email: result.contact.email,
           role: 'gestionnaire'
         },
-        role: 'member'
+        role: 'gestionnaire' // Aligné avec user.role et team_member_role enum
       }
       
       setTeamManagers([...teamManagers, newManager])

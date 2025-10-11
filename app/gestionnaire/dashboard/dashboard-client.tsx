@@ -170,6 +170,7 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
         onClose={() => setIsContactModalOpen(false)}
         onSubmit={handleContactSubmit}
         defaultType="tenant"
+        teamId={teamId}
       />
     </>
   )

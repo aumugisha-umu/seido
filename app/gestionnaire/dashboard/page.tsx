@@ -55,6 +55,7 @@ export default async function DashboardGestionnaire() {
 
   let recentInterventions: InterventionWithRelations[] = []
   let allInterventions: InterventionWithRelations[] = []
+  let userTeamId = ''  // ✅ Déclarer ici pour accessibilité globale
 
   try {
     // Initialiser les services
@@ -77,7 +78,7 @@ export default async function DashboardGestionnaire() {
 
     if (teams && teams.length > 0) {
       dashLogger.info('📦 [DASHBOARD] First team:', teams[0])
-      const userTeamId = teams[0].id
+      userTeamId = teams[0].id  // ✅ Assigner à la variable déclarée plus haut
       dashLogger.info('📦 [DASHBOARD] Using team ID:', userTeamId)
 
       // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
@@ -207,11 +208,8 @@ export default async function DashboardGestionnaire() {
     // Les stats par défaut restent (valeurs 0)
   }
 
-  // Récupérer l'équipe pour le composant client
-  const teamService2 = await createServerTeamService()
-  const teamsResult2 = await teamService2.getUserTeams(user.id)
-  const teams2 = teamsResult2?.data || []
-  const userTeamId = teams2.length > 0 ? teams2[0].id : ''
+  // ✅ userTeamId déjà récupéré dans le try block (ligne 81)
+  // Pas besoin de refaire l'appel getUserTeams ici
 
   return (
     <div className="min-h-screen bg-gray-50">

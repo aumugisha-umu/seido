@@ -559,7 +559,7 @@ export default function NewLotPage() {
           email: result.contact.email,
           role: 'gestionnaire'
         },
-        role: 'member'
+        role: 'gestionnaire' // Aligné avec user.role et team_member_role enum
       }
       
       setTeamManagers([...teamManagers, newManager])

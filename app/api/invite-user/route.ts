@@ -206,7 +206,7 @@ export async function POST(request: Request) {
         .insert({
           team_id: teamId,
           user_id: userProfile.id,
-          role: 'member'
+          role: validUserRole as Database['public']['Enums']['team_member_role']
           // created_at est auto-généré par Supabase (timestamp default now())
         })
         .select()

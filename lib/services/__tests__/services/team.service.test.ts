@@ -258,7 +258,7 @@ describe('TeamService', () => {
       })
       mockRepository.addMember = vi.fn().mockResolvedValue({
         success: true,
-        data: { team_id: mockTeam.id, user_id: mockProvider.id, role: 'member' }
+        data: { team_id: mockTeam.id, user_id: mockProvider.id, role: 'prestataire' }
       })
 
       const result = await service.addMember(mockTeam.id, mockProvider.id, 'member', mockAdmin)
@@ -271,7 +271,7 @@ describe('TeamService', () => {
     it('should not add member without admin permissions', async () => {
       mockRepository.getTeamMembers = vi.fn().mockResolvedValue({
         success: true,
-        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'member' }]
+        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }]
       })
 
       await expect(service.addMember(mockTeam.id, mockTenant.id, 'member', mockProvider))
@@ -284,7 +284,7 @@ describe('TeamService', () => {
         success: true,
         data: [
           { ...mockTeamMember, user_id: mockAdmin.id, role: 'admin' },
-          { ...mockTeamMember, user_id: mockProvider.id, role: 'member' }
+          { ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }
         ]
       })
       mockRepository.removeMember = vi.fn().mockResolvedValue({
@@ -303,7 +303,7 @@ describe('TeamService', () => {
         success: true,
         data: [
           { ...mockTeamMember, user_id: mockAdmin.id, role: 'admin' },
-          { ...mockTeamMember, user_id: mockProvider.id, role: 'member' }
+          { ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }
         ]
       })
       mockRepository.removeMember = vi.fn().mockResolvedValue({
@@ -322,7 +322,7 @@ describe('TeamService', () => {
         success: true,
         data: [
           { ...mockTeamMember, user_id: mockAdmin.id, role: 'admin' },
-          { ...mockTeamMember, user_id: mockProvider.id, role: 'member' }
+          { ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }
         ]
       })
       mockRepository.updateMemberRole = vi.fn().mockResolvedValue({
@@ -339,7 +339,7 @@ describe('TeamService', () => {
     it('should not update member role without admin permissions', async () => {
       mockRepository.getTeamMembers = vi.fn().mockResolvedValue({
         success: true,
-        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'member' }]
+        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }]
       })
 
       await expect(service.updateMemberRole(mockTeam.id, mockTenant.id, 'admin', mockProvider))
@@ -350,7 +350,7 @@ describe('TeamService', () => {
     it('should get team members', async () => {
       const mockMembers = [
         { ...mockTeamMember, user_id: mockAdmin.id, role: 'admin' },
-        { ...mockTeamMember, user_id: mockProvider.id, role: 'member' }
+        { ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }
       ]
       mockRepository.getTeamMembers = vi.fn().mockResolvedValue({
         success: true,
@@ -441,7 +441,7 @@ describe('TeamService', () => {
       })
       mockRepository.getTeamMembers = vi.fn().mockResolvedValue({
         success: true,
-        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'member' }]
+        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }]
       })
 
       await expect(service.update(mockTeam.id, updates, mockProvider))
@@ -455,7 +455,7 @@ describe('TeamService', () => {
       })
       mockRepository.getTeamMembers = vi.fn().mockResolvedValue({
         success: true,
-        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'member' }]
+        data: [{ ...mockTeamMember, user_id: mockProvider.id, role: 'prestataire' }]
       })
 
       await expect(service.delete(mockTeam.id, mockProvider))

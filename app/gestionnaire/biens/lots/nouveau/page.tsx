@@ -398,12 +398,22 @@ export default function NewLotPage() {
 
   const handleFinish = async () => {
     if (!user?.id) {
-      logger.error("User not found")
+      logger.error("❌ User not found")
+      toast({
+        title: "Erreur d'authentification",
+        description: "Utilisateur non connecté. Veuillez vous reconnecter.",
+        variant: "destructive",
+      })
       return
     }
 
     if (!userTeam?.id) {
-      logger.error("User team not found")
+      logger.error("❌ User team not found. User ID:", user.id, "TeamStatus:", teamStatus, "Teams:", teams)
+      toast({
+        title: "Erreur d'équipe",
+        description: "Aucune équipe n'a été trouvée pour votre compte. Veuillez contacter un administrateur.",
+        variant: "destructive",
+      })
       return
     }
 

@@ -180,6 +180,16 @@ export {
 } from './repositories/lot.repository'
 
 export {
+  LotContactRepository,
+  createLotContactRepository,
+  createServerLotContactRepository,
+  type LotContact,
+  type LotContactInsert,
+  type LotContactUpdate,
+  type LotContactWithUser
+} from './repositories/lot-contact.repository'
+
+export {
   LotService,
   createLotService,
   createServerLotService

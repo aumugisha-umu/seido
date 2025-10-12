@@ -397,22 +397,10 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   }
 
   /**
-   * Update lot tenant (Phase 2: occupancy is determined by tenant_id presence)
+   * ❌ SUPPRIMÉ: updateTenant()
+   * Utilisez LotContactRepository.assignTenant() et removeTenant() à la place
+   * La colonne tenant_id n'existe plus, les locataires sont gérés via lot_contacts
    */
-  async updateTenant(lotId: string, tenantId: string | null) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .update({ tenant_id: tenantId, updated_at: new Date().toISOString() })
-      .eq('id', lotId)
-      .select()
-      .single()
-
-    if (error) {
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
-    }
-
-    return { success: true as const, data }
-  }
 
   /**
    * Get lots by floor

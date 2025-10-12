@@ -4,7 +4,7 @@
 **Version analysée :** Branche `optimization` (Commit actuel)
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 11 octobre 2025 - 16:30 CET (Corrections Dashboard + Email Logo + Team Duplication Cleanup)
+**Dernière mise à jour :** 12 octobre 2025 - 19:20 CET (Migration Phase 2.5: Ajout apartment_number + Vue lots_with_contacts)
 
 ---
 
@@ -18,6 +18,131 @@ L'application SEIDO, plateforme de gestion immobilière multi-rôles, a été so
 **✅ Points forts :** Authentification fonctionnelle, dashboard gestionnaire validé, chargement données 100%, infrastructure de tests robuste
 **✅ Succès récents :** Bug signup corrigé, extraction données dashboard corrigée, 5 contacts chargés avec succès
 **🟡 Points d'attention :** Tests des 3 autres rôles à valider, workflows interventions à tester, monitoring production
+
+---
+
+## 🗄️ MIGRATION BASE DE DONNÉES - 12 octobre 2025 - 19:20
+
+### ✅ PHASE 2.5 : Complétion structure Lots + Simplification RLS
+
+#### 📋 Contexte
+
+Après une analyse approfondie de l'ancienne structure (`migrations-old.ignore/`) vs la migration Phase 2, plusieurs éléments critiques manquaient dans le schéma actuel malgré leur utilisation active dans le code.
+
+**Problèmes identifiés :**
+- ❌ Colonne `apartment_number` manquante (utilisée dans 12+ fichiers)
+- ❌ Vue `lots_with_contacts` absente (utilisée dans `lot.repository.ts:247`)
+- ❌ Fonction RLS `get_lot_team_id()` inutilement complexe (COALESCE avec jointure)
+- ❌ Fonction de debug `debug_check_building_insert()` polluante (temporaire)
+- ✅ Autres champs (`surface_area`, `rooms`, `monthly_rent`) : non nécessaires (décision user)
+
+#### 🎯 Changements Appliqués
+
+**Migration:** `supabase/migrations/20251012000001_phase2_5_lot_apartment_number.sql`
+
+##### 1. Ajout colonne `apartment_number`
+
+```sql
+ALTER TABLE lots ADD COLUMN apartment_number TEXT;
+CREATE INDEX idx_lots_apartment_number ON lots(building_id, apartment_number)
+  WHERE apartment_number IS NOT NULL AND building_id IS NOT NULL;
+```
+
+**Utilisation :**
+- Formulaires de création/édition de lots
+- Affichage dans `lot-card.tsx`, pages détails lots
+- Composants d'intervention (identifie le lot pour locataires/prestataires)
+
+##### 2. Création vue `lots_with_contacts`
+
+```sql
+CREATE OR REPLACE VIEW lots_with_contacts AS
+SELECT
+  l.*,
+  COUNT(DISTINCT lc.id) FILTER (WHERE u.role = 'locataire') AS active_tenants_count,
+  COUNT(DISTINCT lc.id) FILTER (WHERE u.role = 'gestionnaire') AS active_managers_count,
+  COUNT(DISTINCT lc.id) FILTER (WHERE u.role = 'prestataire') AS active_providers_count,
+  COUNT(DISTINCT lc.id) AS active_contacts_total,
+  MAX(u.name) FILTER (WHERE u.role = 'locataire' AND lc.is_primary = TRUE) AS primary_tenant_name,
+  MAX(u.email) FILTER (WHERE u.role = 'locataire' AND lc.is_primary = TRUE) AS primary_tenant_email,
+  MAX(u.phone) FILTER (WHERE u.role = 'locataire' AND lc.is_primary = TRUE) AS primary_tenant_phone
+FROM lots l
+LEFT JOIN lot_contacts lc ON lc.lot_id = l.id
+LEFT JOIN users u ON lc.user_id = u.id
+WHERE l.deleted_at IS NULL
+GROUP BY l.id;
+```
+
+**Avantages :**
+- ✅ Calcul automatique des compteurs de contacts par rôle
+- ✅ Informations du locataire principal (compatibilité ancien schéma)
+- ✅ Évite erreur TypeScript `'"lots_with_contacts"' is not assignable`
+- ✅ Fallback dans code si vue inexistante (lines 252-266 du repository)
+
+##### 3. Simplification fonction RLS `get_lot_team_id()`
+
+**Avant (complexe) :**
+```sql
+SELECT COALESCE(
+  (SELECT b.team_id FROM lots l INNER JOIN buildings b ON l.building_id = b.id WHERE l.id = lot_uuid),
+  (SELECT team_id FROM lots WHERE id = lot_uuid)
+);
+```
+
+**Après (simple) :**
+```sql
+SELECT team_id FROM lots WHERE id = lot_uuid;
+```
+
+**Justification :** `lots.team_id` est `NOT NULL` (obligatoire même pour lots standalone), donc le `COALESCE` et la jointure sont inutiles.
+
+##### 4. Nettoyage fonction debug temporaire
+
+```sql
+DROP FUNCTION IF EXISTS debug_check_building_insert(UUID);
+```
+
+**Raison :** Fonction de débogage créée pendant Phase 2 pour diagnostiquer erreurs RLS, plus nécessaire après stabilisation.
+
+#### 📊 Résultats
+
+**Statistiques migration :**
+- ✅ 1 lot actif dans la base (confirmé)
+- ✅ 0 lots avec `apartment_number` (normal, champ nouveau)
+- ✅ Vue créée et fonctionnelle
+- ✅ Index créé pour performance
+- ✅ Fonction RLS simplifiée
+- ✅ Build Next.js : succès sans erreur
+
+**Tests effectués :**
+- ✅ Types TypeScript régénérés (`npm run supabase:types`)
+- ✅ Compilation Next.js réussie (`npm run build`)
+- ✅ Aucune erreur liée à `apartment_number` ou `lots_with_contacts`
+
+**Warnings (pré-existants, non liés à cette migration) :**
+- ⚠️ Imports manquants dans `property-documents` (services non exportés)
+- ⚠️ Middleware Node.js nécessite `experimental.nodeMiddleware`
+
+#### 🔑 Insight Architectural
+
+**Stratégie hybride contacts :**
+- **Source de vérité :** `lot_contacts` (table many-to-many flexible)
+- **Performance :** Colonnes dénormalisées potentielles (`tenant_id`, `gestionnaire_id`) à ajouter plus tard si nécessaire avec triggers de sync
+- **Vue agrégée :** `lots_with_contacts` pour requêtes complexes avec compteurs
+
+**Pattern appliqué :**
+> Privilégier **normalisation** (lot_contacts) pour flexibilité + **dénormalisation sélective** (vues) pour performance. Les colonnes dénormalisées (`tenant_id`) peuvent être ajoutées en Phase 3 si les métriques de performance l'exigent.
+
+#### 📝 Prochaines étapes
+
+**Phase 3 (Interventions) :**
+- Ajouter `document_intervention_shares` (partage temporaire documents)
+- Étendre vue `lots_with_contacts` si besoin (ex: compteurs interventions)
+- Évaluer besoin de `tenant_id` dénormalisé avec trigger sync
+
+**Maintenance :**
+- Monitoring des performances de la vue `lots_with_contacts` (requêtes lentes)
+- Documenter stratégie de migration vers `lot_contacts` pour anciens lots
 
 ---
 

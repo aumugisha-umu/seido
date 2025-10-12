@@ -10,6 +10,12 @@ import {
   createServerActionLotRepository
 } from '../repositories/lot.repository'
 import {
+  LotContactRepository,
+  createLotContactRepository,
+  createServerLotContactRepository,
+  createServerActionLotContactRepository
+} from '../repositories/lot-contact.repository'
+import {
   BuildingService,
   createBuildingService,
   createServerBuildingService,
@@ -34,6 +40,7 @@ import {
 export class LotService {
   constructor(
     private repository: LotRepository,
+    private lotContactRepository: LotContactRepository,
     private buildingService?: BuildingService
   ) {}
 
@@ -85,8 +92,8 @@ export class LotService {
     // Validate input data
     this.validateLotData(lotData)
 
-    // Validate building exists
-    if (this.buildingService) {
+    // Validate building exists (only if building_id is provided)
+    if (lotData.building_id && this.buildingService) {
       const buildingResult = await this.buildingService.getById(lotData.building_id)
       if (!buildingResult.success || !buildingResult.data) {
         throw new NotFoundException(
@@ -97,20 +104,22 @@ export class LotService {
       }
     }
 
-    // Check if reference already exists for this building
-    const referenceCheck = await this.repository.referenceExists(
-      lotData.reference,
-      lotData.building_id
-    )
-    if (!referenceCheck.success) return referenceCheck
-
-    if (referenceCheck.exists) {
-      throw new ConflictException(
-        `A lot with reference "${lotData.reference}" already exists in this building`,
-        'lots',
-        'reference',
-        lotData.reference
+    // Check if reference already exists for this building (only if building_id is provided)
+    if (lotData.building_id) {
+      const referenceCheck = await this.repository.referenceExists(
+        lotData.reference,
+        lotData.building_id
       )
+      if (!referenceCheck.success) return referenceCheck
+
+      if (referenceCheck.exists) {
+        throw new ConflictException(
+          `A lot with reference "${lotData.reference}" already exists in this building`,
+          'lots',
+          'reference',
+          lotData.reference
+        )
+      }
     }
 
     // Set default values (Phase 2: no is_occupied, use tenant_id)
@@ -238,12 +247,13 @@ export class LotService {
       }
     }
 
-    // Check if lot is occupied (Phase 2: check tenant_id presence)
-    if (existingLot.data.tenant_id || (existingLot.data.tenants && existingLot.data.tenants.length > 0)) {
+    // Check if lot is occupied (Phase 2.5: check via lot_contacts)
+    const occupancyCheck = await this.lotContactRepository.isLotOccupied(id)
+    if (occupancyCheck.success && occupancyCheck.data) {
       throw new ValidationException(
         'Cannot delete an occupied lot. Please remove all tenants first.',
-        'tenant_id',
-        existingLot.data.tenant_id
+        'lot_contacts',
+        id
       )
     }
 
@@ -319,25 +329,10 @@ export class LotService {
   }
 
   /**
-   * Update lot tenant (Phase 2: replaces updateOccupancy)
-   * @param lotId - Lot ID
-   * @param tenantId - Tenant user ID (null to mark vacant)
+   * ❌ SUPPRIMÉ: updateTenantAssignment()
+   * Utilisez assignTenant() ou removeTenant() à la place
+   * Ces méthodes utilisent LotContactRepository pour gérer lot_contacts
    */
-  async updateTenantAssignment(lotId: string, tenantId: string | null) {
-    // Check if lot exists
-    const lot = await this.repository.findById(lotId)
-    if (!lot.success || !lot.data) {
-      return {
-        success: false as const,
-        error: {
-          code: 'NOT_FOUND',
-          message: `Lot with ID ${lotId} not found`
-        }
-      }
-    }
-
-    return this.repository.updateTenant(lotId, tenantId)
-  }
 
   /**
    * Get lots by floor
@@ -449,40 +444,46 @@ export class LotService {
   }
 
   /**
-   * Assign tenant to lot (Phase 2: uses tenant_id field)
+   * Assign tenant to lot (Phase 2.5: uses lot_contacts table)
    */
-  async assignTenant(lotId: string, tenantId: string) {
+  async assignTenant(lotId: string, tenantId: string, isPrimary: boolean = true) {
     // Check if lot exists
     const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
       throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
-    // Phase 2: Update tenant_id field directly
-    return this.repository.updateTenant(lotId, tenantId)
+    // Use LotContactRepository to manage lot_contacts
+    return this.lotContactRepository.assignTenant(lotId, tenantId, isPrimary)
   }
 
   /**
-   * Remove tenant from lot (Phase 2: clears tenant_id)
+   * Remove tenant from lot (Phase 2.5: uses lot_contacts table)
    */
   async removeTenant(lotId: string, tenantId: string) {
     // Check if lot exists
-    const lot = await this.repository.findByIdWithRelations(lotId)
+    const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
       throw new NotFoundException('Lot not found', 'lots', lotId)
     }
 
-    // Verify the tenant is actually assigned
-    if (lot.data.tenant_id !== tenantId) {
+    // Verify the tenant is actually assigned via lot_contacts
+    const tenantsResult = await this.lotContactRepository.getTenants(lotId)
+    if (!tenantsResult.success) {
+      return tenantsResult
+    }
+
+    const isAssigned = tenantsResult.data.some((contact: any) => contact.user_id === tenantId)
+    if (!isAssigned) {
       throw new ValidationException(
         'This tenant is not assigned to this lot',
-        'tenant_id',
+        'lot_contacts',
         tenantId
       )
     }
 
-    // Phase 2: Clear tenant_id to mark as vacant
-    return this.repository.updateTenant(lotId, null)
+    // Use LotContactRepository to remove tenant from lot_contacts
+    return this.lotContactRepository.removeTenant(lotId, tenantId)
   }
 
   /**
@@ -533,8 +534,8 @@ export class LotService {
     const stats = lots.data.reduce(
       (acc, lot) => {
         acc.total++
-        // Phase 2: occupied = tenant_id IS NOT NULL
-        const isOccupied = lot.tenant_id !== null
+        // Phase 2.5: occupied = has tenants in lot_contacts (check tenants array from repository)
+        const isOccupied = (lot.tenants && lot.tenants.length > 0) || lot.is_occupied === true
 
         if (isOccupied) {
           acc.occupied++
@@ -619,65 +620,16 @@ export class LotService {
   }
 
   /**
-   * Assign multiple contacts to lot (tenant, owner, etc.)
-   * Phase 2: Uses tenant_id for primary tenant
+   * ❌ SUPPRIMÉ: assignContacts()
+   * Utilisez directement assignTenant() pour les locataires
+   * Pour d'autres types de contacts, utilisez LotContactRepository directement
    */
-  async assignContacts(lotId: string, contacts: Array<{ contactId: string; type: 'tenant' | 'owner' | 'emergency' }>) {
-    const lotResult = await this.repository.findById(lotId)
-    if (!lotResult.success || !lotResult.data) {
-      return lotResult
-    }
-
-    // TODO: Implement actual contact assignment using ContactService when available
-    // For now, update tenant_id for primary tenant
-    const primaryTenant = contacts.find(c => c.type === 'tenant')
-    const wasOccupied = lotResult.data.tenant_id !== null
-
-    if (primaryTenant && lotResult.data.tenant_id !== primaryTenant.contactId) {
-      const updateResult = await this.repository.updateTenant(lotId, primaryTenant.contactId)
-      if (!updateResult.success) return updateResult
-    } else if (!primaryTenant && lotResult.data.tenant_id) {
-      // No tenant in contacts, clear tenant_id
-      const updateResult = await this.repository.updateTenant(lotId, null)
-      if (!updateResult.success) return updateResult
-    }
-
-    return {
-      success: true as const,
-      data: {
-        lotId,
-        contacts: contacts,
-        occupancy_updated: wasOccupied !== (primaryTenant !== undefined)
-      }
-    }
-  }
 
   /**
-   * Remove contact from lot (Phase 2: clears tenant_id if removing tenant)
+   * ❌ SUPPRIMÉ: removeContact()
+   * Utilisez directement removeTenant() pour les locataires
+   * Pour d'autres types de contacts, utilisez LotContactRepository directement
    */
-  async removeContact(lotId: string, contactId: string, contactType: 'tenant' | 'owner' | 'emergency') {
-    const lotResult = await this.repository.findById(lotId)
-    if (!lotResult.success || !lotResult.data) {
-      return lotResult
-    }
-
-    // TODO: Implement actual contact removal using ContactService when available
-    // Phase 2: If removing tenant, clear tenant_id
-    if (contactType === 'tenant') {
-      const updateResult = await this.repository.updateTenant(lotId, null)
-      if (!updateResult.success) return updateResult
-    }
-
-    return {
-      success: true as const,
-      data: {
-        lotId,
-        contactId,
-        contactType,
-        action: 'removed'
-      }
-    }
-  }
 
   /**
    * Get lot rental history and contracts
@@ -721,8 +673,9 @@ export class LotService {
     // TODO: Include maintenance costs from intervention service
     const estimatedMaintenanceCosts = annualRent * 0.1 // 10% estimate
 
-    // Phase 2: occupancy based on tenant_id presence
-    const isOccupied = lot.tenant_id !== null
+    // Phase 2.5: occupancy based on lot_contacts (check via repository method)
+    const occupancyCheck = await this.lotContactRepository.isLotOccupied(lotId)
+    const isOccupied = occupancyCheck.success && occupancyCheck.data
 
     const profitability = {
       lotId,
@@ -771,8 +724,9 @@ export class LotService {
    */
   private validateLotData(data: LotInsert) {
     // Validate required fields
-    if (!data.building_id || data.building_id.trim() === '') {
-      throw new ValidationException('Building ID is required', 'lots', 'building_id')
+    // Note: building_id can be null for independent lots (Phase 2.5)
+    if (data.building_id !== null && data.building_id !== undefined && data.building_id.trim() === '') {
+      throw new ValidationException('Building ID cannot be empty string', 'lots', 'building_id')
     }
 
     if (!data.reference || data.reference.trim() === '') {
@@ -891,19 +845,22 @@ export class LotService {
 // Factory functions for creating service instances
 export const createLotService = (
   repository?: LotRepository,
+  lotContactRepository?: LotContactRepository,
   buildingService?: BuildingService
 ) => {
   const repo = repository || createLotRepository()
+  const lotContactRepo = lotContactRepository || createLotContactRepository()
   const buildings = buildingService || createBuildingService()
-  return new LotService(repo, buildings)
+  return new LotService(repo, lotContactRepo, buildings)
 }
 
 export const createServerLotService = async () => {
-  const [repository, buildingService] = await Promise.all([
+  const [repository, lotContactRepository, buildingService] = await Promise.all([
     createServerLotRepository(),
+    createServerLotContactRepository(),
     createServerBuildingService()
   ])
-  return new LotService(repository, buildingService)
+  return new LotService(repository, lotContactRepository, buildingService)
 }
 
 /**
@@ -913,9 +870,10 @@ export const createServerLotService = async () => {
  * ✅ Use this in Server Actions that perform write operations
  */
 export const createServerActionLotService = async () => {
-  const [repository, buildingService] = await Promise.all([
+  const [repository, lotContactRepository, buildingService] = await Promise.all([
     createServerActionLotRepository(),
+    createServerActionLotContactRepository(),
     createServerActionBuildingService()
   ])
-  return new LotService(repository, buildingService)
+  return new LotService(repository, lotContactRepository, buildingService)
 }

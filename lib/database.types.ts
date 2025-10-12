@@ -97,7 +97,6 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
-          gestionnaire_id: string
           id: string
           metadata: Json | null
           name: string
@@ -118,7 +117,6 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
-          gestionnaire_id: string
           id?: string
           metadata?: Json | null
           name: string
@@ -139,7 +137,6 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
-          gestionnaire_id?: string
           id?: string
           metadata?: Json | null
           name?: string
@@ -155,13 +152,6 @@ export type Database = {
           {
             foreignKeyName: "buildings_deleted_by_fkey"
             columns: ["deleted_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "buildings_gestionnaire_id_fkey"
-            columns: ["gestionnaire_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -293,6 +283,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lot_contacts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lot_contacts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -304,6 +301,7 @@ export type Database = {
       lots: {
         Row: {
           active_interventions: number | null
+          apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"]
           city: string | null
@@ -313,19 +311,18 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           floor: number | null
-          gestionnaire_id: string | null
           id: string
           metadata: Json | null
           postal_code: string | null
           reference: string
           street: string | null
           team_id: string
-          tenant_id: string | null
           total_interventions: number | null
           updated_at: string
         }
         Insert: {
           active_interventions?: number | null
+          apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"]
           city?: string | null
@@ -335,19 +332,18 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           floor?: number | null
-          gestionnaire_id?: string | null
           id?: string
           metadata?: Json | null
           postal_code?: string | null
           reference: string
           street?: string | null
           team_id: string
-          tenant_id?: string | null
           total_interventions?: number | null
           updated_at?: string
         }
         Update: {
           active_interventions?: number | null
+          apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"]
           city?: string | null
@@ -357,14 +353,12 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           floor?: number | null
-          gestionnaire_id?: string | null
           id?: string
           metadata?: Json | null
           postal_code?: string | null
           reference?: string
           street?: string | null
           team_id?: string
-          tenant_id?: string | null
           total_interventions?: number | null
           updated_at?: string
         }
@@ -384,24 +378,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "lots_gestionnaire_id_fkey"
-            columns: ["gestionnaire_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "lots_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lots_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -505,6 +485,13 @@ export type Database = {
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_documents_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -812,7 +799,59 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      lots_with_contacts: {
+        Row: {
+          active_contacts_total: number | null
+          active_interventions: number | null
+          active_managers_count: number | null
+          active_providers_count: number | null
+          active_tenants_count: number | null
+          apartment_number: string | null
+          building_id: string | null
+          category: Database["public"]["Enums"]["lot_category"] | null
+          city: string | null
+          country: Database["public"]["Enums"]["country"] | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          floor: number | null
+          id: string | null
+          metadata: Json | null
+          postal_code: string | null
+          primary_tenant_email: string | null
+          primary_tenant_name: string | null
+          primary_tenant_phone: string | null
+          reference: string | null
+          street: string | null
+          team_id: string | null
+          total_interventions: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lots_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_manager_update_user: {
@@ -833,6 +872,10 @@ export type Database = {
       }
       get_building_team_id: {
         Args: { building_uuid: string }
+        Returns: string
+      }
+      get_current_user_id: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       get_current_user_role: {
@@ -859,6 +902,10 @@ export type Database = {
       }
       is_team_manager: {
         Args: { check_team_id: string }
+        Returns: boolean
+      }
+      is_team_member: {
+        Args: { allowed_roles?: string[]; check_team_id: string }
         Returns: boolean
       }
       is_tenant_of_lot: {

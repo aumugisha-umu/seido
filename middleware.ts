@@ -145,6 +145,27 @@ export async function middleware(request: NextRequest) {
         console.log(`✅ [MIDDLEWARE] Role check passed: ${userProfile.role} accessing ${roleFromPath}`)
       }
 
+      // 🛡️ CHECK 5: Utilisateur a une équipe assignée
+      console.log('🔍 [MIDDLEWARE] Checking team membership...')
+
+      const { data: userTeams, error: teamError } = await supabase
+        .from('team_members')
+        .select('team_id, role')
+        .eq('user_id', userProfile.id)
+        .limit(1)
+
+      if (teamError) {
+        console.error('❌ [MIDDLEWARE] Team query error:', teamError)
+        return NextResponse.redirect(new URL('/auth/unauthorized?reason=team_query_error', request.url))
+      }
+
+      if (!userTeams || userTeams.length === 0) {
+        console.log('⚠️ [MIDDLEWARE] User has no team:', userProfile.email)
+        return NextResponse.redirect(new URL('/auth/unauthorized?reason=no_team', request.url))
+      }
+
+      console.log(`✅ [MIDDLEWARE] User belongs to team: ${userTeams[0].team_id}`)
+
       // ✅ PHASE 2.1: Marquer que le middleware check a réussi
       response.cookies.set('middleware-check', 'true', { maxAge: 5 })
 

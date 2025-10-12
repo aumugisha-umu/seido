@@ -63,8 +63,6 @@ interface LotData {
     postalCode: string
     city: string
     country: string
-    constructionYear: string
-    floors: string
     description: string
     // Champs spécifiques aux lots
     floor?: string
@@ -147,8 +145,6 @@ export default function NewLotPage() {
       postalCode: "",
       city: "",
       country: "Belgique",
-      constructionYear: "",
-      floors: "",
       description: "",
       // Champs spécifiques aux lots
       floor: "",

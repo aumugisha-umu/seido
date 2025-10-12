@@ -48,8 +48,6 @@ const DEFAULT_BUILDING_INFO: BuildingInfo = {
   postalCode: "",
   city: "",
   country: "Belgique",
-  constructionYear: "",
-  floors: "",
   description: "",
 }
 
@@ -657,7 +655,6 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
           country: data.buildingInfo.country.trim() || "BE",
           postal_code: data.buildingInfo.postalCode.trim() || "",
           description: data.buildingInfo.description.trim(),
-          construction_year: data.buildingInfo.constructionYear ? parseInt(data.buildingInfo.constructionYear) : undefined,
           team_id: teamData.userTeam.id,
           gestionnaire_id: data.selectedManagerId, // Phase 2: Required field
         }

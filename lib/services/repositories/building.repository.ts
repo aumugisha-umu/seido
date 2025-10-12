@@ -4,7 +4,11 @@
  */
 
 import { BaseRepository } from '../core/base-repository'
-import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
+import {
+  createBrowserSupabaseClient,
+  createServerSupabaseClient,
+  createServerActionSupabaseClient
+} from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Building, BuildingInsert, BuildingUpdate } from '../core/service-types'
 import { NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
@@ -72,7 +76,6 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         lots(
           id,
           reference,
-          is_occupied,
           category,
           lot_contacts(
             is_primary,
@@ -136,7 +139,6 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         lots(
           id,
           reference,
-          is_occupied,
           category,
           lot_contacts(
             is_primary,
@@ -178,7 +180,6 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         lots(
           id,
           reference,
-          is_occupied,
           category,
           lot_contacts(
             is_primary,
@@ -293,7 +294,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
   /**
    * Get buildings with lot count statistics
-   * Uses tenant_id to determine occupancy (Phase 2 schema)
+   * Uses lot_contacts to determine occupancy (Phase 2 refactored schema)
    */
   async findWithLotStats(teamId?: string) {
     let queryBuilder = this.supabase
@@ -302,7 +303,9 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
         *,
         lots(
           id,
-          tenant_id
+          lot_contacts(
+            user:user_id(role)
+          )
         )
       `)
 
@@ -316,11 +319,13 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    // Calculate lot statistics (occupied = has tenant_id)
+    // Calculate lot statistics (occupied = has tenants in lot_contacts)
     const processedData = data?.map(building => {
       const lots = building.lots || []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const occupiedLots = lots.filter((lot: any) => lot.tenant_id !== null)
+      const occupiedLots = lots.filter((lot: any) =>
+        lot.lot_contacts?.some((contact: any) => contact.user?.role === 'locataire')
+      )
 
       return {
         ...building,
@@ -448,35 +453,71 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   }
   /**
    * Find buildings by gestionnaire (primary manager) ID
+   * Uses building_contacts junction table (Phase 2 refactored schema)
    */
   async findByGestionnaire(gestionnaireId: string) {
     validateRequired({ gestionnaireId }, ['gestionnaireId'])
 
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select('*')
-      .eq('gestionnaire_id', gestionnaireId)
+      .select(`
+        *,
+        building_contacts!inner(user_id)
+      `)
+      .eq('building_contacts.user_id', gestionnaireId)
       .order('name')
 
     if (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    return { success: true as const, data: data || [] }
+    // Clean up the response to remove the building_contacts join artifact
+    const cleanedData = data?.map(({ building_contacts, ...building }) => building)
+
+    return { success: true as const, data: cleanedData || [] }
   }
 
   /**
    * Update building gestionnaire assignment
+   * Uses building_contacts junction table (Phase 2 refactored schema)
+   * Note: This updates the PRIMARY manager contact
    */
   async updateGestionnaire(buildingId: string, gestionnaireId: string) {
+    // First, remove existing primary manager
+    const { error: deleteError } = await this.supabase
+      .from('building_contacts')
+      .delete()
+      .eq('building_id', buildingId)
+      .eq('is_primary', true)
+      .in('user_id',
+        this.supabase
+          .from('users')
+          .select('id')
+          .eq('role', 'gestionnaire')
+      )
+
+    if (deleteError) {
+      return createErrorResponse(handleError(deleteError, 'building_contacts:delete'))
+    }
+
+    // Then, add new primary manager
+    const { error: insertError } = await this.supabase
+      .from('building_contacts')
+      .insert({
+        building_id: buildingId,
+        user_id: gestionnaireId,
+        is_primary: true
+      })
+
+    if (insertError) {
+      return createErrorResponse(handleError(insertError, 'building_contacts:insert'))
+    }
+
+    // Return the updated building
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .update({
-        gestionnaire_id: gestionnaireId,
-        updated_at: new Date().toISOString()
-      })
+      .select('*')
       .eq('id', buildingId)
-      .select()
       .single()
 
     if (error) {
@@ -495,5 +536,16 @@ export const createBuildingRepository = (client?: SupabaseClient) => {
 
 export const createServerBuildingRepository = async () => {
   const supabase = await createServerSupabaseClient()
+  return new BuildingRepository(supabase)
+}
+
+/**
+ * Create Building Repository for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionSupabaseClient() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionBuildingRepository = async () => {
+  const supabase = await createServerActionSupabaseClient()
   return new BuildingRepository(supabase)
 }

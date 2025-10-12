@@ -3,7 +3,7 @@
  * Business logic layer for user management
  */
 
-import { UserRepository, createUserRepository, createServerUserRepository } from '../repositories/user.repository'
+import { UserRepository, createUserRepository, createServerUserRepository, createServerActionUserRepository } from '../repositories/user.repository'
 import type { User, UserInsert, UserUpdate } from '../core/service-types'
 import { ValidationException, ConflictException, PermissionException } from '../core/error-handler'
 import { hashPassword } from '../core/service-types'
@@ -418,5 +418,16 @@ export const createUserService = (repository?: UserRepository) => {
 
 export const createServerUserService = async () => {
   const repository = await createServerUserRepository()
+  return new UserService(repository)
+}
+
+/**
+ * Create User Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionUserRepository() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionUserService = async () => {
+  const repository = await createServerActionUserRepository()
   return new UserService(repository)
 }

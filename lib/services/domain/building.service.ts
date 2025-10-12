@@ -6,12 +6,14 @@
 import {
   BuildingRepository,
   createBuildingRepository,
-  createServerBuildingRepository
+  createServerBuildingRepository,
+  createServerActionBuildingRepository
 } from '../repositories/building.repository'
 import {
   UserService,
   createUserService,
-  createServerUserService
+  createServerUserService,
+  createServerActionUserService
 } from './user.service'
 import type {
   Building,
@@ -572,6 +574,20 @@ export const createServerBuildingService = async () => {
   const [repository, userService] = await Promise.all([
     createServerBuildingRepository(),
     createServerUserService()
+  ])
+  return new BuildingService(repository, userService)
+}
+
+/**
+ * Create Building Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionBuildingRepository() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionBuildingService = async () => {
+  const [repository, userService] = await Promise.all([
+    createServerActionBuildingRepository(),
+    createServerActionUserService()
   ])
   return new BuildingService(repository, userService)
 }

@@ -23,6 +23,19 @@ export type {
   Database
 } from './core/supabase-client'
 
+// ✅ NEW: Centralized Server Context Management (Next.js 15 + React 19)
+// Recommended approach for Server Components and Server Actions
+export {
+  getServerAuthContext,         // For Server Components (READ-ONLY)
+  getServerActionAuthContext,   // For Server Actions (READ-WRITE)
+  getServerUser                 // Lightweight auth check without teams
+} from '../server-context'
+
+export type {
+  ServerAuthContext,            // Context type for Server Components
+  ServerActionAuthContext       // Context type for Server Actions
+} from '../server-context'
+
 // Service types exports
 export type {
   // Base database types
@@ -267,8 +280,10 @@ export {
   CompositeService,
   createCompositeService,
   createServerCompositeService,
+  createServerActionCompositeService, // For Server Actions (READ-WRITE)
   type CreateCompleteUserData,
   type CreateCompleteBuildingData,
+  type CreateCompletePropertyData, // Building creation wizard type
   type InviteTeamContactsData,
   type TransferLotTenantData,
   type BulkUserOperationsData,

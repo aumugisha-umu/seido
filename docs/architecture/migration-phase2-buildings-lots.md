@@ -1,8 +1,8 @@
 # 🏢 PHASE 2: Migration Buildings & Lots
 
-**Status**: ⏳ EN COURS
+**Status**: ✅ APPLIQUÉ (Architecture refactorée - Junction Tables only)
 **Date de création**: 2025-10-10
-**Dernière mise à jour**: 2025-10-10
+**Dernière mise à jour**: 2025-10-11
 
 ---
 
@@ -13,8 +13,9 @@ Migrer les tables **buildings** (immeubles) et **lots** vers la nouvelle archite
 - ✅ Row Level Security (RLS) pour isolation multi-tenant
 - ✅ Soft delete pour traçabilité
 - ✅ Compteurs dénormalisés pour performance
-- ✅ Relations many-to-many via tables de jonction
+- ✅ **Relations many-to-many EXCLUSIVEMENT via tables de jonction** (pas de colonnes redondantes)
 - ✅ Support des interventions à double niveau (immeuble ET lot)
+- ✅ **Architecture refactorée** (2025-10-11): Suppression `gestionnaire_id` (buildings) et `tenant_id`/`gestionnaire_id` (lots)
 
 ### Entités concernées
 1. **Buildings** (Immeubles) - Bâtiments gérés par une équipe
@@ -55,7 +56,7 @@ COMMENT ON TYPE country IS 'Pays supportés pour les adresses d''immeubles et lo
 -- ============================================================================
 -- TABLE: buildings
 -- Description: Immeubles gérés par les équipes
--- Relations: team_id, gestionnaire_id
+-- Relations: team_id (SEULE relation directe, gestionnaires via building_contacts)
 -- ============================================================================
 
 CREATE TABLE buildings (
@@ -64,7 +65,7 @@ CREATE TABLE buildings (
 
   -- Relations
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  gestionnaire_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  -- ⚠️ NOTE: Gestionnaires associés via building_contacts (many-to-many)
 
   -- Informations de base
   name TEXT NOT NULL,
@@ -97,8 +98,7 @@ CREATE TABLE buildings (
 );
 
 -- Commentaires
-COMMENT ON TABLE buildings IS 'Immeubles gérés par les équipes';
-COMMENT ON COLUMN buildings.gestionnaire_id IS 'Gestionnaire principal de l''immeuble';
+COMMENT ON TABLE buildings IS 'Immeubles gérés par les équipes (gestionnaires via building_contacts)';
 COMMENT ON COLUMN buildings.country IS 'Pays de localisation de l''immeuble';
 COMMENT ON COLUMN buildings.description IS 'Description de l''immeuble et notes internes';
 COMMENT ON COLUMN buildings.total_lots IS 'Nombre total de lots (calculé automatiquement)';
@@ -115,10 +115,7 @@ CREATE INDEX idx_buildings_team
   ON buildings(team_id)
   WHERE deleted_at IS NULL;
 
--- Index: recherche par gestionnaire
-CREATE INDEX idx_buildings_gestionnaire
-  ON buildings(gestionnaire_id)
-  WHERE deleted_at IS NULL;
+-- ⚠️ NOTE: Recherche par gestionnaire se fait via building_contacts (voir indexes building_contacts)
 
 -- Index: recherche par ville
 CREATE INDEX idx_buildings_city
@@ -152,7 +149,8 @@ CREATE INDEX idx_buildings_deleted
 -- ============================================================================
 -- TABLE: lots
 -- Description: Lots (logements, locaux) à l'intérieur des immeubles
--- Relations: building_id, tenant_id
+-- Relations: building_id (optionnel), team_id (obligatoire)
+-- ⚠️ NOTE: Locataires/Gestionnaires associés via lot_contacts (many-to-many)
 -- ============================================================================
 
 -- Enum: catégories de lots
@@ -172,9 +170,8 @@ CREATE TABLE lots (
 
   -- Relations
   building_id UUID REFERENCES buildings(id) ON DELETE CASCADE, -- ✨ NULLABLE pour lots indépendants
-  gestionnaire_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Gestionnaire principal du lot (optionnel)
-  tenant_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Locataire principal (peut être NULL)
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE, -- ✨ Obligatoire pour lots standalone
+  -- ⚠️ NOTE: Locataires ET gestionnaires via lot_contacts (many-to-many, support colocation + multi-managers)
 
   -- Informations de base
   reference TEXT NOT NULL, -- Ex: "A101", "B-RDC-01", "Maison 12"
@@ -216,14 +213,12 @@ CREATE TABLE lots (
 );
 
 -- Commentaires
-COMMENT ON TABLE lots IS 'Lots (appartements, maisons, locaux) liés ou non à un immeuble';
+COMMENT ON TABLE lots IS 'Lots (appartements, maisons, locaux) liés ou non à un immeuble. Locataires/gestionnaires via lot_contacts (many-to-many)';
 COMMENT ON COLUMN lots.building_id IS 'Immeuble parent (NULL si lot indépendant/standalone)';
 COMMENT ON COLUMN lots.team_id IS 'Équipe propriétaire (obligatoire, même pour lots standalone)';
 COMMENT ON COLUMN lots.reference IS 'Référence unique du lot au sein de l''équipe';
-COMMENT ON COLUMN lots.gestionnaire_id IS 'Gestionnaire principal du lot (optionnel, peut différer du gestionnaire du building)';
-COMMENT ON COLUMN lots.tenant_id IS 'Locataire principal (NULL si vacant)';
 COMMENT ON COLUMN lots.category IS 'Type de lot (appartement, maison, commerce, parking, etc.)';
-COMMENT ON COLUMN lots.description IS 'Description du lot et notes internes';
+COMMENT ON COLUMN lots.description IS 'Description du lot et notes internes (occupancy calculée via lot_contacts)';
 COMMENT ON COLUMN lots.street IS 'Adresse complète (optionnelle, utilisée si building_id NULL OU si lot dans immeuble non géré)';
 COMMENT ON COLUMN lots.city IS 'Ville (optionnelle, utilisée si adresse au niveau du lot)';
 COMMENT ON COLUMN lots.postal_code IS 'Code postal (optionnel, utilisé si adresse au niveau du lot)';
@@ -249,15 +244,7 @@ CREATE INDEX idx_lots_standalone
   ON lots(team_id)
   WHERE deleted_at IS NULL AND building_id IS NULL;
 
--- Index: recherche par gestionnaire
-CREATE INDEX idx_lots_gestionnaire
-  ON lots(gestionnaire_id)
-  WHERE deleted_at IS NULL AND gestionnaire_id IS NOT NULL;
-
--- Index: recherche par locataire
-CREATE INDEX idx_lots_tenant
-  ON lots(tenant_id)
-  WHERE deleted_at IS NULL AND tenant_id IS NOT NULL;
+-- ⚠️ NOTE: Recherche par gestionnaire/locataire se fait via lot_contacts (voir indexes lot_contacts)
 
 -- Index: recherche par catégorie
 CREATE INDEX idx_lots_category
@@ -284,25 +271,8 @@ CREATE INDEX idx_lots_floor
   ON lots(building_id, floor)
   WHERE deleted_at IS NULL AND building_id IS NOT NULL AND floor IS NOT NULL;
 
--- Index: lots vacants par immeuble
-CREATE INDEX idx_lots_vacant_building
-  ON lots(building_id)
-  WHERE deleted_at IS NULL AND building_id IS NOT NULL AND tenant_id IS NULL;
-
--- Index: lots occupés par immeuble
-CREATE INDEX idx_lots_occupied_building
-  ON lots(building_id)
-  WHERE deleted_at IS NULL AND building_id IS NOT NULL AND tenant_id IS NOT NULL;
-
--- Index: lots vacants par équipe (tous types)
-CREATE INDEX idx_lots_vacant_team
-  ON lots(team_id)
-  WHERE deleted_at IS NULL AND tenant_id IS NULL;
-
--- Index: lots occupés par équipe (tous types)
-CREATE INDEX idx_lots_occupied_team
-  ON lots(team_id)
-  WHERE deleted_at IS NULL AND tenant_id IS NOT NULL;
+-- ⚠️ NOTE: Lots vacants/occupés calculés via lot_contacts (JOIN avec users WHERE role='locataire')
+-- ⚠️ Compteurs occupied_lots/vacant_lots dans buildings maintenus par trigger lot_contacts
 
 -- Index: recherche full-text sur référence et adresse (lots standalone)
 CREATE INDEX idx_lots_search

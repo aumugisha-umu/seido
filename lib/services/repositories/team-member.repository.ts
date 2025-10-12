@@ -6,7 +6,11 @@
 import { BaseRepository } from '../core/base-repository'
 import type { RepositoryResult } from '../core/service-types'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
+import {
+  createBrowserSupabaseClient,
+  createServerSupabaseClient,
+  createServerActionSupabaseClient
+} from '../core/supabase-client'
 import { handleError, createErrorResponse } from '../core/error-handler'
 import { logger, logError } from '@/lib/logger'
 /**
@@ -360,5 +364,16 @@ export const createTeamMemberRepository = () => {
 
 export const createServerTeamMemberRepository = async () => {
   const supabase = await createServerSupabaseClient()
+  return new TeamMemberRepository(supabase)
+}
+
+/**
+ * Create Team Member Repository for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionSupabaseClient() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionTeamMemberRepository = async () => {
+  const supabase = await createServerActionSupabaseClient()
   return new TeamMemberRepository(supabase)
 }

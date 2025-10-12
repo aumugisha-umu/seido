@@ -37,17 +37,36 @@ export abstract class BaseRepository<
 
   /**
    * Create a new record
+   * 
+   * ✅ FIX: Generate UUID upfront and insert without .select() to avoid RLS issues
+   * The implicit SELECT triggered by .select() after INSERT was causing RLS policy
+   * violations because auth context wasn't properly established for SECURITY DEFINER functions.
+   * By separating INSERT and SELECT operations, we ensure proper auth context for both.
    */
   async create(data: TInsert): Promise<RepositoryResponse<TRow>> {
     try {
-      const { data: result, error } = await this.supabase
+      // Generate an ID upfront to avoid needing .select() after INSERT
+      const newId = crypto.randomUUID()
+      const dataWithId = { ...data, id: newId } as any
+
+      // Step 1: Pure INSERT without ANY select - no RLS on SELECT triggered
+      const { error: insertError } = await this.supabase
         .from(this.tableName as any)
-        .insert(data as any)
-        .select()
+        .insert(dataWithId)
+
+      if (insertError) {
+        return createErrorResponse(handleError(insertError, `${this.tableName}:create:insert`))
+      }
+
+      // Step 2: Separate SELECT query with full auth context established
+      const { data: result, error: selectError } = await this.supabase
+        .from(this.tableName as any)
+        .select('*')
+        .eq('id', newId)
         .single()
 
-      if (error) {
-        return createErrorResponse(handleError(error, `${this.tableName}:create`))
+      if (selectError) {
+        return createErrorResponse(handleError(selectError, `${this.tableName}:create:select`))
       }
 
       // Clear cache for this table

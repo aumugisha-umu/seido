@@ -79,7 +79,6 @@ CREATE TABLE buildings (
 
   -- Relations
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  gestionnaire_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 
   -- Informations de base
   name TEXT NOT NULL,
@@ -112,7 +111,6 @@ CREATE TABLE buildings (
 );
 
 COMMENT ON TABLE buildings IS 'Immeubles gérés par les équipes';
-COMMENT ON COLUMN buildings.gestionnaire_id IS 'Gestionnaire principal de l''immeuble';
 COMMENT ON COLUMN buildings.country IS 'Pays de localisation de l''immeuble';
 COMMENT ON COLUMN buildings.description IS 'Description de l''immeuble et notes internes';
 COMMENT ON COLUMN buildings.total_lots IS 'Nombre total de lots (calculé automatiquement)';
@@ -129,8 +127,6 @@ CREATE TABLE lots (
 
   -- Relations
   building_id UUID REFERENCES buildings(id) ON DELETE CASCADE, -- NULLABLE pour lots standalone
-  gestionnaire_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  tenant_id UUID REFERENCES users(id) ON DELETE SET NULL,
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE, -- Obligatoire pour lots standalone
 
   -- Informations de base
@@ -172,8 +168,6 @@ COMMENT ON TABLE lots IS 'Lots (appartements, maisons, locaux) liés ou non à u
 COMMENT ON COLUMN lots.building_id IS 'Immeuble parent (NULL si lot indépendant/standalone)';
 COMMENT ON COLUMN lots.team_id IS 'Équipe propriétaire (obligatoire, même pour lots standalone)';
 COMMENT ON COLUMN lots.reference IS 'Référence unique du lot au sein de l''équipe';
-COMMENT ON COLUMN lots.gestionnaire_id IS 'Gestionnaire principal du lot (optionnel, peut différer du gestionnaire du building)';
-COMMENT ON COLUMN lots.tenant_id IS 'Locataire principal (NULL si vacant)';
 COMMENT ON COLUMN lots.category IS 'Type de lot (appartement, maison, commerce, parking, etc.)';
 COMMENT ON COLUMN lots.description IS 'Description du lot et notes internes';
 COMMENT ON COLUMN lots.street IS 'Adresse complète (optionnelle, utilisée si building_id NULL OU si lot dans immeuble non géré)';
@@ -302,10 +296,9 @@ COMMENT ON COLUMN property_documents.tags IS 'Tags pour recherche full-text (ex:
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- Indexes: buildings (9 indexes)
+-- Indexes: buildings (8 indexes)
 -- ----------------------------------------------------------------------------
 CREATE INDEX idx_buildings_team ON buildings(team_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_buildings_gestionnaire ON buildings(gestionnaire_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_buildings_city ON buildings(city) WHERE deleted_at IS NULL;
 CREATE INDEX idx_buildings_postal ON buildings(postal_code) WHERE deleted_at IS NULL;
 CREATE INDEX idx_buildings_country ON buildings(country) WHERE deleted_at IS NULL;
@@ -314,39 +307,45 @@ CREATE INDEX idx_buildings_country ON buildings(country) WHERE deleted_at IS NUL
 CREATE INDEX idx_buildings_deleted ON buildings(deleted_at);
 
 -- ----------------------------------------------------------------------------
--- Indexes: lots (16 indexes)
+-- Indexes: lots (10 indexes)
 -- ----------------------------------------------------------------------------
 CREATE INDEX idx_lots_team ON lots(team_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_lots_building ON lots(building_id) WHERE deleted_at IS NULL AND building_id IS NOT NULL;
 CREATE INDEX idx_lots_standalone ON lots(team_id) WHERE deleted_at IS NULL AND building_id IS NULL;
-CREATE INDEX idx_lots_gestionnaire ON lots(gestionnaire_id) WHERE deleted_at IS NULL AND gestionnaire_id IS NOT NULL;
-CREATE INDEX idx_lots_tenant ON lots(tenant_id) WHERE deleted_at IS NULL AND tenant_id IS NOT NULL;
 CREATE INDEX idx_lots_category ON lots(category) WHERE deleted_at IS NULL;
 CREATE INDEX idx_lots_city ON lots(city) WHERE deleted_at IS NULL AND city IS NOT NULL;
 CREATE INDEX idx_lots_postal ON lots(postal_code) WHERE deleted_at IS NULL AND postal_code IS NOT NULL;
 CREATE INDEX idx_lots_country ON lots(country) WHERE deleted_at IS NULL AND country IS NOT NULL;
 CREATE INDEX idx_lots_floor ON lots(building_id, floor) WHERE deleted_at IS NULL AND building_id IS NOT NULL AND floor IS NOT NULL;
-CREATE INDEX idx_lots_vacant_building ON lots(building_id) WHERE deleted_at IS NULL AND building_id IS NOT NULL AND tenant_id IS NULL;
-CREATE INDEX idx_lots_occupied_building ON lots(building_id) WHERE deleted_at IS NULL AND building_id IS NOT NULL AND tenant_id IS NOT NULL;
-CREATE INDEX idx_lots_vacant_team ON lots(team_id) WHERE deleted_at IS NULL AND tenant_id IS NULL;
-CREATE INDEX idx_lots_occupied_team ON lots(team_id) WHERE deleted_at IS NULL AND tenant_id IS NOT NULL;
 -- Note: Full-text search index sera ajouté via une colonne générée TSVECTOR en Phase 3
 -- CREATE INDEX idx_lots_search ON lots USING gin(to_tsvector('french', reference || ' ' || COALESCE(street, '') || ' ' || COALESCE(city, ''))) WHERE deleted_at IS NULL;
 CREATE INDEX idx_lots_deleted ON lots(deleted_at);
 
 -- ----------------------------------------------------------------------------
--- Indexes: building_contacts (3 indexes)
+-- Indexes: building_contacts (5 indexes)
 -- ----------------------------------------------------------------------------
 CREATE INDEX idx_building_contacts_building ON building_contacts(building_id);
 CREATE INDEX idx_building_contacts_user ON building_contacts(user_id);
 CREATE INDEX idx_building_contacts_primary ON building_contacts(building_id) WHERE is_primary = TRUE;
 
+-- Nouveaux indexes optimisés pour remplacer gestionnaire_id
+-- Index composite pour recherches building → gestionnaires (filtrage role='gestionnaire' en application/RLS)
+CREATE INDEX idx_building_contacts_building_user ON building_contacts(building_id, user_id);
+
+COMMENT ON INDEX idx_building_contacts_building_user IS 'Index composite pour recherche rapide des contacts par building (filtrage role en application via JOIN users)';
+
 -- ----------------------------------------------------------------------------
--- Indexes: lot_contacts (3 indexes)
+-- Indexes: lot_contacts (5 indexes)
 -- ----------------------------------------------------------------------------
 CREATE INDEX idx_lot_contacts_lot ON lot_contacts(lot_id);
 CREATE INDEX idx_lot_contacts_user ON lot_contacts(user_id);
 CREATE INDEX idx_lot_contacts_primary ON lot_contacts(lot_id) WHERE is_primary = TRUE;
+
+-- Nouveaux indexes optimisés pour remplacer tenant_id
+-- Index composite pour recherches lot → locataires (filtrage role='locataire' en application/RLS)
+CREATE INDEX idx_lot_contacts_lot_user ON lot_contacts(lot_id, user_id);
+
+COMMENT ON INDEX idx_lot_contacts_lot_user IS 'Index composite pour recherche rapide des contacts par lot (filtrage role en application via JOIN users)';
 
 -- ----------------------------------------------------------------------------
 -- Indexes: property_documents (9 indexes)
@@ -380,7 +379,7 @@ SECURITY DEFINER
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM users
-    WHERE id = auth.uid() AND role = 'admin'
+    WHERE auth_user_id = auth.uid() AND role = 'admin'  -- ✅ FIX: Use auth_user_id, not id
   );
 $$;
 
@@ -395,7 +394,7 @@ SECURITY DEFINER
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM users
-    WHERE id = auth.uid() AND role = 'gestionnaire'
+    WHERE auth_user_id = auth.uid() AND role = 'gestionnaire'  -- ✅ FIX: Use auth_user_id, not id
   );
 $$;
 
@@ -411,13 +410,50 @@ AS $$
   SELECT EXISTS (
     SELECT 1 FROM team_members tm
     INNER JOIN users u ON tm.user_id = u.id
-    WHERE tm.user_id = auth.uid()
+    WHERE u.auth_user_id = auth.uid()
       AND tm.team_id = check_team_id
-      AND u.role = 'gestionnaire'
+      AND tm.role IN ('gestionnaire', 'admin')
+      AND tm.left_at IS NULL
   );
 $$;
 
-COMMENT ON FUNCTION is_team_manager IS 'Vérifie si l''utilisateur est gestionnaire d''une équipe spécifique';
+COMMENT ON FUNCTION is_team_manager IS 'Vérifie si l''utilisateur est gestionnaire/admin d''une équipe spécifique (actif uniquement)';
+
+-- Fonction de debug: Vérifier auth.uid() et permissions
+-- ⚠️ TEMPORAIRE: Pour débogage uniquement, à supprimer en production
+CREATE OR REPLACE FUNCTION debug_check_building_insert(check_team_id UUID)
+RETURNS TABLE(
+  current_auth_uid UUID,
+  user_exists BOOLEAN,
+  user_role TEXT,
+  is_in_team BOOLEAN,
+  is_active_member BOOLEAN,
+  is_manager_result BOOLEAN
+)
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT
+    auth.uid() AS current_auth_uid,
+    EXISTS(SELECT 1 FROM users WHERE auth_user_id = auth.uid()) AS user_exists,  -- ✅ FIX
+    (SELECT role FROM users WHERE auth_user_id = auth.uid()) AS user_role,  -- ✅ FIX
+    EXISTS(
+      SELECT 1 FROM team_members tm
+      INNER JOIN users u ON tm.user_id = u.id  -- ✅ FIX: Join users table
+      WHERE u.auth_user_id = auth.uid()  -- ✅ FIX: Use auth_user_id
+        AND tm.team_id = check_team_id
+    ) AS is_in_team,
+    EXISTS(
+      SELECT 1 FROM team_members tm
+      INNER JOIN users u ON tm.user_id = u.id  -- ✅ FIX: Join users table
+      WHERE u.auth_user_id = auth.uid()  -- ✅ FIX: Use auth_user_id
+        AND tm.team_id = check_team_id
+        AND tm.left_at IS NULL
+    ) AS is_active_member,
+    is_team_manager(check_team_id) AS is_manager_result
+$$;
+
+COMMENT ON FUNCTION debug_check_building_insert IS '⚠️ DEBUG: Vérifie auth.uid() et permissions pour buildings_insert (TEMPORAIRE)';
 
 -- ----------------------------------------------------------------------------
 -- Fonction: get_building_team_id
@@ -451,7 +487,7 @@ $$;
 COMMENT ON FUNCTION get_lot_team_id IS 'Récupère le team_id d''un lot (via building parent OU directement pour lots standalone)';
 
 -- ----------------------------------------------------------------------------
--- Fonction: is_tenant_of_lot
+-- Fonction: is_tenant_of_lot (⚠️ MODIFIÉE: utilise lot_contacts au lieu de lots.tenant_id)
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION is_tenant_of_lot(lot_uuid UUID)
 RETURNS BOOLEAN
@@ -460,16 +496,18 @@ STABLE
 SECURITY DEFINER
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM lots
-    WHERE id = lot_uuid
-      AND tenant_id = auth.uid()
+    SELECT 1 FROM lot_contacts lc
+    INNER JOIN users u ON lc.user_id = u.id
+    WHERE lc.lot_id = lot_uuid
+      AND u.auth_user_id = auth.uid()  -- ✅ FIX: Use auth_user_id, not lc.user_id
+      AND u.role = 'locataire'
   );
 $$;
 
-COMMENT ON FUNCTION is_tenant_of_lot IS 'Vérifie si l''utilisateur est le locataire du lot';
+COMMENT ON FUNCTION is_tenant_of_lot IS 'Vérifie si l''utilisateur est locataire du lot (via lot_contacts)';
 
 -- ----------------------------------------------------------------------------
--- Fonction: can_view_building
+-- Fonction: can_view_building (⚠️ MODIFIÉE: utilise lot_contacts au lieu de lots.tenant_id)
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION can_view_building(building_uuid UUID)
 RETURNS BOOLEAN
@@ -485,23 +523,29 @@ AS $$
         -- Admin voit tout
         is_admin()
         OR
-        -- Gestionnaire de l'équipe
+        -- Gestionnaire de l'équipe (ancienne définition - team manager)
         is_team_manager(b.team_id)
         OR
-        -- Locataire d'un lot dans ce building
+        -- Tout gestionnaire membre de l'équipe
+        (is_gestionnaire() AND user_belongs_to_team_v2(b.team_id))
+        OR
+        -- Locataire d'un lot dans ce building (via lot_contacts)
         EXISTS (
           SELECT 1 FROM lots l
+          INNER JOIN lot_contacts lc ON lc.lot_id = l.id
+          INNER JOIN users u ON lc.user_id = u.id
           WHERE l.building_id = b.id
-            AND l.tenant_id = auth.uid()
+            AND u.auth_user_id = auth.uid()
+            AND u.role = 'locataire'
         )
       )
   );
 $$;
 
-COMMENT ON FUNCTION can_view_building IS 'Vérifie si l''utilisateur peut voir un building (admin, team manager, ou locataire)';
+COMMENT ON FUNCTION can_view_building IS 'Admin OR team manager OR gestionnaire membre de l''équipe OR locataire du building';
 
 -- ----------------------------------------------------------------------------
--- Fonction: can_view_lot
+-- Fonction: can_view_lot (⚠️ MODIFIÉE: utilise lot_contacts au lieu de gestionnaire_id/tenant_id)
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION can_view_lot(lot_uuid UUID)
 RETURNS BOOLEAN
@@ -517,19 +561,19 @@ AS $$
         -- Admin voit tout
         is_admin()
         OR
-        -- Gestionnaire de l'équipe (via building OU directement)
+        -- Gestionnaire de l'équipe (ancienne définition - team manager)
         is_team_manager(get_lot_team_id(l.id))
         OR
-        -- Gestionnaire direct du lot
-        (l.gestionnaire_id = auth.uid() AND is_gestionnaire())
+        -- Tout gestionnaire membre de l'équipe
+        (is_gestionnaire() AND user_belongs_to_team_v2(get_lot_team_id(l.id)))
         OR
-        -- Locataire du lot
-        l.tenant_id = auth.uid()
+        -- Locataire du lot (via lot_contacts)
+        is_tenant_of_lot(l.id)
       )
   );
 $$;
 
-COMMENT ON FUNCTION can_view_lot IS 'Vérifie si l''utilisateur peut voir un lot (admin, team manager, gestionnaire direct, ou locataire)';
+COMMENT ON FUNCTION can_view_lot IS 'Admin OR team manager OR gestionnaire membre de l''équipe OR locataire du lot';
 
 -- ============================================================================
 -- SECTION 5: RLS POLICIES
@@ -543,16 +587,26 @@ COMMENT ON FUNCTION can_view_lot IS 'Vérifie si l''utilisateur peut voir un lot
 ALTER TABLE buildings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY buildings_select ON buildings FOR SELECT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (can_view_building(id));
 
 CREATE POLICY buildings_insert ON buildings FOR INSERT
-  WITH CHECK (is_admin() OR is_team_manager(team_id));
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
+  WITH CHECK (
+    is_admin()
+    OR (
+      is_gestionnaire()
+      AND user_belongs_to_team_v2(team_id)
+    )
+  );
 
 CREATE POLICY buildings_update ON buildings FOR UPDATE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (deleted_at IS NULL AND (is_admin() OR is_team_manager(team_id)))
   WITH CHECK (is_admin() OR is_team_manager(team_id));
 
 CREATE POLICY buildings_delete ON buildings FOR DELETE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(team_id));
 
 -- ----------------------------------------------------------------------------
@@ -561,30 +615,39 @@ CREATE POLICY buildings_delete ON buildings FOR DELETE
 ALTER TABLE lots ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY lots_select ON lots FOR SELECT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (can_view_lot(id));
 
 CREATE POLICY lots_insert ON lots FOR INSERT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   WITH CHECK (
     is_admin()
-    OR (building_id IS NOT NULL AND is_team_manager(get_building_team_id(building_id)))
-    OR (building_id IS NULL AND is_team_manager(team_id))
+    OR (
+      is_gestionnaire()
+      AND (
+        -- If linked to a building, user must belong to that building's team
+        (building_id IS NOT NULL AND user_belongs_to_team_v2(get_building_team_id(building_id)))
+        -- If standalone lot (no building), user must belong to the provided team_id
+        OR (building_id IS NULL AND user_belongs_to_team_v2(team_id))
+      )
+    )
   );
 
 CREATE POLICY lots_update ON lots FOR UPDATE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (
     deleted_at IS NULL AND (
       is_admin()
       OR is_team_manager(get_lot_team_id(id))
-      OR (gestionnaire_id = auth.uid() AND is_gestionnaire())
     )
   )
   WITH CHECK (
     is_admin()
     OR is_team_manager(get_lot_team_id(id))
-    OR (gestionnaire_id = auth.uid() AND is_gestionnaire())
   );
 
 CREATE POLICY lots_delete ON lots FOR DELETE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(get_lot_team_id(id)));
 
 -- ----------------------------------------------------------------------------
@@ -593,15 +656,19 @@ CREATE POLICY lots_delete ON lots FOR DELETE
 ALTER TABLE building_contacts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY building_contacts_select ON building_contacts FOR SELECT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (can_view_building(building_id));
 
 CREATE POLICY building_contacts_insert ON building_contacts FOR INSERT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   WITH CHECK (is_admin() OR is_team_manager(get_building_team_id(building_id)));
 
 CREATE POLICY building_contacts_update ON building_contacts FOR UPDATE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(get_building_team_id(building_id)));
 
 CREATE POLICY building_contacts_delete ON building_contacts FOR DELETE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(get_building_team_id(building_id)));
 
 -- ----------------------------------------------------------------------------
@@ -610,15 +677,19 @@ CREATE POLICY building_contacts_delete ON building_contacts FOR DELETE
 ALTER TABLE lot_contacts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY lot_contacts_select ON lot_contacts FOR SELECT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (can_view_lot(lot_id));
 
 CREATE POLICY lot_contacts_insert ON lot_contacts FOR INSERT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   WITH CHECK (is_admin() OR is_team_manager(get_lot_team_id(lot_id)));
 
 CREATE POLICY lot_contacts_update ON lot_contacts FOR UPDATE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(get_lot_team_id(lot_id)));
 
 CREATE POLICY lot_contacts_delete ON lot_contacts FOR DELETE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(get_lot_team_id(lot_id)));
 
 -- ----------------------------------------------------------------------------
@@ -627,6 +698,7 @@ CREATE POLICY lot_contacts_delete ON lot_contacts FOR DELETE
 ALTER TABLE property_documents ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY property_documents_select ON property_documents FOR SELECT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (
     deleted_at IS NULL AND (
       -- Admin: accès total
@@ -650,23 +722,26 @@ COMMENT ON POLICY property_documents_select ON property_documents IS
   'Visibilité selon visibility_level: equipe (team managers), locataire (team managers + tenant du lot)';
 
 CREATE POLICY property_documents_insert ON property_documents FOR INSERT
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   WITH CHECK (is_admin() OR (is_gestionnaire() AND is_team_manager(team_id)));
 
 CREATE POLICY property_documents_update ON property_documents FOR UPDATE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (
     deleted_at IS NULL AND (
       is_admin()
       OR is_team_manager(team_id)
-      OR (uploaded_by = auth.uid() AND is_gestionnaire())
+      OR (uploaded_by = (SELECT id FROM users WHERE auth_user_id = auth.uid()) AND is_gestionnaire())  -- ✅ FIX: Resolve auth.uid() to database ID
     )
   )
   WITH CHECK (
     is_admin()
     OR is_team_manager(team_id)
-    OR (uploaded_by = auth.uid() AND is_gestionnaire())
+    OR (uploaded_by = (SELECT id FROM users WHERE auth_user_id = auth.uid()) AND is_gestionnaire())  -- ✅ FIX: Resolve auth.uid() to database ID
   );
 
 CREATE POLICY property_documents_delete ON property_documents FOR DELETE
+TO authenticated  -- ✅ Rôle PostgreSQL authenticated (a une session auth)
   USING (is_admin() OR is_team_manager(team_id));
 
 -- ============================================================================
@@ -711,61 +786,157 @@ CREATE TRIGGER property_documents_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ----------------------------------------------------------------------------
--- Fonction trigger: update_building_lots_count
+-- Fonction trigger: update_building_lots_count_from_lot_contacts
+-- ⚠️ NOUVELLE VERSION: Basée sur lot_contacts au lieu de lots.tenant_id
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION update_building_lots_count()
+CREATE OR REPLACE FUNCTION update_building_lots_count_from_lot_contacts()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_building_id UUID;
+  v_is_tenant BOOLEAN;
+  v_lot_has_tenants_before BOOLEAN;
+  v_lot_has_tenants_after BOOLEAN;
+BEGIN
+  -- Déterminer si l'user est un locataire
+  SELECT u.role = 'locataire' INTO v_is_tenant
+  FROM users u
+  WHERE u.id = COALESCE(NEW.user_id, OLD.user_id);
+
+  -- Si ce n'est pas un locataire, ne rien faire
+  IF NOT v_is_tenant THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
+  -- Récupérer le building_id du lot
+  SELECT l.building_id INTO v_building_id
+  FROM lots l
+  WHERE l.id = COALESCE(NEW.lot_id, OLD.lot_id);
+
+  -- Si le lot n'est pas dans un immeuble, ne rien faire
+  IF v_building_id IS NULL THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
+  -- INSERT: Nouveau locataire ajouté
+  IF TG_OP = 'INSERT' THEN
+    -- Vérifier si c'est le PREMIER locataire du lot
+    SELECT EXISTS (
+      SELECT 1 FROM lot_contacts lc2
+      INNER JOIN users u ON lc2.user_id = u.id
+      WHERE lc2.lot_id = NEW.lot_id
+        AND u.role = 'locataire'
+        AND lc2.id != NEW.id
+    ) INTO v_lot_has_tenants_before;
+
+    -- Si c'est le premier locataire, le lot passe de vacant à occupé
+    IF NOT v_lot_has_tenants_before THEN
+      UPDATE buildings
+      SET occupied_lots = occupied_lots + 1,
+          vacant_lots = vacant_lots - 1
+      WHERE id = v_building_id;
+    END IF;
+
+    RETURN NEW;
+
+  -- DELETE: Locataire retiré
+  ELSIF TG_OP = 'DELETE' THEN
+    -- Vérifier s'il reste des locataires après suppression
+    SELECT EXISTS (
+      SELECT 1 FROM lot_contacts lc2
+      INNER JOIN users u ON lc2.user_id = u.id
+      WHERE lc2.lot_id = OLD.lot_id
+        AND u.role = 'locataire'
+        AND lc2.id != OLD.id
+    ) INTO v_lot_has_tenants_after;
+
+    -- Si c'était le dernier locataire, le lot passe d'occupé à vacant
+    IF NOT v_lot_has_tenants_after THEN
+      UPDATE buildings
+      SET occupied_lots = occupied_lots - 1,
+          vacant_lots = vacant_lots + 1
+      WHERE id = v_building_id;
+    END IF;
+
+    RETURN OLD;
+  END IF;
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION update_building_lots_count_from_lot_contacts IS 'Maintient les compteurs occupied_lots/vacant_lots basés sur lot_contacts (INSERT/DELETE uniquement)';
+
+-- ----------------------------------------------------------------------------
+-- Fonction trigger: update_building_total_lots (pour INSERT/DELETE de lots)
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION update_building_total_lots()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_lot_has_tenants BOOLEAN;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.building_id IS NOT NULL THEN
+      -- Vérifier si le lot a déjà des locataires dans lot_contacts
+      SELECT EXISTS (
+        SELECT 1 FROM lot_contacts lc
+        INNER JOIN users u ON lc.user_id = u.id
+        WHERE lc.lot_id = NEW.id
+          AND u.role = 'locataire'
+      ) INTO v_lot_has_tenants;
+
       UPDATE buildings
       SET total_lots = total_lots + 1,
-          vacant_lots = vacant_lots + CASE WHEN NEW.tenant_id IS NULL THEN 1 ELSE 0 END,
-          occupied_lots = occupied_lots + CASE WHEN NEW.tenant_id IS NOT NULL THEN 1 ELSE 0 END
+          vacant_lots = vacant_lots + CASE WHEN NOT v_lot_has_tenants THEN 1 ELSE 0 END,
+          occupied_lots = occupied_lots + CASE WHEN v_lot_has_tenants THEN 1 ELSE 0 END
       WHERE id = NEW.building_id;
     END IF;
     RETURN NEW;
 
   ELSIF TG_OP = 'UPDATE' THEN
+    -- Si le building_id change (déplacement de lot), recalculer les deux immeubles
     IF (OLD.building_id IS DISTINCT FROM NEW.building_id) THEN
+      -- Vérifier si le lot a des locataires
+      SELECT EXISTS (
+        SELECT 1 FROM lot_contacts lc
+        INNER JOIN users u ON lc.user_id = u.id
+        WHERE lc.lot_id = NEW.id
+          AND u.role = 'locataire'
+      ) INTO v_lot_has_tenants;
+
+      -- Décrémenter l'ancien immeuble
       IF OLD.building_id IS NOT NULL THEN
         UPDATE buildings
         SET total_lots = total_lots - 1,
-            vacant_lots = vacant_lots - CASE WHEN OLD.tenant_id IS NULL THEN 1 ELSE 0 END,
-            occupied_lots = occupied_lots - CASE WHEN OLD.tenant_id IS NOT NULL THEN 1 ELSE 0 END
+            vacant_lots = vacant_lots - CASE WHEN NOT v_lot_has_tenants THEN 1 ELSE 0 END,
+            occupied_lots = occupied_lots - CASE WHEN v_lot_has_tenants THEN 1 ELSE 0 END
         WHERE id = OLD.building_id;
       END IF;
 
+      -- Incrémenter le nouveau immeuble
       IF NEW.building_id IS NOT NULL THEN
         UPDATE buildings
         SET total_lots = total_lots + 1,
-            vacant_lots = vacant_lots + CASE WHEN NEW.tenant_id IS NULL THEN 1 ELSE 0 END,
-            occupied_lots = occupied_lots + CASE WHEN NEW.tenant_id IS NOT NULL THEN 1 ELSE 0 END
+            vacant_lots = vacant_lots + CASE WHEN NOT v_lot_has_tenants THEN 1 ELSE 0 END,
+            occupied_lots = occupied_lots + CASE WHEN v_lot_has_tenants THEN 1 ELSE 0 END
         WHERE id = NEW.building_id;
       END IF;
-
-    ELSIF (OLD.tenant_id IS DISTINCT FROM NEW.tenant_id) AND NEW.building_id IS NOT NULL THEN
-      UPDATE buildings
-      SET occupied_lots = occupied_lots + CASE
-            WHEN NEW.tenant_id IS NOT NULL AND OLD.tenant_id IS NULL THEN 1
-            WHEN NEW.tenant_id IS NULL AND OLD.tenant_id IS NOT NULL THEN -1
-            ELSE 0
-          END,
-          vacant_lots = vacant_lots + CASE
-            WHEN NEW.tenant_id IS NULL AND OLD.tenant_id IS NOT NULL THEN 1
-            WHEN NEW.tenant_id IS NOT NULL AND OLD.tenant_id IS NULL THEN -1
-            ELSE 0
-          END
-      WHERE id = NEW.building_id;
     END IF;
     RETURN NEW;
 
   ELSIF TG_OP = 'DELETE' THEN
     IF OLD.building_id IS NOT NULL THEN
+      -- Vérifier si le lot avait des locataires
+      SELECT EXISTS (
+        SELECT 1 FROM lot_contacts lc
+        INNER JOIN users u ON lc.user_id = u.id
+        WHERE lc.lot_id = OLD.id
+          AND u.role = 'locataire'
+      ) INTO v_lot_has_tenants;
+
       UPDATE buildings
       SET total_lots = total_lots - 1,
-          vacant_lots = vacant_lots - CASE WHEN OLD.tenant_id IS NULL THEN 1 ELSE 0 END,
-          occupied_lots = occupied_lots - CASE WHEN OLD.tenant_id IS NOT NULL THEN 1 ELSE 0 END
+          vacant_lots = vacant_lots - CASE WHEN NOT v_lot_has_tenants THEN 1 ELSE 0 END,
+          occupied_lots = occupied_lots - CASE WHEN v_lot_has_tenants THEN 1 ELSE 0 END
       WHERE id = OLD.building_id;
     END IF;
     RETURN OLD;
@@ -773,10 +944,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+COMMENT ON FUNCTION update_building_total_lots IS 'Maintient le compteur total_lots lors de l''ajout/suppression de lots';
+
+-- Triggers
+CREATE TRIGGER lot_contacts_update_building_count
+  AFTER INSERT OR DELETE ON lot_contacts
+  FOR EACH ROW
+  EXECUTE FUNCTION update_building_lots_count_from_lot_contacts();
+
+COMMENT ON TRIGGER lot_contacts_update_building_count ON lot_contacts IS 'Mise à jour des compteurs occupied_lots/vacant_lots lors de l''ajout/suppression de locataires';
+
 CREATE TRIGGER lots_update_building_count
   AFTER INSERT OR UPDATE OR DELETE ON lots
   FOR EACH ROW
-  EXECUTE FUNCTION update_building_lots_count();
+  EXECUTE FUNCTION update_building_total_lots();
+
+COMMENT ON TRIGGER lots_update_building_count ON lots IS 'Mise à jour du compteur total_lots lors de l''ajout/suppression/déplacement de lots';
 
 -- ============================================================================
 -- SECTION 7: SUPABASE STORAGE BUCKET

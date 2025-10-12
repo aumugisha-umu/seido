@@ -92,7 +92,8 @@ export function TeamStatusProvider({ children }: { children: React.ReactNode }) 
       // Immediately check team status
       checkTeamStatus()
     }
-  }, [user?.id, checkTeamStatus])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   const recheckTeamStatus = async () => {
     await checkTeamStatus()

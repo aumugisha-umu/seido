@@ -4,8 +4,8 @@
  * NEW SCHEMA: Contacts are users managed via team_members table
  */
 
-import { ContactRepository, createContactRepository, createServerContactRepository } from '../repositories/contact.repository'
-import { UserService, createUserService, createServerUserService } from './user.service'
+import { ContactRepository, createContactRepository, createServerContactRepository, createServerActionContactRepository } from '../repositories/contact.repository'
+import { UserService, createUserService, createServerUserService, createServerActionUserService } from './user.service'
 import { ValidationException, NotFoundException } from '../core/error-handler'
 import { logger, logError } from '@/lib/logger'
 import type {
@@ -243,45 +243,13 @@ export class ContactService {
 
   /**
    * Get contacts by team with role filtering
+   * Uses repository layer to ensure proper filtering (left_at IS NULL + RLS)
    */
   async getContactsByTeam(teamId: string, role?: User['role']) {
     try {
-      // Query team_members with JOIN on users table (like useContactsData hook)
-      const { data: teamMembersData, error } = await this.repository['supabase']
-        .from('team_members')
-        .select(`
-          id,
-          user_id,
-          user:user_id (
-            id,
-            name,
-            email,
-            phone,
-            company,
-            role,
-            provider_category,
-            speciality,
-            address,
-            is_active,
-            avatar_url,
-            notes,
-            first_name,
-            last_name
-          )
-        `)
-        .eq('team_id', teamId)
-        .order('joined_at', { ascending: false })
-
-      if (error) {
-        throw error
-      }
-
-      // Extract users from the relation and filter by role if specified
-      const contacts = teamMembersData
-        ?.map(tm => tm.user)
-        ?.filter(user => user !== null && (!role || user.role === role)) || []
-
-      return { success: true as const, data: contacts }
+      // ✅ Use repository method that includes left_at filter and RLS
+      const result = await this.repository.findByTeam(teamId, role)
+      return result
     } catch (error) {
       throw error
     }
@@ -390,6 +358,20 @@ export const createServerContactService = async () => {
   const [repository, userService] = await Promise.all([
     createServerContactRepository(),
     createServerUserService()
+  ])
+  return new ContactService(repository, userService)
+}
+
+/**
+ * Create Contact Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionContactRepository() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionContactService = async () => {
+  const [repository, userService] = await Promise.all([
+    createServerActionContactRepository(),
+    createServerActionUserService()
   ])
   return new ContactService(repository, userService)
 }

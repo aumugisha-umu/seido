@@ -6,12 +6,14 @@
 import {
   LotRepository,
   createLotRepository,
-  createServerLotRepository
+  createServerLotRepository,
+  createServerActionLotRepository
 } from '../repositories/lot.repository'
 import {
   BuildingService,
   createBuildingService,
-  createServerBuildingService
+  createServerBuildingService,
+  createServerActionBuildingService
 } from './building.service'
 import type {
   Lot,
@@ -900,6 +902,20 @@ export const createServerLotService = async () => {
   const [repository, buildingService] = await Promise.all([
     createServerLotRepository(),
     createServerBuildingService()
+  ])
+  return new LotService(repository, buildingService)
+}
+
+/**
+ * Create Lot Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionLotRepository() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionLotService = async () => {
+  const [repository, buildingService] = await Promise.all([
+    createServerActionLotRepository(),
+    createServerActionBuildingService()
   ])
   return new LotService(repository, buildingService)
 }

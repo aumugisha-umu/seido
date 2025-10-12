@@ -254,7 +254,6 @@ function LotCard({
                   onChange={(e) => onUpdate({ floor: e.target.value })}
                   className="mt-1"
                 />
-                <p className="text-xs text-gray-500 mt-1">De -5 (sous-sol) à 100</p>
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700">

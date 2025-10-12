@@ -7,14 +7,15 @@ import {
   StatsRepository,
   createStatsRepository,
   createServerStatsRepository,
+  createServerActionStatsRepository,
   type ActivityStats,
   type SystemStats,
   type TeamStats,
   type UserStats,
   type DashboardStats
 } from '../repositories/stats.repository'
-import { UserService, createUserService, createServerUserService } from './user.service'
-import { InterventionRepository, createInterventionRepository } from '../repositories/intervention.repository'
+import { UserService, createUserService, createServerUserService, createServerActionUserService } from './user.service'
+import { InterventionRepository, createInterventionRepository, createServerActionInterventionRepository } from '../repositories/intervention.repository'
 import { ValidationException, PermissionException } from '../core/error-handler'
 import type { User, ServiceResult } from '../core/service-types'
 import { logger, logError } from '@/lib/logger'
@@ -639,8 +640,8 @@ export class StatsService {
               .slice(0, 10) // Limit to 10 most recent
           }
         } catch (interventionError) {
-          logger.error('⚠️ Error fetching interventions:', interventionError)
-          // Continue with empty arrays if intervention fetch fails
+          // Error is already logged by error-handler.ts
+          // Continue with empty arrays if intervention fetch fails (e.g., Phase 3 not yet applied)
         }
       }
 
@@ -687,5 +688,20 @@ export const createServerStatsService = async () => {
   ])
   // Note: Server intervention repository would need async creation
   const interventionRepo = createInterventionRepository()
+  return new StatsService(repository, userService, interventionRepo)
+}
+
+/**
+ * Create Stats Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionStatsRepository() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionStatsService = async () => {
+  const [repository, userService, interventionRepo] = await Promise.all([
+    createServerActionStatsRepository(),
+    createServerActionUserService(),
+    createServerActionInterventionRepository()
+  ])
   return new StatsService(repository, userService, interventionRepo)
 }

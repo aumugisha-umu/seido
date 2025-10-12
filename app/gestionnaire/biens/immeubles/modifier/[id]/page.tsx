@@ -22,8 +22,6 @@ interface BuildingInfo {
   postalCode: string
   city: string
   country: string
-  constructionYear: string
-  floors: string
   description: string
 }
 
@@ -41,8 +39,6 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
     postalCode: "",
     city: "",
     country: "Belgique",
-    constructionYear: "",
-    floors: "",
     description: "",
   })
   const [teamManagers, setTeamManagers] = useState<User[]>([])
@@ -118,8 +114,6 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         postalCode: buildingData.postal_code || "",
         city: buildingData.city || "",
         country: buildingData.country || "Belgique",
-        constructionYear: buildingData.construction_year?.toString() || "",
-        floors: buildingData.floors?.toString() || "",
         description: buildingData.description || "",
       })
       
@@ -168,8 +162,6 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         country: buildingInfo.country.trim() || "Belgique",
         postal_code: buildingInfo.postalCode.trim() || "",
         description: buildingInfo.description.trim(),
-        construction_year: buildingInfo.constructionYear ? parseInt(buildingInfo.constructionYear) : undefined,
-        floors: buildingInfo.floors ? parseInt(buildingInfo.floors) : undefined,
         // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
         // gestionnaire_id: selectedManagerId,
       }

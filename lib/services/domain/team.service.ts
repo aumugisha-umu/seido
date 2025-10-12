@@ -4,9 +4,9 @@
  * ✅ Updated for multi-team support with TeamMemberRepository
  */
 
-import { TeamRepository, createTeamRepository, createServerTeamRepository, type TeamInsert, type TeamUpdate, type TeamWithMembers } from '../repositories/team.repository'
-import { TeamMemberRepository, createTeamMemberRepository, createServerTeamMemberRepository, type UserTeamAssociation } from '../repositories/team-member.repository'
-import { UserService, createUserService, createServerUserService } from './user.service'
+import { TeamRepository, createTeamRepository, createServerTeamRepository, createServerActionTeamRepository, type TeamInsert, type TeamUpdate, type TeamWithMembers } from '../repositories/team.repository'
+import { TeamMemberRepository, createTeamMemberRepository, createServerTeamMemberRepository, createServerActionTeamMemberRepository, type UserTeamAssociation } from '../repositories/team-member.repository'
+import { UserService, createUserService, createServerUserService, createServerActionUserService } from './user.service'
 import { ValidationException, ConflictException, NotFoundException } from '../core/error-handler'
 import { logger, logError } from '@/lib/logger'
 import type {
@@ -520,6 +520,21 @@ export const createServerTeamService = async () => {
     createServerTeamRepository(),
     createServerTeamMemberRepository(),
     createServerUserService()
+  ])
+  return new TeamService(repository, memberRepository, userService)
+}
+
+/**
+ * Create Team Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionTeamRepository() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionTeamService = async () => {
+  const [repository, memberRepository, userService] = await Promise.all([
+    createServerActionTeamRepository(),
+    createServerActionTeamMemberRepository(),
+    createServerActionUserService()
   ])
   return new TeamService(repository, memberRepository, userService)
 }

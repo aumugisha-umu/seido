@@ -3,11 +3,11 @@
  * Orchestrates complex multi-service operations with transaction support
  */
 
-import { UserService, createUserService, createServerUserService } from './user.service'
-import { BuildingService, createBuildingService, createServerBuildingService } from './building.service'
-import { LotService, createLotService, createServerLotService } from './lot.service'
-import { ContactService, createContactService, createServerContactService } from './contact.service'
-import { TeamService, createTeamService, createServerTeamService } from './team.service'
+import { UserService, createUserService, createServerUserService, createServerActionUserService } from './user.service'
+import { BuildingService, createBuildingService, createServerBuildingService, createServerActionBuildingService } from './building.service'
+import { LotService, createLotService, createServerLotService, createServerActionLotService } from './lot.service'
+import { ContactService, createContactService, createServerContactService, createServerActionContactService } from './contact.service'
+import { TeamService, createTeamService, createServerTeamService, createServerActionTeamService } from './team.service'
 import type {
   User,
   Building,
@@ -84,7 +84,6 @@ export interface CreateCompletePropertyData {
     country: string
     team_id: string
     description?: string
-    construction_year?: number
   }
   lots: Array<{
     reference: string
@@ -220,7 +219,9 @@ export class CompositeService {
       const userResult = await this.userService.create(data.user)
       if (!userResult.success) {
         userOperation.status = 'failed'
-        throw new Error('User creation failed: ' + userResult.error)
+        // ✅ Safely access error message from RepositoryError object
+        const errorMsg = userResult.error?.message || String(userResult.error)
+        throw new Error('User creation failed: ' + errorMsg)
       }
 
       user = userResult.data
@@ -251,7 +252,9 @@ export class CompositeService {
 
         if (!teamResult.success) {
           teamOperation.status = 'failed'
-          throw new Error('Team creation failed: ' + teamResult.error)
+          // ✅ Safely access error message from RepositoryError object
+          const errorMsg = teamResult.error?.message || String(teamResult.error)
+          throw new Error('Team creation failed: ' + errorMsg)
         }
 
         team = teamResult.data
@@ -274,7 +277,9 @@ export class CompositeService {
         const userUpdateResult = await this.userService.update(user.id, { team_id: team.id })
         if (!userUpdateResult.success) {
           userUpdateOperation.status = 'failed'
-          throw new Error('User team assignment failed: ' + userUpdateResult.error)
+          // ✅ Safely access error message from RepositoryError object
+          const errorMsg = userUpdateResult.error?.message || String(userUpdateResult.error)
+          throw new Error('User team assignment failed: ' + errorMsg)
         }
 
         user = userUpdateResult.data
@@ -306,7 +311,9 @@ export class CompositeService {
 
         if (!buildingResult.success) {
           buildingOperation.status = 'failed'
-          throw new Error('Building creation failed: ' + buildingResult.error)
+          // ✅ Safely access error message from RepositoryError object
+          const errorMsg = buildingResult.error?.message || String(buildingResult.error)
+          throw new Error('Building creation failed: ' + errorMsg)
         }
 
         building = buildingResult.data
@@ -337,7 +344,9 @@ export class CompositeService {
 
             if (!lotResult.success) {
               lotOperation.status = 'failed'
-              throw new Error('Lot creation failed: ' + lotResult.error)
+              // ✅ Safely access error message from RepositoryError object
+              const errorMsg = lotResult.error?.message || String(lotResult.error)
+              throw new Error('Lot creation failed: ' + errorMsg)
             }
 
             lots.push(lotResult.data)
@@ -450,7 +459,9 @@ export class CompositeService {
       const buildingResult = await this.buildingService.create(data.building)
       if (!buildingResult.success) {
         buildingOperation.status = 'failed'
-        throw new Error('Building creation failed: ' + buildingResult.error)
+        // ✅ Safely access error message from RepositoryError object
+        const errorMsg = buildingResult.error?.message || String(buildingResult.error)
+        throw new Error('Building creation failed: ' + errorMsg)
       }
 
       building = buildingResult.data
@@ -480,7 +491,9 @@ export class CompositeService {
 
         if (!lotResult.success) {
           lotOperation.status = 'failed'
-          throw new Error('Lot creation failed: ' + lotResult.error)
+          // ✅ Safely access error message from RepositoryError object
+          const errorMsg = lotResult.error?.message || String(lotResult.error)
+          throw new Error('Lot creation failed: ' + errorMsg)
         }
 
         lots.push(lotResult.data)
@@ -571,7 +584,9 @@ export class CompositeService {
       const buildingResult = await this.buildingService.create(data.building)
       if (!buildingResult.success) {
         buildingOperation.status = 'failed'
-        throw new Error('Building creation failed: ' + buildingResult.error)
+        // ✅ Safely access error message from RepositoryError object
+        const errorMsg = buildingResult.error?.message || String(buildingResult.error)
+        throw new Error('Building creation failed: ' + errorMsg)
       }
 
       building = buildingResult.data
@@ -604,7 +619,9 @@ export class CompositeService {
 
         if (!lotResult.success) {
           lotOperation.status = 'failed'
-          throw new Error(`Lot creation failed for ${lotData.reference}: ` + lotResult.error)
+          // ✅ Safely access error message from RepositoryError object
+          const errorMsg = lotResult.error?.message || String(lotResult.error)
+          throw new Error(`Lot creation failed for ${lotData.reference}: ` + errorMsg)
         }
 
         lots.push(lotResult.data)
@@ -860,7 +877,9 @@ export class CompositeService {
       const transferResult = await this.lotService.assignTenant(data.lotId, data.toTenantId)
       if (!transferResult.success) {
         transferOperation.status = 'failed'
-        throw new Error('Tenant transfer failed: ' + transferResult.error)
+        // ✅ Safely access error message from RepositoryError object
+        const errorMsg = transferResult.error?.message || String(transferResult.error)
+        throw new Error('Tenant transfer failed: ' + errorMsg)
       }
 
       transferOperation.status = 'completed'
@@ -1103,6 +1122,38 @@ export const createServerCompositeService = async () => {
     createServerLotService(),
     createServerTeamService(),
     createServerContactService()
+  ])
+
+  return new CompositeService(
+    userService,
+    buildingService,
+    lotService,
+    teamService,
+    contactService
+  )
+}
+
+/**
+ * Create Composite Service for Server Actions (READ-WRITE)
+ * ✅ Uses createServerAction*Service() factories which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ *
+ * This is the CRITICAL factory for Server Actions like building creation
+ */
+export const createServerActionCompositeService = async () => {
+  const [
+    userService,
+    buildingService,
+    lotService,
+    teamService,
+    contactService
+  ] = await Promise.all([
+    createServerActionUserService(),
+    createServerActionBuildingService(),
+    createServerActionLotService(),
+    createServerActionTeamService(),
+    createServerActionContactService()
   ])
 
   return new CompositeService(

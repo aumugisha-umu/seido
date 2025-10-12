@@ -49,8 +49,6 @@ interface BuildingInfo {
   postalCode: string
   city: string
   country: string
-  constructionYear: string
-  floors: string
   description: string
   // Champs spécifiques aux lots
   floor?: string
@@ -61,6 +59,7 @@ interface BuildingInfo {
 interface BuildingInfoFormProps {
   buildingInfo: BuildingInfo
   setBuildingInfo: (info: BuildingInfo) => void
+  onNameChange?: (name: string) => void // Callback optionnel pour gérer le changement de nom (empêche auto-fill)
   selectedManagerId: string
   setSelectedManagerId: (_id: string) => void
   teamManagers: Array<{ user: { id: string; name: string } }>
@@ -79,6 +78,7 @@ interface BuildingInfoFormProps {
 export const BuildingInfoForm = ({
   buildingInfo,
   setBuildingInfo,
+  onNameChange,
   selectedManagerId,
   setSelectedManagerId,
   teamManagers,
@@ -232,7 +232,16 @@ export const BuildingInfoForm = ({
           name="name"
           placeholder={entityType === "lot" ? "Lot 1, LOT-A-01, etc." : "Ex: Résidence des Champs-Élysées, Immeuble 1"}
           value={buildingInfo.name}
-          onChange={(e) => setBuildingInfo({ ...buildingInfo, name: e.target.value })}
+          onChange={(e) => {
+            const newName = e.target.value
+            // Si onNameChange est fourni (immeuble avec contrôle auto-fill), l'utiliser
+            if (onNameChange && entityType === "immeuble") {
+              onNameChange(newName)
+            } else {
+              // Sinon, utiliser le comportement par défaut (lots ou immeubles sans contrôle)
+              setBuildingInfo({ ...buildingInfo, name: newName })
+            }
+          }}
           className={`mt-1 h-10 sm:h-11 ${isDuplicateName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
           aria-invalid={isDuplicateName}
           required
@@ -259,7 +268,7 @@ export const BuildingInfoForm = ({
             </Label>
             <Input
               id="address"
-              placeholder="123 Rue de la Paix"
+              placeholder="Rue de la Paix 123"
               value={buildingInfo.address}
               onChange={(e) => setBuildingInfo({ ...buildingInfo, address: e.target.value })}
               className="mt-1 h-10 sm:h-11"
@@ -318,40 +327,7 @@ export const BuildingInfoForm = ({
         </>
       )}
 
-      {entityType === "immeuble" ? (
-        // Champs spécifiques aux immeubles
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <div>
-            <Label
-              htmlFor="constructionYear"
-              className="flex items-center gap-2 text-sm font-medium text-gray-700"
-            >
-              <Calendar className="w-4 h-4" />
-              Année de construction
-            </Label>
-            <Input
-              id="constructionYear"
-              placeholder="2010"
-              value={buildingInfo.constructionYear}
-              onChange={(e) => setBuildingInfo({ ...buildingInfo, constructionYear: e.target.value })}
-              className="mt-1 h-10 sm:h-11"
-            />
-          </div>
-          <div>
-            <Label htmlFor="floors" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <Building className="w-4 h-4" />
-              Nombre d'étages
-            </Label>
-            <Input
-              id="floors"
-              placeholder="4"
-              value={buildingInfo.floors}
-              onChange={(e) => setBuildingInfo({ ...buildingInfo, floors: e.target.value })}
-              className="mt-1 h-10 sm:h-11"
-            />
-          </div>
-        </div>
-      ) : (
+      {entityType === "lot" && (
         // Champs spécifiques aux lots
         <div className="space-y-4 sm:space-y-6">
           {/* Sélection de catégorie */}

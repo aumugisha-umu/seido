@@ -198,7 +198,6 @@ export function PropertyInfoForm({
                       value={lotInfo.floor}
                       onChange={(e) => handleLotInfoChange('floor', e.target.value)}
                     />
-                    <p className="text-xs text-gray-500">De -5 (sous-sol) à 100</p>
                   </div>
 
                   <div className="space-y-2">

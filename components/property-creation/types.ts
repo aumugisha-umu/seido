@@ -34,8 +34,6 @@ export interface AddressInfo {
 // Building information interface (shared between building and lot creation)
 export interface BuildingInfo extends AddressInfo {
   name: string
-  constructionYear: string
-  floors: string
   description: string
 }
 

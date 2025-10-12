@@ -306,12 +306,6 @@ export function PropertiesList({
                             <span>📮 {property.postal_code}</span>
                           </div>
                         )}
-                        {property.construction_year && (
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Construit en {property.construction_year}</span>
-                          </div>
-                        )}
                         {property.lots && property.lots.length > 0 && (
                           <div className="flex items-center space-x-1">
                             <Home className="h-3 w-3" />

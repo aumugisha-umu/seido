@@ -160,7 +160,7 @@ export default function DashboardHeader({
                 <div className="flex-shrink-0">
                   <Link href={`/${role}/dashboard`} className="block">
                     <Image 
-                      src="/images/Seido_Main_Side_last.png"
+                      src="/images/Logo/Logo_Seido_Color.png"
                       alt="SEIDO"
                       width={140}
                       height={38}

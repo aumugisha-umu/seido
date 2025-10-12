@@ -4,7 +4,11 @@
  */
 
 import { BaseRepository } from '../core/base-repository'
-import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
+import {
+  createBrowserSupabaseClient,
+  createServerSupabaseClient,
+  createServerActionSupabaseClient
+} from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Team, TeamMember } from '../core/service-types'
 import { ValidationException, NotFoundException, handleError } from '../core/error-handler'
@@ -130,6 +134,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
         .from('team_members')
         .select('id, team_id, user_id, role, joined_at')
         .in('team_id', teamIds)
+        .is('left_at', null) // ✅ Filter active members only
 
       if (membersError) {
         return { success: false as const, error: handleError(membersError, 'team') }
@@ -207,6 +212,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
         .from('team_members')
         .select('id, user_id, role, joined_at')
         .eq('team_id', id)
+        .is('left_at', null) // ✅ Filter active members only
 
       if (membersError) {
         return { success: false as const, error: handleError(membersError, 'team') }
@@ -339,6 +345,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
         .from('team_members')
         .select('team_id, role, id, joined_at, user_id')
         .eq('user_id', userId)
+        .is('left_at', null) // ✅ Filter active memberships only
 
       // 🔍 DEBUG: Log team_members query result
       logger.info('🔍 [TEAM-REPO-DEBUG] team_members query result:', {
@@ -384,6 +391,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
         .from('team_members')
         .select('id, team_id, user_id, role, joined_at')
         .in('team_id', teamIds)
+        .is('left_at', null) // ✅ Filter active members only
 
       if (allMembersError) {
         throw allMembersError
@@ -741,6 +749,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
         .from('team_members')
         .select('*')
         .eq('team_id', teamId)
+        .is('left_at', null) // ✅ Filter active members only (not left)
         .order('joined_at')
 
       if (membersError) {
@@ -856,5 +865,16 @@ export const createTeamRepository = () => {
 
 export const createServerTeamRepository = async () => {
   const supabase = await createServerSupabaseClient()
+  return new TeamRepository(supabase)
+}
+
+/**
+ * Create Team Repository for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionSupabaseClient() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionTeamRepository = async () => {
+  const supabase = await createServerActionSupabaseClient()
   return new TeamRepository(supabase)
 }

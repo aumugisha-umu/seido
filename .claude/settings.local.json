@@ -4,7 +4,8 @@
       "Bash(git push:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\n📝 Docs: Simplification modèle visibilité documents (3 niveaux)\n\n## Changement modèle de visibilité\n\n**Ancien modèle** (4 niveaux):\n- ❌ `prive` (uploadeur uniquement) - SUPPRIMÉ\n- ✅ `equipe` (team managers)\n- ✅ `locataire` (managers + tenant)\n- ✅ `intervention` (partage temporaire)\n\n**Nouveau modèle** (3 niveaux):\n- ✅ `equipe` (team managers) - **Défaut, favorise collaboration**\n- ✅ `locataire` (managers + tenant)\n- ✅ `intervention` (partage temporaire prestataire)\n\n## Fichiers modifiés\n\n**1. migration-phase2-buildings-lots.md**\n- Enum `document_visibility_level`: 4 → 3 valeurs\n- RLS policy `property_documents_select`: suppression logique `prive`\n- Commentaires et checklist mis à jour\n\n**2. property-document-system.md** (800+ lignes)\n- Tableau Visibility Levels simplifié (3 niveaux)\n- Enum SQL + RLS policies + TypeScript types\n- Validation Zod + Tests RLS adaptés\n- Best practices: privilégier `equipe` par défaut\n- Insight éducatif: philosophie collaboration d''équipe\n\n## Justification\n\n**Simplicité + Collaboration**:\n- Transparence entre gestionnaires (si un gestionnaire absent, collègues accèdent aux docs)\n- Moins de confusion (4 → 3 niveaux)\n- Partage prestataire reste contrôlé via `document_intervention_shares`\n- Audit complet + révocation possible\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Read(//c/Users/arthu/Pictures/Screenshots/**)"
     ],
     "deny": [],
     "ask": []

@@ -4,7 +4,11 @@
  */
 
 import { BaseRepository } from '../core/base-repository'
-import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
+import {
+  createBrowserSupabaseClient,
+  createServerSupabaseClient,
+  createServerActionSupabaseClient
+} from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Contact, ContactInsert, ContactUpdate } from '../core/service-types'
 import { ValidationException, NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
@@ -330,5 +334,16 @@ export const createContactRepository = () => {
 
 export const createServerContactRepository = async () => {
   const supabase = await createServerSupabaseClient()
+  return new ContactRepository(supabase)
+}
+
+/**
+ * Create Contact Repository for Server Actions (READ-WRITE)
+ * ✅ Uses createServerActionSupabaseClient() which can modify cookies
+ * ✅ Maintains auth session for RLS policies (auth.uid() available)
+ * ✅ Use this in Server Actions that perform write operations
+ */
+export const createServerActionContactRepository = async () => {
+  const supabase = await createServerActionSupabaseClient()
   return new ContactRepository(supabase)
 }

@@ -217,11 +217,33 @@ export function handleError(error: unknown, context?: string): RepositoryError {
   // Handle Supabase PostgrestError
   if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
     const repositoryError = transformSupabaseError(error as PostgrestError)
-    logger.error(`${contextMessage}Supabase error:`, {
-      code: repositoryError.code,
-      message: repositoryError.message,
-      details: repositoryError.details
-    })
+    const supabaseError = error as PostgrestError
+
+    // Special handling for PGRST205 (table not found in schema cache)
+    // This is expected when Phase 3 migration (interventions) is not yet applied
+    if (supabaseError.code === 'PGRST205') {
+      const tableName = supabaseError.message?.match(/table '([^']+)'/)?.[1] || 'unknown'
+
+      // Log as INFO instead of ERROR for expected missing tables
+      if (tableName.includes('interventions')) {
+        logger.info(`${contextMessage}Table '${tableName}' not found (Phase 3 migration not yet applied), skipping gracefully`)
+      } else {
+        // For unexpected missing tables, still log as error
+        logger.error(`${contextMessage}Supabase error:`, {
+          code: repositoryError.code,
+          message: repositoryError.message,
+          details: repositoryError.details
+        })
+      }
+    } else {
+      // Log other Supabase errors normally
+      logger.error(`${contextMessage}Supabase error:`, {
+        code: repositoryError.code,
+        message: repositoryError.message,
+        details: repositoryError.details
+      })
+    }
+
     return repositoryError
   }
 

@@ -10,7 +10,7 @@ import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Search, Filter, AlertCir
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { createLotService, createInterventionService, createContactService } from '@/lib/services'
+import { createLotService, createInterventionService, createLotContactRepository } from '@/lib/services'
 
 import { determineAssignmentType } from '@/lib/services'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -85,7 +85,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       // Initialize services
       const lotService = createLotService()
       const interventionService = createInterventionService()
-      const contactService = createContactService()
+      const lotContactRepository = createLotContactRepository()
 
       // 1. Charger les données du lot
       const lotResult = await lotService.getById(resolvedParams.id)
@@ -95,21 +95,63 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       logger.info("🏠 Lot loaded:", lotResult.data)
       setLot(lotResult.data)
 
-      // 2. Charger les interventions du lot
-      const interventionsResult = await interventionService.getByLot(resolvedParams.id)
-      if (!interventionsResult.success) {
-        throw new Error(interventionsResult.error?.message || 'Failed to load interventions')
+      // 2. Charger les interventions du lot (graceful handling for Phase 3 table)
+      try {
+        const interventionsResult = await interventionService.getByLot(resolvedParams.id)
+        if (interventionsResult.success) {
+          logger.info("🔧 Interventions loaded:", interventionsResult.data?.length || 0)
+          setInterventions(interventionsResult.data || [])
+        } else {
+          // Table doesn't exist yet (Phase 3 not applied), skip gracefully
+          logger.info("ℹ️ Interventions table not found (Phase 3 not applied), skipping intervention loading")
+          setInterventions([])
+        }
+      } catch (error) {
+        // Gracefully handle missing table - don't crash the page
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        logger.warn("⚠️ Could not load interventions (Phase 3 not applied):", errorMsg)
+        setInterventions([])
       }
-      logger.info("🔧 Interventions loaded:", interventionsResult.data?.length || 0)
-      setInterventions(interventionsResult.data || [])
 
-      // 3. Charger les contacts du lot
-      const contactsResult = await contactService.getLotContacts(resolvedParams.id)
+      // 3. Charger les contacts du lot (using LotContactRepository)
+      const contactsResult = await lotContactRepository.getAllContacts(resolvedParams.id)
       if (!contactsResult.success) {
         throw new Error(contactsResult.error?.message || 'Failed to load contacts')
       }
-      logger.info("👥 Contacts loaded:", contactsResult.data?.length || 0)
-      setContacts(contactsResult.data || [])
+      // Transform lot_contacts data to ContactWithRelations format (nested user object)
+      const transformedContacts = (contactsResult.data || []).map((lotContact: any) => {
+        // Determine contact type based on user role
+        const userRole = lotContact.user?.role
+        let contactType: 'tenant' | 'owner' | 'manager' | 'provider' = 'tenant'
+        if (userRole === 'locataire') contactType = 'tenant'
+        else if (userRole === 'gestionnaire' || userRole === 'admin') contactType = 'manager'
+        else if (userRole === 'prestataire') contactType = 'provider'
+
+        return {
+          id: lotContact.id,                    // lot_contact.id
+          user_id: lotContact.user_id,
+          lot_id: lotContact.lot_id,
+          building_id: null,
+          type: contactType,
+          status: 'active' as const,
+          created_at: lotContact.created_at || new Date().toISOString(),
+          updated_at: lotContact.updated_at || new Date().toISOString(),
+          user: {                               // Nested user object required by LotContactsList
+            id: lotContact.user?.id,
+            name: lotContact.user?.name || 'Unknown',
+            email: lotContact.user?.email || '',
+            phone: lotContact.user?.phone,
+            role: lotContact.user?.role,
+            provider_category: lotContact.user?.provider_category,
+            is_active: lotContact.user?.is_active !== false,
+            company: lotContact.user?.company,
+            address: lotContact.user?.address,
+            speciality: lotContact.user?.speciality
+          }
+        }
+      })
+      logger.info("👥 Contacts loaded:", transformedContacts.length)
+      setContacts(transformedContacts)
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -181,15 +223,25 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
     try {
       const interventionService = createInterventionService()
 
-      // Get interventions for this lot
-      const interventionsResult = await interventionService.getByLot(resolvedParams.id)
-      if (!interventionsResult.success) {
-        throw new Error(interventionsResult.error?.message || 'Failed to load interventions')
+      // Get interventions for this lot (graceful handling for Phase 3 table)
+      let interventionsData: InterventionData[] = []
+      try {
+        const interventionsResult = await interventionService.getByLot(resolvedParams.id)
+        if (interventionsResult.success) {
+          interventionsData = interventionsResult.data || []
+        } else {
+          // Table doesn't exist yet (Phase 3 not applied), skip gracefully
+          logger.info("ℹ️ Interventions table not found (Phase 3 not applied), skipping documents loading")
+        }
+      } catch (error) {
+        // Gracefully handle missing table
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        logger.warn("⚠️ Could not load interventions for documents (Phase 3 not applied):", errorMsg)
       }
 
       // Fetch documents for each intervention
       const interventionsWithDocsData = await Promise.all(
-        (interventionsResult.data || []).map(async (intervention) => {
+        interventionsData.map(async (intervention) => {
           try {
             const docsResult = await interventionService.getDocuments(intervention.id)
             return {

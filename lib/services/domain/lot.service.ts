@@ -283,6 +283,13 @@ export class LotService {
   }
 
   /**
+   * Get all lots for a team (includes both building-linked and independent lots)
+   */
+  async getLotsByTeam(teamId: string) {
+    return this.repository.findByTeam(teamId)
+  }
+
+  /**
    * Get lots by category
    */
   async getLotsByCategory(

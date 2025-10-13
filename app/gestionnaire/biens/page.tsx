@@ -57,58 +57,71 @@ export default async function BiensPage() {
     const buildings = buildingsResult.data
     logger.info(`🏗️ [BIENS-PAGE] Loaded ${buildings.length} buildings`)
 
-    // 3. Récupérer les lots pour chaque building EN PARALLÈLE
-    logger.info(`🏠 [BIENS-PAGE] Loading lots for ${buildings.length} buildings IN PARALLEL`)
+    // 3. Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
+    logger.info(`🏠 [BIENS-PAGE] Loading ALL lots for team ${teamId} (including independent lots)`)
 
-    const lotsPromises = buildings.map(building =>
-      lotService.getLotsByBuilding(building.id)
-        .then(response => ({
-          buildingId: building.id,
-          buildingName: building.name,
-          lots: response.success ? response.data : [],
-          success: true
-        }))
-        .catch(error => ({
-          buildingId: building.id,
-          buildingName: building.name,
-          lots: [],
-          success: false,
-          error: String(error)
-        }))
-    )
+    const lotsResult = await lotService.getLotsByTeam(teamId)
 
-    const lotsResults = await Promise.all(lotsPromises)
-    const allLots: any[] = []
+    if (!lotsResult.success || !lotsResult.data) {
+      logger.error("❌ [BIENS-PAGE] Error fetching team lots")
+      return (
+        <BiensPageClient
+          initialBuildings={buildings}
+          initialLots={[]}
+          teamId={teamId}
+        />
+      )
+    }
 
-    // Traiter les résultats et attacher aux buildings
-    lotsResults.forEach((result, index) => {
-      const building = buildings[index]
+    const allLots = lotsResult.data
+    logger.info(`🏠 [BIENS-PAGE] Loaded ${allLots.length} total lots for team`)
 
-      if (result.success && result.lots) {
-        const buildingLots = result.lots.map((lot: any) => ({
-          ...lot,
-          building_name: building.name
-        }))
+    // ⚠️ IMPORTANT: Buildings already have lots attached from SQL join in getBuildingsByTeam()
+    // Clear existing lots to prevent duplicates before re-attaching from allLots
+    buildings.forEach((building: any) => {
+      building.lots = []
+    })
 
-        building.lots = buildingLots
-        allLots.push(...buildingLots)
-        logger.info(`✅ [BIENS-PAGE] Loaded ${buildingLots.length} lots for ${result.buildingName}`)
-      } else {
-        building.lots = []
-        if (!result.success) {
-          logger.error(`❌ [BIENS-PAGE] Error loading lots for ${result.buildingName}: ${result.error}`)
+    // Séparer les lots et les attacher aux buildings correspondants
+    const independentLots: any[] = []
+
+    allLots.forEach((lot: any) => {
+      if (lot.building_id) {
+        // Lot lié à un immeuble - attacher au building
+        const building = buildings.find((b: any) => b.id === lot.building_id)
+        if (building) {
+          if (!building.lots) building.lots = []
+          building.lots.push({
+            ...lot,
+            building_name: building.name
+          })
         }
+      } else {
+        // Lot indépendant (building_id: NULL)
+        independentLots.push({
+          ...lot,
+          building_name: null  // Pas d'immeuble associé
+        })
       }
     })
 
-    logger.info(`🏠 [BIENS-PAGE] Total lots loaded: ${allLots.length} (parallel fetch)`)
-    logger.info(`📊 [BIENS-PAGE] Server data ready - Buildings: ${buildings.length}, Lots: ${allLots.length}`)
+    logger.info(`🏢 [BIENS-PAGE] Lots by building: ${allLots.length - independentLots.length}`)
+    logger.info(`🏠 [BIENS-PAGE] Independent lots: ${independentLots.length}`)
+    logger.info(`📊 [BIENS-PAGE] Total lots: ${allLots.length}`)
+
+    // ✅ FIX: Pass ALL lots for display in Lots tab, not just independent ones
+    // Add building_name to each lot for proper display in the UI
+    const allLotsForDisplay = allLots.map((lot: any) => ({
+      ...lot,
+      building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
+    }))
+    logger.info(`📊 [BIENS-PAGE] Server data ready - Buildings: ${buildings.length}, Total lots for display: ${allLotsForDisplay.length}`)
 
     // ✅ Pass data to Client Component
     return (
       <BiensPageClient
         initialBuildings={buildings}
-        initialLots={allLots}
+        initialLots={allLotsForDisplay}
         teamId={teamId}
       />
     )

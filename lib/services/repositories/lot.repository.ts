@@ -196,6 +196,46 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   }
 
   /**
+   * Get all lots for a team (includes lots with and without building)
+   */
+  async findByTeam(teamId: string) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        building:building_id(name, address, city, team_id),
+        lot_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category)
+        )
+      `)
+      .eq('team_id', teamId)
+      .is('deleted_at', null)
+      .order('reference')
+
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+    }
+
+    // Post-process to extract tenants and calculate is_occupied
+    const processedData = data?.map(lot => {
+      const tenants = lot.lot_contacts?.filter((contact: LotContact) =>
+        contact.user?.role === 'locataire'
+      ) || []
+
+      return {
+        ...lot,
+        tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
+          tenants[0]?.user || null,
+        is_occupied: tenants.length > 0,
+        tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
+      }
+    })
+
+    return { success: true as const, data: processedData || [] }
+  }
+
+  /**
    * Get lot by ID with full relations
    */
   async findByIdWithRelations(_id: string) {

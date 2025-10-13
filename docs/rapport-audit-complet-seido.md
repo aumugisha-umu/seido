@@ -4,7 +4,7 @@
 **Version analysée :** Branche `optimization` (Commit actuel)
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 12 octobre 2025 - 19:20 CET (Migration Phase 2.5: Ajout apartment_number + Vue lots_with_contacts)
+**Dernière mise à jour :** 13 octobre 2025 - 11:15 CET (Fix: Duplication data Biens page - Buildings/Lots tabs)
 
 ---
 
@@ -3943,5 +3943,42 @@ Error: DialogContent requires a DialogTitle for the component to be accessible
 - Desktop (1280px+): Layout side-by-side 70/30 préservé
 
 **Statut:** ✅ **CORRIGÉ** - Layout tablet fonctionnel avec visibilité garantie des deux sections
+
+---
+
+## 🐛 FIX: DUPLICATION DATA BIENS PAGE (13/10/2025)
+
+### Problème identifié
+**Fichier:** 
+La page Biens présentait deux problèmes de duplication de données:
+
+1. **Duplication des lots dans les buildings**:
+   - \ retourne déjà les lots via SQL JOIN dans le repository
+   - Le code ajoutait ENCORE les lots dans la boucle forEach (lignes 82-100)
+   - Résultat: Chaque lot apparaissait 2 fois, causant des warnings React de duplicate keys
+
+2. **Tab Lots cassé**:
+   - Seulement 2 lots indépendants affichés au lieu de tous les 7 lots
+   - Variable \ excluait les lots liés aux buildings
+
+### Solution appliquée
+
+**Changement 1** - Clear des lots existants avant re-attachment:
+\
+**Changement 2** - Affichage de TOUS les lots dans l'onglet Lots:
+\
+### Résultats
+- ✅ **Plus de warnings React** sur les duplicate keys
+- ✅ **Tab Buildings** affiche les lots sans duplication
+- ✅ **Tab Lots** affiche tous les 7 lots (5 liés + 2 indépendants)
+- ✅ **Chaque lot existe une seule fois** dans la structure de données
+- ✅ **Build réussi** sans erreurs
+
+### Tests effectués
+- Build production: \ - Succès
+- Vérification structure données: Pas de duplication
+- Affichage UI: Buildings et Lots corrects
+
+**Statut:** ✅ **CORRIGÉ** - Plus de duplication, tous les lots visibles
 
 ---

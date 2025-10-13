@@ -517,12 +517,26 @@ function PropertySelectorView({
             const lotForCard = {
               id: lot.id?.toString() || "",
               reference: lot.reference,
-              tenant_id: lot.status === "occupied" ? "occupied" : null, // Phase 2: Use tenant_id for occupancy
-              lot_tenants: (lot as any).lot_tenants || [],
+              // ✅ Phase 2: Pass lot_contacts and is_occupied for proper occupancy calculation
+              lot_contacts: (lot as any).lot_contacts || [],
+              is_occupied: (lot as any).is_occupied || false,
+              tenant_id: lot.status === "occupied" ? "occupied" : null, // Fallback for compatibility
               tenant: undefined as undefined | { id: string; name: string },
+              // ✅ Pass building with complete address info
               building: lot.building_name
-                ? { id: "", name: lot.building_name, address: undefined, city: undefined }
+                ? {
+                    id: (lot as any).building?.id || "",
+                    name: lot.building_name,
+                    address: (lot as any).building?.address || lot.address || undefined,
+                    city: (lot as any).building?.city || lot.city || undefined
+                  }
                 : undefined,
+              // Additional lot properties for LotCard display
+              floor: (lot as any).floor,
+              surface_area: (lot as any).surface_area,
+              rooms: (lot as any).rooms,
+              apartment_number: (lot as any).apartment_number,
+              category: (lot as any).category,
             }
 
             return (

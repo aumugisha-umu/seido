@@ -86,20 +86,27 @@ export default async function BiensPage() {
     const independentLots: any[] = []
 
     allLots.forEach((lot: any) => {
+      // ✅ Phase 2: Calculate status from is_occupied
+      const isOccupied = lot.is_occupied || false
+      const lotWithStatus = {
+        ...lot,
+        status: isOccupied ? "occupied" : "vacant"
+      }
+
       if (lot.building_id) {
         // Lot lié à un immeuble - attacher au building
         const building = buildings.find((b: any) => b.id === lot.building_id)
         if (building) {
           if (!building.lots) building.lots = []
           building.lots.push({
-            ...lot,
+            ...lotWithStatus,
             building_name: building.name
           })
         }
       } else {
         // Lot indépendant (building_id: NULL)
         independentLots.push({
-          ...lot,
+          ...lotWithStatus,
           building_name: null  // Pas d'immeuble associé
         })
       }
@@ -110,11 +117,15 @@ export default async function BiensPage() {
     logger.info(`📊 [BIENS-PAGE] Total lots: ${allLots.length}`)
 
     // ✅ FIX: Pass ALL lots for display in Lots tab, not just independent ones
-    // Add building_name to each lot for proper display in the UI
-    const allLotsForDisplay = allLots.map((lot: any) => ({
-      ...lot,
-      building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
-    }))
+    // ✅ Phase 2: Calculate status from is_occupied (calculated by repository)
+    const allLotsForDisplay = allLots.map((lot: any) => {
+      const isOccupied = lot.is_occupied || false
+      return {
+        ...lot,
+        status: isOccupied ? "occupied" : "vacant",
+        building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
+      }
+    })
     logger.info(`📊 [BIENS-PAGE] Server data ready - Buildings: ${buildings.length}, Total lots for display: ${allLotsForDisplay.length}`)
 
     // ✅ Pass data to Client Component

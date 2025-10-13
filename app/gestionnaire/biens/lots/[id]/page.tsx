@@ -63,6 +63,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
   const [contacts, setContacts] = useState<ContactData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isOccupied, setIsOccupied] = useState(false) // ✅ Phase 2: Calculated from lot_contacts
   
   // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -152,6 +153,13 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
       })
       logger.info("👥 Contacts loaded:", transformedContacts.length)
       setContacts(transformedContacts)
+
+      // ✅ Phase 2: Calculate occupation from lot_contacts (not tenant_id)
+      const hasTenant = transformedContacts.some(contact =>
+        contact.user?.role === 'locataire'
+      )
+      setIsOccupied(hasTenant)
+      logger.info("🏠 Lot occupation status:", hasTenant ? "Occupied" : "Vacant")
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -460,7 +468,7 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
           reference: lot.reference,
           createdAt: lot.created_at,
           createdBy: lot.manager?.name,
-          isOccupied: !!lot.tenant_id, // Phase 2: Occupancy determined by tenant_id presence
+          isOccupied: isOccupied, // ✅ Phase 2: Calculated from lot_contacts
           apartmentNumber: lot.apartment_number,
           floor: lot.floor,
           building: lot.building ? {
@@ -561,29 +569,33 @@ export default function LotDetailsPage({ params }: { params: Promise<{ id: strin
                 <div className="flex justify-between">
                   <span className="text-gray-600">Statut d'occupation</span>
                   <span className="font-medium">
-                    <Badge variant={lot.tenant_id ? "default" : "secondary"}>
-                      {lot.tenant_id ? "Occupé" : "Vacant"}
+                    <Badge variant={isOccupied ? "default" : "secondary"}>
+                      {isOccupied ? "Occupé" : "Vacant"}
                     </Badge>
                   </span>
                 </div>
-                {lot.tenant && (
-                  <div className="pt-2 border-t">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Locataire</span>
-                      <span className="font-medium">{lot.tenant.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Email</span>
-                      <span className="font-medium text-sm">{lot.tenant.email}</span>
-                    </div>
-                    {lot.tenant.phone && (
+                {(() => {
+                  // ✅ Phase 2: Find tenant from lot_contacts instead of lot.tenant
+                  const tenant = contacts.find(contact => contact.user?.role === 'locataire')?.user
+                  return tenant && (
+                    <div className="pt-2 border-t">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Téléphone</span>
-                        <span className="font-medium">{lot.tenant.phone}</span>
+                        <span className="text-gray-600">Locataire</span>
+                        <span className="font-medium">{tenant.name}</span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Email</span>
+                        <span className="font-medium text-sm">{tenant.email}</span>
+                      </div>
+                      {tenant.phone && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Téléphone</span>
+                          <span className="font-medium">{tenant.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
                 <div className="pt-2 border-t text-xs text-gray-500">
                   Créé le {new Date(lot.created_at).toLocaleDateString('fr-FR')}
                 </div>

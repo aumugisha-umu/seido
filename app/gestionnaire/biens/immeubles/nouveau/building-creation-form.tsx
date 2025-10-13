@@ -1057,7 +1057,7 @@ export default function NewImmeubleePage({
                 <CardContent className="p-4">
                   <ContactSelector
                     ref={contactSelectorRef}
-                    teamId={userTeam?.id}
+                    teamId={userTeam?.id || ""}
                     displayMode="compact"
                     title="Contacts de l'immeuble"
                     description="Disponibles pour tous les lots"
@@ -1178,7 +1178,7 @@ export default function NewImmeubleePage({
                           {/* Section Contacts */}
                           <div className="border border-gray-200 rounded-lg p-3">
                             <ContactSelector
-                              teamId={userTeam?.id}
+                              teamId={userTeam?.id || ""}
                               displayMode="compact"
                               title="Contacts assignés"
                               description="Contacts spécifiques à ce lot"

@@ -1180,7 +1180,7 @@ export default function NewLotPage() {
 
         <ContactSelector
           ref={contactSelectorRef}
-          teamId={userTeam?.id}
+          teamId={userTeam?.id || ""}
           displayMode="full"
           title="Assignation des contacts"
           description="Assignez des contacts à vos lots (optionnel)"

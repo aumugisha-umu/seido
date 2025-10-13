@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import {
   createBuildingService,
-  createLotService,
   createTeamService
 } from "@/lib/services"
 import { logger } from '@/lib/logger'
@@ -106,52 +105,26 @@ export function useBuildings() {
       const buildings = buildingsResult.data
       logger.info("🏗️ [BUILDINGS] Loaded buildings:", buildings.length)
 
-      // 3. Récupérer les lots pour chaque building EN PARALLÈLE (⚡ optimisé)
-      const lotService = createLotService()
-      logger.info("🏠 [BUILDINGS] Loading lots for", buildings.length, "buildings IN PARALLEL")
-
-      const lotsPromises = buildings.map(building =>
-        lotService.getLotsByBuilding(building.id)
-          .then(response => ({
-            buildingId: building.id,
-            buildingName: building.name,
-            lots: response.success ? response.data : [],
-            success: true
-          }))
-          .catch(error => ({
-            buildingId: building.id,
-            buildingName: building.name,
-            lots: [],
-            success: false,
-            error: String(error)
-          }))
-      )
-
-      const lotsResults = await Promise.all(lotsPromises)
+      // ⚡ PERFORMANCE FIX: buildingRepository.findByTeam() already includes lots via SQL JOIN!
+      // No need for N separate queries - just extract and process the lots that are already here
       const allLots: Lot[] = []
 
-      // Traiter les résultats et attacher aux buildings
-      lotsResults.forEach((result, index) => {
-        const building = buildings[index]
+      buildings.forEach((building: Building) => {
+        // Lots are already included in the building from SQL JOIN
+        const buildingLots = (building.lots || []).map((lot: Lot) => ({
+          ...lot,
+          building_name: building.name
+        }))
 
-        if (result.success && result.lots) {
-          const buildingLots = result.lots.map((lot: Lot) => ({
-            ...lot,
-            building_name: building.name
-          }))
+        building.lots = buildingLots
+        allLots.push(...buildingLots)
 
-          building.lots = buildingLots
-          allLots.push(...buildingLots)
-          logger.info(`✅ [BUILDINGS] Loaded ${buildingLots.length} lots for ${result.buildingName}`)
-        } else {
-          building.lots = []
-          if (!result.success) {
-            logger.error(`❌ [BUILDINGS] Error loading lots for ${result.buildingName}:`, result.error)
-          }
+        if (buildingLots.length > 0) {
+          logger.info(`✅ [BUILDINGS] Found ${buildingLots.length} lots for ${building.name} (from JOIN)`)
         }
       })
 
-      logger.info("🏠 [BUILDINGS] Total lots loaded:", allLots.length, "(parallel fetch)")
+      logger.info("🏠 [BUILDINGS] Total lots loaded:", allLots.length, "(single query with JOIN)")
 
       if (mountedRef.current) {
         setData({

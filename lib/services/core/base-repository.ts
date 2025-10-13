@@ -15,6 +15,7 @@ import {
   validateUUID,
   NotFoundException
 } from './error-handler'
+import { cache } from '@/lib/cache/cache-manager'
 
 /**
  * Base repository class providing common CRUD operations
@@ -29,10 +30,47 @@ export abstract class BaseRepository<
   protected readonly tableName: string
   protected readonly cache = new Map<string, { data: unknown; timestamp: number }>()
   protected readonly defaultCacheTTL = 30 // 30 seconds (réduit pour éviter état partagé entre tests)
+  protected readonly listCacheTTL = 300 // 5 minutes for list queries
 
   constructor(supabase: SupabaseClient<Database>, tableName: string) {
     this.supabase = supabase
     this.tableName = tableName
+  }
+
+  /**
+   * ⚡ PERFORMANCE: Generic cached query wrapper for list operations
+   * Uses CacheManager (L1 LRU + L2 Redis) for optimal performance
+   *
+   * @param cacheKey - Unique cache key (e.g., "buildings:team:abc123")
+   * @param fetcher - Async function that performs the actual database query
+   * @param ttl - Time to live in seconds (default: 5 minutes)
+   * @returns Promise with the cached or fresh data
+   */
+  protected async getCachedOrFetch<T>(
+    cacheKey: string,
+    fetcher: () => Promise<T>,
+    ttl = this.listCacheTTL
+  ): Promise<T> {
+    return await cache.getOrSet(cacheKey, fetcher, ttl)
+  }
+
+  /**
+   * Generate cache key for team-scoped queries
+   */
+  protected getTeamCacheKey(teamId: string, suffix = ''): string {
+    return `${this.tableName}:team:${teamId}${suffix ? ':' + suffix : ''}`
+  }
+
+  /**
+   * Invalidate team-scoped cache entries
+   */
+  protected async invalidateTeamCache(teamId?: string): Promise<void> {
+    if (teamId) {
+      await cache.invalidate(`${this.tableName}:team:${teamId}`)
+    } else {
+      // Invalidate all team caches for this table
+      await cache.invalidate(`${this.tableName}:team:`)
+    }
   }
 
   /**
@@ -436,6 +474,7 @@ export abstract class BaseRepository<
   }
 
   protected clearTableCache(): void {
+    // Clear local Map cache
     const tablePrefix = `${this.tableName}:`
     const keysToDelete: string[] = []
     this.cache.forEach((_, key) => {
@@ -444,6 +483,12 @@ export abstract class BaseRepository<
       }
     })
     keysToDelete.forEach(key => this.cache.delete(key))
+
+    // ⚡ PERFORMANCE: Also invalidate CacheManager (L1+L2) cache
+    // Fire-and-forget to avoid blocking mutations
+    cache.invalidate(this.tableName).catch(err => {
+      console.warn(`⚠️ [BaseRepository] Failed to invalidate cache for ${this.tableName}:`, err)
+    })
   }
 
   protected clearAllCache(): void {

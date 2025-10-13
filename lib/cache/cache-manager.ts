@@ -144,11 +144,11 @@ export class CacheManager {
 
     try {
       // Try L1 cache first
-      const l1Result = this.l1Cache.get(key)
+      const l1Result = this.l1Cache.get(_key)
       if (l1Result !== undefined) {
         this.metrics.l1Hits++
         this.updateAverageResponseTime(startTime)
-        console.log(`🎯 [CACHE-L1-HIT] ${key}`)
+        console.log(`🎯 [CACHE-L1-HIT] ${_key}`)
         return l1Result as T
       }
 
@@ -157,27 +157,27 @@ export class CacheManager {
       // Try L2 cache if available
       if (this.l2Cache && this.isRedisAvailable) {
         try {
-          const l2Result = await this.l2Cache.get(key)
+          const l2Result = await this.l2Cache.get(_key)
           if (l2Result) {
             const parsed = JSON.parse(l2Result)
             // Populate L1 cache
-            this.l1Cache.set(key, parsed)
+            this.l1Cache.set(_key, parsed)
             this.metrics.l2Hits++
             this.updateAverageResponseTime(startTime)
-            console.log(`🎯 [CACHE-L2-HIT] ${key}`)
+            console.log(`🎯 [CACHE-L2-HIT] ${_key}`)
             return parsed as T
           }
         } catch (redisError) {
-          console.warn(`⚠️ [CACHE-L2-ERROR] ${key}:`, redisError.message)
+          console.warn(`⚠️ [CACHE-L2-ERROR] ${_key}:`, redisError.message)
         }
       }
 
       this.metrics.l2Misses++
       this.updateAverageResponseTime(startTime)
-      console.log(`❌ [CACHE-MISS] ${key}`)
+      console.log(`❌ [CACHE-MISS] ${_key}`)
       return null
     } catch (error) {
-      console.error(`❌ [CACHE-ERROR] Failed to get ${key}:`, error)
+      console.error(`❌ [CACHE-ERROR] Failed to get ${_key}:`, error)
       return null
     }
   }

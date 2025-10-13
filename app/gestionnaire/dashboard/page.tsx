@@ -122,37 +122,23 @@ export default async function DashboardGestionnaire() {
       }
       allInterventions = interventions
 
-      // ⚡ Phase 2: Charger TOUS les lots en parallèle
-      dashLogger.info('🏠 [DASHBOARD] Loading lots for', buildings.length, 'buildings IN PARALLEL')
-      const lotsPromises = (buildings as Building[]).map((building: Building) =>
-        lotService.getLotsByBuilding(building.id)
-          .then(response => ({
-            buildingId: building.id,
-            buildingName: building.name,
-            lots: response.success ? response.data : [],
-            success: true
-          }))
-          .catch(error => ({
-            buildingId: building.id,
-            buildingName: building.name,
-            lots: [],
-            success: false,
-            error
-          }))
-      )
+      // ⚡ OPTIMISATION: Charger TOUS les lots (building + indépendants) en 1 seule requête team-scoped
+      dashLogger.info('🏠 [DASHBOARD] Loading ALL lots (including independent) for team:', userTeamId)
+      const allLotsResult = await lotService.getLotsByTeam(userTeamId)
 
-      const lotsResults = await Promise.all(lotsPromises)
-      const allLots = lotsResults.flatMap(result => {
-        if (result.success && result.lots) {
-          dashLogger.info(`✅ [DASHBOARD] Lots loaded for ${result.buildingName}:`, result.lots.length)
-          return result.lots
-        } else {
-          dashLogger.error(`❌ [DASHBOARD] Error loading lots for ${result.buildingName}:`, (result as any).error)
-          return []
-        }
-      })
+      let allLots: any[] = []
+      if (allLotsResult.success) {
+        allLots = allLotsResult.data || []
+        dashLogger.info('✅ [DASHBOARD] ALL lots loaded:', allLots.length, '(including independent lots)')
 
-      dashLogger.info('🏠 [DASHBOARD] Total lots loaded:', allLots.length)
+        // Log breakdown for debugging
+        const buildingLots = allLots.filter(lot => lot.building_id)
+        const independentLots = allLots.filter(lot => !lot.building_id)
+        dashLogger.info('  → Building-linked lots:', buildingLots.length)
+        dashLogger.info('  → Independent lots:', independentLots.length)
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error loading lots:', allLotsResult.error)
+      }
 
       // Calculer les statistiques
       dashLogger.info('📊 [DASHBOARD] Calculating stats with:')

@@ -40,8 +40,9 @@ export default async function BiensPage() {
     const teamId = teams[0].id
     logger.info(`🏢 [BIENS-PAGE] Found team: ${teamId}`)
 
-    // 2. Récupérer les buildings de l'équipe
-    const buildingsResult = await buildingService.getBuildingsByTeam(teamId)
+    // ⚡ PERFORMANCE OPTIMIZATION: Use summary query for list view (90% less data)
+    // 2. Récupérer les buildings de l'équipe (version légère)
+    const buildingsResult = await buildingService.getBuildingsByTeamSummary(teamId)
 
     if (!buildingsResult.success || !buildingsResult.data) {
       logger.error("❌ [BIENS-PAGE] Error fetching buildings")
@@ -55,7 +56,7 @@ export default async function BiensPage() {
     }
 
     const buildings = buildingsResult.data
-    logger.info(`🏗️ [BIENS-PAGE] Loaded ${buildings.length} buildings`)
+    logger.info(`🏗️ [BIENS-PAGE] Loaded ${buildings.length} buildings (summary view)`)
 
     // 3. Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
     logger.info(`🏠 [BIENS-PAGE] Loading ALL lots for team ${teamId} (including independent lots)`)
@@ -76,8 +77,7 @@ export default async function BiensPage() {
     const allLots = lotsResult.data
     logger.info(`🏠 [BIENS-PAGE] Loaded ${allLots.length} total lots for team`)
 
-    // ⚠️ IMPORTANT: Buildings already have lots attached from SQL join in getBuildingsByTeam()
-    // Clear existing lots to prevent duplicates before re-attaching from allLots
+    // Initialize lots array for each building
     buildings.forEach((building: any) => {
       building.lots = []
     })

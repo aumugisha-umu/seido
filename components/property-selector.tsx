@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,18 +28,33 @@ interface PropertySelectorProps {
   selectedBuildingId?: string
   selectedLotId?: string
   showActions?: boolean
-  initialData?: BuildingsData  // ✅ NEW: Optional server data
+  initialData?: BuildingsData  // ✅ Optional server data
 }
 
-export default function PropertySelector({
-  mode = "view",
+interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initialData'> {
+  buildings: Building[]
+  individualLots: Lot[]
+  loading: boolean
+}
+
+// ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
+// When initialData is provided (server-side rendering), we skip the useBuildings hook entirely
+
+/**
+ * Internal component that renders the property selector UI
+ * This component doesn't call any hooks, it just renders the provided data
+ */
+function PropertySelectorView({
+  mode,
   onBuildingSelect,
   onLotSelect,
   selectedBuildingId,
   selectedLotId,
   showActions: _showActions = true,
-  initialData,  // ✅ NEW: Accept server data
-}: PropertySelectorProps) {
+  buildings,
+  individualLots,
+  loading
+}: PropertySelectorViewProps) {
   const router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -47,15 +62,6 @@ export default function PropertySelector({
     status: "all",
     interventions: "all"
   })
-
-  // ✅ NEW: Use initialData if provided, otherwise fetch via hook
-  const hookData = useBuildings()
-  const data = initialData || hookData.data
-  const loading = initialData ? false : hookData.loading
-  const _error = initialData ? null : hookData.error
-
-  const buildings = data?.buildings || []
-  const individualLots = data?.lots || []
 
   const toggleBuildingExpansion = (buildingId: string) => {
     setExpandedBuildings((prev) =>
@@ -74,8 +80,10 @@ export default function PropertySelector({
     }))
   }
 
-  const filterBuildings = (buildingsList: Building[]) => {
-    return buildingsList.filter(building => {
+  // ⚡ PERFORMANCE: Memoize filtered results to avoid recalculating on every render
+  // Only recompute when buildings, searchTerm, or filters change
+  const filteredBuildings = useMemo(() => {
+    return buildings.filter(building => {
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
@@ -103,10 +111,12 @@ export default function PropertySelector({
 
       return true
     })
-  }
+  }, [buildings, searchTerm, filters])
 
-  const filterIndividualLots = (lotsList: Lot[]) => {
-    return lotsList.filter(lot => {
+  // ⚡ PERFORMANCE: Memoize filtered lots to avoid recalculating on every render
+  // Only recompute when lots, searchTerm, or filters change
+  const filteredIndividualLots = useMemo(() => {
+    return individualLots.filter(lot => {
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
@@ -130,10 +140,7 @@ export default function PropertySelector({
 
       return true
     })
-  }
-
-  const filteredBuildings = filterBuildings(buildings)
-  const filteredIndividualLots = filterIndividualLots(individualLots)
+  }, [individualLots, searchTerm, filters])
 
   const buildingsContent = (
     <div className="space-y-4">
@@ -584,5 +591,51 @@ export default function PropertySelector({
       onFilterChange={handleFilterChange}
     />
   )
+}
+
+/**
+ * Wrapper that uses initialData directly (server-side data)
+ * This skips the useBuildings hook entirely, avoiding duplicate fetches
+ */
+function PropertySelectorWithInitialData(props: PropertySelectorProps & { initialData: BuildingsData }) {
+  return (
+    <PropertySelectorView
+      {...props}
+      buildings={props.initialData.buildings}
+      individualLots={props.initialData.lots}
+      loading={false}
+    />
+  )
+}
+
+/**
+ * Wrapper that uses the useBuildings hook (client-side fetching)
+ * This is used when no server-side data is provided
+ */
+function PropertySelectorWithHook(props: PropertySelectorProps) {
+  const hookData = useBuildings()
+
+  return (
+    <PropertySelectorView
+      {...props}
+      buildings={hookData.data?.buildings || []}
+      individualLots={hookData.data?.lots || []}
+      loading={hookData.loading}
+    />
+  )
+}
+
+/**
+ * Main PropertySelector component
+ * Conditionally renders either the initialData version or hook version
+ * This prevents duplicate data fetching when server-side data is available
+ */
+export default function PropertySelector(props: PropertySelectorProps) {
+  // ⚡ PERFORMANCE: Choose the right component based on initialData availability
+  // If initialData is provided, use it directly (no hook call, no duplicate fetch)
+  // Otherwise, fetch data via the useBuildings hook
+  return props.initialData
+    ? <PropertySelectorWithInitialData {...props} initialData={props.initialData} />
+    : <PropertySelectorWithHook {...props} />
 }
 

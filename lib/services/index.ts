@@ -192,7 +192,8 @@ export {
 export {
   LotService,
   createLotService,
-  createServerLotService
+  createServerLotService,
+  createServerActionLotService // For Server Actions (READ-WRITE)
 } from './domain/lot.service'
 
 // Phase 3: Business Services Exports
@@ -207,7 +208,8 @@ export {
   ContactService,
   createContactService,
   createContactService as createBrowserContactService, // Alias for client-side usage
-  createServerContactService
+  createServerContactService,
+  createServerActionContactService // For Server Actions (READ-WRITE)
 } from './domain/contact.service'
 
 // Intervention Service

@@ -297,6 +297,31 @@ export class ContactService {
   }
 
   /**
+   * Add contact to lot via lot_contacts table (Phase 2 architecture)
+   * @param lotId - Lot UUID
+   * @param userId - User/Contact UUID
+   * @param isPrimary - Whether this is the primary contact (default: false)
+   */
+  async addContactToLot(lotId: string, userId: string, isPrimary = false) {
+    try {
+      // Import and create lot contact repository
+      const { createServerActionLotContactRepository } = await import('../repositories/lot-contact.repository')
+      const lotContactRepo = await createServerActionLotContactRepository()
+
+      // Assign contact using repository
+      const result = await lotContactRepo.assignTenant(lotId, userId, isPrimary)
+
+      if (result.success && result.data) {
+        await this.logLotContactAssignment(lotId, userId, isPrimary)
+      }
+
+      return result
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
    * Log contact creation activity (NEW SCHEMA)
    */
   private async logContactCreation(contact: Contact) {
@@ -341,6 +366,18 @@ export class ContactService {
   ) {
     // In production, this would use the activity-logger service
     logger.info('User removed from team:', { teamId, userId })
+  }
+
+  /**
+   * Log lot contact assignment activity (Phase 2)
+   */
+  private async logLotContactAssignment(
+    lotId: string,
+    userId: string,
+    isPrimary: boolean
+  ) {
+    // In production, this would use the activity-logger service
+    logger.info('✅ User assigned to lot via lot_contacts:', { lotId, userId, isPrimary })
   }
 }
 

@@ -19,9 +19,10 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { TeamCheckModal } from "@/components/team-check-modal"
-import { createTeamService, createLotService, createContactService, createContactInvitationService } from "@/lib/services"
+import { createTeamService, createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team } from "@/lib/services/core/service-types"
 import { useToast } from "@/hooks/use-toast"
+import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction } from "./actions"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -159,7 +160,6 @@ export default function NewLotPage() {
   // Initialize services
   const [teamService] = useState(() => createTeamService())
   const [lotService] = useState(() => createLotService())
-  const [contactService] = useState(() => createContactService())
   const [contactInvitationService] = useState(() => createContactInvitationService())
 
   // Set mounted flag to prevent hydration mismatch
@@ -273,7 +273,7 @@ export default function NewLotPage() {
 
       try {
         logger.info("📊 Loading lot counts by category for team:", userTeam.id)
-        const result = await lotService.getCountByCategory(userTeam.id)
+        const result = await lotService.getLotStatsByCategory(userTeam.id)
         if (result.success) {
           logger.info("✅ Category counts loaded:", result.data)
           setCategoryCountsByTeam(result.data || {})
@@ -440,10 +440,21 @@ export default function NewLotPage() {
         // Note: surface_area et rooms supprimés - colonnes inexistantes dans la DB
       }
 
-      // Créer le lot
-      const result = await lotService.create(lotDataToCreate)
-      
-      logger.info("✅ Lot created successfully:", result)
+      // Créer le lot via Server Action pour avoir le bon contexte d'authentification
+      const result = await createLotAction(lotDataToCreate)
+
+      if (!result.success || !result.data) {
+        logger.error("❌ Lot creation failed:", result.error)
+        toast({
+          title: "Erreur lors de la création du lot",
+          description: result.error?.message || "Une erreur est survenue",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const createdLot = result.data
+      logger.info("✅ Lot created successfully:", createdLot)
 
       // Assigner les gestionnaires au lot via lot_contacts si des gestionnaires ont été sélectionnés
       if (lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) {
@@ -453,9 +464,9 @@ export default function NewLotPage() {
         const managerAssignmentPromises = lotData.assignedLotManagers.map(async (manager, index) => {
           try {
             const isPrincipal = index === 0
-            logger.info(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${result.id} as ${isPrincipal ? 'principal' : 'additional'}`)
-            return await contactService.addContactToLot(
-              result.id,
+            logger.info(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${createdLot.id} as ${isPrincipal ? 'principal' : 'additional'}`)
+            return await assignContactToLotAction(
+              createdLot.id,
               manager.id,
               isPrincipal // Le premier est principal, les autres sont additionnels
             )
@@ -486,11 +497,11 @@ export default function NewLotPage() {
           contacts.map(async (contact, index) => {
             try {
               const isPrimary = index === 0 // Le premier contact de chaque type est principal
-              logger.info(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${result.id}`)
-              return await contactService.addContactToLot(
-                result.id,
+              logger.info(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${createdLot.id}`)
+              return await assignContactToLotAction(
+                createdLot.id,
                 contact.id,
-                _isPrimary
+                isPrimary
               )
             } catch (error) {
               logger.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
@@ -512,7 +523,7 @@ export default function NewLotPage() {
       // Gérer le succès avec la nouvelle stratégie
       await handleSuccess({
         successTitle: "Lot créé avec succès",
-        successDescription: `Le lot "${result.reference}" a été créé et assigné à votre équipe.`,
+        successDescription: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.`,
         redirectPath: "/gestionnaire/biens",
         refreshData: refetchManagerData,
       })
@@ -542,8 +553,8 @@ export default function NewLotPage() {
         return
       }
 
-      // Utiliser le service d'invitation pour créer le gestionnaire et optionnellement l'utilisateur
-      const result = await contactInvitationService.createContactWithOptionalInvite({
+      // Utiliser la Server Action pour créer le gestionnaire avec le bon contexte d'authentification
+      const result = await createContactWithOptionalInviteAction({
         type: 'gestionnaire',
         firstName: contactData.firstName,
         lastName: contactData.lastName,
@@ -556,22 +567,32 @@ export default function NewLotPage() {
         teamId: userTeam.id
       })
 
+      if (!result.success || !result.data) {
+        logger.error("❌ Failed to create manager:", result.error)
+        toast({
+          title: "Erreur lors de la création du gestionnaire",
+          description: typeof result.error === 'string' ? result.error : "Une erreur est survenue",
+          variant: "destructive",
+        })
+        return
+      }
+
       // Si l'invitation a réussi, l'utilisateur sera créé avec les bonnes permissions
       // Créer l'objet manager pour l'état local avec l'ID réel du contact
       const newManager = {
         user: {
-          id: result.contact.id, // Utiliser l'ID réel du contact
-          name: result.contact.name,
-          email: result.contact.email,
+          id: result.data.contact.id, // Utiliser l'ID réel du contact
+          name: result.data.contact.name,
+          email: result.data.contact.email,
           role: 'gestionnaire'
         },
         role: 'gestionnaire' // Aligné avec user.role et team_member_role enum
       }
-      
+
       setTeamManagers([...teamManagers, newManager])
       setIsGestionnaireModalOpen(false)
-      
-      logger.info("✅ Gestionnaire créé avec succès, ID:", result.contact.id)
+
+      logger.info("✅ Gestionnaire créé avec succès, ID:", result.data.contact.id)
       
     } catch (error) {
       logger.error("❌ Erreur lors de la création du gestionnaire:", error)

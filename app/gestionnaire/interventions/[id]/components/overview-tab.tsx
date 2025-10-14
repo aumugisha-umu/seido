@@ -1,0 +1,339 @@
+'use client'
+
+/**
+ * Overview Tab Component for Gestionnaire
+ * Displays intervention details, status timeline, assignments, and workflow actions
+ */
+
+import { useState } from 'react'
+import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
+import { StatusTimeline } from '@/components/interventions/status-timeline'
+import { AssignmentCard } from '@/components/interventions/assignment-card'
+import { WorkflowActions } from '@/components/interventions/workflow-actions'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { toast } from 'sonner'
+import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
+import { createBrowserSupabaseClient } from '@/lib/services'
+import { UserPlus, Timeline, AlertCircle } from 'lucide-react'
+import type { Database } from '@/lib/database.types'
+
+type Intervention = Database['public']['Tables']['interventions']['Row'] & {
+  building?: Database['public']['Tables']['buildings']['Row']
+  lot?: Database['public']['Tables']['lots']['Row']
+  tenant?: Database['public']['Tables']['users']['Row']
+}
+
+type Assignment = Database['public']['Tables']['intervention_assignments']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
+interface OverviewTabProps {
+  intervention: Intervention
+  assignments: Assignment[]
+  onRefresh: () => void
+}
+
+export function OverviewTab({
+  intervention,
+  assignments,
+  onRefresh
+}: OverviewTabProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedRole, setSelectedRole] = useState<'gestionnaire' | 'prestataire'>('prestataire')
+  const [availableUsers, setAvailableUsers] = useState<Database['public']['Tables']['users']['Row'][]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [assigning, setAssigning] = useState(false)
+
+  // Load available users based on role
+  const loadAvailableUsers = async (role: 'gestionnaire' | 'prestataire') => {
+    setLoadingUsers(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', role)
+        .eq('is_active', true)
+        .order('name')
+
+      if (error) throw error
+      setAvailableUsers(data || [])
+    } catch (error) {
+      console.error('Error loading users:', error)
+      toast.error('Erreur lors du chargement des utilisateurs')
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  // Handle role change
+  const handleRoleChange = (role: 'gestionnaire' | 'prestataire') => {
+    setSelectedRole(role)
+    setSelectedUserId('')
+    loadAvailableUsers(role)
+  }
+
+  // Open assign dialog
+  const handleOpenAssignDialog = () => {
+    setAssignDialogOpen(true)
+    loadAvailableUsers(selectedRole)
+  }
+
+  // Handle assign user
+  const handleAssignUser = async () => {
+    if (!selectedUserId) {
+      toast.error('Veuillez sélectionner un utilisateur')
+      return
+    }
+
+    setAssigning(true)
+    try {
+      const result = await assignUserAction(intervention.id, selectedUserId, selectedRole)
+      if (result.success) {
+        toast.success('Utilisateur attribué avec succès')
+        setAssignDialogOpen(false)
+        setSelectedUserId('')
+        onRefresh()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (error) {
+      console.error('Error assigning user:', error)
+      toast.error('Erreur lors de l\'attribution')
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  // Handle remove assignment
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    const assignment = assignments.find(a => a.id === assignmentId)
+    if (!assignment) return
+
+    try {
+      const result = await unassignUserAction(
+        intervention.id,
+        assignment.user_id,
+        assignment.role
+      )
+      if (result.success) {
+        toast.success('Attribution retirée avec succès')
+        onRefresh()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (error) {
+      console.error('Error removing assignment:', error)
+      toast.error('Erreur lors du retrait de l\'attribution')
+    }
+  }
+
+  // Handle status change from workflow actions
+  const handleStatusChange = () => {
+    onRefresh()
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Main content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Intervention details */}
+          <InterventionOverviewCard intervention={intervention} />
+
+          {/* Workflow actions */}
+          <WorkflowActions
+            interventionId={intervention.id}
+            currentStatus={intervention.status}
+            userRole="gestionnaire"
+            onStatusChange={handleStatusChange}
+          />
+
+          {/* Assignments */}
+          <AssignmentCard
+            assignments={assignments}
+            canManage={true}
+            onAssign={handleOpenAssignDialog}
+            onRemove={handleRemoveAssignment}
+          />
+        </div>
+
+        {/* Right column - Status timeline */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Timeline className="w-5 h-5" />
+                Progression
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatusTimeline
+                currentStatus={intervention.status}
+                createdAt={intervention.created_at}
+                scheduledDate={intervention.scheduled_date}
+                completedDate={intervention.completed_date}
+                rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
+                cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Quick stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Informations clés</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Référence</span>
+                <span className="font-medium">{intervention.reference}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Type</span>
+                <span className="font-medium capitalize">
+                  {intervention.type.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Urgence</span>
+                <span className="font-medium capitalize">{intervention.urgency}</span>
+              </div>
+              {intervention.building && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Immeuble</span>
+                  <span className="font-medium">{intervention.building.name}</span>
+                </div>
+              )}
+              {intervention.lot && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Lot</span>
+                  <span className="font-medium">{intervention.lot.reference}</span>
+                </div>
+              )}
+              {intervention.tenant && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Demandeur</span>
+                  <span className="font-medium">{intervention.tenant.name}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Alerts or important notes */}
+          {intervention.urgency === 'urgente' && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                  <AlertCircle className="w-5 h-5" />
+                  Intervention urgente
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-orange-700">
+                  Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Assign User Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Attribuer un utilisateur</DialogTitle>
+            <DialogDescription>
+              Sélectionnez un utilisateur à attribuer à cette intervention
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="role">Rôle</Label>
+              <Select
+                value={selectedRole}
+                onValueChange={(value) => handleRoleChange(value as 'gestionnaire' | 'prestataire')}
+                disabled={loadingUsers}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gestionnaire">Gestionnaire</SelectItem>
+                  <SelectItem value="prestataire">Prestataire</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="user">Utilisateur</Label>
+              <Select
+                value={selectedUserId}
+                onValueChange={setSelectedUserId}
+                disabled={loadingUsers || availableUsers.length === 0}
+              >
+                <SelectTrigger id="user">
+                  <SelectValue placeholder={
+                    loadingUsers
+                      ? "Chargement..."
+                      : availableUsers.length === 0
+                        ? "Aucun utilisateur disponible"
+                        : "Sélectionnez un utilisateur"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableUsers
+                    .filter(user => !assignments.some(a => a.user_id === user.id))
+                    .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} {user.email && `(${user.email})`}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAssignDialogOpen(false)}
+              disabled={assigning}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleAssignUser}
+              disabled={!selectedUserId || assigning}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              {assigning ? 'Attribution...' : 'Attribuer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}

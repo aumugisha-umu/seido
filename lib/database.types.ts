@@ -39,6 +39,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action_type: Database["public"]["Enums"]["activity_action_type"]
+          created_at: string
+          description: string
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: Database["public"]["Enums"]["activity_entity_type"]
+          error_message: string | null
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          status: Database["public"]["Enums"]["activity_status"]
+          team_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["activity_action_type"]
+          created_at?: string
+          description: string
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type: Database["public"]["Enums"]["activity_entity_type"]
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["activity_status"]
+          team_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["activity_action_type"]
+          created_at?: string
+          description?: string
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: Database["public"]["Enums"]["activity_entity_type"]
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["activity_status"]
+          team_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       building_contacts: {
         Row: {
           building_id: string
@@ -243,6 +309,708 @@ export type Database = {
           },
         ]
       }
+      conversation_messages: {
+        Row: {
+          content: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          metadata: Json | null
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          metadata?: Json | null
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          metadata?: Json | null
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          last_read_at: string | null
+          last_read_message_id: string | null
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          last_read_message_id?: string | null
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          last_read_message_id?: string | null
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_last_read_message_id_fkey"
+            columns: ["last_read_message_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_threads: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          intervention_id: string
+          last_message_at: string | null
+          message_count: number | null
+          team_id: string
+          thread_type: Database["public"]["Enums"]["conversation_thread_type"]
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          intervention_id: string
+          last_message_at?: string | null
+          message_count?: number | null
+          team_id: string
+          thread_type: Database["public"]["Enums"]["conversation_thread_type"]
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          intervention_id?: string
+          last_message_at?: string | null
+          message_count?: number | null
+          team_id?: string
+          thread_type?: Database["public"]["Enums"]["conversation_thread_type"]
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_threads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          created_at: string
+          id: string
+          intervention_id: string
+          is_primary: boolean | null
+          notes: string | null
+          notified: boolean | null
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          intervention_id: string
+          is_primary?: boolean | null
+          notes?: string | null
+          notified?: boolean | null
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          intervention_id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          notified?: boolean | null
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_assignments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_documents: {
+        Row: {
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          document_type: Database["public"]["Enums"]["intervention_document_type"]
+          file_size: number
+          filename: string
+          id: string
+          intervention_id: string
+          is_validated: boolean | null
+          message_id: string | null
+          mime_type: string
+          original_filename: string
+          storage_bucket: string
+          storage_path: string
+          team_id: string
+          updated_at: string | null
+          uploaded_at: string
+          uploaded_by: string
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          document_type?: Database["public"]["Enums"]["intervention_document_type"]
+          file_size: number
+          filename: string
+          id?: string
+          intervention_id: string
+          is_validated?: boolean | null
+          message_id?: string | null
+          mime_type: string
+          original_filename: string
+          storage_bucket?: string
+          storage_path: string
+          team_id: string
+          updated_at?: string | null
+          uploaded_at?: string
+          uploaded_by: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          document_type?: Database["public"]["Enums"]["intervention_document_type"]
+          file_size?: number
+          filename?: string
+          id?: string
+          intervention_id?: string
+          is_validated?: boolean | null
+          message_id?: string | null
+          mime_type?: string
+          original_filename?: string
+          storage_bucket?: string
+          storage_path?: string
+          team_id?: string
+          updated_at?: string | null
+          uploaded_at?: string
+          uploaded_by?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_documents_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_documents_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_documents_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_documents_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_quotes: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          currency: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          intervention_id: string
+          line_items: Json | null
+          provider_id: string
+          quote_type: string
+          rejection_reason: string | null
+          status: string
+          team_id: string
+          updated_at: string
+          valid_until: string | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          intervention_id: string
+          line_items?: Json | null
+          provider_id: string
+          quote_type: string
+          rejection_reason?: string | null
+          status?: string
+          team_id: string
+          updated_at?: string
+          valid_until?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          intervention_id?: string
+          line_items?: Json | null
+          provider_id?: string
+          quote_type?: string
+          rejection_reason?: string | null
+          status?: string
+          team_id?: string
+          updated_at?: string
+          valid_until?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_quotes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_quotes_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_quotes_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_quotes_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_quotes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_quotes_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_reports: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          intervention_id: string
+          is_internal: boolean | null
+          metadata: Json | null
+          report_type: string
+          team_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          intervention_id: string
+          is_internal?: boolean | null
+          metadata?: Json | null
+          report_type: string
+          team_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          intervention_id?: string
+          is_internal?: boolean | null
+          metadata?: Json | null
+          report_type?: string
+          team_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_reports_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_reports_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_reports_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_time_slots: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          intervention_id: string
+          is_selected: boolean | null
+          notes: string | null
+          proposed_by: string | null
+          slot_date: string
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          intervention_id: string
+          is_selected?: boolean | null
+          notes?: string | null
+          proposed_by?: string | null
+          slot_date: string
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          intervention_id?: string
+          is_selected?: boolean | null
+          notes?: string | null
+          proposed_by?: string | null
+          slot_date?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_time_slots_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_time_slots_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interventions: {
+        Row: {
+          building_id: string | null
+          completed_date: string | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string
+          estimated_cost: number | null
+          final_cost: number | null
+          id: string
+          lot_id: string | null
+          manager_comment: string | null
+          metadata: Json | null
+          provider_comment: string | null
+          reference: string
+          requested_date: string | null
+          scheduled_date: string | null
+          status: Database["public"]["Enums"]["intervention_status"]
+          team_id: string
+          tenant_comment: string | null
+          tenant_id: string
+          title: string
+          type: Database["public"]["Enums"]["intervention_type"]
+          updated_at: string
+          urgency: Database["public"]["Enums"]["intervention_urgency"]
+        }
+        Insert: {
+          building_id?: string | null
+          completed_date?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description: string
+          estimated_cost?: number | null
+          final_cost?: number | null
+          id?: string
+          lot_id?: string | null
+          manager_comment?: string | null
+          metadata?: Json | null
+          provider_comment?: string | null
+          reference: string
+          requested_date?: string | null
+          scheduled_date?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"]
+          team_id: string
+          tenant_comment?: string | null
+          tenant_id: string
+          title: string
+          type: Database["public"]["Enums"]["intervention_type"]
+          updated_at?: string
+          urgency?: Database["public"]["Enums"]["intervention_urgency"]
+        }
+        Update: {
+          building_id?: string | null
+          completed_date?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string
+          estimated_cost?: number | null
+          final_cost?: number | null
+          id?: string
+          lot_id?: string | null
+          manager_comment?: string | null
+          metadata?: Json | null
+          provider_comment?: string | null
+          reference?: string
+          requested_date?: string | null
+          scheduled_date?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"]
+          team_id?: string
+          tenant_comment?: string | null
+          tenant_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["intervention_type"]
+          updated_at?: string
+          urgency?: Database["public"]["Enums"]["intervention_urgency"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lot_contacts: {
         Row: {
           created_at: string
@@ -382,6 +1150,82 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          archived: boolean | null
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          priority: Database["public"]["Enums"]["notification_priority"]
+          read: boolean | null
+          read_at: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          team_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          read?: boolean | null
+          read_at?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          team_id?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          archived?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          read?: boolean | null
+          read_at?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          team_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -854,16 +1698,52 @@ export type Database = {
       }
     }
     Functions: {
+      can_manage_intervention: {
+        Args: { p_intervention_id: string }
+        Returns: boolean
+      }
+      can_manage_quote: {
+        Args: { p_quote_id: string }
+        Returns: boolean
+      }
+      can_manage_time_slot: {
+        Args: { p_intervention_id: string }
+        Returns: boolean
+      }
       can_manager_update_user: {
         Args: { target_user_id: string }
+        Returns: boolean
+      }
+      can_send_message_in_thread: {
+        Args: { p_thread_id: string }
+        Returns: boolean
+      }
+      can_validate_document: {
+        Args: { p_document_id: string }
         Returns: boolean
       }
       can_view_building: {
         Args: { building_uuid: string }
         Returns: boolean
       }
+      can_view_conversation: {
+        Args: { p_thread_id: string }
+        Returns: boolean
+      }
+      can_view_intervention: {
+        Args: { p_intervention_id: string }
+        Returns: boolean
+      }
       can_view_lot: {
         Args: { lot_uuid: string }
+        Returns: boolean
+      }
+      can_view_quote: {
+        Args: { p_quote_id: string }
+        Returns: boolean
+      }
+      can_view_report: {
+        Args: { p_report_id: string }
         Returns: boolean
       }
       expire_old_invitations: {
@@ -882,6 +1762,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_intervention_team_id: {
+        Args: { p_intervention_id: string }
+        Returns: string
+      }
       get_lot_team_id: {
         Args: { lot_uuid: string }
         Returns: string
@@ -896,8 +1780,24 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_assigned_to_intervention: {
+        Args: { p_intervention_id: string }
+        Returns: boolean
+      }
+      is_document_owner: {
+        Args: { p_document_id: string }
+        Returns: boolean
+      }
       is_gestionnaire: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_manager_of_intervention_team: {
+        Args: { p_intervention_id: string }
+        Returns: boolean
+      }
+      is_notification_recipient: {
+        Args: { p_notification_id: string }
         Returns: boolean
       }
       is_team_manager: {
@@ -906,6 +1806,10 @@ export type Database = {
       }
       is_team_member: {
         Args: { allowed_roles?: string[]; check_team_id: string }
+        Returns: boolean
+      }
+      is_tenant_of_intervention: {
+        Args: { p_intervention_id: string }
         Returns: boolean
       }
       is_tenant_of_lot: {
@@ -926,6 +1830,40 @@ export type Database = {
       }
     }
     Enums: {
+      activity_action_type:
+        | "create"
+        | "update"
+        | "delete"
+        | "view"
+        | "assign"
+        | "unassign"
+        | "approve"
+        | "reject"
+        | "upload"
+        | "download"
+        | "share"
+        | "comment"
+        | "status_change"
+        | "send_notification"
+        | "login"
+        | "logout"
+      activity_entity_type:
+        | "user"
+        | "team"
+        | "building"
+        | "lot"
+        | "intervention"
+        | "document"
+        | "contact"
+        | "notification"
+        | "message"
+        | "quote"
+        | "report"
+      activity_status: "success" | "failure" | "pending"
+      conversation_thread_type:
+        | "group"
+        | "tenant_to_managers"
+        | "provider_to_managers"
       country:
         | "belgique"
         | "france"
@@ -934,7 +1872,30 @@ export type Database = {
         | "suisse"
         | "luxembourg"
         | "autre"
-      document_visibility_level: "equipe" | "locataire"
+      document_visibility_level: "equipe" | "locataire" | "intervention"
+      intervention_document_type:
+        | "rapport"
+        | "photo_avant"
+        | "photo_apres"
+        | "facture"
+        | "devis"
+        | "plan"
+        | "certificat"
+        | "garantie"
+        | "bon_de_commande"
+        | "autre"
+      intervention_status:
+        | "demande"
+        | "rejetee"
+        | "approuvee"
+        | "demande_de_devis"
+        | "planification"
+        | "planifiee"
+        | "en_cours"
+        | "cloturee_par_prestataire"
+        | "cloturee_par_locataire"
+        | "cloturee_par_gestionnaire"
+        | "annulee"
       intervention_type:
         | "plomberie"
         | "electricite"
@@ -944,6 +1905,7 @@ export type Database = {
         | "menage"
         | "jardinage"
         | "autre"
+      intervention_urgency: "basse" | "normale" | "haute" | "urgente"
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       lot_category:
         | "appartement"
@@ -953,6 +1915,17 @@ export type Database = {
         | "local_commercial"
         | "parking"
         | "autre"
+      notification_priority: "low" | "normal" | "high" | "urgent"
+      notification_type:
+        | "intervention"
+        | "chat"
+        | "document"
+        | "system"
+        | "team_invite"
+        | "assignment"
+        | "status_change"
+        | "reminder"
+        | "deadline"
       property_document_type:
         | "bail"
         | "garantie"
@@ -1105,6 +2078,43 @@ export const Constants = {
   },
   public: {
     Enums: {
+      activity_action_type: [
+        "create",
+        "update",
+        "delete",
+        "view",
+        "assign",
+        "unassign",
+        "approve",
+        "reject",
+        "upload",
+        "download",
+        "share",
+        "comment",
+        "status_change",
+        "send_notification",
+        "login",
+        "logout",
+      ],
+      activity_entity_type: [
+        "user",
+        "team",
+        "building",
+        "lot",
+        "intervention",
+        "document",
+        "contact",
+        "notification",
+        "message",
+        "quote",
+        "report",
+      ],
+      activity_status: ["success", "failure", "pending"],
+      conversation_thread_type: [
+        "group",
+        "tenant_to_managers",
+        "provider_to_managers",
+      ],
       country: [
         "belgique",
         "france",
@@ -1114,7 +2124,32 @@ export const Constants = {
         "luxembourg",
         "autre",
       ],
-      document_visibility_level: ["equipe", "locataire"],
+      document_visibility_level: ["equipe", "locataire", "intervention"],
+      intervention_document_type: [
+        "rapport",
+        "photo_avant",
+        "photo_apres",
+        "facture",
+        "devis",
+        "plan",
+        "certificat",
+        "garantie",
+        "bon_de_commande",
+        "autre",
+      ],
+      intervention_status: [
+        "demande",
+        "rejetee",
+        "approuvee",
+        "demande_de_devis",
+        "planification",
+        "planifiee",
+        "en_cours",
+        "cloturee_par_prestataire",
+        "cloturee_par_locataire",
+        "cloturee_par_gestionnaire",
+        "annulee",
+      ],
       intervention_type: [
         "plomberie",
         "electricite",
@@ -1125,6 +2160,7 @@ export const Constants = {
         "jardinage",
         "autre",
       ],
+      intervention_urgency: ["basse", "normale", "haute", "urgente"],
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       lot_category: [
         "appartement",
@@ -1134,6 +2170,18 @@ export const Constants = {
         "local_commercial",
         "parking",
         "autre",
+      ],
+      notification_priority: ["low", "normal", "high", "urgent"],
+      notification_type: [
+        "intervention",
+        "chat",
+        "document",
+        "system",
+        "team_invite",
+        "assignment",
+        "status_change",
+        "reminder",
+        "deadline",
       ],
       property_document_type: [
         "bail",

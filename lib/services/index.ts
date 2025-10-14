@@ -212,18 +212,35 @@ export {
   createServerActionContactService // For Server Actions (READ-WRITE)
 } from './domain/contact.service'
 
-// Intervention Service
+// Intervention Service (Phase 3 - Enhanced)
 export {
   InterventionRepository,
   createInterventionRepository,
-  createServerInterventionRepository
+  createServerInterventionRepository,
+  createServerActionInterventionRepository
+} from './repositories/intervention-repository'
+
+// Legacy intervention repository (to be deprecated)
+export {
+  InterventionRepository as LegacyInterventionRepository,
+  createInterventionRepository as createLegacyInterventionRepository,
+  createServerInterventionRepository as createServerLegacyInterventionRepository
 } from './repositories/intervention.repository'
 
+// Enhanced Intervention Service with full Phase 3 workflow
 export {
   InterventionService,
   createInterventionService,
   createInterventionService as createBrowserInterventionService, // Alias for client-side usage
   createServerInterventionService,
+  createServerActionInterventionService
+} from './domain/intervention-service'
+
+// Legacy intervention service exports (to be deprecated)
+export {
+  InterventionService as LegacyInterventionService,
+  createInterventionService as createLegacyInterventionService,
+  createServerInterventionService as createServerLegacyInterventionService,
   type ApprovalData,
   type PlanningData,
   type ExecutionData,
@@ -234,6 +251,40 @@ export {
   type SlotConfirmationData,
   type ProviderCompletionData
 } from './domain/intervention.service'
+
+// Conversation Service (Phase 3 - New)
+export {
+  ConversationService,
+  createConversationService,
+  createConversationService as createBrowserConversationService, // Alias for client-side usage
+  createServerConversationService,
+  createServerActionConversationService
+} from './domain/conversation-service'
+
+// Phase 3 New Repositories
+// Conversation Repository
+export {
+  ConversationRepository,
+  createConversationRepository,
+  createServerConversationRepository,
+  createServerActionConversationRepository
+} from './repositories/conversation-repository'
+
+// Quote Repository
+export {
+  QuoteRepository,
+  createQuoteRepository,
+  createServerQuoteRepository,
+  createServerActionQuoteRepository
+} from './repositories/quote-repository'
+
+// Notification Repository
+export {
+  NotificationRepository,
+  createNotificationRepository,
+  createServerNotificationRepository,
+  createServerActionNotificationRepository
+} from './repositories/notification-repository'
 
 // Team Service
 export {
@@ -417,12 +468,28 @@ export const SERVICE_CONFIG = {
     building: true, // ✅ Phase 2.2 completed
     lot: true, // ✅ Phase 2.3 completed
     contact: true, // ✅ Phase 3.1 completed
-    intervention: true, // ✅ Phase 3.3 completed
+    intervention: true, // ✅ Phase 3.3 completed (enhanced with full workflow)
+    conversation: true, // ✅ Phase 3 completed (with team transparency)
+    quote: true, // ✅ Phase 3 completed
+    notification: true, // ✅ Phase 3 completed
     team: true, // ✅ Phase 3.2 completed
     stats: true, // ✅ Phase 4.1 completed
     composite: true, // ✅ Phase 4.2 completed
     contactInvitation: true, // ✅ Phase 5.1 completed
     tenant: true // ✅ Phase 5.1 completed
+  },
+  services: {
+    user: true,
+    building: true,
+    lot: true,
+    contact: true,
+    intervention: true, // ✅ Enhanced with 11 status workflow
+    conversation: true, // ✅ New service with real-time messaging
+    team: true,
+    stats: true,
+    composite: true,
+    contactInvitation: true,
+    tenant: true
   }
 } as const
 

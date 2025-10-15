@@ -156,7 +156,8 @@ export {
 export {
   UserService,
   createUserService,
-  createServerUserService
+  createServerUserService,
+  createServerActionUserService
 } from './domain/user.service'
 
 // Building Service
@@ -169,7 +170,8 @@ export {
 export {
   BuildingService,
   createBuildingService,
-  createServerBuildingService
+  createServerBuildingService,
+  createServerActionBuildingService
 } from './domain/building.service'
 
 // Lot Service
@@ -312,6 +314,7 @@ export {
   TeamService,
   createTeamService,
   createServerTeamService,
+  createServerActionTeamService,
   type CreateTeamData,
   type UpdateTeamData
 } from './domain/team.service'
@@ -333,6 +336,7 @@ export {
   StatsService,
   createStatsService,
   createServerStatsService,
+  createServerActionStatsService,
   type StatsQueryOptions,
   type StatsPermissions,
   type StatsExport

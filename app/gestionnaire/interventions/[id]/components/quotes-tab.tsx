@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { InterventionQuoteList } from '@/components/interventions/intervention-quote-list'
+// Quote list component will be defined inline since we don't have a separate component
 import { DollarSign, FileText, Plus, CheckCircle, XCircle, Clock } from 'lucide-react'
 import {
   Dialog,
@@ -189,12 +189,63 @@ export function QuotesTab({
                 </p>
               </div>
             ) : (
-              <InterventionQuoteList
-                quotes={quotes}
-                canManage={canManage}
-                onAccept={handleAcceptQuote}
-                onReject={handleRejectQuote}
-              />
+              <div className="space-y-4">
+                {quotes.map((quote) => (
+                  <div key={quote.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {quote.provider?.name || 'Prestataire'}
+                          </span>
+                          {quote.status === 'pending' && (
+                            <Badge variant="outline" className="gap-1">
+                              <Clock className="w-3 h-3" />
+                              En attente
+                            </Badge>
+                          )}
+                          {quote.status === 'accepted' && (
+                            <Badge variant="success" className="gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Accepté
+                            </Badge>
+                          )}
+                          {quote.status === 'rejected' && (
+                            <Badge variant="destructive" className="gap-1">
+                              <XCircle className="w-3 h-3" />
+                              Rejeté
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Type: {quote.quote_type.replace('_', ' ')}
+                        </p>
+                        {quote.description && (
+                          <p className="text-sm">{quote.description}</p>
+                        )}
+                      </div>
+                      <span className="text-xl font-bold">{quote.amount}€</span>
+                    </div>
+                    {canManage && quote.status === 'pending' && (
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcceptQuote(quote)}
+                        >
+                          Accepter
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleRejectQuote(quote)}
+                        >
+                          Rejeter
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

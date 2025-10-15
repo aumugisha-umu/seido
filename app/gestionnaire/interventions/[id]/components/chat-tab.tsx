@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { InterventionChat } from '@/components/interventions/intervention-chat'
+import { ChatInterface } from '@/components/chat/chat-interface'
 import { MessageSquare, Users, UserCheck, Briefcase } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
@@ -114,7 +114,7 @@ export function ChatTab({ interventionId, threads }: ChatTabProps) {
       {/* Chat interface */}
       <div className="lg:col-span-3">
         {activeThread ? (
-          <InterventionChat
+          <ChatInterface
             threadId={activeThread.id}
             threadType={activeThread.thread_type}
           />

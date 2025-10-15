@@ -5,8 +5,7 @@
  * Handles file upload for intervention documents with validation
  */
 
-import { useState, useCallback } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useState, useCallback, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -64,6 +63,16 @@ const documentTypes: { value: DocumentType; label: string }[] = [
   { value: 'autre', label: 'Autre' }
 ]
 
+// Accepted file types
+const acceptedTypes = {
+  'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+  'application/pdf': ['.pdf'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+}
+
 // File type icons
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return FileImage
@@ -79,6 +88,20 @@ const formatFileSize = (bytes: number) => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
+// Check if file type is accepted
+const isFileTypeAccepted = (file: File): boolean => {
+  const extension = '.' + file.name.split('.').pop()?.toLowerCase()
+  for (const [mimeType, extensions] of Object.entries(acceptedTypes)) {
+    if (mimeType === 'image/*' && file.type.startsWith('image/')) {
+      return extensions.includes(extension)
+    }
+    if (file.type === mimeType || extensions.includes(extension)) {
+      return true
+    }
+  }
+  return false
+}
+
 export function DocumentUploadDialog({
   open,
   onOpenChange,
@@ -91,39 +114,65 @@ export function DocumentUploadDialog({
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Dropzone configuration
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  // Handle file selection
+  const handleFileSelect = (selectedFiles: FileList | null) => {
+    if (!selectedFiles) return
+
+    const newFiles = Array.from(selectedFiles)
+
     // Limit to 5 files
-    if (files.length + acceptedFiles.length > 5) {
+    if (files.length + newFiles.length > 5) {
       toast.error('Maximum 5 fichiers autorisés')
       return
     }
 
-    // Check file sizes (max 10MB per file)
-    const oversizedFiles = acceptedFiles.filter(file => file.size > 10 * 1024 * 1024)
-    if (oversizedFiles.length > 0) {
-      toast.error('Certains fichiers dépassent la taille maximale de 10MB')
-      return
+    // Check file types and sizes
+    const validFiles: File[] = []
+    for (const file of newFiles) {
+      if (!isFileTypeAccepted(file)) {
+        toast.error(`Type de fichier non accepté: ${file.name}`)
+        continue
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`Fichier trop volumineux (max 10MB): ${file.name}`)
+        continue
+      }
+      validFiles.push(file)
     }
 
-    setFiles(prev => [...prev, ...acceptedFiles])
-    setUploadError(null)
-  }, [files])
+    if (validFiles.length > 0) {
+      setFiles(prev => [...prev, ...validFiles])
+      setUploadError(null)
+    }
+  }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
-    },
-    maxSize: 10 * 1024 * 1024, // 10MB
-    disabled: uploading
-  })
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelect(e.target.files)
+  }
+
+  // Handle drag events
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    handleFileSelect(e.dataTransfer.files)
+  }
 
   // Remove file from list
   const removeFile = (index: number) => {
@@ -246,21 +295,32 @@ export function DocumentUploadDialog({
             />
           </div>
 
-          {/* Dropzone */}
+          {/* File Upload Area */}
           <div className="space-y-2">
             <Label>Fichiers</Label>
             <div
-              {...getRootProps()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
               className={`
                 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
                 transition-colors hover:border-primary/50
-                ${isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'}
+                ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'}
                 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
-              <input {...getInputProps()} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileInputChange}
+                className="hidden"
+                accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx"
+                disabled={uploading}
+              />
               <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              {isDragActive ? (
+              {isDragging ? (
                 <p className="text-sm text-muted-foreground">
                   Déposez les fichiers ici...
                 </p>
@@ -307,7 +367,10 @@ export function DocumentUploadDialog({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeFile(index)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeFile(index)
+                          }}
                           className="h-8 w-8 p-0"
                         >
                           <X className="w-4 h-4" />

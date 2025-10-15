@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, User, Check, Plus } from 'lucide-react'
-import { InterventionTimeSlotList } from '@/components/interventions/intervention-time-slot-list'
-import { InterventionTimeSlotsForm } from '@/components/interventions/intervention-time-slots-form'
+// Time slot list will be handled inline, time slots form uses the time-slot-proposer component
+import { TimeSlotProposer } from '@/components/interventions/time-slot-proposer'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -210,7 +210,7 @@ export function TimeSlotsTab({
 
       {/* Time slots form dialog */}
       {formOpen && (
-        <InterventionTimeSlotsForm
+        <TimeSlotProposer
           interventionId={interventionId}
           open={formOpen}
           onOpenChange={setFormOpen}

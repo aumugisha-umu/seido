@@ -6,12 +6,12 @@ import { Building2, Home, Users, Wrench, Plus } from "lucide-react"
 import Link from "next/link"
 import { requireRole } from "@/lib/auth-dal"
 import {
-  createServerTeamService,
-  createServerUserService,
-  createServerBuildingService,
-  createServerLotService,
-  createServerInterventionService,
-  createServerStatsService
+  createServerActionTeamService,
+  createServerActionUserService,
+  createServerActionBuildingService,
+  createServerActionLotService,
+  createServerActionInterventionService,
+  createServerActionStatsService
 } from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
 import { logger as baseLogger, logError } from '@/lib/logger'
@@ -58,13 +58,59 @@ export default async function DashboardGestionnaire() {
   let userTeamId = ''  // ✅ Déclarer ici pour accessibilité globale
 
   try {
-    // Initialiser les services
-    const teamService = await createServerTeamService()
-    const userService = await createServerUserService()
-    const buildingService = await createServerBuildingService()
-    const lotService = await createServerLotService()
-    const interventionService = await createServerInterventionService()
-    const statsService = await createServerStatsService()
+    // ✅ Vérifier session Supabase AVANT de créer les services
+    // 🔐 SECURITY: Use .getUser() instead of .getSession() (recommended by Supabase)
+    // .getUser() verifies the token with Auth server (more secure)
+    dashLogger.info('🔐 [DASHBOARD] Checking Supabase authenticated user...')
+    const { createServerActionSupabaseClient } = await import('@/lib/services/core/supabase-client')
+    const supabase = await createServerActionSupabaseClient()
+    const { data: { user: sessionUser }, error: sessionError } = await supabase.auth.getUser()
+
+    dashLogger.info('🔐 [DASHBOARD] Auth user status:', {
+      hasUser: !!sessionUser,
+      sessionUserId: sessionUser?.id,
+      profileAuthUserId: profile.auth_user_id,
+      profileUserId: profile.id,
+      userIdMatch: sessionUser?.id === profile.auth_user_id,
+      sessionError: sessionError?.message || null
+    })
+
+    if (sessionError) {
+      throw new Error(`Supabase auth error: ${sessionError.message}`)
+    }
+
+    if (!sessionUser) {
+      throw new Error('No authenticated user found')
+    }
+
+    // Initialiser les services avec ServerAction clients (auth complète)
+    dashLogger.info('🔧 [DASHBOARD] Starting service initialization...')
+
+    dashLogger.info('🔧 [DASHBOARD] Creating TeamService...')
+    const teamService = await createServerActionTeamService()
+    dashLogger.info('✅ [DASHBOARD] TeamService created')
+
+    dashLogger.info('🔧 [DASHBOARD] Creating UserService...')
+    const userService = await createServerActionUserService()
+    dashLogger.info('✅ [DASHBOARD] UserService created')
+
+    dashLogger.info('🔧 [DASHBOARD] Creating BuildingService...')
+    const buildingService = await createServerActionBuildingService()
+    dashLogger.info('✅ [DASHBOARD] BuildingService created')
+
+    dashLogger.info('🔧 [DASHBOARD] Creating LotService...')
+    const lotService = await createServerActionLotService()
+    dashLogger.info('✅ [DASHBOARD] LotService created')
+
+    dashLogger.info('🔧 [DASHBOARD] Creating InterventionService...')
+    const interventionService = await createServerActionInterventionService()
+    dashLogger.info('✅ [DASHBOARD] InterventionService created')
+
+    dashLogger.info('🔧 [DASHBOARD] Creating StatsService...')
+    const statsService = await createServerActionStatsService()
+    dashLogger.info('✅ [DASHBOARD] StatsService created')
+
+    dashLogger.info('✅ [DASHBOARD] All services initialized successfully')
 
     // Récupérer l'équipe de l'utilisateur (structure actuelle: users.team_id)
     dashLogger.info('🔍 [DASHBOARD] Getting teams for user:', profile.id)
@@ -88,7 +134,7 @@ export default async function DashboardGestionnaire() {
       const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
         buildingService.getBuildingsByTeam(userTeamId),
         userService.getUsersByTeam(userTeamId),
-        interventionService.getAll({ limit: 100 })
+        interventionService.getByTeam(userTeamId)  // ✅ Phase 3: Use team-scoped method (replaces getAll)
       ])
 
       // Traiter résultats buildings
@@ -162,8 +208,10 @@ export default async function DashboardGestionnaire() {
       dashLogger.info('📊 [DASHBOARD] Stats object structure:', JSON.stringify(stats, null, 2))
 
       // Statistiques contacts
-      const activeUsers = (users as any[]).filter((u: any) => u.auth_user_id)
-      const contactsByType = (users as any[]).reduce((acc: Record<string, { total: number; active: number }>, user: any) => {
+      // 🛡️ DEFENSIVE: Ensure users is always an array before operations
+      const safeUsers = Array.isArray(users) ? users : []
+      const activeUsers = safeUsers.filter((u: any) => u.auth_user_id)
+      const contactsByType = safeUsers.reduce((acc: Record<string, { total: number; active: number }>, user: any) => {
         if (!acc[user.role]) {
           acc[user.role] = { total: 0, active: 0 }
         }
@@ -175,9 +223,9 @@ export default async function DashboardGestionnaire() {
       }, {} as Record<string, { total: number; active: number }>)
 
       contactStats = {
-        totalContacts: (users as any[]).length,
+        totalContacts: safeUsers.length,
         totalActiveAccounts: activeUsers.length,
-        invitationsPending: (users as any[]).filter((u: any) => !u.auth_user_id).length,
+        invitationsPending: safeUsers.filter((u: any) => !u.auth_user_id).length,
         contactsByType
       }
 
@@ -190,7 +238,31 @@ export default async function DashboardGestionnaire() {
       dashLogger.info('⚠️ [DASHBOARD] Using default stats (all zeros)')
     }
   } catch (error) {
-    dashLogger.error('❌ [DASHBOARD] Error loading data:', error)
+    // Capturer toutes les propriétés de l'erreur pour diagnostic complet
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'UnknownError',
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5).join('\n') : undefined,
+      type: typeof error,
+      constructor: error?.constructor?.name
+    }
+
+    // 🔍 IMPORTANT: Pino logger requires manual stringification for complex objects
+    dashLogger.error('❌ [DASHBOARD] Error loading data - Full Details:')
+    dashLogger.error(JSON.stringify(errorDetails, null, 2))
+
+    // Cas spécial : erreur Supabase avec code
+    if (error && typeof error === 'object' && 'code' in error) {
+      const supabaseError = {
+        code: (error as any).code,
+        message: (error as any).message,
+        details: (error as any).details,
+        hint: (error as any).hint
+      }
+      dashLogger.error('❌ [DASHBOARD] Supabase error details:')
+      dashLogger.error(JSON.stringify(supabaseError, null, 2))
+    }
+
     // Les stats par défaut restent (valeurs 0)
   }
 

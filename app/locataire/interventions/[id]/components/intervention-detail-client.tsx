@@ -21,7 +21,7 @@ import {
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { StatusTimeline } from '@/components/interventions/status-timeline'
 import { WorkflowActions } from '@/components/interventions/workflow-actions'
-import { InterventionChat } from '@/components/interventions/intervention-chat'
+import { ChatInterface } from '@/components/chat/chat-interface'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DocumentsTab } from '@/app/gestionnaire/interventions/[id]/components/documents-tab'
 import { TimeSlotsTab } from '@/app/gestionnaire/interventions/[id]/components/time-slots-tab'
@@ -262,7 +262,7 @@ export function LocataireInterventionDetailClient({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <InterventionChat
+                    <ChatInterface
                       threadId={thread.id}
                       threadType={thread.thread_type}
                     />

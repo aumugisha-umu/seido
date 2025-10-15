@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import {
   createBuildingService,
-  createTeamService
+  createTeamService,
+  createLotService
 } from "@/lib/services"
 import { logger } from '@/lib/logger'
 
@@ -105,31 +106,63 @@ export function useBuildings() {
       const buildings = buildingsResult.data
       logger.info("🏗️ [BUILDINGS] Loaded buildings:", buildings.length)
 
-      // ⚡ PERFORMANCE FIX: buildingRepository.findByTeam() already includes lots via SQL JOIN!
-      // No need for N separate queries - just extract and process the lots that are already here
-      const allLots: Lot[] = []
+      // 3. Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
+      logger.info("🏠 [BUILDINGS] Loading ALL lots for team (including independent lots)...")
+      const lotService = createLotService()
+      const lotsResult = await lotService.getLotsByTeam(teamId)
 
-      buildings.forEach((building: Building) => {
-        // Lots are already included in the building from SQL JOIN
-        const buildingLots = (building.lots || []).map((lot: Lot) => ({
-          ...lot,
-          building_name: building.name
-        }))
-
-        building.lots = buildingLots
-        allLots.push(...buildingLots)
-
-        if (buildingLots.length > 0) {
-          logger.info(`✅ [BUILDINGS] Found ${buildingLots.length} lots for ${building.name} (from JOIN)`)
+      if (!lotsResult.success || !lotsResult.data) {
+        logger.error("❌ [BUILDINGS] Error fetching team lots")
+        // Continue avec juste les buildings si erreur sur les lots
+        if (mountedRef.current) {
+          setData({
+            buildings,
+            lots: [],
+            teamId
+          })
+          lastUserIdRef.current = userId
         }
+        setLoading(false)
+        return
+      }
+
+      const allTeamLots = lotsResult.data
+      logger.info("🏠 [BUILDINGS] Loaded ALL team lots:", allTeamLots.length, "(including independent lots)")
+
+      // 4. Séparer les lots et attacher aux buildings correspondants
+      buildings.forEach((building: Building) => {
+        building.lots = []
       })
 
-      logger.info("🏠 [BUILDINGS] Total lots loaded:", allLots.length, "(single query with JOIN)")
+      const allLotsForDisplay: Lot[] = []
+
+      allTeamLots.forEach((lot: Lot) => {
+        const lotWithBuilding = {
+          ...lot,
+          building_name: buildings.find((b: Building) => b.id === lot.building_id)?.name || null
+        }
+
+        if (lot.building_id) {
+          // Lot lié à un immeuble - attacher au building
+          const building = buildings.find((b: Building) => b.id === lot.building_id)
+          if (building) {
+            if (!building.lots) building.lots = []
+            building.lots.push(lotWithBuilding)
+          }
+        }
+
+        // Ajouter TOUS les lots (liés + indépendants) à la liste globale
+        allLotsForDisplay.push(lotWithBuilding)
+      })
+
+      logger.info("🏢 [BUILDINGS] Lots by building:", allTeamLots.length - allLotsForDisplay.filter((l: Lot) => !l.building_id).length)
+      logger.info("🏠 [BUILDINGS] Independent lots:", allLotsForDisplay.filter((l: Lot) => !l.building_id).length)
+      logger.info("📊 [BUILDINGS] Total lots for display:", allLotsForDisplay.length)
 
       if (mountedRef.current) {
         setData({
           buildings,
-          lots: allLots,
+          lots: allLotsForDisplay,  // ✅ TOUS les lots (liés + indépendants)
           teamId
         })
         lastUserIdRef.current = userId

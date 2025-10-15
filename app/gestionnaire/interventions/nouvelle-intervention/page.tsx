@@ -45,16 +45,12 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 
 import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
 
-const teamService = createTeamService()
-const contactService = createContactService()
-const tenantService = createTenantService()
-const lotService = createLotService()
-const buildingService = createBuildingService()
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
+
 export default function NouvelleInterventionPage() {
   logger.info("🚀 NouvelleInterventionPage - Composant initialisé")
   const [currentStep, setCurrentStep] = useState(1)
@@ -99,12 +95,47 @@ export default function NouvelleInterventionPage() {
   // const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const searchParams = useSearchParams()
-  const { user } = useAuth()
-  
+  const { user, loading: authLoading } = useAuth()
+
+  // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
+  const [services, setServices] = useState<{
+    team: ReturnType<typeof createTeamService> | null
+    contact: ReturnType<typeof createContactService> | null
+    tenant: ReturnType<typeof createTenantService> | null
+    lot: ReturnType<typeof createLotService> | null
+    building: ReturnType<typeof createBuildingService> | null
+  } | null>(null)
+
+  // Step 1: Créer les services quand l'auth est prête
+  useEffect(() => {
+    if (authLoading) {
+      logger.info("⏳ [SERVICE-INIT] Waiting for auth to complete...")
+      return
+    }
+    if (!user) {
+      logger.info("❌ [SERVICE-INIT] No user, skipping service creation")
+      return
+    }
+    if (services) {
+      logger.info("✅ [SERVICE-INIT] Services already initialized")
+      return
+    }
+
+    logger.info("🔧 [SERVICE-INIT] Auth ready, creating services now...")
+    setServices({
+      team: createTeamService(),
+      contact: createContactService(),
+      tenant: createTenantService(),
+      lot: createLotService(),
+      building: createBuildingService()
+    })
+    logger.info("✅ [SERVICE-INIT] Services created successfully")
+  }, [authLoading, user, services])
+
   // Log simplifié maintenant que le problème est résolu
-  logger.info("🔍 États:", { 
-    managers: managers.length, 
-    providers: providers.length, 
+  logger.info("🔍 États:", {
+    managers: managers.length,
+    providers: providers.length,
     selectedManagers: selectedManagerIds.length,
     selectedProviders: selectedProviderIds.length
   })
@@ -112,6 +143,13 @@ export default function NouvelleInterventionPage() {
   // Fonction pour charger les données réelles depuis la DB avec logique unifiée
   const loadRealData = async () => {
     logger.info("📡 loadRealData démarré avec user:", user?.id)
+
+    // ✅ Check services are ready
+    if (!services) {
+      logger.info("⏳ Services not ready yet, skipping data load")
+      return
+    }
+
     if (!user?.id) {
       logger.info("⚠️ Pas d'utilisateur, arrêt de loadRealData")
       return
@@ -121,14 +159,14 @@ export default function NouvelleInterventionPage() {
     try {
       logger.info("🔄 Chargement des données en cours...")
       // 1. Récupérer l'équipe de l'utilisateur
-      const teamsResult = await teamService.getUserTeams(user.id)
+      const teamsResult = await services.team.getUserTeams(user.id)
       const teams = teamsResult?.data || []
       const team = teams[0]
       if (team) {
         setCurrentUserTeam(team)
 
         // 2. NOUVELLE LOGIQUE UNIFIÉE : Récupérer tous les contacts et filtrer
-        const contactsResult = await contactService.getTeamContacts(team.id)
+        const contactsResult = await services.contact.getTeamContacts(team.id)
         const contacts = contactsResult?.data || []
         logger.info("📋 All team contacts:", contacts.map(c => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
         
@@ -181,8 +219,13 @@ export default function NouvelleInterventionPage() {
 
   // Load tenant's assigned lots
   const loadTenantLots = async (tenantId: string) => {
+    if (!services) {
+      logger.info("⏳ Services not ready, cannot load tenant lots")
+      return
+    }
+
     try {
-      const lots = await tenantService.getAllTenantLots(tenantId)
+      const lots = await services.tenant.getAllTenantLots(tenantId)
       logger.info("📍 Tenant lots loaded:", lots)
       
       if (lots.length > 0) {
@@ -210,9 +253,14 @@ export default function NouvelleInterventionPage() {
 
   // Load specific lot by ID or reference
   const loadSpecificLot = async (lotIdentifier: string) => {
+    if (!services) {
+      logger.info("⏳ Services not ready, cannot load specific lot")
+      return
+    }
+
     try {
       // Try to get lot by ID first, then by reference if needed
-      const lot = await lotService.getById(lotIdentifier)
+      const lot = await services.lot.getById(lotIdentifier)
       logger.info("📍 Specific lot loaded:", lot)
       
       if (lot) {
@@ -234,11 +282,20 @@ export default function NouvelleInterventionPage() {
     }
   }
 
-  // Charger les données au montage du composant
+  // Step 2: Load data when services become available
   useEffect(() => {
-    logger.info("🔄 Chargement des contacts pour user:", user?.email)
+    if (!services) {
+      logger.info("⏳ [DATA-LOAD] Services not yet initialized, waiting...")
+      return
+    }
+    if (!user?.id) {
+      logger.info("⚠️ [DATA-LOAD] No user, skipping data load")
+      return
+    }
+
+    logger.info("🔄 [DATA-LOAD] Services ready, loading contacts for user:", user.email)
     loadRealData()
-  }, [user?.id])
+  }, [services, user?.id])
 
   useEffect(() => {
     if (isPreFilled) return // Prevent re-execution if already pre-filled
@@ -406,8 +463,13 @@ export default function NouvelleInterventionPage() {
     // Optimistic minimal selection
     setSelectedLogement({ type: "building", id: buildingId })
 
+    if (!services) {
+      logger.info("⏳ Services not ready, cannot load building details")
+      return
+    }
+
     try {
-      const result = await buildingService.getById(buildingId)
+      const result = await services.building.getById(buildingId)
       if (result && result.success && result.data) {
         setSelectedLogement({
           id: result.data.id,
@@ -439,9 +501,14 @@ export default function NouvelleInterventionPage() {
     // Align behavior with building selection: always set current selection to the lot
     setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
 
+    if (!services) {
+      logger.info("⏳ Services not ready, cannot load lot details")
+      return
+    }
+
     try {
       // Load real lot data with relations when selecting a lot
-      const lotResult = await lotService.getByIdWithRelations(lotIdStr)
+      const lotResult = await services.lot.getByIdWithRelations(lotIdStr)
 
       if (lotResult && lotResult.success && lotResult.data) {
         const lotData = lotResult.data as any

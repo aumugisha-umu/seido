@@ -182,11 +182,35 @@ export default function NewImmeubleePage({
   // Flag to prevent hydration mismatch
   const [isMounted, setIsMounted] = useState(false)
 
-  // Initialize services
-  const [teamService] = useState(() => createTeamService())
-  const [buildingService] = useState(() => createBuildingService())
-  const [lotService] = useState(() => createLotService())
-  const [contactInvitationService] = useState(() => createContactInvitationService())
+  // ✅ NEW: Lazy service initialization - Services créés uniquement quand userProfile est prêt
+  // Note: This component receives userProfile as a prop, so we use that instead of useAuth
+  const [services, setServices] = useState<{
+    team: ReturnType<typeof createTeamService> | null
+    building: ReturnType<typeof createBuildingService> | null
+    lot: ReturnType<typeof createLotService> | null
+    contactInvitation: ReturnType<typeof createContactInvitationService> | null
+  } | null>(null)
+
+  // Step 1: Créer les services quand userProfile est disponible
+  useEffect(() => {
+    if (!userProfile) {
+      logger.info("❌ [SERVICE-INIT] No userProfile, skipping service creation")
+      return
+    }
+    if (services) {
+      logger.info("✅ [SERVICE-INIT] Services already initialized")
+      return
+    }
+
+    logger.info("🔧 [SERVICE-INIT] UserProfile ready, creating services now...")
+    setServices({
+      team: createTeamService(),
+      building: createBuildingService(),
+      lot: createLotService(),
+      contactInvitation: createContactInvitationService()
+    })
+    logger.info("✅ [SERVICE-INIT] Services created successfully")
+  }, [userProfile, services])
 
   // TOUS LES useEffect DOIVENT AUSSI ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
   // Set mounted flag to prevent hydration mismatch
@@ -699,13 +723,20 @@ export default function NewImmeubleePage({
 
   const handleGestionnaireCreated = async (contactData: Contact) => {
     try {
+      // ✅ Check services are ready
+      if (!services) {
+        logger.error("⏳ Services not ready, cannot create gestionnaire")
+        setError("Services d'authentification en cours de chargement. Veuillez réessayer.")
+        return
+      }
+
       if (!userTeam?.id) {
         logger.error("No team found for user")
         return
       }
 
       // Utiliser le service d'invitation pour creer le gestionnaire et optionnellement l'utilisateur
-      const result = await contactInvitationService.createContactWithOptionalInvite({
+      const result = await services.contactInvitation.createContactWithOptionalInvite({
         type: 'gestionnaire',
         firstName: contactData.firstName,
         lastName: contactData.lastName,

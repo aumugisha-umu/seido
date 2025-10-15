@@ -157,10 +157,32 @@ export default function NewLotPage() {
   // Flag to prevent hydration mismatch
   const [isMounted, setIsMounted] = useState(false)
 
-  // Initialize services
-  const [teamService] = useState(() => createTeamService())
-  const [lotService] = useState(() => createLotService())
-  const [contactInvitationService] = useState(() => createContactInvitationService())
+  // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
+  const [services, setServices] = useState<{
+    team: ReturnType<typeof createTeamService> | null
+    lot: ReturnType<typeof createLotService> | null
+    contactInvitation: ReturnType<typeof createContactInvitationService> | null
+  } | null>(null)
+
+  // Step 1: Créer les services quand l'auth est prête
+  useEffect(() => {
+    if (!user) {
+      logger.info("❌ [SERVICE-INIT] No user, skipping service creation")
+      return
+    }
+    if (services) {
+      logger.info("✅ [SERVICE-INIT] Services already initialized")
+      return
+    }
+
+    logger.info("🔧 [SERVICE-INIT] Auth ready, creating services now...")
+    setServices({
+      team: createTeamService(),
+      lot: createLotService(),
+      contactInvitation: createContactInvitationService()
+    })
+    logger.info("✅ [SERVICE-INIT] Services created successfully")
+  }, [user, services])
 
   // Set mounted flag to prevent hydration mismatch
   useEffect(() => {
@@ -170,8 +192,14 @@ export default function NewLotPage() {
   // Charger l'équipe de l'utilisateur et ses gestionnaires
   useEffect(() => {
     logger.info("🔐 useAuth hook user state:", user)
-    
+
     const loadUserTeamAndManagers = async () => {
+      // ✅ Check services are ready
+      if (!services) {
+        logger.info("⏳ [DATA-LOAD] Services not yet initialized, waiting...")
+        return
+      }
+
       if (!user?.id || teamStatus !== 'verified') {
         logger.info("⚠️ User ID not found or team not verified, skipping team loading")
         return
@@ -183,7 +211,7 @@ export default function NewLotPage() {
         setError("")
 
         // 1. Récupérer les équipes de l'utilisateur
-        const teamsResult = await teamService.getUserTeams(user.id)
+        const teamsResult = await services.team.getUserTeams(user.id)
         const userTeams = teamsResult?.data || []
         logger.info("✅ User teams loaded:", userTeams)
         setTeams(userTeams)
@@ -202,7 +230,7 @@ export default function NewLotPage() {
         logger.info("👥 Loading team members for team:", primaryTeam.id)
         let teamMembers = []
         try {
-          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          const membersResult = await services.team.getTeamMembers(primaryTeam.id)
           teamMembers = membersResult?.data || []
           logger.info("✅ Team members loaded:", teamMembers)
         } catch (membersError) {
@@ -261,11 +289,17 @@ export default function NewLotPage() {
     }
 
     loadUserTeamAndManagers()
-  }, [user?.id, teamStatus, user])
+  }, [services, user?.id, teamStatus, user])
 
   // Récupérer les comptages par catégorie quand l'équipe est chargée
   useEffect(() => {
     const loadCategoryCountsByTeam = async () => {
+      // ✅ Check services are ready
+      if (!services) {
+        logger.info("⏳ Services not ready, cannot load category counts")
+        return
+      }
+
       if (!userTeam?.id) {
         logger.info("⚠️ No team available, skipping category counts loading")
         return
@@ -273,7 +307,7 @@ export default function NewLotPage() {
 
       try {
         logger.info("📊 Loading lot counts by category for team:", userTeam.id)
-        const result = await lotService.getLotStatsByCategory(userTeam.id)
+        const result = await services.lot.getLotStatsByCategory(userTeam.id)
         if (result.success) {
           logger.info("✅ Category counts loaded:", result.data)
           setCategoryCountsByTeam(result.data || {})
@@ -288,7 +322,7 @@ export default function NewLotPage() {
     }
 
     loadCategoryCountsByTeam()
-  }, [userTeam?.id])
+  }, [services, userTeam?.id])
 
 
   // Réinitialiser le nom quand on change le type d'association

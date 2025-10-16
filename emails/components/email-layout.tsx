@@ -12,6 +12,7 @@ import {
   Body,
   Container,
   Tailwind,
+  Preview,
 } from '@react-email/components'
 
 interface EmailLayoutProps {
@@ -24,7 +25,7 @@ export const EmailLayout = ({ children, preview }: EmailLayoutProps) => {
   return (
     <Html lang="fr" dir="ltr">
       <Head />
-      {preview && <preview>{preview}</preview>}
+      {preview && <Preview>{preview}</Preview>}
       <Tailwind
         config={{
           theme: {

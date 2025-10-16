@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     }, AUTH_RETRY_CONFIG.TIMEOUT_MS)
 
-    // ✅ OPTIMISATION: Check immédiat de session au mount (non-bloquant)
+    // ✅ OPTIMISATION: Check immédiat de session au mount (BLOQUANT pour peupler localStorage)
     const checkInitialSession = async () => {
       try {
         logger.info('🔍 [AUTH-PROVIDER] Checking initial session immediately...')
@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (session?.user) {
           logger.info('✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...')
+          logger.info('💾 [AUTH-PROVIDER] Session should now be in localStorage for browser client')
           const { user } = await authService.getCurrentUser()
           setUser(user)
           setLoading(false)
@@ -94,89 +95,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false
     }
 
-    // Check immédiat (optimisation, mais pas bloquant)
-    checkInitialSession()
+    // 🎯 FIX CRITIQUE: Await checkInitialSession pour garantir localStorage peuplé
+    const initializeAuth = async () => {
+      logger.info('⏳ [AUTH-PROVIDER] Awaiting session initialization before setting up listeners...')
+      const hasSession = await checkInitialSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      logger.info('🔄 [AUTH-STATE-CHANGE] Event:', event, 'Has session:', !!session)
+      if (hasSession) {
+        logger.info('✅ [AUTH-PROVIDER] Session initialized and localStorage populated')
+      } else {
+        logger.info('ℹ️ [AUTH-PROVIDER] No initial session, localStorage will be empty until sign-in')
+      }
 
-      switch (event) {
-        case 'INITIAL_SESSION':
-          clearTimeout(loadingTimeout)
-          if (session?.user) {
-            logger.info('🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...')
+      // 🎯 Maintenant, configurer les listeners APRÈS que la session soit initialisée
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        logger.info('🔄 [AUTH-STATE-CHANGE] Event:', event, 'Has session:', !!session)
+
+        switch (event) {
+          case 'INITIAL_SESSION':
+            clearTimeout(loadingTimeout)
+            if (session?.user) {
+              logger.info('🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...')
+              try {
+                const { user } = await authService.getCurrentUser()
+                setUser(user)
+                updateCoordinationState('loaded')
+              } catch (error) {
+                logger.error('❌ [AUTH-STATE-CHANGE] Error loading initial user:', error)
+                setUser(null)
+                updateCoordinationState('error')
+              }
+            } else {
+              logger.info('🔍 [AUTH-STATE-CHANGE] No initial session')
+              setUser(null)
+              updateCoordinationState('loaded')
+            }
+            setLoading(false)
+            break
+
+          case 'SIGNED_IN':
+            logger.info('✅ [AUTH-STATE-CHANGE] User signed in, loading profile...')
             try {
               const { user } = await authService.getCurrentUser()
               setUser(user)
               updateCoordinationState('loaded')
+              logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded:', user?.name)
             } catch (error) {
-              logger.error('❌ [AUTH-STATE-CHANGE] Error loading initial user:', error)
-              setUser(null)
-              updateCoordinationState('error')
-            }
-          } else {
-            logger.info('🔍 [AUTH-STATE-CHANGE] No initial session')
-            setUser(null)
-            updateCoordinationState('loaded')
-          }
-          setLoading(false)
-          break
+              logger.error('❌ [AUTH-STATE-CHANGE] Error loading signed-in user:', error)
+              // 🎯 PHASE 2.1: Retry avec exponential backoff
+              let retryCount = 0
+              const retryWithBackoff = async () => {
+                if (retryCount >= AUTH_RETRY_CONFIG.MAX_RETRIES) {
+                  logger.error('❌ [AUTH-STATE-CHANGE] Max retries reached, giving up')
+                  setUser(null)
+                  updateCoordinationState('error')
+                  return
+                }
 
-        case 'SIGNED_IN':
-          logger.info('✅ [AUTH-STATE-CHANGE] User signed in, loading profile...')
-          try {
-            const { user } = await authService.getCurrentUser()
-            setUser(user)
-            updateCoordinationState('loaded')
-            logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded:', user?.name)
-          } catch (error) {
-            logger.error('❌ [AUTH-STATE-CHANGE] Error loading signed-in user:', error)
-            // 🎯 PHASE 2.1: Retry avec exponential backoff
-            let retryCount = 0
-            const retryWithBackoff = async () => {
-              if (retryCount >= AUTH_RETRY_CONFIG.MAX_RETRIES) {
-                logger.error('❌ [AUTH-STATE-CHANGE] Max retries reached, giving up')
-                setUser(null)
-                updateCoordinationState('error')
-                return
+                const delay = getExponentialBackoffDelay(retryCount)
+                logger.info(`🔄 [AUTH-STATE-CHANGE] Retry ${retryCount + 1}/${AUTH_RETRY_CONFIG.MAX_RETRIES} in ${delay}ms...`)
+
+                setTimeout(async () => {
+                  try {
+                    const { user } = await authService.getCurrentUser()
+                    setUser(user)
+                    updateCoordinationState('loaded')
+                    logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded on retry:', user?.name)
+                  } catch (retryError) {
+                    logger.error(`❌ [AUTH-STATE-CHANGE] Retry ${retryCount + 1} failed:`, retryError)
+                    retryCount++
+                    retryWithBackoff()
+                  }
+                }, delay)
               }
 
-              const delay = getExponentialBackoffDelay(retryCount)
-              logger.info(`🔄 [AUTH-STATE-CHANGE] Retry ${retryCount + 1}/${AUTH_RETRY_CONFIG.MAX_RETRIES} in ${delay}ms...`)
-
-              setTimeout(async () => {
-                try {
-                  const { user } = await authService.getCurrentUser()
-                  setUser(user)
-                  updateCoordinationState('loaded')
-                  logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded on retry:', user?.name)
-                } catch (retryError) {
-                  logger.error(`❌ [AUTH-STATE-CHANGE] Retry ${retryCount + 1} failed:`, retryError)
-                  retryCount++
-                  retryWithBackoff()
-                }
-              }, delay)
+              retryWithBackoff()
             }
+            break
 
-            retryWithBackoff()
-          }
-          break
+          case 'SIGNED_OUT':
+            logger.info('🚪 [AUTH-STATE-CHANGE] User signed out')
+            setUser(null)
+            updateCoordinationState('idle')
+            // 🎯 PHASE 2.1: Nettoyer les cookies de coordination
+            setCoordinationCookiesClient(clearCoordinationCookies())
+            break
 
-        case 'SIGNED_OUT':
-          logger.info('🚪 [AUTH-STATE-CHANGE] User signed out')
-          setUser(null)
-          updateCoordinationState('idle')
-          // 🎯 PHASE 2.1: Nettoyer les cookies de coordination
-          setCoordinationCookiesClient(clearCoordinationCookies())
-          break
+          case 'TOKEN_REFRESHED':
+            logger.info('🔄 [AUTH-STATE-CHANGE] Token refreshed')
+            break
 
-        case 'TOKEN_REFRESHED':
-          logger.info('🔄 [AUTH-STATE-CHANGE] Token refreshed')
-          break
+          default:
+            logger.info('🔍 [AUTH-STATE-CHANGE] Other event:', event)
+        }
+      })
 
-        default:
-          logger.info('🔍 [AUTH-STATE-CHANGE] Other event:', event)
-      }
+      return subscription
+    }
+
+    // Bloquer jusqu'à ce que la session soit chargée, puis configurer les listeners
+    let subscription: any
+    initializeAuth().then((sub) => {
+      subscription = sub
     })
 
     return () => {

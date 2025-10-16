@@ -230,6 +230,69 @@ export class InterventionService {
   }
 
   /**
+   * Get interventions by building
+   */
+  async getByBuilding(buildingId: string) {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('interventions')
+        .select(`
+          *,
+          building:building_id(id, name, address),
+          lot:lot_id(id, reference, category)
+        `)
+        .eq('building_id', buildingId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getByBuilding'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getByBuilding'))
+    }
+  }
+
+  /**
+   * Get interventions by lot
+   */
+  async getByLot(lotId: string) {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('interventions')
+        .select(`
+          *,
+          building:building_id(id, name, address),
+          lot:lot_id(id, reference, category)
+        `)
+        .eq('lot_id', lotId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getByLot'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getByLot'))
+    }
+  }
+
+  /**
+   * Get documents for an intervention
+   */
+  async getDocuments(interventionId: string) {
+    try {
+      return await this.interventionRepo.getDocuments(interventionId)
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getDocuments'))
+    }
+  }
+
+  /**
    * Create new intervention
    */
   async create(data: InterventionCreateInput, userId: string) {

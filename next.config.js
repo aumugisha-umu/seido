@@ -15,8 +15,13 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Externalize Supabase packages to avoid Edge Runtime conflicts (Next.js 15+)
-  serverExternalPackages: ['@supabase/supabase-js', '@supabase/ssr'],
+  // Externalize Supabase and React Email packages to avoid Edge Runtime conflicts (Next.js 15+)
+  serverExternalPackages: [
+    '@supabase/supabase-js',
+    '@supabase/ssr',
+    '@react-email/render',
+    '@react-email/components'
+  ],
 
   experimental: {
     optimizePackageImports: [

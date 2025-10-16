@@ -166,8 +166,20 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        logger.error({ error: errorData }, '❌ [CONTACT-FORM] Email validation API error')
+        // ✅ Gérer de manière robuste les réponses d'erreur (JSON ou texte)
+        let errorData: any = {}
+        try {
+          errorData = await response.json()
+        } catch (jsonError) {
+          // Si le parsing JSON échoue, essayer de récupérer le texte brut
+          try {
+            const errorText = await response.text()
+            errorData = { message: errorText || `HTTP ${response.status}: ${response.statusText}` }
+          } catch {
+            errorData = { message: `HTTP ${response.status}: ${response.statusText}` }
+          }
+        }
+        logger.error({ error: errorData, status: response.status }, '❌ [CONTACT-FORM] Email validation API error')
         return {
           existsInCurrentTeam: false,
           existsInOtherTeams: false,
@@ -176,16 +188,40 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
         }
       }
 
-      const result = await response.json()
-      logger.info({ result }, '✅ [CONTACT-FORM] Email validation result')
-      return result
+      // ✅ Parser la réponse de succès avec gestion d'erreur
+      try {
+        const result = await response.json()
+        logger.info({ result }, '✅ [CONTACT-FORM] Email validation result')
+        return result
+      } catch (jsonError) {
+        logger.error({ error: jsonError }, '❌ [CONTACT-FORM] Failed to parse success response')
+        // Retourner un résultat sécurisé par défaut
+        return {
+          existsInCurrentTeam: false,
+          existsInOtherTeams: false,
+          canCreate: true,
+          message: 'Erreur lors du traitement de la réponse'
+        }
+      }
     } catch (error) {
-      logger.error({ error }, '❌ [CONTACT-FORM] Exception in email validation')
+      // ✅ Gérer les erreurs réseau et autres exceptions
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+      const errorType = error instanceof TypeError ? 'network' : 'unknown'
+
+      logger.error({
+        error: errorMessage,
+        errorType,
+        email: _email,
+        teamId
+      }, '❌ [CONTACT-FORM] Exception in email validation')
+
       return {
         existsInCurrentTeam: false,
         existsInOtherTeams: false,
-        canCreate: true, // En cas d'erreur, permettre la création
-        message: 'Erreur de validation'
+        canCreate: true, // En cas d'erreur, permettre la création (le backend fera la validation finale)
+        message: errorType === 'network'
+          ? 'Problème de connexion. Vérifiez votre réseau et réessayez.'
+          : 'Erreur de validation, veuillez réessayer'
       }
     }
   }

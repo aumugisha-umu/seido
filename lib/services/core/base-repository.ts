@@ -120,37 +120,152 @@ export abstract class BaseRepository<
    * Get record by ID
    */
   async findById(id: string, useCache = true): Promise<RepositoryResponse<TRow>> {
+    const startTime = Date.now()
+    console.log(`🔍 [BASE-REPOSITORY] findById called`, {
+      table: this.tableName,
+      id,
+      useCache,
+      timestamp: new Date().toISOString()
+    })
+
     try {
+      console.log(`📍 [BASE-REPOSITORY] Step 1: Validating UUID...`, { table: this.tableName })
+      const validateStart = Date.now()
       validateUUID(id)
+      const validateElapsed = Date.now() - validateStart
+      console.log(`✅ [BASE-REPOSITORY] UUID validation passed`, {
+        table: this.tableName,
+        elapsed: `${validateElapsed}ms`
+      })
 
       // Check cache first
       if (useCache) {
+        console.log(`📍 [BASE-REPOSITORY] Step 2: Checking cache...`, { table: this.tableName })
+        const cacheStart = Date.now()
         const cached = this.getFromCache(`${this.tableName}:${id}`)
+        const cacheElapsed = Date.now() - cacheStart
+
         if (cached) {
+          console.log(`🎯 [BASE-REPOSITORY] Cache HIT!`, {
+            table: this.tableName,
+            elapsed: `${cacheElapsed}ms`,
+            totalElapsed: `${Date.now() - startTime}ms`
+          })
           return createSuccessResponse(cached as TRow)
         }
+
+        console.log(`❌ [BASE-REPOSITORY] Cache MISS`, {
+          table: this.tableName,
+          elapsed: `${cacheElapsed}ms`
+        })
       }
 
-      const { data, error } = await this.supabase
-        .from(this.tableName as keyof Database['public']['Tables'])
-        .select('*')
-        .eq('id', id)
-        .single()
+      // ✅ DIAGNOSTIC: Check browser auth context before query
+      console.log(`📍 [BASE-REPOSITORY] Step 3: Checking browser auth context...`, { table: this.tableName })
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          throw new NotFoundException(this.tableName, id)
+      // Check cookies
+      if (typeof document !== 'undefined') {
+        const cookieHeader = document.cookie
+        const cookies = cookieHeader ? cookieHeader.split(';').map(c => c.trim().split('=')[0]) : []
+        const authCookies = cookies.filter(c => c.includes('supabase') || c.includes('auth'))
+        console.log(`🍪 [BASE-REPOSITORY] Browser cookies check:`, {
+          totalCookies: cookies.length,
+          authCookies: authCookies.length,
+          authCookieNames: authCookies.slice(0, 3) // First 3 to avoid spam
+        })
+      }
+
+      // Check localStorage session
+      if (typeof localStorage !== 'undefined') {
+        const sessionKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('auth'))
+        console.log(`💾 [BASE-REPOSITORY] LocalStorage session check:`, {
+          sessionKeys: sessionKeys.length,
+          keyNames: sessionKeys.slice(0, 3) // First 3 to avoid spam
+        })
+      }
+
+      console.log(`📍 [BASE-REPOSITORY] Step 4: Querying Supabase with timeout...`, {
+        table: this.tableName,
+        id
+      })
+      const queryStart = Date.now()
+
+      // Create AbortController for explicit timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        console.warn(`⏰ [BASE-REPOSITORY] Query timeout triggered after 5s`, { table: this.tableName })
+        controller.abort()
+      }, 5000) // 5s timeout
+
+      try {
+        const { data, error } = await this.supabase
+          .from(this.tableName as keyof Database['public']['Tables'])
+          .select('*')
+          .eq('id', id)
+          .abortSignal(controller.signal)
+          .single()
+
+        clearTimeout(timeoutId)
+
+        const queryElapsed = Date.now() - queryStart
+        console.log(`⏱️ [BASE-REPOSITORY] Supabase query completed`, {
+          table: this.tableName,
+          hasData: !!data,
+          hasError: !!error,
+          errorCode: error?.code,
+          elapsed: `${queryElapsed}ms`
+        })
+
+        if (error) {
+          console.error(`❌ [BASE-REPOSITORY] Query error`, {
+            table: this.tableName,
+            errorCode: error.code,
+            errorMessage: error.message,
+            totalElapsed: `${Date.now() - startTime}ms`
+          })
+
+          if (error.code === 'PGRST116') {
+            throw new NotFoundException(this.tableName, id)
+          }
+          return createErrorResponse(handleError(error, `${this.tableName}:findById`))
         }
-        return createErrorResponse(handleError(error, `${this.tableName}:findById`))
-      }
 
-      // Cache the result
-      if (useCache && data) {
-        this.setCache(`${this.tableName}:${id}`, data)
-      }
+        // Cache the result
+        if (useCache && data) {
+          console.log(`💾 [BASE-REPOSITORY] Caching result...`, { table: this.tableName })
+          this.setCache(`${this.tableName}:${id}`, data)
+        }
 
-      return createSuccessResponse(data as TRow)
+        const totalElapsed = Date.now() - startTime
+        console.log(`✅ [BASE-REPOSITORY] findById completed successfully`, {
+          table: this.tableName,
+          totalElapsed: `${totalElapsed}ms`
+        })
+
+        return createSuccessResponse(data as TRow)
+      } catch (abortError: any) {
+        clearTimeout(timeoutId)
+
+        if (abortError.name === 'AbortError') {
+          const totalElapsed = Date.now() - startTime
+          console.error(`🚫 [BASE-REPOSITORY] Query aborted (5s timeout)`, {
+            table: this.tableName,
+            totalElapsed: `${totalElapsed}ms`
+          })
+          return createErrorResponse({
+            code: 'TIMEOUT',
+            message: `Query timeout after 5s for ${this.tableName}`
+          })
+        }
+        throw abortError
+      }
     } catch (error) {
+      const totalElapsed = Date.now() - startTime
+      console.error(`💥 [BASE-REPOSITORY] Exception in findById`, {
+        table: this.tableName,
+        error: error instanceof Error ? error.message : String(error),
+        totalElapsed: `${totalElapsed}ms`
+      })
       return createErrorResponse(handleError(error, `${this.tableName}:findById`))
     }
   }

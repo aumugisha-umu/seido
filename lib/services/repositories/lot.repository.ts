@@ -239,6 +239,15 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
    * Get lot by ID with full relations
    */
   async findByIdWithRelations(_id: string) {
+    const startTime = Date.now()
+    console.log('🔍 [LOT-REPOSITORY] findByIdWithRelations called', {
+      lotId: _id,
+      timestamp: new Date().toISOString()
+    })
+
+    console.log('📍 [LOT-REPOSITORY] Step 1: Preparing Supabase query...')
+    const queryStart = Date.now()
+
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
@@ -252,12 +261,29 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .eq('id', _id)
       .single()
 
+    const queryElapsed = Date.now() - queryStart
+    console.log('⏱️ [LOT-REPOSITORY] Supabase query completed', {
+      elapsed: `${queryElapsed}ms`,
+      hasData: !!data,
+      hasError: !!error
+    })
+
     if (error) {
+      console.error('❌ [LOT-REPOSITORY] Query failed', {
+        errorCode: error.code,
+        errorMessage: error.message,
+        lotId: _id,
+        elapsed: `${Date.now() - startTime}ms`
+      })
+
       if (error.code === 'PGRST116') {
         throw new NotFoundException(this.tableName, _id)
       }
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
+
+    console.log('📍 [LOT-REPOSITORY] Step 2: Post-processing data...')
+    const processStart = Date.now()
 
     // Post-process to extract tenants
     if (data) {
@@ -270,6 +296,18 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       data.is_occupied = tenants.length > 0
       data.tenants = tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
     }
+
+    const processElapsed = Date.now() - processStart
+    const totalElapsed = Date.now() - startTime
+
+    console.log('✅ [LOT-REPOSITORY] findByIdWithRelations completed successfully', {
+      lotId: _id,
+      lotReference: data?.reference,
+      contactsCount: data?.lot_contacts?.length || 0,
+      tenantsCount: data?.tenants?.length || 0,
+      processElapsed: `${processElapsed}ms`,
+      totalElapsed: `${totalElapsed}ms`
+    })
 
     return { success: true as const, data }
   }

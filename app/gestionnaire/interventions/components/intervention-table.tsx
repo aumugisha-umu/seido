@@ -203,17 +203,10 @@ export function InterventionTable({
                 </TableCell>
                 {userRole === 'gestionnaire' && (
                   <TableCell>
-                    {intervention.tenant_id ? (
-                      <div className="flex items-center gap-1 text-sm">
-                        <User className="w-3 h-3" />
-                        <span className="line-clamp-1">
-                          {/* In a real app, you'd load the tenant name */}
-                          Locataire
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
+                    {/* Tenant info now loaded from intervention_assignments */}
+                    <span className="text-muted-foreground text-sm">
+                      Voir détails
+                    </span>
                   </TableCell>
                 )}
                 <TableCell>

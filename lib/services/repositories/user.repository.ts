@@ -274,7 +274,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('User not found', this.tableName, id)
+        throw new NotFoundException(this.tableName, id)
       }
       return { success: false as const, error: handleError(error) }
     }

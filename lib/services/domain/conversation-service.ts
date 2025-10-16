@@ -155,7 +155,7 @@ export class ConversationService {
       // Validate intervention exists
       const intervention = await this.interventionRepo.findById(interventionId)
       if (!intervention.success || !intervention.data) {
-        throw new NotFoundException('Intervention not found', 'interventions', interventionId)
+        throw new NotFoundException('Intervention', interventionId)
       }
 
       // Validate user has permission to create thread
@@ -328,7 +328,7 @@ export class ConversationService {
         .single()
 
       if (error || !message) {
-        throw new NotFoundException('Message not found', 'conversation_messages', messageId)
+        throw new NotFoundException('conversation_messages', messageId)
       }
 
       // Only message author or managers can delete
@@ -500,7 +500,7 @@ export class ConversationService {
       // Verify intervention belongs to manager's team
       const intervention = await this.interventionRepo.findById(interventionId)
       if (!intervention.success || !intervention.data) {
-        throw new NotFoundException('Intervention not found', 'interventions', interventionId)
+        throw new NotFoundException('Intervention', interventionId)
       }
 
       if (intervention.data.team_id !== user.team_id) {
@@ -674,6 +674,32 @@ export class ConversationService {
    */
 
   /**
+   * Get all tenant user IDs assigned to an intervention
+   * Replaces direct access to deprecated intervention.tenant_id field
+   * @param interventionId - The intervention ID
+   * @returns Array of tenant user IDs (locataires assigned to this intervention)
+   */
+  private async getInterventionTenants(interventionId: string): Promise<string[]> {
+    try {
+      const { data, error } = await this.conversationRepo.supabase
+        .from('intervention_assignments')
+        .select('user_id')
+        .eq('intervention_id', interventionId)
+        .eq('role', 'locataire')
+
+      if (error) {
+        logger.error('Failed to fetch intervention tenants', error)
+        return []
+      }
+
+      return data?.map(a => a.user_id) || []
+    } catch (error) {
+      logger.error('Error in getInterventionTenants', error)
+      return []
+    }
+  }
+
+  /**
    * Check if user has access to intervention
    */
   private async checkInterventionAccess(interventionId: string, userId: string): Promise<boolean> {
@@ -693,7 +719,8 @@ export class ConversationService {
 
       // Tenants can access their own interventions
       if (user.role === 'locataire') {
-        return intervention.data.tenant_id === userId
+        const tenants = await this.getInterventionTenants(interventionId)
+        return tenants.includes(userId)
       }
 
       // Providers can access assigned interventions
@@ -734,8 +761,8 @@ export class ConversationService {
 
       // Special case for tenant_to_managers thread - tenant always has access
       if (thread.data.thread_type === 'tenant_to_managers' && user.role === 'locataire') {
-        const intervention = await this.interventionRepo.findById(thread.data.intervention_id)
-        if (intervention.success && intervention.data?.tenant_id === userId) {
+        const tenants = await this.getInterventionTenants(thread.data.intervention_id)
+        if (tenants.includes(userId)) {
           return true
         }
       }
@@ -871,11 +898,7 @@ export class ConversationService {
 
       switch (thread.thread_type) {
         case 'group':
-          // Add tenant if exists
-          if (intervention.tenant_id) {
-            participantIds.push(intervention.tenant_id)
-          }
-          // Add all assigned users
+          // Add all assigned users (including tenants)
           if (intervention.intervention_assignments) {
             intervention.intervention_assignments.forEach((a: any) => {
               if (!participantIds.includes(a.user_id)) {
@@ -886,10 +909,13 @@ export class ConversationService {
           break
 
         case 'tenant_to_managers':
-          // Add tenant
-          if (intervention.tenant_id) {
-            participantIds.push(intervention.tenant_id)
-          }
+          // Add tenants assigned to intervention
+          const tenants = await this.getInterventionTenants(intervention.id)
+          tenants.forEach(tenantId => {
+            if (!participantIds.includes(tenantId)) {
+              participantIds.push(tenantId)
+            }
+          })
           // Add all managers in team
           const { data: managers } = await this.conversationRepo.supabase
             .from('users')

@@ -254,7 +254,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Lot not found', this.tableName, _id)
+        throw new NotFoundException(this.tableName, _id)
       }
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }

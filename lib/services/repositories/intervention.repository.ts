@@ -40,7 +40,7 @@ interface EnrichedIntervention extends Intervention {
   lot?: {
     lot_contacts?: LotContact[]
   }
-  intervention_contacts?: InterventionContact[]
+  intervention_assignments?: InterventionContact[]
   tenant?: User | null
   assigned_managers?: (User & { is_primary: boolean; individual_message?: string })[]
   assigned_providers?: (User & { is_primary: boolean; individual_message?: string })[]
@@ -82,9 +82,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       validateEnum(data.priority, ['low', 'medium', 'high', 'urgent'], 'priority')
     }
 
-    if ('tenant_id' in data && data.tenant_id) {
-      validateRequired({ tenant_id: data.tenant_id }, ['tenant_id'])
-    }
+    // ✅ FIX 2025-10-15: tenant_id validation REMOVED
   }
 
   /**
@@ -103,11 +101,10 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
             user:user_id(id, name, email, phone, role, provider_category)
           )
         ),
-        tenant:tenant_id(id, name, email, phone, role),
-        intervention_contacts(
+        intervention_assignments(
           role,
           is_primary,
-          individual_message,
+          notes,
           user:user_id(id, name, email, phone, role, provider_category)
         ),
         documents:intervention_documents(
@@ -126,7 +123,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Intervention not found', this.tableName, _id)
+        throw new NotFoundException(this.tableName, _id)
       }
       return createErrorResponse(handleError(error, 'intervention:findByIdWithRelations'))
     }
@@ -148,12 +145,11 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address, team_id)
         ),
-        tenant:tenant_id(id, name, email, role),
-        intervention_contacts(
+        intervention_assignments(
           id,
           role,
           is_primary,
-          individual_message,
+          notes,
           user:user_id(id, name, email, role, provider_category)
         )
       `)
@@ -180,30 +176,40 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
   /**
    * Get interventions by tenant (user who requested)
+   * ✅ FIX 2025-10-15: Query via intervention_assignments instead of tenant_id column
    */
   async findByTenant(tenantId: string) {
     const { data, error } = await this.supabase
-      .from(this.tableName)
+      .from('intervention_assignments')
       .select(`
-        *,
-        lot:lot_id(
-          id, reference,
-          building:building_id(id, name, address, team_id)
-        ),
-        intervention_contacts(
-          role,
-          is_primary,
-          user:user_id(id, name, email, role, provider_category)
+        intervention_id,
+        intervention:intervention_id(
+          *,
+          lot:lot_id(
+            id, reference,
+            building:building_id(id, name, address, team_id)
+          ),
+          intervention_assignments(
+            role,
+            is_primary,
+            user:user_id(id, name, email, role, provider_category)
+          )
         )
       `)
-      .eq('tenant_id', tenantId)
+      .eq('user_id', tenantId)
+      .eq('role', 'locataire')
       .order('created_at', { ascending: false })
 
     if (error) {
       return createErrorResponse(handleError(error, 'intervention:findByTenant'))
     }
 
-    return { success: true as const, data: data || [] }
+    // Extract interventions from the assignment relationships
+    const interventions = (data || [])
+      .map(item => item.intervention)
+      .filter(Boolean)
+
+    return { success: true as const, data: interventions }
   }
 
   /**
@@ -218,8 +224,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address, team_id)
         ),
-        tenant:tenant_id(id, name, email, role),
-        intervention_contacts(
+        intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email, role, provider_category)
@@ -239,9 +244,9 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    * Get interventions assigned to a provider
    */
   async findByProvider(providerId: string) {
-    // Find interventions assigned via intervention_contacts (no direct assignment field anymore)
+    // Find interventions assigned via intervention_assignments (no direct assignment field anymore)
     const { data, error } = await this.supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .select(`
         intervention_id,
         intervention:intervention_id(
@@ -250,8 +255,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
             id, reference,
             building:building_id(id, name, address, team_id)
           ),
-          tenant:tenant_id(id, name, email, role),
-          intervention_contacts(
+          intervention_assignments(
             role,
             is_primary,
             user:user_id(id, name, email, role, provider_category)
@@ -285,8 +289,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address, team_id)
         ),
-        tenant:tenant_id(id, name, email, role),
-        intervention_contacts(
+        intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email, role, provider_category)
@@ -330,8 +333,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           id, reference,
           building:building_id(id, name, address, team_id)
         ),
-        tenant:tenant_id(id, name, email, role),
-        intervention_contacts(
+        intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email, role, provider_category)
@@ -354,7 +356,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     // Validate status transition
     const existingResult = await this.findById(id)
     if (!existingResult.success || !existingResult.data) {
-      throw new NotFoundException('Intervention not found', this.tableName, id)
+      throw new NotFoundException(this.tableName, id)
     }
 
     const currentStatus = existingResult.data.status
@@ -379,7 +381,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   async assignToProvider(interventionId: string, providerId: string, isPrimary: boolean = true) {
     // First check if provider is already assigned
     const { data: existingAssignment, error: checkError } = await this.supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .select('id')
       .eq('intervention_id', interventionId)
       .eq('user_id', providerId)
@@ -391,12 +393,12 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     if (existingAssignment) {
-      throw new ValidationException('Provider is already assigned to this intervention', 'intervention_contacts', 'user_id')
+      throw new ValidationException('Provider is already assigned to this intervention', 'intervention_assignments', 'user_id')
     }
 
-    // Add assignment via intervention_contacts
+    // Add assignment via intervention_assignments
     const { data, error } = await this.supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .insert({
         intervention_id: interventionId,
         user_id: providerId,
@@ -411,7 +413,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     // Note: assigned_to field no longer exists in database
-    // Assignment is now handled entirely through intervention_contacts table
+    // Assignment is now handled entirely through intervention_assignments table
 
     return { success: true as const, data }
   }
@@ -421,7 +423,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    */
   async removeProviderAssignment(interventionId: string, providerId: string) {
     const { data, error } = await this.supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .delete()
       .eq('intervention_id', interventionId)
       .eq('user_id', providerId)
@@ -433,11 +435,11 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     if (!data || data.length === 0) {
-      throw new NotFoundException('Provider assignment not found', 'intervention_contacts', `${interventionId}-${providerId}`)
+      throw new NotFoundException('intervention_assignments', `${interventionId}-${providerId}`)
     }
 
     // Note: assigned_to field no longer exists in database
-    // Assignment removal is handled entirely through intervention_contacts table
+    // Assignment removal is handled entirely through intervention_assignments table
 
     return { success: true as const, data: data[0] }
   }
@@ -519,22 +521,22 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       intervention.tenant = tenants.find((c: LotContact) => c.is_primary)?.user || tenants[0]?.user || null
     }
 
-    // Extract assigned users by role from intervention_contacts
-    if (intervention.intervention_contacts) {
-      intervention.assigned_managers = intervention.intervention_contacts
+    // Extract assigned users by role from intervention_assignments
+    if (intervention.intervention_assignments) {
+      intervention.assigned_managers = intervention.intervention_assignments
         .filter((ic: InterventionContact) => ic.role === 'gestionnaire')
         .map((ic: InterventionContact) => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
 
-      intervention.assigned_providers = intervention.intervention_contacts
+      intervention.assigned_providers = intervention.intervention_assignments
         .filter((ic: InterventionContact) => ic.role === 'prestataire')
         .map((ic: InterventionContact) => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
 
-      intervention.assigned_supervisors = intervention.intervention_contacts
+      intervention.assigned_supervisors = intervention.intervention_assignments
         .filter((ic: InterventionContact) => ic.role === 'superviseur')
         .map((ic: InterventionContact) => ({ ...ic.user, is_primary: ic.is_primary, individual_message: ic.individual_message }))
 
       // For backwards compatibility, set primary assigned contact
-      intervention.assigned_contact = intervention.intervention_contacts?.find((ic: InterventionContact) =>
+      intervention.assigned_contact = intervention.intervention_assignments?.find((ic: InterventionContact) =>
         ic.role === 'prestataire' && ic.is_primary
       )?.user || null
 

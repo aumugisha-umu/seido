@@ -71,7 +71,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Contact not found', this.tableName, _id)
+        throw new NotFoundException(this.tableName, _id)
       }
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
@@ -319,7 +319,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     if (!data || data.length === 0) {
-      throw new NotFoundException('Team membership not found', 'team_members', `${teamId}-${userId}`)
+      throw new NotFoundException('team_members', `${teamId}-${userId}`)
     }
 
     return { success: true as const, data: data[0] }

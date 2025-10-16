@@ -202,7 +202,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
 
       if (teamError) {
         if (teamError.code === 'PGRST116') {
-          throw new NotFoundException('Team not found', this.tableName, id)
+          throw new NotFoundException(this.tableName, id)
         }
         return { success: false as const, error: handleError(teamError, 'team') }
       }
@@ -609,7 +609,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
 
     if (checkError) {
       if (checkError.code === 'PGRST116') {
-        throw new NotFoundException('Member not found in team', 'team_members', `${teamId}-${userId}`)
+        throw new NotFoundException('team_members', `${teamId}-${userId}`)
       }
       return { success: false as const, error: handleError(checkError, 'team') }
     }

@@ -904,11 +904,13 @@ export type Database = {
           provider_comment: string | null
           reference: string
           requested_date: string | null
+          requires_quote: boolean
           scheduled_date: string | null
+          scheduling_type: Database["public"]["Enums"]["intervention_scheduling_type"]
+          specific_location: string | null
           status: Database["public"]["Enums"]["intervention_status"]
           team_id: string
           tenant_comment: string | null
-          tenant_id: string
           title: string
           type: Database["public"]["Enums"]["intervention_type"]
           updated_at: string
@@ -930,11 +932,13 @@ export type Database = {
           provider_comment?: string | null
           reference: string
           requested_date?: string | null
+          requires_quote?: boolean
           scheduled_date?: string | null
+          scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
+          specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id: string
           tenant_comment?: string | null
-          tenant_id: string
           title: string
           type: Database["public"]["Enums"]["intervention_type"]
           updated_at?: string
@@ -956,11 +960,13 @@ export type Database = {
           provider_comment?: string | null
           reference?: string
           requested_date?: string | null
+          requires_quote?: boolean
           scheduled_date?: string | null
+          scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
+          specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id?: string
           tenant_comment?: string | null
-          tenant_id?: string
           title?: string
           type?: Database["public"]["Enums"]["intervention_type"]
           updated_at?: string
@@ -1000,13 +1006,6 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1770,6 +1769,10 @@ export type Database = {
         Args: { lot_uuid: string }
         Returns: string
       }
+      get_user_id_from_auth: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_teams_v2: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1884,6 +1887,7 @@ export type Database = {
         | "garantie"
         | "bon_de_commande"
         | "autre"
+      intervention_scheduling_type: "flexible" | "fixed" | "slots"
       intervention_status:
         | "demande"
         | "rejetee"
@@ -2137,6 +2141,7 @@ export const Constants = {
         "bon_de_commande",
         "autre",
       ],
+      intervention_scheduling_type: ["flexible", "fixed", "slots"],
       intervention_status: [
         "demande",
         "rejetee",

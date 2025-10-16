@@ -349,6 +349,63 @@ lib/
 
 **État actuel** : 📋 Analyse des services legacy en cours...
 
+#### ✅ Étape 3.4: Phase 3.1 - Planning & Quote Enhancements **TERMINÉE** ✅
+**Date**: 2025-10-16
+
+**🎯 Contexte**:
+Frontend UI pour création d'interventions incluait des options de planification et demande de devis, mais les colonnes correspondantes manquaient dans la base de données, causant l'erreur:
+```
+"Could not find the 'requires_quote' column of 'interventions' in the schema cache"
+```
+
+**📋 Migration**: `20251016081900_add_intervention_planning_columns.sql`
+
+**✅ Colonnes Ajoutées**:
+- [x] `interventions.requires_quote` (BOOLEAN DEFAULT FALSE) - Flag indiquant si un devis est requis avant l'intervention ✅
+- [x] `interventions.scheduling_type` (ENUM DEFAULT 'flexible') - Type de planification choisi par l'utilisateur ✅
+- [x] `interventions.specific_location` (TEXT NULLABLE) - Localisation précise dans le logement ✅
+
+**✅ ENUM Créé**: `intervention_scheduling_type`
+- `'flexible'` - Horaire à définir (défaut - schedule TBD)
+- `'fixed'` - Date et heure fixe (fixed date/time)
+- `'slots'` - Proposer des créneaux (propose time slots)
+
+**✅ Index Ajoutés**:
+- `idx_interventions_requires_quote` - Filtre rapide des interventions nécessitant devis (WHERE requires_quote = TRUE AND deleted_at IS NULL) ✅
+- `idx_interventions_scheduling_type` - Filtre par type de planification (WHERE deleted_at IS NULL) ✅
+
+**🎨 Éléments UI Supportés**:
+- ✅ Checkbox "Demander un devis" → `requires_quote`
+- ✅ Radio buttons "Planification" → `scheduling_type`
+  - "Horaire à définir" (flexible)
+  - "Date et heure fixe" (fixed)
+  - "Proposer des créneaux" (slots)
+- ✅ Input "Localisation spécifique" → `specific_location`
+
+**📊 Migration de Données**:
+```sql
+-- Update existing interventions: set scheduling_type based on scheduled_date
+UPDATE interventions
+SET scheduling_type = CASE
+  WHEN scheduled_date IS NOT NULL THEN 'fixed'::intervention_scheduling_type
+  ELSE 'flexible'::intervention_scheduling_type
+END
+WHERE scheduling_type = 'flexible'::intervention_scheduling_type;
+```
+
+**🔍 Impact**:
+- ✅ **Création intervention** : Aucune erreur de colonne manquante
+- ✅ **UX améliorée** : Options de planification persistantes en DB
+- ✅ **Performance** : Index optimisés pour requêtes de filtrage
+- ✅ **Workflow** : Demande de devis intégrée au processus
+
+**📁 Fichiers Liés**:
+- `supabase/migrations/20251016081900_add_intervention_planning_columns.sql` (80 lignes)
+- `app/api/create-manager-intervention/route.ts` (consomme les nouveaux champs)
+- Frontend création intervention (envoie requires_quote, scheduling_type, specific_location)
+
+**🎉 Résultat**: Migration complète permettant la création d'interventions avec toutes les options de planification visible dans l'UI.
+
 ### 📊 Phase 4: Services Auxiliaires (Jour 11-13) ✅ **TERMINÉE - 28/09/2025**
 
 #### ✅ Étape 4.1: Stats Service **COMPLÉTÉ** ✅

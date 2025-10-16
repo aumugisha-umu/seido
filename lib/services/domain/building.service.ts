@@ -209,7 +209,7 @@ export class BuildingService {
     if (this.userService) {
       const teamExists = await this.validateTeamExists(teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('teams', teamId)
       }
     }
 
@@ -226,7 +226,7 @@ export class BuildingService {
     if (this.userService) {
       const teamExists = await this.validateTeamExists(teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('teams', teamId)
       }
     }
 
@@ -241,7 +241,7 @@ export class BuildingService {
     if (this.userService) {
       const userResult = await this.userService.getById(userId)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('User not found', 'users', userId)
+        throw new NotFoundException('users', userId)
       }
     }
 
@@ -270,7 +270,7 @@ export class BuildingService {
     if (teamId && this.userService) {
       const teamExists = await this.validateTeamExists(teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('teams', teamId)
       }
     }
 
@@ -297,7 +297,7 @@ export class BuildingService {
     if (teamId && this.userService) {
       const teamExists = await this.validateTeamExists(teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('teams', teamId)
       }
     }
 
@@ -334,7 +334,7 @@ export class BuildingService {
     if (teamId && this.userService) {
       const teamExists = await this.validateTeamExists(teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', teamId)
+        throw new NotFoundException('teams', teamId)
       }
     }
 
@@ -356,7 +356,7 @@ export class BuildingService {
     if (options?.teamId && this.userService) {
       const teamExists = await this.validateTeamExists(options.teamId)
       if (!teamExists) {
-        throw new NotFoundException('Team not found', 'teams', options.teamId)
+        throw new NotFoundException('teams', options.teamId)
       }
     }
 
@@ -393,14 +393,14 @@ export class BuildingService {
     // Check if building exists
     const building = await this.repository.findById(buildingId)
     if (!building.success || !building.data) {
-      throw new NotFoundException('Building not found', 'buildings', buildingId)
+      throw new NotFoundException('buildings', buildingId)
     }
 
     // Validate gestionnaire exists and has correct role
     if (this.userService) {
       const gestionnaireResult = await this.userService.getById(gestionnaireId)
       if (!gestionnaireResult.success || !gestionnaireResult.data) {
-        throw new NotFoundException('Gestionnaire not found', 'users', gestionnaireId)
+        throw new NotFoundException('users', gestionnaireId)
       }
 
       if (gestionnaireResult.data.role !== 'gestionnaire') {

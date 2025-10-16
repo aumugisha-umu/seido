@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     // Determine if this is a building or lot intervention
     let lotId: string | null = null
     let buildingId: string | null = null
-    let tenantId: string | null = null
+    // ✅ FIX 2025-10-15: tenant_id REMOVED - tenants added via intervention_assignments
     let interventionTeamId = teamId
 
     // Sanitize IDs that might come as 'undefined' strings from the client
@@ -196,45 +196,9 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Get tenant for this lot if exists
-      logger.info({}, "👤 Looking for tenant in lot...")
-
-      // ✅ Utiliser uniquement lot_contacts (nouvelle architecture)
-      logger.info({}, "🔄 Using only lot_contacts for tenant lookup...")
-      
-      {
-        // ✅ Look for tenant in lot_contacts avec nouvelle logique
-        const { data: tenantContactData } = await supabase
-          .from('lot_contacts')
-          .select(`
-            user:user_id (
-              id,
-              name,
-              email,
-              role,
-              provider_category
-            ),
-            is_primary
-          `)
-          .eq('lot_id', lotId)
-          .or('end_date.is.null,end_date.gt.now()') // Contacts actifs
-
-        if (tenantContactData && tenantContactData.length > 0) {
-          // ✅ Trouver le locataire parmi les contacts (rôle français DB)
-          const tenantContact = tenantContactData.find(contact => {
-            return contact.user?.role === 'locataire' // Utiliser le rôle français de la DB
-          })
-          
-          if (tenantContact?.user) {
-            tenantId = tenantContact.user.id
-            logger.info({ tenantId }, "✅ Found tenant from lot_contacts")
-          } else {
-            logger.info({}, "ℹ️ No tenant found in lot_contacts")
-          }
-        } else {
-          logger.info({}, "ℹ️ No contacts found for this lot")
-        }
-      }
+      // ✅ FIX 2025-10-15: No longer extract tenant_id here
+      // Tenants will be added via intervention_assignments AFTER intervention creation
+      logger.info({}, "ℹ️ Tenants will be linked via intervention_assignments")
 
       // Use lot's team if available, otherwise use provided teamId
       if (lot.team_id) {
@@ -260,14 +224,13 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      tenantId = null
-      
+      // ✅ FIX 2025-10-15: No tenant_id for building-wide interventions
       // Use building's team if available, otherwise use provided teamId
       if (building.team_id) {
         interventionTeamId = building.team_id
       }
 
-      logger.info({}, "✅ Building-wide intervention will be linked directly to building")
+      logger.info({}, "✅ Building-wide intervention - tenants via intervention_assignments")
     }
 
     // Map frontend values to database enums
@@ -336,28 +299,26 @@ export async function POST(request: NextRequest) {
     logger.info({
       hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
       expectsQuote,
-      hasTenant: !!tenantId,
       onlyOneManager: selectedManagerIds.length === 1,
       noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
       schedulingType,
       hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
     }, "🔍 Analyse des conditions pour déterminer le statut")
-    
+
     // CAS 1: Demande de devis si prestataires assignés + devis requis
     if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
       interventionStatus = 'demande_de_devis'
       logger.info({}, "✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
-      
+
     // CAS 2: Planifiée directement si conditions strictes remplies
     } else if (
-      !tenantId && // Pas de locataire dans le bien
       selectedManagerIds.length === 1 && // Que le gestionnaire créateur
       (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
       schedulingType === 'fixed' && // Date/heure fixe
       fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
     ) {
       interventionStatus = 'planifiee'
-      logger.info({}, "✅ Statut déterminé: PLANIFIEE (pas locataire + seul gestionnaire + date fixe)")
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe)")
 
     // CAS 3: Planification dans tous les autres cas
     } else {
@@ -371,10 +332,9 @@ export async function POST(request: NextRequest) {
       type: mapInterventionType(type || ''),
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
-      tenant_id: tenantId, // Can be null for manager-created interventions
-      // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
+      // ✅ FIX 2025-10-15: tenant_id REMOVED - all participants via intervention_assignments
       team_id: interventionTeamId,
-      status: interventionStatus, // ✅ NOUVEAU: Statut déterminé selon les règles métier
+      status: interventionStatus, // ✅ Statut déterminé selon les règles métier
       scheduled_date: scheduledDate,
       manager_comment: location ? `Localisation: ${location}` : null,
       requires_quote: expectsQuote || false,
@@ -395,8 +355,20 @@ export async function POST(request: NextRequest) {
     logger.info({ interventionData }, "📝 Creating intervention with data")
 
     // Create the intervention
-    const intervention = await interventionService.create(interventionData)
-    logger.info({ interventionId: intervention.id }, "✅ Intervention created")
+    // ✅ FIX: Pass user.id as second parameter (required by interventionService.create signature)
+    const interventionResult = await interventionService.create(interventionData, user.id)
+
+    // ✅ CRITICAL: Check if creation succeeded BEFORE continuing
+    if (!interventionResult.success || !interventionResult.data) {
+      logger.error({ error: interventionResult.error }, "❌ Intervention creation failed")
+      return NextResponse.json({
+        success: false,
+        error: interventionResult.error?.message || 'Failed to create intervention'
+      }, { status: 500 })
+    }
+
+    const intervention = interventionResult.data
+    logger.info({ interventionId: intervention.id }, "✅ Intervention created successfully")
 
     // Handle multiple contact assignments
     logger.info({}, "👥 Creating contact assignments...")
@@ -408,7 +380,8 @@ export async function POST(request: NextRequest) {
       user_id: string, // ✅ Correction: c'est user_id, pas contact_id
       role: string,
       is_primary: boolean,
-      individual_message?: string
+      notes?: string,
+      assigned_by: string
     }> = []
 
     // ✅ Add all manager assignments
@@ -419,7 +392,8 @@ export async function POST(request: NextRequest) {
         user_id: managerId, // ✅ Correction: user_id
         role: 'gestionnaire',
         is_primary: index === 0, // First manager is primary
-        individual_message: messageType === 'individual' ? individualMessages[managerId] : undefined
+        notes: messageType === 'individual' ? individualMessages[managerId] : undefined,
+        assigned_by: user.id
       })
     })
 
@@ -432,7 +406,8 @@ export async function POST(request: NextRequest) {
           user_id: providerId, // ✅ Correction: user_id
           role: 'prestataire',
           is_primary: false, // Les gestionnaires sont prioritaires pour is_primary
-          individual_message: messageType === 'individual' ? individualMessages[providerId] : undefined
+          notes: messageType === 'individual' ? individualMessages[providerId] : undefined,
+          assigned_by: user.id
         })
       })
     }
@@ -441,7 +416,7 @@ export async function POST(request: NextRequest) {
     if (contactAssignments.length > 0) {
       logger.info({ count: contactAssignments.length }, "📝 Creating contact assignments")
       const { error: assignmentError } = await supabase
-        .from('intervention_contacts')
+        .from('intervention_assignments')
         .insert(contactAssignments)
 
       if (assignmentError) {
@@ -449,6 +424,57 @@ export async function POST(request: NextRequest) {
         // Don't fail the entire operation, just log the error
       } else {
         logger.info({ count: contactAssignments.length }, "✅ Contact assignments created")
+      }
+    }
+
+    // ✅ NEW 2025-10-15: Auto-assign tenants from lot_contacts (if lot intervention)
+    if (lotId) {
+      logger.info({}, "👤 Extracting and assigning tenants from lot_contacts...")
+
+      try {
+        const { data: tenantContactsData, error: tenantsError } = await supabase
+          .from('lot_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            users!inner (
+              id,
+              name,
+              email,
+              role
+            )
+          `)
+          .eq('lot_id', lotId)
+          .eq('users.role', 'locataire')
+
+        if (tenantsError) {
+          logger.error({ error: tenantsError }, "⚠️ Error fetching tenants from lot_contacts")
+        } else if (tenantContactsData && tenantContactsData.length > 0) {
+          // Prepare tenant assignments
+          const tenantAssignments = tenantContactsData.map((contact: any, index: number) => ({
+            intervention_id: intervention.id,
+            user_id: contact.user_id,
+            role: 'locataire',
+            is_primary: contact.is_primary || index === 0, // Use lot_contacts is_primary or first tenant
+            assigned_by: user.id
+          }))
+
+          // Insert tenant assignments
+          const { error: tenantAssignError } = await supabase
+            .from('intervention_assignments')
+            .insert(tenantAssignments)
+
+          if (tenantAssignError) {
+            logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
+          } else {
+            logger.info({ count: tenantAssignments.length }, "✅ Tenants auto-assigned from lot_contacts")
+          }
+        } else {
+          logger.info({}, "ℹ️ No tenants found in lot_contacts for this lot")
+        }
+      } catch (error) {
+        logger.error({ error }, "❌ Error in tenant auto-assignment")
+        // Don't fail the entire operation for tenant assignment errors
       }
     }
 
@@ -582,9 +608,10 @@ export async function POST(request: NextRequest) {
 
     // Update intervention with additional metadata if needed
     if (managerCommentParts.length > 0) {
+      // ✅ FIX: Pass user.id as third parameter (required by interventionService.update signature)
       await interventionService.update(intervention.id, {
         manager_comment: managerCommentParts.join(' | ')
-      })
+      }, user.id)
     }
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")

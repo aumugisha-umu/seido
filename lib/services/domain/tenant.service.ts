@@ -6,7 +6,7 @@
 import { UserService, createUserService, createServerUserService } from './user.service'
 import { LotService, createLotService, createServerLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService } from './contact.service'
-import { InterventionService, createInterventionService, createServerInterventionService } from './intervention.service'
+import { InterventionService, createInterventionService, createServerInterventionService } from './intervention-service'
 import type { ServiceResult, User, Lot, Intervention } from '../core/service-types'
 import { logger, logError } from '@/lib/logger'
 /**

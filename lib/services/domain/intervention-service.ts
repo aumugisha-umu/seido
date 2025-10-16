@@ -67,7 +67,6 @@ interface InterventionCreateInput {
   description: string
   urgency?: InterventionUrgency
   type?: InterventionType
-  tenant_id?: string | null
   team_id: string
   specific_location?: string | null
   tenant_comment?: string | null
@@ -92,7 +91,6 @@ interface InterventionFilters {
   type?: InterventionType
   building_id?: string
   lot_id?: string
-  tenant_id?: string
   assigned_to?: string
   date_from?: string
   date_to?: string
@@ -180,6 +178,51 @@ export class InterventionService {
   }
 
   /**
+   * Get all interventions for the authenticated user's team
+   * This is the primary method used by the interventions page
+   */
+  async getAll(options?: { limit?: number; filters?: InterventionFilters }) {
+    try {
+      // Get the current user's team from the service context
+      if (!this.userService) {
+        throw new ValidationException(
+          'User service not available',
+          'interventions',
+          'service'
+        )
+      }
+
+      // Get the authenticated user from Supabase auth
+      const { data: { user: authUser }, error: authError } = await this.interventionRepo.supabase.auth.getUser()
+
+      if (authError || !authUser) {
+        throw new PermissionException(
+          'User not authenticated',
+          'interventions',
+          'read',
+          'unknown'
+        )
+      }
+
+      // Get the user from our database using auth_user_id
+      const { data: dbUser, error: userError } = await this.interventionRepo.supabase
+        .from('users')
+        .select('id, team_id, role')
+        .eq('auth_user_id', authUser.id)
+        .single()
+
+      if (userError || !dbUser || !dbUser.team_id) {
+        throw new NotFoundException('User or team', authUser.id)
+      }
+
+      // Use the existing getByTeam method with the user's team
+      return this.interventionRepo.findByTeam(dbUser.team_id, options?.filters)
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getAll'))
+    }
+  }
+
+  /**
    * Get interventions by team with filters
    */
   async getByTeam(teamId: string, filters?: InterventionFilters) {
@@ -195,7 +238,7 @@ export class InterventionService {
       if (this.userService) {
         const userResult = await this.userService.getById(userId)
         if (!userResult.success || !userResult.data) {
-          throw new NotFoundException('User not found', 'users', userId)
+          throw new NotFoundException('User', userId)
         }
 
         // Only tenants and managers can create interventions
@@ -213,7 +256,6 @@ export class InterventionService {
       const interventionData: InterventionInsert = {
         ...data,
         status: 'demande',
-        tenant_id: data.tenant_id || userId,
         requested_date: new Date().toISOString()
       }
 
@@ -294,7 +336,7 @@ export class InterventionService {
       if (this.userService) {
         const userResult = await this.userService.getById(userId)
         if (!userResult.success || !userResult.data) {
-          throw new NotFoundException('User not found', 'users', userId)
+          throw new NotFoundException('User', userId)
         }
 
         if (!['gestionnaire', 'admin'].includes(userResult.data.role)) {
@@ -350,7 +392,7 @@ export class InterventionService {
       if (this.userService) {
         const assignerResult = await this.userService.getById(assignedBy)
         if (!assignerResult.success || !assignerResult.data) {
-          throw new NotFoundException('Assigner not found', 'users', assignedBy)
+          throw new NotFoundException('User', assignedBy)
         }
 
         if (!['gestionnaire', 'admin'].includes(assignerResult.data.role)) {
@@ -365,7 +407,7 @@ export class InterventionService {
         // Validate assignee exists and has correct role
         const assigneeResult = await this.userService.getById(userId)
         if (!assigneeResult.success || !assigneeResult.data) {
-          throw new NotFoundException('Assignee not found', 'users', userId)
+          throw new NotFoundException('User', userId)
         }
 
         if (role === 'prestataire' && assigneeResult.data.role !== 'prestataire') {
@@ -429,7 +471,7 @@ export class InterventionService {
       if (this.userService) {
         const unassignerResult = await this.userService.getById(unassignedBy)
         if (!unassignerResult.success || !unassignerResult.data) {
-          throw new NotFoundException('Unassigner not found', 'users', unassignedBy)
+          throw new NotFoundException('User', unassignedBy)
         }
 
         if (!['gestionnaire', 'admin'].includes(unassignerResult.data.role)) {
@@ -611,7 +653,7 @@ export class InterventionService {
         .single()
 
       if (slotError || !slot) {
-        throw new NotFoundException('Time slot not found', 'intervention_time_slots', slotId)
+        throw new NotFoundException('intervention_time_slots', slotId)
       }
 
       // Update intervention with scheduled date
@@ -943,6 +985,32 @@ export class InterventionService {
    */
 
   /**
+   * Get all tenant user IDs assigned to an intervention
+   * Replaces direct access to deprecated intervention.tenant_id field
+   * @param interventionId - The intervention ID
+   * @returns Array of tenant user IDs (locataires assigned to this intervention)
+   */
+  private async getInterventionTenants(interventionId: string): Promise<string[]> {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('intervention_assignments')
+        .select('user_id')
+        .eq('intervention_id', interventionId)
+        .eq('role', 'locataire')
+
+      if (error) {
+        logger.error('Failed to fetch intervention tenants', error)
+        return []
+      }
+
+      return data?.map(a => a.user_id) || []
+    } catch (error) {
+      logger.error('Error in getInterventionTenants', error)
+      return []
+    }
+  }
+
+  /**
    * Validate status transition and update
    */
   private async validateAndUpdateStatus(
@@ -992,7 +1060,7 @@ export class InterventionService {
 
     const userResult = await this.userService.getById(userId)
     if (!userResult.success || !userResult.data) {
-      throw new NotFoundException('User not found', 'users', userId)
+      throw new NotFoundException('User', userId)
     }
 
     const user = userResult.data
@@ -1044,10 +1112,11 @@ export class InterventionService {
     }
 
     if (user.role === 'locataire' && newStatus === 'cloturee_par_locataire') {
-      // Check if tenant is the requester
-      if (intervention.tenant_id !== userId) {
+      // Check if tenant is assigned to this intervention
+      const tenants = await this.getInterventionTenants(intervention.id)
+      if (!tenants.includes(userId)) {
         throw new PermissionException(
-          'Only the tenant who requested the intervention can validate it',
+          'Only the tenant assigned to the intervention can validate it',
           'interventions',
           'tenant_validation',
           userId
@@ -1076,7 +1145,8 @@ export class InterventionService {
 
     // Tenants can see their own interventions
     if (user.role === 'locataire') {
-      return intervention.tenant_id === userId
+      const tenants = await this.getInterventionTenants(intervention.id)
+      return tenants.includes(userId)
     }
 
     // Providers can see interventions they're assigned to
@@ -1108,7 +1178,8 @@ export class InterventionService {
 
     // Tenants can only modify interventions in 'demande' status that they created
     if (user.role === 'locataire') {
-      return intervention.tenant_id === userId && intervention.status === 'demande'
+      const tenants = await this.getInterventionTenants(intervention.id)
+      return tenants.includes(userId) && intervention.status === 'demande'
     }
 
     // Providers cannot directly modify interventions (they use workflow actions)
@@ -1273,6 +1344,7 @@ export class InterventionService {
     if (!this.notificationRepo) return
 
     try {
+      const tenants = await this.getInterventionTenants(intervention.id)
       await this.notificationRepo.create({
         type: 'provider_completed',
         title: 'Intervention terminée par le prestataire',
@@ -1280,7 +1352,7 @@ export class InterventionService {
         team_id: intervention.team_id,
         intervention_id: intervention.id,
         created_by: providerId,
-        target_users: intervention.tenant_id ? [intervention.tenant_id] : undefined
+        target_users: tenants.length > 0 ? tenants : undefined
       })
     } catch (error) {
       logger.error('Failed to send provider completed notification', error)
@@ -1345,6 +1417,7 @@ export class InterventionService {
     if (!this.notificationRepo) return
 
     try {
+      const tenants = await this.getInterventionTenants(intervention.id)
       await this.notificationRepo.create({
         type: 'time_slots_proposed',
         title: 'Créneaux proposés',
@@ -1352,7 +1425,7 @@ export class InterventionService {
         team_id: intervention.team_id,
         intervention_id: intervention.id,
         created_by: proposedBy,
-        target_users: intervention.tenant_id ? [intervention.tenant_id] : undefined
+        target_users: tenants.length > 0 ? tenants : undefined
       })
     } catch (error) {
       logger.error('Failed to send time slots proposed notification', error)

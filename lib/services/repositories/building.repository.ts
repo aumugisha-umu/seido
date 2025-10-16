@@ -305,7 +305,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
         if (error) {
           if (error.code === 'PGRST116') {
-            throw new NotFoundException('Building not found', this.tableName, _id)
+            throw new NotFoundException(this.tableName, _id)
           }
           return createErrorResponse(handleError(error, `${this.tableName}:query`))
         }

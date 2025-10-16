@@ -135,7 +135,7 @@ export class ContactService {
     if (!existingContact.success) return existingContact
 
     if (!existingContact.data) {
-      throw new NotFoundException('Contact not found', 'contacts', id)
+      throw new NotFoundException('contacts', id)
     }
 
     const result = await this.repository.delete(id)
@@ -181,7 +181,7 @@ export class ContactService {
     if (this.userService) {
       const userResult = await this.userService.getById(userId)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('User not found', 'users', userId)
+        throw new NotFoundException('users', userId)
       }
     }
 

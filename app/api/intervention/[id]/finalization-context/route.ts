@@ -79,12 +79,6 @@ export async function GET(
             name,
             address
           )
-        ),
-        tenant:tenant_id(
-          id,
-          name,
-          email,
-          phone
         )
       `)
       .eq('id', interventionId)
@@ -208,8 +202,7 @@ export async function GET(
     const responseData = {
       intervention: {
         ...intervention,
-        lot: intervention.lot,
-        tenant: intervention.tenant
+        lot: intervention.lot
       },
       workCompletion: workCompletion ? {
         id: workCompletion.id,

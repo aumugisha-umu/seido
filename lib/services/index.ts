@@ -238,22 +238,6 @@ export {
   createServerActionInterventionService
 } from './domain/intervention-service'
 
-// Legacy intervention service exports (to be deprecated)
-export {
-  InterventionService as LegacyInterventionService,
-  createInterventionService as createLegacyInterventionService,
-  createServerInterventionService as createServerLegacyInterventionService,
-  type ApprovalData,
-  type PlanningData,
-  type ExecutionData,
-  type FinalizationData,
-  type TenantValidationData,
-  type TenantContestData,
-  type CancellationData,
-  type SlotConfirmationData,
-  type ProviderCompletionData
-} from './domain/intervention.service'
-
 // Conversation Service (Phase 3 - New)
 export {
   ConversationService,

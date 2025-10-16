@@ -275,7 +275,7 @@ export class LotService {
     if (this.buildingService) {
       const buildingResult = await this.buildingService.getById(buildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', buildingId)
+        throw new NotFoundException('buildings', buildingId)
       }
     }
 
@@ -300,7 +300,7 @@ export class LotService {
     if (options?.buildingId && this.buildingService) {
       const buildingResult = await this.buildingService.getById(options.buildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', options.buildingId)
+        throw new NotFoundException('buildings', options.buildingId)
       }
     }
 
@@ -314,7 +314,7 @@ export class LotService {
     if (buildingId && this.buildingService) {
       const buildingResult = await this.buildingService.getById(buildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', buildingId)
+        throw new NotFoundException('buildings', buildingId)
       }
     }
 
@@ -328,7 +328,7 @@ export class LotService {
     if (buildingId && this.buildingService) {
       const buildingResult = await this.buildingService.getById(buildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', buildingId)
+        throw new NotFoundException('buildings', buildingId)
       }
     }
 
@@ -349,7 +349,7 @@ export class LotService {
     if (this.buildingService) {
       const buildingResult = await this.buildingService.getById(buildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', buildingId)
+        throw new NotFoundException('buildings', buildingId)
       }
     }
 
@@ -380,7 +380,7 @@ export class LotService {
     if (options?.buildingId && this.buildingService) {
       const buildingResult = await this.buildingService.getById(options.buildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Building not found', 'buildings', options.buildingId)
+        throw new NotFoundException('buildings', options.buildingId)
       }
     }
 
@@ -403,7 +403,7 @@ export class LotService {
     if (this.buildingService) {
       const buildingResult = await this.buildingService.getById(targetBuildingId)
       if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException('Target building not found', 'buildings', targetBuildingId)
+        throw new NotFoundException('buildings', targetBuildingId)
       }
     }
 
@@ -457,7 +457,7 @@ export class LotService {
     // Check if lot exists
     const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', lotId)
+      throw new NotFoundException('lots', lotId)
     }
 
     // Use LotContactRepository to manage lot_contacts
@@ -471,7 +471,7 @@ export class LotService {
     // Check if lot exists
     const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', lotId)
+      throw new NotFoundException('lots', lotId)
     }
 
     // Verify the tenant is actually assigned via lot_contacts
@@ -499,7 +499,7 @@ export class LotService {
   async calculateRentTotal(lotId: string) {
     const lot = await this.repository.findById(lotId)
     if (!lot.success || !lot.data) {
-      throw new NotFoundException('Lot not found', 'lots', lotId)
+      throw new NotFoundException('lots', lotId)
     }
 
     const monthlyRent = lot.data.monthly_rent || 0

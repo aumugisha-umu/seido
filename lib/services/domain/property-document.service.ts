@@ -109,7 +109,7 @@ export class PropertyDocumentService {
       const result = await this.repository.findByIdWithRelations(id)
 
       if (!result.success) {
-        throw new NotFoundException('Property document not found', 'property_documents', id)
+        throw new NotFoundException('property_documents', id)
       }
 
       return {
@@ -232,7 +232,7 @@ export class PropertyDocumentService {
       // Check if document exists
       const existingResult = await this.repository.findById(id)
       if (!existingResult.success || !existingResult.data) {
-        throw new NotFoundException('Property document not found', 'property_documents', id)
+        throw new NotFoundException('property_documents', id)
       }
 
       // Prepare update data
@@ -280,7 +280,7 @@ export class PropertyDocumentService {
       // Check if document exists
       const existingResult = await this.repository.findById(id)
       if (!existingResult.success || !existingResult.data) {
-        throw new NotFoundException('Property document not found', 'property_documents', id)
+        throw new NotFoundException('property_documents', id)
       }
 
       // Soft delete (sets deleted_at)

@@ -64,7 +64,7 @@ interface InterventionFilters {
   type?: InterventionType
   building_id?: string
   lot_id?: string
-  tenant_id?: string
+  // ✅ tenant_id removed - use intervention_assignments filtering instead
   assigned_to?: string
   date_from?: string
   date_to?: string
@@ -145,8 +145,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           .select(`
             *,
             building:building_id(id, name, address),
-            lot:lot_id(id, reference),
-            tenant:tenant_id(id, name, email)
+            lot:lot_id(id, reference)
           `)
           .eq('team_id', teamId)
           .is('deleted_at', null)
@@ -167,9 +166,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         if (filters?.lot_id) {
           query = query.eq('lot_id', filters.lot_id)
         }
-        if (filters?.tenant_id) {
-          query = query.eq('tenant_id', filters.tenant_id)
-        }
+        // ✅ tenant_id filter removed - use assigned_to with intervention_assignments instead
         if (filters?.date_from) {
           query = query.gte('created_at', filters.date_from)
         }
@@ -195,11 +192,12 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
   /**
    * Find interventions by tenant
+   * ✅ Uses intervention_assignments instead of deprecated tenant_id column
    */
   async findByTenant(tenantId: string) {
     validateUUID(tenantId)
 
-    const { data, error } = await this.supabase
+    const { data, error} = await this.supabase
       .from('interventions')
       .select(`
         *,
@@ -212,7 +210,8 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           user:user_id(id, name, email)
         )
       `)
-      .eq('tenant_id', tenantId)
+      .eq('intervention_assignments.user_id', tenantId)
+      .eq('intervention_assignments.role', 'locataire')
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
@@ -234,8 +233,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .select(`
         *,
         building:building_id(id, name, address),
-        lot:lot_id(id, reference),
-        tenant:tenant_id(id, name, email)
+        lot:lot_id(id, reference)
       `)
       .eq('team_id', teamId)
       .eq('status', status)
@@ -335,7 +333,6 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           *,
           building:building_id(*),
           lot:lot_id(*),
-          tenant:tenant_id(id, name, email, phone),
           intervention_assignments(
             id,
             user_id,
@@ -478,8 +475,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         .select(`
           *,
           building:building_id(id, name),
-          lot:lot_id(id, reference),
-          tenant:tenant_id(id, name)
+          lot:lot_id(id, reference)
         `)
         .eq('team_id', teamId)
         .in('status', ['planifiee', 'en_cours'])
@@ -510,8 +506,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         .select(`
           *,
           building:building_id(id, name, address),
-          lot:lot_id(id, reference),
-          tenant:tenant_id(id, name, email)
+          lot:lot_id(id, reference)
         `)
         .eq('team_id', teamId)
         .eq('urgency', urgency)
@@ -541,8 +536,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         .select(`
           *,
           building:building_id(id, name),
-          lot:lot_id(id, reference),
-          tenant:tenant_id(id, name)
+          lot:lot_id(id, reference)
         `)
         .eq('team_id', teamId)
         .is('deleted_at', null)

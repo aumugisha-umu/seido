@@ -122,8 +122,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if user is the tenant assigned to this intervention
-    if (intervention.tenant_id !== user.id) {
+    // Check if user is a tenant assigned to this intervention
+    const { data: assignment } = await supabase
+      .from('intervention_assignments')
+      .select('id')
+      .eq('intervention_id', interventionId)
+      .eq('user_id', user.id)
+      .eq('role', 'locataire')
+      .single()
+
+    if (!assignment) {
       return NextResponse.json({
         success: false,
         error: 'Vous n\'êtes pas le locataire assigné à cette intervention'

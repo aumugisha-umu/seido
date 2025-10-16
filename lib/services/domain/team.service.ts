@@ -103,7 +103,7 @@ export class TeamService {
     if (this.userService) {
       const userResult = await this.userService.getById(teamData.created_by)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('Creator user not found', 'users', teamData.created_by)
+        throw new NotFoundException('users', teamData.created_by)
       }
 
       // Validate creator permissions (only admins and managers can create teams)
@@ -200,7 +200,7 @@ export class TeamService {
     if (!existingTeam.success) return existingTeam
 
     if (!existingTeam.data) {
-      throw new NotFoundException('Team not found', 'teams', id)
+      throw new NotFoundException('teams', id)
     }
 
     // Validate permissions
@@ -243,7 +243,7 @@ export class TeamService {
     if (this.userService) {
       const userResult = await this.userService.getById(userId)
       if (!userResult.success || !userResult.data) {
-        throw new NotFoundException('User not found', 'users', userId)
+        throw new NotFoundException('users', userId)
       }
 
       // Validate user can be added to teams

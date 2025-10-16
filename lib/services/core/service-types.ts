@@ -146,7 +146,7 @@ export interface Intervention {
   urgency?: 'low' | 'normal' | 'urgent' | 'critical'
   type?: string
   reference: string
-  tenant_id?: string | null  // Replaces requested_by
+  // ✅ FIX 2025-10-15: tenant_id REMOVED - all participants via intervention_assignments
   team_id?: string | null
   scheduled_date?: string | null
   completed_date?: string | null
@@ -180,7 +180,7 @@ export interface InterventionInsert {
   status?: InterventionStatus
   urgency?: 'low' | 'normal' | 'urgent' | 'critical'
   type?: string
-  tenant_id?: string | null  // Replaces requested_by
+  // ✅ FIX 2025-10-15: tenant_id REMOVED - use intervention_assignments after creation
   team_id?: string | null
   scheduled_date?: string | null
   requested_date?: string | null
@@ -202,7 +202,7 @@ export interface InterventionUpdate {
   status?: InterventionStatus
   urgency?: 'low' | 'normal' | 'urgent' | 'critical'
   type?: string
-  tenant_id?: string | null  // Replaces requested_by
+  // ✅ FIX 2025-10-15: tenant_id REMOVED
   team_id?: string | null
   scheduled_date?: string | null
   completed_date?: string | null
@@ -438,7 +438,7 @@ export interface CreateInterventionDTO {
   description: string
   urgency?: 'low' | 'normal' | 'urgent' | 'critical'
   type?: string
-  tenant_id?: string | null  // Replaces requested_by
+  // ✅ FIX 2025-10-15: tenant_id REMOVED
   reference: string
 }
 
@@ -448,7 +448,7 @@ export interface UpdateInterventionDTO {
   urgency?: 'low' | 'normal' | 'urgent' | 'critical'
   status?: InterventionStatus
   type?: string
-  tenant_id?: string | null  // Replaces requested_by
+  // ✅ FIX 2025-10-15: tenant_id REMOVED
   scheduled_date?: string | null
   completed_date?: string | null
   finalized_at?: string | null
@@ -559,7 +559,13 @@ export interface LotWithRelations extends Lot {
 
 export interface InterventionWithRelations extends Intervention {
   lot?: LotWithRelations
-  tenant?: User  // The user who requested (tenant_id relationship)
+  // ✅ FIX 2025-10-15: tenant removed - use assignments array instead
+  assignments?: Array<{
+    role: 'gestionnaire' | 'prestataire' | 'locataire'
+    is_primary: boolean
+    user: User
+    notes?: string
+  }>
   intervention_contacts?: Array<{
     role: 'gestionnaire' | 'prestataire' | 'superviseur'
     is_primary: boolean

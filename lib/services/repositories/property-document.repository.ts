@@ -239,7 +239,7 @@ export class PropertyDocumentRepository extends BaseRepository<
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Property document not found', this.tableName, id)
+        throw new NotFoundException(this.tableName, id)
       }
       return createErrorResponse(handleError(error, `${this.tableName}:findByIdWithRelations`))
     }

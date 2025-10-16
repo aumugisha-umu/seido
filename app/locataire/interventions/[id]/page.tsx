@@ -42,8 +42,16 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
     notFound()
   }
 
-  // Check if this tenant created the intervention
-  if (result.data.tenant_id !== userData.id) {
+  // Check if this tenant is assigned to the intervention
+  const { data: assignment } = await supabase
+    .from('intervention_assignments')
+    .select('id')
+    .eq('intervention_id', id)
+    .eq('user_id', userData.id)
+    .eq('role', 'locataire')
+    .single()
+
+  if (!assignment) {
     redirect('/locataire/interventions')
   }
 

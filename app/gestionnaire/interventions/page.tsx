@@ -32,11 +32,21 @@ export default async function InterventionsPage() {
     // ✅ Pass data to Client Component
     return <InterventionsPageClient initialInterventions={interventions} />
   } catch (error) {
-    logger.error("❌ [INTERVENTIONS-PAGE] Server error:", {
+    // 🔍 DETAILED ERROR LOGGING FOR DIAGNOSTICS
+    const errorDetails = {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      error: error
-    })
+      name: error instanceof Error ? error.name : undefined,
+      // Supabase-specific error properties
+      code: (error as any)?.code,
+      details: (error as any)?.details,
+      hint: (error as any)?.hint,
+      // Full error object serialization
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+    }
+
+    logger.error("❌ [INTERVENTIONS-PAGE] Server error:", errorDetails)
+    console.error("🚨 [INTERVENTIONS-PAGE] Full error object:", error)
 
     // Re-throw NEXT_REDIRECT errors
     if (error && typeof error === 'object' && 'digest' in error &&

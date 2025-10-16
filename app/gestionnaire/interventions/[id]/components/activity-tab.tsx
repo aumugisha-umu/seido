@@ -2,12 +2,13 @@
 
 /**
  * Activity Tab Component
- * Displays intervention activity log
+ * Displays intervention status timeline and activity log
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { StatusTimeline } from '@/components/interventions/status-timeline'
 import {
   Activity,
   User,
@@ -32,7 +33,10 @@ type ActivityLog = Database['public']['Tables']['activity_logs']['Row'] & {
   user?: Database['public']['Tables']['users']['Row']
 }
 
+type Intervention = Database['public']['Tables']['interventions']['Row']
+
 interface ActivityTabProps {
+  intervention: Intervention
   activityLogs: ActivityLog[]
 }
 
@@ -73,7 +77,7 @@ const statusColors: Record<string, string> = {
   'pending': 'bg-yellow-100 text-yellow-800'
 }
 
-export function ActivityTab({ activityLogs }: ActivityTabProps) {
+export function ActivityTab({ intervention, activityLogs }: ActivityTabProps) {
   // Get user initials
   const getInitials = (name: string) => {
     return name
@@ -115,7 +119,29 @@ export function ActivityTab({ activityLogs }: ActivityTabProps) {
   }, {} as Record<string, ActivityLog[]>)
 
   return (
-    <Card>
+    <div className="space-y-6">
+      {/* Progression Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Progression
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StatusTimeline
+            currentStatus={intervention.status}
+            createdAt={intervention.created_at}
+            scheduledDate={intervention.scheduled_date}
+            completedDate={intervention.completed_date}
+            rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
+            cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Activity Log */}
+      <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Activity className="w-5 h-5" />
@@ -230,5 +256,6 @@ export function ActivityTab({ activityLogs }: ActivityTabProps) {
         )}
       </CardContent>
     </Card>
+    </div>
   )
 }

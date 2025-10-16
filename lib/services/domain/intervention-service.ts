@@ -297,6 +297,9 @@ export class InterventionService {
    */
   async create(data: InterventionCreateInput, userId: string) {
     try {
+      // Prepare intervention data with proper initial status
+      let interventionData: InterventionInsert
+
       // Validate user exists and has permission
       if (this.userService) {
         const userResult = await this.userService.getById(userId)
@@ -313,13 +316,26 @@ export class InterventionService {
             userId
           )
         }
-      }
 
-      // Create the intervention
-      const interventionData: InterventionInsert = {
-        ...data,
-        status: 'demande',
-        requested_date: new Date().toISOString()
+        // Determine initial status based on creator role
+        // Managers/admins pre-approve their own interventions
+        // Tenants need manager approval
+        const initialStatus: InterventionStatus = ['gestionnaire', 'admin'].includes(userResult.data.role)
+          ? 'approuvee'
+          : 'demande'
+
+        interventionData = {
+          ...data,
+          status: initialStatus,
+          requested_date: new Date().toISOString()
+        }
+      } else {
+        // Fallback if userService not available - default to 'demande'
+        interventionData = {
+          ...data,
+          status: 'demande',
+          requested_date: new Date().toISOString()
+        }
       }
 
       const result = await this.interventionRepo.create(interventionData)

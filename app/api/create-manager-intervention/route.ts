@@ -374,7 +374,55 @@ export async function POST(request: NextRequest) {
     logger.info({}, "👥 Creating contact assignments...")
     logger.info({ count: selectedManagerIds.length }, "👥 Selected managers")
     logger.info({ count: selectedProviderIds?.length || 0 }, "👥 Selected providers")
-    
+
+    // ✅ VALIDATE user IDs before creating assignments
+    logger.info({}, "🔍 Validating selected user IDs...")
+    const allUserIds = [
+      ...selectedManagerIds,
+      ...(selectedProviderIds || [])
+    ]
+
+    if (allUserIds.length > 0) {
+      const { data: validUsers, error: validateError } = await supabase
+        .from('users')
+        .select('id, name, role')
+        .in('id', allUserIds)
+
+      if (validateError) {
+        logger.error({ error: validateError }, "❌ Error validating user IDs")
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de la validation des utilisateurs sélectionnés'
+        }, { status: 500 })
+      } else {
+        const validUserIds = new Set(validUsers?.map(u => u.id) || [])
+        const invalidManagerIds = selectedManagerIds.filter(id => !validUserIds.has(id))
+        const invalidProviderIds = (selectedProviderIds || []).filter(id => !validUserIds.has(id))
+
+        if (invalidManagerIds.length > 0 || invalidProviderIds.length > 0) {
+          logger.error({
+            invalidManagerIds,
+            invalidProviderIds
+          }, "❌ Invalid user IDs detected")
+
+          return NextResponse.json({
+            success: false,
+            error: 'Certains utilisateurs sélectionnés sont invalides',
+            details: {
+              invalidManagers: invalidManagerIds,
+              invalidProviders: invalidProviderIds
+            }
+          }, { status: 400 })
+        }
+
+        logger.info({
+          validCount: validUsers?.length || 0,
+          totalProvided: allUserIds.length,
+          validUsers: validUsers?.map(u => ({ id: u.id, name: u.name, role: u.role }))
+        }, "✅ All user IDs validated successfully")
+      }
+    }
+
     const contactAssignments: Array<{
       intervention_id: string,
       user_id: string, // ✅ Correction: c'est user_id, pas contact_id
@@ -415,15 +463,49 @@ export async function POST(request: NextRequest) {
     // Insert contact assignments
     if (contactAssignments.length > 0) {
       logger.info({ count: contactAssignments.length }, "📝 Creating contact assignments")
-      const { error: assignmentError } = await supabase
+
+      // ✅ LOG LE PAYLOAD EXACT AVANT L'INSERT
+      logger.info({
+        currentUserId: user.id,
+        assignments: contactAssignments.map(a => ({
+          intervention_id: a.intervention_id,
+          user_id: a.user_id,
+          role: a.role,
+          is_primary: a.is_primary,
+          assigned_by: a.assigned_by,
+          has_notes: !!a.notes
+        }))
+      }, "📋 Assignment payload details")
+
+      const { error: assignmentError, data: assignmentData } = await supabase
         .from('intervention_assignments')
         .insert(contactAssignments)
+        .select()
 
       if (assignmentError) {
-        logger.error({ error: assignmentError }, "⚠️ Error creating contact assignments")
-        // Don't fail the entire operation, just log the error
+        // ✅ LOG L'ERREUR COMPLÈTE
+        logger.error({
+          error: assignmentError,
+          code: assignmentError.code,
+          message: assignmentError.message,
+          details: assignmentError.details,
+          hint: assignmentError.hint
+        }, "❌ ERREUR DÉTAILLÉE lors de l'insertion des assignments")
+
+        // ✅ Retourner l'erreur au client pour debugging
+        return NextResponse.json({
+          success: false,
+          error: `Erreur lors de l'assignation: ${assignmentError.message}`,
+          details: {
+            code: assignmentError.code,
+            hint: assignmentError.hint
+          }
+        }, { status: 500 })
       } else {
-        logger.info({ count: contactAssignments.length }, "✅ Contact assignments created")
+        logger.info({
+          count: assignmentData?.length || 0,
+          inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
+        }, "✅ Contact assignments created successfully")
       }
     }
 

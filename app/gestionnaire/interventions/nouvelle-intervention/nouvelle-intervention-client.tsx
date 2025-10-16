@@ -710,8 +710,11 @@ export default function NouvelleInterventionClient({
       logger.info("🔍 Detailed contact assignments:", {
         managersCount: selectedManagerIds.length,
         managerIds: selectedManagerIds,
-        providersCount: selectedProviderIds.length, 
-        providerIds: selectedProviderIds
+        managerIdTypes: selectedManagerIds.map(id => typeof id),
+        providersCount: selectedProviderIds.length,
+        providerIds: selectedProviderIds,
+        providerIdTypes: selectedProviderIds.map(id => typeof id),
+        expectsQuote
       })
 
       // Call the API

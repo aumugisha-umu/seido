@@ -7,7 +7,6 @@
 
 import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
-import { StatusTimeline } from '@/components/interventions/status-timeline'
 import { AssignmentCard } from '@/components/interventions/assignment-card'
 import { WorkflowActions } from '@/components/interventions/workflow-actions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -167,7 +166,10 @@ export function OverviewTab({
             userRole="gestionnaire"
             onStatusChange={handleStatusChange}
           />
+        </div>
 
+        {/* Right column - Assignments */}
+        <div className="space-y-6">
           {/* Assignments */}
           <AssignmentCard
             assignments={assignments}
@@ -175,69 +177,6 @@ export function OverviewTab({
             onAssign={handleOpenAssignDialog}
             onRemove={handleRemoveAssignment}
           />
-        </div>
-
-        {/* Right column - Status timeline */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Progression
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatusTimeline
-                currentStatus={intervention.status}
-                createdAt={intervention.created_at}
-                scheduledDate={intervention.scheduled_date}
-                completedDate={intervention.completed_date}
-                rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
-                cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Quick stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Informations clés</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Référence</span>
-                <span className="font-medium">{intervention.reference}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Type</span>
-                <span className="font-medium capitalize">
-                  {intervention.type.replace('_', ' ')}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Urgence</span>
-                <span className="font-medium capitalize">{intervention.urgency}</span>
-              </div>
-              {intervention.building && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Immeuble</span>
-                  <span className="font-medium">{intervention.building.name}</span>
-                </div>
-              )}
-              {intervention.lot && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Lot</span>
-                  <span className="font-medium">{intervention.lot.reference}</span>
-                </div>
-              )}
-              {intervention.tenant && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Demandeur</span>
-                  <span className="font-medium">{intervention.tenant.name}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Alerts or important notes */}
           {intervention.urgency === 'urgente' && (

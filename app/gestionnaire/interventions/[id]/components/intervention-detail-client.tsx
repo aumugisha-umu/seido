@@ -235,6 +235,7 @@ export function InterventionDetailClient({
 
         <TabsContent value="activity" className="space-y-6">
           <ActivityTab
+            intervention={intervention}
             activityLogs={activityLogs}
           />
         </TabsContent>

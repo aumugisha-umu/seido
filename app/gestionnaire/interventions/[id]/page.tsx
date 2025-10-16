@@ -47,7 +47,6 @@ export default async function InterventionDetailPage({ params }: PageProps) {
   const [
     { data: building },
     { data: lot },
-    { data: tenant },
     { data: assignments },
     { data: documents },
     { data: quotes },
@@ -65,13 +64,10 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       ? supabase.from('lots').select('*').eq('id', result.data.lot_id).single()
       : Promise.resolve({ data: null }),
 
-    // Tenant data
-    supabase.from('users').select('*').eq('id', result.data.tenant_id).single(),
-
-    // Assignments with user details
+    // Assignments with user details (includes tenants)
     supabase
       .from('intervention_assignments')
-      .select('*, user:users(*)')
+      .select('*, user:users!user_id(*)')
       .eq('intervention_id', id)
       .order('assigned_at', { ascending: false }),
 
@@ -114,6 +110,9 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       .order('created_at', { ascending: false })
       .limit(50)
   ])
+
+  // Extract tenant from assignments (tenants are now linked via intervention_assignments)
+  const tenant = assignments?.find(a => a.role === 'locataire')?.user || null
 
   // Construct full intervention object
   const fullIntervention = {

@@ -27,7 +27,7 @@ import { DocumentsTab } from '@/app/gestionnaire/interventions/[id]/components/d
 import { TimeSlotsTab } from '@/app/gestionnaire/interventions/[id]/components/time-slots-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
-import { Timeline, MessageSquare, FileText, Calendar } from 'lucide-react'
+import { Activity, MessageSquare, FileText, Calendar } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -196,7 +196,7 @@ export function LocataireInterventionDetailClient({
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Timeline className="w-5 h-5" />
+                    <Activity className="w-5 h-5" />
                     Progression
                   </CardTitle>
                 </CardHeader>

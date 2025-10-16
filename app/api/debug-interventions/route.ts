@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
           id,
           user_id,
           role,
-          is_lead,
           assigned_at,
           user:user_id(id, name, email)
         )

@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import {
-  Timeline,
+  Activity,
   Clock,
   Calendar,
   Play,
@@ -283,7 +283,7 @@ export function OverviewTab({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Timeline className="w-5 h-5" />
+                <Activity className="w-5 h-5" />
                 Progression
               </CardTitle>
             </CardHeader>

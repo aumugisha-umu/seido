@@ -32,7 +32,7 @@ import {
 import { toast } from 'sonner'
 import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
 import { createBrowserSupabaseClient } from '@/lib/services'
-import { UserPlus, Timeline, AlertCircle } from 'lucide-react'
+import { UserPlus, Activity, AlertCircle } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -182,7 +182,7 @@ export function OverviewTab({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Timeline className="w-5 h-5" />
+                <Activity className="w-5 h-5" />
                 Progression
               </CardTitle>
             </CardHeader>

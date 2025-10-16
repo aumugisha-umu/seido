@@ -102,6 +102,27 @@ async function getAuthenticatedUser() {
     .eq('auth_user_id', session.user.id)
     .single()
 
+  if (!userData) {
+    return null
+  }
+
+  // If team_id is null, query from team_members table (multi-team support)
+  if (!userData.team_id) {
+    const { data: teamMember } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', userData.id)
+      .is('left_at', null)
+      .limit(1)
+      .single()
+
+    // Populate team_id from team_members
+    return {
+      ...userData,
+      team_id: teamMember?.team_id || null
+    }
+  }
+
   return userData
 }
 

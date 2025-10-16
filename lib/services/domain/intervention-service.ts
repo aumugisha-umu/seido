@@ -489,7 +489,6 @@ export class InterventionService {
           intervention_id: interventionId,
           user_id: userId,
           role,
-          is_lead: true, // First assignment is lead
           assigned_by: assignedBy
         })
         .select()

@@ -40,7 +40,6 @@ interface InterventionWithRelations extends Intervention {
     id: string
     user_id: string
     role: 'gestionnaire' | 'prestataire' | 'superviseur'
-    is_lead: boolean
     user?: Database['public']['Tables']['users']['Row']
   }>
   conversation_threads?: Array<{
@@ -206,7 +205,6 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         intervention_assignments!inner(
           user_id,
           role,
-          is_lead,
           user:user_id(id, name, email)
         )
       `)
@@ -337,7 +335,6 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
             id,
             user_id,
             role,
-            is_lead,
             assigned_at,
             user:user_id(id, name, email, phone, provider_category)
           ),

@@ -70,6 +70,7 @@ interface InterventionCreateInput {
   team_id: string
   specific_location?: string | null
   tenant_comment?: string | null
+  status?: InterventionStatus  // Optional: allows API routes to set status explicitly
 }
 
 interface InterventionUpdateInput {
@@ -320,20 +321,22 @@ export class InterventionService {
         // Determine initial status based on creator role
         // Managers/admins pre-approve their own interventions
         // Tenants need manager approval
+        // Note: If status is already provided in data (e.g., from API routes with business logic),
+        // use that status instead of the default
         const initialStatus: InterventionStatus = ['gestionnaire', 'admin'].includes(userResult.data.role)
           ? 'approuvee'
           : 'demande'
 
         interventionData = {
           ...data,
-          status: initialStatus,
+          status: data.status || initialStatus,  // Use provided status or default
           requested_date: new Date().toISOString()
         }
       } else {
         // Fallback if userService not available - default to 'demande'
         interventionData = {
           ...data,
-          status: 'demande',
+          status: data.status || 'demande',  // Use provided status or default
           requested_date: new Date().toISOString()
         }
       }

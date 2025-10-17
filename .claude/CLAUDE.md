@@ -195,6 +195,60 @@ npm test -- --coverage                 # Coverage
 2. **Next.js App Router**: Official Server/Client Component guidelines
 3. **React 19**: Official hooks and patterns
 
+### 🗄️ Database Debugging Protocol
+
+**When debugging database-related issues, ALWAYS:**
+
+1. **Check current schema first**:
+   - Review latest migrations in `supabase/migrations/`
+   - Verify table structure and column names
+   - Check enum values and constraints
+   - Confirm RLS helper functions exist
+
+2. **Validate TypeScript types**:
+   - Consult `lib/database.types.ts` (generated from schema)
+   - Ensure field names match exactly (case-sensitive)
+   - Verify nullable/required fields alignment
+   - Regenerate if outdated: `npm run supabase:types`
+
+3. **Common DB issues checklist**:
+   - ❌ Wrong field name (e.g., `user_id` vs `userId`)
+   - ❌ Incorrect enum value (e.g., typo in intervention status)
+   - ❌ Missing required field
+   - ❌ Type mismatch (e.g., string vs number vs UUID)
+   - ❌ RLS policy blocking access
+   - ❌ Using old column that was renamed/removed in migration
+
+4. **Debugging workflow**:
+   ```typescript
+   // 1. Check the type definition
+   import { Database } from '@/lib/database.types'
+   type Intervention = Database['public']['Tables']['interventions']['Row']
+
+   // 2. Verify field exists in type
+   console.log('Available fields:', Object.keys({} as Intervention))
+
+   // 3. Check migration for actual schema
+   // Look in supabase/migrations/ for table definition
+
+   // 4. Test RLS policy
+   // Login as specific role and verify data access
+   ```
+
+5. **Quick reference**:
+   - **Types**: `lib/database.types.ts`
+   - **Schema**: `supabase/migrations/*.sql` (22 migrations currently)
+   - **RLS Functions**: `is_admin()`, `is_gestionnaire()`, `is_team_manager()`, `get_building_team_id()`, `get_lot_team_id()`, `is_tenant_of_lot()`, `can_view_building()`, `can_view_lot()`
+   - **Regenerate types**: `npm run supabase:types`
+
+**Example debugging session**:
+```typescript
+// Error: "column 'tenant_id' does not exist"
+// → Check migration 20251015193000_remove_tenant_id_from_interventions.sql
+// → Verify database.types.ts doesn't have tenant_id
+// → Use correct column name from latest migration
+```
+
 ### 🎯 Architecture Decisions
 1. **Prefer NEW architecture** (Repository Pattern + Services)
 2. **Repository Pattern** for data access (not direct Supabase calls)

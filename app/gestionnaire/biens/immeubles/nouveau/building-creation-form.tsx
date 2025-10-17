@@ -54,6 +54,7 @@ import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lo
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
+import { BuildingContactsStepV2 } from "@/components/building-contacts-step-v2"
 interface BuildingInfo {
   name: string
   address: string
@@ -148,6 +149,7 @@ export default function NewImmeubleePage({
     insurance: [],
     other: [],
   })
+  const [buildingManagers, setBuildingManagers] = useState<User[]>([]) // gestionnaires de l'immeuble
   const [assignedManagers, setAssignedManagers] = useState<{[key: string]: User[]}>({}) // gestionnaires assignes par lot
   const [lotContactAssignments, setLotContactAssignments] = useState<{[lotId: string]: {[contactType: string]: Contact[]}}>({}) // contacts assignes par lot
   
@@ -161,6 +163,7 @@ export default function NewImmeubleePage({
   // Etats pour la gestion des gestionnaires
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false)
   const [selectedLotForManager, setSelectedLotForManager] = useState<string>("")
+  const [isBuildingManagerModalOpen, setIsBuildingManagerModalOpen] = useState(false)
   
   // Nouveaux etats pour Supabase
   const [teamManagers, setTeamManagers] = useState<User[]>(initialTeamManagers)
@@ -182,6 +185,9 @@ export default function NewImmeubleePage({
 
   // Flag to prevent hydration mismatch
   const [isMounted, setIsMounted] = useState(false)
+
+  // Flag to track if step 3 has been initialized (to prevent reopening all lots)
+  const hasInitializedStep3 = useRef(false)
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand userProfile est prêt
   // Note: This component receives userProfile as a prop, so we use that instead of useAuth
@@ -219,20 +225,22 @@ export default function NewImmeubleePage({
     setIsMounted(true)
   }, [])
 
-  // ✅ Sélectionner l'utilisateur actuel comme gestionnaire par défaut
+  // ✅ Initialiser buildingManagers avec l'utilisateur actuel par défaut
   useEffect(() => {
-    if (teamManagers.length > 0 && !selectedManagerId) {
+    if (teamManagers.length > 0 && buildingManagers.length === 0) {
       const currentUserAsMember = teamManagers.find((member) =>
         member.user.id === userProfile.id
       )
 
       if (currentUserAsMember) {
-        setSelectedManagerId(userProfile.id)
+        setBuildingManagers([currentUserAsMember])
+        setSelectedManagerId(userProfile.id) // Garder pour compatibilité backend
       } else if (teamManagers.length > 0) {
-        setSelectedManagerId(teamManagers[0].user.id)
+        setBuildingManagers([teamManagers[0]])
+        setSelectedManagerId(teamManagers[0].user.id) // Garder pour compatibilité backend
       }
     }
-  }, [teamManagers, userProfile.id, selectedManagerId])
+  }, [teamManagers, userProfile.id, buildingManagers.length])
 
   // Initialiser le nom par defaut de l'immeuble quand les donnees sont disponibles
   // Ne remplir automatiquement que si l'utilisateur n'a jamais édité le champ
@@ -265,14 +273,20 @@ export default function NewImmeubleePage({
     }
   }, [currentStep, selectedManagerId, lots, teamManagers])
 
-  // Ouvrir tous les lots par defaut quand on arrive a l'etape 3
+  // Ouvrir tous les lots par defaut quand on arrive a l'etape 3 (une seule fois)
   useEffect(() => {
-    if (currentStep === 3 && lots.length > 0) {
+    if (currentStep === 3 && lots.length > 0 && !hasInitializedStep3.current) {
       const allExpanded: {[key: string]: boolean} = {}
       lots.forEach(lot => {
         allExpanded[lot.id] = true
       })
       setExpandedLots(allExpanded)
+      hasInitializedStep3.current = true
+    }
+
+    // Reset flag when leaving step 3
+    if (currentStep !== 3) {
+      hasInitializedStep3.current = false
     }
   }, [currentStep, lots])
 
@@ -592,8 +606,8 @@ export default function NewImmeubleePage({
       return
     }
 
-    if (!selectedManagerId) {
-      setError("Veuillez sélectionner un responsable")
+    if (buildingManagers.length === 0) {
+      setError("Au moins un gestionnaire d'immeuble est requis")
       return
     }
 
@@ -817,6 +831,39 @@ export default function NewImmeubleePage({
     return assignedManagers[lotId] || []
   }
 
+  // Fonctions pour la gestion des gestionnaires de l'immeuble
+  const openBuildingManagerModal = () => {
+    setIsBuildingManagerModalOpen(true)
+  }
+
+  const addBuildingManager = (manager: User) => {
+    // Vérifier si le gestionnaire n'est pas déjà dans la liste
+    const alreadyExists = buildingManagers.some(m => m.user.id === manager.user.id)
+    if (!alreadyExists) {
+      setBuildingManagers([...buildingManagers, manager])
+      // Mettre à jour selectedManagerId pour compatibilité backend (utiliser le premier)
+      if (buildingManagers.length === 0) {
+        setSelectedManagerId(manager.user.id)
+      }
+    }
+    setIsBuildingManagerModalOpen(false)
+  }
+
+  const removeBuildingManager = (managerId: string) => {
+    // Ne pas permettre de retirer si c'est le dernier gestionnaire
+    if (buildingManagers.length <= 1) return
+
+    setBuildingManagers(buildingManagers.filter(m => m.user.id !== managerId))
+
+    // Mettre à jour selectedManagerId si on retire le manager sélectionné
+    if (selectedManagerId === managerId && buildingManagers.length > 1) {
+      const remainingManager = buildingManagers.find(m => m.user.id !== managerId)
+      if (remainingManager) {
+        setSelectedManagerId(remainingManager.user.id)
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -851,7 +898,7 @@ export default function NewImmeubleePage({
                 userTeam={userTeam}
                 isLoading={false}
                 onCreateManager={openGestionnaireModal}
-                showManagerSection={true}
+                showManagerSection={false}
                 showAddressSection={true}
                 buildingsCount={managerData?.buildings?.length || 0}
                 categoryCountsByTeam={categoryCountsByTeam}
@@ -892,243 +939,32 @@ export default function NewImmeubleePage({
 
         {/* Step 3: Contacts Assignment */}
         {currentStep === 3 && (
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              
-              {/* Building Information with Manager */}
-              <Card className="border-blue-200 bg-blue-50/30 mb-4">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    {/* Building Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Building className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <h2 className="text-lg font-semibold text-gray-900 truncate">
-                          {buildingInfo.name || `Immeuble - ${buildingInfo.address}`}
-                        </h2>
-                      </div>
-                      <p className="text-gray-600 text-sm mb-1">
-                        {buildingInfo.address}, {buildingInfo.city} {buildingInfo.postalCode && `- ${buildingInfo.postalCode}`}
-                      </p>
-                      {buildingInfo.description && (
-                        <p className="text-xs text-gray-500 line-clamp-2">{buildingInfo.description}</p>
-                      )}
-                    </div>
-                    
-                    {/* Building Manager - Compact */}
-                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-blue-200 flex-shrink-0">
-                      <User className="w-4 h-4 text-blue-600" />
-                      <div className="text-right">
-                        {selectedManagerId && teamManagers.length > 0 ? (
-                          (() => {
-                            const manager = teamManagers.find(m => m.user.id === selectedManagerId)
-                            return manager ? (
-                              <>
-                                <div className="font-medium text-sm text-blue-900">{manager.user.name}</div>
-                                <div className="text-xs text-gray-500">Responsable</div>
-                                {manager.user.id === userProfile.id && (
-                                  <Badge variant="outline" className="text-xs mt-0.5">Vous</Badge>
-                                )}
-                              </>
-                            ) : (
-                              <div className="text-xs text-gray-500">Non trouvé</div>
-                            )
-                          })()
-                        ) : (
-                          <div className="text-xs text-gray-500">Non sélectionné</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Building-Level Contacts */}
-              <Card className="border-orange-200 bg-orange-50/30">
-                <CardContent className="p-4">
-                  <ContactSelector
-                    ref={contactSelectorRef}
-                    teamId={userTeam?.id || ""}
-                    displayMode="compact"
-                    title="Contacts de l'immeuble"
-                    description="Disponibles pour tous les lots"
-                    selectedContacts={buildingContacts}
-                    onContactSelected={handleContactAdd}
-                    onContactRemoved={handleBuildingContactRemove}
-                    allowedContactTypes={["provider", "syndic", "notary", "insurance", "other"]}
-                    hideTitle={false}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Lots with contacts and managers */}
-              <div className="space-y-3">
-                {[...lots].reverse().map((lot) => {
-                  const lotManagers = getAssignedManagers(lot.id)
-                  const lotContacts = getAllLotContacts(lot.id) // Utiliser les vraies assignations
-                  
-                  return (
-                    <Card key={lot.id} className="border-gray-200">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleLotExpansion(lot.id)}>
-                            <h3 className="font-medium">{lot.reference}</h3>
-                            <div className="flex gap-2">
-                              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                                {lotManagers.filter(m => m.user.id !== selectedManagerId).length} responsable(s) spécifique(s)
-                              </Badge>
-                              <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                {lotContacts.length} contact(s)
-                              </Badge>
-                            </div>
-                            <div className="ml-2">
-                              {expandedLots[lot.id] ? (
-                                <ChevronUp className="w-5 h-5 text-gray-500" />
-                              ) : (
-                                <ChevronDown className="w-5 h-5 text-gray-500" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      {expandedLots[lot.id] && (
-                        <CardContent className="p-4">
-                        <div className="space-y-3">
-                          {/* Section Responsable specifique du lot */}
-                          <div className="border border-purple-200 rounded-lg p-3 bg-purple-50/30">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Users className="w-4 h-4 text-purple-600" />
-                              <span className="font-medium text-purple-900 text-sm">Responsable spécifique du lot</span>
-                            </div>
-                            
-                            <div className="mb-2 p-2 bg-purple-100/50 rounded text-xs text-purple-700">
-                              <div className="flex items-center gap-1 mb-1">
-                                <Building className="w-3 h-3" />
-                                <span className="font-medium">Responsable de l'immeuble :</span>
-                              </div>
-                              {selectedManagerId && teamManagers.length > 0 ? (
-                                (() => {
-                                  const buildingManager = teamManagers.find(m => m.user.id === selectedManagerId)
-                                  return buildingManager ? (
-                                    <span>{buildingManager.user.name}</span>
-                                  ) : (
-                                    <span className="text-gray-500">Non trouvé</span>
-                                  )
-                                })()
-                              ) : (
-                                <span className="text-gray-500">Aucun</span>
-                              )}
-                              <div className="mt-1 text-xs">+ Responsable(s) spécifique(s) ci-dessous</div>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              {lotManagers.filter(manager => manager.user.id !== selectedManagerId).map((manager) => (
-                                <div
-                                  key={manager.user.id}
-                                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-200"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                      <User className="w-4 h-4 text-purple-600" />
-                                    </div>
-                                    <div>
-                                      <div className="font-medium text-sm">{manager.user.name}</div>
-                                      <div className="text-xs text-gray-500">{manager.user.email}</div>
-                                      <Badge variant="secondary" className="text-xs mt-1 bg-purple-100 text-purple-700">
-                                        Responsable du lot
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeManagerFromLot(lot.id, manager.user.id)}
-                                    className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                              
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openManagerModal(lot.id)}
-                                className="w-full text-sm border-purple-300 text-purple-700 hover:bg-purple-50"
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Ajouter responsable du lot
-                              </Button>
-                              
-                              <p className="text-xs text-gray-600 mt-2">
-                                Recevra les notifications spécifiques à ce lot en plus du responsable de l'immeuble
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Section Contacts */}
-                          <div className="border border-gray-200 rounded-lg p-3">
-                            <ContactSelector
-                              teamId={userTeam?.id || ""}
-                              displayMode="compact"
-                              title="Contacts assignés"
-                              description="Contacts spécifiques à ce lot"
-                              selectedContacts={{
-                                tenant: getLotContactsByType(lot.id, 'tenant'),
-                                provider: getLotContactsByType(lot.id, 'provider'),
-                                syndic: getLotContactsByType(lot.id, 'syndic'),
-                                notary: getLotContactsByType(lot.id, 'notary'),
-                                insurance: getLotContactsByType(lot.id, 'insurance'),
-                                other: getLotContactsByType(lot.id, 'other'),
-                              }}
-                              onContactSelected={(contact, contactType, context) => {
-                                if (context?.lotId) {
-                                  handleContactAdd(contact, contactType, context)
-                                }
-                              }}
-                              onContactRemoved={(contactId, contactType, context) => {
-                                if (context?.lotId) {
-                                  removeContactFromLot(context.lotId, contactType, contactId)
-                                }
-                              }}
-                              onDirectContactRemove={(contactId, contactType, lotId) => {
-                                if (lotId) {
-                                  removeContactFromLot(lotId, contactType, contactId)
-                                }
-                              }}
-                              allowedContactTypes={["tenant", "provider", "syndic", "notary", "insurance", "other"]}
-                              lotId={lot.id}
-                              hideTitle={false}
-                            />
-                          </div>
-                        </div>
-                        </CardContent>
-                      )}
-                    </Card>
-                  )
-                })}
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCurrentStep(2)}
-                  disabled={isCreating}
-                  className="w-full sm:w-auto order-3 sm:order-1"
-                >
-                  Étape précédente
-                </Button>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 order-1 sm:order-2">
-                  <Button 
-                    onClick={() => setCurrentStep(4)}
-                    className="bg-sky-600 hover:bg-sky-700 w-full sm:w-auto"
-                  >
-                    Créer l'immeuble
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <BuildingContactsStepV2
+            buildingInfo={buildingInfo}
+            teamManagers={teamManagers}
+            buildingManagers={buildingManagers}
+            userProfile={userProfile}
+            userTeam={userTeam}
+            lots={lots}
+            expandedLots={expandedLots}
+            buildingContacts={buildingContacts}
+            lotContactAssignments={lotContactAssignments}
+            assignedManagers={assignedManagers}
+            contactSelectorRef={contactSelectorRef}
+            handleContactAdd={handleContactAdd}
+            handleBuildingContactRemove={handleBuildingContactRemove}
+            removeContactFromLot={removeContactFromLot}
+            getLotContactsByType={getLotContactsByType}
+            getAllLotContacts={getAllLotContacts}
+            getAssignedManagers={getAssignedManagers}
+            removeManagerFromLot={removeManagerFromLot}
+            openManagerModal={openManagerModal}
+            openBuildingManagerModal={openBuildingManagerModal}
+            removeBuildingManager={removeBuildingManager}
+            toggleLotExpansion={toggleLotExpansion}
+            onPrevious={() => setCurrentStep(2)}
+            onNext={() => setCurrentStep(4)}
+          />
         )}
 
         {/* Step 4: Confirmation */}
@@ -1538,6 +1374,97 @@ export default function NewImmeubleePage({
                   Créer un nouveau responsable
                 </Button>
                 <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsManagerModalOpen(false)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Building Manager Assignment Modal */}
+        <Dialog open={isBuildingManagerModalOpen} onOpenChange={setIsBuildingManagerModalOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Ajouter un gestionnaire à l'immeuble
+              </DialogTitle>
+              <DialogDescription>
+                Les gestionnaires de l'immeuble recevront les notifications de l'immeuble et de tous les lots
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {teamManagers.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto">
+                  <div className="space-y-2">
+                    {teamManagers.map((manager) => {
+                      const isAlreadyAssigned = buildingManagers.some(m => m.user.id === manager.user.id)
+
+                      return (
+                        <div
+                          key={manager.user.id}
+                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                            isAlreadyAssigned
+                              ? 'bg-gray-100 border-gray-300 opacity-60'
+                              : 'hover:bg-blue-50 border-blue-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{manager.user.name}</div>
+                              <div className="text-sm text-gray-500">{manager.user.email}</div>
+                              <div className="flex gap-1 mt-1">
+                                {manager.user.id === userProfile.id && (
+                                  <Badge variant="outline" className="text-xs">Vous</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => addBuildingManager(manager)}
+                            disabled={isAlreadyAssigned}
+                            className={`${
+                              isAlreadyAssigned
+                                ? 'bg-gray-300 text-gray-500'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            size="sm"
+                          >
+                            {isAlreadyAssigned ? 'Déjà assigné' : 'Ajouter'}
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-2">
+                    Aucun gestionnaire disponible
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Aucun gestionnaire trouvé dans votre équipe
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between pt-4 border-t gap-3">
+                <Button
+                  variant="ghost"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                  onClick={openGestionnaireModal}
+                >
+                  <Plus className="w-4 h-4" />
+                  Créer un nouveau responsable
+                </Button>
+                <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsBuildingManagerModalOpen(false)}>
                   Fermer
                 </Button>
               </div>

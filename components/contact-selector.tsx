@@ -6,18 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { 
-  User, 
-  Briefcase, 
-  Shield, 
-  FileCheck, 
-  Car, 
-  MoreHorizontal, 
-  Plus, 
-  X, 
-  Search, 
-  Loader2, 
-  Users 
+import {
+  User,
+  Briefcase,
+  Shield,
+  FileCheck,
+  Car,
+  MoreHorizontal,
+  Plus,
+  X,
+  Search,
+  Loader2,
+  Users,
+  Home
 } from "lucide-react"
 import ContactFormModal from "@/components/contact-form-modal"
 
@@ -32,6 +33,7 @@ const contactInvitationService = createContactInvitationService()
 const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
+  { key: "owner", label: "Propriétaire", icon: Home, color: "text-amber-600" },
   { key: "syndic", label: "Syndic", icon: Shield, color: "text-purple-600" },
   { key: "notary", label: "Notaire", icon: FileCheck, color: "text-orange-600" },
   { key: "insurance", label: "Assurance", icon: Car, color: "text-red-600" },
@@ -349,7 +351,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         </div>
       )}
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
         {filteredContactTypes.map((type) => {
           const Icon = type.icon
           const contacts = getSelectedContactsByType(type.key)
@@ -473,6 +475,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
             <DialogTitle className="flex items-center gap-2">
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
+              {selectedContactType === 'owner' && <Home className="w-5 h-5" />}
               {selectedContactType === 'syndic' && <Shield className="w-5 h-5" />}
               {selectedContactType === 'notary' && <FileCheck className="w-5 h-5" />}
               {selectedContactType === 'insurance' && <Car className="w-5 h-5" />}
@@ -487,6 +490,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
             <DialogDescription>
               {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
               {selectedContactType === 'provider' && 'Prestataire pour les interventions'}
+              {selectedContactType === 'owner' && 'Propriétaire du bien immobilier'}
               {selectedContactType === 'syndic' && 'Syndic de copropriété'}
               {selectedContactType === 'notary' && 'Notaire pour les actes'}
               {selectedContactType === 'insurance' && 'Compagnie d\'assurance'}
@@ -596,6 +600,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       {selectedContactType === 'tenant' && <User className="w-8 h-8 text-blue-600" />}
                       {selectedContactType === 'provider' && <Briefcase className="w-8 h-8 text-green-600" />}
+                      {selectedContactType === 'owner' && <Home className="w-8 h-8 text-amber-600" />}
                       {selectedContactType === 'syndic' && <Shield className="w-8 h-8 text-purple-600" />}
                       {selectedContactType === 'notary' && <FileCheck className="w-8 h-8 text-orange-600" />}
                       {selectedContactType === 'insurance' && <Car className="w-8 h-8 text-red-600" />}

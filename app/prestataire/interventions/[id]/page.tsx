@@ -127,7 +127,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     ...result.data,
     building: building || undefined,
     lot: lot || undefined,
-    creator_name: creator?.name || creator?.email || 'Utilisateur'
+    creator_name: creatorName
   }
 
   return (

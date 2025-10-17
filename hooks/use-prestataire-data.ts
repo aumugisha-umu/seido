@@ -49,7 +49,7 @@ export interface UrgentIntervention {
 }
 
 // Mapping des statuts database vers les statuts frontend attendus
-const mapStatusToFrontend = (_dbStatus: string): string => {
+const mapStatusToFrontend = (dbStatus: string): string => {
   const statusMap: Record<string, string> = {
     'demande': 'nouvelle-demande',
     'rejetee': 'rejetee',
@@ -67,7 +67,7 @@ const mapStatusToFrontend = (_dbStatus: string): string => {
 }
 
 // Mapping des types database vers les types frontend
-const mapTypeToFrontend = (_dbType: string): string => {
+const mapTypeToFrontend = (dbType: string): string => {
   const typeMap: Record<string, string> = {
     'plomberie': 'Plomberie',
     'electricite': 'Électricité',
@@ -82,7 +82,7 @@ const mapTypeToFrontend = (_dbType: string): string => {
 }
 
 // Mapping des urgences database vers les priorités frontend
-const mapUrgencyToPriority = (_dbUrgency: string): 'basse' | 'normale' | 'haute' | 'urgente' => {
+const mapUrgencyToPriority = (dbUrgency: string): 'basse' | 'normale' | 'haute' | 'urgente' => {
   const urgencyMap: Record<string, 'basse' | 'normale' | 'haute' | 'urgente'> = {
     'basse': 'basse',
     'normale': 'normale',
@@ -184,7 +184,7 @@ export const usePrestataireData = (userId: string) => {
       logger.info("✅ Found prestataire profile:", userProfile.id)
 
       // 2. Get interventions assigned to this prestataire using new service
-      const interventionsResult = await interventionService.getByProvider(userProfile.id)
+      const interventionsResult = await interventionService.getMyInterventions(userProfile.id, 'prestataire')
       const interventions = interventionsResult.success ? (interventionsResult.data || []) : []
       logger.info("📋 Found interventions:", interventions?.length || 0)
 

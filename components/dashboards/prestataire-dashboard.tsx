@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,15 @@ export default function PrestataireDashboard() {
   const { teamStatus, hasTeam } = useTeamStatus()
   const { interventions, loading, error } = usePrestataireData(user?.id || '')
 
+  // 🎯 FIX: Pattern "mounted" pour éviter l'erreur d'hydration React
+  // Le composant "use client" est pré-rendu côté serveur dans Next.js 15/React 19
+  // On doit s'assurer que le rendu initial est identique entre serveur et client
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
 
@@ -45,7 +55,9 @@ export default function PrestataireDashboard() {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
-  if (loading) {
+  // 🎯 FIX: Afficher skeleton si pas encore monté OU si loading
+  // Garantit que serveur et client rendent la même chose initialement
+  if (!mounted || loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="animate-pulse">

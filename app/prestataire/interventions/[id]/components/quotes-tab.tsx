@@ -61,6 +61,16 @@ export function QuotesTab({
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
+  // Filtrer les quotes à afficher: exclure les demandes de devis (pending avec amount = 0)
+  // Ces demandes sont créées par le gestionnaire et le prestataire ne les a pas encore remplies
+  const displayedQuotes = quotes.filter(quote => {
+    // Exclure les demandes pending avec montant = 0 (demandes non remplies)
+    if (quote.status === 'pending' && (!quote.amount || quote.amount === 0)) {
+      return false
+    }
+    return true
+  })
+
   // Handle create new quote
   const handleCreateQuote = () => {
     setSelectedQuote(null)
@@ -100,13 +110,13 @@ export function QuotesTab({
     }
   }
 
-  // Calculate statistics
+  // Calculate statistics (utilise displayedQuotes au lieu de quotes)
   const stats = {
-    total: quotes.length,
-    draft: quotes.filter(q => q.status === 'draft').length,
-    pending: quotes.filter(q => q.status === 'pending').length,
-    accepted: quotes.filter(q => q.status === 'accepted').length,
-    rejected: quotes.filter(q => q.status === 'rejected').length
+    total: displayedQuotes.length,
+    draft: displayedQuotes.filter(q => q.status === 'draft').length,
+    pending: displayedQuotes.filter(q => q.status === 'pending').length,
+    accepted: displayedQuotes.filter(q => q.status === 'accepted').length,
+    rejected: displayedQuotes.filter(q => q.status === 'rejected').length
   }
 
   return (
@@ -178,7 +188,7 @@ export function QuotesTab({
             </div>
           </CardHeader>
           <CardContent>
-            {quotes.length === 0 ? (
+            {displayedQuotes.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-lg font-medium text-muted-foreground mb-2">
@@ -198,7 +208,7 @@ export function QuotesTab({
               </div>
             ) : (
               <div className="space-y-4">
-                {quotes.map((quote) => {
+                {displayedQuotes.map((quote) => {
                   const statusInfo = statusLabels[quote.status] || statusLabels['pending']
                   const canEdit = quote.status === 'draft' || quote.status === 'pending'
                   const canDelete = quote.status === 'draft'
@@ -285,26 +295,6 @@ export function QuotesTab({
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Information card */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-base text-blue-900">
-              Informations sur les devis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-blue-800">
-            <p>
-              <strong>Estimation:</strong> Soumettez une estimation avant le début des travaux pour validation par le gestionnaire.
-            </p>
-            <p>
-              <strong>Facture finale:</strong> Après la fin des travaux, soumettez la facture finale avec les coûts réels.
-            </p>
-            <p>
-              <strong>Brouillons:</strong> Les devis en brouillon peuvent être modifiés ou supprimés.
-            </p>
           </CardContent>
         </Card>
       </div>

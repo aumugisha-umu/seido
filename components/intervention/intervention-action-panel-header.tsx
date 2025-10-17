@@ -117,10 +117,17 @@ export function InterventionActionPanelHeader({
 
   // Fonction de mapping couleurs selon le Design System
   const getActionStyling = (actionKey: string, userRole: string) => {
+    // Actions qui doivent TOUJOURS utiliser la couleur primary (indépendamment du rôle)
+    const alwaysPrimaryActions = ['submit_quote']
+
+    if (alwaysPrimaryActions.includes(actionKey)) {
+      return { variant: 'default' as const, className: '' }
+    }
+
     // Types d'actions selon le Design System
     const actionTypes = {
       // Actions positives (succès, validation)
-      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes', 'submit_quote'],
+      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes'],
       // Actions destructives (suppression, rejet, annulation)
       destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote'],
       // Actions neutres (planification, demande, gestion)
@@ -266,22 +273,39 @@ export function InterventionActionPanelHeader({
           if (currentUserQuote) {
             // Le prestataire a déjà un devis en cours
             if (currentUserQuote.status === 'pending') {
-              actions.push(
-                {
-                  key: 'edit_quote',
-                  label: 'Modifier le devis',
-                  icon: Edit3,
+              // Vérifier si c'est une demande créée par gestionnaire (amount = 0)
+              // ou un devis déjà soumis en attente d'approbation (amount > 0)
+              const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
+
+              if (isQuoteRequest) {
+                // Demande de devis : le prestataire doit soumettre son devis
+                // Utilise variant 'default' avec className vide pour forcer primary
+                actions.push({
+                  key: 'submit_quote',
+                  label: 'Soumettre un devis',
+                  icon: FileText,
                   variant: 'default',
-                  description: 'Modifier votre devis en attente d\'évaluation'
-                },
-                {
-                  key: 'cancel_quote',
-                  label: 'Annuler le devis',
-                  icon: Trash2,
-                  variant: 'destructive',
-                  description: 'Annuler votre devis actuel'
-                }
-              )
+                  description: 'Soumettre votre devis pour cette intervention'
+                })
+              } else {
+                // Devis déjà soumis : le prestataire peut le modifier
+                actions.push(
+                  {
+                    key: 'edit_quote',
+                    label: 'Modifier le devis',
+                    icon: Edit3,
+                    variant: 'default',
+                    description: 'Modifier votre devis en attente d\'évaluation'
+                  },
+                  {
+                    key: 'cancel_quote',
+                    label: 'Annuler le devis',
+                    icon: Trash2,
+                    variant: 'destructive',
+                    description: 'Annuler votre devis actuel'
+                  }
+                )
+              }
             } else if (currentUserQuote.status === 'approved') {
               // Devis approuvé - actions limitées
               actions.push({

@@ -48,6 +48,7 @@ interface ExistingQuote {
   providerAvailabilities?: Array<{
     date: string
     startTime: string
+    endTime?: string
   }>
 }
 
@@ -75,6 +76,7 @@ interface FormData {
   providerAvailabilities: Array<{
     date: string
     startTime: string
+    endTime?: string // Pour le mode flexible
   }>
 }
 
@@ -104,6 +106,9 @@ export function QuoteSubmissionForm({
     attachments: existingQuote?.attachments || [],
     providerAvailabilities: existingQuote?.providerAvailabilities || []
   })
+
+  // Mode de disponibilité : 'precise' (horaire précis) ou 'flexible' (créneaux)
+  const [availabilityMode, setAvailabilityMode] = useState<'precise' | 'flexible'>('precise')
 
   // Mettre à jour le formulaire quand existingQuote change
   useEffect(() => {
@@ -146,14 +151,9 @@ export function QuoteSubmissionForm({
   const validateField = (field: keyof FormData, value: string): FieldValidation => {
     switch (field) {
       case 'laborCost':
-        if (!value) return { isValid: false, error: 'Le coût de la main d\'œuvre est requis' }
+        if (!value) return { isValid: false, error: 'Le coût total est requis' }
         if (parseFloat(value) < 0) return { isValid: false, error: 'Le coût doit être positif' }
         return { isValid: true }
-
-      case 'materialsCost':
-        if (value && parseFloat(value) < 0) return { isValid: false, error: 'Le coût doit être positif' }
-        return { isValid: true }
-
 
       case 'workDetails':
         if (!value.trim()) return { isValid: false, error: 'La description des travaux est requise' }
@@ -197,7 +197,8 @@ export function QuoteSubmissionForm({
   const addAvailability = () => {
     const newAvailability = {
       date: '',
-      startTime: ''
+      startTime: '',
+      endTime: '' // Pour le mode flexible
     }
     setFormData(prev => ({
       ...prev,
@@ -222,13 +223,11 @@ export function QuoteSubmissionForm({
   }
 
   const calculateTotal = () => {
-    const labor = parseFloat(formData.laborCost) || 0
-    const materials = parseFloat(formData.materialsCost) || 0
-    return labor + materials
+    return parseFloat(formData.laborCost) || 0
   }
 
   // Calcule l'heure de fin basée sur l'heure de début et la durée estimée
-  const calculateEndTime = (_startTime: string): string => {
+  const calculateEndTime = (startTime: string): string => {
     if (!startTime || !formData.estimatedDurationHours) return ''
 
     const duration = parseFloat(formData.estimatedDurationHours)
@@ -298,11 +297,7 @@ export function QuoteSubmissionForm({
 
   const validateForm = (): string | null => {
     if (!formData.laborCost || parseFloat(formData.laborCost) < 0) {
-      return "Le coût de la main d'œuvre est requis et doit être positif"
-    }
-
-    if (formData.materialsCost && parseFloat(formData.materialsCost) < 0) {
-      return "Le coût des matériaux doit être positif"
+      return "Le coût total est requis et doit être positif"
     }
 
     if (!formData.workDetails.trim()) {
@@ -336,16 +331,18 @@ export function QuoteSubmissionForm({
         body: JSON.stringify({
           interventionId: intervention.id,
           laborCost: parseFloat(formData.laborCost),
-          materialsCost: parseFloat(formData.materialsCost),
+          materialsCost: 0, // Pas de séparation matériaux, tout est dans laborCost
           estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
           description: formData.workDetails.trim(),
-          workDetails: formData.workDetails.trim() || null,
-          attachments: attachmentUrls,
           providerAvailabilities: formData.providerAvailabilities
-            .filter(avail => avail.date && avail.startTime)
+            .filter(avail => avail.date && avail.startTime) // Date et heure de début requis
             .map(avail => ({
-              ...avail,
-              endTime: calculateEndTime(avail.startTime)
+              date: avail.date,
+              startTime: avail.startTime,
+              endTime: availabilityMode === 'precise'
+                ? calculateEndTime(avail.startTime) // Calcul auto en mode précis
+                : avail.endTime || null, // Heure de fin manuelle en mode flexible
+              isFlexible: availabilityMode === 'flexible' // Indicateur du mode
             }))
         })
       })
@@ -398,7 +395,7 @@ export function QuoteSubmissionForm({
   }
 
   return (
-    <div className="w-full px-2 sm:px-4">
+    <div className="w-full">
       {/* Header moderne avec hiérarchie claire */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
@@ -469,176 +466,122 @@ export function QuoteSubmissionForm({
             )}
           </div>
         </div>
+
+        {/* Alerte informative sur la nature du devis */}
+        <Alert className="bg-amber-50 border-amber-300 border-2 mt-4">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-900">
+            <span className="font-medium">À propos des informations du devis :</span> Les données ci-dessous servent uniquement au suivi dans l'application.
+            Pour fournir un devis légalement valable, veuillez l'ajouter en pièce jointe .
+          </AlertDescription>
+        </Alert>
       </div>
 
-      {/* Layout principal responsive 2 colonnes */}
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
-        
-        {/* Colonne gauche - Informations financières */}
-        <div className="flex">
-          {/* Détails financiers */}
-          <Card className="shadow-sm border-slate-200 w-full h-full flex flex-col">
-            <CardHeader className="pb-4 flex-shrink-0">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-                <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                  <Euro className="h-4 w-4 text-emerald-600" />
-                </div>
-                Détails financiers
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              {/* Section des champs de saisie */}
-              <div className="space-y-6 flex-1">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="laborCost" className="text-slate-700 font-medium mb-2 block">
-                      Coût main d'œuvre (€) *
-                    </Label>
-                    <Input
-                      id="laborCost"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.laborCost}
-                      onChange={(e) => handleInputChange('laborCost', e.target.value)}
-                      placeholder="0.00"
-                      className={`h-11 ${getInputClasses('laborCost')}`}
-                      required
-                    />
-                    {renderFieldFeedback('laborCost')}
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="materialsCost" className="text-slate-700 font-medium mb-2 block">
-                      Coût matériaux (€)
-                    </Label>
-                    <Input
-                      id="materialsCost"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.materialsCost}
-                      onChange={(e) => handleInputChange('materialsCost', e.target.value)}
-                      placeholder="0.00"
-                      className={`h-11 ${getInputClasses('materialsCost')}`}
-                    />
-                    {renderFieldFeedback('materialsCost')}
-                  </div>
+      {/* Layout principal */}
+      <form onSubmit={handleSubmit} className="space-y-6">
 
-                  {/* Durée estimée */}
-                  <div className="space-y-2">
-                    <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Durée estimée (heures) *
-                    </Label>
-                    <Input
-                      id="estimatedDurationHours"
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max="168"
-                      value={formData.estimatedDurationHours}
-                      onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
-                      placeholder="1"
-                      required
-                      className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
-                    />
-                    {renderFieldFeedback('estimatedDurationHours')}
-                    <p className="text-xs text-slate-500">
-                      Estimation du temps nécessaire pour réaliser l'intervention
-                    </p>
-                  </div>
-
-                </div>
-
+        {/* Card unifiée - Détails du devis */}
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+                <FileText className="h-4 w-4 text-sky-600" />
               </div>
-
-              {/* Total prominent - Version compacte mais toujours visible */}
-              <div className="bg-gradient-to-br from-sky-50 to-emerald-50 border border-sky-200 rounded-xl p-6 mt-6">
-                <div className="text-center space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total du Devis</p>
-                    <p className="text-3xl font-bold text-sky-700">{calculateTotal().toFixed(2)} €</p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center bg-white/60 rounded p-2 text-xs">
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-sky-500 rounded-full"></div>
-                        <span>Main d'œuvre</span>
-                      </div>
-                      <span className="font-bold">{(parseFloat(formData.laborCost) || 0).toFixed(2)} €</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center bg-white/60 rounded p-2 text-xs">
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                        <span>Matériaux</span>
-                      </div>
-                      <span className="font-bold">{(parseFloat(formData.materialsCost) || 0).toFixed(2)} €</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Colonne droite - Description des travaux et documents */}
-        <div className="flex">
-          {/* Card unifiée pour description et documents */}
-          <Card className="shadow-sm border-slate-200 w-full h-full flex flex-col">
-            <CardHeader className="pb-4 flex-shrink-0">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-amber-600" />
-                </div>
-                Description des travaux *
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col space-y-6">
-              {/* Description des travaux - flexible */}
-              <div className="flex-1 flex flex-col">
-                <Label htmlFor="workDetails" className="text-slate-700 font-medium mb-2 block">
-                  Détail des travaux *
+              Détails de votre devis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Durée et Coût sur la même ligne */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Durée estimée - EN PREMIER */}
+              <div className="space-y-2">
+                <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Durée estimée (heures) *
                 </Label>
-                <Textarea
-                  id="workDetails"
-                  value={formData.workDetails}
-                  onChange={(e) => handleInputChange('workDetails', e.target.value)}
-                  placeholder="Description détaillée des étapes, méthodes et matériaux à utiliser..."
-                  className={`resize-none flex-1 min-h-[200px] ${getInputClasses('workDetails')}`}
+                <Input
+                  id="estimatedDurationHours"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="168"
+                  value={formData.estimatedDurationHours}
+                  onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
+                  placeholder="1"
                   required
+                  className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
                 />
-                {renderFieldFeedback('workDetails')}
-                <p className="text-sm text-slate-500 mt-1">
-                  Décrivez précisément les travaux à effectuer pour établir votre devis
+                {renderFieldFeedback('estimatedDurationHours')}
+                <p className="text-xs text-slate-500">
+                  Estimation du temps nécessaire pour réaliser l'intervention
                 </p>
               </div>
 
-              <Separator />
+              {/* Coût total */}
+              <div className="space-y-2">
+                <Label htmlFor="laborCost" className="text-slate-700 font-medium mb-2 flex items-center gap-2">
+                  <Euro className="h-4 w-4" />
+                  Coût total (€) *
+                </Label>
+                <Input
+                  id="laborCost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.laborCost}
+                  onChange={(e) => handleInputChange('laborCost', e.target.value)}
+                  placeholder="0.00"
+                  className={`h-11 ${getInputClasses('laborCost')}`}
+                  required
+                />
+                {renderFieldFeedback('laborCost')}
+              </div>
+            </div>
 
-              {/* Documents justificatifs */}
-              <div className="space-y-4 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-violet-100 rounded-lg flex items-center justify-center">
-                    <Upload className="h-3 w-3 text-violet-600" />
-                  </div>
-                  <Label className="text-slate-700 font-medium">Documents justificatifs</Label>
+            <Separator />
+
+            {/* Description des travaux */}
+            <div className="space-y-2">
+              <Label htmlFor="workDetails" className="text-slate-700 font-medium mb-2 block">
+                Détail des travaux *
+              </Label>
+              <Textarea
+                id="workDetails"
+                value={formData.workDetails}
+                onChange={(e) => handleInputChange('workDetails', e.target.value)}
+                placeholder="Description détaillée des étapes, méthodes et matériaux à utiliser..."
+                className={`resize-none min-h-[200px] ${getInputClasses('workDetails')}`}
+                required
+              />
+              {renderFieldFeedback('workDetails')}
+              <p className="text-sm text-slate-500 mt-1">
+                Décrivez précisément les travaux à effectuer pour établir votre devis
+              </p>
+            </div>
+
+            <Separator />
+
+            {/* Documents justificatifs */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-violet-100 rounded-lg flex items-center justify-center">
+                  <Upload className="h-3 w-3 text-violet-600" />
                 </div>
-                
-                <div>
-                  <Label htmlFor="files" className="text-slate-600 text-sm mb-2 block">
-                    Ajouter des documents
-                  </Label>
-                  <Input
-                    id="files"
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-                  />
+                <Label className="text-slate-700 font-medium">Pièce(s) jointe(s)</Label>
+              </div>
+
+              <div>
+                <Label htmlFor="files" className="text-slate-600 text-sm mb-2 block">
+                  Ajouter vos documents
+                </Label>
+                <Input
+                  id="files"
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={handleFileChange}
+                  className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                />
                   <p className="text-sm text-slate-500 mt-2">
                     Photos, devis fournisseurs, certificats, etc. (PDF, Images, Documents - 10MB max)
                   </p>
@@ -676,11 +619,9 @@ export function QuoteSubmissionForm({
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Section Disponibilités Prestataire en pleine largeur */}
-        <div className="lg:col-span-2">
-          <Card className="shadow-sm border-slate-200">
+        {/* Section Disponibilités Prestataire */}
+        <Card className="shadow-sm border-slate-200">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -693,58 +634,160 @@ export function QuoteSubmissionForm({
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Toggle mode de disponibilité */}
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                  Type de disponibilité
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAvailabilityMode('precise')}
+                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                      availabilityMode === 'precise'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4 mx-auto mb-1" />
+                    <div className="font-semibold">Horaire précis</div>
+                    <div className="text-xs mt-1 opacity-75">Date et heure exacte</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvailabilityMode('flexible')}
+                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                      availabilityMode === 'flexible'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4 mx-auto mb-1" />
+                    <div className="font-semibold">Créneaux flexibles</div>
+                    <div className="text-xs mt-1 opacity-75">Plage horaire proposée</div>
+                  </button>
+                </div>
+
+                <div className="mt-3 text-xs text-slate-600">
+                  {availabilityMode === 'precise' ? (
+                    <div>
+                      <strong className="text-slate-700">Horaire précis :</strong> L'heure de fin est calculée automatiquement selon la durée estimée. Idéal pour une planification rapide.
+                      {!formData.estimatedDurationHours && (
+                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
+                          <AlertTriangle className="w-3 h-3 inline mr-1" />
+                          Renseignez d'abord la durée estimée ci-dessus pour utiliser ce mode
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <strong className="text-slate-700">Créneaux flexibles :</strong> Proposez une plage horaire large (ex: 9h-12h). L'heure exacte sera fixée par message avec le gestionnaire.
+                    </div>
+                  )}
+                </div>
+              </div>
               {formData.providerAvailabilities.length === 0 ? (
                 <div className="text-center py-6 bg-slate-50 rounded-lg">
                   <Clock className="h-8 w-8 text-slate-400 mx-auto mb-2" />
                   <p className="text-slate-600 text-sm">Aucune disponibilité renseignée</p>
                   <p className="text-slate-500 text-xs mt-1">
-                    Ajoutez vos créneaux disponibles pour faciliter la planification
+                    {availabilityMode === 'precise'
+                      ? 'Ajoutez vos horaires précis pour faciliter la planification'
+                      : 'Ajoutez vos plages horaires de disponibilité'
+                    }
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {formData.providerAvailabilities.map((avail, index) => (
                     <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Date</Label>
-                          <Input
-                            type="date"
-                            value={avail.date}
-                            onChange={(e) => updateAvailability(index, 'date', e.target.value)}
-                            className="mt-1"
-                            min={new Date().toISOString().split('T')[0]}
-                          />
-                        </div>
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Heure début</Label>
-                          <Input
-                            type="time"
-                            value={avail.startTime}
-                            onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Fin estimée</Label>
-                          <div className="mt-1 p-2 text-sm text-slate-600 flex items-center gap-1 min-h-[40px]">
-                            <Clock className="h-3 w-3" />
-                            {avail.startTime && formData.estimatedDurationHours ? calculateEndTime(avail.startTime) : '--:--'}
+                      {availabilityMode === 'precise' ? (
+                        // Mode horaire précis : Date + Heure début + Heure fin auto
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                          <div className="md:col-span-1">
+                            <Label className="text-sm font-medium text-slate-700">Date</Label>
+                            <Input
+                              type="date"
+                              value={avail.date}
+                              onChange={(e) => updateAvailability(index, 'date', e.target.value)}
+                              className="mt-1"
+                              min={new Date().toISOString().split('T')[0]}
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label className="text-sm font-medium text-slate-700">Heure début</Label>
+                            <Input
+                              type="time"
+                              value={avail.startTime}
+                              onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label className="text-sm font-medium text-slate-700">Fin estimée</Label>
+                            <div className="mt-1 p-2 text-sm text-slate-600 flex items-center gap-1 min-h-[40px] bg-white rounded border border-slate-200">
+                              <Clock className="h-3 w-3" />
+                              {avail.startTime && formData.estimatedDurationHours ? calculateEndTime(avail.startTime) : '--:--'}
+                            </div>
+                          </div>
+                          <div className="md:col-span-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeAvailability(index)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Supprimer
+                            </Button>
                           </div>
                         </div>
-                        <div className="md:col-span-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeAvailability(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Supprimer
-                          </Button>
+                      ) : (
+                        // Mode créneaux flexibles : Date + plage horaire (début - fin)
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                          <div className="md:col-span-1">
+                            <Label className="text-sm font-medium text-slate-700">Date</Label>
+                            <Input
+                              type="date"
+                              value={avail.date}
+                              onChange={(e) => updateAvailability(index, 'date', e.target.value)}
+                              className="mt-1"
+                              min={new Date().toISOString().split('T')[0]}
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label className="text-sm font-medium text-slate-700">Heure début</Label>
+                            <Input
+                              type="time"
+                              value={avail.startTime}
+                              onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label className="text-sm font-medium text-slate-700">Heure fin</Label>
+                            <Input
+                              type="time"
+                              value={avail.endTime || ''}
+                              onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeAvailability(index)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Supprimer
+                            </Button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -755,7 +798,13 @@ export function QuoteSubmissionForm({
                   type="button"
                   variant="outline"
                   onClick={addAvailability}
-                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  disabled={availabilityMode === 'precise' && !formData.estimatedDurationHours}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={
+                    availabilityMode === 'precise' && !formData.estimatedDurationHours
+                      ? 'Renseignez d\'abord la durée estimée'
+                      : undefined
+                  }
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Ajouter une disponibilité
@@ -769,7 +818,10 @@ export function QuoteSubmissionForm({
                     <div>
                       <p className="text-sm font-medium text-amber-800">Information importante</p>
                       <p className="text-sm text-amber-700 mt-1">
-                        Ces disponibilités seront utilisées pour planifier l'intervention avec le locataire une fois votre devis validé.
+                        {availabilityMode === 'precise'
+                          ? 'Ces horaires précis seront proposés au locataire pour planifier l\'intervention une fois votre devis validé.'
+                          : 'Ces plages horaires seront partagées avec le gestionnaire. L\'heure exacte d\'intervention sera fixée par message une fois votre devis validé.'
+                        }
                       </p>
                     </div>
                   </div>
@@ -777,56 +829,51 @@ export function QuoteSubmissionForm({
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Actions en pleine largeur */}
-        <div className="lg:col-span-2">
-          {/* Messages d'erreur */}
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        {/* Actions */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-          {/* Actions */}
-          <Card className="bg-slate-50 border-slate-200">
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4 justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => router.back()}
-                  disabled={isLoading}
-                  className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 h-12 px-6"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isLoading || !isFormValid()}
-                  className={`h-12 px-8 font-semibold ${
-                    isFormValid()
-                      ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
-                      : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Envoi en cours...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Euro className="h-5 w-5 mr-2" />
-                      {existingQuote ? 'Modifier le devis' : 'Soumettre le devis'}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="bg-slate-50 border-slate-200">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => router.back()}
+                disabled={isLoading}
+                className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 h-12 px-6"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || !isFormValid()}
+                className={`h-12 px-8 font-semibold ${
+                  isFormValid()
+                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Envoi en cours...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Euro className="h-5 w-5 mr-2" />
+                    {existingQuote ? 'Confirmer' : 'Soumettre le devis'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </form>
     </div>
   )

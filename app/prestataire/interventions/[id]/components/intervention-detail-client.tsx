@@ -9,6 +9,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 
 // Tab components
 import { OverviewTab } from './overview-tab'
@@ -19,6 +21,7 @@ import { DocumentsTab } from './documents-tab'
 // Intervention components
 import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-form'
 
 // Types
 import type { Database } from '@/lib/database.types'
@@ -73,6 +76,8 @@ export function PrestataireInterventionDetailClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [refreshing, setRefreshing] = useState(false)
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false)
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -83,6 +88,35 @@ export function PrestataireInterventionDetailClient({
   // Handle action completion from action panel
   const handleActionComplete = () => {
     handleRefresh()
+  }
+
+  // Handle opening quote submission modal
+  const handleOpenQuoteModal = () => {
+    setSelectedQuote(null)
+    setQuoteModalOpen(true)
+  }
+
+  // Handle editing existing quote
+  const handleEditQuote = (quote: Quote) => {
+    setSelectedQuote(quote)
+    setQuoteModalOpen(true)
+  }
+
+  // Transform database quote to ExistingQuote format for QuoteSubmissionForm
+  const transformQuoteToExistingQuote = (quote: Quote) => {
+    // Extract labor and materials costs from line_items JSONB
+    const lineItems = quote.line_items as any[] || []
+    const laborItem = lineItems.find((item: any) => item.description?.includes('Main d\'œuvre'))
+    const materialsItem = lineItems.find((item: any) => item.description?.includes('Matériaux'))
+
+    return {
+      laborCost: laborItem?.total || quote.amount || 0,
+      materialsCost: materialsItem?.total || 0,
+      workDetails: quote.description || '',
+      estimatedDurationHours: laborItem?.quantity || 1,
+      attachments: [],
+      providerAvailabilities: []
+    }
   }
 
   const statusInfo = statusLabels[intervention.status] || statusLabels['demande']
@@ -137,6 +171,7 @@ export function PrestataireInterventionDetailClient({
             userRole="prestataire"
             userId={currentUser.id}
             onActionComplete={handleActionComplete}
+            onOpenQuoteModal={handleOpenQuoteModal}
           />
         }
       />
@@ -195,6 +230,7 @@ export function PrestataireInterventionDetailClient({
                 quotes={quotes}
                 currentUser={currentUser}
                 onRefresh={handleRefresh}
+                onEditQuote={handleEditQuote}
               />
             </TabsContent>
 
@@ -209,6 +245,34 @@ export function PrestataireInterventionDetailClient({
           </div>
         </Tabs>
       </div>
+
+      {/* Quote Submission Modal */}
+      <Dialog open={quoteModalOpen} onOpenChange={setQuoteModalOpen}>
+        <DialogContent className="max-w-[95vw] lg:max-w-6xl xl:max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+          <VisuallyHidden>
+            <DialogTitle>
+              {selectedQuote ? 'Modifier le devis' : 'Soumettre un devis'} pour {intervention.title}
+            </DialogTitle>
+          </VisuallyHidden>
+          <div className="p-4 sm:p-6">
+            <QuoteSubmissionForm
+              intervention={{
+                id: intervention.id,
+                title: intervention.title,
+                description: intervention.description || '',
+                urgency: intervention.urgency || 'normale',
+                quote_deadline: intervention.quote_deadline
+              }}
+              existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
+              onSuccess={() => {
+                setQuoteModalOpen(false)
+                setSelectedQuote(null)
+                handleRefresh()
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -42,7 +42,7 @@ export function QuotesTab({
   )
 
   const receivedQuotes = quotes.filter(q =>
-    q.status === 'pending' && q.amount && q.amount > 0
+    (q.status === 'pending' || q.status === 'sent') && q.amount && q.amount > 0
   )
 
   const [requestsExpanded, setRequestsExpanded] = useState(true)
@@ -130,27 +130,26 @@ export function QuotesTab({
               ) : (
                 <div className="space-y-4">
                   {receivedQuotes.map(quote => (
-                    <div key={quote.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-1">
-                      <QuoteCard
-                        quote={{
-                          id: quote.id,
-                          providerId: quote.provider_id,
-                          providerName: quote.provider?.name || 'Prestataire',
-                          providerSpeciality: quote.provider?.provider_category,
-                          totalAmount: quote.amount,
-                          laborCost: (quote.line_items as any)?.labor || 0,
-                          materialsCost: (quote.line_items as any)?.materials || 0,
-                          description: quote.description || '',
-                          estimatedDurationHours: (quote.line_items as any)?.duration,
-                          status: quote.status,
-                          submittedAt: quote.created_at,
-                          attachments: []
-                        }}
-                        userContext="gestionnaire"
-                        showActions={canManage}
-                        onDataChange={() => window.location.reload()}
-                      />
-                    </div>
+                    <QuoteCard
+                      key={quote.id}
+                      quote={{
+                        id: quote.id,
+                        providerId: quote.provider_id,
+                        providerName: quote.provider?.name || 'Prestataire',
+                        providerSpeciality: quote.provider?.provider_category,
+                        totalAmount: quote.amount,
+                        laborCost: (quote.line_items as any)?.labor || 0,
+                        materialsCost: (quote.line_items as any)?.materials || 0,
+                        description: quote.description || '',
+                        estimatedDurationHours: (quote.line_items as any)?.duration,
+                        status: quote.status,
+                        submittedAt: quote.created_at,
+                        attachments: []
+                      }}
+                      userContext="gestionnaire"
+                      showActions={canManage}
+                      onDataChange={() => window.location.reload()}
+                    />
                   ))}
                 </div>
               )}

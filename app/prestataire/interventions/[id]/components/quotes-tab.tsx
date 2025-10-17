@@ -9,15 +9,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { QuoteForm } from '@/components/interventions/quote-form'
-import { DollarSign, FileText, Plus, Edit, Trash2, Calendar, Clock } from 'lucide-react'
+import { DollarSign, FileText, Edit, Trash2, Calendar, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -35,12 +27,14 @@ interface QuotesTabProps {
   quotes: Quote[]
   currentUser: User
   onRefresh: () => void
+  onEditQuote: (quote: Quote) => void
 }
 
 // Quote status labels
 const statusLabels: Record<string, { label: string; color: string }> = {
   'draft': { label: 'Brouillon', color: 'bg-gray-100 text-gray-800' },
   'pending': { label: 'En attente', color: 'bg-yellow-100 text-yellow-800' },
+  'sent': { label: 'Envoyé', color: 'bg-blue-100 text-blue-800' },
   'accepted': { label: 'Accepté', color: 'bg-green-100 text-green-800' },
   'rejected': { label: 'Rejeté', color: 'bg-red-100 text-red-800' }
 }
@@ -55,10 +49,9 @@ export function QuotesTab({
   interventionId,
   quotes,
   currentUser,
-  onRefresh
+  onRefresh,
+  onEditQuote
 }: QuotesTabProps) {
-  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
-  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
   // Filtrer les quotes à afficher: exclure les demandes de devis (pending avec amount = 0)
@@ -71,21 +64,16 @@ export function QuotesTab({
     return true
   })
 
-  // Handle create new quote
-  const handleCreateQuote = () => {
-    setSelectedQuote(null)
-    setQuoteDialogOpen(true)
-  }
-
-  // Handle edit quote
-  const handleEditQuote = (quote: Quote) => {
-    setSelectedQuote(quote)
-    setQuoteDialogOpen(true)
-  }
-
-  // Handle delete quote
+  // Handle delete/cancel quote
   const handleDeleteQuote = async (quoteId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce devis ?')) return
+    const quote = displayedQuotes.find(q => q.id === quoteId)
+    const isSent = quote?.status === 'sent'
+
+    const confirmMessage = isSent
+      ? 'Êtes-vous sûr de vouloir annuler ce devis ? Le gestionnaire ne pourra plus le consulter.'
+      : 'Êtes-vous sûr de vouloir supprimer ce devis ?'
+
+    if (!confirm(confirmMessage)) return
 
     setDeleting(quoteId)
     try {
@@ -100,7 +88,8 @@ export function QuotesTab({
 
       if (error) throw error
 
-      toast.success('Devis supprimé avec succès')
+      const successMessage = isSent ? 'Devis annulé avec succès' : 'Devis supprimé avec succès'
+      toast.success(successMessage)
       onRefresh()
     } catch (error) {
       console.error('Error deleting quote:', error)
@@ -113,105 +102,85 @@ export function QuotesTab({
   // Calculate statistics (utilise displayedQuotes au lieu de quotes)
   const stats = {
     total: displayedQuotes.length,
-    draft: displayedQuotes.filter(q => q.status === 'draft').length,
-    pending: displayedQuotes.filter(q => q.status === 'pending').length,
+    sent: displayedQuotes.filter(q => q.status === 'sent').length,
     accepted: displayedQuotes.filter(q => q.status === 'accepted').length,
     rejected: displayedQuotes.filter(q => q.status === 'rejected').length
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                En attente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Acceptés
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-600">{stats.accepted}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Brouillons
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-gray-600">{stats.draft}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quotes list */}
+    <div className="space-y-6">
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Mes devis
-              </CardTitle>
-              <Button
-                onClick={handleCreateQuote}
-                size="sm"
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Nouveau devis
-              </Button>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {displayedQuotes.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium text-muted-foreground mb-2">
-                  Aucun devis
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Créez votre premier devis pour cette intervention
-                </p>
-                <Button
-                  onClick={handleCreateQuote}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Créer un devis
-                </Button>
-              </div>
+            <p className="text-2xl font-bold">{stats.total}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Envoyés
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-blue-600">{stats.sent}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Acceptés
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-600">{stats.accepted}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Rejetés
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quotes list */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5" />
+            Mes devis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {displayedQuotes.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium text-muted-foreground mb-2">
+                Aucun devis
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Vous n'avez pas encore soumis de devis pour cette intervention
+              </p>
+            </div>
             ) : (
               <div className="space-y-4">
                 {displayedQuotes.map((quote) => {
                   const statusInfo = statusLabels[quote.status] || statusLabels['pending']
-                  const canEdit = quote.status === 'draft' || quote.status === 'pending'
-                  const canDelete = quote.status === 'draft'
+                  const canEdit = quote.status === 'sent'
+                  const canCancel = quote.status === 'sent' || quote.status === 'draft'
 
                   return (
                     <div
@@ -238,19 +207,22 @@ export function QuotesTab({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEditQuote(quote)}
+                              onClick={() => onEditQuote(quote)}
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit className="w-4 h-4 mr-1" />
+                              Modifier
                             </Button>
                           )}
-                          {canDelete && (
+                          {canCancel && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteQuote(quote.id)}
                               disabled={deleting === quote.id}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Annuler
                             </Button>
                           )}
                         </div>
@@ -298,35 +270,5 @@ export function QuotesTab({
           </CardContent>
         </Card>
       </div>
-
-      {/* Quote Form Dialog */}
-      <Dialog open={quoteDialogOpen} onOpenChange={setQuoteDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedQuote ? 'Modifier le devis' : 'Nouveau devis'}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedQuote
-                ? 'Modifiez les informations de votre devis'
-                : 'Créez un nouveau devis pour cette intervention'}
-            </DialogDescription>
-          </DialogHeader>
-          <QuoteForm
-            interventionId={interventionId}
-            existingQuote={selectedQuote || undefined}
-            onSuccess={() => {
-              setQuoteDialogOpen(false)
-              setSelectedQuote(null)
-              onRefresh()
-            }}
-            onCancel={() => {
-              setQuoteDialogOpen(false)
-              setSelectedQuote(null)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
   )
 }

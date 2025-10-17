@@ -65,14 +65,14 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     { data: timeSlots },
     { data: assignments }
   ] = await Promise.all([
-    // Building data
+    // Building data - maybeSingle to handle RLS gracefully
     result.data.building_id
-      ? supabase.from('buildings').select('*').eq('id', result.data.building_id).single()
+      ? supabase.from('buildings').select('*').eq('id', result.data.building_id).maybeSingle()
       : Promise.resolve({ data: null }),
 
-    // Lot data
+    // Lot data - maybeSingle to handle RLS gracefully
     result.data.lot_id
-      ? supabase.from('lots').select('*').eq('id', result.data.lot_id).single()
+      ? supabase.from('lots').select('*').eq('id', result.data.lot_id).maybeSingle()
       : Promise.resolve({ data: null }),
 
     // Documents (provider can see)

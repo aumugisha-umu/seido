@@ -182,7 +182,7 @@ export function InterventionDetailClient({
             {(() => {
               const { pendingRequests, submittedQuotes } = getQuotesBadges()
               return (
-                <div className="absolute -top-1 -right-1 flex gap-1">
+                <div className="absolute -top-1 -right-1 flex gap-1 z-50">
                   {pendingRequests > 0 && (
                     <span className="bg-blue-500 text-white text-xs rounded-full px-1.5">
                       {pendingRequests}
@@ -200,7 +200,7 @@ export function InterventionDetailClient({
           <TabsTrigger value="chat" className="relative">
             Discussion
             {getBadgeCount('chat') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5">
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
                 {getBadgeCount('chat')}
               </span>
             )}
@@ -208,7 +208,7 @@ export function InterventionDetailClient({
           <TabsTrigger value="documents" className="relative">
             Documents
             {getBadgeCount('documents') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5">
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
                 {getBadgeCount('documents')}
               </span>
             )}
@@ -216,7 +216,7 @@ export function InterventionDetailClient({
           <TabsTrigger value="time-slots" className="relative">
             Créneaux
             {getBadgeCount('time-slots') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5">
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
                 {getBadgeCount('time-slots')}
               </span>
             )}

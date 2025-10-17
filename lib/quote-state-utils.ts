@@ -83,11 +83,8 @@ export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActio
       variant: 'default',
       isDisabled: false,
       shouldShow: true,
-      badge: {
-        show: true,
-        value: state.rejectedCount,
-        variant: 'warning'
-      },
+      // Badge retiré - pas de compteur affiché
+      badge: undefined,
       tooltip: `${state.rejectedCount} devis rejeté${state.rejectedCount > 1 ? 's' : ''}. Faire une nouvelle demande.`,
       description: 'Tous les devis ont été rejetés, faire une nouvelle demande'
     }
@@ -105,11 +102,8 @@ export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActio
       variant: 'outline',
       isDisabled: false,
       shouldShow: true,
-      badge: state.pendingCount > 0 ? {
-        show: true,
-        value: state.pendingCount,
-        variant: 'default'
-      } : undefined,
+      // Badge retiré - pas de compteur affiché
+      badge: undefined,
       tooltip: `Faire une nouvelle demande (${state.totalCount} devis reçu${state.totalCount > 1 ? 's' : ''} : ${statusText})`,
       description: `Faire une nouvelle demande de devis (${statusText})`
     }
@@ -129,42 +123,10 @@ export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActio
 
 /**
  * Génère la configuration pour gérer les devis existants (action secondaire)
+ * NOTE: Bouton désactivé - les utilisateurs accèdent aux devis via l'onglet Devis
  */
 export function getExistingQuotesManagementConfig(quotes: Quote[] = []): QuoteActionConfig | null {
-  const state = analyzeQuoteState(quotes)
-
-  // Aucun devis - pas d'action de gestion
-  if (state.isEmpty) {
-    return null
-  }
-
-  // Uniquement des devis rejetés - pas d'action de gestion
-  if (state.hasOnlyRejectedQuotes) {
-    return null
-  }
-
-  // A des devis à gérer (pending ou approved)
-  if (state.hasActionableQuotes) {
-    const pendingText = state.pendingCount > 0 ? `${state.pendingCount} en attente` : ''
-    const approvedText = state.approvedCount > 0 ? `${state.approvedCount} approuvé${state.approvedCount > 1 ? 's' : ''}` : ''
-    const statusText = [pendingText, approvedText].filter(Boolean).join(', ')
-
-    return {
-      key: 'manage_quotes',
-      label: 'Gérer les devis',
-      variant: 'secondary',
-      isDisabled: false,
-      shouldShow: true,
-      badge: state.pendingCount > 0 ? {
-        show: true,
-        value: state.pendingCount,
-        variant: 'default'
-      } : undefined,
-      tooltip: `${state.totalCount} devis reçu${state.totalCount > 1 ? 's' : ''} : ${statusText}`,
-      description: `Consulter et valider les devis (${statusText})`
-    }
-  }
-
+  // Bouton "Gérer les devis" retiré - navigation via onglet Devis uniquement
   return null
 }
 

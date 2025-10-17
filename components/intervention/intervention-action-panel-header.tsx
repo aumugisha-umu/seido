@@ -497,7 +497,7 @@ export function InterventionActionPanelHeader({
     }
   }
 
-  const executeAction = async (_actionKey: string) => {
+  const executeAction = async (actionKey: string) => {
     if (!selectedAction && actionKey !== selectedAction?.key) return
 
     setIsProcessing(true)
@@ -968,6 +968,7 @@ export function InterventionActionPanelHeader({
         onClose={quoting.closeQuoteRequestModal}
         intervention={quoting.quoteRequestModal.intervention}
         providers={quoting.providers}
+        ineligibleProviders={quoting.ineligibleProviders}
         selectedProviders={quoting.formData.selectedProviders}
         selectedProviderIds={quoting.formData.providerIds}
         additionalNotes={quoting.formData.additionalNotes}

@@ -29,6 +29,11 @@ interface Provider {
   provider_category?: string
 }
 
+interface IneligibleProvider {
+  id: string
+  reason: string
+}
+
 interface MultiQuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
@@ -38,6 +43,7 @@ interface MultiQuoteRequestModalProps {
   selectedProviders: Provider[]
   individualMessages: Record<string, string>
   providers: Provider[]
+  ineligibleProviders?: IneligibleProvider[]
   onNotesChange: (_notes: string) => void
   onProviderToggle: (provider: Provider) => void
   onIndividualMessageChange: (providerId: string, message: string) => void
@@ -56,6 +62,7 @@ export const MultiQuoteRequestModal = ({
   selectedProviders,
   individualMessages,
   providers,
+  ineligibleProviders = [],
   onNotesChange,
   onProviderToggle,
   onIndividualMessageChange,
@@ -140,10 +147,10 @@ export const MultiQuoteRequestModal = ({
       <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-3 pb-6">
           <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demander des devis - Multi-prestataires
+            Demander de devis
           </DialogTitle>
           <p className="text-slate-600">
-            Sélectionnez plusieurs prestataires et personnalisez les messages pour chacun
+            Sélectionnez un ou plusieurs prestataires et personnalisez les messages si vous le souhaitez.
           </p>
         </DialogHeader>
 
@@ -223,6 +230,10 @@ export const MultiQuoteRequestModal = ({
                 speciality: p.provider_category
               }))}
               selectedContactIds={selectedProviderIds}
+              ineligibleContactIds={ineligibleProviders.map(ip => ip.id)}
+              ineligibilityReasons={Object.fromEntries(
+                ineligibleProviders.map(ip => [ip.id, ip.reason])
+              )}
               onContactSelect={handleContactSelect}
               onContactCreated={handleContactCreated}
               contactType="prestataire"

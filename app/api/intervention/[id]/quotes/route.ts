@@ -3,9 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
+import { createServerUserService } from '@/lib/services'
 
 
 export async function GET(
@@ -48,8 +46,12 @@ export async function GET(
       }, { status: 401 })
     }
 
+    // Initialize user service
+    const userService = await createServerUserService()
+
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+    const user = userResult?.data ?? null
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -80,42 +82,11 @@ export async function GET(
     }
 
     // Check permissions - only gestionnaires can view all quotes, prestataires can only view their own
+    // Pour l'éligibilité, on a besoin uniquement de : provider_id (identifier le prestataire) et status (vérifier si pending/sent/accepted)
     let quotesQuery = supabase
       .from('intervention_quotes')
-      .select(`
-        id,
-        intervention_id,
-        provider_id,
-        labor_cost,
-        materials_cost,
-        total_amount,
-        description,
-        work_details,
-        estimated_duration_hours,
-        estimated_start_date,
-        terms_and_conditions,
-        attachments,
-        status,
-        submitted_at,
-        reviewed_at,
-        reviewed_by,
-        review_comments,
-        rejection_reason,
-        provider:provider_id(
-          id,
-          name,
-          email,
-          phone,
-          provider_category,
-          speciality
-        ),
-        reviewer:reviewed_by(
-          id,
-          name
-        )
-      `)
+      .select('id, provider_id, status')
       .eq('intervention_id', interventionId)
-      .order('submitted_at', { ascending: false })
 
     // If user is prestataire, only show their own quote
     if (user.role === 'prestataire') {
@@ -158,22 +129,9 @@ export async function GET(
 
     logger.info({ quotesCount: quotes?.length || 0, interventionId }, "✅ Found quotes for intervention")
 
-    // Parse attachments JSON
-    const quotesWithParsedAttachments = quotes?.map(quote => ({
-      ...quote,
-      attachments: typeof quote.attachments === 'string'
-        ? JSON.parse(quote.attachments)
-        : quote.attachments || []
-    })) || []
-
     return NextResponse.json({
       success: true,
-      quotes: quotesWithParsedAttachments,
-      intervention: {
-        id: intervention.id,
-        title: intervention.title,
-        status: intervention.status
-      }
+      quotes: quotes || []
     })
 
   } catch (error) {

@@ -2,25 +2,21 @@
 
 /**
  * Quotes Tab Component
- * Manages intervention quotes with approval/rejection
+ * Manages intervention quotes with two sections:
+ * - Demandes envoyées (quotes without amount - waiting for provider submission)
+ * - Devis reçus (quotes with amount - ready for approval/rejection)
  */
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-// Quote list component will be defined inline since we don't have a separate component
-import { DollarSign, FileText, Plus, CheckCircle, XCircle, Clock } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
+import { Send, FileText, ChevronDown, User, Mail, Clock, Calendar } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { QuoteCard } from '@/components/quotes/quote-card'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
@@ -40,289 +36,221 @@ export function QuotesTab({
   quotes,
   canManage = false
 }: QuotesTabProps) {
-  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
-  const [actionDialogOpen, setActionDialogOpen] = useState(false)
-  const [actionType, setActionType] = useState<'accept' | 'reject'>('accept')
-  const [rejectionReason, setRejectionReason] = useState('')
-  const [processing, setProcessing] = useState(false)
+  // Séparer les demandes (amount = 0) et les devis reçus (amount > 0)
+  const pendingRequests = quotes.filter(q =>
+    q.status === 'pending' && (!q.amount || q.amount === 0)
+  )
 
-  // Handle quote acceptance
-  const handleAcceptQuote = async (quote: Quote) => {
-    setSelectedQuote(quote)
-    setActionType('accept')
-    setActionDialogOpen(true)
-  }
+  const receivedQuotes = quotes.filter(q =>
+    q.status === 'pending' && q.amount && q.amount > 0
+  )
 
-  // Handle quote rejection
-  const handleRejectQuote = async (quote: Quote) => {
-    setSelectedQuote(quote)
-    setActionType('reject')
-    setActionDialogOpen(true)
-  }
+  const [requestsExpanded, setRequestsExpanded] = useState(true)
+  const [quotesExpanded, setQuotesExpanded] = useState(true)
 
-  // Process quote action
-  const processQuoteAction = async () => {
-    if (!selectedQuote) return
+  return (
+    <div className="space-y-6">
+      {/* Section Demandes envoyées */}
+      <Collapsible open={requestsExpanded} onOpenChange={setRequestsExpanded}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="w-5 h-5 text-blue-600" />
+                  Demandes envoyées ({pendingRequests.length})
+                </CardTitle>
+                <ChevronDown
+                  className={cn(
+                    "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                    requestsExpanded && "rotate-180"
+                  )}
+                />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              {pendingRequests.length === 0 ? (
+                <div className="text-center py-8">
+                  <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium text-muted-foreground mb-2">
+                    Aucune demande en cours
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Les demandes de devis envoyées aux prestataires apparaîtront ici
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pendingRequests.map(quote => (
+                    <RequestCard
+                      key={quote.id}
+                      quote={quote}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-    if (actionType === 'reject' && !rejectionReason.trim()) {
-      toast.error('Veuillez indiquer une raison de rejet')
-      return
-    }
+      {/* Section Devis reçus */}
+      <Collapsible open={quotesExpanded} onOpenChange={setQuotesExpanded}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-green-600" />
+                  Devis reçus ({receivedQuotes.length})
+                </CardTitle>
+                <ChevronDown
+                  className={cn(
+                    "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                    quotesExpanded && "rotate-180"
+                  )}
+                />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              {receivedQuotes.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium text-muted-foreground mb-2">
+                    Aucun devis reçu
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Les devis soumis par les prestataires apparaîtront ici
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {receivedQuotes.map(quote => (
+                    <div key={quote.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-1">
+                      <QuoteCard
+                        quote={{
+                          id: quote.id,
+                          providerId: quote.provider_id,
+                          providerName: quote.provider?.name || 'Prestataire',
+                          providerSpeciality: quote.provider?.provider_category,
+                          totalAmount: quote.amount,
+                          laborCost: (quote.line_items as any)?.labor || 0,
+                          materialsCost: (quote.line_items as any)?.materials || 0,
+                          description: quote.description || '',
+                          estimatedDurationHours: (quote.line_items as any)?.duration,
+                          status: quote.status,
+                          submittedAt: quote.created_at,
+                          attachments: []
+                        }}
+                        userContext="gestionnaire"
+                        showActions={canManage}
+                        onDataChange={() => window.location.reload()}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    </div>
+  )
+}
 
-    setProcessing(true)
+/**
+ * Request Card Component
+ * Displays a pending quote request (waiting for provider submission)
+ */
+interface RequestCardProps {
+  quote: Quote
+}
+
+function RequestCard({ quote }: RequestCardProps) {
+  const formatDate = (date: string | null) => {
+    if (!date) return 'Date inconnue'
     try {
-      const supabase = createBrowserSupabaseClient()
-      const { data: userData } = await supabase.auth.getUser()
-
-      const updateData: any = {
-        status: actionType === 'accept' ? 'accepted' : 'rejected',
-        validated_at: new Date().toISOString(),
-        validated_by: userData.user?.id
-      }
-
-      if (actionType === 'reject') {
-        updateData.rejection_reason = rejectionReason
-      }
-
-      const { error } = await supabase
-        .from('intervention_quotes')
-        .update(updateData)
-        .eq('id', selectedQuote.id)
-
-      if (error) throw error
-
-      toast.success(
-        actionType === 'accept'
-          ? 'Devis accepté avec succès'
-          : 'Devis rejeté'
-      )
-
-      setActionDialogOpen(false)
-      setRejectionReason('')
-      window.location.reload() // Refresh to update the list
-    } catch (error) {
-      console.error('Error processing quote action:', error)
-      toast.error('Erreur lors du traitement du devis')
-    } finally {
-      setProcessing(false)
+      return format(new Date(date), 'dd MMM yyyy à HH:mm', { locale: fr })
+    } catch {
+      return 'Date invalide'
     }
-  }
-
-  // Calculate statistics
-  const stats = {
-    total: quotes.length,
-    pending: quotes.filter(q => q.status === 'pending').length,
-    accepted: quotes.filter(q => q.status === 'accepted').length,
-    rejected: quotes.filter(q => q.status === 'rejected').length,
-    totalAmount: quotes
-      .filter(q => q.status === 'accepted')
-      .reduce((sum, q) => sum + q.amount, 0)
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total des devis
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </CardContent>
-          </Card>
+    <Card className="border-gray-200 hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="space-y-3">
+          {/* Header with provider name and status */}
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-gray-900">
+              {quote.provider?.name || 'Prestataire'}
+            </h4>
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">
+              ⏳ En attente
+            </Badge>
+          </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                En attente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Acceptés
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-600">{stats.accepted}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Montant accepté
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stats.totalAmount.toFixed(2)}€</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quotes list */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5" />
-              Devis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {quotes.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium text-muted-foreground mb-2">
-                  Aucun devis
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Les devis soumis par les prestataires apparaîtront ici
-                </p>
+          {/* Provider info */}
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="h-4 w-4 text-gray-600" />
               </div>
-            ) : (
-              <div className="space-y-4">
-                {quotes.map((quote) => (
-                  <div key={quote.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {quote.provider?.name || 'Prestataire'}
-                          </span>
-                          {quote.status === 'pending' && (
-                            <Badge variant="outline" className="gap-1">
-                              <Clock className="w-3 h-3" />
-                              En attente
-                            </Badge>
-                          )}
-                          {quote.status === 'accepted' && (
-                            <Badge variant="success" className="gap-1">
-                              <CheckCircle className="w-3 h-3" />
-                              Accepté
-                            </Badge>
-                          )}
-                          {quote.status === 'rejected' && (
-                            <Badge variant="destructive" className="gap-1">
-                              <XCircle className="w-3 h-3" />
-                              Rejeté
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Type: {quote.quote_type.replace('_', ' ')}
-                        </p>
-                        {quote.description && (
-                          <p className="text-sm">{quote.description}</p>
-                        )}
-                      </div>
-                      <span className="text-xl font-bold">{quote.amount}€</span>
-                    </div>
-                    {canManage && quote.status === 'pending' && (
-                      <div className="flex gap-2 pt-2 border-t">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAcceptQuote(quote)}
-                        >
-                          Accepter
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleRejectQuote(quote)}
-                        >
-                          Rejeter
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
 
-      {/* Action dialog */}
-      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === 'accept' ? 'Accepter le devis' : 'Rejeter le devis'}
-            </DialogTitle>
-            <DialogDescription>
-              {actionType === 'accept'
-                ? 'Êtes-vous sûr de vouloir accepter ce devis ?'
-                : 'Veuillez indiquer la raison du rejet de ce devis.'}
-            </DialogDescription>
-          </DialogHeader>
+            <div className="flex-1 min-w-0">
+              {quote.provider?.email && (
+                <div className="flex items-center space-x-1 text-xs text-gray-500 mb-1">
+                  <Mail className="h-3 w-3" />
+                  <span className="truncate">{quote.provider.email}</span>
+                </div>
+              )}
 
-          {selectedQuote && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prestataire</span>
-                  <span className="font-medium">
-                    {selectedQuote.provider?.name || 'Inconnu'}
-                  </span>
+              {quote.provider?.provider_category && (
+                <div className="text-xs text-gray-600 mb-1">
+                  Spécialité: {quote.provider.provider_category}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Montant</span>
-                  <span className="font-medium">{selectedQuote.amount}€</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="font-medium capitalize">
-                    {selectedQuote.quote_type.replace('_', ' ')}
-                  </span>
-                </div>
+              )}
+
+              {/* Request details */}
+              <div className="flex items-center space-x-1 text-xs text-gray-500 mb-1">
+                <Clock className="h-3 w-3" />
+                <span>Envoyé le {formatDate(quote.created_at)}</span>
               </div>
 
-              {actionType === 'reject' && (
-                <div className="space-y-2">
-                  <Label htmlFor="reason">Raison du rejet *</Label>
-                  <Textarea
-                    id="reason"
-                    placeholder="Expliquez pourquoi ce devis est rejeté..."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    rows={4}
-                  />
+              {quote.valid_until && (
+                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                  <Calendar className="h-3 w-3" />
+                  <span>Échéance: {formatDate(quote.valid_until)}</span>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Message if any */}
+          {quote.description && (
+            <div className="bg-white rounded border border-gray-200 p-2 text-xs text-gray-700">
+              {quote.description}
+            </div>
           )}
 
-          <DialogFooter>
+          {/* Actions */}
+          <div className="flex space-x-2 pt-2 border-t border-gray-100">
             <Button
               variant="outline"
-              onClick={() => setActionDialogOpen(false)}
-              disabled={processing}
+              size="sm"
+              onClick={() => console.log('View provider profile:', quote.provider_id)}
+              className="text-xs h-7"
             >
-              Annuler
+              Voir profil
             </Button>
-            <Button
-              onClick={processQuoteAction}
-              disabled={processing || (actionType === 'reject' && !rejectionReason.trim())}
-              variant={actionType === 'accept' ? 'default' : 'destructive'}
-            >
-              {processing
-                ? 'Traitement...'
-                : actionType === 'accept'
-                  ? 'Accepter le devis'
-                  : 'Rejeter le devis'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

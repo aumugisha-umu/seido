@@ -95,13 +95,26 @@ export function InterventionDetailClient({
         return threads.length > 0 ? threads.length : undefined
       case 'documents':
         return documents.length > 0 ? documents.length : undefined
-      case 'quotes':
-        return quotes.length > 0 ? quotes.length : undefined
       case 'time-slots':
         return timeSlots.length > 0 ? timeSlots.length : undefined
       default:
         return undefined
     }
+  }
+
+  // Get separate badge counts for quotes tab
+  const getQuotesBadges = () => {
+    // Demandes en attente (pending requests - amount=0)
+    const pendingRequests = quotes.filter(q =>
+      q.status === 'pending' && (!q.amount || q.amount === 0)
+    ).length
+
+    // Devis soumis en attente de validation (submitted quotes - amount>0)
+    const submittedQuotes = quotes.filter(q =>
+      (q.status === 'pending' || q.status === 'sent') && q.amount && q.amount > 0
+    ).length
+
+    return { pendingRequests, submittedQuotes }
   }
 
   return (
@@ -164,6 +177,26 @@ export function InterventionDetailClient({
           <TabsTrigger value="overview">
             Vue d'ensemble
           </TabsTrigger>
+          <TabsTrigger value="quotes" className="relative">
+            Devis
+            {(() => {
+              const { pendingRequests, submittedQuotes } = getQuotesBadges()
+              return (
+                <div className="absolute -top-1 -right-1 flex gap-1">
+                  {pendingRequests > 0 && (
+                    <span className="bg-blue-500 text-white text-xs rounded-full px-1.5">
+                      {pendingRequests}
+                    </span>
+                  )}
+                  {submittedQuotes > 0 && (
+                    <span className="bg-red-500 text-white text-xs rounded-full px-1.5">
+                      {submittedQuotes}
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
+          </TabsTrigger>
           <TabsTrigger value="chat" className="relative">
             Discussion
             {getBadgeCount('chat') && (
@@ -177,14 +210,6 @@ export function InterventionDetailClient({
             {getBadgeCount('documents') && (
               <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5">
                 {getBadgeCount('documents')}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="quotes" className="relative">
-            Devis
-            {getBadgeCount('quotes') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5">
-                {getBadgeCount('quotes')}
               </span>
             )}
           </TabsTrigger>
@@ -209,6 +234,14 @@ export function InterventionDetailClient({
           />
         </TabsContent>
 
+        <TabsContent value="quotes" className="space-y-6">
+          <QuotesTab
+            interventionId={intervention.id}
+            quotes={quotes}
+            canManage={true}
+          />
+        </TabsContent>
+
         <TabsContent value="chat" className="space-y-6">
           <ChatTab
             interventionId={intervention.id}
@@ -220,14 +253,6 @@ export function InterventionDetailClient({
           <DocumentsTab
             interventionId={intervention.id}
             documents={documents}
-            canManage={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="quotes" className="space-y-6">
-          <QuotesTab
-            interventionId={intervention.id}
-            quotes={quotes}
             canManage={true}
           />
         </TabsContent>

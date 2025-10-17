@@ -11,20 +11,24 @@ import ContactFormModal from "@/components/contact-form-modal"
 import { createContactInvitationService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 // Composant SelectItem personnalisé avec bouton au lieu du checkmark
-const CustomSelectItem = ({ 
-  className, 
-  children, 
-  value, 
-  onSelect, 
-  isSelected, 
+const CustomSelectItem = ({
+  className,
+  children,
+  value,
+  onSelect,
+  isSelected,
+  isIneligible = false,
+  ineligibilityReason,
   keepOpen = false,
-  ...props 
+  ...props
 }: {
   className?: string
   children: React.ReactNode
   value: string
   onSelect: (value: string) => void
   isSelected: boolean
+  isIneligible?: boolean
+  ineligibilityReason?: string
   keepOpen?: boolean
   [key: string]: unknown
 }) => {
@@ -32,27 +36,38 @@ const CustomSelectItem = ({
     <div
       className={cn(
         "hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-sm select-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        isIneligible && "opacity-60 bg-gray-50",
         className
       )}
       {...props}
     >
-      <div className="flex items-center justify-between w-full">
-        <span>{children}</span>
-        <Button
-          size="sm" 
-          variant={isSelected ? "default" : "outline"}
-          className="ml-2 h-6 px-2 text-xs"
-          onClick={(e) => {
-            e.stopPropagation()
-            if (keepOpen) {
-              // Pour la multi-sélection, on empêche la fermeture du dropdown
-              e.preventDefault()
-            }
-            onSelect(value)
-          }}
-        >
-          {isSelected ? "Sélectionné" : "Sélectionner"}
-        </Button>
+      <div className="flex flex-col gap-1 w-full">
+        <div className="flex items-center justify-between w-full">
+          <span>{children}</span>
+          <Button
+            size="sm"
+            variant={isSelected ? "default" : "outline"}
+            className="ml-2 h-6 px-2 text-xs"
+            disabled={isIneligible}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (keepOpen) {
+                // Pour la multi-sélection, on empêche la fermeture du dropdown
+                e.preventDefault()
+              }
+              if (!isIneligible) {
+                onSelect(value)
+              }
+            }}
+          >
+            {isSelected ? "Sélectionné" : "Sélectionner"}
+          </Button>
+        </div>
+        {isIneligible && ineligibilityReason && (
+          <Badge variant="destructive" className="text-xs w-fit">
+            {ineligibilityReason}
+          </Badge>
+        )}
       </div>
     </div>
   )
@@ -67,6 +82,8 @@ interface ContactSelectorProps {
     provider_category?: string
   }>
   selectedContactIds?: string[]
+  ineligibleContactIds?: string[]
+  ineligibilityReasons?: Record<string, string>
   onContactSelect: (contactId: string) => void
   onContactCreated: (contact: {
     id: string
@@ -84,6 +101,8 @@ interface ContactSelectorProps {
 const ContactSelector = ({
   contacts,
   selectedContactIds = [],
+  ineligibleContactIds = [],
+  ineligibilityReasons = {},
   onContactSelect,
   onContactCreated,
   contactType,
@@ -225,25 +244,32 @@ const ContactSelector = ({
               />
             </div>
           </div>
-          {filteredContacts.map((contact) => (
-            <CustomSelectItem 
-              key={contact.id} 
-              value={contact.id}
-              onSelect={handleSelectChange}
-              isSelected={isContactSelected(contact.id)}
-              keepOpen={true} // Toujours garder ouvert pour la multi-sélection
-            >
-              <div className="flex items-center gap-2">
-                <span>{contact.name}</span>
-                {contact.isCurrentUser && (
-                  <Badge variant="secondary" className="text-xs">Vous</Badge>
-                )}
-                {contactType === 'prestataire' && contact.speciality && (
-                  <Badge variant="outline" className="text-xs">{contact.speciality}</Badge>
-                )}
-              </div>
-            </CustomSelectItem>
-          ))}
+          {filteredContacts.map((contact) => {
+            const isIneligible = ineligibleContactIds.includes(contact.id)
+            const ineligibilityReason = ineligibilityReasons[contact.id]
+
+            return (
+              <CustomSelectItem
+                key={contact.id}
+                value={contact.id}
+                onSelect={handleSelectChange}
+                isSelected={isContactSelected(contact.id)}
+                isIneligible={isIneligible}
+                ineligibilityReason={ineligibilityReason}
+                keepOpen={true} // Toujours garder ouvert pour la multi-sélection
+              >
+                <div className="flex items-center gap-2">
+                  <span>{contact.name}</span>
+                  {contact.isCurrentUser && (
+                    <Badge variant="secondary" className="text-xs">Vous</Badge>
+                  )}
+                  {contactType === 'prestataire' && contact.speciality && (
+                    <Badge variant="outline" className="text-xs">{contact.speciality}</Badge>
+                  )}
+                </div>
+              </CustomSelectItem>
+            )
+          })}
           {filteredContacts.length === 0 && searchQuery && (
             <div className="p-2 text-center text-gray-500 text-sm">
               Aucun {getContactLabel()} trouvé

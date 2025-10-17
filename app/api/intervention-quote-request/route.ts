@@ -6,32 +6,21 @@ import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { createQuoteRequestsForProviders } from '../create-manager-intervention/create-quote-requests'
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis
- * Exclut ceux ayant déjà une demande active ou un devis en attente/approuvé
+ * Exclut ceux ayant déjà un devis pending/accepted
  */
 async function getEligibleProviders(
   supabase: ReturnType<typeof createServerClient<Database>>,
   interventionId: string,
   requestedProviderIds: string[]
 ): Promise<{ eligibleIds: string[], ineligibleIds: string[], ineligibleReasons: Record<string, string> }> {
-  // Récupérer les demandes de devis existantes pour cette intervention
-  const { data: existingRequests, error: requestsError } = await supabase
-    .from('quote_requests')
-    .select('provider_id, status')
-    .eq('intervention_id', interventionId)
-    .in('provider_id', requestedProviderIds)
-
-  if (requestsError) {
-    logger.error({ error: requestsError }, '❌ Error fetching existing quote requests:')
-    throw new Error('Erreur lors de la vérification des demandes de devis existantes')
-  }
-
   // Récupérer les devis existants pour cette intervention
   const { data: existingQuotes, error: quotesError } = await supabase
     .from('intervention_quotes')
-    .select('provider_id, status')
+    .select('provider_id, status, amount')
     .eq('intervention_id', interventionId)
     .in('provider_id', requestedProviderIds)
 
@@ -43,30 +32,15 @@ async function getEligibleProviders(
   const ineligibleIds: string[] = []
   const ineligibleReasons: Record<string, string> = {}
 
-  // Identifier les prestataires avec des demandes actives
-  if (existingRequests && existingRequests.length > 0) {
-    existingRequests.forEach(request => {
-      if (['sent', 'viewed', 'responded'].includes(request.status)) {
-        ineligibleIds.push(request.provider_id)
-        ineligibleReasons[request.provider_id] = request.status === 'sent'
-          ? 'a déjà une demande de devis en attente'
-          : request.status === 'viewed'
-          ? 'a déjà consulté une demande de devis'
-          : 'a déjà répondu à une demande de devis'
-      }
-    })
-  }
-
-  // Identifier les prestataires avec des devis en attente ou approuvés
+  // Identifier les prestataires avec des devis pending/sent/accepted
   if (existingQuotes && existingQuotes.length > 0) {
     existingQuotes.forEach(quote => {
-      if (!ineligibleIds.includes(quote.provider_id)) { // Éviter les doublons
-        if (quote.status === 'pending' || quote.status === 'approved') {
-          ineligibleIds.push(quote.provider_id)
-          ineligibleReasons[quote.provider_id] = quote.status === 'pending'
-            ? 'a déjà un devis en attente'
-            : 'a déjà un devis approuvé'
-        }
+      if (quote.status === 'pending' || quote.status === 'sent' || quote.status === 'accepted') {
+        ineligibleIds.push(quote.provider_id)
+        ineligibleReasons[quote.provider_id] =
+          quote.status === 'pending' ? 'a déjà une demande en attente' :
+          quote.status === 'sent' ? 'a déjà soumis un devis en attente de validation' :
+          'a déjà un devis approuvé'
       }
     })
   }
@@ -78,7 +52,6 @@ async function getEligibleProviders(
     eligible: eligibleIds.length,
     ineligible: ineligibleIds.length,
     ineligibleReasons,
-    existingRequests: existingRequests?.length || 0,
     existingQuotes: existingQuotes?.length || 0
   }, '🔍 Provider eligibility check:')
 
@@ -149,7 +122,9 @@ export async function POST(request: NextRequest) {
     logger.info({ interventionId, targetProviderIds }, "📝 Requesting quote for intervention")
 
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+    const user = userResult?.data ?? null
+
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -283,78 +258,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create individual quote requests for each provider
-    logger.info({}, "📋 Creating individual quote requests...")
-
-    const quoteRequestPromises = eligibleProviders.map(async (provider) => {
-      const individualMessage = individualMessages[provider.id] || additionalNotes || null
-
-      // Create quote request
-      const { data: quoteRequest, error: quoteRequestError } = await supabase
-        .from('quote_requests')
-        .insert({
-          intervention_id: interventionId,
-          provider_id: provider.id,
-          status: 'sent',
-          individual_message: individualMessage,
-          deadline: deadline ? new Date(deadline).toISOString() : null,
-          sent_at: new Date().toISOString(),
-          created_by: user.id
-        })
-        .select()
-        .single()
-
-      if (quoteRequestError) {
-        logger.error(`❌ Error creating quote request for provider ${provider.name}:`, quoteRequestError)
-        return { provider, error: quoteRequestError }
-      }
-
-      // Also maintain compatibility with intervention_contacts for existing functionality
-      const { error: assignmentError } = await supabase
-        .from('intervention_contacts')
-        .upsert({
-          intervention_id: interventionId,
-          user_id: provider.id,
-          role: 'prestataire',
-          is_primary: false, // Not needed anymore with individual requests
-          individual_message: individualMessage,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'intervention_id,user_id,role'
-        })
-
-      if (assignmentError) {
-        logger.warn(`⚠️ Error updating intervention_contacts for provider ${provider.name}:`, assignmentError)
-      }
-
-      return { provider, quoteRequest, error: null }
+    // Create intervention_quotes using the clean helper function
+    const quoteResult = await createQuoteRequestsForProviders({
+      interventionId,
+      teamId: intervention.team_id,
+      providerIds: eligibleIds,
+      createdBy: user.id,
+      messageType: 'individual',
+      individualMessages,
+      globalMessage: additionalNotes,
+      supabase
     })
 
-    let createdQuoteRequests = []
-
-    try {
-      const quoteRequestResults = await Promise.all(quoteRequestPromises)
-      const failedRequests = quoteRequestResults.filter(result => result.error)
-      createdQuoteRequests = quoteRequestResults.filter(result => !result.error).map(result => result.quoteRequest)
-
-      if (failedRequests.length > 0) {
-        logger.error({ failedRequests: failedRequests }, "❌ Some quote request creations failed:")
-
-        // If all failed, return error
-        if (failedRequests.length === eligibleProviders.length) {
-          return NextResponse.json({
-            success: false,
-            error: 'Échec de la création des demandes de devis pour tous les prestataires'
-          }, { status: 500 })
-        }
-      }
-
-      logger.info({ createdQuoteRequests: createdQuoteRequests.length }, "✅ Successfully created quote requests")
-    } catch (requestError) {
-      logger.error({ error: requestError }, "❌ Error during quote request creation:")
+    if (!quoteResult.success) {
       return NextResponse.json({
         success: false,
-        error: 'Erreur lors de la création des demandes de devis'
+        error: 'Échec de la création des demandes de devis'
       }, { status: 500 })
     }
 

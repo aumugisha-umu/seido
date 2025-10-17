@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService, createServerSupabaseClient } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
+import { createQuoteRequestsForProviders } from './create-quote-requests'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -507,6 +508,20 @@ export async function POST(request: NextRequest) {
           inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
         }, "✅ Contact assignments created successfully")
       }
+    }
+
+    // ✅ NEW 2025-10-17: Auto-create quote requests if expectsQuote and providers assigned
+    if (expectsQuote && selectedProviderIds && selectedProviderIds.length > 0) {
+      await createQuoteRequestsForProviders({
+        interventionId: intervention.id,
+        teamId: interventionTeamId,
+        providerIds: selectedProviderIds,
+        createdBy: user.id,
+        messageType,
+        globalMessage,
+        individualMessages,
+        supabase
+      })
     }
 
     // ✅ NEW 2025-10-15: Auto-assign tenants from lot_contacts (if lot intervention)

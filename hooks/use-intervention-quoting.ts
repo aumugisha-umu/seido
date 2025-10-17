@@ -10,6 +10,11 @@ interface Provider {
   provider_category?: string
 }
 
+interface IneligibleProvider {
+  id: string
+  reason: string
+}
+
 interface QuoteRequestModal {
   isOpen: boolean
   intervention: unknown | null
@@ -63,6 +68,7 @@ export const useInterventionQuoting = () => {
   // État des prestataires
   const [providers, setProviders] = useState<Provider[]>([])
   const [eligibleProviders, setEligibleProviders] = useState<Provider[]>([])
+  const [ineligibleProviders, setIneligibleProviders] = useState<IneligibleProvider[]>([])
   const [providersLoading, setProvidersLoading] = useState(false)
 
   // Récupérer les prestataires disponibles
@@ -129,14 +135,27 @@ export const useInterventionQuoting = () => {
       if (quotesResponse.ok) {
         const quotesData = await quotesResponse.json()
         existingQuotes = quotesData.quotes || []
+      } else {
+        const errorText = await quotesResponse.text()
+        logger.error('Failed to fetch quotes:', { status: quotesResponse.status, error: errorText })
       }
 
       logger.info('✅ [ELIGIBLE-PROVIDERS] Parallel fetch complete')
 
-      // Filtrer les prestataires éligibles (exclure ceux avec devis pending/approved)
-      const ineligibleProviderIds = existingQuotes
-        .filter(quote => quote.status === 'pending' || quote.status === 'approved')
-        .map(quote => quote.provider_id)
+      // Filtrer les prestataires éligibles (exclure ceux avec quote pending/sent/accepted)
+      const ineligibleData: IneligibleProvider[] = []
+      const ineligibleProviderIds: string[] = []
+
+      existingQuotes.forEach(quote => {
+        if (quote.status === 'pending' || quote.status === 'sent' || quote.status === 'accepted') {
+          ineligibleProviderIds.push(quote.provider_id)
+          const reason =
+            quote.status === 'pending' ? 'Demande en attente' :
+            quote.status === 'sent' ? 'Devis soumis en attente de validation' :
+            'Devis approuvé'
+          ineligibleData.push({ id: quote.provider_id, reason })
+        }
+      })
 
       const eligible = allProviders.filter(provider =>
         !ineligibleProviderIds.includes(provider.id)
@@ -145,11 +164,13 @@ export const useInterventionQuoting = () => {
       logger.info('📊 [ELIGIBLE-PROVIDERS] Eligible providers:', {
         total: allProviders.length,
         eligible: eligible.length,
-        ineligible: ineligibleProviderIds.length
+        ineligible: ineligibleProviderIds.length,
+        ineligibleReasons: ineligibleData
       })
 
       setProviders(allProviders)
       setEligibleProviders(eligible)
+      setIneligibleProviders(ineligibleData)
     } catch (err) {
       logger.error('❌ [ELIGIBLE-PROVIDERS] Error:', err)
       setError('Erreur lors de la récupération des prestataires éligibles')
@@ -185,7 +206,7 @@ export const useInterventionQuoting = () => {
     setError(null)
 
     // Récupérer les prestataires éligibles pour cette intervention
-    await fetchEligibleProviders(intervention.id)
+    await fetchEligibleProviders(_intervention.id)
   }
 
   /**
@@ -379,6 +400,7 @@ export const useInterventionQuoting = () => {
     formData,
     providers,
     eligibleProviders,
+    ineligibleProviders,
     providersLoading,
 
     // États UI

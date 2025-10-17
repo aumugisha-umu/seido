@@ -249,24 +249,6 @@ export function AssignmentCard({
             )
           })
         )}
-
-        {/* Statistics */}
-        {assignments.length > 0 && (
-          <div className="pt-4 border-t">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Total des attributions</p>
-                <p className="font-medium">{assignments.length}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Attributions principales</p>
-                <p className="font-medium">
-                  {assignments.filter((a) => a.is_primary).length}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   )

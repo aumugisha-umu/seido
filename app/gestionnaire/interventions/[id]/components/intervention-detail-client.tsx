@@ -7,17 +7,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator
-} from '@/components/ui/breadcrumb'
 
 // Tab components
 import { OverviewTab } from './overview-tab'
@@ -26,6 +16,13 @@ import { DocumentsTab } from './documents-tab'
 import { QuotesTab } from './quotes-tab'
 import { TimeSlotsTab } from './time-slots-tab'
 import { ActivityTab } from './activity-tab'
+
+// Intervention components
+import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
+import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+
+// Hooks
+import { useAuth } from '@/hooks/use-auth'
 
 import type { Database } from '@/lib/database.types'
 
@@ -75,6 +72,7 @@ export function InterventionDetailClient({
   activityLogs
 }: InterventionDetailClientProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -83,6 +81,11 @@ export function InterventionDetailClient({
     setIsRefreshing(true)
     router.refresh()
     setTimeout(() => setIsRefreshing(false), 1000)
+  }
+
+  // Handle action completion from action panel
+  const handleActionComplete = () => {
+    handleRefresh()
   }
 
   // Get badge counts for tabs
@@ -103,52 +106,57 @@ export function InterventionDetailClient({
 
   return (
     <div className="container max-w-7xl mx-auto py-6 space-y-6">
-      {/* Breadcrumbs */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/gestionnaire">Dashboard</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/gestionnaire/interventions">
-              Interventions
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{intervention.reference}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      {/* Header with actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/gestionnaire/interventions')}
-            className="gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour à la liste
-          </Button>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="gap-2"
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+      {/* Intervention Detail Header with Action Panel */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: intervention.reference || '',
+          status: intervention.status,
+          urgency: intervention.urgency || 'normale',
+          createdAt: intervention.created_at || '',
+          createdBy: (intervention as any).creator_name || 'Utilisateur',
+          lot: intervention.lot ? {
+            reference: intervention.lot.reference || '',
+            building: intervention.lot.building ? {
+              name: intervention.lot.building.name || ''
+            } : undefined
+          } : undefined,
+          building: intervention.building ? {
+            name: intervention.building.name || ''
+          } : undefined
+        }}
+        onBack={() => router.push('/gestionnaire/interventions')}
+        onArchive={() => {
+          // TODO: Implement archive logic
+          console.log('Archive intervention')
+        }}
+        onStatusAction={(action) => {
+          console.log('Status action:', action)
+          // Actions are handled by InterventionActionPanelHeader
+        }}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: intervention.tenant_id || undefined,
+              scheduled_date: intervention.scheduled_date || undefined,
+              quotes: quotes.map(q => ({
+                id: q.id,
+                status: q.status,
+                providerId: q.provider_id,
+                isCurrentUserQuote: q.provider_id === user?.id
+              }))
+            }}
+            userRole="gestionnaire"
+            userId={user?.id || ''}
+            onActionComplete={handleActionComplete}
           />
-          Actualiser
-        </Button>
-      </div>
+        }
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

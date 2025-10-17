@@ -7,10 +7,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
 // Tab components
@@ -18,6 +15,10 @@ import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { QuotesTab } from './quotes-tab'
 import { DocumentsTab } from './documents-tab'
+
+// Intervention components
+import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
+import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
 
 // Types
 import type { Database } from '@/lib/database.types'
@@ -79,65 +80,66 @@ export function PrestataireInterventionDetailClient({
     setTimeout(() => setRefreshing(false), 1000)
   }
 
+  // Handle action completion from action panel
+  const handleActionComplete = () => {
+    handleRefresh()
+  }
+
   const statusInfo = statusLabels[intervention.status] || statusLabels['demande']
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Retour
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="gap-2"
-            >
-              {refreshing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                'Actualiser'
-              )}
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold">{intervention.title}</h1>
-              <Badge className={statusInfo.color}>
-                {statusInfo.label}
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>Référence: <strong>{intervention.reference}</strong></span>
-              <span>•</span>
-              <span className="capitalize">Type: <strong>{intervention.type.replace('_', ' ')}</strong></span>
-              <span>•</span>
-              <span className="capitalize">Urgence: <strong>{intervention.urgency}</strong></span>
-            </div>
-
-            {intervention.building && (
-              <p className="text-sm text-muted-foreground">
-                {intervention.building.name} - {intervention.building.address}, {intervention.building.postal_code} {intervention.building.city}
-              </p>
-            )}
-            {intervention.lot && intervention.lot.building && (
-              <p className="text-sm text-muted-foreground">
-                {intervention.lot.building.name} - Lot {intervention.lot.reference}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Intervention Detail Header with Action Panel */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: intervention.reference || '',
+          status: intervention.status,
+          urgency: intervention.urgency || 'normale',
+          createdAt: intervention.created_at || '',
+          createdBy: (intervention as any).creator_name || 'Utilisateur',
+          lot: intervention.lot ? {
+            reference: intervention.lot.reference || '',
+            building: intervention.lot.building ? {
+              name: intervention.lot.building.name || ''
+            } : undefined
+          } : undefined,
+          building: intervention.building ? {
+            name: intervention.building.name || ''
+          } : undefined
+        }}
+        onBack={() => router.back()}
+        onArchive={() => {
+          // TODO: Implement archive logic for provider
+          console.log('Archive intervention')
+        }}
+        onStatusAction={(action) => {
+          console.log('Status action:', action)
+          // Actions are handled by InterventionActionPanelHeader
+        }}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: intervention.tenant_id || undefined,
+              scheduled_date: intervention.scheduled_date || undefined,
+              quotes: quotes.map(q => ({
+                id: q.id,
+                status: q.status,
+                providerId: q.provider_id,
+                isCurrentUserQuote: q.provider_id === currentUser.id
+              }))
+            }}
+            userRole="prestataire"
+            userId={currentUser.id}
+            onActionComplete={handleActionComplete}
+          />
+        }
+      />
 
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">

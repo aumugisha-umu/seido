@@ -208,13 +208,7 @@ export function SimplifiedFinalizationModal({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Fetch finalization context
-  useEffect(() => {
-    if (isOpen && interventionId) {
-      fetchFinalizationContext()
-    }
-  }, [isOpen, interventionId, fetchFinalizationContext])
-
+  // Define fetchFinalizationContext BEFORE using it in useEffect
   const fetchFinalizationContext = useCallback(async () => {
     try {
       setLoading(true)
@@ -235,6 +229,13 @@ export function SimplifiedFinalizationModal({
       setLoading(false)
     }
   }, [interventionId])
+
+  // Fetch finalization context
+  useEffect(() => {
+    if (isOpen && interventionId) {
+      fetchFinalizationContext()
+    }
+  }, [isOpen, interventionId, fetchFinalizationContext])
 
   const handleSubmit = async () => {
     if (!contextData) return

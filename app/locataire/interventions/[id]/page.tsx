@@ -61,7 +61,8 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
     { data: lot },
     { data: documents },
     { data: threads },
-    { data: timeSlots }
+    { data: timeSlots },
+    { data: assignments }
   ] = await Promise.all([
     // Building data
     result.data.building_id
@@ -94,15 +95,30 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
       .from('intervention_time_slots')
       .select('*')
       .eq('intervention_id', id)
-      .order('slot_date', { ascending: true })
+      .order('slot_date', { ascending: true }),
+
+    // All assignments with user details (to find creator)
+    supabase
+      .from('intervention_assignments')
+      .select('*, user:users!user_id(*)')
+      .eq('intervention_id', id)
+      .order('assigned_at', { ascending: true })
   ])
+
+  // Get creator from first assignment (usually gestionnaire or locataire)
+  const firstAssignment = assignments && assignments.length > 0 ? assignments[0] : null
+
+  const creatorName = firstAssignment?.user?.name ||
+                      firstAssignment?.user?.email?.split('@')[0] ||
+                      'Utilisateur'
 
   // Construct full intervention object
   const fullIntervention = {
     ...result.data,
     building: building || undefined,
     lot: lot || undefined,
-    tenant: userData
+    tenant: userData,
+    creator_name: creatorName
   }
 
   return (

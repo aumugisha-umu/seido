@@ -114,12 +114,22 @@ export default async function InterventionDetailPage({ params }: PageProps) {
   // Extract tenant from assignments (tenants are now linked via intervention_assignments)
   const tenant = assignments?.find(a => a.role === 'locataire')?.user || null
 
+  // Get creator from first assignment (usually gestionnaire or locataire)
+  const firstAssignment = assignments && assignments.length > 0
+    ? assignments.sort((a, b) => new Date(a.assigned_at).getTime() - new Date(b.assigned_at).getTime())[0]
+    : null
+
+  const creatorName = firstAssignment?.user?.name ||
+                      firstAssignment?.user?.email?.split('@')[0] ||
+                      'Utilisateur'
+
   // Construct full intervention object
   const fullIntervention = {
     ...result.data,
     building: building || undefined,
     lot: lot || undefined,
-    tenant: tenant || undefined
+    tenant: tenant || undefined,
+    creator_name: creatorName
   }
 
   return (

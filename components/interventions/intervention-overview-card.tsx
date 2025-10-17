@@ -5,16 +5,13 @@
  * Displays complete intervention information in a card format
  */
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   MapPin,
   Calendar,
-  Clock,
   AlertCircle,
   User,
   Building,
-  Hash,
   FileText,
   DollarSign,
   CheckCircle,
@@ -32,44 +29,6 @@ type Intervention = Database['public']['Tables']['interventions']['Row'] & {
 
 interface InterventionOverviewCardProps {
   intervention: Intervention
-}
-
-// Status color mapping
-const statusColors: Record<string, string> = {
-  'demande': 'bg-gray-100 text-gray-800 border-gray-300',
-  'rejetee': 'bg-red-100 text-red-800 border-red-300',
-  'approuvee': 'bg-green-100 text-green-800 border-green-300',
-  'demande_de_devis': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  'planification': 'bg-blue-100 text-blue-800 border-blue-300',
-  'planifiee': 'bg-blue-200 text-blue-900 border-blue-400',
-  'en_cours': 'bg-purple-100 text-purple-800 border-purple-300',
-  'cloturee_par_prestataire': 'bg-indigo-100 text-indigo-800 border-indigo-300',
-  'cloturee_par_locataire': 'bg-indigo-200 text-indigo-900 border-indigo-400',
-  'cloturee_par_gestionnaire': 'bg-green-200 text-green-900 border-green-400',
-  'annulee': 'bg-gray-200 text-gray-600 border-gray-400'
-}
-
-// Status labels in French
-const statusLabels: Record<string, string> = {
-  'demande': 'Demande',
-  'rejetee': 'Rejetée',
-  'approuvee': 'Approuvée',
-  'demande_de_devis': 'Demande de devis',
-  'planification': 'Planification',
-  'planifiee': 'Planifiée',
-  'en_cours': 'En cours',
-  'cloturee_par_prestataire': 'Terminée (prestataire)',
-  'cloturee_par_locataire': 'Validée (locataire)',
-  'cloturee_par_gestionnaire': 'Clôturée',
-  'annulee': 'Annulée'
-}
-
-// Urgency color mapping
-const urgencyColors: Record<string, string> = {
-  'basse': 'bg-gray-100 text-gray-700',
-  'normale': 'bg-blue-100 text-blue-700',
-  'haute': 'bg-orange-100 text-orange-700',
-  'urgente': 'bg-red-100 text-red-700'
 }
 
 // Type icons
@@ -98,22 +57,6 @@ export function InterventionOverviewCard({ intervention }: InterventionOverviewC
     return format(new Date(date), 'dd MMM yyyy à HH:mm', { locale: fr })
   }
 
-  // Calculate duration
-  const getDuration = () => {
-    if (!intervention.created_at) return null
-
-    const start = new Date(intervention.created_at)
-    const end = intervention.completed_date
-      ? new Date(intervention.completed_date)
-      : new Date()
-
-    const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-
-    if (days === 0) return "Aujourd'hui"
-    if (days === 1) return "1 jour"
-    return `${days} jours`
-  }
-
   // Get location display
   const getLocation = () => {
     const parts = []
@@ -139,32 +82,6 @@ export function InterventionOverviewCard({ intervention }: InterventionOverviewC
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">{intervention.title}</h2>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Hash className="w-4 h-4" />
-              <span>Réf: {intervention.reference}</span>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Badge
-              variant="outline"
-              className={`border ${statusColors[intervention.status]}`}
-            >
-              {statusLabels[intervention.status] || intervention.status}
-            </Badge>
-            <Badge
-              variant="secondary"
-              className={urgencyColors[intervention.urgency]}
-            >
-              Urgence: {intervention.urgency}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-
       <CardContent className="space-y-6">
         {/* Description */}
         <div className="space-y-2">
@@ -203,17 +120,6 @@ export function InterventionOverviewCard({ intervention }: InterventionOverviewC
                 <p className="text-sm text-muted-foreground">
                   {intervention.tenant.name}
                 </p>
-              </div>
-            </div>
-          )}
-
-          {/* Duration */}
-          {getDuration() && (
-            <div className="flex items-start gap-3">
-              <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Durée</p>
-                <p className="text-sm text-muted-foreground">{getDuration()}</p>
               </div>
             </div>
           )}

@@ -254,14 +254,21 @@ export const InterventionDetailHeader = ({
 
   // Fonction pour obtenir le texte de localisation
   const getLocationText = () => {
-    if (intervention.lot) {
-      return intervention.lot.building
-        ? `Lot ${intervention.lot.reference} • ${intervention.lot.building.name}`
-        : `Lot indépendant ${intervention.lot.reference}`
-    } else if (intervention.building) {
-      return `Bâtiment entier • ${intervention.building.name}`
+    const parts = []
+
+    // Ajouter le bâtiment si présent (via lot ou directement)
+    if (intervention.lot?.building?.name) {
+      parts.push(intervention.lot.building.name)
+    } else if (intervention.building?.name) {
+      parts.push(intervention.building.name)
     }
-    return "Localisation non spécifiée"
+
+    // Ajouter la référence du lot si présent
+    if (intervention.lot?.reference) {
+      parts.push(`Lot ${intervention.lot.reference}`)
+    }
+
+    return parts.length > 0 ? parts.join(' • ') : "Localisation non spécifiée"
   }
 
   return (
@@ -318,20 +325,19 @@ export const InterventionDetailHeader = ({
                     <MapPin className="h-3 w-3" />
                     <span className="truncate max-w-xs">{getLocationText()}</span>
                   </div>
-                  
+
                   <div className="hidden md:flex items-center space-x-1">
                     <User className="h-3 w-3" />
-                    <span>{intervention.createdBy}</span>
+                    <span>Créée par : {intervention.createdBy}</span>
                   </div>
-                  
+
                   <div className="hidden lg:flex items-center space-x-1">
                     <Calendar className="h-3 w-3" />
                     <span>
-                      {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
+                      Créé le : {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
+                        year: "numeric"
                       })}
                     </span>
                   </div>

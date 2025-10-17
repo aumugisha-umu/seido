@@ -120,11 +120,11 @@ export function InterventionActionPanelHeader({
     // Types d'actions selon le Design System
     const actionTypes = {
       // Actions positives (succès, validation)
-      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot'],
+      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes', 'submit_quote'],
       // Actions destructives (suppression, rejet, annulation)
       destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote'],
       // Actions neutres (planification, demande, gestion)
-      neutral: ['request_quotes', 'start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'submit_quote', 'run_matching', 'propose_slots', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
+      neutral: ['start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'run_matching', 'propose_slots', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
       // Actions informatives (consultation)
       informative: ['view', 'consult', 'check', 'view_quote']
     }

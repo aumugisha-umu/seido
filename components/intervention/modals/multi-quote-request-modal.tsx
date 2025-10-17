@@ -64,10 +64,10 @@ export const MultiQuoteRequestModal = ({
   error,
   teamId
 }: MultiQuoteRequestModalProps) => {
-  // const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
+  const [filteredProviders, setFilteredProviders] = useState<Provider[]>(providers || [])
 
   // Callback pour la sélection de contact via le ContactSelector
-  const handleContactSelect = (_contactId: string) => {
+  const handleContactSelect = (contactId: string) => {
     const provider = providers.find(p => p.id === contactId)
     if (provider) {
       onProviderToggle(provider)
@@ -82,7 +82,14 @@ export const MultiQuoteRequestModal = ({
   }
 
   useEffect(() => {
-    if (!intervention || !providers) {
+    // Si pas d'intervention, afficher tous les prestataires
+    if (!intervention) {
+      setFilteredProviders(providers || [])
+      return
+    }
+
+    // Si pas de providers, liste vide
+    if (!providers || providers.length === 0) {
       setFilteredProviders([])
       return
     }
@@ -208,7 +215,7 @@ export const MultiQuoteRequestModal = ({
               Sélection des prestataires
             </Label>
             <ContactSelector
-              contacts={providers.map(p => ({
+              contacts={filteredProviders.map(p => ({
                 id: p.id,
                 name: p.name,
                 email: p.email,

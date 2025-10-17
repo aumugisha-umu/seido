@@ -7,20 +7,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator
-} from '@/components/ui/breadcrumb'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { StatusTimeline } from '@/components/interventions/status-timeline'
-import { WorkflowActions } from '@/components/interventions/workflow-actions'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DocumentsTab } from '@/app/gestionnaire/interventions/[id]/components/documents-tab'
@@ -28,6 +17,11 @@ import { TimeSlotsTab } from '@/app/gestionnaire/interventions/[id]/components/t
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
 import { Activity, MessageSquare, FileText, Calendar } from 'lucide-react'
+
+// Intervention components
+import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
+import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -94,39 +88,58 @@ export function LocataireInterventionDetailClient({
   // Check if tenant can select time slot
   const canSelectSlot = intervention.status === 'planification' && timeSlots.length > 0
 
+  // Handle action completion from action panel
+  const handleActionComplete = () => {
+    router.refresh()
+  }
+
   return (
     <div className="container max-w-6xl mx-auto py-6 space-y-6">
-      {/* Breadcrumbs */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/locataire">Dashboard</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/locataire/interventions">
-              Mes interventions
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{intervention.reference}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push('/locataire/interventions')}
-          className="gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour à mes interventions
-        </Button>
-      </div>
+      {/* Intervention Detail Header with Action Panel */}
+      <InterventionDetailHeader
+        intervention={{
+          id: intervention.id,
+          title: intervention.title,
+          reference: intervention.reference || '',
+          status: intervention.status,
+          urgency: intervention.urgency || 'normale',
+          createdAt: intervention.created_at || '',
+          createdBy: (intervention as any).creator_name || 'Utilisateur',
+          lot: intervention.lot ? {
+            reference: intervention.lot.reference || '',
+            building: intervention.lot.building ? {
+              name: intervention.lot.building.name || ''
+            } : undefined
+          } : undefined,
+          building: intervention.building ? {
+            name: intervention.building.name || ''
+          } : undefined
+        }}
+        onBack={() => router.push('/locataire/interventions')}
+        onArchive={() => {
+          // TODO: Implement archive logic for tenant
+          console.log('Archive intervention')
+        }}
+        onStatusAction={(action) => {
+          console.log('Status action:', action)
+          // Actions are handled by InterventionActionPanelHeader
+        }}
+        displayMode="custom"
+        actionPanel={
+          <InterventionActionPanelHeader
+            intervention={{
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status,
+              tenant_id: intervention.tenant_id || undefined,
+              scheduled_date: intervention.scheduled_date || undefined
+            }}
+            userRole="locataire"
+            userId={currentUser.id}
+            onActionComplete={handleActionComplete}
+          />
+        }
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -155,16 +168,6 @@ export function LocataireInterventionDetailClient({
             {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
               <InterventionOverviewCard intervention={intervention} />
-
-              {/* Tenant actions */}
-              {intervention.status === 'cloturee_par_prestataire' && (
-                <WorkflowActions
-                  interventionId={intervention.id}
-                  currentStatus={intervention.status}
-                  userRole="locataire"
-                  onStatusChange={() => router.refresh()}
-                />
-              )}
 
               {/* Time slot selection for tenant */}
               {canSelectSlot && (

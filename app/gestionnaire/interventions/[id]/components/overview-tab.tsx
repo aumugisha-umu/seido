@@ -8,7 +8,6 @@
 import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { AssignmentCard } from '@/components/interventions/assignment-card'
-import { WorkflowActions } from '@/components/interventions/workflow-actions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -146,11 +145,6 @@ export function OverviewTab({
     }
   }
 
-  // Handle status change from workflow actions
-  const handleStatusChange = () => {
-    onRefresh()
-  }
-
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -158,14 +152,6 @@ export function OverviewTab({
         <div className="lg:col-span-2 space-y-6">
           {/* Intervention details */}
           <InterventionOverviewCard intervention={intervention} />
-
-          {/* Workflow actions */}
-          <WorkflowActions
-            interventionId={intervention.id}
-            currentStatus={intervention.status}
-            userRole="gestionnaire"
-            onStatusChange={handleStatusChange}
-          />
         </div>
 
         {/* Right column - Assignments */}

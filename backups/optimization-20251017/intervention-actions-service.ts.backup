@@ -1,4 +1,6 @@
-import { logger } from '@/lib/logger'
+import { logger, logError } from '@/lib/logger'
+
+// import { useRouter } from "next/navigation"
 
 // Types pour les actions d'intervention
 export interface InterventionAction {
@@ -23,7 +25,6 @@ export interface InterventionAction {
 export interface ApprovalData {
   action: "approve" | "reject"
   rejectionReason?: string
-  internalComment?: string
 }
 
 export interface APIResponse {
@@ -31,7 +32,7 @@ export interface APIResponse {
   message?: string
   data?: unknown
   error?: string
-  intervention?: InterventionAction
+  internalComment?: string
 }
 
 export interface PlanningData {
@@ -58,8 +59,6 @@ export interface ExecutionData {
 export interface FinalizationData {
   finalAmount?: string
   paymentComment?: string
-  paymentMethod?: string
-  adminNotes?: string
 }
 
 export interface CancellationData {
@@ -69,7 +68,7 @@ export interface CancellationData {
 
 export class InterventionActionsService {
   private static instance: InterventionActionsService
-
+  
   public static getInstance(): InterventionActionsService {
     if (!InterventionActionsService.instance) {
       InterventionActionsService.instance = new InterventionActionsService()
@@ -133,30 +132,6 @@ export class InterventionActionsService {
     return result
   }
 
-  async updateInterventionStatus(interventionId: string, newStatus: string): Promise<APIResponse> {
-    logger.info(`🔄 Updating intervention ${interventionId} to status: ${newStatus}`)
-
-    const response = await fetch('/api/intervention-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        interventionId,
-        status: newStatus
-      })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Erreur lors de la mise à jour du statut: ${response.status}`)
-    }
-
-    logger.info(`✅ Intervention status updated successfully to: ${newStatus}`)
-    return result
-  }
-
   async startIntervention(intervention: InterventionAction): Promise<APIResponse> {
     logger.info(`🚀 Starting intervention ${intervention.id}`)
 
@@ -201,58 +176,6 @@ export class InterventionActionsService {
     }
 
     logger.info("✅ Intervention completed by provider:", result.intervention.id)
-    return result
-  }
-
-  async acceptSchedule(interventionId: string): Promise<APIResponse> {
-    logger.info(`✅ Provider accepting schedule for intervention ${interventionId}`)
-
-    const response = await fetch('/api/intervention-schedule-accept', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        interventionId
-      })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Erreur lors de l'acceptation du planning: ${response.status}`)
-    }
-
-    logger.info(`✅ Schedule accepted successfully: ${result.intervention.id}`)
-    return result
-  }
-
-  async rejectSchedule(interventionId: string, reason: string): Promise<APIResponse> {
-    logger.info(`❌ Provider rejecting schedule for intervention ${interventionId}`)
-    logger.info(`📝 Rejection reason: ${reason}`)
-
-    if (!reason) {
-      throw new Error('Le motif de refus est requis')
-    }
-
-    const response = await fetch('/api/intervention-schedule-reject', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        interventionId,
-        rejectionReason: reason
-      })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Erreur lors du refus du planning: ${response.status}`)
-    }
-
-    logger.info(`❌ Schedule rejected successfully: ${result.intervention.id}`)
     return result
   }
 
@@ -380,10 +303,10 @@ export class InterventionActionsService {
   }
 
   // Méthodes héritées (garder pour compatibilité)
-  async approveInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<APIResponse> {
+  async approveInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<void> {
     logger.info(`✅ Approving intervention ${intervention.id}`)
     logger.info(`📝 Internal comment: ${data.internalComment}`)
-
+    
     const response = await fetch('/api/intervention-approve', {
       method: 'POST',
       headers: {
@@ -405,11 +328,11 @@ export class InterventionActionsService {
     return result
   }
 
-  async rejectInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<APIResponse> {
+  async rejectIntervention(intervention: InterventionAction, data: ApprovalData): Promise<void> {
     logger.info(`❌ Rejecting intervention ${intervention.id}`)
     logger.info(`📝 Rejection reason: ${data.rejectionReason}`)
     logger.info(`📝 Internal comment: ${data.internalComment}`)
-
+    
     if (!data.rejectionReason) {
       throw new Error('Le motif de rejet est requis')
     }
@@ -439,7 +362,7 @@ export class InterventionActionsService {
   /**
    * Annulation d'intervention
    */
-  async cancelInterventionOld(intervention: InterventionAction, data: CancellationData): Promise<APIResponse> {
+  async cancelIntervention(intervention: InterventionAction, data: CancellationData): Promise<void> {
     if (!data.cancellationReason?.trim()) {
       throw new Error("Le motif d'annulation est requis")
     }
@@ -458,12 +381,12 @@ export class InterventionActionsService {
       }),
     })
 
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Erreur lors de l\'annulation de l\'intervention')
+    if (!response.ok) {
+      const _error = await response.text()
+      throw new Error(error || 'Erreur lors de l\'annulation de l\'intervention')
     }
 
+    const result = await response.json()
     logger.info(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
     return result
   }
@@ -471,9 +394,9 @@ export class InterventionActionsService {
   /**
    * Actions de programmation
    */
-  async programIntervention(intervention: InterventionAction, data: PlanningData): Promise<APIResponse> {
+  async programIntervention(intervention: InterventionAction, data: PlanningData): Promise<void> {
     logger.info("📅 Programming intervention with option:", data.option)
-
+    
     if (data.option === "direct") {
       logger.info("📅 Direct schedule:", data.directSchedule)
     } else if (data.option === "propose") {
@@ -507,7 +430,7 @@ export class InterventionActionsService {
   /**
    * Actions d'exécution
    */
-  async executeIntervention(intervention: InterventionAction, data: ExecutionData): Promise<APIResponse> {
+  async executeIntervention(intervention: InterventionAction, data: ExecutionData): Promise<void> {
     logger.info(`🚀 ${data.action === 'start' ? 'Starting' : 'Cancelling'} intervention ${intervention.id}`)
     logger.info(`📝 Comment: ${data.comment}`)
     logger.info(`📝 Internal comment: ${data.internalComment}`)
@@ -547,7 +470,7 @@ export class InterventionActionsService {
   /**
    * Actions de finalisation
    */
-  async finalizeIntervention(intervention: InterventionAction, data: FinalizationData): Promise<APIResponse> {
+  async finalizeIntervention(intervention: InterventionAction, data: FinalizationData): Promise<void> {
     logger.info(`🏁 Finalizing intervention ${intervention.id}`)
     logger.info(`💰 Final amount: ${data.finalAmount || 'Same as quote'}`)
     logger.info(`📝 Payment comment: ${data.paymentComment}`)
@@ -585,7 +508,7 @@ export class InterventionActionsService {
     internalComment?: string,
     finalCost?: number,
     workDescription?: string
-  }): Promise<APIResponse> {
+  }): Promise<void> {
     logger.info(`✅ Completing intervention ${intervention.id}`)
     logger.info(`📝 Work description: ${data.workDescription}`)
     logger.info(`💰 Final cost: ${data.finalCost}€`)
@@ -617,12 +540,12 @@ export class InterventionActionsService {
   /**
    * Action de validation par locataire
    */
-  async validateByTenantOld(intervention: InterventionAction, data: {
+  async validateByTenant(intervention: InterventionAction, data: {
     validationStatus: 'approved' | 'contested',
     tenantComment?: string,
     contestReason?: string,
     satisfactionRating?: number
-  }): Promise<APIResponse> {
+  }): Promise<void> {
     logger.info(`👍 Tenant validating intervention ${intervention.id}`)
     logger.info(`📝 Status: ${data.validationStatus}`)
 
@@ -653,22 +576,22 @@ export class InterventionActionsService {
   /**
    * Actions sur les devis
    */
-  async acceptQuote(quoteId: string, interventionId: string): Promise<APIResponse> {
+  async acceptQuote(quoteId: string, interventionId: string): Promise<void> {
     logger.info(`[v0] Accepting quote ${quoteId} for intervention ${interventionId}`)
-
+    
     // Ici on appellerait l'API réelle
     // await fetch('/api/quotes/accept', { ... })
-
-    return new Promise(resolve => setTimeout(() => resolve({ success: true } as APIResponse), 1000))
+    
+    return new Promise(resolve => setTimeout(resolve, 1000))
   }
 
-  async rejectQuote(quoteId: string, interventionId: string): Promise<APIResponse> {
+  async rejectQuote(quoteId: string, interventionId: string): Promise<void> {
     logger.info(`[v0] Rejecting quote ${quoteId} for intervention ${interventionId}`)
-
+    
     // Ici on appellerait l'API réelle
     // await fetch('/api/quotes/reject', { ... })
-
-    return new Promise(resolve => setTimeout(() => resolve({ success: true } as APIResponse), 1000))
+    
+    return new Promise(resolve => setTimeout(resolve, 1000))
   }
 
   /**

@@ -1,7 +1,7 @@
 ---
 name: ui-designer
 description: Creating visual designs, building design systems, defining interaction patterns, establishing brand identity, or preparing design handoffs for development.
-model: opus
+model: sonnet
 color: purple
 ---
 

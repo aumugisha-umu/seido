@@ -53,6 +53,7 @@ import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
+import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 interface BuildingInfo {
   name: string
   address: string
@@ -875,159 +876,18 @@ export default function NewImmeubleePage({
 
         {/* Step 2: Lots Configuration */}
         {currentStep === 2 && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                {lots.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot configuré</h3>
-                    <p className="text-gray-500 mb-6">
-                      Commencez par ajouter votre premier lot. Vous pourrez ensuite le dupliquer pour gagner du temps.
-                    </p>
-                    <Button onClick={addLot} className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Ajouter mon premier lot
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-
-                    <div className="flex justify-center">
-                      <Button
-                        onClick={addLot}
-                        variant="outline"
-                        className="border-green-600 text-green-600 hover:bg-green-50 bg-transparent"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Ajouter un lot
-                      </Button>
-                    </div>
-
-                    {/* Lots */}
-                    <div className="space-y-4">
-                      {lots.map((lot, index) => (
-                        <Card key={lot.id} className="border-blue-200">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleLotExpansion(lot.id)}>
-                                <div className="px-3 py-1 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                  Lot {lots.length - index}
-                                </div>
-                                <div className="ml-2">
-                                  {expandedLots[lot.id] ? (
-                                    <ChevronUp className="w-5 h-5 text-gray-500" />
-                                  ) : (
-                                    <ChevronDown className="w-5 h-5 text-gray-500" />
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => duplicateLot(lot.id)}
-                                  className="text-gray-500 hover:text-gray-700"
-                                >
-                                  <Copy className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeLot(lot.id)}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          {expandedLots[lot.id] && (
-                            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
-
-                            {/* Selection de categorie */}
-                            <LotCategorySelector
-                              value={lot.category}
-                              onChange={(category) => updateLot(lot.id, "category", category)}
-                              displayMode="grid"
-                              required
-                            />
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">
-                                  <Hash className="w-4 h-4 inline mr-1" />
-                                  Référence *
-                                </Label>
-                                <Input
-                                  value={lot.reference}
-                                  onChange={(e) => updateLot(lot.id, "reference", e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">
-                                  <Building className="w-4 h-4 inline mr-1" />
-                                  Étage
-                                </Label>
-                                <Input
-                                  value={lot.floor}
-                                  onChange={(e) => updateLot(lot.id, "floor", e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">
-                                  <Hash className="w-4 h-4 inline mr-1" />
-                                  Numéro de porte
-                                </Label>
-                                <Input
-                                  placeholder="A, 12, A-bis..."
-                                  value={lot.doorNumber}
-                                  onChange={(e) => updateLot(lot.id, "doorNumber", e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-
-                            
-
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Description</Label>
-                              <Textarea
-                                placeholder="Informations supplémentaires sur ce lot..."
-                                value={lot.description}
-                                onChange={(e) => updateLot(lot.id, "description", e.target.value)}
-                                className="mt-1"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">Particularités, état, équipements...</p>
-                            </div>
-                            </CardContent>
-                          )}
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6">
-                  <Button variant="outline" onClick={() => setCurrentStep(1)} className="w-full sm:w-auto order-2 sm:order-1">
-                    Retour à l'immeuble
-                  </Button>
-                  <Button
-                    onClick={() => setCurrentStep(3)}
-                    disabled={!canProceedToNextStep()}
-                    className="bg-sky-600 hover:bg-sky-700 w-full sm:w-auto order-1 sm:order-2"
-                  >
-                    Continuer vers les contacts
-                  </Button>
-                </div>
-                {lots.length === 0 && (
-                  <p className="text-center text-sm text-gray-500 mt-2">Ajoutez au moins un lot pour continuer</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <BuildingLotsStepV2
+            lots={lots}
+            expandedLots={expandedLots}
+            onAddLot={addLot}
+            onUpdateLot={updateLot}
+            onDuplicateLot={duplicateLot}
+            onRemoveLot={removeLot}
+            onToggleLotExpansion={toggleLotExpansion}
+            onPrevious={() => setCurrentStep(1)}
+            onNext={() => setCurrentStep(3)}
+            canProceed={canProceedToNextStep()}
+          />
         )}
 
         {/* Step 3: Contacts Assignment */}

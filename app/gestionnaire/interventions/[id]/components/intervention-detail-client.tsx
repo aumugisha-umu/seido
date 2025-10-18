@@ -23,6 +23,10 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
+import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
+
+// Modals
+import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 
 import type { Database } from '@/lib/database.types'
 
@@ -73,6 +77,7 @@ export function InterventionDetailClient({
 }: InterventionDetailClientProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -167,8 +172,30 @@ export function InterventionDetailClient({
             userRole="gestionnaire"
             userId={user?.id || ''}
             onActionComplete={handleActionComplete}
+            onProposeSlots={() => planning.handleProgrammingModal({
+              id: intervention.id,
+              title: intervention.title,
+              status: intervention.status
+            })}
           />
         }
+      />
+
+      {/* Programming Modal */}
+      <ProgrammingModal
+        isOpen={planning.programmingModal.isOpen}
+        onClose={() => planning.setProgrammingModal({ isOpen: false, intervention: null })}
+        intervention={planning.programmingModal.intervention}
+        programmingOption={planning.programmingOption}
+        onProgrammingOptionChange={planning.setProgrammingOption}
+        directSchedule={planning.programmingDirectSchedule}
+        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+        proposedSlots={planning.programmingProposedSlots}
+        onAddProposedSlot={planning.addProgrammingSlot}
+        onUpdateProposedSlot={planning.updateProgrammingSlot}
+        onRemoveProposedSlot={planning.removeProgrammingSlot}
+        onConfirm={planning.handleProgrammingConfirm}
+        isFormValid={planning.isProgrammingFormValid()}
       />
 
       {/* Tabs */}

@@ -60,6 +60,7 @@ interface InterventionActionPanelHeaderProps {
   onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
+  onProposeSlots?: () => void
 }
 
 interface ActionConfig {
@@ -87,7 +88,8 @@ export function InterventionActionPanelHeader({
   onOpenQuoteModal,
   onCancelQuote,
   onCancelIntervention,
-  onRejectQuoteRequest
+  onRejectQuoteRequest,
+  onProposeSlots
 }: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -624,6 +626,23 @@ export function InterventionActionPanelHeader({
 
         case 'start_planning':
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=planning`
+          return
+
+        case 'propose_slots':
+          // Ouvrir la modale de programmation si callback fourni
+          if (onProposeSlots) {
+            onProposeSlots()
+            return
+          }
+          // Fallback vers onglet time-slots
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          return
+
+        case 'run_matching':
+        case 'add_availabilities':
+        case 'reschedule':
+          // Rediriger vers l'onglet Créneaux pour gérer la planification
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
           return
 
         case 'start_work':

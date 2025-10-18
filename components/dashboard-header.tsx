@@ -55,20 +55,13 @@ const roleConfigs: Record<string, HeaderConfig> = {
   prestataire: {
     title: "SEIDO Pro",
     subtitle: "Prestataire",
-    navigation: [
-      { href: "/prestataire/dashboard", label: "Dashboard", icon: Home },
-      { href: "/prestataire/interventions", label: "Mes Interventions", icon: Wrench },
-    ],
+    navigation: [], // Pas de navigation dans le header - accès via dashboard
     showUserElements: true,
   },
   locataire: {
-    title: "SEIDO Tenant",
-    subtitle: "Espace locataire",
-    navigation: [
-      { href: "/locataire/dashboard", label: "Dashboard", icon: Home },
-      { href: "/locataire/interventions", label: "Mes Interventions", icon: Wrench },
-      { href: "/locataire/interventions/nouvelle-demande", label: "Nouvelle Demande", icon: MessageSquare },
-    ],
+    title: "SEIDO",
+    subtitle: "Locataire",
+    navigation: [], // Pas de navigation dans le header - accès via dashboard
     showUserElements: true,
   },
 }
@@ -171,30 +164,32 @@ export default function DashboardHeader({
               </div>
             </div>
 
-            {/* Navigation desktop - cachée sur mobile et tablet */}
-            <div className="hidden lg:flex items-center space-x-1">
-              {config.navigation.map((item) => {
-                const Icon = item.icon
-                const isActive = isActivePage(item.href)
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`
-                      flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
-                      ${isActive 
-                        ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
-                        : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 hover:scale-[1.02] hover:shadow-sm'
-                      }
-                    `}
-                  >
-                    <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-slate-900'}`} />
-                    <span className="transition-all duration-200">{item.label}</span>
-                  </Link>
-                )
-              })}
-            </div>
+            {/* Navigation desktop - cachée sur mobile et tablet - affichée seulement si navigation existe */}
+            {config.navigation.length > 0 && (
+              <div className="hidden lg:flex items-center space-x-1">
+                {config.navigation.map((item) => {
+                  const Icon = item.icon
+                  const isActive = isActivePage(item.href)
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`
+                        flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
+                        ${isActive
+                          ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
+                          : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 hover:scale-[1.02] hover:shadow-sm'
+                        }
+                      `}
+                    >
+                      <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-slate-900'}`} />
+                      <span className="transition-all duration-200">{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Éléments droite */}
             <div className="flex items-center space-x-2">
@@ -262,34 +257,38 @@ export default function DashboardHeader({
           <div className="fixed top-16 inset-x-0 bottom-0 bg-white border-b border-slate-200 shadow-lg">
             <div className="flex flex-col h-full max-w-7xl mx-auto px-4 sm:px-6 py-4">
               
-              {/* Navigation principale */}
-              <nav className="space-y-2 mb-4">
-                {config.navigation.map((item) => {
-                  const Icon = item.icon
-                  const isActive = isActivePage(item.href)
-                  
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`
-                        flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px]
-                        ${isActive 
-                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
-                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <Icon className={`h-6 w-6 ${isActive ? 'text-primary' : ''}`} />
-                      <span className="text-base">{item.label}</span>
-                    </Link>
-                  )
-                })}
-              </nav>
+              {/* Navigation principale - affichée seulement si navigation existe */}
+              {config.navigation.length > 0 && (
+                <>
+                  <nav className="space-y-2 mb-4">
+                    {config.navigation.map((item) => {
+                      const Icon = item.icon
+                      const isActive = isActivePage(item.href)
 
-              {/* Séparation */}
-              <div className="border-t border-slate-200 mb-4"></div>
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`
+                            flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px]
+                            ${isActive
+                              ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300'
+                            }
+                          `}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Icon className={`h-6 w-6 ${isActive ? 'text-primary' : ''}`} />
+                          <span className="text-base">{item.label}</span>
+                        </Link>
+                      )
+                    })}
+                  </nav>
+
+                  {/* Séparation */}
+                  <div className="border-t border-slate-200 mb-4"></div>
+                </>
+              )}
 
               {/* Section actions utilisateur */}
               {config.showUserElements && (

@@ -26,22 +26,18 @@ export const InvitationEmail = ({
     admin: {
       title: 'Administrateur',
       description: 'Vous aurez accès à toutes les fonctionnalités d\'administration de la plateforme.',
-      permissions: ['Gestion complète des équipes', 'Accès aux statistiques globales', 'Configuration de la plateforme'],
     },
     gestionnaire: {
       title: 'Gestionnaire',
       description: 'Vous pourrez gérer les biens, interventions et équipes.',
-      permissions: ['Gestion des biens immobiliers', 'Validation des interventions', 'Gestion des contacts et équipes'],
     },
     prestataire: {
       title: 'Prestataire',
       description: 'Vous recevrez des demandes d\'intervention et pourrez en faire le suivi complet.',
-      permissions: ['Réception de demandes d\'intervention', 'Soumission de devis', 'Gestion de vos disponibilités'],
     },
     locataire: {
       title: 'Locataire',
       description: 'Vous pourrez soumettre des demandes d\'intervention pour votre logement et suivre leur progression.',
-      permissions: ['Création de demandes d\'intervention', 'Suivi de vos demandes', 'Communication avec les gestionnaires'],
     },
   }
 
@@ -68,19 +64,8 @@ export const InvitationEmail = ({
           <Text className="text-gray-900 font-semibold text-sm mb-2 mt-0">
             Votre rôle : {roleInfo.title}
           </Text>
-          <Text className="text-gray-700 text-sm leading-relaxed mb-3">
-            {roleInfo.description}
-          </Text>
-          <Text className="text-gray-700 text-sm leading-relaxed font-semibold mb-1">
-            Vos permissions :
-          </Text>
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
-            {roleInfo.permissions.map((perm, index) => (
-              <React.Fragment key={index}>
-                • {perm}
-                {index < roleInfo.permissions.length - 1 && <br />}
-              </React.Fragment>
-            ))}
+            {roleInfo.description}
           </Text>
         </div>
 

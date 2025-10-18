@@ -200,8 +200,7 @@ export default function PrestataireDashboard() {
         <div className="text-center lg:text-left mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user?.name} 👋</h1>
-              <p className="text-slate-600">Gérez vos interventions assignées</p>
+              <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user?.first_name} 👋</h1>
             </div>
             <div className="flex justify-center lg:justify-end">
               <Button

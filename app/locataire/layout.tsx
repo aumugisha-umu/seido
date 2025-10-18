@@ -1,6 +1,6 @@
 import type React from "react"
 import { requireRole } from "@/lib/auth-dal"
-import TenantHeader from "@/components/tenant-header"
+import DashboardHeader from "@/components/dashboard-header"
 import { LocataireLayoutClient } from "./layout-client"
 
 /**
@@ -23,14 +23,15 @@ export default async function LocataireLayout({
 
   // Préparer les données utilisateur pour éviter hydration mismatch
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
-  const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  const userInitial = userName.charAt(0).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header spécialisé pour les locataires */}
-      <TenantHeader
+    <div className="min-h-screen bg-gray-50">
+      {/* Header centralisé avec toutes les améliorations */}
+      <DashboardHeader
+        role="locataire"
         userName={userName}
-        userInitials={userInitials}
+        userInitial={userInitial}
         userEmail={user.email || ''}
       />
 

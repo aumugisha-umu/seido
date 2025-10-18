@@ -46,19 +46,14 @@ export const StepProgressHeader = ({
             {title}
           </h1>
 
-          {/* Center: Current Step Info with Icon */}
-          <div className="flex items-center gap-2 flex-1 justify-center min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-200 flex-shrink-0">
-              <currentStepData.icon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
-                Étape {currentStep} sur {steps.length}
-              </p>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">
-                {currentStepData.label}
-              </h2>
-            </div>
+          {/* Center: Current Step Info */}
+          <div className="flex-1 text-center">
+            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
+              Étape {currentStep} sur {steps.length}
+            </p>
+            <h2 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">
+              {currentStepData.label}
+            </h2>
           </div>
 
           {/* Right: Back Button */}
@@ -144,7 +139,7 @@ export const StepProgressHeader = ({
                   }`}>
                     <step.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  <p className={`text-[10px] sm:text-xs font-medium text-center max-w-[70px] truncate ${
+                  <p className={`text-[10px] sm:text-xs font-medium text-center max-w-[70px] sm:max-w-[120px] ${
                     isCurrent ? "text-gray-900" : isComplete ? "text-gray-700" : "text-gray-400"
                   }`}>
                     {step.label}

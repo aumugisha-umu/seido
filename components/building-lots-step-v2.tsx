@@ -23,6 +23,11 @@ interface Lot {
 interface BuildingLotsStepV2Props {
   lots: Lot[]
   expandedLots: { [key: string]: boolean }
+  buildingReference: string
+  buildingAddress: string
+  buildingPostalCode: string
+  buildingCity: string
+  buildingCountry: string
   onAddLot: () => void
   onUpdateLot: (id: string, field: keyof Lot, value: string) => void
   onDuplicateLot: (id: string) => void
@@ -57,6 +62,11 @@ interface BuildingLotsStepV2Props {
 export function BuildingLotsStepV2({
   lots,
   expandedLots,
+  buildingReference,
+  buildingAddress,
+  buildingPostalCode,
+  buildingCity,
+  buildingCountry,
   onAddLot,
   onUpdateLot,
   onDuplicateLot,
@@ -68,12 +78,15 @@ export function BuildingLotsStepV2({
       {/* Sticky Actions Bar */}
       <Card className="bg-gradient-to-r from-blue-50 to-sky-50 border-blue-200">
         <CardContent className="p-3 flex flex-col @sm:flex-row items-start @sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <Building className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="font-medium text-sm text-gray-900">Configuration des lots</p>
-              <p className="text-xs text-gray-600">
-                {lots.length} lot{lots.length !== 1 ? "s" : ""} configuré{lots.length !== 1 ? "s" : ""}
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm text-gray-900 truncate">{buildingReference}</p>
+              <p className="text-xs text-gray-600 truncate">
+                {buildingAddress}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {buildingPostalCode} {buildingCity}, {buildingCountry}
               </p>
             </div>
           </div>

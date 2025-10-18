@@ -665,6 +665,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         }}
         onSubmit={handleContactCreated}
         defaultType={prefilledContactType}
+        teamId={teamId || ''}
       />
     </>
   )

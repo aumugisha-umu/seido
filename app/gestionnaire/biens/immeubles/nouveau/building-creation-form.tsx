@@ -877,6 +877,11 @@ export default function NewImmeubleePage({
           <BuildingLotsStepV2
             lots={lots}
             expandedLots={expandedLots}
+            buildingReference={buildingInfo.name}
+            buildingAddress={buildingInfo.address}
+            buildingPostalCode={buildingInfo.postalCode}
+            buildingCity={buildingInfo.city}
+            buildingCountry={buildingInfo.country}
             onAddLot={addLot}
             onUpdateLot={updateLot}
             onDuplicateLot={duplicateLot}
@@ -973,6 +978,7 @@ export default function NewImmeubleePage({
           onClose={() => setIsGestionnaireModalOpen(false)}
           onSubmit={handleGestionnaireCreated}
           defaultType="gestionnaire"
+          teamId={userTeam.id}
         />
 
         {/* Manager Assignment Modal */}

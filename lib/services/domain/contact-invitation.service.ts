@@ -351,8 +351,8 @@ export class ContactInvitationService {
       'assurance': { role: 'prestataire', provider_category: 'assurance' },
       'notary': { role: 'prestataire', provider_category: 'notaire' },
       'notaire': { role: 'prestataire', provider_category: 'notaire' },
-      'owner': { role: 'gestionnaire' },
-      'proprietaire': { role: 'gestionnaire' }
+      'owner': { role: 'prestataire', provider_category: 'proprietaire' },
+      'proprietaire': { role: 'prestataire', provider_category: 'proprietaire' }
     }
 
     return mapping[_type.toLowerCase()] || { role: 'locataire' }

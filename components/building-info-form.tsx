@@ -60,8 +60,6 @@ interface BuildingInfoFormProps {
   buildingInfo: BuildingInfo
   setBuildingInfo: (info: BuildingInfo) => void
   onNameChange?: (name: string) => void // Callback optionnel pour gérer le changement de nom (empêche auto-fill)
-  selectedManagerId: string
-  setSelectedManagerId: (_id: string) => void
   teamManagers: Array<{ user: { id: string; name: string } }>
   userTeam: { id: string; name: string } | null
   isLoading: boolean
@@ -79,8 +77,6 @@ export const BuildingInfoForm = ({
   buildingInfo,
   setBuildingInfo,
   onNameChange,
-  selectedManagerId,
-  setSelectedManagerId,
   teamManagers,
   userTeam,
   isLoading,
@@ -152,75 +148,6 @@ export const BuildingInfoForm = ({
         </div>
       )}
 
-{showManagerSection && (
-        <div>
-          <Label htmlFor="manager" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <User className="w-4 h-4" />
-            Responsable {entityType === "immeuble" ? "de l'" : "du "}{entityType}
-          </Label>
-          
-          {!isLoading && teamManagers.length > 0 && userTeam ? (
-            <>
-              <Select value={selectedManagerId} onValueChange={(value) => {
-                if (value === "create-new" && onCreateManager) {
-                  onCreateManager()
-                } else {
-                  setSelectedManagerId(value)
-                }
-              }}>
-                <SelectTrigger className="mt-1 h-10 sm:h-11">
-                  <SelectValue placeholder="Sélectionnez un responsable" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamManagers.map((member) => (
-                    <SelectItem key={member.user.id} value={member.user.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{member.user.name}</span>
-                        {member.user.id === user?.id && (
-                          <Badge variant="secondary" className="text-xs">Vous</Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                  {onCreateManager && (
-                    <SelectItem value="create-new" className="border-t mt-1 pt-2">
-                      <div className="flex items-center gap-2 text-blue-600">
-                        <Users className="w-4 h-4" />
-                        <span>Ajouter un responsable</span>
-                      </div>
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500 mt-1">
-                Ce gestionnaire recevra des notifications personnelles pour tout élément conernant ce {entityType}.
-              </p>
-            </>
-          ) : (
-            <div className="mt-1 p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>
-                  {isLoading 
-                    ? 'Chargement des gestionnaires de votre équipe...'
-                    : teamManagers.length === 0 
-                      ? 'Aucun gestionnaire trouvé dans votre équipe'
-                      : 'Impossible de charger les gestionnaires'
-                  }
-                </span>
-              </p>
-              <p className="text-xs text-amber-600 mt-2 pl-6">
-                {isLoading
-                  ? 'Veuillez patienter...'
-                  : teamManagers.length === 0 
-                    ? 'Contactez l\'administrateur pour ajouter des gestionnaires à votre équipe.'
-                    : 'Contactez l\'administrateur pour résoudre ce problème.'
-                }
-              </p>
-            </div>
-          )}
-        </div>
-      )}
       <div>
         <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
           {entityType === "lot" ? <Home className="w-4 h-4" /> : <Building className="w-4 h-4" />}

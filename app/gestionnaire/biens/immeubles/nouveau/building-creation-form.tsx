@@ -168,7 +168,6 @@ export default function NewImmeubleePage({
   
   // Nouveaux etats pour Supabase
   const [teamManagers, setTeamManagers] = useState<User[]>(initialTeamManagers)
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
   const [error, setError] = useState<string>("")
   const [isCreating, setIsCreating] = useState(false)
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>(initialCategoryCounts)
@@ -235,10 +234,6 @@ export default function NewImmeubleePage({
 
       if (currentUserAsMember) {
         setBuildingManagers([currentUserAsMember])
-        setSelectedManagerId(userProfile.id) // Garder pour compatibilité backend
-      } else if (teamManagers.length > 0) {
-        setBuildingManagers([teamManagers[0]])
-        setSelectedManagerId(teamManagers[0].user.id) // Garder pour compatibilité backend
       }
     }
   }, [teamManagers, userProfile.id, buildingManagers.length])
@@ -254,25 +249,6 @@ export default function NewImmeubleePage({
       }))
     }
   }, [managerData?.buildings, hasUserEditedName])
-
-  // Pre-remplir le responsable de l'immeuble pour tous les lots quand on passe a l'etape 3
-  useEffect(() => {
-    if (currentStep === 3 && selectedManagerId && lots.length > 0) {
-      const buildingManager = teamManagers.find(member => member.user.id === selectedManagerId)
-      if (buildingManager) {
-        const initialAssignments: {[key: string]: User[]} = {}
-        lots.forEach(lot => {
-          // Verifier si ce lot n'a pas deja des gestionnaires assignes
-          if (!assignedManagers[lot.id] || assignedManagers[lot.id].length === 0) {
-            initialAssignments[lot.id] = [buildingManager]
-          } else {
-            initialAssignments[lot.id] = assignedManagers[lot.id]
-          }
-        })
-        setAssignedManagers(prev => ({ ...prev, ...initialAssignments }))
-      }
-    }
-  }, [currentStep, selectedManagerId, lots, teamManagers])
 
   // Ouvrir tous les lots par defaut quand on arrive a l'etape 3 (une seule fois)
   useEffect(() => {
@@ -785,7 +761,6 @@ export default function NewImmeubleePage({
       }
 
       setTeamManagers([...teamManagers, newManager])
-      setSelectedManagerId(newManager.user.id)
       setIsGestionnaireModalOpen(false)
 
       logger.info("✅ [GESTIONNAIRE-CREATION] Gestionnaire créé avec succès:", newManager.user.name)
@@ -842,10 +817,6 @@ export default function NewImmeubleePage({
     const alreadyExists = buildingManagers.some(m => m.user.id === manager.user.id)
     if (!alreadyExists) {
       setBuildingManagers([...buildingManagers, manager])
-      // Mettre à jour selectedManagerId pour compatibilité backend (utiliser le premier)
-      if (buildingManagers.length === 0) {
-        setSelectedManagerId(manager.user.id)
-      }
     }
     setIsBuildingManagerModalOpen(false)
   }
@@ -855,14 +826,6 @@ export default function NewImmeubleePage({
     if (buildingManagers.length <= 1) return
 
     setBuildingManagers(buildingManagers.filter(m => m.user.id !== managerId))
-
-    // Mettre à jour selectedManagerId si on retire le manager sélectionné
-    if (selectedManagerId === managerId && buildingManagers.length > 1) {
-      const remainingManager = buildingManagers.find(m => m.user.id !== managerId)
-      if (remainingManager) {
-        setSelectedManagerId(remainingManager.user.id)
-      }
-    }
   }
 
   return (
@@ -892,8 +855,6 @@ export default function NewImmeubleePage({
                 buildingInfo={buildingInfo}
                 setBuildingInfo={setBuildingInfo}
                 onNameChange={handleBuildingNameChange}
-                selectedManagerId={selectedManagerId}
-                setSelectedManagerId={setSelectedManagerId}
                 teamManagers={teamManagers}
                 userTeam={userTeam}
                 isLoading={false}
@@ -1032,24 +993,21 @@ export default function NewImmeubleePage({
                 <div className="max-h-64 overflow-y-auto">
                   <div className="space-y-2">
                     {teamManagers.map((manager) => {
-                      const isAlreadyAssigned = Boolean(selectedLotForManager && 
+                      const isAlreadyAssigned = Boolean(selectedLotForManager &&
                         getAssignedManagers(selectedLotForManager).some(m => m.user.id === manager.user.id))
-                      const isBuildingManager = manager.user.id === selectedManagerId
-                      
+
                       return (
                         <div
                           key={manager.user.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                            isAlreadyAssigned || isBuildingManager
-                              ? 'bg-gray-100 border-gray-300 opacity-60' 
+                            isAlreadyAssigned
+                              ? 'bg-gray-100 border-gray-300 opacity-60'
                               : 'hover:bg-purple-50 border-purple-200'
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              isBuildingManager ? 'bg-blue-100' : 'bg-purple-100'
-                            }`}>
-                              <User className={`w-5 h-5 ${isBuildingManager ? 'text-blue-600' : 'text-purple-600'}`} />
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100">
+                              <User className="w-5 h-5 text-purple-600" />
                             </div>
                             <div>
                               <div className="font-medium">{manager.user.name}</div>
@@ -1058,28 +1016,20 @@ export default function NewImmeubleePage({
                                 {manager.user.id === userProfile.id && (
                                   <Badge variant="outline" className="text-xs">Vous</Badge>
                                 )}
-                                {isBuildingManager && (
-                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">Responsable de l'immeuble</Badge>
-                                )}
                               </div>
                             </div>
                           </div>
-                          <Button 
-                            onClick={() => selectedLotForManager && addManagerToLot(selectedLotForManager, manager)} 
-                            disabled={isAlreadyAssigned || isBuildingManager}
+                          <Button
+                            onClick={() => selectedLotForManager && addManagerToLot(selectedLotForManager, manager)}
+                            disabled={isAlreadyAssigned}
                             className={`${
-                              isAlreadyAssigned || isBuildingManager
-                                ? 'bg-gray-300 text-gray-500' 
+                              isAlreadyAssigned
+                                ? 'bg-gray-300 text-gray-500'
                                 : 'bg-purple-600 text-white hover:bg-purple-700'
                             }`}
                             size="sm"
                           >
-                            {isAlreadyAssigned 
-                              ? 'Déjà assigné' 
-                              : isBuildingManager 
-                                ? 'Responsable de l\'immeuble'
-                                : 'Assigner'
-                            }
+                            {isAlreadyAssigned ? 'Déjà assigné' : 'Assigner'}
                           </Button>
                         </div>
                       )

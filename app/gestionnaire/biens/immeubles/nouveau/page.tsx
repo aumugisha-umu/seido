@@ -22,9 +22,9 @@ export default async function NewBuildingPage() {
   const membersResult = await teamService.getTeamMembers(team.id)
   const teamMembers = membersResult?.data || []
 
-  // Filter for managers only
+  // Filter for managers only - Use member.role (team role) not member.user.role (global user role)
   const teamManagers = teamMembers.filter(
-    (member) => member.user && member.user.role === 'gestionnaire'
+    (member) => member.user && member.role === 'gestionnaire'
   )
 
   // Ensure current user is included if they're a manager

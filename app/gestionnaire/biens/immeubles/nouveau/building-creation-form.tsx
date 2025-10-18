@@ -41,6 +41,7 @@ import ContactSelector, { ContactSelectorRef } from "@/components/contact-select
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createTeamService, createBuildingService, createLotService, createContactInvitationService } from "@/lib/services"
 import { createCompleteProperty } from "@/app/actions/building-actions"
+import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
 
 
 
@@ -865,8 +866,7 @@ export default function NewImmeubleePage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-2 sm:py-3">
         {/* Header */}
         <StepProgressHeader
           title="Ajouter un immeuble"
@@ -886,8 +886,8 @@ export default function NewImmeubleePage({
 
         {/* Step 1: Building Information */}
         {currentStep === 1 && (
-          <Card>
-            <CardContent className="space-y-6">
+          <Card className="shadow-sm max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
+            <CardContent className="p-6 space-y-6">
               <BuildingInfoForm
                 buildingInfo={buildingInfo}
                 setBuildingInfo={setBuildingInfo}
@@ -907,16 +907,6 @@ export default function NewImmeubleePage({
                   setIsNameDuplicate(isDuplicate)
                 }}
               />
-
-              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-0">
-                <Button
-                  onClick={() => setCurrentStep(2)}
-                  disabled={!canProceedToNextStep()}
-                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-                >
-                  Continuer vers les lots
-                </Button>
-              </div>
             </CardContent>
           </Card>
         )}
@@ -931,9 +921,6 @@ export default function NewImmeubleePage({
             onDuplicateLot={duplicateLot}
             onRemoveLot={removeLot}
             onToggleLotExpansion={toggleLotExpansion}
-            onPrevious={() => setCurrentStep(1)}
-            onNext={() => setCurrentStep(3)}
-            canProceed={canProceedToNextStep()}
           />
         )}
 
@@ -962,311 +949,60 @@ export default function NewImmeubleePage({
             openBuildingManagerModal={openBuildingManagerModal}
             removeBuildingManager={removeBuildingManager}
             toggleLotExpansion={toggleLotExpansion}
-            onPrevious={() => setCurrentStep(2)}
-            onNext={() => setCurrentStep(4)}
           />
         )}
 
         {/* Step 4: Confirmation */}
         {currentStep === 4 && (
-          <Card>
-            <CardContent className="p-4">
+          <BuildingConfirmationStep
+            buildingInfo={buildingInfo}
+            buildingManagers={buildingManagers}
+            buildingContacts={buildingContacts}
+            lots={lots}
+            lotContactAssignments={lotContactAssignments}
+            assignedManagers={assignedManagers}
+          />
+        )}
 
-              <div className="space-y-3 mb-4">
-                {/* Building Information */}
-                <Card className="border-l-4 border-l-sky-500">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
-                          <Building className="h-4 w-4 text-sky-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Informations de l'immeuble</h3>
-                          <p className="text-xs text-slate-600">Détails généraux de l'immeuble</p>
-                        </div>
-                      </div>
-                      
-                      {/* Responsable Badge - Compact Material Design */}
-                      {selectedManagerId && (
-                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md flex-shrink-0">
-                          <User className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {(() => {
-                              const manager = teamManagers.find(m => m.user.id === selectedManagerId)
-                              return manager ? (
-                                <>
-                                  <span className="font-medium text-xs text-blue-900 truncate">{manager.user.name}</span>
-                                  <span className="text-xs text-blue-600">•</span>
-                                  <span className="text-xs text-blue-600 whitespace-nowrap">Responsable</span>
-                                  {manager.user.id === userProfile.id && (
-                                    <span className="inline-flex items-center px-1 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-sm border border-blue-300 ml-1">Vous</span>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-xs text-slate-500">Non trouvé</span>
-                              )
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-                      {/* Informations principales */}
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Building className="w-3.5 h-3.5 text-slate-500" />
-                          <span className="text-xs font-medium text-slate-700">Nom de l'immeuble</span>
-                        </div>
-                        <p className="text-sm font-medium text-slate-900 pl-5">
-                          {buildingInfo.name || "Non spécifié"}
-                        </p>
-                      </div>
-
-                      {/* Adresse complete */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                          <span className="text-xs font-medium text-slate-700">Adresse complète</span>
-                        </div>
-                        <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
-                          <p className="text-sm font-medium text-slate-900 leading-relaxed">
-                            {[
-                              buildingInfo.address,
-                              [buildingInfo.postalCode, buildingInfo.city].filter(Boolean).join(' '),
-                              buildingInfo.country
-                            ].filter(Boolean).join(', ') || "Adresse non spécifiée"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      {buildingInfo.description && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-3.5 h-3.5 text-slate-500" />
-                            <span className="text-xs font-medium text-slate-700">Description</span>
-                          </div>
-                          <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
-                            <p className="text-sm text-slate-700 leading-relaxed">{buildingInfo.description}</p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Contacts de l'immeuble */}
-                      {Object.values(buildingContacts).some(contactArray => contactArray.length > 0) && (
-                        <div className="pt-2 mt-2 border-t border-slate-200">
-                          <span className="text-xs font-medium text-slate-700 mb-2 block">Contacts de l'immeuble :</span>
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(buildingContacts).map(([type, contacts]) => 
-                              contacts.length > 0 && (
-                                <div key={type} className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-slate-300">
-                                  {type === 'provider' && <span className="w-2 h-2 bg-green-500 rounded-full"></span>}
-                                  {type === 'syndic' && <span className="w-2 h-2 bg-purple-500 rounded-full"></span>}
-                                  {type === 'notary' && <span className="w-2 h-2 bg-orange-500 rounded-full"></span>}
-                                  {type === 'insurance' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
-                                  {type === 'other' && <span className="w-2 h-2 bg-slate-500 rounded-full"></span>}
-                                  <span className="text-xs font-medium text-slate-700">
-                                    {contacts.length} {type === 'provider' ? 'prestataire' : type === 'syndic' ? 'syndic' : type === 'notary' ? 'notaire' : type === 'insurance' ? 'assurance' : 'autre'}{contacts.length > 1 ? 's' : ''}
-                                  </span>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Lots Summary */}
-                <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="p-3">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                        <MapPin className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-slate-900">Lots configurés ({lots.length})</h3>
-                        <p className="text-xs text-slate-600">Configuration des lots de l'immeuble</p>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-3">
-                      
-                      {/* Liste des lots */}
-                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                        {lots.map((lot, index) => {
-                          const categoryConfig = getLotCategoryConfig(lot.category)
-                          return (
-                            <div key={lot.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-xs font-medium text-green-600">
-                                  {index + 1}
-                                </div>
-                                <div className="flex flex-col">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-sm text-slate-900">{lot.reference}</span>
-                                    {lot.doorNumber && <span className="text-slate-500 text-xs">({lot.doorNumber})</span>}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color} text-xs h-4 px-1.5`}
-                                    >
-                                      {categoryConfig.label}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-3 text-xs text-slate-600">
-                                <span>Étage {lot.floor}</span>
-                                
-                                {/* Contact Summary with Tooltip */}
-                                {(() => {
-                                  const lotContacts = getAllLotContacts(lot.id)
-                                  const lotManagers = getAssignedManagers(lot.id).filter(m => m.user.id !== selectedManagerId)
-                                  const hasAssignments = lotContacts.length > 0 || lotManagers.length > 0
-                                  
-                                  if (!hasAssignments) return null
-                                  
-                                  // Group contacts by type
-                                  const contactsByType = lotContacts.reduce((acc, contact) => {
-                                    acc[contact.type] = (acc[contact.type] || 0) + 1
-                                    return acc
-                                  }, {} as Record<string, number>)
-                                  
-                                  const summaryItems = []
-                                  if (contactsByType.tenant) summaryItems.push(`${contactsByType.tenant} locataire${contactsByType.tenant > 1 ? 's' : ''}`)
-                                  if (contactsByType.provider) summaryItems.push(`${contactsByType.provider} prestataire${contactsByType.provider > 1 ? 's' : ''}`)
-                                  if (contactsByType.syndic) summaryItems.push(`${contactsByType.syndic} syndic${contactsByType.syndic > 1 ? 's' : ''}`)
-                                  if (contactsByType.notary) summaryItems.push(`${contactsByType.notary} notaire${contactsByType.notary > 1 ? 's' : ''}`)
-                                  if (contactsByType.insurance) summaryItems.push(`${contactsByType.insurance} assurance${contactsByType.insurance > 1 ? 's' : ''}`)
-                                  if (contactsByType.other) summaryItems.push(`${contactsByType.other} autre${contactsByType.other > 1 ? 's' : ''}`)
-                                  if (lotManagers.length > 0) summaryItems.push(`${lotManagers.length} resp.${lotManagers.length > 1 ? 's' : ''}`)
-                                  
-                                  return (
-                                    <div className="relative group">
-                                      {/* Summary Badge */}
-                                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help">
-                                        <Users className="w-3 h-3 text-blue-600" />
-                                        <span className="text-blue-700 font-medium">
-                                          {summaryItems.slice(0, 2).join(', ')}{summaryItems.length > 2 && '...'}
-                                        </span>
-                                      </div>
-                                      
-                                      {/* Tooltip on Hover - Adaptive positioning */}
-                                      <div className={`absolute right-0 w-64 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ${
-                                        index < 2 ? 'top-full mt-2' : 'bottom-full mb-2'
-                                      }`}>
-                                        <div className="space-y-2">
-                                          <div className="font-medium text-xs text-slate-700 mb-2">Contacts assignés à {lot.reference}</div>
-                                          
-                                          {/* Contacts */}
-                                          {lotContacts.length > 0 && (
-                                            <div className="space-y-1">
-                                              {lotContacts.map((contact, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 text-xs">
-                                                  <span className={`w-2 h-2 rounded-full ${
-                                                    contact.type === 'tenant' ? 'bg-blue-500' :
-                                                    contact.type === 'provider' ? 'bg-green-500' :
-                                                    contact.type === 'syndic' ? 'bg-purple-500' :
-                                                    contact.type === 'notary' ? 'bg-orange-500' :
-                                                    contact.type === 'insurance' ? 'bg-red-500' : 'bg-slate-500'
-                                                  }`}></span>
-                                                  <span className="text-slate-700">{contact.name}</span>
-                                                  <span className="text-slate-500 capitalize">
-                                                    ({contact.type === 'tenant' ? 'locataire' : 
-                                                      contact.type === 'provider' ? 'prestataire' : 
-                                                      contact.type === 'syndic' ? 'syndic' :
-                                                      contact.type === 'notary' ? 'notaire' :
-                                                      contact.type === 'insurance' ? 'assurance' : 'autre'})
-                                                  </span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                          
-                                          {/* Lot Managers */}
-                                          {lotManagers.length > 0 && (
-                                            <div className="space-y-1 pt-1 border-t border-slate-200">
-                                              {lotManagers.map((manager, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 text-xs">
-                                                  <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                                                  <span className="text-slate-700">{manager.user.name}</span>
-                                                  <span className="text-slate-500">(resp. lot)</span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                        
-                                        {/* Tooltip Arrow - Adaptive */}
-                                        {index < 2 ? (
-                                          /* Arrow pointing up (tooltip below) */
-                                          <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-slate-200"></div>
-                                        ) : (
-                                          /* Arrow pointing down (tooltip above) */
-                                          <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-200"></div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )
-                                })()}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-
-              </div>
-
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-6">
-                  <div className="flex items-center space-x-2">
-                    <AlertTriangle className="h-5 w-5 text-red-600" />
-                    <p className="text-red-800 font-medium">Erreur</p>
-                  </div>
-                  <p className="text-red-700 mt-1">{error}</p>
-                </div>
+        {/* Sticky Navigation - Always visible at bottom */}
+        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-4 mt-3 max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
+          <div className="flex flex-col sm:flex-row justify-between gap-2">
+              {/* Back Button - Only show from step 2 onwards */}
+              {currentStep > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentStep(currentStep - 1)}
+                  className="w-full sm:w-auto"
+                  disabled={isCreating}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  {currentStep === 2 && "Retour à l'immeuble"}
+                  {currentStep === 3 && "Étape précédente"}
+                  {currentStep === 4 && "Retour"}
+                </Button>
               )}
 
-              <div className="flex flex-col sm:flex-row justify-between gap-2 pt-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCurrentStep(3)}
-                  disabled={isCreating}
-                  size="sm"
-                  className="w-full sm:w-auto order-2 sm:order-1"
-                >
-                  <ArrowLeft className="h-3 w-3 mr-1" />
-                  Retour
-                </Button>
-                <Button 
-                  onClick={handleFinish} 
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 w-full sm:w-auto order-1 sm:order-2"
-                  disabled={isCreating}
-                >
-                  {isCreating ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Création en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-3 w-3 mr-1" />
-                      Confirmer la création
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              {/* Next/Submit Button - Always show */}
+              <Button
+                onClick={() => {
+                  if (currentStep === 4) {
+                    handleFinish()
+                  } else {
+                    setCurrentStep(currentStep + 1)
+                  }
+                }}
+                disabled={!canProceedToNextStep() || (currentStep === 4 && isCreating)}
+                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto ml-auto"
+              >
+                {isCreating && currentStep === 4 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {currentStep === 1 && "Continuer vers les lots"}
+                {currentStep === 2 && "Continuer vers les contacts"}
+                {currentStep === 3 && "Créer l'immeuble"}
+                {currentStep === 4 && (isCreating ? "Création en cours..." : "Confirmer la création")}
+                {currentStep < 4 && <ChevronDown className="w-4 h-4 ml-2 rotate-[-90deg]" />}
+              </Button>
+          </div>
+        </div>
 
         {/* [SUPPRIME] Contact Selection Modal et Contact Form Modal maintenant geres dans ContactSelector centralise */}
 
@@ -1471,7 +1207,6 @@ export default function NewImmeubleePage({
             </div>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 }

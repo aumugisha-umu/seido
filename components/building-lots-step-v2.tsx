@@ -28,9 +28,6 @@ interface BuildingLotsStepV2Props {
   onDuplicateLot: (id: string) => void
   onRemoveLot: (id: string) => void
   onToggleLotExpansion: (lotId: string) => void
-  onPrevious: () => void
-  onNext: () => void
-  canProceed: boolean
 }
 
 /**
@@ -64,10 +61,7 @@ export function BuildingLotsStepV2({
   onUpdateLot,
   onDuplicateLot,
   onRemoveLot,
-  onToggleLotExpansion,
-  onPrevious,
-  onNext,
-  canProceed
+  onToggleLotExpansion
 }: BuildingLotsStepV2Props) {
   return (
     <div className="space-y-3 @container">
@@ -263,29 +257,6 @@ export function BuildingLotsStepV2({
           })}
         </div>
       )}
-
-      {/* Navigation - Sticky at bottom */}
-      <Card className="border-gray-300 bg-white sticky bottom-0 z-10 shadow-lg">
-        <CardContent className="p-3 flex flex-col @sm:flex-row justify-between gap-2">
-          <Button
-            variant="outline"
-            onClick={onPrevious}
-            size="sm"
-            className="w-full @sm:w-auto"
-          >
-            Retour à l'immeuble
-          </Button>
-          <Button
-            onClick={onNext}
-            disabled={!canProceed}
-            size="sm"
-            className="bg-sky-600 hover:bg-sky-700 w-full @sm:w-auto"
-          >
-            Continuer vers les contacts
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }

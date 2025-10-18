@@ -4,7 +4,8 @@ import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Building, User, Users, Plus, X, ChevronDown, ChevronUp } from "lucide-react"
+import { Building, User, Users, Plus, X, ChevronDown, ChevronUp, Wrench, Home, UserCircle } from "lucide-react"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import type { User as UserType, Team, Contact } from "@/lib/services/core/service-types"
 import { LotCategory } from "@/lib/lot-types"
@@ -55,8 +56,116 @@ interface BuildingContactsStepV2Props {
   openBuildingManagerModal: () => void
   removeBuildingManager: (managerId: string) => void
   toggleLotExpansion: (lotId: string) => void
-  onPrevious: () => void
-  onNext: () => void
+}
+
+/**
+ * 📧 Contact Type Badges - Pastilles différenciées par type de contact
+ *
+ * Affiche des pastilles colorées pour chaque type de contact avec tooltips
+ * montrant les noms des contacts au survol.
+ */
+interface ContactTypeBadgesProps {
+  managers: UserType[]
+  tenants: Contact[]
+  providers: Contact[]
+  owners: Contact[]
+  others: Contact[]
+}
+
+function ContactTypeBadges({
+  managers,
+  tenants,
+  providers,
+  owners,
+  others
+}: ContactTypeBadgesProps) {
+  const contactTypes = [
+    {
+      key: 'managers',
+      contacts: managers,
+      label: 'Gestionnaires',
+      bgColor: 'bg-purple-100',
+      textColor: 'text-purple-700',
+      borderColor: 'border-purple-200',
+      icon: Users,
+      getName: (contact: UserType) => contact.name || contact.email
+    },
+    {
+      key: 'tenants',
+      contacts: tenants,
+      label: 'Locataires',
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-700',
+      borderColor: 'border-blue-200',
+      icon: User,
+      getName: (contact: Contact) => contact.name || contact.email
+    },
+    {
+      key: 'providers',
+      contacts: providers,
+      label: 'Prestataires',
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-700',
+      borderColor: 'border-green-200',
+      icon: Wrench,
+      getName: (contact: Contact) => contact.name || contact.email
+    },
+    {
+      key: 'owners',
+      contacts: owners,
+      label: 'Propriétaires',
+      bgColor: 'bg-orange-100',
+      textColor: 'text-orange-700',
+      borderColor: 'border-orange-200',
+      icon: Home,
+      getName: (contact: Contact) => contact.name || contact.email
+    },
+    {
+      key: 'others',
+      contacts: others,
+      label: 'Autres',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-700',
+      borderColor: 'border-gray-200',
+      icon: UserCircle,
+      getName: (contact: Contact) => contact.name || contact.email
+    }
+  ]
+
+  const visibleTypes = contactTypes.filter(type => type.contacts.length > 0)
+
+  return (
+    <>
+      {visibleTypes.map(type => {
+        const Icon = type.icon
+        return (
+          <Tooltip key={type.key}>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="secondary"
+                className={`text-[10px] px-1.5 py-0 cursor-help ${type.bgColor} ${type.textColor} ${type.borderColor} border flex-shrink-0`}
+              >
+                <Icon className="w-3 h-3 mr-0.5" />
+                {type.contacts.length}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <div className="space-y-1">
+                <p className="font-semibold text-xs">{type.label} ({type.contacts.length})</p>
+                <div className="space-y-0.5">
+                  {type.contacts.map((contact: any, index: number) => (
+                    <p key={contact.id || index} className="text-xs">
+                      • {type.getName(contact)}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )
+      })}
+    </>
+  )
 }
 
 /**
@@ -100,9 +209,7 @@ export function BuildingContactsStepV2({
   openManagerModal,
   openBuildingManagerModal,
   removeBuildingManager,
-  toggleLotExpansion,
-  onPrevious,
-  onNext
+  toggleLotExpansion
 }: BuildingContactsStepV2Props) {
   return (
     <div className="space-y-3 @container">
@@ -216,7 +323,10 @@ export function BuildingContactsStepV2({
       <div className="grid grid-cols-1 @md:grid-cols-2 @lg:grid-cols-3 gap-2.5">
         {[...lots].reverse().map((lot) => {
           const lotManagers = getAssignedManagers(lot.id)
-          const lotContacts = getAllLotContacts(lot.id)
+          const tenants = getLotContactsByType(lot.id, 'tenant')
+          const providers = getLotContactsByType(lot.id, 'provider')
+          const owners = getLotContactsByType(lot.id, 'owner')
+          const others = getLotContactsByType(lot.id, 'other')
           const isExpanded = expandedLots[lot.id]
 
           return (
@@ -234,12 +344,13 @@ export function BuildingContactsStepV2({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <h3 className="font-medium text-sm truncate">{lot.reference}</h3>
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0 flex-shrink-0">
-                      {lotManagers.length} resp.
-                    </Badge>
-                    <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px] px-1.5 py-0 flex-shrink-0">
-                      {lotContacts.length} cont.
-                    </Badge>
+                    <ContactTypeBadges
+                      managers={lotManagers}
+                      tenants={tenants}
+                      providers={providers}
+                      owners={owners}
+                      others={others}
+                    />
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className="text-xs text-gray-600 font-medium">
@@ -377,23 +488,6 @@ export function BuildingContactsStepV2({
             </Card>
           )
         })}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex flex-col sm:flex-row justify-between gap-2.5 pt-3">
-        <Button
-          variant="outline"
-          onClick={onPrevious}
-          className="w-full sm:w-auto"
-        >
-          Étape précédente
-        </Button>
-        <Button
-          onClick={onNext}
-          className="bg-sky-600 hover:bg-sky-700 w-full sm:w-auto"
-        >
-          Créer l'immeuble
-        </Button>
       </div>
     </div>
   )

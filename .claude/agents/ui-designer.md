@@ -44,9 +44,9 @@ Alert, AlertDialog, Accordion, AspectRatio, Avatar, Badge, Button, Calendar, Car
 
 **A. Three Complete Implementations**
 Create these files:
-- `components/[path]/[name]-enhanced.tsx` - **Recommended**: Balanced, production-ready, minimalist
+- `components/[path]/[name]-V1.tsx` - **Recommended**: Balanced, production-ready, minimalist
 - `components/[path]/[name]-v2.tsx` - **Alternative**: Different UX paradigm, production-ready
-- `components/[path]/[name].tsx` - **Original**: Keep existing for comparison (if redesigning)
+- `components/[path]/[name]-V3.tsx` - **Alternative 2**: Different UX paradigm, production-ready
 
 **Design Principles** (reference official docs for details):
 - Usability first - check [Material Design UX principles](https://m3.material.io/foundations)

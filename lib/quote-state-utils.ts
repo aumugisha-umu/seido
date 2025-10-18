@@ -6,7 +6,9 @@ export interface Quote {
   id: string
   status: 'pending' | 'approved' | 'rejected'
   providerId: string
-  providerName: string
+  providerName?: string
+  amount?: number
+  isCurrentUserQuote?: boolean
   [key: string]: unknown
 }
 
@@ -24,7 +26,7 @@ export interface QuoteState {
 export interface QuoteActionConfig {
   key: string
   label: string
-  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'
+  variant: 'default' | 'destructive' | 'outline' | 'outlined-danger' | 'secondary' | 'ghost'
   isDisabled: boolean
   shouldShow: boolean
   badge?: {
@@ -41,7 +43,7 @@ export interface QuoteActionConfig {
  */
 export function analyzeQuoteState(quotes: Quote[] = []): QuoteState {
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
-  const approvedQuotes = quotes.filter(q => q.status === 'approved')
+  const approvedQuotes = quotes.filter(q => q.status === 'accepted')
   const rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
   return {

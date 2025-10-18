@@ -9,12 +9,22 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { DollarSign, FileText, Edit, Trash2, Calendar, Clock } from 'lucide-react'
+import { DollarSign, FileText, Edit, Trash2, Calendar, Clock, Send, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
 type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
   provider?: Database['public']['Tables']['users']['Row']
@@ -53,20 +63,60 @@ export function QuotesTab({
   onEditQuote
 }: QuotesTabProps) {
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [selectedQuoteToReject, setSelectedQuoteToReject] = useState<Quote | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [isRejecting, setIsRejecting] = useState(false)
 
-  // Filtrer les quotes à afficher: exclure les demandes de devis (pending avec amount = 0)
-  // Ces demandes sont créées par le gestionnaire et le prestataire ne les a pas encore remplies
-  const displayedQuotes = quotes.filter(quote => {
-    // Exclure les demandes pending avec montant = 0 (demandes non remplies)
-    if (quote.status === 'pending' && (!quote.amount || quote.amount === 0)) {
-      return false
+  // Afficher toutes les quotes (y compris les demandes pending)
+  const allQuotes = quotes
+
+  // Handle opening reject dialog
+  const handleOpenRejectDialog = (quote: Quote) => {
+    setSelectedQuoteToReject(quote)
+    setRejectionReason('')
+    setRejectDialogOpen(true)
+  }
+
+  // Handle rejecting quote request
+  const handleRejectQuoteRequest = async () => {
+    if (!selectedQuoteToReject) return
+
+    if (!rejectionReason.trim()) {
+      toast.error('Veuillez indiquer la raison du rejet')
+      return
     }
-    return true
-  })
+
+    setIsRejecting(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { error } = await supabase
+        .from('intervention_quotes')
+        .update({
+          status: 'rejected',
+          rejection_reason: rejectionReason.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedQuoteToReject.id)
+
+      if (error) throw error
+
+      toast.success('Demande de devis rejetée')
+      setRejectDialogOpen(false)
+      setSelectedQuoteToReject(null)
+      setRejectionReason('')
+      onRefresh()
+    } catch (error) {
+      console.error('Error rejecting quote request:', error)
+      toast.error('Erreur lors du rejet de la demande')
+    } finally {
+      setIsRejecting(false)
+    }
+  }
 
   // Handle delete/cancel quote
   const handleDeleteQuote = async (quoteId: string) => {
-    const quote = displayedQuotes.find(q => q.id === quoteId)
+    const quote = allQuotes.find(q => q.id === quoteId)
     const isSent = quote?.status === 'sent'
 
     const confirmMessage = isSent
@@ -99,18 +149,23 @@ export function QuotesTab({
     }
   }
 
-  // Calculate statistics (utilise displayedQuotes au lieu de quotes)
+  // Calculate statistics (exclure les demandes pending non remplies)
+  const submittedQuotes = allQuotes.filter(quote =>
+    !(quote.status === 'pending' && (!quote.amount || quote.amount === 0))
+  )
+
   const stats = {
-    total: displayedQuotes.length,
-    sent: displayedQuotes.filter(q => q.status === 'sent').length,
-    accepted: displayedQuotes.filter(q => q.status === 'accepted').length,
-    rejected: displayedQuotes.filter(q => q.status === 'rejected').length
+    total: submittedQuotes.length,
+    sent: submittedQuotes.filter(q => q.status === 'sent').length,
+    accepted: submittedQuotes.filter(q => q.status === 'accepted').length,
+    rejected: submittedQuotes.filter(q => q.status === 'rejected').length
   }
 
   return (
-    <div className="space-y-6">
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <>
+      <div className="space-y-6">
+        {/* Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -165,7 +220,7 @@ export function QuotesTab({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {displayedQuotes.length === 0 ? (
+          {allQuotes.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-lg font-medium text-muted-foreground mb-2">
@@ -177,7 +232,8 @@ export function QuotesTab({
             </div>
             ) : (
               <div className="space-y-4">
-                {displayedQuotes.map((quote) => {
+                {allQuotes.map((quote) => {
+                  const isPendingRequest = quote.status === 'pending' && (!quote.amount || quote.amount === 0)
                   const statusInfo = statusLabels[quote.status] || statusLabels['pending']
                   const canEdit = quote.status === 'sent'
                   const canCancel = quote.status === 'sent' || quote.status === 'draft'
@@ -193,37 +249,72 @@ export function QuotesTab({
                             <h3 className="font-medium">
                               {typeLabels[quote.quote_type] || quote.quote_type}
                             </h3>
-                            <Badge className={statusInfo.color}>
-                              {statusInfo.label}
-                            </Badge>
+                            {isPendingRequest ? (
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                En attente de votre réponse
+                              </Badge>
+                            ) : (
+                              <Badge className={statusInfo.color}>
+                                {statusInfo.label}
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-2xl font-bold text-primary">
-                            {quote.amount.toFixed(2)}€
-                          </p>
+                          {isPendingRequest ? (
+                            <p className="text-sm text-muted-foreground">
+                              Le gestionnaire a créé une demande de devis pour cette intervention
+                            </p>
+                          ) : (
+                            <p className="text-2xl font-bold text-primary">
+                              {quote.amount.toFixed(2)}€
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {canEdit && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onEditQuote(quote)}
-                            >
-                              <Edit className="w-4 h-4 mr-1" />
-                              Modifier
-                            </Button>
-                          )}
-                          {canCancel && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteQuote(quote.id)}
-                              disabled={deleting === quote.id}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Annuler
-                            </Button>
+                          {isPendingRequest ? (
+                            <>
+                              <Button
+                                variant="outlined-danger"
+                                size="sm"
+                                onClick={() => handleOpenRejectDialog(quote)}
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                Rejeter la demande
+                              </Button>
+                              <Button
+                                onClick={() => onEditQuote(quote)}
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                <Send className="w-4 h-4 mr-2" />
+                                Soumettre un devis
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              {canEdit && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onEditQuote(quote)}
+                                >
+                                  <Edit className="w-4 h-4 mr-1" />
+                                  Modifier
+                                </Button>
+                              )}
+                              {canCancel && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteQuote(quote.id)}
+                                  disabled={deleting === quote.id}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  Annuler
+                                </Button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -237,7 +328,7 @@ export function QuotesTab({
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          Créé le {format(new Date(quote.created_at), 'dd/MM/yyyy', { locale: fr })}
+                          {isPendingRequest ? 'Demandé' : 'Créé'} le {format(new Date(quote.created_at), 'dd/MM/yyyy', { locale: fr })}
                         </span>
                         {quote.estimated_duration && (
                           <span className="flex items-center gap-1">
@@ -270,5 +361,59 @@ export function QuotesTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* Reject Quote Request Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeter la demande de devis</DialogTitle>
+            <DialogDescription>
+              Veuillez indiquer pourquoi vous ne pouvez pas répondre à cette demande de devis.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="rejection-reason">
+                Raison du rejet *
+              </Label>
+              <Textarea
+                id="rejection-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Ex: Intervention hors de ma zone géographique, compétences spécialisées requises, indisponible sur la période..."
+                className="min-h-[120px] mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Cette raison sera visible par le gestionnaire.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-sm text-amber-900">
+                <strong>Attention:</strong> Une fois rejetée, vous ne pourrez plus soumettre de devis pour cette demande.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectDialogOpen(false)}
+              disabled={isRejecting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRejectQuoteRequest}
+              disabled={!rejectionReason.trim() || isRejecting}
+            >
+              {isRejecting ? 'Rejet en cours...' : 'Confirmer le rejet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

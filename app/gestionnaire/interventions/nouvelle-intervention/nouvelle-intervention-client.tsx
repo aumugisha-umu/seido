@@ -48,6 +48,7 @@ import { determineAssignmentType, createTeamService, createContactService, creat
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { FileUploader } from "@/components/ui/file-uploader"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
@@ -85,6 +86,21 @@ export default function NouvelleInterventionClient({
   initialBuildingsData
 }: NouvelleInterventionClientProps) {
   logger.info("🚀 NouvelleInterventionPage - Composant initialisé")
+
+  // DEBUG: Log received initial data
+  logger.info("🔍 [DEBUG] Client received initialBuildingsData:", {
+    buildingsCount: initialBuildingsData.buildings.length,
+    lotsCount: initialBuildingsData.lots.length,
+    teamId: initialBuildingsData.teamId,
+    firstLot: initialBuildingsData.lots[0] ? {
+      id: initialBuildingsData.lots[0].id,
+      reference: initialBuildingsData.lots[0].reference,
+      status: initialBuildingsData.lots[0].status,
+      is_occupied: initialBuildingsData.lots[0].is_occupied,
+      tenant: initialBuildingsData.lots[0].tenant
+    } : null
+  })
+
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
@@ -270,7 +286,10 @@ export default function NouvelleInterventionClient({
             type: "lot",
             building: lot.building?.name || "Immeuble",
             address: lot.building?.address || "",
-            buildingId: lot.building_id
+            buildingId: lot.building_id,
+            floor: lot.floor,
+            tenant: lot.tenant?.name || null,
+            is_occupied: lot.is_occupied || false
           })
           setSelectedLotId(String(lot.id))
           setSelectedBuildingId(lot.building_id ? String(lot.building_id) : undefined)
@@ -291,18 +310,22 @@ export default function NouvelleInterventionClient({
     }
 
     try {
-      // Try to get lot by ID first, then by reference if needed
-      const lot = await services.lot.getById(lotIdentifier)
-      logger.info("📍 Specific lot loaded:", lot)
-      
-      if (lot) {
+      // Use getByIdWithRelations to get tenant information
+      const lotResult = await services.lot.getByIdWithRelations(lotIdentifier)
+      logger.info("📍 Specific lot loaded:", lotResult)
+
+      if (lotResult && lotResult.success && lotResult.data) {
+        const lot = lotResult.data as any
         setSelectedLogement({
           id: lot.id,
           name: lot.reference,
           type: "lot",
           building: lot.building?.name || "Immeuble",
           address: lot.building?.address || "",
-          buildingId: lot.building_id
+          buildingId: lot.building_id,
+          floor: lot.floor,
+          tenant: lot.tenant?.name || null,
+          is_occupied: lot.is_occupied || false
         })
         setSelectedLotId(String(lot.id))
         setSelectedBuildingId(lot.building_id ? String(lot.building_id) : undefined)
@@ -550,7 +573,10 @@ export default function NouvelleInterventionClient({
           type: "lot",
           building: lotData.building?.name || "Immeuble",
           address: lotData.building?.address || "",
-          buildingId: lotData.building_id || lotData.building?.id
+          buildingId: lotData.building_id || lotData.building?.id,
+          floor: lotData.floor,
+          tenant: lotData.tenant?.name || null,
+          is_occupied: lotData.is_occupied || false
         })
         setSelectedLotId(String(lotData.id))
         setSelectedBuildingId(lotData.building_id ? String(lotData.building_id) : (lotData.building?.id ? String(lotData.building.id) : undefined))
@@ -878,62 +904,13 @@ export default function NouvelleInterventionClient({
                     </div>
 
                     {/* File Uploader - Compact sur la droite */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-gray-400 transition-colors h-[180px] flex flex-col justify-center">
-                        <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                        <p className="text-xs text-gray-600 mb-1">
-                          Glissez vos fichiers ici
-                        </p>
-                        <p className="text-[10px] text-gray-500 mb-3">
-                          JPG, PNG, PDF, DOC
-                          <br />
-                          (max 10MB)
-                        </p>
-                        <input
-                          type="file"
-                          multiple
-                          accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          id="file-upload"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => document.getElementById("file-upload")?.click()}
-                          className="mx-auto"
-                        >
-                          Parcourir
-                        </Button>
-                      </div>
-
-                      {files.length > 0 && (
-                        <div className="mt-3 space-y-1.5 max-h-[120px] overflow-y-auto">
-                          {files.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
-                              <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                <FileText className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-medium text-gray-900 truncate">{file.name}</p>
-                                  <p className="text-[10px] text-gray-500">{formatFileSize(file.size)}</p>
-                                </div>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFile(index)}
-                                className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <FileUploader
+                      files={files}
+                      onFilesChange={setFiles}
+                      accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                      maxSize={10}
+                      label="Fichiers joints (optionnel)"
+                    />
                   </div>
                 </div>
               </div>

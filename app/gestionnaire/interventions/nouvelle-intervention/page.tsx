@@ -92,10 +92,29 @@ export default async function NouvelleInterventionPage() {
     logger.info('📍 [INTERVENTION-PAGE-SERVER] Step 2: Loading buildings...')
     const buildingsResult = await buildingService.getBuildingsByTeam(teamId)
 
-    const buildings = buildingsResult.success ? (buildingsResult.data || []) : []
+    let buildings = buildingsResult.success ? (buildingsResult.data || []) : []
 
     logger.info('✅ [INTERVENTION-PAGE-SERVER] Buildings loaded', {
       buildingCount: buildings.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Step 2.5: Transform lots inside buildings to add status field
+    logger.info('📍 [INTERVENTION-PAGE-SERVER] Step 2.5: Transforming lots inside buildings...')
+    buildings = buildings.map((building: any) => ({
+      ...building,
+      lots: (building.lots || []).map((lot: any) => {
+        const isOccupied = lot.is_occupied || false
+        return {
+          ...lot,
+          status: isOccupied ? "occupied" : "vacant"
+        }
+      })
+    }))
+
+    logger.info('✅ [INTERVENTION-PAGE-SERVER] Buildings lots transformed', {
+      buildingCount: buildings.length,
+      totalLotsInBuildings: buildings.reduce((sum: number, b: any) => sum + (b.lots?.length || 0), 0),
       elapsed: `${Date.now() - startTime}ms`
     })
 
@@ -110,16 +129,64 @@ export default async function NouvelleInterventionPage() {
       elapsed: `${Date.now() - startTime}ms`
     })
 
+    // Step 4: Transform lots to add status field and debug data
+    logger.info('📍 [INTERVENTION-PAGE-SERVER] Step 4: Transforming lots data...')
+
+    // DEBUG: Check raw lots data from repository
+    logger.info('🔍 [DEBUG] Raw lots from repository:', {
+      count: lots.length,
+      firstLot: lots[0] ? {
+        id: lots[0].id,
+        reference: lots[0].reference,
+        is_occupied: lots[0].is_occupied,
+        status: lots[0].status,
+        lot_contacts_count: lots[0].lot_contacts?.length || 0,
+        tenant: lots[0].tenant?.name || null
+      } : null
+    })
+
+    const transformedLots = lots.map((lot: any) => {
+      const isOccupied = lot.is_occupied || false
+      const transformed = {
+        ...lot,
+        status: isOccupied ? "occupied" : "vacant",
+        building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
+      }
+
+      // DEBUG: Log transformation for each lot
+      if (lot.reference?.includes('Appartement')) {
+        logger.info(`🔍 [DEBUG] Lot transformation: ${lot.reference}`, {
+          original_is_occupied: lot.is_occupied,
+          original_status: lot.status,
+          lot_contacts_count: lot.lot_contacts?.length || 0,
+          calculated_isOccupied: isOccupied,
+          final_status: transformed.status
+        })
+      }
+
+      return transformed
+    })
+
+    logger.info('✅ [INTERVENTION-PAGE-SERVER] Lots transformed', {
+      lotCount: transformedLots.length,
+      elapsed: `${Date.now() - startTime}ms`,
+      sample: transformedLots[0] ? {
+        reference: transformedLots[0].reference,
+        status: transformedLots[0].status,
+        is_occupied: transformedLots[0].is_occupied
+      } : null
+    })
+
     // Prepare data for client component
     const buildingsData = {
       buildings,
-      lots,
+      lots: transformedLots,
       teamId
     }
 
     logger.info('🎉 [INTERVENTION-PAGE-SERVER] All data loaded successfully', {
       buildingCount: buildings.length,
-      lotCount: lots.length,
+      lotCount: transformedLots.length,
       totalElapsed: `${Date.now() - startTime}ms`
     })
 

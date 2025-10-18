@@ -123,41 +123,28 @@ export class TenantService {
     try {
       logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant via lot_contacts:", userId)
 
-      // Get all contacts for this user (queries lot_contacts table)
+      // Get all lot contacts for this user (queries lot_contacts table with relations)
       const contactsResult = await this.contactService.getUserContacts(userId)
       if (!contactsResult.success) {
         logger.warn("⚠️ [TENANT-SERVICE] Could not get user contacts:", contactsResult.error)
         return []
       }
 
-      // Filter contacts that are linked to lots (not just buildings)
-      const contactsWithLots = contactsResult.data.filter(contact => contact.lot_id)
+      // Filter contacts that have lot data (lot relation should be populated)
+      const contactsWithLots = contactsResult.data.filter(contact => contact.lot_id && contact.lot)
 
       if (contactsWithLots.length === 0) {
         logger.info("ℹ️ [TENANT-SERVICE] No lot contacts found for user:", userId)
         return []
       }
 
-      // Fetch full lot details for each contact
-      const lotPromises = contactsWithLots.map(async (contact) => {
-        const lotResult = await this.lotService.getById(contact.lot_id!)
-        if (lotResult.success && lotResult.data) {
-          return {
-            lot: lotResult.data,
-            is_primary: contact.is_primary || false,
-            start_date: contact.start_date || undefined,
-            end_date: contact.end_date || undefined
-          }
-        }
-        return null
-      })
-
-      const lotsWithDetails = (await Promise.all(lotPromises)).filter(Boolean) as Array<{
-        lot: Lot
-        is_primary: boolean
-        start_date?: string
-        end_date?: string
-      }>
+      // Map lot contacts to the expected format (lot data is already loaded via relations)
+      const lotsWithDetails = contactsWithLots.map((contact) => ({
+        lot: contact.lot, // Lot data already loaded via Supabase relation
+        is_primary: contact.is_primary || false,
+        start_date: contact.start_date || undefined,
+        end_date: contact.end_date || undefined
+      }))
 
       logger.info("✅ [TENANT-SERVICE] Found tenant lots:", lotsWithDetails.length)
       return lotsWithDetails

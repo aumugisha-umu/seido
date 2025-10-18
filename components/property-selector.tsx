@@ -612,6 +612,36 @@ function PropertySelectorView({
  * This skips the useBuildings hook entirely, avoiding duplicate fetches
  */
 function PropertySelectorWithInitialData(props: PropertySelectorProps & { initialData: BuildingsData }) {
+  // DEBUG: Log received data in PropertySelector with detailed lot info
+  console.log('🔍 [PROPERTY-SELECTOR] Received initialData:', {
+    buildingsCount: props.initialData.buildings.length,
+    lotsCount: props.initialData.lots.length,
+    firstLot: props.initialData.lots[0] ? {
+      reference: props.initialData.lots[0].reference,
+      status: props.initialData.lots[0].status,
+      is_occupied: props.initialData.lots[0].is_occupied
+    } : null,
+    buildings: props.initialData.buildings.map(b => ({
+      id: b.id,
+      name: b.name,
+      lotsCount: b.lots?.length || 0,
+      lotsDetail: b.lots?.map(l => ({
+        reference: l.reference,
+        status: l.status,
+        is_occupied: l.is_occupied
+      }))
+    }))
+  })
+
+  // DEBUG: Specifically check first building's first lot
+  if (props.initialData.buildings[0]?.lots?.[0]) {
+    console.log('🔍 [PROPERTY-SELECTOR] First building first lot:', {
+      reference: props.initialData.buildings[0].lots[0].reference,
+      status: props.initialData.buildings[0].lots[0].status,
+      is_occupied: props.initialData.buildings[0].lots[0].is_occupied
+    })
+  }
+
   return (
     <PropertySelectorView
       {...props}

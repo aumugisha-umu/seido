@@ -38,7 +38,7 @@ interface Quote {
   estimated_start_date?: string
   terms_and_conditions?: string
   attachments: string[]
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
   submitted_at: string
   reviewed_at?: string
   reviewed_by?: string
@@ -88,7 +88,7 @@ export const QuotesComparison = ({
   const [rejectionReason, setRejectionReason] = useState("")
 
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
-  const approvedQuotes = quotes.filter(q => q.status === 'approved')
+  const approvedQuotes = quotes.filter(q => q.status === 'accepted')
   const rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
   const handleApproveClick = (quote: Quote) => {
@@ -170,7 +170,7 @@ export const QuotesComparison = ({
     const score = getQuoteScore(quote)
 
     return (
-      <Card className={`h-full ${quote.status === 'approved' ? 'border-green-500 bg-green-50' : quote.status === 'rejected' ? 'border-red-500 bg-red-50' : ''}`}>
+      <Card className={`h-full ${quote.status === 'accepted' ? 'border-green-500 bg-green-50' : quote.status === 'rejected' ? 'border-red-500 bg-red-50' : ''}`}>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -185,12 +185,12 @@ export const QuotesComparison = ({
               )}
               <Badge
                 className={
-                  quote.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  quote.status === 'accepted' ? 'bg-green-100 text-green-800' :
                   quote.status === 'rejected' ? 'bg-red-100 text-red-800' :
                   'bg-yellow-100 text-yellow-800'
                 }
               >
-                {quote.status === 'approved' ? 'Approuvé' :
+                {quote.status === 'accepted' ? 'Approuvé' :
                  quote.status === 'rejected' ? 'Rejeté' :
                  'En attente'}
               </Badge>
@@ -275,7 +275,7 @@ export const QuotesComparison = ({
           )}
 
           {/* Statut et commentaires */}
-          {quote.status === 'approved' && quote.review_comments && (
+          {quote.status === 'accepted' && quote.review_comments && (
             <div className="bg-green-50 border border-green-200 rounded p-3">
               <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />

@@ -114,6 +114,34 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
+   * Get lot contacts for a user (Phase 2: lot_contacts table)
+   * Returns lot assignments with metadata (is_primary, start_date, end_date, role)
+   */
+  async findLotContactsByUser(userId: string) {
+    logger.info('[CONTACT-REPO] Finding lot contacts for user:', userId)
+
+    const { data, error } = await this.supabase
+      .from('lot_contacts')
+      .select(`
+        *,
+        lot:lot_id (
+          *,
+          building:building_id (*)
+        ),
+        user:user_id (*)
+      `)
+      .eq('user_id', userId)
+
+    if (error) {
+      logger.error('[CONTACT-REPO] Error finding lot contacts:', error)
+      return createErrorResponse(handleError(error, 'lot_contacts:query'))
+    }
+
+    logger.info('[CONTACT-REPO] Found lot contacts:', data?.length || 0)
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
    * Get contacts by team
    * NEW SCHEMA: Queries team_members → users
    */

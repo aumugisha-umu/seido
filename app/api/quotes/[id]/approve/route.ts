@@ -92,14 +92,14 @@ export async function POST(
     // Vérifier que le devis est en attente (validation JavaScript)
     logger.info({ quote: quote.status }, '🔍 [API-APPROVE] Checking quote status:')
 
-    // Accepter les statuts "pending" (anglais) et "En attente" (français legacy)
-    const isPending = quote.status === 'pending' || quote.status === 'En attente'
+    // Accepter les statuts "pending" (anglais), "En attente" (français legacy), et "sent" (soumis par prestataire)
+    const isApprovable = quote.status === 'pending' || quote.status === 'En attente' || quote.status === 'sent'
 
-    if (!isPending) {
-      logger.error({ quote: quote.status }, '❌ [API-APPROVE] Quote not in pending status:')
+    if (!isApprovable) {
+      logger.error({ quote: quote.status }, '❌ [API-APPROVE] Quote not in approvable status:')
       return NextResponse.json({
-        error: `Ce devis a déjà été traité (statut: ${quote.status})`,
-        debug: { currentStatus: quote.status }
+        error: `Ce devis ne peut pas être approuvé (statut actuel: ${quote.status})`,
+        debug: { currentStatus: quote.status, allowedStatuses: ['pending', 'En attente', 'sent'] }
       }, { status: 400 })
     }
 
@@ -110,12 +110,12 @@ export async function POST(
     }, '✅ [API-APPROVE] Quote found successfully:')
 
     // Démarrer une transaction pour mettre à jour le devis et l'intervention
-    logger.info({}, '💾 [API-APPROVE] Updating quote status to approved...')
+    logger.info({}, '💾 [API-APPROVE] Updating quote status to accepted...')
     const updateData = {
-      status: 'approved',
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: userData.id,
-      review_comments: comments || null
+      status: 'accepted',
+      validated_at: new Date().toISOString(),
+      validated_by: userData.id
+      // Note: review_comments will be handled in a separate table in the future
     }
     logger.info({ data: updateData }, '💾 [API-APPROVE] Update data:')
 
@@ -139,7 +139,6 @@ export async function POST(
       .from('interventions')
       .update({
         status: 'planification',
-        selected_quote_id: id,
         updated_at: new Date().toISOString()
       })
       .eq('id', quote.intervention_id)
@@ -156,12 +155,12 @@ export async function POST(
       .from('intervention_quotes')
       .update({
         status: 'rejected',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: userData.id,
+        validated_at: new Date().toISOString(),
+        validated_by: userData.id,
         rejection_reason: 'Autre devis sélectionné'
       })
       .eq('intervention_id', quote.intervention_id)
-      .in('status', ['pending', 'En attente'])
+      .in('status', ['pending', 'En attente', 'sent'])
       .neq('id', id)
 
     if (rejectOthersError) {

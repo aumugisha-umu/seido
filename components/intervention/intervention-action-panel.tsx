@@ -95,7 +95,7 @@ export function InterventionActionPanel({
     if (userRole !== 'prestataire' || !intervention.quotes) return null
     return intervention.quotes.find(quote =>
       quote.isCurrentUserQuote &&
-      (quote.status === 'pending' || quote.status === 'approved')
+      (quote.status === 'pending' || quote.status === 'accepted')
     )
   }
 

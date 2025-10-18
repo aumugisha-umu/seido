@@ -8,7 +8,7 @@ import { logger, logError } from '@/lib/logger'
 interface Quote {
   id: string
   providerId: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
   [key: string]: unknown
 }
 
@@ -139,10 +139,10 @@ export function filterAvailabilitiesByQuoteStatus(
 
     if (userRole === 'locataire') {
       // Pour les locataires : inclure uniquement les prestataires avec devis approuvés
-      shouldInclude = providerStatuses.has('approved')
+      shouldInclude = providerStatuses.has('accepted')
     } else {
       // Pour gestionnaires et prestataires : inclure les devis en attente ou approuvés (logique existante)
-      shouldInclude = providerStatuses.has('pending') || providerStatuses.has('approved')
+      shouldInclude = providerStatuses.has('pending') || providerStatuses.has('accepted')
     }
 
     logger.info(`🔍 [FILTER-DEBUG] Provider ${availability.userId} (${availability.person}) - Role: ${userRole} - Statuses: [${Array.from(providerStatuses).join(', ')}] - ${shouldInclude ? 'INCLUDED' : 'EXCLUDED'}`)

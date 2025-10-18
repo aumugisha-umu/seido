@@ -42,7 +42,7 @@ export function QuotesTab({
   )
 
   const receivedQuotes = quotes.filter(q =>
-    (q.status === 'pending' || q.status === 'sent') && q.amount && q.amount > 0
+    (q.status === 'pending' || q.status === 'sent' || q.status === 'accepted') && q.amount && q.amount > 0
   )
 
   const [requestsExpanded, setRequestsExpanded] = useState(true)

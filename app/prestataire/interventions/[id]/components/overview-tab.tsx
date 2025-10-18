@@ -2,14 +2,12 @@
 
 /**
  * Overview Tab Component for Prestataire
- * Displays intervention details, status timeline, and provider-specific actions
+ * Displays intervention details and provider-specific actions
  */
 
 import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
-import { StatusTimeline } from '@/components/interventions/status-timeline'
 import { TimeSlotProposer } from '@/components/interventions/time-slot-proposer'
-import { WorkflowActions } from '@/components/interventions/workflow-actions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -25,13 +23,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import {
-  Activity,
   Clock,
   Calendar,
   Play,
   CheckCircle,
-  AlertCircle,
-  Upload
+  AlertCircle
 } from 'lucide-react'
 import {
   startInterventionAction,
@@ -150,203 +146,147 @@ export function OverviewTab({
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Intervention details */}
-          <InterventionOverviewCard intervention={intervention} />
+      <div className="space-y-6">
+        {/* Intervention details */}
+        <InterventionOverviewCard intervention={intervention} />
 
-          {/* Provider actions */}
-          {(canProposeSlots || canStartWork || canCompleteWork) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  Actions disponibles
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {canProposeSlots && (
-                  <div className="flex items-start gap-4 p-4 rounded-lg border bg-blue-50">
-                    <Calendar className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="font-medium text-blue-900">Proposer des créneaux</h4>
-                      <p className="text-sm text-blue-700 mt-1">
-                        L'intervention est en phase de planification. Proposez vos disponibilités.
-                      </p>
-                      <Button
-                        onClick={() => setTimeSlotDialogOpen(true)}
-                        size="sm"
-                        className="mt-3"
-                      >
-                        <Clock className="w-4 h-4 mr-2" />
-                        Proposer des créneaux
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {canStartWork && (
-                  <div className="flex items-start gap-4 p-4 rounded-lg border bg-indigo-50">
-                    <Play className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="font-medium text-indigo-900">Démarrer les travaux</h4>
-                      <p className="text-sm text-indigo-700 mt-1">
-                        L'intervention est planifiée. Vous pouvez démarrer les travaux.
-                      </p>
-                      <Button
-                        onClick={handleStartWork}
-                        disabled={isSubmitting}
-                        size="sm"
-                        className="mt-3"
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        {isSubmitting ? 'Démarrage...' : 'Démarrer les travaux'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {canCompleteWork && (
-                  <div className="flex items-start gap-4 p-4 rounded-lg border bg-purple-50">
-                    <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="font-medium text-purple-900">Terminer les travaux</h4>
-                      <p className="text-sm text-purple-700 mt-1">
-                        Signalez la fin des travaux avec un rapport d'intervention.
-                      </p>
-                      <Button
-                        onClick={() => setCompleteWorkDialogOpen(true)}
-                        size="sm"
-                        className="mt-3"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Terminer les travaux
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* My proposed time slots */}
-          {myTimeSlots.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Mes créneaux proposés
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {myTimeSlots.map((slot) => (
-                    <div
-                      key={slot.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {format(new Date(slot.slot_date), 'EEEE d MMMM yyyy', { locale: fr })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {slot.start_time} - {slot.end_time}
-                        </p>
-                        {slot.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">{slot.notes}</p>
-                        )}
-                      </div>
-                      <Badge
-                        variant={
-                          slot.status === 'accepted'
-                            ? 'default'
-                            : slot.status === 'rejected'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
-                      >
-                        {slot.status === 'accepted' && 'Accepté'}
-                        {slot.status === 'rejected' && 'Rejeté'}
-                        {slot.status === 'proposed' && 'En attente'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right column - Status timeline and info */}
-        <div className="space-y-6">
-          <Card>
+        {/* Urgency alert */}
+        {intervention.urgency === 'urgente' && (
+          <Card className="border-orange-200 bg-orange-50">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Progression
+              <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                <AlertCircle className="w-5 h-5" />
+                Intervention urgente
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <StatusTimeline
-                currentStatus={intervention.status}
-                createdAt={intervention.created_at}
-                scheduledDate={intervention.scheduled_date}
-                completedDate={intervention.completed_date}
-                rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
-                cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
-              />
+              <p className="text-sm text-orange-700">
+                Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
+              </p>
             </CardContent>
           </Card>
+        )}
 
-          {/* Quick info */}
+        {/* Provider actions */}
+        {(canProposeSlots || canStartWork || canCompleteWork) && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Informations clés</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Actions disponibles
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Référence</span>
-                <span className="font-medium">{intervention.reference}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Type</span>
-                <span className="font-medium capitalize">
-                  {intervention.type.replace('_', ' ')}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Urgence</span>
-                <span className="font-medium capitalize">{intervention.urgency}</span>
-              </div>
-              {intervention.scheduled_date && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Date planifiée</span>
-                  <span className="font-medium">
-                    {format(new Date(intervention.scheduled_date), 'dd/MM/yyyy', { locale: fr })}
-                  </span>
+              {canProposeSlots && (
+                <div className="flex items-start gap-4 p-4 rounded-lg border bg-blue-50">
+                  <Calendar className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-blue-900">Proposer des créneaux</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      L'intervention est en phase de planification. Proposez vos disponibilités.
+                    </p>
+                    <Button
+                      onClick={() => setTimeSlotDialogOpen(true)}
+                      size="sm"
+                      className="mt-3"
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Proposer des créneaux
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {canStartWork && (
+                <div className="flex items-start gap-4 p-4 rounded-lg border bg-indigo-50">
+                  <Play className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-indigo-900">Démarrer les travaux</h4>
+                    <p className="text-sm text-indigo-700 mt-1">
+                      L'intervention est planifiée. Vous pouvez démarrer les travaux.
+                    </p>
+                    <Button
+                      onClick={handleStartWork}
+                      disabled={isSubmitting}
+                      size="sm"
+                      className="mt-3"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      {isSubmitting ? 'Démarrage...' : 'Démarrer les travaux'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {canCompleteWork && (
+                <div className="flex items-start gap-4 p-4 rounded-lg border bg-purple-50">
+                  <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-purple-900">Terminer les travaux</h4>
+                    <p className="text-sm text-purple-700 mt-1">
+                      Signalez la fin des travaux avec un rapport d'intervention.
+                    </p>
+                    <Button
+                      onClick={() => setCompleteWorkDialogOpen(true)}
+                      size="sm"
+                      className="mt-3"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Terminer les travaux
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
 
-          {/* Urgency alert */}
-          {intervention.urgency === 'urgente' && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2 text-orange-800">
-                  <AlertCircle className="w-5 h-5" />
-                  Intervention urgente
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-orange-700">
-                  Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {/* My proposed time slots */}
+        {myTimeSlots.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Mes créneaux proposés
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {myTimeSlots.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className="flex items-center justify-between p-3 rounded-lg border"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {format(new Date(slot.slot_date), 'EEEE d MMMM yyyy', { locale: fr })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {slot.start_time} - {slot.end_time}
+                      </p>
+                      {slot.notes && (
+                        <p className="text-sm text-muted-foreground mt-1">{slot.notes}</p>
+                      )}
+                    </div>
+                    <Badge
+                      variant={
+                        slot.status === 'accepted'
+                          ? 'default'
+                          : slot.status === 'rejected'
+                            ? 'destructive'
+                            : 'secondary'
+                      }
+                    >
+                      {slot.status === 'accepted' && 'Accepté'}
+                      {slot.status === 'rejected' && 'Rejeté'}
+                      {slot.status === 'proposed' && 'En attente'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Time Slot Proposer Dialog */}

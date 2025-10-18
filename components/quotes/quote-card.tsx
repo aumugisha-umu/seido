@@ -304,7 +304,7 @@ export function QuoteCard({
         </div>
       )}
 
-      {quote.status === 'approved' && quote.reviewComments && (
+      {quote.status === 'accepted' && quote.reviewComments && (
         <div className="mb-3 p-2 bg-green-50 rounded text-xs text-green-700">
           <strong>Commentaires:</strong> {quote.reviewComments}
         </div>

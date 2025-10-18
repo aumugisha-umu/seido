@@ -59,13 +59,14 @@ interface InterventionActionPanelHeaderProps {
   onOpenQuoteModal?: () => void
   onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
+  onRejectQuoteRequest?: (_quote: Quote) => void
 }
 
 interface ActionConfig {
   key: string
   label: string
   icon: React.ComponentType<{ className?: string }>
-  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'
+  variant: 'default' | 'destructive' | 'outline' | 'outlined-danger' | 'secondary' | 'ghost'
   description: string
   requiresComment?: boolean
   confirmationMessage?: string
@@ -85,7 +86,8 @@ export function InterventionActionPanelHeader({
   onActionComplete,
   onOpenQuoteModal,
   onCancelQuote,
-  onCancelIntervention
+  onCancelIntervention,
+  onRejectQuoteRequest
 }: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -107,10 +109,7 @@ export function InterventionActionPanelHeader({
   // Fonction pour détecter le devis existant du prestataire connecté
   const getCurrentUserQuote = () => {
     if (userRole !== 'prestataire' || !intervention.quotes) return null
-    return intervention.quotes.find(quote =>
-      quote.isCurrentUserQuote &&
-      (quote.status === 'pending' || quote.status === 'approved')
-    )
+    return intervention.quotes.find(quote => quote.isCurrentUserQuote)
   }
 
   const currentUserQuote = getCurrentUserQuote()
@@ -129,7 +128,7 @@ export function InterventionActionPanelHeader({
       // Actions positives (succès, validation)
       positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes'],
       // Actions destructives (suppression, rejet, annulation)
-      destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote'],
+      destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote', 'reject_quote_request'],
       // Actions neutres (planification, demande, gestion)
       neutral: ['start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'run_matching', 'propose_slots', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
       // Actions informatives (consultation)
@@ -161,7 +160,7 @@ export function InterventionActionPanelHeader({
       },
       prestataire: {
         positive: { variant: 'default' as const, className: 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500' },
-        destructive: { variant: 'destructive' as const, className: '' },
+        destructive: { variant: 'outlined-danger' as const, className: '' },
         neutral: { variant: 'secondary' as const, className: '' },
         informative: { variant: 'ghost' as const, className: '' }
       }
@@ -278,15 +277,23 @@ export function InterventionActionPanelHeader({
               const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
 
               if (isQuoteRequest) {
-                // Demande de devis : le prestataire doit soumettre son devis
-                // Utilise variant 'default' avec className vide pour forcer primary
-                actions.push({
-                  key: 'submit_quote',
-                  label: 'Soumettre un devis',
-                  icon: FileText,
-                  variant: 'default',
-                  description: 'Soumettre votre devis pour cette intervention'
-                })
+                // Demande de devis : le prestataire peut rejeter ou soumettre
+                actions.push(
+                  {
+                    key: 'reject_quote_request',
+                    label: 'Rejeter la demande',
+                    icon: XCircle,
+                    variant: 'outlined-danger',
+                    description: 'Rejeter cette demande de devis'
+                  },
+                  {
+                    key: 'submit_quote',
+                    label: 'Soumettre un devis',
+                    icon: FileText,
+                    variant: 'default',
+                    description: 'Soumettre votre devis pour cette intervention'
+                  }
+                )
               } else {
                 // Devis déjà soumis : le prestataire peut le modifier
                 actions.push(
@@ -306,7 +313,25 @@ export function InterventionActionPanelHeader({
                   }
                 )
               }
-            } else if (currentUserQuote.status === 'approved') {
+            } else if (currentUserQuote.status === 'sent') {
+              // Devis envoyé : le prestataire peut le modifier ou l'annuler
+              actions.push(
+                {
+                  key: 'edit_quote',
+                  label: 'Modifier le devis',
+                  icon: Edit3,
+                  variant: 'outline',
+                  description: 'Modifier votre devis envoyé'
+                },
+                {
+                  key: 'cancel_quote',
+                  label: 'Annuler le devis',
+                  icon: Trash2,
+                  variant: 'outlined-danger',
+                  description: 'Annuler votre devis'
+                }
+              )
+            } else if (currentUserQuote.status === 'accepted') {
               // Devis approuvé - actions limitées
               actions.push({
                 key: 'view_quote',
@@ -575,6 +600,13 @@ export function InterventionActionPanelHeader({
           } else {
             // Fallback vers redirection si pas de callback
             window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+          }
+          return
+
+        case 'reject_quote_request':
+          // Ouvrir la modale de rejet de demande de devis
+          if (currentUserQuote && onRejectQuoteRequest) {
+            onRejectQuoteRequest(currentUserQuote)
           }
           return
 

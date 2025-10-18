@@ -155,7 +155,7 @@ export async function GET(
         )
       `)
       .eq('intervention_id', interventionId)
-      .eq('status', 'approved')
+      .eq('status', 'accepted')
       .order('created_at', { ascending: false })
       .limit(1)
 

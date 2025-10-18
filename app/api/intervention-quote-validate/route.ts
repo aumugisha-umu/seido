@@ -133,19 +133,18 @@ export async function POST(request: NextRequest) {
 
     // Quote validation checks could be added here if needed
 
-    logger.info({ status: action === 'approve' ? 'approved' : 'rejected' }, `🔄 Updating quote status to ${action === 'approve' ? 'approved' : 'rejected'}`)
+    logger.info({ status: action === 'approve' ? 'accepted' : 'rejected' }, `🔄 Updating quote status to ${action === 'approve' ? 'accepted' : 'rejected'}`)
 
     // Prepare update data
     const updateData = {
-      status: action === 'approve' ? 'approved' : 'rejected',
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: user.id,
+      status: action === 'approve' ? 'accepted' : 'rejected',
+      validated_at: new Date().toISOString(),
+      validated_by: user.id,
       updated_at: new Date().toISOString()
     }
 
-    if (action === 'approve' && comments?.trim()) {
-      updateData.review_comments = comments.trim()
-    } else if (action === 'reject' && rejectionReason?.trim()) {
+    // Note: review_comments will be handled in a separate table in the future
+    if (action === 'reject' && rejectionReason?.trim()) {
       updateData.rejection_reason = rejectionReason.trim()
     }
 
@@ -177,8 +176,6 @@ export async function POST(request: NextRequest) {
       // Update intervention status
       await interventionService.update(quote.intervention_id, {
         status: 'planifiee' as Database['public']['Enums']['intervention_status'],
-        selected_quote_id: quoteId,
-        final_cost: quote.total_amount,
         updated_at: new Date().toISOString()
       })
 
@@ -199,8 +196,8 @@ export async function POST(request: NextRequest) {
             .from('intervention_quotes')
             .update({
               status: 'rejected',
-              reviewed_at: new Date().toISOString(),
-              reviewed_by: user.id,
+              validated_at: new Date().toISOString(),
+              validated_by: user.id,
               rejection_reason: 'Un autre devis a été sélectionné pour cette intervention',
               updated_at: new Date().toISOString()
             })
@@ -289,16 +286,13 @@ export async function POST(request: NextRequest) {
       quote: {
         id: updatedQuote.id,
         status: updatedQuote.status,
-        reviewed_at: updatedQuote.reviewed_at,
-        reviewed_by: updatedQuote.reviewed_by,
-        review_comments: updatedQuote.review_comments,
+        validated_at: updatedQuote.validated_at,
+        validated_by: updatedQuote.validated_by,
         rejection_reason: updatedQuote.rejection_reason
       },
       intervention: action === 'approve' ? {
         id: quote.intervention.id,
-        status: 'planifiee',
-        selected_quote_id: quoteId,
-        final_cost: quote.total_amount
+        status: 'planifiee'
       } : undefined,
       message: action === 'approve'
         ? `Devis de ${quote.provider.name} approuvé avec succès`

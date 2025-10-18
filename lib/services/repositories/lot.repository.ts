@@ -183,11 +183,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         contact.user?.role === 'locataire'
       ) || []
 
+      const isOccupied = tenants.length > 0
+
       return {
         ...lot,
         tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
           tenants[0]?.user || null,
-        is_occupied: tenants.length > 0,
+        is_occupied: isOccupied,
+        status: isOccupied ? 'occupied' : 'vacant', // Add status field for compatibility
         tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
       }
     })
@@ -223,11 +226,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         contact.user?.role === 'locataire'
       ) || []
 
+      const isOccupied = tenants.length > 0
+
       return {
         ...lot,
         tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
           tenants[0]?.user || null,
-        is_occupied: tenants.length > 0,
+        is_occupied: isOccupied,
+        status: isOccupied ? 'occupied' : 'vacant', // Add status field for compatibility
         tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
       }
     })
@@ -291,9 +297,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         contact.user?.role === 'locataire'
       ) || []
 
+      const isOccupied = tenants.length > 0
+
       data.tenant = tenants.find((contact: LotContact) => contact.is_primary)?.user ||
         tenants[0]?.user || null
-      data.is_occupied = tenants.length > 0
+      data.is_occupied = isOccupied
+      data.status = isOccupied ? 'occupied' : 'vacant' // Add status field for compatibility
       data.tenants = tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
     }
 

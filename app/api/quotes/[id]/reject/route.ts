@@ -60,8 +60,8 @@ export async function POST(
       .from('intervention_quotes')
       .update({
         status: 'rejected',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: userData.id,
+        validated_at: new Date().toISOString(),
+        validated_by: userData.id,
         rejection_reason: reason.trim()
       })
       .eq('id', id)

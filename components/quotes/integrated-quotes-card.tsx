@@ -235,7 +235,7 @@ export function IntegratedQuotesCard({
   }
 
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
-  const approvedQuotes = quotes.filter(q => q.status === 'approved')
+  const approvedQuotes = quotes.filter(q => q.status === 'accepted')
   const _rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
   // Si l'intervention n'est pas en phase de devis

@@ -9,8 +9,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from '@/components/ui/dialog'
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
+import { createBrowserSupabaseClient } from '@/lib/services'
 
 // Tab components
 import { OverviewTab } from './overview-tab'
@@ -78,11 +83,90 @@ export function PrestataireInterventionDetailClient({
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
+  const [rejectQuoteModalOpen, setRejectQuoteModalOpen] = useState(false)
+  const [quoteToReject, setQuoteToReject] = useState<Quote | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [isRejecting, setIsRejecting] = useState(false)
 
   const handleRefresh = async () => {
     setRefreshing(true)
     router.refresh()
     setTimeout(() => setRefreshing(false), 1000)
+  }
+
+  // Handle opening reject quote modal from action panel
+  const handleRejectQuoteRequest = (quote: Quote) => {
+    setQuoteToReject(quote)
+    setRejectionReason('')
+    setRejectQuoteModalOpen(true)
+  }
+
+  // Handle rejecting quote request
+  const handleConfirmRejectQuote = async () => {
+    if (!quoteToReject) return
+
+    if (!rejectionReason.trim()) {
+      toast.error('Veuillez indiquer la raison du rejet')
+      return
+    }
+
+    setIsRejecting(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { error } = await supabase
+        .from('intervention_quotes')
+        .update({
+          status: 'rejected',
+          rejection_reason: rejectionReason.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quoteToReject.id)
+
+      if (error) throw error
+
+      toast.success('Demande de devis rejetée')
+      setRejectQuoteModalOpen(false)
+      setQuoteToReject(null)
+      setRejectionReason('')
+      handleRefresh()
+    } catch (error) {
+      console.error('Error rejecting quote request:', error)
+      toast.error('Erreur lors du rejet de la demande')
+    } finally {
+      setIsRejecting(false)
+    }
+  }
+
+  // Handle cancelling quote
+  const handleCancelQuote = async (quoteId: string) => {
+    const quote = quotes.find(q => q.id === quoteId)
+    const isSent = quote?.status === 'sent'
+
+    const confirmMessage = isSent
+      ? 'Êtes-vous sûr de vouloir annuler ce devis ? Le gestionnaire ne pourra plus le consulter.'
+      : 'Êtes-vous sûr de vouloir supprimer ce devis ?'
+
+    if (!confirm(confirmMessage)) return
+
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { error } = await supabase
+        .from('intervention_quotes')
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: currentUser.id
+        })
+        .eq('id', quoteId)
+
+      if (error) throw error
+
+      const successMessage = isSent ? 'Devis annulé avec succès' : 'Devis supprimé avec succès'
+      toast.success(successMessage)
+      handleRefresh()
+    } catch (error) {
+      console.error('Error deleting quote:', error)
+      toast.error('Erreur lors de la suppression du devis')
+    }
   }
 
   // Handle action completion from action panel
@@ -165,13 +249,16 @@ export function PrestataireInterventionDetailClient({
                 id: q.id,
                 status: q.status,
                 providerId: q.provider_id,
-                isCurrentUserQuote: q.provider_id === currentUser.id
+                isCurrentUserQuote: q.provider_id === currentUser.id,
+                amount: q.amount
               }))
             }}
             userRole="prestataire"
             userId={currentUser.id}
             onActionComplete={handleActionComplete}
             onOpenQuoteModal={handleOpenQuoteModal}
+            onRejectQuoteRequest={handleRejectQuoteRequest}
+            onCancelQuote={handleCancelQuote}
           />
         }
       />
@@ -271,6 +358,59 @@ export function PrestataireInterventionDetailClient({
               }}
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Quote Request Modal */}
+      <Dialog open={rejectQuoteModalOpen} onOpenChange={setRejectQuoteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeter la demande de devis</DialogTitle>
+            <DialogDescription>
+              Veuillez indiquer pourquoi vous ne pouvez pas répondre à cette demande de devis.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="rejection-reason">
+                Raison du rejet *
+              </Label>
+              <Textarea
+                id="rejection-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Ex: Intervention hors de ma zone géographique, compétences spécialisées requises, indisponible sur la période..."
+                className="min-h-[120px] mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Cette raison sera visible par le gestionnaire.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-sm text-amber-900">
+                <strong>Attention:</strong> Une fois rejetée, vous ne pourrez plus soumettre de devis pour cette demande.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectQuoteModalOpen(false)}
+              disabled={isRejecting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmRejectQuote}
+              disabled={!rejectionReason.trim() || isRejecting}
+            >
+              {isRejecting ? 'Rejet en cours...' : 'Confirmer le rejet'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

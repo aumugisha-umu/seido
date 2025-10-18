@@ -163,7 +163,7 @@ interface QuoteRequest {
   deadline?: string
   status: 'pending' | 'responded' | 'expired'
   has_quote?: boolean
-  quote_status?: 'pending' | 'approved' | 'rejected'
+  quote_status?: 'pending' | 'accepted' | 'rejected'
 }
 
 interface InterventionDetailTabsProps {
@@ -238,7 +238,7 @@ export function InterventionDetailTabs({
     // Pour les prestataires : intervention >= planification ET devis accepté
     if (userRole === 'prestataire') {
       const hasApprovedQuote = intervention.quotes.some(
-        quote => quote.providerId === userId && quote.status === 'approved'
+        quote => quote.providerId === userId && quote.status === 'accepted'
       )
       return hasApprovedQuote
     }
@@ -248,7 +248,7 @@ export function InterventionDetailTabs({
 
   // Fonction helper pour filtrer les prestataires avec devis accepté
   const getApprovedProviders = () => {
-    const approvedQuotes = intervention.quotes.filter(quote => quote.status === 'approved')
+    const approvedQuotes = intervention.quotes.filter(quote => quote.status === 'accepted')
     return approvedQuotes.map(quote => ({
       id: quote.providerId,
       name: quote.providerName,
@@ -579,7 +579,7 @@ export function InterventionDetailTabs({
                     {/* Prestataire assigné - Visible pour gestionnaires ou si devis accepté pour les autres */}
                     {intervention.assignedContact && (
                       userRole === 'gestionnaire' ||
-                      intervention.quotes?.some(q => q.providerId === intervention.assignedContact.id && q.status === 'approved')
+                      intervention.quotes?.some(q => q.providerId === intervention.assignedContact.id && q.status === 'accepted')
                     ) && (
                       <div className="flex items-center space-x-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">

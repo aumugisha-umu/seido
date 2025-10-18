@@ -150,10 +150,11 @@ export class ContactService {
 
   /**
    * Get all contacts for a user
+   * Phase 2: Returns lot_contacts assignments (not the user itself)
    */
   async getUserContacts(userId: string) {
     try {
-      const result = await this.repository.findByUser(userId)
+      const result = await this.repository.findLotContactsByUser(userId)
       return result
     } catch (error) {
       throw error

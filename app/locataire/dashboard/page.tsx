@@ -1,9 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Home,
-  Wrench,
-  User,
-  MessageCircle
+  Wrench
 } from "lucide-react"
 import { requireRole } from "@/lib/auth-dal"
 import {
@@ -123,15 +121,54 @@ export default async function LocataireDashboard() {
 
 
 
+  // Construire l'adresse complète avec toutes les informations
+  const buildingName = tenantData.building?.name || ''
+  const lotReference = tenantData.reference || ''
+  const apartmentNumber = tenantData.apartment_number || ''
+  const street = tenantData.building?.address || ''
+  const postalCode = tenantData.building?.postal_code || ''
+  const city = tenantData.building?.city || ''
+  const floor = tenantData.floor !== undefined ? `Étage ${tenantData.floor}` : ''
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-      {/* Page Header - Simple et centré */}
-      <div className="text-center lg:text-left mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {profile.display_name || profile.name} 👋</h1>
-            <p className="text-slate-600">Signalez vos problèmes ici et faites-en le suivi facilement</p>
+      {/* Header avec informations du logement */}
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex-1">
+            {/* Référence du lot + Nom de l'immeuble */}
+            <div className="flex items-center gap-3 mb-3">
+              <Home className="w-6 h-6 text-blue-600 flex-shrink-0" />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {lotReference}
+                  {buildingName && <span className="text-slate-600 font-normal"> • {buildingName}</span>}
+                </h1>
+              </div>
+            </div>
+
+            {/* Adresse complète */}
+            <div className="space-y-1 text-slate-600">
+              {street && (
+                <p className="text-base">
+                  {street}
+                  {(floor || apartmentNumber) && (
+                    <span className="text-slate-500">
+                      {floor && `, ${floor}`}
+                      {apartmentNumber && `, Porte ${apartmentNumber}`}
+                    </span>
+                  )}
+                </p>
+              )}
+              {(postalCode || city) && (
+                <p className="text-base">
+                  {postalCode} {city}
+                </p>
+              )}
+            </div>
           </div>
+
+          {/* Bouton créer demande */}
           <LocataireDashboardClient />
         </div>
       </div>
@@ -206,93 +243,6 @@ export default async function LocataireDashboard() {
         </Card>
       </section>
 
-      {/* Section 2: Informations du logement */}
-      <section>
-        <Card className="mb-8">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-slate-900">
-              <Home className="w-5 h-5" />
-              Informations du logement
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Nom / Référence */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Nom / Référence</p>
-                  <p className="font-semibold text-slate-900">
-                    {tenantData.building?.name || `Lot ${tenantData.reference}`}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    {tenantData.building ? tenantData.reference : `${tenantData.category || 'appartement'} • ${tenantData.reference}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Adresse */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Adresse</p>
-                  <p className="text-slate-900">
-                    {tenantData.building ?
-                      `${tenantData.building.address}, ${tenantData.building.postal_code} ${tenantData.building.city}` :
-                      'Lot indépendant'
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Gestionnaire */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Gestionnaire</p>
-                  <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-2 rounded-full">
-                    <User className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium">Jean Martin</span>
-                    <MessageCircle className="w-4 h-4 text-blue-600 opacity-70" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Informations supplémentaires du lot */}
-            {(tenantData.floor !== undefined || tenantData.rooms || tenantData.surface_area || tenantData.charges_amount) && (
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <h3 className="text-base font-medium text-slate-900 mb-4">Détails du logement</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {tenantData.floor !== undefined && (
-                    <div>
-                      <p className="text-sm text-slate-600">Étage</p>
-                      <p className="font-semibold text-slate-900">{tenantData.floor}</p>
-                    </div>
-                  )}
-                  {tenantData.rooms && (
-                    <div>
-                      <p className="text-sm text-slate-600">Pièces</p>
-                      <p className="font-semibold text-slate-900">{tenantData.rooms}</p>
-                    </div>
-                  )}
-                  {tenantData.surface_area && (
-                    <div>
-                      <p className="text-sm text-slate-600">Surface</p>
-                      <p className="font-semibold text-slate-900">{tenantData.surface_area} m²</p>
-                    </div>
-                  )}
-                  {tenantData.charges_amount && (
-                    <div>
-                      <p className="text-sm text-slate-600">Charges</p>
-                      <p className="font-semibold text-slate-900">{tenantData.charges_amount.toFixed(2)} €</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      
     </div>
   )
 }

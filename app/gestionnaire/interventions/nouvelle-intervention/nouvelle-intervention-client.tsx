@@ -769,7 +769,7 @@ export default function NouvelleInterventionClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
         {/* Header */}
         <StepProgressHeader
           title="Créer une intervention"
@@ -783,10 +783,6 @@ export default function NouvelleInterventionClient({
         {currentStep === 1 && (
           <div className="space-y-6">
             <div className="space-y-4">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-gray-900">Créer une intervention</h2>
-                <p className="text-gray-600">Sélectionnez le lot pour lequel vous souhaitez créer une intervention.</p>
-              </div>
               <PropertySelector
                 mode="select"
                 onBuildingSelect={handleBuildingSelect}
@@ -797,31 +793,12 @@ export default function NouvelleInterventionClient({
                 initialData={initialBuildingsData}
               />
             </div>
-
-            <div className="flex justify-end">
-              <Button onClick={handleNext} disabled={!selectedLogement} className="px-8">
-                Continuer
-              </Button>
-            </div>
           </div>
         )}
 
         {/* Step 2: Formulaire de description */}
         {currentStep === 2 && selectedLogement && (
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Home className="h-5 w-5 text-blue-600" />
-                    <span>Intervention sélectionnée</span>
-                  </CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {selectedLogement.type === "building" ? "Bâtiment" : "Lot"} sélectionné
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-2 mb-4">
                 <Building2 className="h-5 w-5 text-orange-500" />
@@ -832,116 +809,131 @@ export default function NouvelleInterventionClient({
                 <h4 className="font-medium mb-4">Décrire l'intervention</h4>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Titre du problème *</label>
-                    <Input
-                      placeholder="Ex: Fuite d'eau dans la salle de bain"
-                      value={formData.title}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                      className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Type de problème</label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
-                    >
-                      <SelectTrigger className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                        <SelectValue placeholder="Sélectionnez le type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROBLEM_TYPES.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Urgence</label>
-                    <Select
-                      value={formData.urgency}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, urgency: value }))}
-                    >
-                      <SelectTrigger className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                        <SelectValue placeholder="Sélectionnez l'urgence" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {URGENCY_LEVELS.map((level) => (
-                          <SelectItem key={level.value} value={level.value}>
-                            {level.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description détaillée *</label>
-                    <Textarea
-                      placeholder="Décrivez le problème en détail : où, quand, comment..."
-                      value={formData.description}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                      className="min-h-[100px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">
-                        Glissez-déposez vos fichiers ici ou cliquez pour sélectionner
-                      </p>
-                      <p className="text-xs text-gray-500 mb-4">
-                        Formats acceptés: JPG, PNG, PDF, DOC (max 10MB par fichier)
-                      </p>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="file-upload"
+                  {/* Titre (2/3) + Type & Urgence (1/3) - Aligné avec Description/File uploader */}
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+                    {/* Titre - Même largeur que Description */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Titre du problème *</label>
+                      <Input
+                        placeholder="Ex: Fuite d'eau dans la salle de bain"
+                        value={formData.title}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                        className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById("file-upload")?.click()}
-                      >
-                        Sélectionner des fichiers
-                      </Button>
                     </div>
 
-                    {files.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-sm font-medium text-gray-700">Fichiers sélectionnés:</p>
-                        {files.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <FileText className="h-4 w-4 text-gray-500" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeFile(index)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+                    {/* Type + Urgence - Partagent le 1/3 restant */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="min-w-0">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Type de problème</label>
+                        <Select
+                          value={formData.type}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
+                        >
+                          <SelectTrigger className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 w-full">
+                            <SelectValue placeholder="Sélectionnez le type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PROBLEM_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
+
+                      <div className="min-w-0">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Urgence</label>
+                        <Select
+                          value={formData.urgency}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, urgency: value }))}
+                        >
+                          <SelectTrigger className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 w-full">
+                            <SelectValue placeholder="Sélectionnez l'urgence" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {URGENCY_LEVELS.map((level) => (
+                              <SelectItem key={level.value} value={level.value}>
+                                {level.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description (70%) + File Uploader (30%) */}
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+                    {/* Description - Prend la majorité de l'espace */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Description détaillée *</label>
+                      <Textarea
+                        placeholder="Décrivez le problème en détail : où, quand, comment..."
+                        value={formData.description}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                        className="min-h-[180px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
+                      />
+                    </div>
+
+                    {/* File Uploader - Compact sur la droite */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-gray-400 transition-colors h-[180px] flex flex-col justify-center">
+                        <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs text-gray-600 mb-1">
+                          Glissez vos fichiers ici
+                        </p>
+                        <p className="text-[10px] text-gray-500 mb-3">
+                          JPG, PNG, PDF, DOC
+                          <br />
+                          (max 10MB)
+                        </p>
+                        <input
+                          type="file"
+                          multiple
+                          accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          id="file-upload"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById("file-upload")?.click()}
+                          className="mx-auto"
+                        >
+                          Parcourir
+                        </Button>
+                      </div>
+
+                      {files.length > 0 && (
+                        <div className="mt-3 space-y-1.5 max-h-[120px] overflow-y-auto">
+                          {files.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
+                              <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                <FileText className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-gray-900 truncate">{file.name}</p>
+                                  <p className="text-[10px] text-gray-500">{formatFileSize(file.size)}</p>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFile(index)}
+                                className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -979,15 +971,6 @@ export default function NouvelleInterventionClient({
                   </div>
                 )}
               </div>
-
-              <div className="flex justify-between pt-6">
-                <Button variant="outline" onClick={handleBack}>
-                  Retour
-                </Button>
-                <Button onClick={handleNext} disabled={!formData.title || !formData.description} className="px-8">
-                  Continuer
-                </Button>
-              </div>
             </CardContent>
           </Card>
         )}
@@ -1022,19 +1005,6 @@ export default function NouvelleInterventionClient({
               teamId={currentUserTeam?.id || ""}
               isLoading={loading}
             />
-
-            <div className="flex justify-between pt-6 mt-6 border-t">
-              <Button variant="outline" onClick={handleBack}>
-                Retour
-              </Button>
-              <Button
-                onClick={handleNext}
-                disabled={selectedManagerIds.length === 0}
-                className="px-8"
-              >
-                Continuer
-              </Button>
-            </div>
           </Card>
         )}
 
@@ -1417,34 +1387,63 @@ export default function NouvelleInterventionClient({
                       <p className="text-red-700 mt-1">{error}</p>
                     </div>
                   )}
-
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(3)} disabled={isCreating}>
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Retour
-                    </Button>
-                    <Button 
-                      onClick={handleCreateIntervention} 
-                      className="bg-green-600 hover:bg-green-700"
-                      disabled={isCreating}
-                    >
-                      {isCreating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                          Création...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Créer l'intervention
-                        </>
-                      )}
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             )
           })()}
+
+        {/* Sticky Navigation - Always visible at bottom */}
+        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-4 mt-2 max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
+          <div className="flex flex-col sm:flex-row justify-between gap-2">
+            {/* Back Button - Show from step 2 onwards */}
+            {currentStep > 1 && (
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={isCreating}
+                className="w-full sm:w-auto"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Retour
+              </Button>
+            )}
+
+            {/* Next/Submit Button - Always show */}
+            <Button
+              onClick={() => {
+                if (currentStep === 4) {
+                  handleCreateIntervention()
+                } else {
+                  handleNext()
+                }
+              }}
+              disabled={
+                (currentStep === 1 && !selectedLogement) ||
+                (currentStep === 2 && (!formData.title || !formData.description)) ||
+                (currentStep === 3 && selectedManagerIds.length === 0) ||
+                isCreating
+              }
+              className={`w-full sm:w-auto ml-auto ${
+                currentStep === 4 ? 'bg-green-600 hover:bg-green-700' : ''
+              }`}
+            >
+              {isCreating && currentStep === 4 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Création...
+                </>
+              ) : (
+                <>
+                  {currentStep === 4 && <CheckCircle className="h-4 w-4 mr-2" />}
+                  {currentStep === 1 && "Continuer"}
+                  {currentStep === 2 && "Continuer"}
+                  {currentStep === 3 && "Continuer"}
+                  {currentStep === 4 && "Créer l'intervention"}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
 
         <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
           <DialogContent className="sm:max-w-md">

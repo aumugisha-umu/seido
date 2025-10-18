@@ -38,16 +38,34 @@ export const StepProgressHeader = ({
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
 
   return (
-    <div className="sticky top-20 z-40 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-4 mb-3 max-w-7xl mx-4 sm:mx-6 xl:mx-auto space-y-3">
-        {/* Header with Title and Back Button */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+    <div className="sticky top-20 z-40 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-3 mb-2 max-w-7xl mx-4 sm:mx-6 xl:mx-auto space-y-2">
+        {/* Single Line Header: Title (left) + Step Info (center) + Back Button (right) */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Page Title */}
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex-shrink-0">
             {title}
           </h1>
+
+          {/* Center: Current Step Info with Icon */}
+          <div className="flex items-center gap-2 flex-1 justify-center min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-200 flex-shrink-0">
+              <currentStepData.icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
+                Étape {currentStep} sur {steps.length}
+              </p>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">
+                {currentStepData.label}
+              </h2>
+            </div>
+          </div>
+
+          {/* Right: Back Button */}
           <Button
             variant="ghost"
             onClick={onBack}
-            className="px-3 py-1.5 hover:bg-gray-100"
+            className="px-3 py-1.5 hover:bg-gray-100 flex-shrink-0"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">{backButtonText}</span>
@@ -55,33 +73,7 @@ export const StepProgressHeader = ({
         </div>
 
         {/* Main Progress Section */}
-        <div className="space-y-2">
-        {/* Current Step Info - Compact */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-200">
-              <currentStepData.icon className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
-                Étape {currentStep} sur {steps.length}
-              </p>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                {currentStepData.label}
-              </h2>
-            </div>
-          </div>
-
-          {/* Progress Percentage - Desktop */}
-          <div className="hidden sm:flex flex-col items-end">
-            <span className="text-2xl font-bold text-blue-600">
-              {Math.round(progressPercentage)}%
-            </span>
-            <span className="text-[10px] text-gray-500 uppercase tracking-wide">
-              Progression
-            </span>
-          </div>
-        </div>
+        <div className="space-y-2 mt-5">
 
         {/* Progress Bar - Compact */}
         <div className="px-12">

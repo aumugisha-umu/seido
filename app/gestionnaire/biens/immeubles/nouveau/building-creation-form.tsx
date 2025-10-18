@@ -965,7 +965,7 @@ export default function NewImmeubleePage({
         )}
 
         {/* Sticky Navigation - Always visible at bottom */}
-        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-4 mt-3 max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
+        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-4 mt-2 max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
           <div className="flex flex-col sm:flex-row justify-between gap-2">
               {/* Back Button - Only show from step 2 onwards */}
               {currentStep > 1 && (

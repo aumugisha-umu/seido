@@ -13,7 +13,8 @@
       "Bash(for file in approval-modal.tsx multi-quote-request-modal.tsx quote-request-modal.tsx)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(done)",
-      "Bash(git ls-tree -r refacto --name-only)"
+      "Bash(git ls-tree -r refacto --name-only)",
+      "Bash(git ls-tree -r optimization --name-only)"
     ],
     "deny": [],
     "ask": []

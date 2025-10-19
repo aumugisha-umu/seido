@@ -208,27 +208,82 @@ export function SimplifiedFinalizationModal({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Helper to get detailed error messages based on status code
+  const getDetailedErrorMessage = useCallback((status: number, apiError?: string): string => {
+    switch (status) {
+      case 400:
+        return apiError || 'Cette intervention ne peut pas être finalisée dans son état actuel'
+      case 401:
+        return 'Session expirée. Veuillez vous reconnecter'
+      case 403:
+        return 'Vous n\'êtes pas autorisé à finaliser cette intervention'
+      case 404:
+        return 'Intervention non trouvée'
+      case 500:
+        return 'Erreur serveur. Veuillez réessayer plus tard'
+      default:
+        return apiError || 'Erreur lors du chargement du contexte'
+    }
+  }, [])
+
   // Define fetchFinalizationContext BEFORE using it in useEffect
   const fetchFinalizationContext = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
+      // Validate interventionId before fetching
+      if (!interventionId || interventionId === 'undefined' || interventionId === 'null') {
+        throw new Error('ID d\'intervention invalide')
+      }
+
+      logger.info('🔄 Fetching finalization context for intervention:', interventionId)
+
       const response = await fetch(`/api/intervention/${interventionId}/finalization-context`)
-      const result = await response.json()
+
+      logger.info('📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      // Try to parse JSON even if response is not ok
+      let result
+      try {
+        result = await response.json()
+        logger.info('📦 Response data:', {
+          success: result.success,
+          hasError: !!result.error,
+          error: result.error
+        })
+      } catch (parseError) {
+        logger.error('Failed to parse JSON response:', parseError)
+        throw new Error('Réponse serveur invalide')
+      }
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Erreur lors du chargement du contexte')
+        const errorMessage = getDetailedErrorMessage(response.status, result.error)
+        throw new Error(errorMessage)
       }
 
       setContextData(result.data)
+      logger.info('✅ Finalization context loaded successfully')
+
     } catch (err) {
-      logger.error('Error fetching finalization context:', err)
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
+      logger.error('❌ Error fetching finalization context:', err)
+
+      // Distinguish between different error types
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('Erreur de connexion au serveur. Vérifiez votre connexion internet.')
+      } else if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Erreur inconnue lors du chargement')
+      }
     } finally {
       setLoading(false)
     }
-  }, [interventionId])
+  }, [interventionId, getDetailedErrorMessage])
 
   // Fetch finalization context
   useEffect(() => {
@@ -396,25 +451,120 @@ export function SimplifiedFinalizationModal({
 
   // Error state
   if (error || !contextData) {
+    const showStatusHelp = error?.includes('état actuel')
+    const showAuthHelp = error?.includes('autorisé') || error?.includes('Session expirée')
+    const showConnectionHelp = error?.includes('connexion')
+
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <VisuallyHidden>
             <DialogTitle>Erreur de chargement de la finalisation</DialogTitle>
           </VisuallyHidden>
-          <div className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-red-600 mb-2">Erreur de chargement</h3>
-            <p className="text-sm text-gray-600 mb-6">{error || 'Impossible de charger les données'}</p>
+          <div className="p-6 space-y-6">
+            {/* Error Icon and Message */}
+            <div className="text-center space-y-3">
+              <AlertTriangle className="h-16 w-16 text-red-500 mx-auto" />
+              <h3 className="text-xl font-semibold text-gray-900">
+                Erreur de chargement
+              </h3>
+              <p className="text-sm text-gray-600 max-w-md mx-auto">
+                {error || 'Impossible de charger les données'}
+              </p>
+            </div>
+
+            {/* Contextual Help - Status Issue */}
+            {showStatusHelp && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-left space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center mt-0.5">
+                    <span className="text-white text-xs font-bold">ℹ</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-amber-900 font-medium mb-2">
+                      Statuts requis pour la finalisation
+                    </p>
+                    <ul className="text-xs text-amber-800 space-y-1">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span>Clôturée par le prestataire</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span>Clôturée par le locataire</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span>Contestée</span>
+                      </li>
+                    </ul>
+                    <p className="text-xs text-amber-700 mt-2 italic">
+                      L'intervention doit d'abord être complétée et validée par les parties concernées.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Contextual Help - Authorization Issue */}
+            {showAuthHelp && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center mt-0.5">
+                    <span className="text-white text-xs font-bold">ℹ</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-900 font-medium mb-2">
+                      Accès restreint aux gestionnaires
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      {error?.includes('Session expirée')
+                        ? 'Votre session a expiré. Veuillez vous reconnecter pour continuer.'
+                        : 'Seuls les gestionnaires peuvent finaliser les interventions. Si vous pensez avoir les autorisations nécessaires, contactez votre administrateur.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Contextual Help - Connection Issue */}
+            {showConnectionHelp && (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg text-left space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center mt-0.5">
+                    <span className="text-white text-xs font-bold">⚠</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-orange-900 font-medium mb-2">
+                      Problème de connexion
+                    </p>
+                    <ul className="text-xs text-orange-800 space-y-1">
+                      <li>• Vérifiez votre connexion internet</li>
+                      <li>• Assurez-vous que le serveur est accessible</li>
+                      <li>• Essayez de rafraîchir la page si le problème persiste</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-center pt-2">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="min-w-[120px]"
+              >
+                Fermer
+              </Button>
+              <Button
+                onClick={fetchFinalizationContext}
+                className="bg-sky-600 hover:bg-sky-700 min-w-[120px]"
+              >
+                Réessayer
+              </Button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              Fermer
-            </Button>
-            <Button onClick={fetchFinalizationContext}>
-              Réessayer
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     )

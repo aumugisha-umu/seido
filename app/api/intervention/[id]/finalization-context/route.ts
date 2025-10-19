@@ -48,16 +48,43 @@ export async function GET(
     }
 
     // Get user from database
-    const user = await userService.findByAuthUserId(authUser.id)
-    if (!user) {
+    const userResult = await userService.findByAuthUserId(authUser.id)
+
+    // Handle service errors
+    if (!userResult.success) {
+      logger.error({ error: userResult.error }, '❌ Failed to fetch user from database')
+      return NextResponse.json({
+        success: false,
+        error: 'Erreur lors de la récupération de l\'utilisateur'
+      }, { status: 500 })
+    }
+
+    // Verify user exists
+    if (!userResult.data) {
+      logger.warn({ authUserId: authUser.id }, '⚠️ User not found for auth_user_id')
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
       }, { status: 404 })
     }
 
+    // Extract user object from result
+    const user = userResult.data
+
+    logger.info({
+      userId: user.id,
+      userRole: user.role,
+      userEmail: user.email,
+      teamId: user.team_id
+    }, '✅ User retrieved successfully')
+
     // Check if user is gestionnaire
     if (user.role !== 'gestionnaire') {
+      logger.warn({
+        userId: user.id,
+        userRole: user.role,
+        expectedRole: 'gestionnaire'
+      }, '⛔ Access denied - user is not gestionnaire')
       return NextResponse.json({
         success: false,
         error: 'Seuls les gestionnaires peuvent accéder au contexte de finalisation'

@@ -6,6 +6,7 @@ import {
   type InterventionAction,
   type PlanningData
 } from "@/lib/intervention-actions-service"
+import { programInterventionAction } from "@/app/actions/intervention-actions"
 
 interface PlanningModal {
   isOpen: boolean
@@ -127,11 +128,17 @@ export const useInterventionPlanning = () => {
     }
 
     try {
-      // L'API gère maintenant correctement les 3 scénarios
-      await interventionActionsService.programIntervention(
-        programmingModal.intervention,
+      // ✅ FIX AUTH BUG: Use Server Action instead of client-side fetch
+      logger.info("📅 Using Server Action for programming intervention")
+
+      const result = await programInterventionAction(
+        programmingModal.intervention.id,
         planningData
       )
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erreur lors de la planification')
+      }
 
       // Fermer la modale
       setProgrammingModal({ isOpen: false, intervention: null })

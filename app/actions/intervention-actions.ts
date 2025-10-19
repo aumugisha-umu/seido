@@ -1040,3 +1040,249 @@ export async function getMyInterventionsAction(): Promise<ActionResult<Intervent
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
   }
 }
+
+/**
+ * Program intervention with 3 modes: direct, propose, organize
+ * 🔥 FIX AUTH BUG: This Server Action maintains auth context
+ */
+export async function programInterventionAction(
+  interventionId: string,
+  planningData: {
+    option: 'direct' | 'propose' | 'organize'
+    directSchedule?: {
+      date: string
+      startTime: string
+      endTime: string
+    }
+    proposedSlots?: Array<{
+      date: string
+      startTime: string
+      endTime: string
+    }>
+  }
+): Promise<ActionResult<Intervention>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Only managers can program interventions
+    if (!['gestionnaire', 'admin'].includes(user.role)) {
+      logger.warn('⚠️ [SERVER-ACTION] Non-manager tried to program intervention:', {
+        userId: user.id,
+        userRole: user.role
+      })
+      return { success: false, error: 'Seuls les gestionnaires peuvent planifier les interventions' }
+    }
+
+    logger.info('📅 [SERVER-ACTION] Programming intervention:', {
+      interventionId,
+      planningMode: planningData.option,
+      userId: user.id
+    })
+
+    // Get Supabase client
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get intervention details - SIMPLIFIED query to avoid RLS issues
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select('*')
+      .eq('id', interventionId)
+      .single()
+
+    if (interventionError || !intervention) {
+      logger.error('❌ [SERVER-ACTION] Intervention not found:', {
+        error: interventionError,
+        interventionId,
+        errorCode: interventionError?.code,
+        errorMessage: interventionError?.message,
+        errorDetails: interventionError?.details
+      })
+      return {
+        success: false,
+        error: interventionError?.message || 'Intervention non trouvée'
+      }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Intervention found:', {
+      id: intervention.id,
+      status: intervention.status,
+      team_id: intervention.team_id
+    })
+
+    // Check if intervention can be scheduled
+    if (!['approuvee', 'planification'].includes(intervention.status)) {
+      return {
+        success: false,
+        error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`
+      }
+    }
+
+    // Check if user belongs to intervention team
+    if (intervention.team_id && user.team_id !== intervention.team_id) {
+      return {
+        success: false,
+        error: 'Vous n\'êtes pas autorisé à modifier cette intervention'
+      }
+    }
+
+    const { option, directSchedule, proposedSlots } = planningData
+
+    // Handle different planning types
+    switch (option) {
+      case 'direct': {
+        // Direct appointment - create time slot, wait for confirmation
+        if (!directSchedule || !directSchedule.date || !directSchedule.startTime) {
+          return {
+            success: false,
+            error: 'Date et heure sont requises pour fixer le rendez-vous'
+          }
+        }
+
+        // Calculate end_time: use provided endTime or add 1 hour by default
+        // This respects the DB constraint: end_time > start_time
+        let calculatedEndTime = directSchedule.endTime
+        if (!calculatedEndTime || calculatedEndTime === directSchedule.startTime) {
+          // Add 1 hour to start_time as default duration
+          const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
+          const endHours = (hours + 1) % 24
+          calculatedEndTime = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+        }
+
+        // Delete any existing slots first
+        await supabase
+          .from('intervention_time_slots')
+          .delete()
+          .eq('intervention_id', interventionId)
+
+        // Create ONE time slot for the fixed appointment
+        const { error: insertSlotError } = await supabase
+          .from('intervention_time_slots')
+          .insert([{
+            intervention_id: interventionId,
+            slot_date: directSchedule.date,
+            start_time: directSchedule.startTime,
+            end_time: calculatedEndTime, // ✅ end_time > start_time (constraint respected)
+            is_selected: false, // Not yet confirmed by tenant/provider
+            proposed_by: user.id, // Gestionnaire who proposed it
+            notes: 'Rendez-vous fixé par le gestionnaire'
+          }])
+
+        if (insertSlotError) {
+          logger.error('❌ [SERVER-ACTION] Error creating appointment slot:', insertSlotError)
+          return { success: false, error: 'Erreur lors de la création du rendez-vous' }
+        }
+
+        logger.info('📅 [SERVER-ACTION] Direct appointment slot created:', {
+          start: directSchedule.startTime,
+          end: calculatedEndTime
+        })
+        break
+      }
+
+      case 'propose': {
+        // Propose multiple slots for tenant/provider selection
+        if (!proposedSlots || proposedSlots.length === 0) {
+          return {
+            success: false,
+            error: 'Des créneaux proposés sont requis pour la planification avec choix'
+          }
+        }
+
+        // Delete any existing slots first
+        await supabase
+          .from('intervention_time_slots')
+          .delete()
+          .eq('intervention_id', interventionId)
+
+        // Store proposed time slots with proposed_by field
+        const timeSlots = proposedSlots.map((slot) => ({
+          intervention_id: interventionId,
+          slot_date: slot.date,
+          start_time: slot.startTime,
+          end_time: slot.endTime,
+          is_selected: false, // Not yet confirmed
+          proposed_by: user.id // Gestionnaire who proposed these slots
+        }))
+
+        const { error: insertSlotsError } = await supabase
+          .from('intervention_time_slots')
+          .insert(timeSlots)
+
+        if (insertSlotsError) {
+          logger.error('❌ [SERVER-ACTION] Error inserting time slots:', insertSlotsError)
+          return { success: false, error: 'Erreur lors de la création des créneaux' }
+        }
+
+        logger.info('📅 [SERVER-ACTION] Proposed slots created:', { slotsCount: timeSlots.length })
+        break
+      }
+
+      case 'organize': {
+        // Autonomous organization - tenant and provider coordinate directly
+        logger.info('📅 [SERVER-ACTION] Organization mode - autonomous coordination')
+        break
+      }
+
+      default:
+        return {
+          success: false,
+          error: 'Type de planification non reconnu'
+        }
+    }
+
+    // Build manager comment
+    const managerCommentParts = []
+    if (option === 'direct' && directSchedule) {
+      managerCommentParts.push(`Rendez-vous proposé pour le ${directSchedule.date} à ${directSchedule.startTime}`)
+    } else if (option === 'propose' && proposedSlots) {
+      managerCommentParts.push(`${proposedSlots.length} créneaux proposés`)
+    } else if (option === 'organize') {
+      managerCommentParts.push(`Planification autonome activée`)
+    }
+
+    // Update intervention status to 'planification'
+    const updateData: any = {
+      status: 'planification' as InterventionStatus,
+      updated_at: new Date().toISOString()
+    }
+
+    if (managerCommentParts.length > 0) {
+      const existingComment = intervention.manager_comment || ''
+      updateData.manager_comment = existingComment + (existingComment ? ' | ' : '') + managerCommentParts.join(' | ')
+    }
+
+    const { data: updatedIntervention, error: updateError } = await supabase
+      .from('interventions')
+      .update(updateData)
+      .eq('id', interventionId)
+      .select()
+      .single()
+
+    if (updateError) {
+      logger.error('❌ [SERVER-ACTION] Error updating intervention:', updateError)
+      return { success: false, error: 'Erreur lors de la mise à jour de l\'intervention' }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully')
+
+    // Revalidate intervention pages
+    revalidatePath('/gestionnaire/interventions')
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath('/locataire/interventions')
+    revalidatePath(`/locataire/interventions/${interventionId}`)
+    revalidatePath('/prestataire/interventions')
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: updatedIntervention }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error programming intervention:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}

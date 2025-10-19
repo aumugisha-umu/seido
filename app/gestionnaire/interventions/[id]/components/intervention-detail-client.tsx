@@ -227,6 +227,14 @@ export function InterventionDetailClient({
               )
             })()}
           </TabsTrigger>
+          <TabsTrigger value="time-slots" className="relative">
+            Exécution
+            {getBadgeCount('time-slots') && (
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
+                {getBadgeCount('time-slots')}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="chat" className="relative">
             Discussion
             {getBadgeCount('chat') && (
@@ -240,14 +248,6 @@ export function InterventionDetailClient({
             {getBadgeCount('documents') && (
               <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
                 {getBadgeCount('documents')}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="time-slots" className="relative">
-            Créneaux
-            {getBadgeCount('time-slots') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                {getBadgeCount('time-slots')}
               </span>
             )}
           </TabsTrigger>
@@ -272,6 +272,15 @@ export function InterventionDetailClient({
           />
         </TabsContent>
 
+        <TabsContent value="time-slots" className="space-y-6">
+          <TimeSlotsTab
+            interventionId={intervention.id}
+            timeSlots={timeSlots}
+            currentStatus={intervention.status}
+            canManage={true}
+          />
+        </TabsContent>
+
         <TabsContent value="chat" className="space-y-6">
           <ChatTab
             interventionId={intervention.id}
@@ -283,15 +292,6 @@ export function InterventionDetailClient({
           <DocumentsTab
             interventionId={intervention.id}
             documents={documents}
-            canManage={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="time-slots" className="space-y-6">
-          <TimeSlotsTab
-            interventionId={intervention.id}
-            timeSlots={timeSlots}
-            currentStatus={intervention.status}
             canManage={true}
           />
         </TabsContent>

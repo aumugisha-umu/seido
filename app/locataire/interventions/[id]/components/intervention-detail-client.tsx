@@ -25,6 +25,7 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 // Modals
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
+import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
@@ -340,6 +341,7 @@ export function LocataireInterventionDetailClient({
             }}
             onOpenProgrammingModal={handleOpenProgrammingModalWithData}
             onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+            onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
             currentUserId={currentUser?.id}
           />
         </TabsContent>
@@ -378,6 +380,15 @@ export function LocataireInterventionDetailClient({
         isOpen={planning.cancelSlotModal.isOpen}
         onClose={planning.closeCancelSlotModal}
         slot={planning.cancelSlotModal.slot}
+        interventionId={intervention.id}
+        onSuccess={handleActionComplete}
+      />
+
+      {/* Reject Slot Modal */}
+      <RejectSlotModal
+        isOpen={planning.rejectSlotModal.isOpen}
+        onClose={planning.closeRejectSlotModal}
+        slot={planning.rejectSlotModal.slot}
         interventionId={intervention.id}
         onSuccess={handleActionComplete}
       />

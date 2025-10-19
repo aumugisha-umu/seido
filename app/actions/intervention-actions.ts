@@ -965,6 +965,29 @@ export async function selectTimeSlotAction(
       userId: user.id
     })
 
+    // Validate that the slot meets requirements (1 tenant + provider accepted)
+    const supabase = await createServerActionSupabaseClient()
+    const { data: canFinalize, error: validationError } = await supabase.rpc(
+      'check_timeslot_can_be_finalized',
+      { slot_id_param: slotId }
+    )
+
+    if (validationError) {
+      logger.error('❌ Error checking slot validation:', validationError)
+      return {
+        success: false,
+        error: 'Erreur lors de la validation du créneau'
+      }
+    }
+
+    if (!canFinalize) {
+      logger.warn('⚠️ Slot validation requirements not met')
+      return {
+        success: false,
+        error: 'Validation incomplète : au moins 1 locataire ET le prestataire doivent accepter ce créneau'
+      }
+    }
+
     // Create service and execute
     const interventionService = await createServerActionInterventionService()
     const result = await interventionService.selectTimeSlot(interventionId, slotId, user.id)
@@ -1106,6 +1129,321 @@ export async function cancelTimeSlotAction(
     return { success: true, data: undefined }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error cancelling time slot:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * TIME SLOT RESPONSE ACTIONS - Granular Accept/Reject Tracking
+ */
+
+/**
+ * Accept a time slot
+ * Creates or updates a time_slot_response with response='accepted'
+ *
+ * Permissions:
+ * - Team members (managers) can accept
+ * - Tenants assigned via intervention_assignments can accept
+ * - Providers assigned via intervention_assignments can accept
+ * - Cannot accept own proposed slot
+ */
+export async function acceptTimeSlotAction(
+  slotId: string,
+  interventionId: string
+): Promise<ActionResult<void>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Accepting time slot:', {
+      slotId,
+      interventionId,
+      userId: user.id,
+      userRole: user.role
+    })
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get the time slot
+    const { data: slot, error: fetchError } = await supabase
+      .from('intervention_time_slots')
+      .select('*')
+      .eq('id', slotId)
+      .eq('intervention_id', interventionId)
+      .single()
+
+    if (fetchError || !slot) {
+      logger.error('❌ Time slot not found:', fetchError)
+      return { success: false, error: 'Créneau introuvable' }
+    }
+
+    // Cannot accept own slot
+    if (slot.proposed_by === user.id) {
+      return {
+        success: false,
+        error: 'Vous ne pouvez pas accepter votre propre créneau'
+      }
+    }
+
+    // Cannot accept if slot is cancelled
+    if (slot.status === 'cancelled' || slot.status === 'rejected') {
+      return {
+        success: false,
+        error: 'Ce créneau a été annulé ou rejeté'
+      }
+    }
+
+    // Upsert response (INSERT or UPDATE if already exists)
+    const { error: upsertError } = await supabase
+      .from('time_slot_responses')
+      .upsert({
+        time_slot_id: slotId,
+        user_id: user.id,
+        user_role: user.role,
+        response: 'accepted',
+        notes: null, // Optional for acceptance
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'time_slot_id,user_id'
+      })
+
+    if (upsertError) {
+      logger.error('❌ Error creating/updating response:', upsertError)
+      return { success: false, error: 'Erreur lors de l\'enregistrement de votre réponse' }
+    }
+
+    // Log activity
+    await supabase
+      .from('activity_logs')
+      .insert({
+        intervention_id: interventionId,
+        user_id: user.id,
+        action: 'time_slot_accepted',
+        details: {
+          slot_id: slotId,
+          user_role: user.role
+        }
+      })
+
+    logger.info('✅ [SERVER-ACTION] Time slot accepted successfully')
+
+    // Revalidate intervention pages
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath(`/locataire/interventions/${interventionId}`)
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error accepting time slot:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Reject a time slot with mandatory reason
+ * Creates or updates a time_slot_response with response='rejected'
+ *
+ * Permissions: Same as acceptTimeSlotAction
+ * Note: If rejecting a slot proposed by same role group → auto-cancels slot (handled by trigger)
+ */
+export async function rejectTimeSlotAction(
+  slotId: string,
+  interventionId: string,
+  reason: string
+): Promise<ActionResult<void>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate reason
+    if (!reason || reason.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Une raison est requise pour rejeter un créneau'
+      }
+    }
+
+    logger.info('❌ [SERVER-ACTION] Rejecting time slot:', {
+      slotId,
+      interventionId,
+      userId: user.id,
+      userRole: user.role,
+      reason: reason.substring(0, 50) + '...'
+    })
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get the time slot
+    const { data: slot, error: fetchError } = await supabase
+      .from('intervention_time_slots')
+      .select('*')
+      .eq('id', slotId)
+      .eq('intervention_id', interventionId)
+      .single()
+
+    if (fetchError || !slot) {
+      logger.error('❌ Time slot not found:', fetchError)
+      return { success: false, error: 'Créneau introuvable' }
+    }
+
+    // Cannot reject own slot
+    if (slot.proposed_by === user.id) {
+      return {
+        success: false,
+        error: 'Vous ne pouvez pas rejeter votre propre créneau'
+      }
+    }
+
+    // Cannot reject if already cancelled
+    if (slot.status === 'cancelled') {
+      return {
+        success: false,
+        error: 'Ce créneau est déjà annulé'
+      }
+    }
+
+    // Upsert response (INSERT or UPDATE if already exists)
+    const { error: upsertError } = await supabase
+      .from('time_slot_responses')
+      .upsert({
+        time_slot_id: slotId,
+        user_id: user.id,
+        user_role: user.role,
+        response: 'rejected',
+        notes: reason.trim(),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'time_slot_id,user_id'
+      })
+
+    if (upsertError) {
+      logger.error('❌ Error creating/updating rejection:', upsertError)
+      return { success: false, error: 'Erreur lors de l\'enregistrement de votre réponse' }
+    }
+
+    // Log activity
+    await supabase
+      .from('activity_logs')
+      .insert({
+        intervention_id: interventionId,
+        user_id: user.id,
+        action: 'time_slot_rejected',
+        details: {
+          slot_id: slotId,
+          user_role: user.role,
+          reason: reason
+        }
+      })
+
+    logger.info('✅ [SERVER-ACTION] Time slot rejected successfully')
+
+    // Revalidate intervention pages
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath(`/locataire/interventions/${interventionId}`)
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error rejecting time slot:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Withdraw a previous response to a time slot
+ * Deletes the user's time_slot_response (accept or reject)
+ *
+ * Permissions: User can only withdraw their own responses
+ */
+export async function withdrawResponseAction(
+  slotId: string,
+  interventionId: string
+): Promise<ActionResult<void>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    logger.info('🔄 [SERVER-ACTION] Withdrawing response:', {
+      slotId,
+      interventionId,
+      userId: user.id
+    })
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get the existing response
+    const { data: existingResponse, error: fetchError } = await supabase
+      .from('time_slot_responses')
+      .select('*')
+      .eq('time_slot_id', slotId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (fetchError || !existingResponse) {
+      return {
+        success: false,
+        error: 'Aucune réponse à retirer'
+      }
+    }
+
+    // Update response to 'pending' (instead of deleting)
+    const { error: updateError } = await supabase
+      .from('time_slot_responses')
+      .update({
+        response: 'pending',
+        notes: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('time_slot_id', slotId)
+      .eq('user_id', user.id)
+
+    if (updateError) {
+      logger.error('❌ Error updating response to pending:', updateError)
+      return { success: false, error: 'Erreur lors du retrait de votre réponse' }
+    }
+
+    // Log activity
+    await supabase
+      .from('activity_logs')
+      .insert({
+        intervention_id: interventionId,
+        user_id: user.id,
+        action: 'time_slot_response_withdrawn',
+        details: {
+          slot_id: slotId,
+          previous_response: existingResponse.response,
+          user_role: user.role
+        }
+      })
+
+    logger.info('✅ [SERVER-ACTION] Response withdrawn successfully')
+
+    // Revalidate intervention pages
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath(`/locataire/interventions/${interventionId}`)
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error withdrawing response:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'

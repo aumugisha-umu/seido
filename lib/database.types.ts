@@ -847,6 +847,9 @@ export type Database = {
           is_selected: boolean | null
           notes: string | null
           proposed_by: string | null
+          rejected_by_manager: boolean
+          rejected_by_provider: boolean
+          rejected_by_tenant: boolean
           selected_by_manager: boolean
           selected_by_provider: boolean
           selected_by_tenant: boolean
@@ -864,6 +867,9 @@ export type Database = {
           is_selected?: boolean | null
           notes?: string | null
           proposed_by?: string | null
+          rejected_by_manager?: boolean
+          rejected_by_provider?: boolean
+          rejected_by_tenant?: boolean
           selected_by_manager?: boolean
           selected_by_provider?: boolean
           selected_by_tenant?: boolean
@@ -881,6 +887,9 @@ export type Database = {
           is_selected?: boolean | null
           notes?: string | null
           proposed_by?: string | null
+          rejected_by_manager?: boolean
+          rejected_by_provider?: boolean
+          rejected_by_tenant?: boolean
           selected_by_manager?: boolean
           selected_by_provider?: boolean
           selected_by_tenant?: boolean
@@ -1471,6 +1480,54 @@ export type Database = {
           },
         ]
       }
+      time_slot_responses: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          response: Database["public"]["Enums"]["response_type"]
+          time_slot_id: string
+          updated_at: string
+          user_id: string
+          user_role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          response: Database["public"]["Enums"]["response_type"]
+          time_slot_id: string
+          updated_at?: string
+          user_id: string
+          user_role: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          response?: Database["public"]["Enums"]["response_type"]
+          time_slot_id?: string
+          updated_at?: string
+          user_id?: string
+          user_role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_slot_responses_time_slot_id_fkey"
+            columns: ["time_slot_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_time_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_slot_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_invitations: {
         Row: {
           accepted_at: string | null
@@ -1770,6 +1827,10 @@ export type Database = {
         Args: { p_report_id: string }
         Returns: boolean
       }
+      check_timeslot_can_be_finalized: {
+        Args: { slot_id_param: string }
+        Returns: boolean
+      }
       expire_old_invitations: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -1979,6 +2040,7 @@ export type Database = {
         | "syndic"
         | "proprietaire"
         | "autre"
+      response_type: "accepted" | "rejected" | "pending"
       team_member_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
       time_slot_status:
         | "requested"
@@ -2245,6 +2307,7 @@ export const Constants = {
         "proprietaire",
         "autre",
       ],
+      response_type: ["accepted", "rejected", "pending"],
       team_member_role: ["admin", "gestionnaire", "locataire", "prestataire"],
       time_slot_status: [
         "requested",

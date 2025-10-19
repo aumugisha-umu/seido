@@ -9,6 +9,7 @@ import {
   Clock,
   UserCheck,
   AlertTriangle,
+  AlertCircle,
   TrendingUp,
   FileText,
   Euro,
@@ -75,7 +76,7 @@ interface ActionConfig {
   key: string
   label: string
   icon: React.ComponentType<{ className?: string }>
-  variant: 'default' | 'destructive' | 'outline' | 'outlined-danger' | 'secondary' | 'ghost'
+  variant?: 'default' | 'destructive' | 'outline' | 'outlined-danger' | 'secondary' | 'ghost' // Optional: getActionStyling() calculates this automatically
   description: string
   requiresComment?: boolean
   confirmationMessage?: string
@@ -160,7 +161,6 @@ export function InterventionActionPanelHeader({
               key: 'approve',
               label: 'Approuver',
               icon: CheckCircle,
-              variant: 'default',
               description: 'Approuver cette demande d\'intervention',
               requiresComment: false,
               confirmationMessage: 'Êtes-vous sûr de vouloir approuver cette intervention ?'
@@ -169,7 +169,6 @@ export function InterventionActionPanelHeader({
               key: 'reject',
               label: 'Rejeter',
               icon: XCircle,
-              variant: 'destructive',
               description: 'Rejeter cette demande avec un motif',
               requiresComment: true,
               confirmationMessage: 'Cette intervention sera rejetée. Veuillez indiquer le motif.'
@@ -185,14 +184,12 @@ export function InterventionActionPanelHeader({
               key: 'request_quotes',
               label: 'Demander des devis',
               icon: FileText,
-              variant: 'default',
               description: 'Solliciter des devis auprès de prestataires'
             },
             {
               key: 'start_planning',
               label: 'Organiser la planification',
               icon: Calendar,
-              variant: 'outline',
               description: 'Commencer le processus de planification'
             }
           )
@@ -244,14 +241,12 @@ export function InterventionActionPanelHeader({
                     key: 'reject_quote_request',
                     label: 'Rejeter la demande',
                     icon: XCircle,
-                    variant: 'outlined-danger',
                     description: 'Rejeter cette demande de devis'
                   },
                   {
                     key: 'submit_quote',
                     label: 'Soumettre un devis',
                     icon: FileText,
-                    variant: 'default',
                     description: 'Soumettre votre devis pour cette intervention'
                   }
                 )
@@ -262,14 +257,12 @@ export function InterventionActionPanelHeader({
                     key: 'edit_quote',
                     label: 'Modifier le devis',
                     icon: Edit3,
-                    variant: 'default',
                     description: 'Modifier votre devis en attente d\'évaluation'
                   },
                   {
                     key: 'cancel_quote',
                     label: 'Annuler le devis',
                     icon: Trash2,
-                    variant: 'destructive',
                     description: 'Annuler votre devis actuel'
                   }
                 )
@@ -281,14 +274,12 @@ export function InterventionActionPanelHeader({
                   key: 'edit_quote',
                   label: 'Modifier le devis',
                   icon: Edit3,
-                  variant: 'outline',
                   description: 'Modifier votre devis envoyé'
                 },
                 {
                   key: 'cancel_quote',
                   label: 'Annuler le devis',
                   icon: Trash2,
-                  variant: 'outlined-danger',
                   description: 'Annuler votre devis'
                 }
               )
@@ -298,7 +289,6 @@ export function InterventionActionPanelHeader({
                 key: 'view_quote',
                 label: 'Voir le devis',
                 icon: FileText,
-                variant: 'outline',
                 description: 'Consulter votre devis approuvé'
               })
             }
@@ -308,7 +298,6 @@ export function InterventionActionPanelHeader({
               key: 'submit_quote',
               label: 'Soumettre un devis',
               icon: FileText,
-              variant: 'default',
               description: 'Proposer votre devis pour cette intervention'
             })
           }
@@ -322,7 +311,6 @@ export function InterventionActionPanelHeader({
             key: 'propose_slots',
             label: hasTimeSlots ? 'Modifier la planification' : 'Planifier',
             icon: hasTimeSlots ? Edit : Clock,
-            variant: 'default',
             description: hasTimeSlots ? 'Modifier la planification existante' : 'Planifier l\'intervention'
           })
         }
@@ -331,7 +319,6 @@ export function InterventionActionPanelHeader({
             key: 'confirm_slot',
             label: 'Valider un créneau',
             icon: CheckCircle,
-            variant: 'default',
             description: 'Confirmer un créneau proposé'
           })
         }
@@ -340,7 +327,6 @@ export function InterventionActionPanelHeader({
             key: 'add_availabilities',
             label: 'Ajouter mes disponibilités',
             icon: Calendar,
-            variant: 'outline',
             description: 'Saisir vos créneaux de disponibilité'
           })
         }
@@ -352,7 +338,6 @@ export function InterventionActionPanelHeader({
             key: 'start_work',
             label: 'Commencer l\'intervention',
             icon: Play,
-            variant: 'default',
             description: 'Marquer le début des travaux',
             confirmationMessage: 'Confirmer le début de l\'intervention ?'
           })
@@ -363,14 +348,12 @@ export function InterventionActionPanelHeader({
               key: 'modify_schedule',
               label: 'Modifier le créneau',
               icon: Calendar,
-              variant: 'outline',
               description: 'Modifier le créneau planifié'
             },
             {
               key: 'reject_schedule',
               label: 'Rejeter la planification',
               icon: XCircle,
-              variant: 'destructive',
               description: 'Rejeter le créneau proposé',
               requiresComment: true,
               confirmationMessage: 'Cette planification sera rejetée et devra être refaite.'
@@ -382,7 +365,6 @@ export function InterventionActionPanelHeader({
             key: 'reschedule',
             label: 'Replanifier',
             icon: Calendar,
-            variant: 'outline',
             description: 'Modifier la planification'
           })
         }
@@ -394,7 +376,6 @@ export function InterventionActionPanelHeader({
             key: 'complete_work',
             label: 'Marquer comme terminé',
             icon: CheckCircle,
-            variant: 'default',
             description: 'Signaler la fin des travaux'
           })
         }
@@ -403,7 +384,6 @@ export function InterventionActionPanelHeader({
             key: 'complete_work',
             label: 'Marquer comme terminé',
             icon: CheckCircle,
-            variant: 'default',
             description: 'Marquer l\'intervention comme terminée'
           })
         }
@@ -416,7 +396,6 @@ export function InterventionActionPanelHeader({
               key: 'validate_work',
               label: 'Valider les travaux',
               icon: CheckCircle,
-              variant: 'default',
               description: 'Confirmer que les travaux sont satisfaisants',
               requiresComment: false,
               confirmationMessage: 'Confirmer que les travaux sont bien terminés ?'
@@ -425,7 +404,6 @@ export function InterventionActionPanelHeader({
               key: 'contest_work',
               label: 'Contester',
               icon: AlertTriangle,
-              variant: 'destructive',
               description: 'Signaler un problème avec les travaux',
               requiresComment: true,
               confirmationMessage: 'Signaler un problème nécessitera une révision.'
@@ -437,7 +415,6 @@ export function InterventionActionPanelHeader({
             key: 'finalize',
             label: 'Finaliser',
             icon: UserCheck,
-            variant: 'default',
             description: 'Clôturer définitivement l\'intervention',
             requiresComment: false
           })
@@ -450,7 +427,6 @@ export function InterventionActionPanelHeader({
             key: 'finalize',
             label: 'Finaliser',
             icon: UserCheck,
-            variant: 'default',
             description: 'Clôturer définitivement l\'intervention',
             requiresComment: false
           })
@@ -465,7 +441,6 @@ export function InterventionActionPanelHeader({
           key: 'cancel',
           label: 'Annuler',
           icon: XCircle,
-          variant: 'destructive',
           description: 'Annuler cette intervention',
           requiresComment: true,
           confirmationMessage: 'Cette intervention sera annulée.'
@@ -818,8 +793,15 @@ export function InterventionActionPanelHeader({
   return (
     <>
       {/* Actions principales en boutons */}
-      <div className="flex flex-col items-end space-y-1">
-        <span className="text-xs text-slate-600 font-medium">Actions en attente</span>
+      <div className="flex flex-col items-end space-y-2">
+        {availableActions.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-700" />
+            <span className="text-sm text-amber-900 font-semibold">
+              Action en attente
+            </span>
+          </div>
+        )}
         <div className="flex items-center space-x-2">
           {availableActions.map((action) => {
             const IconComponent = action.icon

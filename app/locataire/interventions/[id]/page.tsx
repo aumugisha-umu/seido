@@ -90,10 +90,17 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
       .in('thread_type', ['group', 'tenant_to_managers'])
       .order('created_at', { ascending: true }),
 
-    // Time slots (for selection)
+    // Time slots with responses
     supabase
       .from('intervention_time_slots')
-      .select('*')
+      .select(`
+        *,
+        proposed_by_user:users!proposed_by(*),
+        responses:time_slot_responses(
+          *,
+          user:users(*)
+        )
+      `)
       .eq('intervention_id', id)
       .order('slot_date', { ascending: true }),
 

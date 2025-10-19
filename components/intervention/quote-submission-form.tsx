@@ -387,7 +387,7 @@ export function QuoteSubmissionForm({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              {existingQuote ? 'Modifier le devis' : 'Soumettre un devis'}
+              {existingQuote && quoteRequest?.status !== 'pending' ? 'Modifier le devis' : 'Soumettre un devis'}
             </h1>
             <p className="text-slate-600">
               Intervention: {intervention.title}
@@ -735,7 +735,7 @@ export function QuoteSubmissionForm({
                 ) : (
                   <>
                     <Euro className="h-5 w-5 mr-2" />
-                    {existingQuote ? 'Confirmer' : 'Soumettre le devis'}
+                    {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre le devis'}
                   </>
                 )}
               </Button>

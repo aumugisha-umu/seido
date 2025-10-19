@@ -32,6 +32,7 @@ import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-
 // Modals
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
+import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
@@ -400,6 +401,7 @@ export function PrestataireInterventionDetailClient({
                 }}
                 onOpenProgrammingModal={handleOpenProgrammingModalWithData}
                 onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+                onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
                 currentUserId={currentUser?.id}
               />
             </TabsContent>
@@ -445,12 +447,21 @@ export function PrestataireInterventionDetailClient({
         onSuccess={handleRefresh}
       />
 
+      {/* Reject Slot Modal */}
+      <RejectSlotModal
+        isOpen={planning.rejectSlotModal.isOpen}
+        onClose={planning.closeRejectSlotModal}
+        slot={planning.rejectSlotModal.slot}
+        interventionId={intervention.id}
+        onSuccess={handleRefresh}
+      />
+
       {/* Quote Submission Modal */}
       <Dialog open={quoteModalOpen} onOpenChange={setQuoteModalOpen}>
         <DialogContent className="max-w-[95vw] lg:max-w-6xl xl:max-w-7xl max-h-[95vh] overflow-y-auto p-0">
           <VisuallyHidden>
             <DialogTitle>
-              {selectedQuote ? 'Modifier le devis' : 'Soumettre un devis'} pour {intervention.title}
+              {selectedQuote && selectedQuote.status !== 'pending' ? 'Modifier le devis' : 'Soumettre un devis'} pour {intervention.title}
             </DialogTitle>
           </VisuallyHidden>
           <div className="p-4 sm:p-6">
@@ -463,6 +474,13 @@ export function PrestataireInterventionDetailClient({
                 quote_deadline: intervention.quote_deadline
               }}
               existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
+              quoteRequest={selectedQuote ? {
+                id: selectedQuote.id,
+                status: selectedQuote.status,
+                individual_message: selectedQuote.internal_notes || undefined,
+                deadline: intervention.quote_deadline,
+                sent_at: selectedQuote.created_at
+              } : undefined}
               onSuccess={() => {
                 setQuoteModalOpen(false)
                 setSelectedQuote(null)

@@ -37,6 +37,19 @@ interface CancelSlotModal {
   } | null
 }
 
+interface RejectSlotModal {
+  isOpen: boolean
+  slotId: string | null
+  interventionId: string | null
+  slot: {
+    id: string
+    slot_date: string
+    start_time: string
+    end_time: string
+    notes?: string | null
+  } | null
+}
+
 interface TimeSlot {
   date: string
   startTime: string
@@ -62,6 +75,13 @@ export const useInterventionPlanning = () => {
   })
 
   const [cancelSlotModal, setCancelSlotModal] = useState<CancelSlotModal>({
+    isOpen: false,
+    slotId: null,
+    interventionId: null,
+    slot: null,
+  })
+
+  const [rejectSlotModal, setRejectSlotModal] = useState<RejectSlotModal>({
     isOpen: false,
     slotId: null,
     interventionId: null,
@@ -270,6 +290,25 @@ export const useInterventionPlanning = () => {
     })
   }
 
+  const openRejectSlotModal = (slot: RejectSlotModal['slot'], interventionId: string) => {
+    if (!slot) return
+    setRejectSlotModal({
+      isOpen: true,
+      slotId: slot.id,
+      interventionId,
+      slot,
+    })
+  }
+
+  const closeRejectSlotModal = () => {
+    setRejectSlotModal({
+      isOpen: false,
+      slotId: null,
+      interventionId: null,
+      slot: null,
+    })
+  }
+
   // Validation
   const isPlanningFormValid = () => {
     if (!planningOption) return false
@@ -311,6 +350,7 @@ export const useInterventionPlanning = () => {
     programmingModal,
     planningSuccessModal,
     cancelSlotModal,
+    rejectSlotModal,
 
     // États des formulaires
     planningOption,
@@ -347,6 +387,8 @@ export const useInterventionPlanning = () => {
     closePlanningSuccessModal,
     openCancelSlotModal,
     closeCancelSlotModal,
+    openRejectSlotModal,
+    closeRejectSlotModal,
 
     // Validation
     isPlanningFormValid,

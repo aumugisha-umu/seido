@@ -28,6 +28,7 @@ import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 // Modals
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
+import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 
 import type { Database } from '@/lib/database.types'
 
@@ -251,6 +252,15 @@ export function InterventionDetailClient({
         onSuccess={handleRefresh}
       />
 
+      {/* Reject Slot Modal */}
+      <RejectSlotModal
+        isOpen={planning.rejectSlotModal.isOpen}
+        onClose={planning.closeRejectSlotModal}
+        slot={planning.rejectSlotModal.slot}
+        interventionId={intervention.id}
+        onSuccess={handleRefresh}
+      />
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid grid-cols-6 w-full">
@@ -341,6 +351,7 @@ export function InterventionDetailClient({
             }}
             onOpenProgrammingModal={handleOpenProgrammingModalWithData}
             onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+            onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
             currentUserId={user?.id}
           />
         </TabsContent>

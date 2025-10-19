@@ -58,7 +58,7 @@ interface InterventionActionPanelHeaderProps {
   }
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
   userId: string
-  onActionComplete?: () => void
+  onActionComplete?: (navigateToTab?: string) => void
   onOpenQuoteModal?: () => void
   onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
@@ -69,6 +69,8 @@ interface InterventionActionPanelHeaderProps {
     slot_date: string
     start_time: string
     end_time: string
+    status?: string
+    proposed_by?: string
   }>
 }
 
@@ -323,12 +325,30 @@ export function InterventionActionPanelHeader({
           })
         }
         if (userRole === 'prestataire') {
-          actions.push({
-            key: 'add_availabilities',
-            label: 'Ajouter mes disponibilités',
-            icon: Calendar,
-            description: 'Saisir vos créneaux de disponibilité'
-          })
+          // Check if there are any slots with status 'pending' OR 'requested'
+          // 'requested' = proposed by gestionnaire
+          // 'pending' = proposed by prestataire/locataire
+          const hasPendingSlots = timeSlots?.some(slot =>
+            slot.status === 'pending' || slot.status === 'requested'
+          )
+
+          if (hasPendingSlots) {
+            // There are pending/requested slots - show confirm action
+            actions.push({
+              key: 'confirm_availabilities',
+              label: 'Confirmer disponibilités',
+              icon: CheckCircle,
+              description: 'Valider ou rejeter les créneaux proposés'
+            })
+          } else {
+            // No pending slots - show add action
+            actions.push({
+              key: 'add_availabilities',
+              label: 'Ajouter mes disponibilités',
+              icon: Calendar,
+              description: 'Saisir vos créneaux de disponibilité'
+            })
+          }
         }
         break
 
@@ -562,6 +582,11 @@ export function InterventionActionPanelHeader({
           }
           // Fallback vers onglet time-slots
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          return
+
+        case 'confirm_availabilities':
+          // Navigate to execution tab to confirm/reject slots
+          onActionComplete?.('execution')
           return
 
         case 'add_availabilities':

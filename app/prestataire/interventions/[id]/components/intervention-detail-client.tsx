@@ -223,7 +223,10 @@ export function PrestataireInterventionDetailClient({
   }
 
   // Handle action completion from action panel
-  const handleActionComplete = () => {
+  const handleActionComplete = (navigateToTab?: string) => {
+    if (navigateToTab) {
+      setActiveTab(navigateToTab)
+    }
     handleRefresh()
   }
 
@@ -308,6 +311,7 @@ export function PrestataireInterventionDetailClient({
             }}
             userRole="prestataire"
             userId={currentUser.id}
+            timeSlots={timeSlots}
             onActionComplete={handleActionComplete}
             onOpenQuoteModal={handleOpenQuoteModal}
             onRejectQuoteRequest={handleRejectQuoteRequest}
@@ -403,6 +407,7 @@ export function PrestataireInterventionDetailClient({
                 onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
                 onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
                 currentUserId={currentUser?.id}
+                userRole="prestataire"
               />
             </TabsContent>
 

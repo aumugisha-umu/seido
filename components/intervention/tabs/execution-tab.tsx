@@ -44,6 +44,7 @@ interface ExecutionTabProps {
   onCancelSlot?: (slot: TimeSlot) => void
   onRejectSlot?: (slot: TimeSlot) => void
   currentUserId?: string
+  userRole?: 'locataire' | 'gestionnaire' | 'prestataire'
 }
 
 export function ExecutionTab({
@@ -54,14 +55,35 @@ export function ExecutionTab({
   onOpenProgrammingModal,
   onCancelSlot,
   onRejectSlot,
-  currentUserId
+  currentUserId,
+  userRole
 }: ExecutionTabProps) {
   const [selecting, setSelecting] = useState<string | null>(null)
   const [accepting, setAccepting] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
 
   // All users have same permissions based on intervention status
-  const canProposeSlots = ['approuvee', 'demande_de_devis', 'planification'].includes(currentStatus)
+  // For prestataire, only show "Modifier la planification" if they have their own pending slots
+  const canProposeSlots = (() => {
+    const baseCondition = ['approuvee', 'demande_de_devis', 'planification'].includes(currentStatus)
+
+    if (!baseCondition) return false
+
+    // Special condition for prestataire: must have slots they created that are still pending/requested
+    if (userRole === 'prestataire' && currentUserId) {
+      const hasOwnPendingSlots = timeSlots.some(slot => {
+        // Check if this slot was created by the current prestataire AND has status 'pending' or 'requested'
+        // 'requested' = proposed by gestionnaire, 'pending' = proposed by prestataire/locataire
+        return slot.proposed_by === currentUserId && (slot.status === 'pending' || slot.status === 'requested')
+      })
+
+      return hasOwnPendingSlots
+    }
+
+    // For other roles (gestionnaire, locataire), base condition is sufficient
+    return true
+  })()
+
   const canSelectSlot = currentStatus === 'planification'
 
   // Get button styling

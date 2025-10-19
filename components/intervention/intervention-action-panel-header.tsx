@@ -28,7 +28,7 @@ import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
 import { TenantValidationForm } from "./tenant-validation-form"
-import { SimplifiedFinalizationModal } from "./simplified-finalization-modal"
+import { FinalizationModalLive } from "./finalization-modal-live"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
@@ -972,13 +972,12 @@ export function InterventionActionPanelHeader({
         isLoading={isProcessing}
       />
 
-      {/* Simplified Finalization Modal */}
-      <SimplifiedFinalizationModal
+      {/* Finalization Modal - Live (Connected to DB) */}
+      <FinalizationModalLive
         interventionId={intervention.id}
         isOpen={showSimplifiedFinalizationModal}
         onClose={() => setShowSimplifiedFinalizationModal(false)}
         onComplete={onActionComplete}
-        isLoading={isProcessing}
       />
 
       {/* Tenant Slot Confirmation Modal */}

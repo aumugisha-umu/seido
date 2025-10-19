@@ -1,0 +1,282 @@
+
+> seido-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.2.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ⚠ Compiled with warnings
+
+./app/api/property-documents/[id]/download/route.ts
+Attempted import error: 'createPropertyDocumentService' is not exported from '@/lib/services' (imported as 'createPropertyDocumentService').
+
+Import trace for requested module:
+./app/api/property-documents/[id]/download/route.ts
+
+./app/api/property-documents/[id]/download/route.ts
+Attempted import error: 'createStorageService' is not exported from '@/lib/services' (imported as 'createStorageService').
+
+Import trace for requested module:
+./app/api/property-documents/[id]/download/route.ts
+
+./app/api/property-documents/upload/route.ts
+Attempted import error: 'createStorageService' is not exported from '@/lib/services' (imported as 'createStorageService').
+
+Import trace for requested module:
+./app/api/property-documents/upload/route.ts
+
+./app/api/property-documents/upload/route.ts
+Attempted import error: 'createPropertyDocumentService' is not exported from '@/lib/services' (imported as 'createPropertyDocumentService').
+
+Import trace for requested module:
+./app/api/property-documents/upload/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'PermissionError' is not exported from '../core/error-handler' (imported as 'PermissionError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'ValidationError' is not exported from '../core/error-handler' (imported as 'ValidationError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'ValidationError' is not exported from '../core/error-handler' (imported as 'ValidationError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'PermissionError' is not exported from '../core/error-handler' (imported as 'PermissionError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'PermissionError' is not exported from '../core/error-handler' (imported as 'PermissionError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'PermissionError' is not exported from '../core/error-handler' (imported as 'PermissionError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'PermissionError' is not exported from '../core/error-handler' (imported as 'PermissionError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+./lib/services/domain/property-document.service.ts
+Attempted import error: 'PermissionError' is not exported from '../core/error-handler' (imported as 'PermissionError').
+
+Import trace for requested module:
+./lib/services/domain/property-document.service.ts
+./app/api/property-documents/route.ts
+
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+{"level":30,"time":"2025-10-19T21:37:42.010Z","pid":3596,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:42.197Z","pid":25808,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T21:37:42.213Z","pid":16512,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T21:37:42.220Z","pid":2360,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T21:37:42.232Z","pid":17240,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:42.251Z","pid":15432,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:42.291Z","pid":9628,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:42.339Z","pid":3276,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T21:37:42.415Z","pid":26788,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:42.758Z","pid":11656,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:42.834Z","pid":23180,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+   Generating static pages (0/90) ...
+{"level":30,"time":"2025-10-19T21:37:49.417Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:49.425Z","pid":22404,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T21:37:49.429Z","pid":24084,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:49.516Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:49.623Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:49.731Z","pid":22404,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:49.649Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T21:37:49.562Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [INTERVENTION-PAGE-SERVER] Loading intervention creation page"}
+{"level":50,"time":"2025-10-19T21:37:49.571Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [INTERVENTION-PAGE-SERVER] Failed to load intervention page data"}
+   Generating static pages (22/90) 
+{"level":30,"time":"2025-10-19T21:37:50.097Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side"}
+{"level":30,"time":"2025-10-19T21:37:50.127Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🏠 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading tenant interventions"}
+{"level":30,"time":"2025-10-19T21:37:50.284Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [SIGNUP-SERVER] Signup page rendered server-side"}
+{"level":50,"time":"2025-10-19T21:37:50.128Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [TENANT-INTERVENTIONS-PAGE-SERVER] Failed to load interventions"}
+{"level":30,"time":"2025-10-19T21:37:50.226Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🚪 [LOGOUT-PAGE] Logout page accessed, triggering server-side logout..."}
+{"level":30,"time":"2025-10-19T21:37:50.226Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [LOGOUT-ACTION] Starting server-side logout..."}
+{"level":50,"time":"2025-10-19T21:37:50.226Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [LOGOUT-ACTION] Exception: Dynamic server usage: Route /auth/logout couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error"}
+{"level":30,"time":"2025-10-19T21:37:50.487Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)..."}
+{"level":50,"time":"2025-10-19T21:37:50.488Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [SERVER-CONTEXT] Error getting auth context:"}
+   Generating static pages (44/90) 
+   Generating static pages (67/90) 
+ ✓ Generating static pages (90/90)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                               Size  First Load JS
+┌ ○ /                                                    189 B         104 kB
+├ ○ /_not-found                                          990 B         102 kB
+├ ƒ /admin/dashboard                                   2.97 kB         218 kB
+├ ƒ /admin/notifications                                 189 B         104 kB
+├ ƒ /admin/profile                                       158 B         237 kB
+├ ƒ /api/accept-invitation                               369 B         101 kB
+├ ƒ /api/activity-logs                                   369 B         101 kB
+├ ƒ /api/activity-stats                                  369 B         101 kB
+├ ƒ /api/auth/accept-invitation                          369 B         101 kB
+├ ƒ /api/buildings                                       369 B         101 kB
+├ ƒ /api/buildings/[id]                                  369 B         101 kB
+├ ƒ /api/cancel-invitation                               369 B         101 kB
+├ ƒ /api/change-email                                    369 B         101 kB
+├ ƒ /api/change-password                                 369 B         101 kB
+├ ƒ /api/check-active-users                              369 B         101 kB
+├ ƒ /api/check-email-team                                369 B         101 kB
+├ ƒ /api/contact-invitation-status                       369 B         101 kB
+├ ƒ /api/create-contact                                  369 B         101 kB
+├ ƒ /api/create-intervention                             369 B         101 kB
+├ ƒ /api/create-manager-intervention                     369 B         101 kB
+├ ƒ /api/create-provider-account                         369 B         101 kB
+├ ƒ /api/debug-interventions                             369 B         101 kB
+├ ƒ /api/debug-teams                                     369 B         101 kB
+├ ƒ /api/download-intervention-document                  369 B         101 kB
+├ ƒ /api/generate-intervention-magic-links               369 B         101 kB
+├ ƒ /api/get-user-profile                                369 B         101 kB
+├ ƒ /api/intervention-approve                            369 B         101 kB
+├ ƒ /api/intervention-cancel                             369 B         101 kB
+├ ƒ /api/intervention-complete                           369 B         101 kB
+├ ƒ /api/intervention-finalize                           369 B         101 kB
+├ ƒ /api/intervention-quote-request                      369 B         101 kB
+├ ƒ /api/intervention-quote-submit                       369 B         101 kB
+├ ƒ /api/intervention-quote-validate                     369 B         101 kB
+├ ƒ /api/intervention-reject                             369 B         101 kB
+├ ƒ /api/intervention-schedule                           369 B         101 kB
+├ ƒ /api/intervention-start                              369 B         101 kB
+├ ƒ /api/intervention-validate-tenant                    369 B         101 kB
+├ ƒ /api/intervention/[id]/availabilities                369 B         101 kB
+├ ƒ /api/intervention/[id]/availability-response         369 B         101 kB
+├ ƒ /api/intervention/[id]/finalization-context          369 B         101 kB
+├ ƒ /api/intervention/[id]/manager-finalization          369 B         101 kB
+├ ƒ /api/intervention/[id]/match-availabilities          369 B         101 kB
+├ ƒ /api/intervention/[id]/quote-requests                369 B         101 kB
+├ ƒ /api/intervention/[id]/quotes                        369 B         101 kB
+├ ƒ /api/intervention/[id]/select-slot                   369 B         101 kB
+├ ƒ /api/intervention/[id]/simple-work-completion        369 B         101 kB
+├ ƒ /api/intervention/[id]/tenant-availability           369 B         101 kB
+├ ƒ /api/intervention/[id]/tenant-validation             369 B         101 kB
+├ ƒ /api/intervention/[id]/user-availability             369 B         101 kB
+├ ƒ /api/intervention/[id]/work-completion               369 B         101 kB
+├ ƒ /api/invite-user                                     369 B         101 kB
+├ ƒ /api/lots                                            369 B         101 kB
+├ ƒ /api/lots/[id]                                       369 B         101 kB
+├ ƒ /api/magic-link/[token]                              369 B         101 kB
+├ ƒ /api/mark-invitation-accepted                        369 B         101 kB
+├ ƒ /api/notifications                                   369 B         101 kB
+├ ƒ /api/property-documents                              369 B         101 kB
+├ ƒ /api/property-documents/[id]                         369 B         101 kB
+├ ƒ /api/property-documents/[id]/download                369 B         101 kB
+├ ƒ /api/property-documents/upload                       369 B         101 kB
+├ ƒ /api/quote-requests                                  369 B         101 kB
+├ ƒ /api/quote-requests/[id]                             369 B         101 kB
+├ ƒ /api/quotes/[id]/approve                             369 B         101 kB
+├ ƒ /api/quotes/[id]/cancel                              369 B         101 kB
+├ ƒ /api/quotes/[id]/reject                              369 B         101 kB
+├ ƒ /api/resend-invitation                               369 B         101 kB
+├ ƒ /api/reset-password                                  369 B         101 kB
+├ ƒ /api/revoke-invitation                               369 B         101 kB
+├ ƒ /api/send-existing-contact-invitation                369 B         101 kB
+├ ƒ /api/send-welcome-email                              369 B         101 kB
+├ ƒ /api/team-contacts                                   369 B         101 kB
+├ ƒ /api/team-invitations                                369 B         101 kB
+├ ƒ /api/test/check-contact                              369 B         101 kB
+├ ƒ /api/test/cleanup-user                               369 B         101 kB
+├ ƒ /api/test/get-confirmation-link                      369 B         101 kB
+├ ƒ /api/test/get-last-invitation-link                   369 B         101 kB
+├ ƒ /api/test/get-reset-link                             369 B         101 kB
+├ ƒ /api/update-user-profile                             369 B         101 kB
+├ ƒ /api/upload-avatar                                   369 B         101 kB
+├ ƒ /api/upload-intervention-document                    369 B         101 kB
+├ ƒ /api/view-intervention-document                      369 B         101 kB
+├ ○ /auth/callback                                     3.18 kB         210 kB
+├ ƒ /auth/confirm                                        369 B         101 kB
+├ ƒ /auth/login                                        8.11 kB         120 kB
+├ ƒ /auth/logout                                         369 B         101 kB
+├ ○ /auth/reset-password                               4.07 kB         116 kB
+├ ○ /auth/set-password                                 5.96 kB         221 kB
+├ ○ /auth/signup                                       11.9 kB         124 kB
+├ ƒ /auth/signup-success                                 189 B         104 kB
+├ ○ /auth/unauthorized                                   189 B         104 kB
+├ ○ /auth/update-password                              5.92 kB         215 kB
+├ ƒ /dashboard                                           369 B         101 kB
+├ ○ /demo/finalization-modal                             25 kB         138 kB
+├ ƒ /gestionnaire/biens                                3.71 kB         255 kB
+├ ƒ /gestionnaire/biens/immeubles/[id]                 11.2 kB         180 kB
+├ ƒ /gestionnaire/biens/immeubles/modifier/[id]        6.22 kB         256 kB
+├ ƒ /gestionnaire/biens/immeubles/nouveau              10.7 kB         292 kB
+├ ƒ /gestionnaire/biens/lots/[id]                      8.28 kB         279 kB
+├ ƒ /gestionnaire/biens/lots/modifier/[id]             6.62 kB         257 kB
+├ ƒ /gestionnaire/biens/lots/nouveau                     12 kB         290 kB
+├ ƒ /gestionnaire/contacts                             9.46 kB         261 kB
+├ ƒ /gestionnaire/contacts/details/[id]                22.3 kB         182 kB
+├ ƒ /gestionnaire/contacts/modifier/[id]                9.1 kB         252 kB
+├ ƒ /gestionnaire/dashboard                             6.7 kB         269 kB
+├ ƒ /gestionnaire/interventions                        13.2 kB         314 kB
+├ ƒ /gestionnaire/interventions/[id]                   13.3 kB         376 kB
+├ ƒ /gestionnaire/interventions/nouvelle-intervention  17.7 kB         308 kB
+├ ƒ /gestionnaire/mail                                 8.35 kB         122 kB
+├ ƒ /gestionnaire/notifications                        17.4 kB         236 kB
+├ ƒ /gestionnaire/profile                                158 B         237 kB
+├ ƒ /locataire/dashboard                               2.61 kB         218 kB
+├ ƒ /locataire/interventions                           5.13 kB         144 kB
+├ ƒ /locataire/interventions/[id]                      2.72 kB         366 kB
+├ ƒ /locataire/interventions/new                       8.91 kB         195 kB
+├ ƒ /locataire/interventions/nouvelle-demande          9.28 kB         255 kB
+├ ƒ /locataire/notifications                           5.97 kB         224 kB
+├ ƒ /locataire/profile                                   158 B         237 kB
+├ ƒ /prestataire/dashboard                             11.8 kB         288 kB
+├ ƒ /prestataire/interventions/[id]                    16.5 kB         394 kB
+├ ƒ /prestataire/notifications                           189 B         104 kB
+├ ƒ /prestataire/profile                                 158 B         237 kB
+├ ○ /test-finalization-mobile                          11.6 kB         188 kB
+└ ○ /test-logging                                         5 kB         106 kB
++ First Load JS shared by all                           101 kB
+  ├ chunks/1684-0f5494d66850109f.js                    45.8 kB
+  ├ chunks/4bd1b696-319b94494283cab8.js                53.3 kB
+  └ other shared chunks (total)                        2.05 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

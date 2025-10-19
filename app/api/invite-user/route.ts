@@ -243,7 +243,7 @@ export async function POST(request: Request) {
           type: 'invite',
           email: email,
           options: {
-            redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
             data: {
               // ✅ Metadata pour l'auth user (équivalent à user_metadata de createUser)
               full_name: `${firstName} ${lastName}`,

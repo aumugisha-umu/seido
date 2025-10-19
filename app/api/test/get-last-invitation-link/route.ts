@@ -49,7 +49,7 @@ export async function GET() {
     }
 
     // Construire le lien d'invitation
-    const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?token=${invitation.invitation_code}&type=invitation`
+    const invitationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?token=${invitation.invitation_code}&type=invitation`
 
     return NextResponse.json({
       success: true,

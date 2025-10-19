@@ -36,8 +36,9 @@ export const EMAIL_CONFIG = {
 
   /**
    * URL de base de l'application
+   * ⚠️ IMPORTANT: Doit être définie dans les variables d'environnement (Vercel, etc.)
    */
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  appUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
 
   /**
    * Nom de l'application

@@ -20,7 +20,7 @@ export default async function EmailPreviewPage() {
   // Données de démo basées sur l'utilisateur connecté
   const userEmail = user.email || 'test@seido.pm'
   const userFirstName = profile.name?.split(' ')[0] || userEmail.split('@')[0]
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
   // ✅ 1. Template: Signup Confirmation
   const signupConfirmationHtml = await renderEmail(

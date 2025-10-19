@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
       const { error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: email,
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
       })
 
       if (magicLinkError) {

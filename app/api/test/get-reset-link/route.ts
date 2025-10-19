@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
       // Le hash contient: #access_token=...&refresh_token=...&type=recovery
       // On veut rediriger vers notre page avec ces tokens
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
       const resetUrl = `${baseUrl}/auth/update-password${hash}`
 
       logger.info({ resetUrl: resetUrl }, '🔗 [GET-RESET-LINK] Final reset URL:')

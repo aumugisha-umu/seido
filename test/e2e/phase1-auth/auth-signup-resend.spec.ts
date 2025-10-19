@@ -291,20 +291,20 @@ test.describe('🔐 Phase 1 - Authentication Signup Resend Tests', () => {
       const envCheck = await page.evaluate(() => {
         return {
           hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-          hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
-          appUrl: process.env.NEXT_PUBLIC_APP_URL
+          hasAppUrl: !!process.env.NEXT_PUBLIC_SITE_URL,
+          appUrl: process.env.NEXT_PUBLIC_SITE_URL
         }
       })
 
       console.log(`\n📊 Environment Check:`)
       console.log(`  ✓ NEXT_PUBLIC_SUPABASE_URL: ${envCheck.hasSupabaseUrl ? '✅' : '❌'}`)
-      console.log(`  ✓ NEXT_PUBLIC_APP_URL: ${envCheck.hasAppUrl ? '✅' : '❌'}`)
+      console.log(`  ✓ NEXT_PUBLIC_SITE_URL: ${envCheck.hasAppUrl ? '✅' : '❌'}`)
       console.log(`    Value: ${envCheck.appUrl || 'NOT SET'}`)
 
       if (!envCheck.hasAppUrl) {
-        console.error(`\n❌ CRITICAL: NEXT_PUBLIC_APP_URL is not set!`)
+        console.error(`\n❌ CRITICAL: NEXT_PUBLIC_SITE_URL is not set!`)
         console.error(`   This will cause email confirmation links to be malformed.`)
-        console.error(`   Add to .env.local: NEXT_PUBLIC_APP_URL=http://localhost:3000`)
+        console.error(`   Add to .env.local: NEXT_PUBLIC_SITE_URL=http://localhost:3000`)
       }
 
       await testLogger.logStep('Environment check completed', page, envCheck)

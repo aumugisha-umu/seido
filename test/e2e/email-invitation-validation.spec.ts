@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Email Invitation with Resend', () => {
 
-  const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const API_BASE = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
   /**
    * Test 1: Envoi email invitation avec template React

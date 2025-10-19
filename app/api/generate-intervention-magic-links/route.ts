@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Generate the actual magic link URL
-        const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/intervention/${token}`
+        const magicLinkUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/prestataire/intervention/${token}`
 
         logger.info(`✅ Magic link generated for ${email}:`, magicLink.id)
 

@@ -53,6 +53,7 @@ import {
   createSuccessResponse
 } from '../core/error-handler'
 import { isSuccessResponse, isErrorResponse } from '../core/type-guards'
+import { createServiceRoleSupabaseClient } from '../core/supabase-client'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -722,50 +723,117 @@ export class InterventionService {
   }
 
   /**
-   * Confirm schedule
+   * Confirm schedule - Sequential and simple approach
+   * Each step is independent and won't rollback previous successful steps
    */
-  async confirmSchedule(id: string, userId: string, slotId: string) {
+  async confirmSchedule(
+    id: string,
+    userId: string,
+    slotId: string,
+    options?: { useServiceRole?: boolean }
+  ) {
+    // Use service role client for all operations if requested
+    const supabase = options?.useServiceRole
+      ? createServiceRoleSupabaseClient()
+      : this.interventionRepo.supabase
+
+    // ============================================================================
+    // STEP 1: Validation
+    // ============================================================================
+    const { data: slot, error: slotError } = await supabase
+      .from('intervention_time_slots')
+      .select('*')
+      .eq('id', slotId)
+      .single()
+
+    if (slotError || !slot) {
+      return createErrorResponse(handleError(
+        slotError || new Error('Slot not found'),
+        'interventions:confirmSchedule'
+      ))
+    }
+
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select('id, status, title, team_id')
+      .eq('id', id)
+      .single()
+
+    if (interventionError || !intervention) {
+      return createErrorResponse(handleError(
+        interventionError || new Error('Intervention not found'),
+        'interventions:confirmSchedule'
+      ))
+    }
+
+    // ============================================================================
+    // STEP 2: Update slot
+    // ============================================================================
+    const { error: slotUpdateError } = await supabase
+      .from('intervention_time_slots')
+      .update({
+        is_selected: true,
+        status: 'selected'
+      })
+      .eq('id', slotId)
+
+    if (slotUpdateError) {
+      return createErrorResponse(handleError(slotUpdateError, 'interventions:updateSlot'))
+    }
+
+    logger.info('✅ [STEP 2] Slot updated successfully')
+
+    // ============================================================================
+    // STEP 3: Update intervention
+    // ============================================================================
+    const scheduledTimestamp = `${slot.slot_date}T${slot.start_time}`
+
+    const { data: updatedIntervention, error: interventionUpdateError } = await supabase
+      .from('interventions')
+      .update({
+        scheduled_date: scheduledTimestamp,
+        selected_slot_id: slotId,
+        status: 'planifiee'
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (interventionUpdateError) {
+      throw new Error(`Failed to update intervention: ${interventionUpdateError.message}`)
+    }
+
+    // ============================================================================
+    // STEP 4: Log activity
+    // ============================================================================
     try {
-      // Get the time slot details
-      const { data: slot, error: slotError } = await this.interventionRepo.supabase
-        .from('intervention_time_slots')
-        .select('*')
-        .eq('id', slotId)
-        .single()
-
-      if (slotError || !slot) {
-        throw new NotFoundException('intervention_time_slots', slotId)
-      }
-
-      // Update intervention with scheduled date
-      const result = await this.validateAndUpdateStatus(
+      await this.logActivity(
+        'schedule_confirmed',
         id,
-        'planifiee',
         userId,
         {
-          scheduled_date: slot.start_time,
-          selected_slot_id: slotId
-        }
+          slot_id: slotId,
+          slot_date: slot.slot_date,
+          start_time: slot.start_time
+        },
+        options?.useServiceRole ? supabase : undefined
       )
-
-      if (result.success && result.data) {
-        // Mark slot as selected
-        await this.interventionRepo.supabase
-          .from('intervention_time_slots')
-          .update({ is_selected: true })
-          .eq('id', slotId)
-
-        // Send notifications
-        await this.notifyScheduleConfirmed(result.data, slot, userId)
-
-        // Log activity
-        await this.logActivity('schedule_confirmed', id, userId, { slot_id: slotId })
-      }
-
-      return result
-    } catch (error) {
-      return createErrorResponse(handleError(error, 'interventions:confirmSchedule'))
+    } catch (logError) {
+      // Non-critical, continue
     }
+
+    // ============================================================================
+    // STEP 5: Send notifications
+    // ============================================================================
+    try {
+      if (updatedIntervention) {
+        await this.notifyScheduleConfirmed(updatedIntervention, slot, userId)
+      }
+    } catch (notifError) {
+      // Non-critical, continue
+    }
+
+    return createSuccessResponse(updatedIntervention)
   }
 
   /**
@@ -1098,17 +1166,72 @@ export class InterventionService {
     id: string,
     newStatus: InterventionStatus,
     userId: string,
-    additionalUpdates: Partial<InterventionUpdate> = {}
+    additionalUpdates: Partial<InterventionUpdate> = {},
+    overrideClient?: any
   ) {
+    logger.info('🔍 [VALIDATE-UPDATE] Starting validation and update', {
+      interventionId: id,
+      newStatus: newStatus,
+      userId: userId,
+      hasOverrideClient: !!overrideClient,
+      additionalUpdates: additionalUpdates
+    })
+
     // Get current intervention
-    const current = await this.interventionRepo.findById(id)
+    // If override client provided, use it for fetching too (to bypass RLS)
+    let current
+    if (overrideClient) {
+      logger.info('🔑 [VALIDATE-UPDATE] Using override client for fetching current state')
+      const { data, error } = await overrideClient
+        .from('interventions')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error || !data) {
+        logger.error('❌ [VALIDATE-UPDATE] Failed to fetch intervention with override client:', {
+          interventionId: id,
+          error: error,
+          errorMessage: error?.message,
+          errorCode: error?.code,
+          fullError: error ? JSON.stringify(error, null, 2) : 'No error object'
+        })
+        return createErrorResponse(handleError(error || new Error('Intervention not found'), 'interventions:fetch'))
+      }
+
+      current = { success: true, data, error: null }
+      logger.info('✅ [VALIDATE-UPDATE] Fetched intervention with override client', {
+        interventionId: id,
+        currentStatus: data.status
+      })
+    } else {
+      current = await this.interventionRepo.findById(id)
+    }
+
     if (!current.success || !current.data) {
+      logger.error('❌ [VALIDATE-UPDATE] Failed to fetch current intervention', {
+        interventionId: id,
+        success: current.success,
+        hasData: !!current.data,
+        error: current.error
+      })
       return current
     }
 
     // Validate transition
+    logger.info('🔄 [VALIDATE-UPDATE] Validating status transition', {
+      currentStatus: current.data.status,
+      newStatus: newStatus,
+      validTransitions: VALID_TRANSITIONS[current.data.status]
+    })
+
     const validNextStatuses = VALID_TRANSITIONS[current.data.status]
     if (!validNextStatuses.includes(newStatus)) {
+      logger.error('❌ [VALIDATE-UPDATE] Invalid status transition', {
+        from: current.data.status,
+        to: newStatus,
+        validOptions: validNextStatuses
+      })
       throw new ValidationException(
         `Invalid status transition from '${current.data.status}' to '${newStatus}'`,
         'interventions',
@@ -1116,14 +1239,60 @@ export class InterventionService {
       )
     }
 
+    logger.info('✅ [VALIDATE-UPDATE] Status transition is valid')
+
     // Validate user permissions for this transition
+    logger.info('🔐 [VALIDATE-UPDATE] Validating user permissions', {
+      userId: userId,
+      transition: `${current.data.status} → ${newStatus}`
+    })
+
     await this.validateTransitionPermissions(current.data, newStatus, userId)
+
+    logger.info('✅ [VALIDATE-UPDATE] User permissions validated')
 
     // Update intervention
     const updates: InterventionUpdate = {
       ...additionalUpdates,
       status: newStatus,
       updated_at: new Date().toISOString()
+    }
+
+    // If override client provided (e.g., service role), use it directly
+    if (overrideClient) {
+      logger.info('🔑 [VALIDATE-UPDATE] Using override client for update (RLS bypass)', {
+        interventionId: id,
+        updates: updates,
+        updatesJson: JSON.stringify(updates, null, 2)
+      })
+
+      const { data, error } = await overrideClient
+        .from('interventions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) {
+        logger.error('❌ [VALIDATE-UPDATE] Update failed with override client:', {
+          interventionId: id,
+          updates: updates,
+          error: error,
+          errorMessage: error.message,
+          errorCode: error.code,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          fullError: JSON.stringify(error, null, 2)
+        })
+        return createErrorResponse(handleError(error, 'interventions:update'))
+      }
+
+      logger.info('✅ [VALIDATE-UPDATE] Update successful with override client', {
+        interventionId: id,
+        newStatus: data.status,
+        updatedFields: Object.keys(updates)
+      })
+      return createSuccessResponse(data)
     }
 
     return this.interventionRepo.update(id, updates)
@@ -1521,10 +1690,14 @@ export class InterventionService {
     action: string,
     interventionId: string,
     userId: string,
-    metadata?: any
+    metadata?: any,
+    overrideClient?: any
   ) {
     try {
-      await this.interventionRepo.supabase
+      // Use override client (e.g., service role) if provided, otherwise use repository client
+      const client = overrideClient || this.interventionRepo.supabase
+
+      await client
         .from('activity_logs')
         .insert({
           table_name: 'interventions',

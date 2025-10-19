@@ -1141,6 +1141,122 @@ export async function cancelTimeSlotAction(
  */
 
 /**
+ * Check if a time slot can be auto-confirmed
+ *
+ * Conditions for auto-confirmation:
+ * 1. No pending responses left (all participants have responded)
+ * 2. At least 1 tenant has accepted
+ * 3. At least 1 provider has accepted
+ * 4. Intervention is in "planification" status
+ *
+ * @returns true if slot can be auto-confirmed, false otherwise
+ */
+async function checkIfSlotCanBeAutoConfirmed(
+  supabase: any,
+  slotId: string,
+  interventionId: string
+): Promise<boolean> {
+  try {
+    logger.info('🔍 [AUTO-CONFIRM] Checking if slot can be auto-confirmed:', {
+      slotId,
+      interventionId
+    })
+
+    // 1. Get intervention status
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select('status')
+      .eq('id', interventionId)
+      .single()
+
+    if (interventionError || !intervention) {
+      logger.warn('⚠️ [AUTO-CONFIRM] Intervention not found')
+      return false
+    }
+
+    if (intervention.status !== 'planification') {
+      logger.info('⏳ [AUTO-CONFIRM] Cannot auto-confirm: intervention not in planification status', {
+        currentStatus: intervention.status
+      })
+      return false
+    }
+
+    // 2. Check for pending responses
+    const { data: pendingResponses, error: pendingError } = await supabase
+      .from('time_slot_responses')
+      .select('id, user_id, user_role')
+      .eq('time_slot_id', slotId)
+      .eq('response', 'pending')
+
+    if (pendingError) {
+      logger.error('❌ [AUTO-CONFIRM] Error checking pending responses:', pendingError)
+      return false
+    }
+
+    if (pendingResponses && pendingResponses.length > 0) {
+      // Still has pending responses - cannot auto-confirm
+      logger.info('⏳ [AUTO-CONFIRM] Cannot auto-confirm: pending responses exist', {
+        pendingCount: pendingResponses.length,
+        pendingRoles: pendingResponses.map((r: any) => r.user_role)
+      })
+      return false
+    }
+
+    // 3. Use SQL function to check validation requirements (at least 1 tenant + provider accepted)
+    const { data: canFinalize, error: validateError } = await supabase.rpc(
+      'check_timeslot_can_be_finalized',
+      { slot_id_param: slotId }
+    )
+
+    if (validateError) {
+      logger.error('❌ [AUTO-CONFIRM] Error calling validation function:', validateError)
+      return false
+    }
+
+    if (!canFinalize) {
+      // Get detailed info about why validation failed
+      const [
+        { data: slot },
+        { data: assignments },
+        { data: responses }
+      ] = await Promise.all([
+        supabase
+          .from('intervention_time_slots')
+          .select('selected_by_manager, selected_by_provider, selected_by_tenant, status')
+          .eq('id', slotId)
+          .single(),
+        supabase
+          .from('intervention_assignments')
+          .select('role, user_id')
+          .eq('intervention_id', interventionId),
+        supabase
+          .from('time_slot_responses')
+          .select('user_role, response')
+          .eq('time_slot_id', slotId)
+      ])
+
+      logger.info('⏳ [AUTO-CONFIRM] Cannot auto-confirm: validation requirements not met', {
+        slotStatus: slot?.status,
+        summary: {
+          selected_by_manager: slot?.selected_by_manager,
+          selected_by_provider: slot?.selected_by_provider,
+          selected_by_tenant: slot?.selected_by_tenant
+        },
+        assignedRoles: assignments?.map(a => a.role) || [],
+        responses: responses?.map(r => ({ role: r.user_role, response: r.response })) || []
+      })
+      return false
+    }
+
+    logger.info('✅ [AUTO-CONFIRM] Slot meets all auto-confirmation criteria')
+    return true
+  } catch (error) {
+    logger.error('❌ [AUTO-CONFIRM] Exception checking auto-confirmation:', error)
+    return false
+  }
+}
+
+/**
  * Accept a time slot
  * Creates or updates a time_slot_response with response='accepted'
  *
@@ -1310,19 +1426,45 @@ export async function acceptTimeSlotAction(
       wasUpdated: !!existingResponse
     })
 
-    // 🔍 STEP 6: Verify the trigger updated the summary columns
+    // 🔍 STEP 6: Verify the PostgreSQL trigger updated the selected_by_X column
+    logger.info('🔄 [STEP 6] Verifying trigger updated selected_by_X field...')
+
     const { data: updatedSlot } = await supabase
       .from('intervention_time_slots')
       .select('selected_by_manager, selected_by_provider, selected_by_tenant')
       .eq('id', slotId)
       .single()
 
-    logger.info('📊 Summary columns after upsert:', {
-      selected_by_manager: updatedSlot?.selected_by_manager,
-      selected_by_provider: updatedSlot?.selected_by_provider,
-      selected_by_tenant: updatedSlot?.selected_by_tenant,
-      userRole: user.role
+    // Determine which field should have been updated based on user role
+    const expectedField =
+      user.role === 'gestionnaire' || user.role === 'admin' ? 'selected_by_manager' :
+      user.role === 'prestataire' ? 'selected_by_provider' :
+      'selected_by_tenant'
+
+    const wasUpdatedByTrigger = updatedSlot?.[expectedField] === true
+
+    logger.info('📊 [STEP 6] Trigger verification result:', {
+      userRole: user.role,
+      expectedField: expectedField,
+      fieldValue: updatedSlot?.[expectedField],
+      wasUpdatedByTrigger: wasUpdatedByTrigger,
+      allFields: {
+        selected_by_manager: updatedSlot?.selected_by_manager,
+        selected_by_provider: updatedSlot?.selected_by_provider,
+        selected_by_tenant: updatedSlot?.selected_by_tenant
+      }
     })
+
+    if (!wasUpdatedByTrigger) {
+      logger.error('❌ [STEP 6] CRITICAL: Trigger did NOT update the expected field!', {
+        expectedField,
+        slotId,
+        userRole: user.role
+      })
+      // Continue anyway but this indicates a database trigger issue
+    } else {
+      logger.info(`✅ [STEP 6] Trigger correctly updated ${expectedField} to TRUE`)
+    }
 
     // Log activity
     await supabase
@@ -1339,6 +1481,94 @@ export async function acceptTimeSlotAction(
       })
 
     logger.info('✅ [SERVER-ACTION] Time slot accepted successfully')
+
+    // 🔍 STEP 7: Check if slot can be auto-confirmed
+    const shouldAutoConfirm = await checkIfSlotCanBeAutoConfirmed(
+      supabase,
+      slotId,
+      interventionId
+    )
+
+    if (shouldAutoConfirm) {
+      logger.info('🎯 [AUTO-CONFIRM] Auto-confirming slot (all conditions met)')
+
+      try {
+        // Call confirmSchedule to finalize the slot
+        // Use service role to bypass RLS (system operation)
+        const interventionService = await createServerActionInterventionService()
+        const confirmResult = await interventionService.confirmSchedule(
+          interventionId,
+          user.id,
+          slotId,
+          { useServiceRole: true }
+        )
+
+        if (confirmResult.success) {
+          logger.info('✅ [AUTO-CONFIRM] Slot auto-confirmed successfully', {
+            interventionId,
+            slotId,
+            userId: user.id
+          })
+
+          // Log auto-confirmation activity (use service role to bypass RLS)
+          try {
+            const { createServiceRoleSupabaseClient } = await import('@/lib/services/core/supabase-client')
+            const serviceRoleClient = createServiceRoleSupabaseClient()
+
+            await serviceRoleClient
+              .from('activity_logs')
+              .insert({
+                intervention_id: interventionId,
+                user_id: user.id,
+                action: 'time_slot_auto_confirmed',
+                details: {
+                  slot_id: slotId,
+                  triggered_by_role: user.role
+                }
+              })
+
+            logger.info('✅ [AUTO-CONFIRM] Activity logged successfully')
+          } catch (logError) {
+            // Don't fail auto-confirm if activity log fails
+            logger.warn('⚠️ [AUTO-CONFIRM] Failed to log activity:', logError)
+          }
+        } else {
+          // Log detailed error information
+          logger.warn('⚠️ [AUTO-CONFIRM] Auto-confirmation failed:', {
+            errorMessage: confirmResult.error,
+            errorType: typeof confirmResult.error,
+            errorDetails: confirmResult.error instanceof Error
+              ? {
+                  name: confirmResult.error.name,
+                  message: confirmResult.error.message,
+                  stack: confirmResult.error.stack
+                }
+              : confirmResult.error,
+            context: {
+              interventionId,
+              slotId,
+              userId: user.id,
+              userRole: user.role
+            }
+          })
+        }
+      } catch (confirmError) {
+        logger.error('❌ [AUTO-CONFIRM] Exception during auto-confirmation:', {
+          error: confirmError,
+          errorType: typeof confirmError,
+          errorMessage: confirmError instanceof Error ? confirmError.message : String(confirmError),
+          errorStack: confirmError instanceof Error ? confirmError.stack : undefined,
+          context: {
+            interventionId,
+            slotId,
+            userId: user.id,
+            userRole: user.role
+          }
+        })
+        // Don't fail the accept action if auto-confirm fails
+        // The slot is still accepted, just not auto-confirmed
+      }
+    }
 
     // Revalidate intervention pages
     revalidatePath(`/gestionnaire/interventions/${interventionId}`)

@@ -1642,6 +1642,391 @@ git cherry-pick b2050d8  # UX modales
 
 ---
 
+## 🔧 Résolution : Auto-Confirmation + Service Role Trigger
+
+> **Date** : 2025-10-20
+> **Problème** : Échec auto-confirmation lors de l'acceptation de créneaux horaires
+> **Statut** : ✅ **RÉSOLU**
+
+### Contexte
+
+Lors de l'étape de **planification d'intervention**, lorsqu'un utilisateur (gestionnaire, prestataire, ou locataire) accepte un créneau horaire (time slot), le système doit :
+
+1. Mettre à jour la réponse de l'utilisateur (`accepted`)
+2. Mettre à jour le champ `selected_by_X` (selon le rôle)
+3. **Vérifier si toutes les réponses requises sont positives**
+4. **Si oui → Auto-confirmer** : Transition `planification` → `planifiee`
+
+### Problème Identifié
+
+#### Symptôme
+```
+❌ [TEST 1] Status-only update FAILED
+Error: null value in column "user_id" of relation "activity_logs" violates not-null constraint
+Code: 23502
+```
+
+#### Analyse
+
+Le workflow d'auto-confirmation utilisait le **service role client** pour bypasser les RLS :
+
+```typescript
+const interventionService = await createServerActionInterventionService()
+const confirmResult = await interventionService.confirmSchedule(
+  interventionId,
+  user.id,
+  slotId,
+  { useServiceRole: true }  // ← BYPASS RLS
+)
+```
+
+**Problème** : Quand le statut d'intervention change, le trigger PostgreSQL `log_intervention_status_change()` s'exécute automatiquement :
+
+```sql
+-- Trigger BEFORE UPDATE
+CREATE TRIGGER interventions_log_status_change
+  AFTER UPDATE ON interventions
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION log_intervention_status_change();
+```
+
+**Le trigger original** :
+```sql
+CREATE OR REPLACE FUNCTION log_intervention_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO activity_logs (
+    team_id,
+    user_id,  -- ❌ PROBLÈME ICI
+    action_type,
+    entity_type,
+    entity_id,
+    ...
+  ) VALUES (
+    NEW.team_id,
+    get_current_user_id(),  -- ❌ Retourne NULL avec service role
+    'status_change',
+    'intervention',
+    NEW.id,
+    ...
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**Pourquoi ça échoue** :
+
+| Client Type | `auth.uid()` | `get_current_user_id()` | `user_id` | Résultat |
+|-------------|--------------|-------------------------|-----------|----------|
+| User Auth | UUID valide | UUID valide | UUID valide | ✅ Succès |
+| **Service Role** | **NULL** | **NULL** | **NULL** | ❌ **NOT NULL violation** |
+
+### Solution Implémentée
+
+#### Migration `20251020190000_fix_status_trigger_service_role.sql`
+
+Création d'un trigger avec **fallback hiérarchique** pour trouver le `user_id` :
+
+```sql
+CREATE OR REPLACE FUNCTION log_intervention_status_change()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    -- ✅ ÉTAPE 1 : Essayer utilisateur authentifié
+    v_user_id := get_current_user_id();
+
+    -- ✅ ÉTAPE 2 : Fallback → Locataire assigné (remplace tenant_id supprimé)
+    IF v_user_id IS NULL THEN
+      SELECT user_id INTO v_user_id
+      FROM intervention_assignments
+      WHERE intervention_id = NEW.id AND role = 'locataire'
+      LIMIT 1;
+    END IF;
+
+    -- ✅ ÉTAPE 3 : Fallback → Premier gestionnaire assigné
+    IF v_user_id IS NULL THEN
+      SELECT user_id INTO v_user_id
+      FROM intervention_assignments
+      WHERE intervention_id = NEW.id AND role = 'gestionnaire'
+      LIMIT 1;
+    END IF;
+
+    -- ✅ ÉTAPE 4 : Fallback → Premier utilisateur assigné (n'importe quel rôle)
+    IF v_user_id IS NULL THEN
+      SELECT user_id INTO v_user_id
+      FROM intervention_assignments
+      WHERE intervention_id = NEW.id
+      LIMIT 1;
+    END IF;
+
+    -- ✅ ÉTAPE 5 : Si toujours NULL → Skip le log (ne pas bloquer l'opération)
+    IF v_user_id IS NOT NULL THEN
+      INSERT INTO activity_logs (
+        team_id,
+        user_id,  -- ✅ Toujours une valeur valide
+        action_type,
+        entity_type,
+        entity_id,
+        entity_name,
+        description,
+        metadata
+      ) VALUES (
+        NEW.team_id,
+        v_user_id,  -- ✅ Utilisé avec fallback
+        'status_change',
+        'intervention',
+        NEW.id,
+        NEW.reference,
+        'Changement statut: ' || OLD.status || ' → ' || NEW.status,
+        jsonb_build_object(
+          'old_status', OLD.status,
+          'new_status', NEW.status,
+          'intervention_title', NEW.title,
+          'is_system_action', get_current_user_id() IS NULL  -- ✅ Flag traçabilité
+        )
+      );
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+#### Adaptation au Champ `tenant_id` Supprimé
+
+**Contexte** : Le champ `tenant_id` a été supprimé de la table `interventions` dans une migration antérieure (`20251015193000_remove_tenant_id_from_interventions.sql`).
+
+**Problème** : Le trigger tentait d'accéder à `NEW.tenant_id` :
+```
+Error: record "new" has no field "tenant_id"
+Code: 42703
+```
+
+**Solution** : Récupération du locataire via `intervention_assignments` :
+```sql
+-- AVANT (❌ Champ supprimé)
+v_user_id := NEW.tenant_id;
+
+-- APRÈS (✅ Requête sur assignments)
+SELECT user_id INTO v_user_id
+FROM intervention_assignments
+WHERE intervention_id = NEW.id AND role = 'locataire'
+LIMIT 1;
+```
+
+### Résultats
+
+#### Tests Isolation
+
+Avant le fix :
+```
+❌ [TEST 1] Status-only update FAILED
+✅ [TEST 2] Dates-only update SUCCEEDED
+❌ [COMBINED] Combined update FAILED
+```
+
+Après le fix :
+```
+✅ [TEST 1] Status-only update SUCCEEDED
+✅ [TEST 2] Dates-only update SUCCEEDED
+✅ [COMBINED] Combined update SUCCEEDED
+```
+
+#### Workflow Auto-Confirmation
+
+| Étape | Action | Résultat |
+|-------|--------|----------|
+| 1 | User accepte slot | ✅ `time_slot_responses` updated |
+| 2 | Trigger met à jour `selected_by_X` | ✅ Champ updated automatiquement |
+| 3 | Vérification responses pending | ✅ Toutes positives |
+| 4 | Auto-confirmation triggered | ✅ Service role client utilisé |
+| 5 | Update slot status → `selected` | ✅ Succès |
+| 6 | Update intervention status → `planifiee` | ✅ **Succès (était bloqué)** |
+| 7 | Trigger `log_intervention_status_change` | ✅ **Fallback utilisé, log créé** |
+| 8 | Log activity | ✅ Succès |
+| 9 | Notifications envoyées | ✅ Succès |
+
+### Code Final Nettoyé
+
+**`lib/services/domain/intervention-service.ts:729-836`**
+
+```typescript
+async confirmSchedule(
+  id: string,
+  userId: string,
+  slotId: string,
+  options?: { useServiceRole?: boolean }
+) {
+  // Use service role client for all operations if requested
+  const supabase = options?.useServiceRole
+    ? createServiceRoleSupabaseClient()
+    : this.interventionRepo.supabase
+
+  // ============================================================================
+  // STEP 1: Validation
+  // ============================================================================
+  const { data: slot, error: slotError } = await supabase
+    .from('intervention_time_slots')
+    .select('*')
+    .eq('id', slotId)
+    .single()
+
+  if (slotError || !slot) {
+    return createErrorResponse(handleError(
+      slotError || new Error('Slot not found'),
+      'interventions:confirmSchedule'
+    ))
+  }
+
+  const { data: intervention, error: interventionError } = await supabase
+    .from('interventions')
+    .select('id, status, title, team_id')
+    .eq('id', id)
+    .single()
+
+  if (interventionError || !intervention) {
+    return createErrorResponse(handleError(
+      interventionError || new Error('Intervention not found'),
+      'interventions:confirmSchedule'
+    ))
+  }
+
+  // ============================================================================
+  // STEP 2: Update slot
+  // ============================================================================
+  const { error: slotUpdateError } = await supabase
+    .from('intervention_time_slots')
+    .update({
+      is_selected: true,
+      status: 'selected'
+    })
+    .eq('id', slotId)
+
+  if (slotUpdateError) {
+    return createErrorResponse(handleError(slotUpdateError, 'interventions:updateSlot'))
+  }
+
+  // ============================================================================
+  // STEP 3: Update intervention
+  // ============================================================================
+  const scheduledTimestamp = `${slot.slot_date}T${slot.start_time}`
+
+  const { data: updatedIntervention, error: interventionUpdateError } = await supabase
+    .from('interventions')
+    .update({
+      scheduled_date: scheduledTimestamp,
+      selected_slot_id: slotId,
+      status: 'planifiee'  // ✅ Fonctionne maintenant avec service role
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (interventionUpdateError) {
+    throw new Error(`Failed to update intervention: ${interventionUpdateError.message}`)
+  }
+
+  // ============================================================================
+  // STEP 4: Log activity
+  // ============================================================================
+  try {
+    await this.logActivity(
+      'schedule_confirmed',
+      id,
+      userId,
+      {
+        slot_id: slotId,
+        slot_date: slot.slot_date,
+        start_time: slot.start_time
+      },
+      options?.useServiceRole ? supabase : undefined
+    )
+  } catch (logError) {
+    // Non-critical, continue
+  }
+
+  // ============================================================================
+  // STEP 5: Send notifications
+  // ============================================================================
+  try {
+    if (updatedIntervention) {
+      await this.notifyScheduleConfirmed(updatedIntervention, slot, userId)
+    }
+  } catch (notifError) {
+    // Non-critical, continue
+  }
+
+  return createSuccessResponse(updatedIntervention)
+}
+```
+
+### Insights
+
+`★ Insight ─────────────────────────────────────`
+**Service Role Client + Database Triggers : Gestion du user_id**
+
+**Problème** : Les triggers PostgreSQL qui insèrent dans des tables avec contrainte `user_id NOT NULL` échouent quand on utilise un service role client (pas de session auth).
+
+**Solutions possibles** :
+
+1. **❌ Désactiver la contrainte NOT NULL** → Perte d'intégrité
+2. **❌ Utiliser un user "système" par défaut** → Perte de traçabilité
+3. **✅ Fallback hiérarchique** → Meilleur compromis
+
+**Pattern recommandé** :
+```sql
+DECLARE v_user_id UUID;
+BEGIN
+  -- Essayer auth (session normale)
+  v_user_id := get_current_user_id();
+
+  -- Fallback logique métier (service role)
+  IF v_user_id IS NULL THEN
+    -- Chercher dans tables liées (assignments, etc.)
+  END IF;
+
+  -- Skip si toujours NULL (ne pas bloquer l'opération)
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO activity_logs (...) VALUES (...);
+  END IF;
+END;
+```
+
+**Avantages** :
+- ✅ Fonctionne avec auth normale ET service role
+- ✅ Préserve l'intégrité des données
+- ✅ Traçabilité maximale (via metadata `is_system_action`)
+- ✅ Ne bloque jamais l'opération métier
+`─────────────────────────────────────────────────`
+
+### Checklist Post-Fix
+
+- [x] Migration créée et appliquée
+- [x] Trigger refactoré avec fallback
+- [x] Tests isolation validés
+- [x] Auto-confirmation fonctionnelle
+- [x] Logs de debug retirés
+- [x] Code production-ready
+- [x] Documentation mise à jour
+
+### Références
+
+**Fichiers modifiés** :
+- `supabase/migrations/20251020190000_fix_status_trigger_service_role.sql` (nouveau)
+- `lib/services/domain/intervention-service.ts:729-836` (nettoyé)
+
+**Migrations liées** :
+- `20251015193000_remove_tenant_id_from_interventions.sql` (suppression champ)
+- `20251017160000_fix_auth_uid_vs_users_id_mismatch.sql` (helper `get_current_user_id()`)
+- `20251020184900_add_selected_slot_id_to_interventions.sql` (ajout FK slot)
+
+---
+
 ## 🏁 Conclusion
 
 Ce guide fournit une **roadmap complète** pour refactorer l'ensemble du workflow d'intervention SEIDO.

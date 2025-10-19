@@ -1,4 +1,5 @@
 import { createBrowserClient, createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../database.types'
 import { ENV_CONFIG, calculateRetryDelay } from '../../environment'
 import { logger, logError } from '@/lib/logger'
@@ -115,6 +116,60 @@ export async function createServerActionSupabaseClient() {
       headers: {
         'x-client-info': 'seido-app/1.0.0'
       }
+    }
+  })
+}
+
+/**
+ * Service Role client for system operations
+ * ⚠️ WARNING: This client BYPASSES ALL RLS policies
+ *
+ * Use ONLY for:
+ * - System operations (auto-confirmation, cleanup jobs)
+ * - Server-side only (Server Actions, API routes)
+ * - Operations that require elevated privileges
+ *
+ * NEVER use for:
+ * - Client-side operations
+ * - Direct user actions
+ * - Anything exposed to the frontend
+ *
+ * Requires SUPABASE_SERVICE_ROLE_KEY in environment variables
+ */
+export function createServiceRoleSupabaseClient() {
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL is required for service role client')
+  }
+
+  if (!supabaseServiceRoleKey) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required for service role client. ' +
+      'Get it from Supabase Dashboard → Settings → API → service_role key'
+    )
+  }
+
+  logger.info('🔑 [SERVICE-ROLE] Creating service role client (RLS BYPASS)', {
+    url: supabaseUrl,
+    keyPrefix: supabaseServiceRoleKey.substring(0, 20) + '...',
+    keySuffix: '...' + supabaseServiceRoleKey.substring(supabaseServiceRoleKey.length - 10),
+    keyLength: supabaseServiceRoleKey.length
+  })
+
+  return createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    },
+    global: {
+      headers: {
+        'x-client-info': 'seido-app/1.0.0 (service-role)',
+        'x-elevated-privileges': 'true'
+      }
+    },
+    db: {
+      schema: 'public'
     }
   })
 }

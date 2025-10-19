@@ -386,7 +386,7 @@ export const interventionServiceOptimized = {
               team_id
             )
           ),
-          intervention_contacts (
+         intervention_assignments (
             role,
             is_primary,
             user:users (

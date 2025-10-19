@@ -412,7 +412,7 @@ CREATE TYPE slot_status AS ENUM ('proposed', 'confirmed', 'rejected', 'cancelled
 ```sql
 -- Index critiques pour performance
 CREATE INDEX CONCURRENTLY idx_interventions_status_created ON interventions(status, created_at);
-CREATE INDEX CONCURRENTLY idx_intervention_contacts_intervention_role ON intervention_contacts(intervention_id, role);
+CREATE INDEX CONCURRENTLY idx_intervention_contacts_intervention_role ONintervention_assignments(intervention_id, role);
 CREATE INDEX CONCURRENTLY idx_notifications_user_created ON notifications(user_id, created_at);
 CREATE INDEX CONCURRENTLY idx_activity_logs_entity_action ON activity_logs(entity_type, action, created_at);
 ```

@@ -311,7 +311,7 @@ lib/
 - ✅ **12 méthodes principales** : CRUD + relations + workflow
 - ✅ **Relations complexes** : lot, building, users, contacts, documents
 - ✅ **Status transitions** : validation pending → approved → in_progress → completed
-- ✅ **Provider assignment** : via intervention_contacts
+- ✅ **Provider assignment** : viaintervention_assignments
 - ✅ **Statistics & documents** : méthodes intégrées
 - ✅ **Data enrichment** : champs calculés (tenant, assigned_*, manager)
 

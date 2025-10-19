@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Note: assigned_contact_id n'existe plus dans la nouvelle structure DB
-    // Les assignations se font maintenant via intervention_contacts
+    // Les assignations se font maintenant viaintervention_assignments
 
     // Prepare intervention data
     logger.info({ selectedManagerIds }, "📝 Preparing intervention data with multiple managers")

@@ -88,7 +88,7 @@ export async function PUT(
           id,
           lot_contacts(user_id, is_primary)
         ),
-        intervention_contacts(
+       intervention_assignments(
           user_id,
           role,
           user:user_id(id, name, email, role)

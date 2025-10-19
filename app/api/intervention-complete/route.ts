@@ -67,7 +67,11 @@ export async function POST(request: NextRequest) {
     logger.info({ interventionId: interventionId }, "📝 Completing intervention:")
 
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+
+    // Extract user data from service response wrapper
+    const user = userResult?.data
+
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
         *,
         lot:lot_id(id, reference, building:building_id(name, address, team_id)),
         team:team_id(id, name),
-        intervention_contacts(
+        intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email)
@@ -118,10 +122,10 @@ export async function POST(request: NextRequest) {
 
     // For prestataires, check if they are assigned to this intervention
     if (user.role === 'prestataire') {
-      const isAssigned = intervention.intervention_contacts?.some(ic => 
+      const isAssigned = intervention.intervention_assignments?.some(ic =>
         ic.role === 'prestataire' && ic.user.id === user.id
       )
-      
+
       if (!isAssigned) {
         return NextResponse.json({
           success: false,
@@ -180,9 +184,60 @@ export async function POST(request: NextRequest) {
       updateData.final_cost = parseFloat(finalCost)
     }
 
-    const updatedIntervention = await interventionService.update(interventionId, updateData)
+    // Note: Don't pass userId - let RLS handle permissions (like all other endpoints)
+    const updateResult = await interventionService.update(interventionId, updateData)
 
-    logger.info({}, "✅ Intervention completed successfully")
+    // Check if update failed
+    if (!updateResult || !updateResult.success || updateResult.error) {
+      logger.error({
+        error: updateResult?.error,
+        interventionId
+      }, "❌ Failed to update intervention status")
+
+      return NextResponse.json({
+        success: false,
+        error: updateResult?.error?.message || 'Erreur lors de la mise à jour de l\'intervention',
+        details: updateResult?.error
+      }, { status: 500 })
+    }
+
+    const updatedIntervention = updateResult.data
+
+    logger.info({}, "✅ Intervention status updated successfully")
+
+    // Create intervention report if work description provided
+    if (workDescription && intervention.team_id) {
+      try {
+        const { error: reportError } = await supabase
+          .from('intervention_reports')
+          .insert({
+            intervention_id: interventionId,
+            team_id: intervention.team_id,
+            report_type: 'provider_report',
+            title: `Rapport de fin de travaux - ${intervention.title}`,
+            content: workDescription,
+            created_by: user.id,
+            is_internal: false,
+            metadata: {
+              completed_date: new Date().toISOString(),
+              completed_by_name: user.name,
+              completed_by_role: user.role,
+              final_cost: finalCost || null,
+              has_completion_notes: !!completionNotes,
+              lot_reference: intervention.lot?.reference,
+              building_name: intervention.lot?.building?.name
+            }
+          })
+
+        if (reportError) {
+          logger.warn({ reportError }, "⚠️ Could not create intervention report:")
+        } else {
+          logger.info({}, "📝 Intervention report created successfully")
+        }
+      } catch (reportCreationError) {
+        logger.warn({ reportCreationError }, "⚠️ Error creating intervention report:")
+      }
+    }
 
     // Create notifications
     const notificationMessage = `L'intervention "${intervention.title}" a été terminée par ${user.name}. Elle est maintenant en attente de votre validation.`
@@ -219,7 +274,7 @@ export async function POST(request: NextRequest) {
 
     // Notify gestionnaires if completed by prestataire
     if (user.role === 'prestataire') {
-      const managers = intervention.intervention_contacts?.filter(ic => 
+      const managers = intervention.intervention_assignments?.filter(ic =>
         ic.role === 'gestionnaire'
       ) || []
 

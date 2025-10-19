@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', magicLink.id)
 
-    // Add provider to intervention via intervention_contacts
+    // Add provider to intervention viaintervention_assignments
     await supabase
       .from('intervention_contacts')
       .upsert({

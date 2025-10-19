@@ -78,7 +78,7 @@ export async function POST(
         status,
         tenant_id,
         team_id,
-        intervention_contacts!inner(user_id)
+       intervention_assignments!inner(user_id)
       `)
       .eq('id', interventionId)
       .single()
@@ -305,7 +305,7 @@ export async function GET(
         id,
         tenant_id,
         team_id,
-        intervention_contacts(user_id)
+       intervention_assignments(user_id)
       `)
       .eq('id', interventionId)
       .single()

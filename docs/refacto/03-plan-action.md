@@ -1607,7 +1607,7 @@ export class QueryOptimizerV2 {
           COUNT(DISTINCT f.id) as file_count,
           MAX(il.created_at) as last_activity
         FROM interventions i
-        LEFT JOIN intervention_contacts ic ON i.id = ic.intervention_id
+        LEFT JOINintervention_assignments ic ON i.id = ic.intervention_id
         LEFT JOIN files f ON i.id = f.intervention_id
         LEFT JOIN intervention_logs il ON i.id = il.intervention_id
         GROUP BY i.id;

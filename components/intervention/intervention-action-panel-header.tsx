@@ -723,21 +723,18 @@ export function InterventionActionPanelHeader({
     try {
       setIsProcessing(true)
 
-      // Convert files to serializable format
-      const serializableData = {
-        workReport: data.workReport,
-        mediaFiles: data.mediaFiles.map(file => ({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          lastModified: file.lastModified
-        }))
+      // Map modal data to intervention-complete API format
+      const completionData = {
+        interventionId: intervention.id,
+        workDescription: data.workReport,
+        completionNotes: data.workReport
+        // mediaFiles upload deferred to later implementation
       }
 
-      const response = await fetch(`/api/intervention/${intervention.id}/simple-work-completion`, {
+      const response = await fetch(`/api/intervention-complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(serializableData)
+        body: JSON.stringify(completionData)
       })
 
       if (response.ok) {
@@ -746,11 +743,11 @@ export function InterventionActionPanelHeader({
         return true
       } else {
         const errorData = await response.json()
-        setError(errorData.error || 'Erreur lors de la soumission du rapport')
+        setError(errorData.error || 'Erreur lors de la finalisation de l\'intervention')
         return false
       }
     } catch (_error) {
-      setError('Erreur lors de la soumission du rapport')
+      setError('Erreur lors de la finalisation de l\'intervention')
       return false
     } finally {
       setIsProcessing(false)

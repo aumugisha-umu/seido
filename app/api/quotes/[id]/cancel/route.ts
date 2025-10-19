@@ -53,7 +53,7 @@ export async function PATCH(
           reference,
           building_id,
           lot_id,
-          intervention_contacts!inner (
+         intervention_assignments!inner (
             role,
             is_primary,
             user:user_id (
@@ -119,7 +119,7 @@ export async function PATCH(
     // Récupérer les gestionnaires de l'équipe et le gestionnaire assigné
     const managersToNotify = new Set<string>()
 
-    // Ajouter les gestionnaires assignés à l'intervention via intervention_contacts
+    // Ajouter les gestionnaires assignés à l'intervention viaintervention_assignments
     if (intervention.intervention_contacts) {
       intervention.intervention_contacts
         .filter(contact => contact.role === 'gestionnaire')

@@ -566,7 +566,7 @@ export interface InterventionWithRelations extends Intervention {
     user: User
     notes?: string
   }>
-  intervention_contacts?: Array<{
+ intervention_assignments?: Array<{
     role: 'gestionnaire' | 'prestataire' | 'superviseur'
     is_primary: boolean
     user: User

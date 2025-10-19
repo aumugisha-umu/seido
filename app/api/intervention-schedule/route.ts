@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         *,
         lot:lot_id(id, reference, building:building_id(name, address, team_id)),
         team:team_id(id, name),
-        intervention_contacts(
+       intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email)

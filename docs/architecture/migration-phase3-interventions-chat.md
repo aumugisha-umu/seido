@@ -217,7 +217,7 @@ type InterventionStatus =
 
 **Structure trouvée** (`20250909134746_add_intervention_contacts_table.sql`):
 ```sql
-CREATE TABLE IF NOT EXISTS intervention_contacts (
+CREATE TABLE IF NOT EXISTSintervention_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,

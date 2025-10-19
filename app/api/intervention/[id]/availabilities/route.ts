@@ -68,7 +68,7 @@ export async function GET(
         tenant_id,
         team_id,
         scheduled_date,
-        intervention_contacts(
+       intervention_assignments(
           user_id,
           role,
           user:user_id(id, name, role)

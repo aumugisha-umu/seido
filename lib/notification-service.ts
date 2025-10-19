@@ -1645,7 +1645,7 @@ class NotificationService {
         }
       }
 
-      // Vérifier les liens avec les interventions via intervention_contacts
+      // Vérifier les liens avec les interventions viaintervention_assignments
       const { data: interventionLinks } = await this.supabase
         .from('intervention_contacts')
         .select(`
@@ -1857,7 +1857,7 @@ class NotificationService {
     try {
       if (!intervention.team_id || !changedBy) return
 
-      // Récupérer les gestionnaires directement liés via intervention_contacts
+      // Récupérer les gestionnaires directement liés viaintervention_assignments
       let directManagerIds: string[] = []
       
       const { data: interventionContacts } = await this.supabase

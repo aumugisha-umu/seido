@@ -104,7 +104,7 @@ This document provides a comprehensive analysis of the SEIDO real estate managem
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│               INTERVENTION_CONTACTS TABLE                   │
+│              intervention_assignments TABLE                   │
 ├─────────────────────────────────────────────────────────────┤
 │ • intervention_id → interventions(id)                      │
 │ • user_id → users(id)                                      │
@@ -498,7 +498,7 @@ USING (
 -- Critical cascade relationships
 buildings → lots: ON DELETE CASCADE
 lots → lot_contacts: ON DELETE CASCADE
-interventions → intervention_contacts: ON DELETE CASCADE
+interventions →intervention_assignments: ON DELETE CASCADE
 interventions → intervention_documents: ON DELETE CASCADE
 interventions → quotes: ON DELETE CASCADE
 teams → team_members: ON DELETE CASCADE
@@ -621,7 +621,7 @@ contacts AS (
         'is_primary', ic.is_primary
       )
     ) as contacts
-  FROM intervention_contacts ic
+  FROMintervention_assignments ic
   JOIN users u ON ic.user_id = u.id
   WHERE ic.intervention_id = $1
   GROUP BY intervention_id

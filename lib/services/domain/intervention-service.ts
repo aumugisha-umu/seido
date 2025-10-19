@@ -370,7 +370,7 @@ export class InterventionService {
   /**
    * Update intervention
    */
-  async update(id: string, data: InterventionUpdateInput, userId: string) {
+  async update(id: string, data: InterventionUpdateInput, userId?: string) {
     try {
       // Get current intervention
       const current = await this.interventionRepo.findById(id)
@@ -378,14 +378,14 @@ export class InterventionService {
         return current
       }
 
-      // Check permissions
+      // Check permissions (skip if no userId - RLS protects at DB level)
       const hasAccess = await this.checkInterventionModifyAccess(current.data, userId)
       if (!hasAccess) {
         throw new PermissionException(
           'You do not have permission to update this intervention',
           'interventions',
           'update',
-          userId
+          userId ||'unknown'
         )
       }
 
@@ -395,8 +395,10 @@ export class InterventionService {
         return result
       }
 
-      // Log activity
-      await this.logActivity('intervention_updated', id, userId, data)
+      // Log activity (only if userId provided)
+      if (userId) {
+        await this.logActivity('intervention_updated', id, userId, data)
+      }
 
       return result
     } catch (error) {
@@ -1159,6 +1161,27 @@ export class InterventionService {
     }
   }
 
+  private async getInterventionPrestataires(interventionId: string): Promise<string[]> {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('intervention_assignments')
+        .select('user_id')
+        .eq('intervention_id', interventionId)
+        .eq('role', 'prestataire')
+        .is('deleted_at', null)
+
+      if (error) {
+        logger.error('Failed to fetch intervention prestataires', error)
+        return []
+      }
+
+      return data?.map(a => a.user_id) || []
+    } catch (error) {
+      logger.error('Error in getInterventionPrestataires', error)
+      return []
+    }
+  }
+
   /**
    * Validate status transition and update
    */
@@ -1411,8 +1434,9 @@ export class InterventionService {
   /**
    * Check if user has access to modify intervention
    */
-  private async checkInterventionModifyAccess(intervention: Intervention, userId: string): Promise<boolean> {
-    if (!this.userService) return true
+  private async checkInterventionModifyAccess(intervention: Intervention, userId?: string): Promise<boolean> {
+    // If no userId provided, skip check (RLS protects at DB level)
+    if (!userId || !this.userService) return true
 
     const userResult = await this.userService.getById(userId)
     if (!userResult.success || !userResult.data) {
@@ -1432,7 +1456,13 @@ export class InterventionService {
       return tenants.includes(userId) && intervention.status === 'demande'
     }
 
-    // Providers cannot directly modify interventions (they use workflow actions)
+    // Prestataires can modify interventions they are assigned to
+    if (user.role === 'prestataire') {
+      const prestataires = await this.getInterventionPrestataires(intervention.id)
+      return prestataires.includes(userId)
+    }
+
+    // Other roles denied
     return false
   }
 

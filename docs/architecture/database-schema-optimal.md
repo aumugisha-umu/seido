@@ -166,7 +166,7 @@ Progression Globale:                     ██████░░░░░░░
 ├─────────────────────────────────────────────────────────────────┤
 │ • building_contacts  (N-N buildings ↔ users)                    │
 │ • lot_contacts       (N-N lots ↔ users)                         │
-│ • intervention_contacts (N-N interventions ↔ users)             │
+│ •intervention_assignments (N-N interventions ↔ users)             │
 │   → Complexité: Chaque entité a sa propre table de jonction     │
 │   → Impact: Joins multiples pour récupérer les contacts         │
 └─────────────────────────────────────────────────────────────────┘
@@ -269,7 +269,7 @@ CREATE TABLE interventions (
 
 #### 6. **intervention_contacts** (❌ Problème: Table jonction complexe)
 ```sql
-CREATE TABLE intervention_contacts (
+CREATE TABLEintervention_assignments (
   id UUID PRIMARY KEY,
   intervention_id UUID REFERENCES interventions(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -295,7 +295,7 @@ CREATE TABLE quotes (
 
 #### 8. **building_contacts**, **lot_contacts** (❌ Redondance)
 ```sql
--- Similaires à intervention_contacts
+-- Similaires àintervention_assignments
 -- Créent des joins complexes pour chaque niveau de hiérarchie
 ```
 
@@ -371,7 +371,7 @@ intervention_contacts (intervention_id, user_id, role)
 -- Requête complexe pour obtenir tous les contacts d'une intervention
 SELECT u.*
 FROM users u
-JOIN intervention_contacts ic ON ic.user_id = u.id
+JOINintervention_assignments ic ON ic.user_id = u.id
 WHERE ic.intervention_id = $1
 
 UNION
@@ -736,7 +736,7 @@ CREATE INDEX idx_interventions_search ON interventions
 
 ### 6. **entity_contacts** (✅ NOUVEAU - Table Unifiée)
 ```sql
--- ✅ Remplace building_contacts, lot_contacts, intervention_contacts
+-- ✅ Remplace building_contacts, lot_contacts,intervention_assignments
 CREATE TYPE entity_type AS ENUM ('building', 'lot', 'intervention');
 CREATE TYPE contact_role AS ENUM ('gestionnaire', 'prestataire', 'locataire', 'contact');
 

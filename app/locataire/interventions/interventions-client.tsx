@@ -21,7 +21,7 @@ interface Intervention {
   location?: string
   estimated_duration?: string
   created_at: string
-  intervention_contacts?: Array<{
+ intervention_assignments?: Array<{
     role: string
     is_primary: boolean
     user?: {

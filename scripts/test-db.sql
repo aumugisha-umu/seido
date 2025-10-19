@@ -7,7 +7,7 @@ SELECT 'buildings table' as test, COUNT(*) as count FROM buildings;
 SELECT 'lots table' as test, COUNT(*) as count FROM lots;
 SELECT 'building_contacts table' as test, COUNT(*) as count FROM building_contacts;
 SELECT 'lot_contacts table' as test, COUNT(*) as count FROM lot_contacts;
-SELECT 'intervention_contacts table' as test, COUNT(*) as count FROM intervention_contacts;
+SELECT 'intervention_contacts table' as test, COUNT(*) as count FROMintervention_assignments;
 
 -- Test 2: Vérifier la structure des tables de liaison
 \d building_contacts;

@@ -19,16 +19,24 @@ import { logger, logError } from '@/lib/logger'
  */
 
 // Composant pour afficher le bouton de soumission avec état
-function SubmitButton({ isFormValid }: { isFormValid: boolean }) {
+function SubmitButton({ isFormValid, isSubmitting }: { isFormValid: boolean; isSubmitting: boolean }) {
   const { pending } = useFormStatus()
+  const isLoading = pending || isSubmitting
 
   return (
     <Button
       type="submit"
       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all duration-200"
-      disabled={pending || !isFormValid}
+      disabled={isLoading || !isFormValid}
     >
-      {pending ? "Création du compte..." : "Créer mon compte"}
+      {isLoading ? (
+        <>
+          <span className="inline-block animate-spin mr-2">⏳</span>
+          Création du compte...
+        </>
+      ) : (
+        "Créer mon compte"
+      )}
     </Button>
   )
 }
@@ -45,6 +53,7 @@ export function SignupForm() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ✅ 2025: useActionState pour gestion état Server Action
   const [state, formAction] = useActionState(signupAction, { success: true })
@@ -67,7 +76,12 @@ export function SignupForm() {
 
       return () => clearTimeout(timer)
     }
-  }, [state.success, state.data?.redirectTo])
+
+    // ✅ Réinitialiser isSubmitting si erreur ou succès
+    if (!state.success || state.error) {
+      setIsSubmitting(false)
+    }
+  }, [state.success, state.data?.redirectTo, state.error])
 
   const passwordRequirements = [
     { text: "Au moins 8 caractères", met: formData.password.length >= 8 },
@@ -91,8 +105,13 @@ export function SignupForm() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    // Ne pas empêcher la soumission, juste déclencher le loading immédiatement
+    setIsSubmitting(true)
+  }
+
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} onSubmit={handleSubmit} className="space-y-4">
       {/* ✅ Message de succès avant redirection */}
       {state.success && !state.error && state.data?.redirectTo && (
         <Alert className="border-green-200 bg-green-50">
@@ -308,7 +327,7 @@ export function SignupForm() {
       </div>
 
       {/* ✅ 2025: Bouton avec état Server Action */}
-      <SubmitButton isFormValid={isFormValid} />
+      <SubmitButton isFormValid={isFormValid} isSubmitting={isSubmitting} />
     </form>
   )
 }

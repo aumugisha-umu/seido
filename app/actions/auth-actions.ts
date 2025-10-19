@@ -286,19 +286,26 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
       hasFallbackActionLink: !!fallbackActionLink
     }, '🔗 [SIGNUP-ACTION] Built confirmation URL')
 
-    const emailResult = await emailService.sendSignupConfirmationEmail(validatedData.email, {
+    // ✅ OPTIMISATION: Envoi d'email en arrière-plan (fire-and-forget)
+    // Permet de ne pas bloquer la réponse de signup (~2-5s économisés)
+    // L'utilisateur reçoit une réponse immédiate, l'email arrive quelques secondes après
+    emailService.sendSignupConfirmationEmail(validatedData.email, {
       firstName: validatedData.firstName,
       confirmationUrl: confirmationUrl!,
       expiresIn: 60, // 60 minutes
+    }).then(emailResult => {
+      if (!emailResult.success) {
+        logger.error(`❌ [SIGNUP-ACTION] Background email failed: ${emailResult.error}`)
+        // ⚠️ User créé mais email échoué - nécessite intervention manuelle
+        logger.warn('⚠️ [SIGNUP-ACTION] User created but email failed - manual intervention required')
+      } else {
+        logger.info(`✅ [SIGNUP-ACTION] Background email sent successfully via Resend: ${emailResult.emailId}`)
+      }
+    }).catch(err => {
+      logger.error('❌ [SIGNUP-ACTION] Email exception:', err)
     })
 
-    if (!emailResult.success) {
-      logger.error(`❌ [SIGNUP-ACTION] Failed to send confirmation email: ${emailResult.error}`)
-      // ⚠️ Ne pas bloquer l'inscription si l'email échoue - user existe déjà dans auth.users
-      logger.warn('⚠️ [SIGNUP-ACTION] User created but email failed - manual intervention required')
-    } else {
-      logger.info(`✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend: ${emailResult.emailId}`)
-    }
+    logger.info('📨 [SIGNUP-ACTION] Confirmation email queued for background sending')
 
     // ✅ NOTE: Le profil et l'équipe seront créés automatiquement par le Database Trigger
     // après que l'utilisateur confirme son email. Voir migration 20251002000001_fix_profile_creation_timing.sql

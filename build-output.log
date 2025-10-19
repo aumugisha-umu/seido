@@ -92,58 +92,58 @@ Import trace for requested module:
    Skipping validation of types
    Skipping linting
    Collecting page data ...
-{"level":30,"time":"2025-10-19T21:37:42.010Z","pid":3596,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.084Z","pid":22244,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:42.197Z","pid":25808,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-{"level":30,"time":"2025-10-19T21:37:42.213Z","pid":16512,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-{"level":30,"time":"2025-10-19T21:37:42.220Z","pid":2360,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-{"level":30,"time":"2025-10-19T21:37:42.232Z","pid":17240,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.287Z","pid":26112,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.403Z","pid":3028,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.419Z","pid":3324,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:42.251Z","pid":15432,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:42.291Z","pid":9628,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:42.339Z","pid":3276,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-{"level":30,"time":"2025-10-19T21:37:42.415Z","pid":26788,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:42.758Z","pid":11656,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:42.834Z","pid":23180,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-   Generating static pages (0/90) ...
-{"level":30,"time":"2025-10-19T21:37:49.417Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:49.425Z","pid":22404,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-{"level":30,"time":"2025-10-19T21:37:49.429Z","pid":24084,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:49.516Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:49.623Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
-📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:49.731Z","pid":22404,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.443Z","pid":9828,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.448Z","pid":21440,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.457Z","pid":25076,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-19T22:54:34.468Z","pid":4520,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:49.649Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
 📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
-{"level":30,"time":"2025-10-19T21:37:49.562Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [INTERVENTION-PAGE-SERVER] Loading intervention creation page"}
-{"level":50,"time":"2025-10-19T21:37:49.571Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [INTERVENTION-PAGE-SERVER] Failed to load intervention page data"}
-   Generating static pages (22/90) 
-{"level":30,"time":"2025-10-19T21:37:50.097Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side"}
-{"level":30,"time":"2025-10-19T21:37:50.127Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🏠 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading tenant interventions"}
-{"level":30,"time":"2025-10-19T21:37:50.284Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [SIGNUP-SERVER] Signup page rendered server-side"}
-{"level":50,"time":"2025-10-19T21:37:50.128Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [TENANT-INTERVENTIONS-PAGE-SERVER] Failed to load interventions"}
-{"level":30,"time":"2025-10-19T21:37:50.226Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🚪 [LOGOUT-PAGE] Logout page accessed, triggering server-side logout..."}
-{"level":30,"time":"2025-10-19T21:37:50.226Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [LOGOUT-ACTION] Starting server-side logout..."}
-{"level":50,"time":"2025-10-19T21:37:50.226Z","pid":8644,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [LOGOUT-ACTION] Exception: Dynamic server usage: Route /auth/logout couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error"}
-{"level":30,"time":"2025-10-19T21:37:50.487Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)..."}
-{"level":50,"time":"2025-10-19T21:37:50.488Z","pid":2548,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [SERVER-CONTEXT] Error getting auth context:"}
-   Generating static pages (44/90) 
-   Generating static pages (67/90) 
- ✓ Generating static pages (90/90)
+{"level":30,"time":"2025-10-19T22:54:34.504Z","pid":24264,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:34.523Z","pid":26608,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:34.656Z","pid":252,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+   Generating static pages (0/89) ...
+{"level":30,"time":"2025-10-19T22:54:43.499Z","pid":15632,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.509Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.632Z","pid":7312,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.647Z","pid":25844,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.753Z","pid":25844,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.806Z","pid":7312,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.828Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+📝 [CACHE-MANAGER] Running in development mode - Redis L2 cache disabled
+{"level":30,"time":"2025-10-19T22:54:43.769Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side"}
+{"level":30,"time":"2025-10-19T22:54:44.030Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [SIGNUP-SERVER] Signup page rendered server-side"}
+{"level":30,"time":"2025-10-19T22:54:43.699Z","pid":25844,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [INTERVENTION-PAGE-SERVER] Loading intervention creation page"}
+{"level":50,"time":"2025-10-19T22:54:43.706Z","pid":25844,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [INTERVENTION-PAGE-SERVER] Failed to load intervention page data"}
+{"level":30,"time":"2025-10-19T22:54:44.493Z","pid":25844,"hostname":"XPS-Arthur-Umugisha","msg":"🏠 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading tenant interventions"}
+   Generating static pages (22/89) 
+{"level":30,"time":"2025-10-19T22:54:44.560Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🚪 [LOGOUT-PAGE] Logout page accessed, triggering server-side logout..."}
+{"level":30,"time":"2025-10-19T22:54:44.560Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [LOGOUT-ACTION] Starting server-side logout..."}
+{"level":50,"time":"2025-10-19T22:54:44.562Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [LOGOUT-ACTION] Exception: Dynamic server usage: Route /auth/logout couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error"}
+{"level":50,"time":"2025-10-19T22:54:44.494Z","pid":25844,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [TENANT-INTERVENTIONS-PAGE-SERVER] Failed to load interventions"}
+{"level":30,"time":"2025-10-19T22:54:44.881Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)..."}
+{"level":50,"time":"2025-10-19T22:54:44.882Z","pid":6388,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [SERVER-CONTEXT] Error getting auth context:"}
+   Generating static pages (44/89) 
+   Generating static pages (66/89) 
+ ✓ Generating static pages (89/89)
    Finalizing page optimization ...
    Collecting build traces ...
 
@@ -152,7 +152,7 @@ Route (app)                                               Size  First Load JS
 ├ ○ /_not-found                                          990 B         102 kB
 ├ ƒ /admin/dashboard                                   2.97 kB         218 kB
 ├ ƒ /admin/notifications                                 189 B         104 kB
-├ ƒ /admin/profile                                       158 B         237 kB
+├ ƒ /admin/profile                                       159 B         237 kB
 ├ ƒ /api/accept-invitation                               369 B         101 kB
 ├ ƒ /api/activity-logs                                   369 B         101 kB
 ├ ƒ /api/activity-stats                                  369 B         101 kB
@@ -231,45 +231,44 @@ Route (app)                                               Size  First Load JS
 ├ ƒ /api/view-intervention-document                      369 B         101 kB
 ├ ○ /auth/callback                                     3.18 kB         210 kB
 ├ ƒ /auth/confirm                                        369 B         101 kB
-├ ƒ /auth/login                                        8.11 kB         120 kB
+├ ƒ /auth/login                                        8.12 kB         120 kB
 ├ ƒ /auth/logout                                         369 B         101 kB
-├ ○ /auth/reset-password                               4.07 kB         116 kB
+├ ○ /auth/reset-password                               4.06 kB         116 kB
 ├ ○ /auth/set-password                                 5.96 kB         221 kB
-├ ○ /auth/signup                                       11.9 kB         124 kB
+├ ○ /auth/signup                                       11.8 kB         124 kB
 ├ ƒ /auth/signup-success                                 189 B         104 kB
 ├ ○ /auth/unauthorized                                   189 B         104 kB
 ├ ○ /auth/update-password                              5.92 kB         215 kB
 ├ ƒ /dashboard                                           369 B         101 kB
-├ ○ /demo/finalization-modal                             25 kB         138 kB
 ├ ƒ /gestionnaire/biens                                3.71 kB         255 kB
-├ ƒ /gestionnaire/biens/immeubles/[id]                 11.2 kB         180 kB
+├ ƒ /gestionnaire/biens/immeubles/[id]                 11.3 kB         180 kB
 ├ ƒ /gestionnaire/biens/immeubles/modifier/[id]        6.22 kB         256 kB
 ├ ƒ /gestionnaire/biens/immeubles/nouveau              10.7 kB         292 kB
 ├ ƒ /gestionnaire/biens/lots/[id]                      8.28 kB         279 kB
 ├ ƒ /gestionnaire/biens/lots/modifier/[id]             6.62 kB         257 kB
-├ ƒ /gestionnaire/biens/lots/nouveau                     12 kB         290 kB
+├ ƒ /gestionnaire/biens/lots/nouveau                   11.8 kB         289 kB
 ├ ƒ /gestionnaire/contacts                             9.46 kB         261 kB
 ├ ƒ /gestionnaire/contacts/details/[id]                22.3 kB         182 kB
 ├ ƒ /gestionnaire/contacts/modifier/[id]                9.1 kB         252 kB
 ├ ƒ /gestionnaire/dashboard                             6.7 kB         269 kB
-├ ƒ /gestionnaire/interventions                        13.2 kB         314 kB
-├ ƒ /gestionnaire/interventions/[id]                   13.3 kB         376 kB
+├ ƒ /gestionnaire/interventions                        10.5 kB         314 kB
+├ ƒ /gestionnaire/interventions/[id]                   13.2 kB         367 kB
 ├ ƒ /gestionnaire/interventions/nouvelle-intervention  17.7 kB         308 kB
 ├ ƒ /gestionnaire/mail                                 8.35 kB         122 kB
 ├ ƒ /gestionnaire/notifications                        17.4 kB         236 kB
-├ ƒ /gestionnaire/profile                                158 B         237 kB
+├ ƒ /gestionnaire/profile                                159 B         237 kB
 ├ ƒ /locataire/dashboard                               2.61 kB         218 kB
 ├ ƒ /locataire/interventions                           5.13 kB         144 kB
-├ ƒ /locataire/interventions/[id]                      2.72 kB         366 kB
+├ ƒ /locataire/interventions/[id]                      2.71 kB         356 kB
 ├ ƒ /locataire/interventions/new                       8.91 kB         195 kB
-├ ƒ /locataire/interventions/nouvelle-demande          9.28 kB         255 kB
+├ ƒ /locataire/interventions/nouvelle-demande          9.25 kB         255 kB
 ├ ƒ /locataire/notifications                           5.97 kB         224 kB
-├ ƒ /locataire/profile                                   158 B         237 kB
+├ ƒ /locataire/profile                                   159 B         237 kB
 ├ ƒ /prestataire/dashboard                             11.8 kB         288 kB
-├ ƒ /prestataire/interventions/[id]                    16.5 kB         394 kB
+├ ƒ /prestataire/interventions/[id]                      16 kB         388 kB
 ├ ƒ /prestataire/notifications                           189 B         104 kB
-├ ƒ /prestataire/profile                                 158 B         237 kB
-├ ○ /test-finalization-mobile                          11.6 kB         188 kB
+├ ƒ /prestataire/profile                                 159 B         237 kB
+├ ○ /test-finalization-mobile                          10.9 kB         146 kB
 └ ○ /test-logging                                         5 kB         106 kB
 + First Load JS shared by all                           101 kB
   ├ chunks/1684-0f5494d66850109f.js                    45.8 kB

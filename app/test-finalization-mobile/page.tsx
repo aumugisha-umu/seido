@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { SimplifiedFinalizationModal } from "@/components/intervention/simplified-finalization-modal"
+import { FinalizationModalLive } from "@/components/intervention/finalization-modal-live"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Smartphone, Tablet, Monitor, CheckCircle2, XCircle, AlertTriangle } from "lucide-react"
@@ -184,7 +184,7 @@ export default function TestFinalizationMobilePage() {
       </Card>
 
       {/* Finalization Modal */}
-      <SimplifiedFinalizationModal
+      <FinalizationModalLive
         interventionId={testInterventionId}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

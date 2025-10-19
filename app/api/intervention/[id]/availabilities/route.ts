@@ -245,11 +245,9 @@ export async function GET(
       recommendations: {
         shouldRunMatching,
         canSelectSlot: stats.total_matches > 0 || stats.total_time_slots > 0,
-        nextAction: shouldRunMatching
-          ? 'run_matching'
-          : stats.is_scheduled
-            ? 'intervention_scheduled'
-            : 'need_more_availabilities'
+        nextAction: stats.is_scheduled
+          ? 'intervention_scheduled'
+          : 'need_more_availabilities'
       }
     })
 

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { toast } from "sonner"
 import { logger, logError } from '@/lib/logger'
 import {
   interventionActionsService,
@@ -126,22 +127,29 @@ export const useInterventionPlanning = () => {
     }
 
     try {
+      // L'API gère maintenant correctement les 3 scénarios
       await interventionActionsService.programIntervention(
         programmingModal.intervention,
         planningData
       )
 
+      // Fermer la modale
       setProgrammingModal({ isOpen: false, intervention: null })
 
-      setPlanningSuccessModal({
-        isOpen: true,
-        interventionTitle: programmingModal.intervention.title || "",
-      })
+      // Message de succès adapté
+      const successMessage = programmingOption === 'organize'
+        ? 'Planification autonome activée'
+        : 'Créneaux proposés avec succès'
+
+      toast.success(successMessage)
 
       resetProgrammingState()
+
+      // Rafraîchir la page pour afficher les changements
+      window.location.reload()
     } catch (error) {
       logger.error("Error programming intervention:", error)
-      // TODO: Handle error state
+      toast.error('Erreur lors de la planification')
     }
   }
 
@@ -219,34 +227,35 @@ export const useInterventionPlanning = () => {
   // Validation
   const isPlanningFormValid = () => {
     if (!planningOption) return false
-    
+
     if (planningOption === "direct") {
-      return directSchedule.date && directSchedule.startTime && directSchedule.endTime
+      // For direct appointment: only date and start time required (no end time)
+      return directSchedule.date && directSchedule.startTime
     }
-    
+
     if (planningOption === "propose") {
-      return proposedSlots.length > 0 && 
+      return proposedSlots.length > 0 &&
         proposedSlots.every(slot => slot.date && slot.startTime && slot.endTime)
     }
-    
+
     return planningOption === "organize"
   }
 
   const isProgrammingFormValid = () => {
     if (!programmingOption) return false
-    
+
     if (programmingOption === "direct") {
-      return programmingDirectSchedule.date && 
-        programmingDirectSchedule.startTime && 
-        programmingDirectSchedule.endTime
+      // For direct appointment: only date and start time required (no end time)
+      return programmingDirectSchedule.date &&
+        programmingDirectSchedule.startTime
     }
-    
+
     if (programmingOption === "propose") {
-      return programmingProposedSlots.every(slot => 
+      return programmingProposedSlots.every(slot =>
         slot.date && slot.startTime && slot.endTime
       )
     }
-    
+
     return programmingOption === "organize"
   }
 

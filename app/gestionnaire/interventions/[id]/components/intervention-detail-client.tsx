@@ -184,7 +184,7 @@ export function InterventionDetailClient({
       {/* Programming Modal */}
       <ProgrammingModal
         isOpen={planning.programmingModal.isOpen}
-        onClose={() => planning.setProgrammingModal({ isOpen: false, intervention: null })}
+        onClose={planning.closeProgrammingModal}
         intervention={planning.programmingModal.intervention}
         programmingOption={planning.programmingOption}
         onProgrammingOptionChange={planning.setProgrammingOption}
@@ -194,6 +194,9 @@ export function InterventionDetailClient({
         onAddProposedSlot={planning.addProgrammingSlot}
         onUpdateProposedSlot={planning.updateProgrammingSlot}
         onRemoveProposedSlot={planning.removeProgrammingSlot}
+        selectedProviders={[]}
+        onProviderToggle={() => {}}
+        providers={[]}
         onConfirm={planning.handleProgrammingConfirm}
         isFormValid={planning.isProgrammingFormValid()}
       />

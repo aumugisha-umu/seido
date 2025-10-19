@@ -219,18 +219,11 @@ export function InterventionCard({
 
       case 'planification':
         if (userContext === 'gestionnaire') {
-          actions.push(
-            {
-              label: "Lancer le matching",
-              icon: TrendingUp,
-              onClick: () => handleAction('run_matching'),
-            },
-            {
-              label: "Proposer des créneaux",
-              icon: Clock,
-              onClick: () => handleAction('propose_slots'),
-            }
-          )
+          actions.push({
+            label: "Planifier",
+            icon: Clock,
+            onClick: () => handleAction('propose_slots'),
+          })
         }
         if (userContext === 'locataire') {
           actions.push({
@@ -357,7 +350,6 @@ export function InterventionCard({
         router.push(`${getInterventionUrl(intervention.id)}?tab=quotes`)
         break
       case 'start_planning':
-      case 'run_matching':
       case 'propose_slots':
         actionHooks?.planningHook?.handleProgrammingModal?.(intervention)
         break

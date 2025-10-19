@@ -8,7 +8,11 @@
       "Read(//c/Users/arthu/Pictures/Screenshots/**)",
       "Bash(npx vitest:*)",
       "Bash(npm test:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "WebSearch",
+      "Bash(for file in approval-modal.tsx multi-quote-request-modal.tsx quote-request-modal.tsx)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

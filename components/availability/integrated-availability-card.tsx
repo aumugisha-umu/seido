@@ -281,7 +281,6 @@ export function IntegratedAvailabilityCard({
           {/* Prochaine action recommandée */}
           {data.recommendations.nextAction !== 'intervention_scheduled' && (
             <div className="text-center text-sm text-gray-600">
-              {data.recommendations.nextAction === 'run_matching' && 'Prêt pour le matching automatique'}
               {data.recommendations.nextAction === 'need_more_availabilities' && 'En attente de plus de disponibilités'}
             </div>
           )}

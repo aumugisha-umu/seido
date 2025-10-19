@@ -16,6 +16,7 @@ import {
   Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getActionStyling as getActionStylingFromLib } from "@/lib/intervention-action-styles"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -116,59 +117,9 @@ export function InterventionActionPanelHeader({
 
   const currentUserQuote = getCurrentUserQuote()
 
-  // Fonction de mapping couleurs selon le Design System
+  // Use centralized Material Design 3 based action styling
   const getActionStyling = (actionKey: string, userRole: string) => {
-    // Actions qui doivent TOUJOURS utiliser la couleur primary (indépendamment du rôle)
-    const alwaysPrimaryActions = ['submit_quote']
-
-    if (alwaysPrimaryActions.includes(actionKey)) {
-      return { variant: 'default' as const, className: '' }
-    }
-
-    // Types d'actions selon le Design System
-    const actionTypes = {
-      // Actions positives (succès, validation)
-      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot', 'request_quotes'],
-      // Actions destructives (suppression, rejet, annulation)
-      destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote', 'reject_quote_request'],
-      // Actions neutres (planification, demande, gestion)
-      neutral: ['start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'run_matching', 'propose_slots', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
-      // Actions informatives (consultation)
-      informative: ['view', 'consult', 'check', 'view_quote']
-    }
-
-    // Déterminer le type d'action
-    let actionType = 'neutral' // par défaut
-    for (const [type, actions] of Object.entries(actionTypes)) {
-      if (actions.includes(actionKey)) {
-        actionType = type
-        break
-      }
-    }
-
-    // Mapping selon le rôle et le type d'action
-    const styleMapping = {
-      locataire: {
-        positive: { variant: 'default' as const, className: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500' },
-        destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
-        informative: { variant: 'ghost' as const, className: '' }
-      },
-      gestionnaire: {
-        positive: { variant: 'default' as const, className: 'bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500' },
-        destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
-        informative: { variant: 'ghost' as const, className: '' }
-      },
-      prestataire: {
-        positive: { variant: 'default' as const, className: 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500' },
-        destructive: { variant: 'outlined-danger' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
-        informative: { variant: 'ghost' as const, className: '' }
-      }
-    }
-
-    return styleMapping[userRole]?.[actionType] || { variant: 'secondary' as const, className: '' }
+    return getActionStylingFromLib(actionKey, userRole as 'gestionnaire' | 'locataire' | 'prestataire')
   }
 
   // Fonction helper pour filtrer les disponibilités selon les devis approuvés
@@ -358,22 +309,13 @@ export function InterventionActionPanelHeader({
 
       case 'planification':
         if (userRole === 'gestionnaire') {
-          actions.push(
-            {
-              key: 'run_matching',
-              label: 'Lancer le matching',
-              icon: TrendingUp,
-              variant: 'default',
-              description: 'Trouver automatiquement les créneaux compatibles'
-            },
-            {
-              key: 'propose_slots',
-              label: 'Proposer des créneaux',
-              icon: Clock,
-              variant: 'outline',
-              description: 'Proposer manuellement des créneaux'
-            }
-          )
+          actions.push({
+            key: 'propose_slots',
+            label: 'Planifier',
+            icon: Clock,
+            variant: 'default',
+            description: 'Planifier l\'intervention'
+          })
         }
         if (userRole === 'locataire') {
           actions.push({
@@ -638,7 +580,6 @@ export function InterventionActionPanelHeader({
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
           return
 
-        case 'run_matching':
         case 'add_availabilities':
         case 'reschedule':
           // Rediriger vers l'onglet Créneaux pour gérer la planification

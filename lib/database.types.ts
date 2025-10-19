@@ -838,6 +838,8 @@ export type Database = {
       }
       intervention_time_slots: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           end_time: string
           id: string
@@ -845,10 +847,16 @@ export type Database = {
           is_selected: boolean | null
           notes: string | null
           proposed_by: string | null
+          selected_by_manager: boolean
+          selected_by_provider: boolean
+          selected_by_tenant: boolean
           slot_date: string
           start_time: string
+          status: Database["public"]["Enums"]["time_slot_status"]
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           end_time: string
           id?: string
@@ -856,10 +864,16 @@ export type Database = {
           is_selected?: boolean | null
           notes?: string | null
           proposed_by?: string | null
+          selected_by_manager?: boolean
+          selected_by_provider?: boolean
+          selected_by_tenant?: boolean
           slot_date: string
           start_time: string
+          status?: Database["public"]["Enums"]["time_slot_status"]
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           end_time?: string
           id?: string
@@ -867,10 +881,21 @@ export type Database = {
           is_selected?: boolean | null
           notes?: string | null
           proposed_by?: string | null
+          selected_by_manager?: boolean
+          selected_by_provider?: boolean
+          selected_by_tenant?: boolean
           slot_date?: string
           start_time?: string
+          status?: Database["public"]["Enums"]["time_slot_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "intervention_time_slots_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intervention_time_slots_intervention_id_fkey"
             columns: ["intervention_id"]
@@ -1819,6 +1844,10 @@ export type Database = {
         Args: { lot_uuid: string }
         Returns: boolean
       }
+      is_time_slot_fully_validated: {
+        Args: { slot_id: string }
+        Returns: boolean
+      }
       revoke_contact_access: {
         Args: {
           p_contact_id: string
@@ -1951,6 +1980,12 @@ export type Database = {
         | "proprietaire"
         | "autre"
       team_member_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
+      time_slot_status:
+        | "requested"
+        | "pending"
+        | "selected"
+        | "rejected"
+        | "cancelled"
       user_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
     }
     CompositeTypes: {
@@ -2211,6 +2246,13 @@ export const Constants = {
         "autre",
       ],
       team_member_role: ["admin", "gestionnaire", "locataire", "prestataire"],
+      time_slot_status: [
+        "requested",
+        "pending",
+        "selected",
+        "rejected",
+        "cancelled",
+      ],
       user_role: ["admin", "gestionnaire", "locataire", "prestataire"],
     },
   },

@@ -22,11 +22,19 @@ import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { QuotesTab } from './quotes-tab'
 import { DocumentsTab } from './documents-tab'
+import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
 import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
 import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-form'
+
+// Modals
+import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
+import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
+
+// Hooks
+import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 
 // Types
 import type { Database } from '@/lib/database.types'
@@ -79,6 +87,7 @@ export function PrestataireInterventionDetailClient({
   currentUser
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
+  const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
@@ -92,6 +101,49 @@ export function PrestataireInterventionDetailClient({
     setRefreshing(true)
     router.refresh()
     setTimeout(() => setRefreshing(false), 1000)
+  }
+
+  // Handle opening programming modal with existing data pre-filled
+  const handleOpenProgrammingModalWithData = () => {
+    const interventionAction = {
+      id: intervention.id,
+      type: '',
+      status: intervention.status || '',
+      title: '',
+      description: intervention.description,
+      priority: intervention.priority,
+      urgency: intervention.urgency,
+      reference: intervention.reference || '',
+      created_at: intervention.created_at,
+      location: intervention.specific_location,
+    }
+
+    // Determine planning mode based on existing time slots
+    if (timeSlots.length === 0) {
+      // No slots yet - open with default mode
+      planning.openProgrammingModal(interventionAction)
+    } else if (timeSlots.length === 1) {
+      // Single slot - likely "direct" mode
+      const slot = timeSlots[0]
+      planning.setProgrammingOption('direct')
+      planning.setProgrammingDirectSchedule({
+        date: slot.slot_date,
+        startTime: slot.start_time,
+        endTime: slot.end_time
+      })
+      planning.openProgrammingModal(interventionAction)
+    } else {
+      // Multiple slots - "propose" mode
+      planning.setProgrammingOption('propose')
+      planning.setProgrammingProposedSlots(
+        timeSlots.map(slot => ({
+          date: slot.slot_date,
+          startTime: slot.start_time,
+          endTime: slot.end_time
+        }))
+      )
+      planning.openProgrammingModal(interventionAction)
+    }
   }
 
   // Handle opening reject quote modal from action panel
@@ -266,21 +318,29 @@ export function PrestataireInterventionDetailClient({
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="chat">
-              Chat
-              {threads.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {threads.length}
-                </Badge>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="quotes">
               Devis
               {quotes.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {quotes.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="execution">
+              Exécution
+              {timeSlots.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {timeSlots.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="chat">
+              Chat
+              {threads.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {threads.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -321,6 +381,29 @@ export function PrestataireInterventionDetailClient({
               />
             </TabsContent>
 
+            <TabsContent value="execution" className="space-y-6">
+              <ExecutionTab
+                interventionId={intervention.id}
+                timeSlots={timeSlots}
+                currentStatus={intervention.status}
+                intervention={{
+                  id: intervention.id,
+                  type: '',
+                  status: intervention.status || '',
+                  title: '',
+                  description: intervention.description,
+                  priority: intervention.priority,
+                  urgency: intervention.urgency,
+                  reference: intervention.reference || '',
+                  created_at: intervention.created_at,
+                  location: intervention.specific_location,
+                }}
+                onOpenProgrammingModal={handleOpenProgrammingModalWithData}
+                onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+                currentUserId={currentUser?.id}
+              />
+            </TabsContent>
+
             <TabsContent value="documents" className="space-y-6">
               <DocumentsTab
                 interventionId={intervention.id}
@@ -332,6 +415,35 @@ export function PrestataireInterventionDetailClient({
           </div>
         </Tabs>
       </div>
+
+      {/* Programming Modal */}
+      <ProgrammingModal
+        isOpen={planning.programmingModal.isOpen}
+        onClose={planning.closeProgrammingModal}
+        intervention={planning.programmingModal.intervention}
+        programmingOption={planning.programmingOption}
+        onProgrammingOptionChange={planning.setProgrammingOption}
+        directSchedule={planning.programmingDirectSchedule}
+        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+        proposedSlots={planning.programmingProposedSlots}
+        onAddProposedSlot={planning.addProgrammingSlot}
+        onUpdateProposedSlot={planning.updateProgrammingSlot}
+        onRemoveProposedSlot={planning.removeProgrammingSlot}
+        selectedProviders={[]}
+        onProviderToggle={() => {}}
+        providers={[]}
+        onConfirm={planning.handleProgrammingConfirm}
+        isFormValid={planning.isProgrammingFormValid()}
+      />
+
+      {/* Cancel Slot Modal */}
+      <CancelSlotModal
+        isOpen={planning.cancelSlotModal.isOpen}
+        onClose={planning.closeCancelSlotModal}
+        slot={planning.cancelSlotModal.slot}
+        interventionId={intervention.id}
+        onSuccess={handleRefresh}
+      />
 
       {/* Quote Submission Modal */}
       <Dialog open={quoteModalOpen} onOpenChange={setQuoteModalOpen}>

@@ -14,8 +14,8 @@ import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { DocumentsTab } from './documents-tab'
 import { QuotesTab } from './quotes-tab'
-import { TimeSlotsTab } from './time-slots-tab'
 import { ActivityTab } from './activity-tab'
+import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
 import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
@@ -27,6 +27,7 @@ import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 
 // Modals
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
+import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 
 import type { Database } from '@/lib/database.types'
 
@@ -122,6 +123,49 @@ export function InterventionDetailClient({
     return { pendingRequests, submittedQuotes }
   }
 
+  // Handle opening programming modal with existing data pre-filled
+  const handleOpenProgrammingModalWithData = () => {
+    const interventionAction = {
+      id: intervention.id,
+      type: intervention.type || '',
+      status: intervention.status || '',
+      title: intervention.title || '',
+      description: intervention.description,
+      priority: intervention.priority,
+      urgency: intervention.urgency,
+      reference: intervention.reference,
+      created_at: intervention.created_at,
+      location: intervention.specific_location,
+    }
+
+    // Determine planning mode based on existing time slots
+    if (timeSlots.length === 0) {
+      // No slots yet - open with default mode
+      planning.openProgrammingModal(interventionAction)
+    } else if (timeSlots.length === 1) {
+      // Single slot - likely "direct" mode
+      const slot = timeSlots[0]
+      planning.setProgrammingOption('direct')
+      planning.setProgrammingDirectSchedule({
+        date: slot.slot_date,
+        startTime: slot.start_time,
+        endTime: slot.end_time
+      })
+      planning.openProgrammingModal(interventionAction)
+    } else {
+      // Multiple slots - "propose" mode
+      planning.setProgrammingOption('propose')
+      planning.setProgrammingProposedSlots(
+        timeSlots.map(slot => ({
+          date: slot.slot_date,
+          startTime: slot.start_time,
+          endTime: slot.end_time
+        }))
+      )
+      planning.openProgrammingModal(interventionAction)
+    }
+  }
+
   return (
     <div className="container max-w-7xl mx-auto py-6 space-y-6">
       {/* Intervention Detail Header with Action Panel */}
@@ -172,11 +216,8 @@ export function InterventionDetailClient({
             userRole="gestionnaire"
             userId={user?.id || ''}
             onActionComplete={handleActionComplete}
-            onProposeSlots={() => planning.handleProgrammingModal({
-              id: intervention.id,
-              title: intervention.title,
-              status: intervention.status
-            })}
+            onProposeSlots={handleOpenProgrammingModalWithData}
+            timeSlots={timeSlots}
           />
         }
       />
@@ -199,6 +240,15 @@ export function InterventionDetailClient({
         providers={[]}
         onConfirm={planning.handleProgrammingConfirm}
         isFormValid={planning.isProgrammingFormValid()}
+      />
+
+      {/* Cancel Slot Modal */}
+      <CancelSlotModal
+        isOpen={planning.cancelSlotModal.isOpen}
+        onClose={planning.closeCancelSlotModal}
+        slot={planning.cancelSlotModal.slot}
+        interventionId={intervention.id}
+        onSuccess={handleRefresh}
       />
 
       {/* Tabs */}
@@ -273,11 +323,25 @@ export function InterventionDetailClient({
         </TabsContent>
 
         <TabsContent value="time-slots" className="space-y-6">
-          <TimeSlotsTab
+          <ExecutionTab
             interventionId={intervention.id}
             timeSlots={timeSlots}
             currentStatus={intervention.status}
-            canManage={true}
+            intervention={{
+              id: intervention.id,
+              type: intervention.type || '',
+              status: intervention.status || '',
+              title: intervention.title || '',
+              description: intervention.description,
+              priority: intervention.priority,
+              urgency: intervention.urgency,
+              reference: intervention.reference,
+              created_at: intervention.created_at,
+              location: intervention.specific_location,
+            }}
+            onOpenProgrammingModal={handleOpenProgrammingModalWithData}
+            onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+            currentUserId={user?.id}
           />
         </TabsContent>
 

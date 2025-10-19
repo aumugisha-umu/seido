@@ -13,7 +13,7 @@ import { StatusTimeline } from '@/components/interventions/status-timeline'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DocumentsTab } from '@/app/gestionnaire/interventions/[id]/components/documents-tab'
-import { TimeSlotsTab } from '@/app/gestionnaire/interventions/[id]/components/time-slots-tab'
+import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
 import { Activity, MessageSquare, FileText, Calendar } from 'lucide-react'
@@ -21,6 +21,13 @@ import { Activity, MessageSquare, FileText, Calendar } from 'lucide-react'
 // Intervention components
 import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+
+// Modals
+import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
+import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
+
+// Hooks
+import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 
 import type { Database } from '@/lib/database.types'
 
@@ -51,6 +58,7 @@ export function LocataireInterventionDetailClient({
   currentUser
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
+  const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
 
   // Handle time slot selection (tenants can select in planification status)
@@ -91,6 +99,49 @@ export function LocataireInterventionDetailClient({
   // Handle action completion from action panel
   const handleActionComplete = () => {
     router.refresh()
+  }
+
+  // Handle opening programming modal with existing data pre-filled
+  const handleOpenProgrammingModalWithData = () => {
+    const interventionAction = {
+      id: intervention.id,
+      type: '',
+      status: intervention.status || '',
+      title: intervention.title || '',
+      description: intervention.description,
+      priority: intervention.priority,
+      urgency: intervention.urgency,
+      reference: intervention.reference || '',
+      created_at: intervention.created_at,
+      location: intervention.specific_location,
+    }
+
+    // Determine planning mode based on existing time slots
+    if (timeSlots.length === 0) {
+      // No slots yet - open with default mode
+      planning.openProgrammingModal(interventionAction)
+    } else if (timeSlots.length === 1) {
+      // Single slot - likely "direct" mode
+      const slot = timeSlots[0]
+      planning.setProgrammingOption('direct')
+      planning.setProgrammingDirectSchedule({
+        date: slot.slot_date,
+        startTime: slot.start_time,
+        endTime: slot.end_time
+      })
+      planning.openProgrammingModal(interventionAction)
+    } else {
+      // Multiple slots - "propose" mode
+      planning.setProgrammingOption('propose')
+      planning.setProgrammingProposedSlots(
+        timeSlots.map(slot => ({
+          date: slot.slot_date,
+          startTime: slot.start_time,
+          endTime: slot.end_time
+        }))
+      )
+      planning.openProgrammingModal(interventionAction)
+    }
   }
 
   return (
@@ -143,8 +194,16 @@ export function LocataireInterventionDetailClient({
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="execution">
+            Exécution
+            {timeSlots.length > 0 && (
+              <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5">
+                {timeSlots.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="chat">
             Discussion
             {threads.length > 0 && (
@@ -168,29 +227,6 @@ export function LocataireInterventionDetailClient({
             {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
               <InterventionOverviewCard intervention={intervention} />
-
-              {/* Time slot selection for tenant */}
-              {canSelectSlot && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5" />
-                      Sélectionnez un créneau
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Choisissez le créneau qui vous convient le mieux pour l'intervention
-                    </p>
-                    <TimeSlotsTab
-                      interventionId={intervention.id}
-                      timeSlots={timeSlots}
-                      currentStatus={intervention.status}
-                      canManage={false}
-                    />
-                  </CardContent>
-                </Card>
-              )}
             </div>
 
             {/* Sidebar */}
@@ -285,6 +321,29 @@ export function LocataireInterventionDetailClient({
           )}
         </TabsContent>
 
+        <TabsContent value="execution" className="space-y-6">
+          <ExecutionTab
+            interventionId={intervention.id}
+            timeSlots={timeSlots}
+            currentStatus={intervention.status}
+            intervention={{
+              id: intervention.id,
+              type: '',
+              status: intervention.status || '',
+              title: intervention.title || '',
+              description: intervention.description,
+              priority: intervention.priority,
+              urgency: intervention.urgency,
+              reference: intervention.reference || '',
+              created_at: intervention.created_at,
+              location: intervention.specific_location,
+            }}
+            onOpenProgrammingModal={handleOpenProgrammingModalWithData}
+            onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+            currentUserId={currentUser?.id}
+          />
+        </TabsContent>
+
         <TabsContent value="documents" className="space-y-6">
           <DocumentsTab
             interventionId={intervention.id}
@@ -293,6 +352,35 @@ export function LocataireInterventionDetailClient({
           />
         </TabsContent>
       </Tabs>
+
+      {/* Programming Modal */}
+      <ProgrammingModal
+        isOpen={planning.programmingModal.isOpen}
+        onClose={planning.closeProgrammingModal}
+        intervention={planning.programmingModal.intervention}
+        programmingOption={planning.programmingOption}
+        onProgrammingOptionChange={planning.setProgrammingOption}
+        directSchedule={planning.programmingDirectSchedule}
+        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+        proposedSlots={planning.programmingProposedSlots}
+        onAddProposedSlot={planning.addProgrammingSlot}
+        onUpdateProposedSlot={planning.updateProgrammingSlot}
+        onRemoveProposedSlot={planning.removeProgrammingSlot}
+        selectedProviders={[]}
+        onProviderToggle={() => {}}
+        providers={[]}
+        onConfirm={planning.handleProgrammingConfirm}
+        isFormValid={planning.isProgrammingFormValid()}
+      />
+
+      {/* Cancel Slot Modal */}
+      <CancelSlotModal
+        isOpen={planning.cancelSlotModal.isOpen}
+        onClose={planning.closeCancelSlotModal}
+        slot={planning.cancelSlotModal.slot}
+        interventionId={intervention.id}
+        onSuccess={handleActionComplete}
+      />
     </div>
   )
 }

@@ -13,7 +13,8 @@ import {
   FileText,
   Euro,
   Edit3,
-  Trash2
+  Trash2,
+  Edit
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getActionStyling as getActionStylingFromLib } from "@/lib/intervention-action-styles"
@@ -62,6 +63,12 @@ interface InterventionActionPanelHeaderProps {
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
   onProposeSlots?: () => void
+  timeSlots?: Array<{
+    id: string
+    slot_date: string
+    start_time: string
+    end_time: string
+  }>
 }
 
 interface ActionConfig {
@@ -90,7 +97,8 @@ export function InterventionActionPanelHeader({
   onCancelQuote,
   onCancelIntervention,
   onRejectQuoteRequest,
-  onProposeSlots
+  onProposeSlots,
+  timeSlots = []
 }: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -309,12 +317,13 @@ export function InterventionActionPanelHeader({
 
       case 'planification':
         if (userRole === 'gestionnaire') {
+          const hasTimeSlots = timeSlots && timeSlots.length > 0
           actions.push({
             key: 'propose_slots',
-            label: 'Planifier',
-            icon: Clock,
+            label: hasTimeSlots ? 'Modifier la planification' : 'Planifier',
+            icon: hasTimeSlots ? Edit : Clock,
             variant: 'default',
-            description: 'Planifier l\'intervention'
+            description: hasTimeSlots ? 'Modifier la planification existante' : 'Planifier l\'intervention'
           })
         }
         if (userRole === 'locataire') {

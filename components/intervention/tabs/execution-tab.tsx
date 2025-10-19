@@ -1,8 +1,9 @@
 'use client'
 
 /**
- * Time Slots Tab Component
+ * Execution Tab Component
  * Manages intervention time slots with selection
+ * Shared across all user roles (gestionnaire, prestataire, locataire)
  */
 
 import { useState } from 'react'
@@ -24,32 +25,30 @@ type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] &
 
 type InterventionStatus = Database['public']['Enums']['intervention_status']
 
-interface TimeSlotsTabProps {
+interface ExecutionTabProps {
   interventionId: string
   timeSlots: TimeSlot[]
   currentStatus: InterventionStatus
-  canManage?: boolean
   intervention: InterventionAction
   onOpenProgrammingModal?: () => void
   onCancelSlot?: (slot: TimeSlot) => void
   currentUserId?: string
 }
 
-export function TimeSlotsTab({
+export function ExecutionTab({
   interventionId,
   timeSlots,
   currentStatus,
-  canManage = false,
   intervention,
   onOpenProgrammingModal,
   onCancelSlot,
   currentUserId
-}: TimeSlotsTabProps) {
+}: ExecutionTabProps) {
   const [selecting, setSelecting] = useState<string | null>(null)
 
-  // Check if slots can be proposed
+  // All users have same permissions based on intervention status
   const canProposeSlots = ['approuvee', 'demande_de_devis', 'planification'].includes(currentStatus)
-  const canSelectSlot = canManage && currentStatus === 'planification'
+  const canSelectSlot = currentStatus === 'planification'
 
   // Get button styling
   const actionStyles = getActionStyling('propose_slots', 'gestionnaire')
@@ -212,7 +211,7 @@ export function TimeSlotsTab({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {slots.map((slot) => {
                         const isNonCancellable = slot.status === 'selected' || slot.status === 'cancelled'
-                        const canCancel = canManage && !isNonCancellable
+                        const canCancel = !isNonCancellable
                         const isProposer = currentUserId && slot.proposed_by === currentUserId
                         const canSelect = canSelectSlot && !isProposer && slot.status !== 'selected' && slot.status !== 'cancelled'
 
@@ -303,8 +302,8 @@ export function TimeSlotsTab({
 
                                 {/* Right-aligned action buttons */}
                                 <div className="flex gap-2 ml-auto">
-                                  {/* Modify button (if can manage and not cancelled) */}
-                                  {canManage && slot.status !== 'cancelled' && onOpenProgrammingModal && (
+                                  {/* Modify button (if not cancelled) */}
+                                  {slot.status !== 'cancelled' && onOpenProgrammingModal && (
                                     <Button
                                       size="sm"
                                       variant="outline"

@@ -986,6 +986,134 @@ export async function selectTimeSlotAction(
 }
 
 /**
+ * Cancel a time slot
+ *
+ * Permissions:
+ * - Proposer can cancel their own slots
+ * - Team managers can cancel any slot in their team's interventions
+ * - Admins can cancel any slot
+ */
+export async function cancelTimeSlotAction(
+  slotId: string,
+  interventionId: string
+): Promise<ActionResult<void>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    logger.info('🚫 [SERVER-ACTION] Cancelling time slot:', {
+      slotId,
+      interventionId,
+      userId: user.id
+    })
+
+    const supabase = await createServerSupabaseClient()
+
+    // Get the time slot with intervention info
+    const { data: slot, error: fetchError } = await supabase
+      .from('intervention_time_slots')
+      .select(`
+        *,
+        intervention:interventions (
+          id,
+          team_id
+        )
+      `)
+      .eq('id', slotId)
+      .eq('intervention_id', interventionId)
+      .single()
+
+    if (fetchError || !slot) {
+      logger.error('❌ Time slot not found:', fetchError)
+      return { success: false, error: 'Créneau introuvable' }
+    }
+
+    // Check permissions
+    const isProposer = slot.proposed_by === user.id
+    const isAdmin = user.role === 'admin'
+
+    // Check if user is a manager in the intervention's team
+    let isTeamManager = false
+    if (slot.intervention && 'team_id' in slot.intervention) {
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('team_id', slot.intervention.team_id)
+        .eq('user_id', user.id)
+        .single()
+
+      isTeamManager = teamMember?.role === 'gestionnaire' || teamMember?.role === 'admin'
+    }
+
+    if (!isProposer && !isTeamManager && !isAdmin) {
+      logger.warn('⚠️ Permission denied: User cannot cancel this time slot')
+      return {
+        success: false,
+        error: 'Vous n\'avez pas la permission d\'annuler ce créneau'
+      }
+    }
+
+    // Check if slot is already cancelled or selected
+    if (slot.status === 'cancelled') {
+      return { success: false, error: 'Ce créneau est déjà annulé' }
+    }
+
+    if (slot.status === 'selected') {
+      return {
+        success: false,
+        error: 'Impossible d\'annuler un créneau sélectionné. Veuillez d\'abord le désélectionner.'
+      }
+    }
+
+    // Cancel the time slot
+    const { error: updateError } = await supabase
+      .from('intervention_time_slots')
+      .update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: user.id
+      })
+      .eq('id', slotId)
+
+    if (updateError) {
+      logger.error('❌ Error cancelling time slot:', updateError)
+      return { success: false, error: 'Erreur lors de l\'annulation du créneau' }
+    }
+
+    // Log activity
+    await supabase.from('activity_logs').insert({
+      intervention_id: interventionId,
+      user_id: user.id,
+      action: 'time_slot_cancelled',
+      details: {
+        slot_id: slotId,
+        slot_date: slot.slot_date,
+        start_time: slot.start_time,
+        end_time: slot.end_time
+      }
+    })
+
+    logger.success('✅ Time slot cancelled successfully')
+
+    // Revalidate intervention pages
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath(`/locataire/interventions/${interventionId}`)
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error cancelling time slot:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
  * STATS AND DASHBOARDS
  */
 

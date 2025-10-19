@@ -24,6 +24,19 @@ interface PlanningSuccessModal {
   interventionTitle: string
 }
 
+interface CancelSlotModal {
+  isOpen: boolean
+  slotId: string | null
+  interventionId: string | null
+  slot: {
+    id: string
+    slot_date: string
+    start_time: string
+    end_time: string
+    notes?: string | null
+  } | null
+}
+
 interface TimeSlot {
   date: string
   startTime: string
@@ -46,6 +59,13 @@ export const useInterventionPlanning = () => {
   const [planningSuccessModal, setPlanningSuccessModal] = useState<PlanningSuccessModal>({
     isOpen: false,
     interventionTitle: "",
+  })
+
+  const [cancelSlotModal, setCancelSlotModal] = useState<CancelSlotModal>({
+    isOpen: false,
+    slotId: null,
+    interventionId: null,
+    slot: null,
   })
 
   // État des formulaires de planification
@@ -231,6 +251,25 @@ export const useInterventionPlanning = () => {
     })
   }
 
+  const openCancelSlotModal = (slot: CancelSlotModal['slot'], interventionId: string) => {
+    if (!slot) return
+    setCancelSlotModal({
+      isOpen: true,
+      slotId: slot.id,
+      interventionId,
+      slot,
+    })
+  }
+
+  const closeCancelSlotModal = () => {
+    setCancelSlotModal({
+      isOpen: false,
+      slotId: null,
+      interventionId: null,
+      slot: null,
+    })
+  }
+
   // Validation
   const isPlanningFormValid = () => {
     if (!planningOption) return false
@@ -271,6 +310,7 @@ export const useInterventionPlanning = () => {
     planningModal,
     programmingModal,
     planningSuccessModal,
+    cancelSlotModal,
 
     // États des formulaires
     planningOption,
@@ -285,11 +325,12 @@ export const useInterventionPlanning = () => {
     setDirectSchedule,
     setProgrammingOption,
     setProgrammingDirectSchedule,
+    setProgrammingProposedSlots,
 
     // Actions principales
     handlePlanningModal,
     handlePlanningConfirmation,
-    handleProgrammingModal,
+    openProgrammingModal: handleProgrammingModal,
     handleProgrammingConfirm,
 
     // Gestion des créneaux
@@ -304,6 +345,8 @@ export const useInterventionPlanning = () => {
     closePlanningModal,
     closeProgrammingModal,
     closePlanningSuccessModal,
+    openCancelSlotModal,
+    closeCancelSlotModal,
 
     // Validation
     isPlanningFormValid,

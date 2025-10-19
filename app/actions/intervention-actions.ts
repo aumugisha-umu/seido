@@ -1170,7 +1170,60 @@ export async function acceptTimeSlotAction(
 
     const supabase = await createServerActionSupabaseClient()
 
-    // Get the time slot
+    // 🔍 STEP 1: Get the intervention and check user assignment
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select('id, team_id')
+      .eq('id', interventionId)
+      .single()
+
+    if (interventionError || !intervention) {
+      logger.error('❌ Intervention not found:', interventionError)
+      return { success: false, error: 'Intervention introuvable' }
+    }
+
+    // 🔍 STEP 2: Verify user has permission (via team_members OR intervention_assignments)
+    const [
+      { data: teamMembership },
+      { data: assignment }
+    ] = await Promise.all([
+      supabase
+        .from('team_members')
+        .select('id, role')
+        .eq('team_id', intervention.team_id)
+        .eq('user_id', user.id)
+        .is('left_at', null)
+        .maybeSingle(),
+      supabase
+        .from('intervention_assignments')
+        .select('id, role')
+        .eq('intervention_id', interventionId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+    ])
+
+    const hasPermission = !!(teamMembership || assignment)
+
+    if (!hasPermission) {
+      logger.warn('⚠️ User not authorized to accept this time slot:', {
+        userId: user.id,
+        interventionId,
+        hasTeamMembership: !!teamMembership,
+        hasAssignment: !!assignment
+      })
+      return {
+        success: false,
+        error: 'Vous n\'êtes pas autorisé à accepter ce créneau. Vous devez être assigné à cette intervention.'
+      }
+    }
+
+    logger.info('✅ Permission verified:', {
+      hasTeamMembership: !!teamMembership,
+      hasAssignment: !!assignment,
+      assignmentRole: assignment?.role || teamMembership?.role
+    })
+
+    // 🔍 STEP 3: Get the time slot
     const { data: slot, error: fetchError } = await supabase
       .from('intervention_time_slots')
       .select('*')
@@ -1179,7 +1232,13 @@ export async function acceptTimeSlotAction(
       .single()
 
     if (fetchError || !slot) {
-      logger.error('❌ Time slot not found:', fetchError)
+      logger.error('❌ Time slot not found:', {
+        error: fetchError,
+        slotId,
+        interventionId,
+        errorCode: fetchError?.code,
+        errorMessage: fetchError?.message
+      })
       return { success: false, error: 'Créneau introuvable' }
     }
 
@@ -1199,8 +1258,22 @@ export async function acceptTimeSlotAction(
       }
     }
 
-    // Upsert response (INSERT or UPDATE if already exists)
-    const { error: upsertError } = await supabase
+    // 🔍 STEP 4: Check if response already exists
+    const { data: existingResponse } = await supabase
+      .from('time_slot_responses')
+      .select('*')
+      .eq('time_slot_id', slotId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    logger.info('📊 Existing response:', {
+      exists: !!existingResponse,
+      currentStatus: existingResponse?.response,
+      willUpdate: !!existingResponse
+    })
+
+    // 🔍 STEP 5: Upsert response with detailed error handling
+    const { error: upsertError, data: upsertData } = await supabase
       .from('time_slot_responses')
       .upsert({
         time_slot_id: slotId,
@@ -1212,11 +1285,44 @@ export async function acceptTimeSlotAction(
       }, {
         onConflict: 'time_slot_id,user_id'
       })
+      .select()
 
     if (upsertError) {
-      logger.error('❌ Error creating/updating response:', upsertError)
-      return { success: false, error: 'Erreur lors de l\'enregistrement de votre réponse' }
+      logger.error('❌ Error creating/updating response:', {
+        error: upsertError,
+        code: upsertError.code,
+        message: upsertError.message,
+        details: upsertError.details,
+        hint: upsertError.hint,
+        slotId,
+        userId: user.id,
+        userRole: user.role
+      })
+      return {
+        success: false,
+        error: `Erreur lors de l'enregistrement de votre réponse: ${upsertError.message} (Code: ${upsertError.code})`
+      }
     }
+
+    logger.info('✅ Response upserted successfully:', {
+      responseId: upsertData?.[0]?.id,
+      wasCreated: !existingResponse,
+      wasUpdated: !!existingResponse
+    })
+
+    // 🔍 STEP 6: Verify the trigger updated the summary columns
+    const { data: updatedSlot } = await supabase
+      .from('intervention_time_slots')
+      .select('selected_by_manager, selected_by_provider, selected_by_tenant')
+      .eq('id', slotId)
+      .single()
+
+    logger.info('📊 Summary columns after upsert:', {
+      selected_by_manager: updatedSlot?.selected_by_manager,
+      selected_by_provider: updatedSlot?.selected_by_provider,
+      selected_by_tenant: updatedSlot?.selected_by_tenant,
+      userRole: user.role
+    })
 
     // Log activity
     await supabase
@@ -1227,7 +1333,8 @@ export async function acceptTimeSlotAction(
         action: 'time_slot_accepted',
         details: {
           slot_id: slotId,
-          user_role: user.role
+          user_role: user.role,
+          was_update: !!existingResponse
         }
       })
 
@@ -1240,7 +1347,11 @@ export async function acceptTimeSlotAction(
 
     return { success: true, data: undefined }
   } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error accepting time slot:', error)
+    logger.error('❌ [SERVER-ACTION] Error accepting time slot:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'

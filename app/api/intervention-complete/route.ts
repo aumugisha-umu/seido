@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can be completed
-    if (intervention.status !== 'en_cours') {
+    // Allow completion from 'en_cours' OR 'planifiee' (direct completion without starting)
+    if (!['en_cours', 'planifiee'].includes(intervention.status)) {
       return NextResponse.json({
         success: false,
         error: `L'intervention ne peut pas être terminée (statut actuel: ${intervention.status})`

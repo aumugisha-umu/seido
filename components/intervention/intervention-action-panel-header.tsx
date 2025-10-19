@@ -355,11 +355,11 @@ export function InterventionActionPanelHeader({
       case 'planifiee':
         if (userRole === 'prestataire') {
           actions.push({
-            key: 'start_work',
-            label: 'Commencer l\'intervention',
-            icon: Play,
-            description: 'Marquer le début des travaux',
-            confirmationMessage: 'Confirmer le début de l\'intervention ?'
+            key: 'complete_work',
+            label: 'Marquer comme terminé',
+            icon: CheckCircle,
+            variant: 'default',
+            description: 'Signaler la fin des travaux'
           })
         }
         if (userRole === 'locataire' && intervention.tenant_id === userId) {

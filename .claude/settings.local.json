@@ -12,7 +12,8 @@
       "WebSearch",
       "Bash(for file in approval-modal.tsx multi-quote-request-modal.tsx quote-request-modal.tsx)",
       "Bash(do echo \"=== $file ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git ls-tree -r refacto --name-only)"
     ],
     "deny": [],
     "ask": []

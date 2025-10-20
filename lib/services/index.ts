@@ -358,6 +358,16 @@ export {
   type TenantData
 } from './domain/tenant.service'
 
+// Property Document Service (Phase 2)
+export {
+  createPropertyDocumentService
+} from './domain/property-document.service'
+
+// Storage Service (Phase 2)
+export {
+  createStorageService
+} from './domain/storage.service'
+
 // Assignment Utilities
 export {
   determineAssignmentType,

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, ArrowLeft } from "lucide-react"
+import AuthLogo from "@/components/ui/auth-logo"
 import { ResetPasswordForm } from "./reset-password-form"
 import { logger, logError } from '@/lib/logger'
 /**
@@ -21,9 +22,7 @@ export default function ResetPasswordPage() {
         <Card className="border-border shadow-lg">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <AuthLogo />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-foreground">

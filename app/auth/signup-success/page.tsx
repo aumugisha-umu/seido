@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Mail, CheckCircle } from "lucide-react"
+import AuthLogo from "@/components/ui/auth-logo"
 import { logger, logError } from '@/lib/logger'
 /**
  * 📧 PAGE SIGNUP SUCCESS - SERVER COMPONENT
@@ -27,9 +28,7 @@ export default async function SignupSuccessPage({ searchParams }: SignupSuccessP
         <Card className="border-border shadow-lg">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
+              <AuthLogo />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-foreground">

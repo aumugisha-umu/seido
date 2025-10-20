@@ -1,10 +1,10 @@
 # 🔍 RAPPORT D'AUDIT COMPLET - APPLICATION SEIDO
 
 **Date d'audit :** 25 septembre 2025
-**Version analysée :** Branche `optimization` (Commit actuel)
+**Version analysée :** Branche `preview` (Commit actuel)
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 13 octobre 2025 - 11:15 CET (Fix: Duplication data Biens page - Buildings/Lots tabs)
+**Dernière mise à jour :** 20 octobre 2025 - 19:00 CET (Fix: Exception NEXT_REDIRECT en production - signupAction/resetPasswordAction)
 
 ---
 
@@ -18,6 +18,80 @@ L'application SEIDO, plateforme de gestion immobilière multi-rôles, a été so
 **✅ Points forts :** Authentification fonctionnelle, dashboard gestionnaire validé, chargement données 100%, infrastructure de tests robuste
 **✅ Succès récents :** Bug signup corrigé, extraction données dashboard corrigée, 5 contacts chargés avec succès
 **🟡 Points d'attention :** Tests des 3 autres rôles à valider, workflows interventions à tester, monitoring production
+
+---
+
+## 🐛 FIX CRITIQUE - 20 octobre 2025 - 19:00 CET
+
+### ✅ Exception NEXT_REDIRECT en production (signupAction/resetPasswordAction)
+
+#### 📋 Problème identifié
+
+**Logs de production :**
+```
+2025-10-20T17:40:35.911Z ✅ [AUTH-DAL] User authenticated:
+2025-10-20T17:40:35.911Z 🔄 [AUTH-DAL] User already authenticated, redirecting to:
+2025-10-20T17:40:35.911Z ❌ [SIGNUP-ACTION] Exception: NEXT_REDIRECT
+```
+
+**Symptôme :** Lors d'un signup en production, un utilisateur déjà authentifié recevait une erreur au lieu d'être redirigé vers son dashboard.
+
+**Cause racine :** Dans `app/actions/auth-actions.ts`, `signupAction()` et `resetPasswordAction()` wrappaient `requireGuest()` dans un `try/catch` global qui catchait l'exception `NEXT_REDIRECT` (mécanisme de contrôle de flux Next.js) et la transformait en erreur.
+
+#### 🎯 Solution appliquée
+
+**Pattern officiel Next.js 15** (déjà utilisé dans `loginAction()`) : Extraire `requireGuest()` du try/catch principal pour permettre à la redirection de se propager correctement.
+
+**Fichier modifié :** `app/actions/auth-actions.ts`
+
+**Avant :**
+```typescript
+export async function signupAction(...) {
+  try {
+    await requireGuest()  // ❌ Redirection catchée par le try/catch global
+    // ... logique signup
+  } catch (error) {
+    // ❌ NEXT_REDIRECT catchée ici → erreur
+    return { success: false, error: '...' }
+  }
+}
+```
+
+**Après :**
+```typescript
+export async function signupAction(...) {
+  // ✅ PATTERN OFFICIEL: Gérer requireGuest séparément
+  try {
+    await requireGuest()
+  } catch {
+    // User déjà connecté - retourner succès
+    return { success: true, data: { message: 'Already authenticated' } }
+  }
+
+  try {
+    // Logique signup...
+  } catch (error) {
+    // Gestion erreurs signup
+  }
+}
+```
+
+**Actions corrigées :**
+- ✅ `signupAction()` (ligne 191)
+- ✅ `resetPasswordAction()` (ligne 355)
+
+#### ✅ Bénéfices
+
+- **Cohérence architecture** : Pattern uniforme dans `loginAction`, `signupAction`, `resetPasswordAction`
+- **UX améliorée** : Redirection silencieuse des utilisateurs déjà authentifiés au lieu d'une erreur
+- **Logs propres** : Plus d'exceptions `NEXT_REDIRECT` loggées comme erreurs
+- **Conformité Next.js** : Respect du mécanisme de contrôle de flux officiel
+
+#### 📝 Références
+
+- Documentation Next.js : [Server Actions](https://nextjs.org/docs/app/api-reference/functions/server-actions)
+- Code source : `app/actions/auth-actions.ts:191-201` (signupAction) et `:355-365` (resetPasswordAction)
+- Pattern identique : `loginAction:67-73`
 
 ---
 

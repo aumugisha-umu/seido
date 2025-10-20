@@ -10,6 +10,7 @@ import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
 import LoggerInitializer from "@/components/logger-initializer"
+import { FrillWidget } from "@/components/frill-widget"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ export default function RootLayout({
             <Suspense fallback={null}>{children}</Suspense>
             <ConnectionStatus />
             <Toaster />
+            <FrillWidget />
           </TeamStatusProvider>
         </AuthProvider>
         <Analytics />

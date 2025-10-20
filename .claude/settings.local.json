@@ -14,7 +14,8 @@
       "Bash(do echo \"=== $file ===\")",
       "Bash(done)",
       "Bash(git ls-tree -r refacto --name-only)",
-      "Bash(git ls-tree -r optimization --name-only)"
+      "Bash(git ls-tree -r optimization --name-only)",
+      "Bash(test -d guides)"
     ],
     "deny": [],
     "ask": []

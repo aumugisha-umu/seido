@@ -145,7 +145,7 @@ interface InterventionDetail {
     reviewedAt?: string
     reviewComments?: string
     rejectionReason?: string
-    attachments: Array<any>
+    attachments: Array<{ id: string; name: string; url?: string; [key: string]: unknown }>
     isCurrentUserQuote?: boolean
   }>
 }
@@ -163,7 +163,7 @@ interface QuoteRequest {
   deadline?: string
   status: 'pending' | 'responded' | 'expired'
   has_quote?: boolean
-  quote_status?: 'pending' | 'approved' | 'rejected'
+  quote_status?: 'pending' | 'accepted' | 'rejected'
 }
 
 interface InterventionDetailTabsProps {
@@ -172,18 +172,18 @@ interface InterventionDetailTabsProps {
   userRole: 'gestionnaire' | 'prestataire' | 'locataire'
   userId: string
   onDataChange?: () => void
-  onDownloadAttachment?: (attachment: any) => void
-  onResendRequest?: (requestId: string) => void
-  onCancelRequest?: (requestId: string) => void
-  onNewRequest?: (requestId: string) => void
-  onViewProvider?: (providerId: string) => void
+  onDownloadAttachment?: (attachment: { id: string; name: string; url?: string; [key: string]: unknown }) => void
+  onResendRequest?: (_requestId: string) => void
+  onCancelRequest?: (_requestId: string) => void
+  onNewRequest?: (_requestId: string) => void
+  onViewProvider?: (_providerId: string) => void
   // Callbacks spécifiques selon le rôle
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
   // Props pour prestataires
   onOpenQuoteModal?: () => void
-  onCancelQuote?: (quoteId: string) => void
+  onCancelQuote?: (_quoteId: string) => void
 }
 
 export function InterventionDetailTabs({
@@ -200,8 +200,8 @@ export function InterventionDetailTabs({
   onApprove,
   onReject,
   onCancel,
-  onOpenQuoteModal,
-  onCancelQuote,
+  // onOpenQuoteModal,
+  // onCancelQuote,
 }: InterventionDetailTabsProps) {
   const [activeTab, setActiveTab] = useState("general")
 
@@ -218,7 +218,7 @@ export function InterventionDetailTabs({
       'planifiee',
       'en_cours',
       'terminee',
-      'validee',
+      'approuvee',
       'cloturee'
     ]
 
@@ -238,7 +238,7 @@ export function InterventionDetailTabs({
     // Pour les prestataires : intervention >= planification ET devis accepté
     if (userRole === 'prestataire') {
       const hasApprovedQuote = intervention.quotes.some(
-        quote => quote.providerId === userId && quote.status === 'approved'
+        quote => quote.providerId === userId && quote.status === 'accepted'
       )
       return hasApprovedQuote
     }
@@ -248,7 +248,7 @@ export function InterventionDetailTabs({
 
   // Fonction helper pour filtrer les prestataires avec devis accepté
   const getApprovedProviders = () => {
-    const approvedQuotes = intervention.quotes.filter(quote => quote.status === 'approved')
+    const approvedQuotes = intervention.quotes.filter(quote => quote.status === 'accepted')
     return approvedQuotes.map(quote => ({
       id: quote.providerId,
       name: quote.providerName,
@@ -507,9 +507,9 @@ export function InterventionDetailTabs({
                       </div>
                     ))}
 
-                    {/* Prestataires avec devis accepté - Visibles pour gestionnaires et autres prestataires */}
+                    {/* Prestataires avec devis accepté - Visibles pour gestionnaires, locataires et autres prestataires */}
                     {getApprovedProviders()
-                      .filter(provider => userRole === 'gestionnaire' || provider.id !== userId)
+                      .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== userId)
                       .map((provider) => (
                       <div key={provider.id} className="flex items-center space-x-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -579,7 +579,7 @@ export function InterventionDetailTabs({
                     {/* Prestataire assigné - Visible pour gestionnaires ou si devis accepté pour les autres */}
                     {intervention.assignedContact && (
                       userRole === 'gestionnaire' ||
-                      intervention.quotes?.some(q => q.providerId === intervention.assignedContact.id && q.status === 'approved')
+                      intervention.quotes?.some(q => q.providerId === intervention.assignedContact.id && q.status === 'accepted')
                     ) && (
                       <div className="flex items-center space-x-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                         <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">

@@ -1,0 +1,47 @@
+{
+  "testRunId": "analysis-1759263273410",
+  "analysisTimestamp": "2025-09-30T20:14:33.418Z",
+  "summary": {
+    "totalTests": 1,
+    "successfulTests": 1,
+    "failedTests": 0,
+    "totalDuration": 22001,
+    "averageTestDuration": 22001
+  },
+  "errorPatterns": [],
+  "performanceIssues": [],
+  "stabilityMetrics": {
+    "overallSuccessRate": 100,
+    "flakyTests": [
+      {
+        "testName": "login-prestataire",
+        "failures": 10,
+        "total": 13,
+        "failureRate": 76.92307692307693
+      },
+      {
+        "testName": "login-gestionnaire",
+        "failures": 20,
+        "total": 29,
+        "failureRate": 68.96551724137932
+      },
+      {
+        "testName": "login-performance",
+        "failures": 2,
+        "total": 3,
+        "failureRate": 66.66666666666666
+      }
+    ],
+    "mostUnstableSteps": []
+  },
+  "recommendations": [],
+  "screenshots": {
+    "errors": [],
+    "comparisons": []
+  },
+  "reportPaths": {
+    "html": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\debugger\\analysis-1759263273410-report.html",
+    "json": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\debugger\\analysis-1759263273410-report.json",
+    "detailed": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\debugger\\analysis-1759263273410-detailed.json"
+  }
+}

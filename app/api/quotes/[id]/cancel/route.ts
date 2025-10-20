@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-
+import { createServerSupabaseClient } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
 
     // Vérifier l'authentification
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
@@ -26,7 +26,7 @@ export async function PATCH(
       .single()
 
     if (userError || !localUser) {
-      console.error('❌ Local user not found for auth user:', authUser.id, userError)
+      logger.error({ user: authUser.id, userError }, '❌ Local user not found for auth user:')
       return NextResponse.json(
         { error: 'Utilisateur non trouvé' },
         { status: 404 }
@@ -37,7 +37,7 @@ export async function PATCH(
     const resolvedParams = await params
     const quoteId = resolvedParams.id
 
-    console.log('🔍 [QUOTE-CANCEL] Attempting to cancel quote:', quoteId, 'for user:', localUser.id)
+    logger.info({ quoteId, userId: localUser.id }, '🔍 [QUOTE-CANCEL] Attempting to cancel quote')
 
     // Vérifier que le devis existe et appartient à l'utilisateur actuel
     const { data: quote, error: fetchError } = await supabase
@@ -53,7 +53,7 @@ export async function PATCH(
           reference,
           building_id,
           lot_id,
-          intervention_contacts!inner (
+         intervention_assignments!inner (
             role,
             is_primary,
             user:user_id (
@@ -69,24 +69,24 @@ export async function PATCH(
       .single()
 
     if (fetchError || !quote) {
-      console.log('❌ [QUOTE-CANCEL] Quote not found or unauthorized:', {
+      logger.info({
         quoteId,
         userId: localUser.id,
         fetchError,
         quoteFound: !!quote
-      })
+      }, '❌ [QUOTE-CANCEL] Quote not found or unauthorized:')
       return NextResponse.json(
         { error: 'Devis non trouvé ou non autorisé' },
         { status: 404 }
       )
     }
 
-    console.log('✅ [QUOTE-CANCEL] Quote found:', {
+    logger.info({
       quoteId: quote.id,
       status: quote.status,
       providerId: quote.provider_id,
       currentUserId: localUser.id
-    })
+    }, '✅ [QUOTE-CANCEL] Quote found:')
 
     // Vérifier que le devis est en attente (peut être annulé)
     if (quote.status !== 'pending') {
@@ -106,7 +106,7 @@ export async function PATCH(
       .eq('id', quoteId)
 
     if (updateError) {
-      console.error('❌ Error cancelling quote:', updateError)
+      logger.error({ error: updateError }, '❌ Error cancelling quote:')
       return NextResponse.json(
         { error: 'Erreur lors de l\'annulation du devis' },
         { status: 500 }
@@ -119,7 +119,7 @@ export async function PATCH(
     // Récupérer les gestionnaires de l'équipe et le gestionnaire assigné
     const managersToNotify = new Set<string>()
 
-    // Ajouter les gestionnaires assignés à l'intervention via intervention_contacts
+    // Ajouter les gestionnaires assignés à l'intervention viaintervention_assignments
     if (intervention.intervention_contacts) {
       intervention.intervention_contacts
         .filter(contact => contact.role === 'gestionnaire')
@@ -169,10 +169,10 @@ export async function PATCH(
         .insert(notificationsToCreate)
 
       if (notificationError) {
-        console.error('❌ Error creating notifications:', notificationError)
+        logger.error({ error: notificationError }, '❌ Error creating notifications:')
         // Ne pas faire échouer la requête pour les notifications
       } else {
-        console.log('✅ Notifications sent to', notificationsToCreate.length, 'managers')
+        logger.info({ notificationCount: notificationsToCreate.length }, '✅ Notifications sent to managers')
       }
     }
 
@@ -192,7 +192,7 @@ export async function PATCH(
         created_at: new Date().toISOString()
       })
 
-    console.log('✅ Quote cancelled successfully:', quoteId)
+    logger.info({ quoteId: quoteId }, '✅ Quote cancelled successfully:')
 
     return NextResponse.json(
       { 
@@ -203,7 +203,7 @@ export async function PATCH(
     )
 
   } catch (error) {
-    console.error('❌ Error in quote cancellation:', error)
+    logger.error({ error: error }, '❌ Error in quote cancellation:')
     return NextResponse.json(
       { error: 'Erreur serveur lors de l\'annulation du devis' },
       { status: 500 }

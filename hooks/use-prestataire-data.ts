@@ -1,9 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { interventionService, contactInvitationService } from "@/lib/database-service"
-import type { Intervention } from "@/lib/database-service"
-
+import { useState, useEffect, useRef, useCallback } from "react"
+import {
+  createBrowserSupabaseClient,
+  createInterventionService,
+  createUserService,
+  createContactInvitationService
+} from "@/lib/services"
+import { useDataRefresh } from './use-cache-management'
+import type { Intervention } from "@/lib/services/core/service-types"
+import { logger, logError } from '@/lib/logger'
 export interface PrestataireDashboardStats {
   interventionsEnCours: number
   urgentesCount: number
@@ -28,10 +34,10 @@ export interface PrestataireIntervention {
   requestedBy: string
   needsQuote: boolean
   reference: string
-  lot?: any
-  tenant_details?: any
-  manager?: any
-  assigned_contact?: any
+  lot?: unknown
+  tenant_details?: unknown
+  manager?: unknown
+  assigned_contact?: unknown
 }
 
 export interface UrgentIntervention {
@@ -50,7 +56,7 @@ const mapStatusToFrontend = (dbStatus: string): string => {
     'approuvee': 'approuvee',
     'demande_de_devis': 'devis-a-fournir',
     'planification': 'planification',
-    'planifiee': 'programmee',
+    'planifiee': 'planifiee',
     'en_cours': 'en_cours',
     'cloturee_par_prestataire': 'terminee',
     'cloturee_par_locataire': 'terminee',
@@ -109,60 +115,81 @@ export const usePrestataireData = (userId: string) => {
     error: null
   })
 
-  const loadData = async () => {
-    console.log("📊 Loading prestataire data for user:", userId)
+  // Utiliser des refs pour éviter les re-renders inutiles
+  const loadingRef = useRef(false)
+  const mountedRef = useRef(true)
+  const lastUserIdRef = useRef<string | null>(null)
+
+  const loadData = useCallback(async (bypassCache = false) => {
+    // Éviter les appels multiples
+    if (loadingRef.current || !mountedRef.current) {
+      logger.info("🔒 [PRESTATAIRE-DATA] Skipping fetch - already loading or unmounted")
+      return
+    }
+
+    // Éviter les refetch pour le même userId
+    if (lastUserIdRef.current === userId && !bypassCache) {
+      logger.info("🔒 [PRESTATAIRE-DATA] Skipping fetch - same userId")
+      return
+    }
+
+    logger.info("📊 Loading prestataire data for user:", userId, bypassCache ? "(bypassing cache)" : "")
 
     try {
+      loadingRef.current = true
       setData(prev => ({ ...prev, loading: true, error: null }))
+
+      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
+      const supabase = createBrowserSupabaseClient()
+      try {
+        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
+        if (sessionErr || !sessionRes?.session) {
+          logger.warn('⚠️ [PRESTATAIRE-DATA] Session issue, attempting refresh...')
+          await supabase.auth.refreshSession()
+        }
+      } catch (sessionError) {
+        logger.warn('⚠️ [PRESTATAIRE-DATA] Session check failed:', sessionError)
+        // Continue anyway - let the service handle it
+      }
 
       // ✅ CORRECTION: Nettoyer l'ID utilisateur si c'est un JWT-only ID
       const cleanUserId = userId.startsWith('jwt_') ? userId.replace('jwt_', '') : userId
 
-      console.log("🔍 [PRESTATAIRE-DATA] Using cleaned user ID:", {
+      logger.info("🔍 [PRESTATAIRE-DATA] Using cleaned user ID:", {
         originalId: userId,
         cleanedId: cleanUserId,
         isJwtOnly: userId.startsWith('jwt_')
       })
 
-      // 1. Dans la nouvelle architecture, userId est directement l'ID du profil utilisateur
-      // Plus besoin de passer par user_invitations.contact_id car users remplace contacts
-      const { supabase } = await import('@/lib/supabase')
+      // Initialize services
+      const userService = createUserService()
+      const interventionService = createInterventionService()
 
-      // Vérifier que l'utilisateur existe d'abord, puis vérifier son rôle
-      // ✅ CORRECTION : userId est maintenant l'ID du profil utilisateur, pas auth_user_id
-      const { data: userProfile, error: userError } = await supabase
-        .from('users')
-        .select('id, role, team_id, name, email')
-        .eq('id', cleanUserId)
-        .single()
-
-      if (userError) {
-        console.error("❌ Error getting user profile:", userError)
-        throw userError
-      }
-
-      if (!userProfile) {
-        console.log("❌ No user profile found for user_id:", cleanUserId)
+      // 1. Get user profile using new service architecture
+      const userResult = await userService.getById(cleanUserId)
+      if (!userResult.success || !userResult.data) {
+        logger.info("❌ No user profile found for user_id:", cleanUserId)
         throw new Error("Aucun profil utilisateur trouvé")
       }
 
-      console.log("✅ Found user profile:", userProfile.name, userProfile.role)
+      const userProfile = userResult.data
+      logger.info("✅ Found user profile:", userProfile.name, userProfile.role)
 
       // Vérifier que l'utilisateur est bien un prestataire
       if (userProfile.role !== 'prestataire') {
-        console.log("❌ User is not a prestataire:", userProfile.role)
+        logger.info("❌ User is not a prestataire:", userProfile.role)
         throw new Error(`Utilisateur n'est pas un prestataire (rôle: ${userProfile.role})`)
       }
 
-      const contactId = userProfile.id
-      console.log("✅ Found prestataire profile:", contactId)
+      logger.info("✅ Found prestataire profile:", userProfile.id)
 
-      // 2. Get interventions assigned to this prestataire
-      const interventions = await interventionService.getByProviderId(contactId)
-      console.log("📋 Found interventions:", interventions?.length || 0)
+      // 2. Get interventions assigned to this prestataire using new service
+      const interventionsResult = await interventionService.getMyInterventions(userProfile.id, 'prestataire')
+      const interventions = interventionsResult.success ? (interventionsResult.data || []) : []
+      logger.info("📋 Found interventions:", interventions?.length || 0)
 
       // 3. Transform interventions to frontend format
-      const transformedInterventions: PrestataireIntervention[] = (interventions || []).map((intervention: Intervention & { lot?: any; tenant?: any; manager?: any; assigned_contact?: any }) => ({
+      const transformedInterventions: PrestataireIntervention[] = (interventions || []).map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown }) => ({
         id: intervention.id,
         title: intervention.title,
         description: intervention.description,
@@ -174,7 +201,7 @@ export const usePrestataireData = (userId: string) => {
         location: `${intervention.lot?.reference || 'N/A'} - ${intervention.lot?.building?.address || 'Adresse inconnue'}`,
         tenant: intervention.tenant?.name || 'Locataire inconnu',
         requestedBy: intervention.manager?.name ? `${intervention.manager.name} (Gestionnaire)` : 'Gestionnaire',
-        needsQuote: ['devis-a-fournir', 'validee'].includes(mapStatusToFrontend(intervention.status)),
+        needsQuote: ['devis-a-fournir', 'approuvee'].includes(mapStatusToFrontend(intervention.status)),
         reference: intervention.reference,
         lot: intervention.lot,
         tenant_details: intervention.tenant,
@@ -189,12 +216,12 @@ export const usePrestataireData = (userId: string) => {
       const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       
       const interventionsEnCours = transformedInterventions.filter(i => 
-        ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length
 
       const urgentesCount = transformedInterventions.filter(i => 
         ['haute', 'urgente'].includes(i.priority) && 
-        ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length
 
       const terminesCeMois = transformedInterventions.filter(i => {
@@ -212,7 +239,7 @@ export const usePrestataireData = (userId: string) => {
       // 5. Get urgent interventions for dashboard
       const urgentInterventions: UrgentIntervention[] = transformedInterventions
         .filter(i => ['haute', 'urgente'].includes(i.priority) && 
-                    ['nouvelle-demande', 'approuvee', 'devis-a-fournir', 'planification', 'programmee', 'en_cours'].includes(i.status))
+                    ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status))
         .slice(0, 3) // Show only top 3
         .map(i => ({
           id: i.id,
@@ -232,35 +259,62 @@ export const usePrestataireData = (userId: string) => {
         revenusMoisPrecedent: terminesMoisPrecedent * 280 // Mock: estimate 280€ per intervention
       }
 
-      console.log("📊 Calculated stats:", stats)
+      logger.info("📊 Calculated stats:", stats)
 
-      setData({
-        stats,
-        interventions: transformedInterventions,
-        urgentInterventions,
-        loading: false,
-        error: null
-      })
+      if (mountedRef.current) {
+        setData({
+          stats,
+          interventions: transformedInterventions,
+          urgentInterventions,
+          loading: false,
+          error: null
+        })
+        lastUserIdRef.current = userId
+      }
 
     } catch (error) {
-      console.error("❌ Error loading prestataire data:", error)
-      setData(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      }))
-    }
-  }
-
-  useEffect(() => {
-    if (userId) {
-      loadData()
+      logger.error("❌ Error loading prestataire data:", error)
+      if (mountedRef.current) {
+        setData(prev => ({
+          ...prev,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Erreur inconnue'
+        }))
+      }
+    } finally {
+      loadingRef.current = false
     }
   }, [userId])
 
+  useEffect(() => {
+    if (userId) {
+      loadData(false)
+    }
+  }, [userId, loadData])
+
+  // Nettoyage au démontage
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
+  useDataRefresh('prestataire-data', () => {
+    // Forcer un refetch en bypassant le cache local
+    lastUserIdRef.current = null
+    loadingRef.current = false
+    loadData(true)
+  })
+
   return {
     ...data,
-    refetch: loadData
+    refetch: () => {
+      lastUserIdRef.current = null
+      loadingRef.current = false
+      loadData(true)
+    }
   }
 }
 

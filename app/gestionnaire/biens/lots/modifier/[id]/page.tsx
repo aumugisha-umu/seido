@@ -7,14 +7,15 @@ import { ArrowLeft, Save, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { useManagerStats } from "@/hooks/use-manager-stats"
-import { lotService, teamService } from "@/lib/database-service"
+
+
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import { LotCategory } from "@/lib/lot-types"
-
+import { logger, logError } from '@/lib/logger'
 interface LotInfo {
   name: string
   address: string
@@ -50,8 +51,8 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
     doorNumber: "",
     category: "appartement",
   })
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
+  // const [selectedManagerId, setSelectedManagerId] = useState<string>("")
+  const [teamManagers, setTeamManagers] = useState<unknown[]>([])
   const [userTeam, setUserTeam] = useState<any>(null)
   
   const [loading, setLoading] = useState(true)
@@ -75,29 +76,31 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
 
       try {
         // 1. Récupérer les équipes de l'utilisateur
-        const userTeams = await teamService.getUserTeams(user.id)
-        
+        const teamsResult = await teamService.getUserTeams(user.id)
+        const userTeams = teamsResult?.data || []
+
         if (userTeams.length === 0) {
-          console.warn('No teams found for user')
+          logger.warn('No teams found for user')
           return
         }
-        
+
         // 2. Prendre la première équipe
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
-        
+
         // 3. Récupérer les membres de cette équipe
         let teamMembers = []
         try {
-          teamMembers = await teamService.getMembers(primaryTeam.id)
+          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          teamMembers = membersResult?.data || []
           setTeamManagers(teamMembers)
         } catch (membersError) {
-          console.error("Error loading team members:", membersError)
+          logger.error("Error loading team members:", membersError)
           setTeamManagers([])
         }
         
       } catch (error) {
-        console.error('Error loading team and managers:', error)
+        logger.error('Error loading team and managers:', error)
         setTeamManagers([])
       }
     }
@@ -111,7 +114,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       setError(null)
 
       const lotData = await lotService.getById(resolvedParams.id)
-      console.log("🏠 Lot loaded for edit:", lotData)
+      logger.info("🏠 Lot loaded for edit:", lotData)
       
       setLot(lotData)
       
@@ -134,7 +137,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       // setSelectedManagerId(lotData.manager_id || "")
 
     } catch (error) {
-      console.error("❌ Error loading lot data:", error)
+      logger.error("❌ Error loading lot data:", error)
       setError("Erreur lors du chargement des données du lot")
     } finally {
       setLoading(false)
@@ -183,7 +186,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
       }, 2000)
 
     } catch (error) {
-      console.error("❌ Error updating lot:", error)
+      logger.error("❌ Error updating lot:", error)
       setError("Erreur lors de la modification du lot")
     } finally {
       setSaving(false)

@@ -1,90 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { createQuoteRequestsForProviders } from '../create-manager-intervention/create-quote-requests'
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis
- * Exclut ceux ayant déjà une demande active ou un devis en attente/approuvé
+ * Exclut ceux ayant déjà un devis pending/accepted
  */
 async function getEligibleProviders(
   supabase: ReturnType<typeof createServerClient<Database>>,
   interventionId: string,
   requestedProviderIds: string[]
 ): Promise<{ eligibleIds: string[], ineligibleIds: string[], ineligibleReasons: Record<string, string> }> {
-  // Récupérer les demandes de devis existantes pour cette intervention
-  const { data: existingRequests, error: requestsError } = await supabase
-    .from('quote_requests')
-    .select('provider_id, status')
-    .eq('intervention_id', interventionId)
-    .in('provider_id', requestedProviderIds)
-
-  if (requestsError) {
-    console.error('❌ Error fetching existing quote requests:', requestsError)
-    throw new Error('Erreur lors de la vérification des demandes de devis existantes')
-  }
-
   // Récupérer les devis existants pour cette intervention
   const { data: existingQuotes, error: quotesError } = await supabase
     .from('intervention_quotes')
-    .select('provider_id, status')
+    .select('provider_id, status, amount')
     .eq('intervention_id', interventionId)
     .in('provider_id', requestedProviderIds)
 
   if (quotesError) {
-    console.error('❌ Error fetching existing quotes:', quotesError)
+    logger.error({ error: quotesError }, '❌ Error fetching existing quotes:')
     throw new Error('Erreur lors de la vérification des devis existants')
   }
 
   const ineligibleIds: string[] = []
   const ineligibleReasons: Record<string, string> = {}
 
-  // Identifier les prestataires avec des demandes actives
-  if (existingRequests && existingRequests.length > 0) {
-    existingRequests.forEach(request => {
-      if (['sent', 'viewed', 'responded'].includes(request.status)) {
-        ineligibleIds.push(request.provider_id)
-        ineligibleReasons[request.provider_id] = request.status === 'sent'
-          ? 'a déjà une demande de devis en attente'
-          : request.status === 'viewed'
-          ? 'a déjà consulté une demande de devis'
-          : 'a déjà répondu à une demande de devis'
-      }
-    })
-  }
-
-  // Identifier les prestataires avec des devis en attente ou approuvés
+  // Identifier les prestataires avec des devis pending/sent/accepted
   if (existingQuotes && existingQuotes.length > 0) {
     existingQuotes.forEach(quote => {
-      if (!ineligibleIds.includes(quote.provider_id)) { // Éviter les doublons
-        if (quote.status === 'pending' || quote.status === 'approved') {
-          ineligibleIds.push(quote.provider_id)
-          ineligibleReasons[quote.provider_id] = quote.status === 'pending'
-            ? 'a déjà un devis en attente'
-            : 'a déjà un devis approuvé'
-        }
+      if (quote.status === 'pending' || quote.status === 'sent' || quote.status === 'accepted') {
+        ineligibleIds.push(quote.provider_id)
+        ineligibleReasons[quote.provider_id] =
+          quote.status === 'pending' ? 'a déjà une demande en attente' :
+          quote.status === 'sent' ? 'a déjà soumis un devis en attente de validation' :
+          'a déjà un devis approuvé'
       }
     })
   }
 
   const eligibleIds = requestedProviderIds.filter(id => !ineligibleIds.includes(id))
 
-  console.log('🔍 Provider eligibility check:', {
+  logger.info({
     requested: requestedProviderIds.length,
     eligible: eligibleIds.length,
     ineligible: ineligibleIds.length,
     ineligibleReasons,
-    existingRequests: existingRequests?.length || 0,
     existingQuotes: existingQuotes?.length || 0
-  })
+  }, '🔍 Provider eligibility check:')
 
   return { eligibleIds, ineligibleIds, ineligibleReasons }
 }
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-quote-request API route called")
+  logger.info({}, "✅ intervention-quote-request API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
 
   try {
     // Initialize Supabase client
@@ -140,10 +119,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Requesting quote for intervention:", interventionId, "from providers:", targetProviderIds)
+    logger.info({ interventionId, targetProviderIds }, "📝 Requesting quote for intervention")
 
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+    const user = userResult?.data ?? null
+
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -171,7 +152,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -201,7 +182,7 @@ export async function POST(request: NextRequest) {
       .in('id', targetProviderIds)
 
     if (providerError) {
-      console.error("❌ Error fetching providers:", providerError)
+      logger.error({ error: providerError }, "❌ Error fetching providers:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la vérification des prestataires'
@@ -261,7 +242,7 @@ export async function POST(request: NextRequest) {
     // Update intervention status and add quote information (only if not already in quote request status)
     let updatedIntervention = intervention
     if (intervention.status === 'approuvee') {
-      console.log("🔄 Updating intervention status to 'demande_de_devis'...")
+      logger.info("🔄 Updating intervention status to 'demande_de_devis'...")
       updatedIntervention = await interventionService.update(interventionId, {
         status: 'demande_de_devis' as Database['public']['Enums']['intervention_status'],
         quote_deadline: deadline || null,
@@ -269,7 +250,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString()
       })
     } else {
-      console.log("ℹ️ Intervention already in 'demande_de_devis' status, updating quote information...")
+      logger.info("ℹ️ Intervention already in 'demande_de_devis' status, updating quote information...")
       updatedIntervention = await interventionService.update(interventionId, {
         quote_deadline: deadline || null,
         quote_notes: additionalNotes || null,
@@ -277,82 +258,26 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create individual quote requests for each provider
-    console.log("📋 Creating individual quote requests...")
-
-    const quoteRequestPromises = eligibleProviders.map(async (provider) => {
-      const individualMessage = individualMessages[provider.id] || additionalNotes || null
-
-      // Create quote request
-      const { data: quoteRequest, error: quoteRequestError } = await supabase
-        .from('quote_requests')
-        .insert({
-          intervention_id: interventionId,
-          provider_id: provider.id,
-          status: 'sent',
-          individual_message: individualMessage,
-          deadline: deadline ? new Date(deadline).toISOString() : null,
-          sent_at: new Date().toISOString(),
-          created_by: user.id
-        })
-        .select()
-        .single()
-
-      if (quoteRequestError) {
-        console.error(`❌ Error creating quote request for provider ${provider.name}:`, quoteRequestError)
-        return { provider, error: quoteRequestError }
-      }
-
-      // Also maintain compatibility with intervention_contacts for existing functionality
-      const { error: assignmentError } = await supabase
-        .from('intervention_contacts')
-        .upsert({
-          intervention_id: interventionId,
-          user_id: provider.id,
-          role: 'prestataire',
-          is_primary: false, // Not needed anymore with individual requests
-          individual_message: individualMessage,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'intervention_id,user_id,role'
-        })
-
-      if (assignmentError) {
-        console.warn(`⚠️ Error updating intervention_contacts for provider ${provider.name}:`, assignmentError)
-      }
-
-      return { provider, quoteRequest, error: null }
+    // Create intervention_quotes using the clean helper function
+    const quoteResult = await createQuoteRequestsForProviders({
+      interventionId,
+      teamId: intervention.team_id,
+      providerIds: eligibleIds,
+      createdBy: user.id,
+      messageType: 'individual',
+      individualMessages,
+      globalMessage: additionalNotes,
+      supabase
     })
 
-    let createdQuoteRequests: any[] = []
-
-    try {
-      const quoteRequestResults = await Promise.all(quoteRequestPromises)
-      const failedRequests = quoteRequestResults.filter(result => result.error)
-      createdQuoteRequests = quoteRequestResults.filter(result => !result.error).map(result => result.quoteRequest)
-
-      if (failedRequests.length > 0) {
-        console.error("❌ Some quote request creations failed:", failedRequests)
-
-        // If all failed, return error
-        if (failedRequests.length === eligibleProviders.length) {
-          return NextResponse.json({
-            success: false,
-            error: 'Échec de la création des demandes de devis pour tous les prestataires'
-          }, { status: 500 })
-        }
-      }
-
-      console.log(`✅ Successfully created ${createdQuoteRequests.length} quote requests`)
-    } catch (requestError) {
-      console.error("❌ Error during quote request creation:", requestError)
+    if (!quoteResult.success) {
       return NextResponse.json({
         success: false,
-        error: 'Erreur lors de la création des demandes de devis'
+        error: 'Échec de la création des demandes de devis'
       }, { status: 500 })
     }
 
-    console.log("✅ Intervention updated to quote request successfully")
+    logger.info({}, "✅ Intervention updated to quote request successfully")
 
     // Send notifications to all providers about quote request
     try {
@@ -369,9 +294,9 @@ export async function POST(request: NextRequest) {
       })
 
       await Promise.all(notificationPromises)
-      console.log(`📧 Quote request notifications sent to ${eligibleProviders.length} provider(s)`)
+      logger.info({ eligibleProviders: eligibleProviders.length }, "📧 Quote request notifications sent to provider(s)")
     } catch (notifError) {
-      console.warn("⚠️ Could not send quote request notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send quote request notifications:")
       // Don't fail the request for notification errors
     }
 
@@ -384,9 +309,9 @@ export async function POST(request: NextRequest) {
           'demande_de_devis',
           user.id
         )
-        console.log("📧 Status change notifications sent")
+        logger.info({}, "📧 Status change notifications sent")
       } catch (notifError) {
-        console.warn("⚠️ Could not send status notifications:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
       }
     }
 
@@ -409,11 +334,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-quote-request API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-quote-request API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

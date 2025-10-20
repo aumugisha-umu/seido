@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-quote-submit API route called")
+  logger.info({}, "✅ intervention-quote-submit API route called")
 
   try {
     // Initialize Supabase client
@@ -35,11 +35,14 @@ export async function POST(request: NextRequest) {
     // Get current user
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     if (authError || !authUser) {
+      logger.error({ authError }, "❌ Auth error")
       return NextResponse.json({
         success: false,
         error: 'Non autorisé'
       }, { status: 401 })
     }
+
+    logger.info({ authUserId: authUser.id, email: authUser.email }, "🔍 Auth user found")
 
     // Parse request body
     const body = await request.json()
@@ -48,13 +51,17 @@ export async function POST(request: NextRequest) {
       laborCost,
       materialsCost = 0,
       description,
-      workDetails,
       estimatedDurationHours,
-      estimatedStartDate,
-      termsAndConditions,
-      attachments = [],
-      providerAvailabilities = [] // Nouvelles disponibilités prestataire
+      providerAvailabilities = []
     } = body
+
+    logger.info({
+      interventionId,
+      laborCost,
+      materialsCost,
+      hasDescription: !!description,
+      availabilitiesCount: providerAvailabilities.length
+    }, "📝 Quote submission data received")
 
     if (!interventionId || !laborCost || !description) {
       return NextResponse.json({
@@ -63,38 +70,41 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Submitting quote for intervention:", interventionId)
-
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
-    if (!user) {
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_user_id', authUser.id)
+      .single()
+
+    if (userError || !user) {
+      logger.error({ userError, authUserId: authUser.id }, "❌ User not found in database")
       return NextResponse.json({
         success: false,
-        error: 'Utilisateur non trouvé'
+        error: 'Utilisateur non trouvé dans la base de données'
       }, { status: 404 })
     }
 
+    logger.info({ userId: user.id, role: user.role, name: user.name }, "✅ User found in database")
+
     // Check if user is prestataire
     if (user.role !== 'prestataire') {
+      logger.error({ role: user.role, userId: user.id }, "❌ User is not a prestataire")
       return NextResponse.json({
         success: false,
-        error: 'Seuls les prestataires peuvent soumettre des devis'
+        error: `Seuls les prestataires peuvent soumettre des devis. Votre rôle actuel: ${user.role}`
       }, { status: 403 })
     }
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
-      .select(`
-        *,
-        lot:lot_id(id, reference, building:building_id(name, address, team_id)),
-        team:team_id(id, name)
-      `)
+      .select('id, title, status, team_id')
       .eq('id', interventionId)
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError }, "❌ Intervention not found")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -109,56 +119,28 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if user has a quote request for this intervention
-    const { data: quoteRequest, error: quoteRequestError } = await supabase
-      .from('quote_requests')
+    // Check if a quote request exists for this provider
+    const { data: existingQuote, error: quoteError } = await supabase
+      .from('intervention_quotes')
       .select('*')
       .eq('intervention_id', interventionId)
       .eq('provider_id', user.id)
       .single()
 
-    if (quoteRequestError || !quoteRequest) {
+    if (quoteError || !existingQuote) {
+      logger.error({ quoteError, interventionId, providerId: user.id }, "❌ No existing quote found")
       return NextResponse.json({
         success: false,
-        error: 'Vous n\'avez pas de demande de devis pour cette intervention'
-      }, { status: 403 })
+        error: 'Aucune demande de devis trouvée pour ce prestataire'
+      }, { status: 404 })
     }
 
-    // Check if quote request is still active (not expired or cancelled)
-    if (!['sent', 'viewed'].includes(quoteRequest.status)) {
-      return NextResponse.json({
-        success: false,
-        error: `Cette demande de devis n'est plus active (statut: ${quoteRequest.status})`
-      }, { status: 400 })
-    }
-
-    // Check if deadline has passed
-    if (quoteRequest.deadline && new Date(quoteRequest.deadline) < new Date()) {
-      return NextResponse.json({
-        success: false,
-        error: 'La deadline pour cette demande de devis est dépassée'
-      }, { status: 400 })
-    }
-
-    // Also check legacy assignment for compatibility
-    const { data: assignment } = await supabase
-      .from('intervention_contacts')
-      .select('*')
-      .eq('intervention_id', interventionId)
-      .eq('user_id', user.id)
-      .eq('role', 'prestataire')
-      .maybeSingle()
-
-    console.log("✅ Quote request found:", {
-      id: quoteRequest.id,
-      status: quoteRequest.status,
-      deadline: quoteRequest.deadline,
-      hasLegacyAssignment: !!assignment
-    })
+    logger.info({ quoteId: existingQuote.id, currentStatus: existingQuote.status }, "✅ Found existing quote to update")
 
     // Validate costs
     const laborCostNum = parseFloat(laborCost)
     const materialsCostNum = parseFloat(materialsCost || 0)
+    const totalAmount = laborCostNum + materialsCostNum
 
     if (isNaN(laborCostNum) || laborCostNum < 0) {
       return NextResponse.json({
@@ -174,129 +156,99 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("💰 Quote details:", {
-      laborCost: laborCostNum,
-      materialsCost: materialsCostNum,
-      totalAmount: laborCostNum + materialsCostNum
-    })
+    logger.info({ laborCost: laborCostNum, materialsCost: materialsCostNum, totalAmount }, "💰 Quote costs validated")
 
-    // Create or update quote (upsert based on unique constraint)
-    const quoteData = {
-      intervention_id: interventionId,
-      provider_id: user.id,
-      labor_cost: laborCostNum,
-      materials_cost: materialsCostNum,
-      description: description.trim(),
-      work_details: workDetails?.trim() || null,
-      estimated_duration_hours: estimatedDurationHours ? parseInt(estimatedDurationHours) : null,
-      estimated_start_date: estimatedStartDate || null,
-      terms_and_conditions: termsAndConditions?.trim() || null,
-      attachments: JSON.stringify(attachments || []),
-      status: 'pending' as const,
-      submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      quote_request_id: quoteRequest.id // Link to the quote request
+    // Prepare line_items JSONB with breakdown
+    const lineItems = [
+      {
+        description: 'Main d\'œuvre',
+        quantity: estimatedDurationHours || 1,
+        unit_price: laborCostNum / (estimatedDurationHours || 1),
+        total: laborCostNum
+      }
+    ]
+
+    if (materialsCostNum > 0) {
+      lineItems.push({
+        description: 'Matériaux',
+        quantity: 1,
+        unit_price: materialsCostNum,
+        total: materialsCostNum
+      })
     }
 
-    // Insert or update quote
-    const { data: quote, error: quoteError } = await supabase
+    // Update the existing quote
+    const { data: updatedQuote, error: updateError } = await supabase
       .from('intervention_quotes')
-      .upsert(quoteData, {
-        onConflict: 'intervention_id,provider_id',
-        ignoreDuplicates: false
+      .update({
+        amount: totalAmount,
+        description: description.trim(),
+        line_items: lineItems,
+        status: 'sent',
+        updated_at: new Date().toISOString()
       })
-      .select(`
-        *,
-        provider:provider_id(id, name, email, provider_category)
-      `)
+      .eq('id', existingQuote.id)
+      .select('*')
       .single()
 
-    if (quoteError) {
-      console.error("❌ Error creating/updating quote:", quoteError)
+    if (updateError) {
+      logger.error({ updateError }, "❌ Error updating quote")
       return NextResponse.json({
         success: false,
-        error: 'Erreur lors de la soumission du devis'
+        error: 'Erreur lors de la mise à jour du devis'
       }, { status: 500 })
     }
 
-    console.log("✅ Quote submitted successfully:", quote.id)
+    logger.info({ quoteId: updatedQuote.id }, "✅ Quote updated successfully")
 
-    // Update quote request status to "responded" (this is also handled by the database trigger)
-    const { error: updateRequestError } = await supabase
-      .from('quote_requests')
-      .update({
-        status: 'responded',
-        responded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', quoteRequest.id)
-
-    if (updateRequestError) {
-      console.warn("⚠️ Could not update quote request status:", updateRequestError)
-      // Don't fail the quote submission for this
-    } else {
-      console.log("✅ Quote request status updated to 'responded'")
-    }
-
-    // Save provider availabilities linked to the quote and quote request
+    // Create intervention_time_slots if provider provided availabilities
     if (providerAvailabilities && providerAvailabilities.length > 0) {
-      console.log("📅 Saving provider availabilities:", providerAvailabilities.length)
+      logger.info({ count: providerAvailabilities.length }, "📅 Creating intervention time slots")
 
-      // Strategy: Remove existing availabilities for this provider/quote_request combination
-      // This way we preserve availabilities from other quote requests by the same provider
-      // but ensure we don't duplicate availabilities for the same quote submission
-      const { error: deleteError } = await supabase
-        .from('user_availabilities')
+      // First, delete existing slots proposed by this provider for this intervention
+      await supabase
+        .from('intervention_time_slots')
         .delete()
-        .eq('user_id', user.id)
         .eq('intervention_id', interventionId)
-        .or(`quote_id.eq.${quote.id},and(quote_request_id.eq.${quoteRequest.id},quote_id.is.null)`)
+        .eq('proposed_by', user.id)
 
-      if (deleteError) {
-        console.warn("⚠️ Could not delete existing provider availabilities for this quote submission:", deleteError)
-        // Don't fail the quote submission for this
-      } else {
-        console.log("✅ Cleaned up existing availabilities for this provider/quote combination")
+      // Insert new time slots
+      const timeSlotData = providerAvailabilities
+        .filter((avail: any) => avail.date && avail.startTime && avail.endTime)
+        .map((avail: any) => ({
+          intervention_id: interventionId,
+          slot_date: avail.date,
+          start_time: avail.startTime,
+          end_time: avail.endTime,
+          proposed_by: user.id,
+          status: 'proposed'
+        }))
+
+      if (timeSlotData.length > 0) {
+        const { error: slotError } = await supabase
+          .from('intervention_time_slots')
+          .insert(timeSlotData)
+
+        if (slotError) {
+          logger.warn({ slotError }, "⚠️ Could not create intervention time slots")
+          // Don't fail the submission for this
+        } else {
+          logger.info({ count: timeSlotData.length }, "✅ Intervention time slots created")
+        }
       }
-
-      // Insert new availabilities linked to both quote and quote request
-      const availabilityData = providerAvailabilities.map((avail: any) => ({
-        user_id: user.id,
-        intervention_id: interventionId,
-        date: avail.date,
-        start_time: avail.startTime,
-        end_time: avail.endTime,
-        quote_id: quote.id, // Link to the specific quote
-        quote_request_id: quoteRequest.id // Link to the quote request
-      }))
-
-      const { error: availError } = await supabase
-        .from('user_availabilities')
-        .insert(availabilityData)
-
-      if (availError) {
-        console.warn("⚠️ Could not save provider availabilities:", availError)
-        console.warn("⚠️ Availability data that failed to insert:", availabilityData)
-        // Don't fail the quote submission for this
-      } else {
-        console.log(`✅ ${availabilityData.length} provider availabilities saved successfully for quote:`, quote.id)
-      }
-    } else {
-      console.log("ℹ️ No provider availabilities provided with quote submission")
     }
 
-    // Send notification to gestionnaires responsible for this intervention
+    // Send notification to gestionnaires
     try {
-      const { data: responsibleManagers } = await supabase
-        .from('intervention_contacts')
-        .select(`
-          user:user_id(id, name, email)
-        `)
+      const { data: managers } = await supabase
+        .from('intervention_assignments')
+        .select('user:users!user_id(id, name, email)')
         .eq('intervention_id', interventionId)
         .eq('role', 'gestionnaire')
 
-      if (responsibleManagers && responsibleManagers.length > 0) {
-        const notificationPromises = responsibleManagers.map(async (manager) => {
+      if (managers && managers.length > 0) {
+        const notificationPromises = managers.map(async (manager) => {
+          if (!manager.user) return
           return notificationService.createNotification({
             userId: manager.user.id,
             teamId: intervention.team_id,
@@ -304,13 +256,13 @@ export async function POST(request: NextRequest) {
             type: 'intervention',
             priority: 'high',
             title: 'Nouveau devis reçu',
-            message: `${user.name} a soumis un devis de ${(laborCostNum + materialsCostNum).toFixed(2)}€ pour l'intervention "${intervention.title}"`,
+            message: `${user.name} a soumis un devis de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
             isPersonal: true,
             metadata: {
-              interventionId: interventionId,
+              interventionId,
               interventionTitle: intervention.title,
-              quoteId: quote.id,
-              quoteAmount: laborCostNum + materialsCostNum,
+              quoteId: updatedQuote.id,
+              quoteAmount: totalAmount,
               providerName: user.name,
               actionRequired: 'quote_review'
             },
@@ -320,38 +272,28 @@ export async function POST(request: NextRequest) {
         })
 
         await Promise.all(notificationPromises)
-        console.log(`📧 Quote submission notifications sent to ${responsibleManagers.length} gestionnaire(s)`)
+        logger.info({ managersCount: managers.length }, "📧 Quote submission notifications sent")
       }
     } catch (notifError) {
-      console.warn("⚠️ Could not send quote submission notifications:", notifError)
-      // Don't fail the submission for notification errors
+      logger.warn({ notifError }, "⚠️ Could not send notifications")
     }
 
     return NextResponse.json({
       success: true,
       quote: {
-        id: quote.id,
-        intervention_id: quote.intervention_id,
-        labor_cost: quote.labor_cost,
-        materials_cost: quote.materials_cost,
-        total_amount: quote.total_amount,
-        description: quote.description,
-        work_details: quote.work_details,
-        estimated_duration_hours: quote.estimated_duration_hours,
-        estimated_start_date: quote.estimated_start_date,
-        status: quote.status,
-        submitted_at: quote.submitted_at,
-        updated_at: quote.updated_at
+        id: updatedQuote.id,
+        intervention_id: updatedQuote.intervention_id,
+        amount: updatedQuote.amount,
+        description: updatedQuote.description,
+        line_items: updatedQuote.line_items,
+        status: updatedQuote.status,
+        updated_at: updatedQuote.updated_at
       },
       message: 'Devis soumis avec succès'
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-quote-submit API:", error)
-    console.error("❌ Error details:", {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    logger.error({ error, message: error instanceof Error ? error.message : 'Unknown' }, "❌ Error in intervention-quote-submit API")
 
     return NextResponse.json({
       success: false,

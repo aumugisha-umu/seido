@@ -1,0 +1,261 @@
+
+> seido-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.2.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+{"level":30,"time":"2025-10-06T20:41:09.750Z","pid":4232,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:09.756Z","pid":25340,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async es (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:295:5975)
+    at async eu (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:8208)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+    at async eC (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:40283)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async V (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:780)
+    at async W (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:10766)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+{"level":30,"time":"2025-10-06T20:41:09.952Z","pid":30816,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.059Z","pid":23444,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.076Z","pid":31344,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.118Z","pid":10436,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.259Z","pid":5704,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.270Z","pid":27056,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.344Z","pid":17748,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.396Z","pid":26732,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:10.407Z","pid":1828,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+   Generating static pages (0/88) ...
+{"level":30,"time":"2025-10-06T20:41:17.785Z","pid":28016,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side"}
+{"level":30,"time":"2025-10-06T20:41:17.878Z","pid":28016,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:17.852Z","pid":24840,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:18.010Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:18.240Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:18.037Z","pid":18844,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async es (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:295:5975)
+    at async eu (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:8208)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+    at async eC (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:40283)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async V (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:780)
+    at async W (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:10766)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+{"level":30,"time":"2025-10-06T20:41:18.368Z","pid":18844,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:18.401Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [DASHBOARD-ROUTER] Determining user role for redirection..."}
+{"level":50,"time":"2025-10-06T20:41:18.408Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [DASHBOARD-ROUTER] Error determining user role:"}
+{"level":30,"time":"2025-10-06T20:41:18.330Z","pid":28016,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:41:18.378Z","pid":28016,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [SIGNUP-SERVER] Signup page rendered server-side"}
+   Generating static pages (22/88) 
+{"level":30,"time":"2025-10-06T20:41:18.853Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"🚪 [LOGOUT-PAGE] Logout page accessed, triggering server-side logout..."}
+{"level":30,"time":"2025-10-06T20:41:18.853Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"🚀 [LOGOUT-ACTION] Starting server-side logout..."}
+{"level":50,"time":"2025-10-06T20:41:18.855Z","pid":14920,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [LOGOUT-ACTION] Exception: Dynamic server usage: Route /auth/logout couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error"}
+   Generating static pages (44/88) 
+   Generating static pages (66/88) 
+ ✓ Generating static pages (88/88)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                               Size  First Load JS
+┌ ○ /                                                    193 B         104 kB
+├ ○ /_not-found                                          990 B         102 kB
+├ ƒ /admin/dashboard                                   3.06 kB         197 kB
+├ ƒ /admin/notifications                                 193 B         104 kB
+├ ƒ /admin/profile                                       162 B         215 kB
+├ ƒ /api/activity-logs                                   343 B         101 kB
+├ ƒ /api/activity-stats                                  343 B         101 kB
+├ ƒ /api/auth/accept-invitation                          343 B         101 kB
+├ ƒ /api/cancel-invitation                               343 B         101 kB
+├ ƒ /api/change-email                                    343 B         101 kB
+├ ƒ /api/change-password                                 343 B         101 kB
+├ ƒ /api/check-active-users                              343 B         101 kB
+├ ƒ /api/contact-invitation-status                       343 B         101 kB
+├ ƒ /api/create-contact                                  343 B         101 kB
+├ ƒ /api/create-intervention                             343 B         101 kB
+├ ƒ /api/create-manager-intervention                     343 B         101 kB
+├ ƒ /api/create-provider-account                         343 B         101 kB
+├ ƒ /api/download-intervention-document                  343 B         101 kB
+├ ƒ /api/generate-intervention-magic-links               343 B         101 kB
+├ ƒ /api/get-user-profile                                343 B         101 kB
+├ ƒ /api/intervention-approve                            343 B         101 kB
+├ ƒ /api/intervention-cancel                             343 B         101 kB
+├ ƒ /api/intervention-complete                           343 B         101 kB
+├ ƒ /api/intervention-finalize                           343 B         101 kB
+├ ƒ /api/intervention-quote-request                      343 B         101 kB
+├ ƒ /api/intervention-quote-submit                       343 B         101 kB
+├ ƒ /api/intervention-quote-validate                     343 B         101 kB
+├ ƒ /api/intervention-reject                             343 B         101 kB
+├ ƒ /api/intervention-schedule                           343 B         101 kB
+├ ƒ /api/intervention-start                              343 B         101 kB
+├ ƒ /api/intervention-validate-tenant                    343 B         101 kB
+├ ƒ /api/intervention/[id]/availabilities                343 B         101 kB
+├ ƒ /api/intervention/[id]/availability-response         343 B         101 kB
+├ ƒ /api/intervention/[id]/finalization-context          343 B         101 kB
+├ ƒ /api/intervention/[id]/manager-finalization          343 B         101 kB
+├ ƒ /api/intervention/[id]/match-availabilities          343 B         101 kB
+├ ƒ /api/intervention/[id]/quote-requests                343 B         101 kB
+├ ƒ /api/intervention/[id]/quotes                        343 B         101 kB
+├ ƒ /api/intervention/[id]/select-slot                   343 B         101 kB
+├ ƒ /api/intervention/[id]/simple-work-completion        343 B         101 kB
+├ ƒ /api/intervention/[id]/tenant-availability           343 B         101 kB
+├ ƒ /api/intervention/[id]/tenant-validation             343 B         101 kB
+├ ƒ /api/intervention/[id]/user-availability             343 B         101 kB
+├ ƒ /api/intervention/[id]/work-completion               343 B         101 kB
+├ ƒ /api/invite-user                                     343 B         101 kB
+├ ƒ /api/magic-link/[token]                              343 B         101 kB
+├ ƒ /api/mark-invitation-accepted                        343 B         101 kB
+├ ƒ /api/notifications                                   343 B         101 kB
+├ ƒ /api/quote-requests                                  343 B         101 kB
+├ ƒ /api/quote-requests/[id]                             343 B         101 kB
+├ ƒ /api/quotes/[id]/approve                             343 B         101 kB
+├ ƒ /api/quotes/[id]/cancel                              343 B         101 kB
+├ ƒ /api/quotes/[id]/reject                              343 B         101 kB
+├ ƒ /api/resend-invitation                               343 B         101 kB
+├ ƒ /api/reset-password                                  343 B         101 kB
+├ ƒ /api/revoke-invitation                               343 B         101 kB
+├ ƒ /api/send-welcome-email                              343 B         101 kB
+├ ƒ /api/signup-complete                                 343 B         101 kB
+├ ƒ /api/team-contacts                                   343 B         101 kB
+├ ƒ /api/team-invitations                                343 B         101 kB
+├ ƒ /api/test/check-contact                              343 B         101 kB
+├ ƒ /api/test/cleanup-user                               343 B         101 kB
+├ ƒ /api/test/get-confirmation-link                      343 B         101 kB
+├ ƒ /api/test/get-last-invitation-link                   343 B         101 kB
+├ ƒ /api/test/get-reset-link                             343 B         101 kB
+├ ƒ /api/update-user-profile                             343 B         101 kB
+├ ƒ /api/upload-avatar                                   343 B         101 kB
+├ ƒ /api/upload-intervention-document                    343 B         101 kB
+├ ƒ /api/view-intervention-document                      343 B         101 kB
+├ ○ /auth/callback                                     3.28 kB         188 kB
+├ ƒ /auth/confirm                                        343 B         101 kB
+├ ƒ /auth/login                                        7.58 kB         119 kB
+├ ƒ /auth/logout                                         343 B         101 kB
+├ ○ /auth/reset-password                               3.95 kB         116 kB
+├ ○ /auth/set-password                                 5.87 kB         200 kB
+├ ○ /auth/signup                                       11.6 kB         123 kB
+├ ƒ /auth/signup-success                                 193 B         104 kB
+├ ○ /auth/unauthorized                                   193 B         104 kB
+├ ○ /auth/update-password                              5.93 kB         194 kB
+├ ƒ /dashboard                                           343 B         101 kB
+├ ○ /debug                                             1.86 kB         179 kB
+├ ƒ /debug/data                                          193 B         104 kB
+├ ƒ /gestionnaire/biens                                3.76 kB         246 kB
+├ ƒ /gestionnaire/biens/immeubles/[id]                 8.76 kB         261 kB
+├ ƒ /gestionnaire/biens/immeubles/modifier/[id]        5.02 kB         236 kB
+├ ƒ /gestionnaire/biens/immeubles/nouveau              9.45 kB         257 kB
+├ ƒ /gestionnaire/biens/lots/[id]                      10.5 kB         265 kB
+├ ƒ /gestionnaire/biens/lots/modifier/[id]             5.31 kB         236 kB
+├ ƒ /gestionnaire/biens/lots/nouveau                   9.22 kB         257 kB
+├ ƒ /gestionnaire/contacts                             13.4 kB         263 kB
+├ ƒ /gestionnaire/contacts/details/[id]                12.7 kB         260 kB
+├ ƒ /gestionnaire/contacts/modifier/[id]               8.36 kB         229 kB
+├ ƒ /gestionnaire/dashboard                             5.3 kB         232 kB
+├ ƒ /gestionnaire/debug-availabilities                 1.96 kB         145 kB
+├ ƒ /gestionnaire/interventions                        10.9 kB         275 kB
+├ ƒ /gestionnaire/interventions/[id]                   8.07 kB         324 kB
+├ ƒ /gestionnaire/interventions/nouvelle-intervention  14.5 kB         253 kB
+├ ƒ /gestionnaire/mail                                   13 kB         122 kB
+├ ƒ /gestionnaire/notifications                          15 kB         215 kB
+├ ƒ /gestionnaire/profile                                161 B         215 kB
+├ ƒ /locataire/dashboard                                2.7 kB         196 kB
+├ ƒ /locataire/interventions                           5.46 kB         229 kB
+├ ƒ /locataire/interventions/[id]                      6.02 kB         322 kB
+├ ƒ /locataire/interventions/nouvelle-demande          9.69 kB         234 kB
+├ ƒ /locataire/notifications                           6.04 kB         203 kB
+├ ƒ /locataire/profile                                   162 B         215 kB
+├ ƒ /prestataire/dashboard                             7.72 kB         259 kB
+├ ƒ /prestataire/interventions                         3.82 kB         253 kB
+├ ƒ /prestataire/interventions/[id]                    13.7 kB         330 kB
+├ ƒ /prestataire/notifications                           193 B         104 kB
+├ ƒ /prestataire/profile                                 161 B         215 kB
+├ ○ /test-finalization-mobile                          9.48 kB         185 kB
+└ ○ /test-logging                                      4.82 kB         106 kB
++ First Load JS shared by all                           101 kB
+  ├ chunks/1684-c327d9fc9ad67aaf.js                    45.8 kB
+  ├ chunks/4bd1b696-c57421b2ec6732a6.js                53.3 kB
+  └ other shared chunks (total)                        2.05 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

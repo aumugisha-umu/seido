@@ -129,14 +129,14 @@ SELECT
     STRING_AGG(DISTINCT contact_type::text, ', ') as contact_types_used
 FROM lot_contacts;
 
--- 3.3 État de intervention_contacts
+-- 3.3 État deintervention_assignments
 SELECT 
     'intervention_contacts' as table_name,
     COUNT(*) as total_relations,
     COUNT(DISTINCT intervention_id) as unique_interventions,
     COUNT(DISTINCT contact_id) as unique_contacts,
     STRING_AGG(DISTINCT role, ', ') as roles_used
-FROM intervention_contacts;
+FROMintervention_assignments;
 
 -- 3.4 Analyser lot_contacts vs lots.tenant_id (cohérence)
 WITH lot_tenant_comparison AS (

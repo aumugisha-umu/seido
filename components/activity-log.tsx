@@ -45,7 +45,7 @@ interface ActivityLogEntry {
   status: ActivityStatus
   description: string
   error_message?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   ip_address?: string
   user_agent?: string
   created_at: string
@@ -178,11 +178,11 @@ const getEntityIcon = (entityType: ActivityEntityType) => {
 }
 
 // Formater la date selon notre design (similaire à la photo)
-const formatActivityDate = (dateString: string) => {
-  const date = new Date(dateString)
+const formatActivityDate = (_dateString: string) => {
+  const date = new Date(_dateString)
   const now = new Date()
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-  
+
   if (diffInMinutes < 60) {
     return `${diffInMinutes} min ago`
   } else if (diffInMinutes < 1440) {
@@ -199,8 +199,8 @@ const formatActivityDate = (dateString: string) => {
 }
 
 // Obtenir les initiales pour l'avatar
-const getUserInitials = (name: string) => {
-  return name
+const getUserInitials = (_name: string) => {
+  return _name
     .split(' ')
     .map(word => word.charAt(0))
     .join('')
@@ -256,7 +256,7 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
 
   return (
     <div className="space-y-1 sm:space-y-1">
-      {activities.map((activity, index) => (
+      {activities.map((activity) => (
         <Card 
           key={activity.id} 
           className={`transition-all hover:shadow-sm border-l-4 ${

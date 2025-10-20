@@ -8,36 +8,34 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle } from "lucide-react"
-import { contactService, determineAssignmentType } from "@/lib/database-service"
+
+import { determineAssignmentType, createContactService } from '@/lib/services'
+
+const contactService = createContactService()
 import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
-
+import type { ContactWithRelations } from "@/lib/services"
+import { logger, logError } from '@/lib/logger'
 interface LotContactsListProps {
   lotId: string
-  buildingId?: string
-  contacts?: any[]
-  onContactsUpdate?: (contacts: any[]) => void
+  contacts?: ContactWithRelations[]
+  onContactsUpdate?: (contacts: ContactWithRelations[]) => void
 }
 
-export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
-  const [contacts, setContacts] = useState<any[]>(propContacts)
-  const [filteredContacts, setFilteredContacts] = useState<any[]>([])
+export const LotContactsList = ({ lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+  const [contacts, setContacts] = useState<ContactWithRelations[]>(propContacts)
+  const [filteredContacts, setFilteredContacts] = useState<ContactWithRelations[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
-  const [selectedContact, setSelectedContact] = useState<any>(null)
-  const [deleteContact, setDeleteContact] = useState<any>(null)
+  const [selectedContact, setSelectedContact] = useState<ContactWithRelations | null>(null)
+  const [deleteContact, setDeleteContact] = useState<ContactWithRelations | null>(null)
 
-  // Helper function to check if ID looks like a UUID
-  const isValidUUID = (id: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    return uuidRegex.test(id)
-  }
 
   // Update local contacts when props change
   useEffect(() => {
-    console.log("🔄 LotContactsList contacts updated:", propContacts.length)
+    logger.info("🔄 LotContactsList contacts updated:", propContacts.length)
     setContacts(propContacts)
     setFilteredContacts(propContacts)
   }, [propContacts])
@@ -47,7 +45,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     if (!lotId) return
     
     const timeoutId = setTimeout(() => {
-      console.warn("⏰ Request timeout for lot contacts")
+      logger.warn("⏰ Request timeout for lot contacts")
       setError("Temps d'attente dépassé lors du chargement des contacts")
       setLoading(false)
     }, 10000) // 10 seconds timeout
@@ -55,18 +53,22 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     try {
       setLoading(true)
       setError(null)
-      console.log("📞 Loading contacts for lot:", lotId)
+      logger.info("📞 Loading contacts for lot:", lotId)
       
       // Adapter pour nouvelle architecture - récupérer les locataires pour ce lot
-      const lotContacts = await contactService.getLotContactsByType(lotId, 'tenant')
-      console.log("✅ Lot contacts loaded:", lotContacts?.length || 0)
-      
+      const lotContactsResult = await contactService.getLotContacts(lotId, 'tenant')
+      if (!lotContactsResult.success) {
+        throw new Error(lotContactsResult.error?.message || 'Failed to load lot contacts')
+      }
+      const lotContacts = lotContactsResult.data || []
+      logger.info("✅ Lot contacts loaded:", lotContacts.length)
+
       clearTimeout(timeoutId)
-      setContacts(lotContacts || [])
-      setFilteredContacts(lotContacts || [])
+      setContacts(lotContacts)
+      setFilteredContacts(lotContacts)
       
     } catch (error) {
-      console.error("❌ Error loading lot contacts:", error)
+      logger.error("❌ Error loading lot contacts:", error)
       clearTimeout(timeoutId)
       
       // Gestion plus fine des erreurs
@@ -92,30 +94,30 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
     if (searchTerm.trim() === "") {
       setFilteredContacts(contacts)
     } else {
-      const filtered = contacts.filter(contact => 
-        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = contacts.filter(contact =>
+        contact.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.user?.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.user?.speciality?.toLowerCase().includes(searchTerm.toLowerCase())
       )
       setFilteredContacts(filtered)
     }
   }, [contacts, searchTerm])
 
 
-  const handleContactSubmit = async (contactData: any) => {
+  const handleContactSubmit = async (contactData: Partial<ContactWithRelations>) => {
     try {
       if (selectedContact) {
         // Update existing contact
         await contactService.update(selectedContact.id, contactData)
-        console.log("✅ Contact updated")
+        logger.info("✅ Contact updated")
       } else {
         // Create new contact
         await contactService.create({
           ...contactData,
           team_id: contacts[0]?.team?.id // Use the same team as other contacts
         })
-        console.log("✅ Contact created")
+        logger.info("✅ Contact created")
       }
       
       // Reload contacts
@@ -132,7 +134,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       setSelectedContact(null)
       
     } catch (error) {
-      console.error("❌ Error saving contact:", error)
+      logger.error("❌ Error saving contact:", error)
       setError("Erreur lors de la sauvegarde du contact")
     }
   }
@@ -154,9 +156,9 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       }
       
       setDeleteContact(null)
-      console.log("✅ Contact deleted")
+      logger.info("✅ Contact deleted")
     } catch (error) {
-      console.error("❌ Error deleting contact:", error)
+      logger.error("❌ Error deleting contact:", error)
       setError("Erreur lors de la suppression du contact")
     }
   }
@@ -187,6 +189,22 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
       other: "Autre"
     }
     return labels[speciality] || speciality
+  }
+
+  const getContactTypeBadgeStyle = (contact: ContactWithRelations) => {
+    const assignmentType = contact.user ? determineAssignmentType(contact.user) : 'other'
+
+    const styles = {
+      'tenant': 'bg-blue-100 text-blue-800',
+      'owner': 'bg-emerald-100 text-emerald-800',
+      'provider': 'bg-green-100 text-green-800',
+      'manager': 'bg-purple-100 text-purple-800',
+      'syndic': 'bg-orange-100 text-orange-800',
+      'notary': 'bg-gray-100 text-gray-800',
+      'insurance': 'bg-red-100 text-red-800',
+      'other': 'bg-gray-100 text-gray-600'
+    }
+    return styles[assignmentType as keyof typeof styles] || 'bg-gray-100 text-gray-600'
   }
 
   if (loading) {
@@ -286,16 +304,16 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-medium">{contact.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {getContactTypeLabel(determineAssignmentType(contact))}
+                        <span className="font-medium">{contact.user?.name}</span>
+                        <Badge variant="secondary" className={`${getContactTypeBadgeStyle(contact)} text-xs font-medium`}>
+                          {getContactTypeLabel(contact.user ? determineAssignmentType(contact.user) : 'other')}
                         </Badge>
-                        {contact.speciality && (
+                        {contact.user?.speciality && (
                           <Badge variant="secondary" className="text-xs">
-                            {getSpecialityLabel(contact.speciality)}
+                            {getSpecialityLabel(contact.user.speciality)}
                           </Badge>
                         )}
-                        {!contact.is_active && (
+                        {!contact.user?.is_active && (
                           <Badge variant="destructive" className="text-xs">
                             Inactif
                           </Badge>
@@ -305,25 +323,25 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-1">
                             <Mail className="h-3 w-3" />
-                            <span>{contact.email}</span>
+                            <span>{contact.user?.email}</span>
                           </div>
-                          {contact.phone && (
+                          {contact.user?.phone && (
                             <div className="flex items-center space-x-1">
                               <Phone className="h-3 w-3" />
-                              <span>{contact.phone}</span>
+                              <span>{contact.user.phone}</span>
                             </div>
                           )}
                         </div>
-                        {contact.company && (
+                        {contact.user?.company && (
                           <div className="flex items-center space-x-1">
                             <Building2 className="h-3 w-3" />
-                            <span>{contact.company}</span>
+                            <span>{contact.user.company}</span>
                           </div>
                         )}
-                        {contact.address && (
+                        {contact.user?.address && (
                           <div className="flex items-center space-x-1">
                             <MapPin className="h-3 w-3" />
-                            <span className="text-xs">{contact.address}</span>
+                            <span className="text-xs">{contact.user.address}</span>
                           </div>
                         )}
                       </div>
@@ -333,7 +351,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                      onClick={() => window.open(`mailto:${contact.user?.email}`, '_blank')}
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -348,7 +366,7 @@ export const LotContactsList = ({ lotId, buildingId, contacts: propContacts = []
                       <Edit className="h-4 w-4" />
                     </Button>
                     <DeleteConfirmModal
-                      itemName={contact.name}
+                      itemName={contact.user?.name || 'ce contact'}
                       itemType="contact"
                       onConfirm={async () => {
                         setDeleteContact(contact)

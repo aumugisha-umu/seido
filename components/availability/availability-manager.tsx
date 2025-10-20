@@ -25,12 +25,8 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
     showAvailabilityEditor,
     saveUserAvailabilities,
     runMatching,
-    addAvailability,
-    updateAvailability,
-    removeAvailability,
     openAvailabilityEditor,
     closeAvailabilityEditor,
-    areAvailabilitiesValid,
     canRunMatching,
     isScheduled,
     clearError
@@ -119,7 +115,7 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
     )
   }
 
-  const getUserRoleLabel = (role: string) => {
+  const getUserRoleLabel = (_role: string) => {
     switch (role) {
       case 'locataire': return 'Locataire'
       case 'gestionnaire': return 'Gestionnaire'
@@ -128,7 +124,7 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
     }
   }
 
-  const getStatusBadgeColor = (status: string) => {
+  const getStatusBadgeColor = (_status: string) => {
     switch (status) {
       case 'demande': return 'bg-yellow-100 text-yellow-800'
       case 'approuvee': return 'bg-green-100 text-green-800'

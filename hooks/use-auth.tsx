@@ -1,11 +1,29 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
-import { decideRedirectionStrategy, logRoutingDecision } from '@/lib/auth-router'
+import { createClient } from '@/utils/supabase/client'
+import {
+  createCoordinationCookies,
+  clearCoordinationCookies,
+  setCoordinationCookiesClient,
+  getExponentialBackoffDelay,
+  AUTH_RETRY_CONFIG,
+  type AuthLoadingState
+} from '@/lib/auth-coordination'
+// Fonction simplifiée pour routing côté client (sans import DAL)
+function getSimpleRedirectPath(userRole: string): string {
+  const routes = {
+    admin: '/admin',
+    gestionnaire: '/gestionnaire/dashboard',
+    prestataire: '/prestataire/dashboard',
+    locataire: '/locataire/dashboard'
+  }
+  return routes[userRole as keyof typeof routes] || '/gestionnaire/dashboard'
+}
 import type { AuthError } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
@@ -17,7 +35,7 @@ interface AuthContextType {
   updateProfile: (updates: Partial<AuthUser>) => Promise<{ user: AuthUser | null; error: AuthError | null }>
   refreshUser: () => Promise<void>
   resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>
-  getCurrentAuthSession: () => Promise<{ authUser: any | null; error: AuthError | null }>
+  getCurrentAuthSession: () => Promise<{ authUser: unknown | null; error: AuthError | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -27,22 +45,164 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const isRedirectingRef = useRef(false) // Prevent infinite redirect loop
+  const authStateRef = useRef<AuthLoadingState>('idle')
+
+  // 🎯 PHASE 2.1: Helper pour mettre à jour l'état de coordination
+  const updateCoordinationState = (state: AuthLoadingState) => {
+    authStateRef.current = state
+    const cookies = createCoordinationCookies(state, pathname || '/')
+    setCoordinationCookiesClient(cookies)
+  }
 
   useEffect(() => {
-    console.log('🚀 [AUTH-PROVIDER-REFACTORED] Initializing simple auth system...')
+    logger.info('🚀 [AUTH-PROVIDER-REFACTORED] Initializing auth system with official patterns...')
 
-    // ✅ Récupération initiale de l'utilisateur
-    getCurrentUser()
+    // 🎯 PHASE 2.1: Signaler que AuthProvider est en loading
+    updateCoordinationState('loading')
 
-    // ✅ Écouter les changements d'état - version simplifiée
-    const { data: { subscription } } = authService.onAuthStateChange((user) => {
-      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Auth state changed:', user ? `${user.name} (${user.role})` : 'null')
-      setUser(user)
+    // ✅ PATTERN OFFICIEL SUPABASE: Utiliser onAuthStateChange pour tous les événements
+    const supabase = createClient()
+
+    // ✅ TIMEOUT DE SÉCURITÉ: Forcer loading = false après 3.5s max
+    const loadingTimeout = setTimeout(() => {
+      logger.warn('⚠️ [AUTH-PROVIDER] Loading timeout reached (3.5s) - forcing loading = false')
+      updateCoordinationState('error')
       setLoading(false)
+    }, AUTH_RETRY_CONFIG.TIMEOUT_MS)
+
+    // ✅ OPTIMISATION: Check immédiat de session au mount (BLOQUANT pour peupler localStorage)
+    const checkInitialSession = async () => {
+      try {
+        logger.info('🔍 [AUTH-PROVIDER] Checking initial session immediately...')
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (session?.user) {
+          logger.info('✅ [AUTH-PROVIDER] Found existing session on mount, loading profile...')
+          logger.info('💾 [AUTH-PROVIDER] Session should now be in localStorage for browser client')
+          const { user } = await authService.getCurrentUser()
+          setUser(user)
+          setLoading(false)
+          updateCoordinationState('loaded')
+          clearTimeout(loadingTimeout)
+          return true
+        } else {
+          logger.info('ℹ️ [AUTH-PROVIDER] No session found on mount, waiting for onAuthStateChange...')
+        }
+      } catch (error) {
+        logger.error('❌ [AUTH-PROVIDER] Initial session check failed:', error)
+      }
+      return false
+    }
+
+    // 🎯 FIX CRITIQUE: Await checkInitialSession pour garantir localStorage peuplé
+    const initializeAuth = async () => {
+      logger.info('⏳ [AUTH-PROVIDER] Awaiting session initialization before setting up listeners...')
+      const hasSession = await checkInitialSession()
+
+      if (hasSession) {
+        logger.info('✅ [AUTH-PROVIDER] Session initialized and localStorage populated')
+      } else {
+        logger.info('ℹ️ [AUTH-PROVIDER] No initial session, localStorage will be empty until sign-in')
+      }
+
+      // 🎯 Maintenant, configurer les listeners APRÈS que la session soit initialisée
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        logger.info('🔄 [AUTH-STATE-CHANGE] Event:', event, 'Has session:', !!session)
+
+        switch (event) {
+          case 'INITIAL_SESSION':
+            clearTimeout(loadingTimeout)
+            if (session?.user) {
+              logger.info('🔍 [AUTH-STATE-CHANGE] Initial session found, loading user profile...')
+              try {
+                const { user } = await authService.getCurrentUser()
+                setUser(user)
+                updateCoordinationState('loaded')
+              } catch (error) {
+                logger.error('❌ [AUTH-STATE-CHANGE] Error loading initial user:', error)
+                setUser(null)
+                updateCoordinationState('error')
+              }
+            } else {
+              logger.info('🔍 [AUTH-STATE-CHANGE] No initial session')
+              setUser(null)
+              updateCoordinationState('loaded')
+            }
+            setLoading(false)
+            break
+
+          case 'SIGNED_IN':
+            logger.info('✅ [AUTH-STATE-CHANGE] User signed in, loading profile...')
+            try {
+              const { user } = await authService.getCurrentUser()
+              setUser(user)
+              updateCoordinationState('loaded')
+              logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded:', user?.name)
+            } catch (error) {
+              logger.error('❌ [AUTH-STATE-CHANGE] Error loading signed-in user:', error)
+              // 🎯 PHASE 2.1: Retry avec exponential backoff
+              let retryCount = 0
+              const retryWithBackoff = async () => {
+                if (retryCount >= AUTH_RETRY_CONFIG.MAX_RETRIES) {
+                  logger.error('❌ [AUTH-STATE-CHANGE] Max retries reached, giving up')
+                  setUser(null)
+                  updateCoordinationState('error')
+                  return
+                }
+
+                const delay = getExponentialBackoffDelay(retryCount)
+                logger.info(`🔄 [AUTH-STATE-CHANGE] Retry ${retryCount + 1}/${AUTH_RETRY_CONFIG.MAX_RETRIES} in ${delay}ms...`)
+
+                setTimeout(async () => {
+                  try {
+                    const { user } = await authService.getCurrentUser()
+                    setUser(user)
+                    updateCoordinationState('loaded')
+                    logger.info('✅ [AUTH-STATE-CHANGE] Profile loaded on retry:', user?.name)
+                  } catch (retryError) {
+                    logger.error(`❌ [AUTH-STATE-CHANGE] Retry ${retryCount + 1} failed:`, retryError)
+                    retryCount++
+                    retryWithBackoff()
+                  }
+                }, delay)
+              }
+
+              retryWithBackoff()
+            }
+            break
+
+          case 'SIGNED_OUT':
+            logger.info('🚪 [AUTH-STATE-CHANGE] User signed out')
+            setUser(null)
+            updateCoordinationState('idle')
+            // 🎯 PHASE 2.1: Nettoyer les cookies de coordination
+            setCoordinationCookiesClient(clearCoordinationCookies())
+            break
+
+          case 'TOKEN_REFRESHED':
+            logger.info('🔄 [AUTH-STATE-CHANGE] Token refreshed')
+            break
+
+          default:
+            logger.info('🔍 [AUTH-STATE-CHANGE] Other event:', event)
+        }
+      })
+
+      return subscription
+    }
+
+    // Bloquer jusqu'à ce que la session soit chargée, puis configurer les listeners
+    let subscription: any
+    initializeAuth().then((sub) => {
+      subscription = sub
     })
 
     return () => {
+      clearTimeout(loadingTimeout)
       subscription.unsubscribe()
+      // 🎯 PHASE 2.1: Nettoyer les signaux au démontage
+      setCoordinationCookiesClient(clearCoordinationCookies())
     }
   }, [])
 
@@ -51,164 +211,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Seulement si chargement terminé et pathname disponible
     if (loading || !pathname) return
 
-    // ✅ Détecter si on vient d'un callback invitation
-    const handleInvitationCallback = async () => {
-      if (user && pathname === '/auth/callback') {
-        try {
-          const callbackContext = sessionStorage.getItem('auth_callback_context')
-          if (callbackContext) {
-            const context = JSON.parse(callbackContext)
-            if (context.type === 'invitation') {
-              console.log('📧 [AUTH-PROVIDER-CALLBACK] Processing invitation callback for:', user.email)
-
-              // ✅ CORRECTION: Extraire le vrai auth_user_id si JWT-only
-              const authUserId = user.id.startsWith('jwt_')
-                ? user.id.replace('jwt_', '')
-                : user.id
-
-              console.log('🔍 [AUTH-PROVIDER-CALLBACK] Using auth_user_id for invitation:', {
-                originalId: user.id,
-                extractedAuthUserId: authUserId,
-                isJwtOnly: user.id.startsWith('jwt_')
-              })
-
-              // Traiter les invitations
-              try {
-                const response = await fetch('/api/mark-invitation-accepted', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    email: user.email,
-                    invitationCode: authUserId
-                  })
-                })
-
-                if (response.ok) {
-                  const result = await response.json()
-                  if (result.success && result.count > 0) {
-                    console.log(`✅ [AUTH-PROVIDER-CALLBACK] ${result.count} invitation(s) marked as accepted`)
-                  }
-                }
-              } catch (invitationError) {
-                console.warn('⚠️ [AUTH-PROVIDER-CALLBACK] Invitation processing failed:', invitationError)
-              }
-
-              // Nettoyer le contexte
-              sessionStorage.removeItem('auth_callback_context')
-
-              // ✅ NOUVEAU: Vérifier si l'utilisateur doit définir son mot de passe (via base de données)
-              // Pour les utilisateurs JWT-only, récupérer les vraies données depuis la DB
-              let needsPasswordSetup = user.password_set === false
-
-              if (user.id.startsWith('jwt_')) {
-                try {
-                  // Récupérer les vraies données utilisateur depuis la base de données
-                  const response = await fetch('/api/get-user-profile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ authUserId: authUserId })
-                  })
-
-                  if (response.ok) {
-                    const profileData = await response.json()
-                    if (profileData.success && profileData.user) {
-                      needsPasswordSetup = profileData.user.password_set === false
-                      console.log('🔍 [AUTH-PROVIDER-CALLBACK] Retrieved user profile from DB:', {
-                        password_set: profileData.user.password_set,
-                        needsPasswordSetup
-                      })
-                    }
-                  }
-                } catch (error) {
-                  console.warn('⚠️ [AUTH-PROVIDER-CALLBACK] Failed to get user profile, using default check:', error)
-                }
-              }
-
-              if (needsPasswordSetup) {
-                console.log('🔐 [AUTH-PROVIDER-CALLBACK] User needs password setup (password_set: false), redirecting to password setup')
-                router.push('/auth/set-password')
-              } else {
-                // Rediriger vers le dashboard approprié
-                const dashboardPath = `/${user.role}/dashboard`
-                console.log('🔄 [AUTH-PROVIDER-CALLBACK] User password already set, redirecting to dashboard:', dashboardPath)
-                router.push(dashboardPath)
-              }
-              return true
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ [AUTH-PROVIDER-CALLBACK] Error processing callback context:', error)
-        }
+    // ✅ NOUVEAU: Détecter redirection serveur et forcer refresh session
+    if (pathname === '/auth/login' && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('reason') === 'session_invalid') {
+        logger.info('🔄 [AUTH-PROVIDER] Server-initiated redirect detected, forcing session refresh...')
+        getCurrentUser()
+        return
       }
-      return false
     }
 
-    // Traiter callback d'abord, sinon logique normale
-    handleInvitationCallback().then(handled => {
-      if (!handled) {
-        // ✅ Système de routage centralisé normal
-        const decision = decideRedirectionStrategy(user, pathname, {
-          isAuthStateChange: true,
-          isLoginSubmit: false
-        })
+    // ✅ Système de routage simplifié côté client
+    if (user && pathname.startsWith('/auth/') &&
+            !pathname.includes('/callback') &&
+            !pathname.includes('/reset-password') &&
+            !pathname.includes('/set-password') &&
+            !isRedirectingRef.current) {
 
-        logRoutingDecision(decision, user, {
-          trigger: 'auth-provider-effect',
-          pathname,
-          loading
-        })
+          const redirectPath = getSimpleRedirectPath(user.role)
+          logger.info('🚀 [AUTH-PROVIDER] User already authenticated, redirecting immediately to:', redirectPath)
+          isRedirectingRef.current = true
+          router.push(redirectPath)
 
-        if (decision.strategy === 'immediate' && decision.targetPath) {
-          console.log('🚀 [AUTH-PROVIDER-REFACTORED] Immediate redirect to:', decision.targetPath)
-          router.push(decision.targetPath)
-        } else {
-          console.log('🔄 [AUTH-PROVIDER-REFACTORED] No action needed:', decision.reason)
+          setTimeout(() => {
+            isRedirectingRef.current = false
+          }, 2000)
+          return
         }
-      }
-    })
   }, [user, loading, pathname, router])
 
-  const getCurrentUser = async () => {
+  // 🎯 PHASE 2.1: getCurrentUser avec exponential backoff
+  const getCurrentUser = async (retryCount = 0) => {
     try {
-      console.log('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...')
+      logger.info('🔍 [AUTH-PROVIDER-REFACTORED] Getting current user...', retryCount > 0 ? `(retry ${retryCount})` : '')
 
-      // ✅ SIMPLIFIÉ: Appel direct sans timeouts ni retries
       const { user } = await authService.getCurrentUser()
 
-      console.log('✅ [AUTH-PROVIDER-REFACTORED] User loaded:', user ? `${user.name} (${user.role})` : 'none')
+      logger.info('✅ [AUTH-PROVIDER-REFACTORED] User loaded:', user ? `${user.name} (${user.role})` : 'none')
       setUser(user)
+      updateCoordinationState('loaded')
 
     } catch (error) {
-      console.error('❌ [AUTH-PROVIDER-REFACTORED] Error getting user:', error)
+      logger.error('❌ [AUTH-PROVIDER-REFACTORED] Error getting user:', error)
+
+      // 🎯 PHASE 2.1: Retry avec exponential backoff
+      if (retryCount < AUTH_RETRY_CONFIG.MAX_RETRIES &&
+          error.message?.includes('session missing') &&
+          window.location.pathname.startsWith('/auth/')) {
+
+        const delay = getExponentialBackoffDelay(retryCount)
+        logger.info(`🔄 [AUTH-PROVIDER-REFACTORED] Session may be syncing, retrying in ${delay}ms...`)
+
+        setTimeout(() => getCurrentUser(retryCount + 1), delay)
+        return
+      }
+
       setUser(null)
+      updateCoordinationState('error')
     } finally {
-      setLoading(false)
+      if (retryCount === 0) {
+        setLoading(false)
+      }
     }
   }
 
   const signIn = async (email: string, password: string) => {
-    console.log('🚀 [AUTH-PROVIDER-REFACTORED] SignIn called for:', email)
+    logger.info('🚀 [AUTH-PROVIDER-REFACTORED] SignIn called for:', email)
 
     const result = await authService.signIn({ email, password })
 
     if (result.user) {
-      console.log('✅ [AUTH-PROVIDER-REFACTORED] SignIn successful, updating state')
+      logger.info('✅ [AUTH-PROVIDER-REFACTORED] SignIn successful, updating state')
       setUser(result.user)
+      updateCoordinationState('loaded')
 
-      // ✅ REFACTORISÉ: Système de routage centralisé pour login
-      const decision = decideRedirectionStrategy(result.user, pathname || '/auth/login', {
-        isLoginSubmit: true,
-        isAuthStateChange: false
-      })
-
-      logRoutingDecision(decision, result.user, {
-        trigger: 'login-submit',
-        pathname
-      })
-
-      // ✅ STRATÉGIE CLAIRE: AuthProvider ne fait plus de redirections après login
-      // Le système centralisé + pages gèrent automatiquement
-      console.log('🔄 [AUTH-PROVIDER-REFACTORED] Login successful - letting auth system handle redirection')
+      logger.info('🔄 [AUTH-PROVIDER] Login successful - letting server routing handle redirection')
     }
 
     return result
@@ -218,6 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await authService.signUp(data)
     if (result.user) {
       setUser(result.user)
+      updateCoordinationState('loaded')
     }
     return result
   }
@@ -226,30 +304,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await authService.completeProfile(data)
     if (result.user) {
       setUser(result.user)
+      updateCoordinationState('loaded')
     }
     return result
   }
 
   const signOut = async () => {
     try {
-      console.log('🚪 [AUTH-PROVIDER-REFACTORED] Starting simple sign out...')
+      logger.info('🚪 [AUTH-PROVIDER-REFACTORED] Starting simple sign out...')
 
-      // ✅ REFACTORISÉ: SignOut simple via authService
       await authService.signOut()
 
-      // ✅ Nettoyer l'état local
       setUser(null)
-      console.log('✅ [AUTH-PROVIDER-REFACTORED] Sign out completed')
+      updateCoordinationState('idle')
+      setCoordinationCookiesClient(clearCoordinationCookies())
+      logger.info('✅ [AUTH-PROVIDER-REFACTORED] Sign out completed')
 
     } catch (error) {
-      console.error('❌ [AUTH-PROVIDER-REFACTORED] Sign out error:', error)
-      // Toujours nettoyer l'état local même en cas d'erreur
+      logger.error('❌ [AUTH-PROVIDER-REFACTORED] Sign out error:', error)
       setUser(null)
+      updateCoordinationState('error')
     }
   }
 
-  const resetPassword = async (email: string) => {
-    return await authService.resetPassword(email)
+  const resetPassword = async (_email: string) => {
+    return await authService.resetPassword(_email)
   }
 
   const updateProfile = async (updates: Partial<AuthUser>) => {
@@ -264,8 +343,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await getCurrentUser()
   }
 
-  const resendConfirmation = async (email: string) => {
-    return await authService.resendConfirmation(email)
+  const resendConfirmation = async (_email: string) => {
+    return await authService.resendConfirmation(_email)
   }
 
   const getCurrentAuthSession = async () => {

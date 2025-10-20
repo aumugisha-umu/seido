@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService, tenantService, teamService, buildingService } from '@/lib/database-service'
+
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { createServerUserService, createServerTenantService, createServerBuildingService, createServerTeamService, createServerInterventionService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
-  console.log("🔧 create-intervention API route called")
-  
+  logger.info({}, "🔧 create-intervention API route called")
+
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+    const tenantService = await createServerTenantService()
+    const buildingService = await createServerBuildingService()
+    const teamService = await createServerTeamService()
+    const interventionService = await createServerInterventionService()
     // Get the authenticated user
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -39,7 +47,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     
     if (authError) {
-      console.error("❌ Auth error:", authError)
+      logger.error({ authError }, "❌ Auth error")
       return NextResponse.json({
         success: false,
         error: 'Erreur d\'authentification'
@@ -47,14 +55,14 @@ export async function POST(request: NextRequest) {
     }
     
     if (!authUser) {
-      console.error("❌ No authenticated user")
+      logger.error({}, "❌ No authenticated user")
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non authentifié'
       }, { status: 401 })
     }
 
-    console.log("✅ Authenticated user:", authUser.id)
+    logger.info({ userId: authUser.id }, "✅ Authenticated user")
 
     // Parse the request body (handle both JSON and FormData)
     let body: Record<string, unknown>
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     if (contentType?.includes('multipart/form-data')) {
       // Handle FormData (with files)
-      console.log("📝 Processing FormData request")
+      logger.info({}, "📝 Processing FormData request")
       const formData = await request.formData()
 
       // Extract intervention data
@@ -81,7 +89,7 @@ export async function POST(request: NextRequest) {
 
       // Extract files
       const fileCount = parseInt(formData.get('fileCount') as string || '0')
-      console.log(`📎 Processing ${fileCount} files from FormData`)
+      logger.info({ fileCount }, "📎 Processing files from FormData")
 
       for (let i = 0; i < fileCount; i++) {
         const file = formData.get(`file_${i}`) as File
@@ -90,14 +98,14 @@ export async function POST(request: NextRequest) {
         if (file && metadataString) {
           files.push(file)
           fileMetadata.push(JSON.parse(metadataString))
-          console.log(`📎 File ${i}: ${file.name} (${file.size} bytes)`)
+          logger.info({ fileIndex: i, fileName: file.name, fileSize: file.size }, "📎 File from FormData")
         }
       }
     } else {
       // Handle JSON (backward compatibility)
-      console.log("📝 Processing JSON request")
+      logger.info({}, "📝 Processing JSON request")
       body = await request.json()
-      console.log("📝 Request body:", body)
+      logger.info({ body }, "📝 Request body")
 
       // Extract file metadata from JSON (if any)
       if (body.files && Array.isArray(body.files)) {
@@ -122,74 +130,74 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data from database using auth_user_id
-    console.log("👤 Getting user data...")
+    logger.info({}, "👤 Getting user data...")
     let user
     try {
       user = await userService.findByAuthUserId(authUser.id)
-      console.log("✅ Found user via findByAuthUserId:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+      logger.info({ user: user ? { id: user.id, name: user.name, role: user.role } : null }, "✅ Found user via findByAuthUserId")
     } catch (error) {
-      console.error("❌ Error with findByAuthUserId:", error)
+      logger.error({ error }, "❌ Error with findByAuthUserId")
     }
     
     if (!user) {
-      console.error("❌ No user found for auth_user_id:", authUser.id)
+      logger.error({ authUserId: authUser.id }, "❌ No user found for auth_user_id")
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
       }, { status: 404 })
     }
 
-    console.log("✅ User found:", user.name, user.role)
+    logger.info({ name: user.name, role: user.role }, "✅ User found")
 
     // Get team ID for the intervention
     let teamId = null
 
     if (user.role === 'locataire') {
       // Get the team associated with this tenant via their lot
-      console.log("👥 Getting tenant's team...")
+      logger.info({}, "👥 Getting tenant's team...")
       const tenantData = await tenantService.getTenantData(user.id)
 
       // ✅ FIX: Try multiple sources for team ID for independent lots
       if (tenantData?.team_id) {
         // First priority: direct team assignment on the lot
         teamId = tenantData.team_id
-        console.log("✅ Found team ID from lot:", teamId)
+        logger.info({ teamId }, "✅ Found team ID from lot")
       } else if (tenantData?.building_id) {
         // Second priority: team from building (for lots in buildings)
         try {
           const building = await buildingService.getById(tenantData.building_id)
           if (building?.team_id) {
             teamId = building.team_id
-            console.log("✅ Found team ID from building:", teamId)
+            logger.info({ teamId }, "✅ Found team ID from building")
           }
         } catch (error) {
-          console.warn("⚠️ Could not get building details for team ID:", error)
+          logger.warn({ error }, "⚠️ Could not get building details for team ID")
         }
       } else {
         // ✅ NEW: Fallback for independent lots - get team from user's team membership
-        console.log("⚠️ Independent lot detected, checking user's team membership...")
+        logger.info({}, "⚠️ Independent lot detected, checking user's team membership...")
         try {
           const userTeams = await teamService.getUserTeams(user.id)
           if (userTeams.length > 0) {
             teamId = userTeams[0].id
-            console.log("✅ Found team ID from user membership for independent lot:", teamId)
+            logger.info({ teamId }, "✅ Found team ID from user membership for independent lot")
           }
         } catch (error) {
-          console.warn("⚠️ Could not get user teams for independent lot:", error)
+          logger.warn({ error }, "⚠️ Could not get user teams for independent lot")
         }
       }
     } else {
       // For other roles, get team from teamService
-      console.log("👥 Getting user's team...")
+      logger.info({}, "👥 Getting user's team...")
       const userTeams = await teamService.getUserTeams(user.id)
       if (userTeams.length > 0) {
         teamId = userTeams[0].id
-        console.log("✅ Found team ID:", teamId)
+        logger.info({ teamId }, "✅ Found team ID")
       }
     }
 
     if (!teamId) {
-      console.warn("⚠️ No team found for user, intervention will be created without team association")
+      logger.warn({}, "⚠️ No team found for user, intervention will be created without team association")
     }
 
     // Map frontend values to database enums
@@ -252,11 +260,11 @@ export async function POST(request: NextRequest) {
       status: 'demande' as Database['public']['Enums']['intervention_status']
     }
 
-    console.log("📝 Creating intervention with data:", interventionData)
+    logger.info({ interventionData }, "📝 Creating intervention with data")
 
     // Create the intervention
     const intervention = await interventionService.create(interventionData)
-    console.log("✅ Intervention created:", intervention.id)
+    logger.info({ interventionId: intervention.id }, "✅ Intervention created")
 
     // Log successful intervention creation
     if (teamId) {
@@ -285,25 +293,25 @@ export async function POST(request: NextRequest) {
         )
         
         if (logResult) {
-          console.log("✅ Activity log created for intervention creation:", logResult)
+          logger.info({ logResult }, "✅ Activity log created for intervention creation")
         } else {
-          console.error("❌ Failed to create activity log - returned null")
+          logger.error({}, "❌ Failed to create activity log - returned null")
         }
       } catch (error) {
-        console.error("❌ Error creating activity log:", error)
+        logger.error({ error }, "❌ Error creating activity log")
       }
     }
 
     // Auto-assign relevant users to the intervention
     try {
-      console.log("👥 Auto-assigning users to intervention...")
+      logger.info({}, "👥 Auto-assigning users to intervention...")
       const assignments = await interventionService.autoAssignIntervention(
         intervention.id,
         lot_id || undefined,
         undefined, // buildingId not needed for lot interventions
         teamId || undefined
       )
-      console.log("✅ Auto-assignment completed:", assignments?.length || 0, "users assigned")
+      logger.info({ assignmentCount: assignments?.length || 0 }, "✅ Auto-assignment completed")
 
       // ✅ FIX: Get effective team ID from auto-assignment if original teamId was null
       let effectiveTeamId = teamId
@@ -314,7 +322,7 @@ export async function POST(request: NextRequest) {
           const { data: interventionWithTeam } = await interventionService.getById(intervention.id)
           if (interventionWithTeam?.team_id) {
             effectiveTeamId = interventionWithTeam.team_id
-            console.log("✅ [CREATE-INTERVENTION] Using intervention team_id for notifications:", effectiveTeamId)
+            logger.info({ effectiveTeamId }, "✅ [CREATE-INTERVENTION] Using intervention team_id for notifications")
           } else {
             // Fallback: derive team from lot (same logic as auto-assignment)
             const { data: lotTeam } = await supabase
@@ -326,11 +334,11 @@ export async function POST(request: NextRequest) {
             if (lotTeam?.team_id) {
               effectiveTeamId = lotTeam.team_id
               shouldUpdateInterventionTeam = true
-              console.log("✅ [CREATE-INTERVENTION] Derived team_id from lot for notifications:", effectiveTeamId)
+              logger.info({ effectiveTeamId }, "✅ [CREATE-INTERVENTION] Derived team_id from lot for notifications")
             }
           }
         } catch (error) {
-          console.warn("⚠️ [CREATE-INTERVENTION] Could not derive team_id for notifications:", error)
+          logger.warn({ error }, "⚠️ [CREATE-INTERVENTION] Could not derive team_id for notifications")
         }
       }
 
@@ -338,9 +346,9 @@ export async function POST(request: NextRequest) {
       if (shouldUpdateInterventionTeam && effectiveTeamId) {
         try {
           await interventionService.update(intervention.id, { team_id: effectiveTeamId })
-          console.log("✅ [CREATE-INTERVENTION] Updated intervention with derived team_id:", effectiveTeamId)
+          logger.info({ effectiveTeamId }, "✅ [CREATE-INTERVENTION] Updated intervention with derived team_id")
         } catch (error) {
-          console.warn("⚠️ [CREATE-INTERVENTION] Could not update intervention team_id:", error)
+          logger.warn({ error }, "⚠️ [CREATE-INTERVENTION] Could not update intervention team_id")
         }
       }
 
@@ -351,23 +359,23 @@ export async function POST(request: NextRequest) {
           
           // 1. Créer des notifications PERSONNELLES pour les gestionnaires directement assignés/responsables du bien
           //    Ces gestionnaires sont automatiquement assignés car ils sont liés au lot/bâtiment via lot_contacts/building_contacts
-          let personalNotificationPromises: Promise<any>[] = []
+          let personalNotificationPromises: Promise<unknown>[] = []
           
           if (assignments && assignments.length > 0) {
             personalNotificationPromises = assignments
-              .filter((assignment: any) => 
+              .filter((assignment: { user_id: string; role: string; is_primary?: boolean }) => 
                 assignment.user_id !== user.id && // Don't notify the creator
                 assignment.role === 'gestionnaire' // Only managers get personal notifications
               )
-              .map((assignment: any) => {
-              console.log('📬 [CREATE-INTERVENTION] Creating personal notification for manager LINKED TO BUILDING/LOT:', {
+              .map((assignment: { user_id: string; role: string; is_primary?: boolean }) => {
+              logger.info({
                 userId: assignment.user_id,
                 teamId: effectiveTeamId,
                 createdBy: user.id,
                 isPersonal: true,
                 assignmentRole: assignment.role,
                 isPrimary: assignment.is_primary
-              })
+              }, '📬 [CREATE-INTERVENTION] Creating personal notification for manager LINKED TO BUILDING/LOT')
               return notificationService.createNotification({
                 userId: assignment.user_id,
                 teamId: effectiveTeamId,
@@ -388,16 +396,16 @@ export async function POST(request: NextRequest) {
                 relatedEntityId: intervention.id
               }).then(result => {
                 if (result) {
-                  console.log(`✅ Personal notification created for manager ${assignment.user_id}:`, result.id)
+                  logger.info({ userId: assignment.user_id, notificationId: result.id }, "✅ Personal notification created for manager")
                   return result
                 } else {
-                  console.error(`❌ Failed to create personal notification for manager ${assignment.user_id}`)
+                  logger.error({ userId: assignment.user_id }, "❌ Failed to create personal notification for manager")
                   return null
                 }
               })
             })
           } else {
-            console.log('ℹ️ [CREATE-INTERVENTION] No assignments found, skipping personal notifications')
+            logger.info({}, 'ℹ️ [CREATE-INTERVENTION] No assignments found, skipping personal notifications')
           }
 
           // 2. Créer une notification D'ÉQUIPE pour les gestionnaires de l'équipe NON assignés au bien
@@ -419,16 +427,16 @@ export async function POST(request: NextRequest) {
               .filter(member => 
                 member.user_id !== user.id && // Don't notify the creator
                 member.user?.role === 'gestionnaire' && // Only gestionnaires
-                !(assignments && assignments.some((assignment: any) => assignment.user_id === member.user_id)) // Don't double-notify assigned users (those linked to the building/lot)
+                !(assignments && assignments.some((assignment: { user_id: string }) => assignment.user_id === member.user_id)) // Don't double-notify assigned users (those linked to the building/lot)
               )
               .map(member => {
-                console.log('📬 [CREATE-INTERVENTION] Creating team notification for gestionnaire:', {
+                logger.info({
                   userId: member.user_id,
                   teamId: effectiveTeamId,
                   createdBy: user.id,
                   isPersonal: false,
                   userRole: member.user?.role
-                })
+                }, '📬 [CREATE-INTERVENTION] Creating team notification for gestionnaire')
                 return notificationService.createNotification({
                   userId: member.user_id,
                   teamId: effectiveTeamId,
@@ -447,10 +455,10 @@ export async function POST(request: NextRequest) {
                   relatedEntityId: intervention.id
                 }).then(result => {
                   if (result) {
-                    console.log(`✅ Team notification created for gestionnaire ${member.user_id}:`, result.id)
+                    logger.info({ userId: member.user_id, notificationId: result.id }, "✅ Team notification created for gestionnaire")
                     return result
                   } else {
-                    console.error(`❌ Failed to create team notification for gestionnaire ${member.user_id}`)
+                    logger.error({ userId: member.user_id }, "❌ Failed to create team notification for gestionnaire")
                     return null
                   }
                 })
@@ -465,26 +473,26 @@ export async function POST(request: NextRequest) {
             const personalSuccessful = personalResults.filter(result => result !== null).length
             const teamSuccessful = teamResults.filter(result => result !== null).length
             
-            console.log(`✅ Notifications summary:`)
-            console.log(`   - ${assignments?.length || 0} total users auto-assigned to intervention`)
-            console.log(`   - ${personalSuccessful} personal notifications sent (to managers linked to building/lot)`)
-            console.log(`   - ${teamSuccessful} team notifications sent (to managers in team NOT linked to building/lot)`)
+            logger.info({}, "✅ Notifications summary:")
+            logger.info({ count: assignments?.length || 0 }, "   - total users auto-assigned to intervention")
+            logger.info({ count: personalSuccessful }, "   - personal notifications sent (to managers linked to building/lot)")
+            logger.info({ count: teamSuccessful }, "   - team notifications sent (to managers in team NOT linked to building/lot)")
           } else {
-            console.log("⚠️ No team members found for team notifications")
+            logger.info({}, "⚠️ No team members found for team notifications")
           }
         } catch (notificationError) {
-          console.error("❌ Error creating notifications (intervention still created):", notificationError)
+          logger.error({ error: notificationError }, "❌ Error creating notifications (intervention still created)")
         }
       }
-      
+
     } catch (assignmentError) {
-      console.error("❌ Error during auto-assignment (intervention still created):", assignmentError)
+      logger.error({ error: assignmentError }, "❌ Error during auto-assignment (intervention still created)")
       // Don't fail the whole creation if assignment fails - the intervention was created successfully
     }
 
     // Handle file uploads if provided
     if (files && files.length > 0) {
-      console.log(`📎 Processing ${files.length} file(s) for intervention...`)
+      logger.info({ fileCount: files.length }, "📎 Processing file(s) for intervention...")
 
       try {
         const { fileService } = await import('@/lib/file-service')
@@ -500,12 +508,12 @@ export async function POST(request: NextRequest) {
           const metadata = fileMetadata[i] || {}
 
           try {
-            console.log(`📎 Processing file ${i + 1}/${files.length}: ${file.name} (${file.size} bytes)`)
+            logger.info({ fileNumber: i + 1, totalFiles: files.length, fileName: file.name, fileSize: file.size }, "📎 Processing file")
 
             // Validate file before upload
             const validation = fileService.validateFile(file)
             if (!validation.isValid) {
-              console.error(`❌ File validation failed for ${file.name}:`, validation.error)
+              logger.error({ fileName: file.name, error: validation.error }, "❌ File validation failed")
               fileErrors.push(`${file.name}: ${validation.error}`)
               continue
             }
@@ -518,39 +526,39 @@ export async function POST(request: NextRequest) {
               description: `File uploaded during intervention creation: ${file.name}`
             })
 
-            console.log(`✅ File uploaded successfully: ${file.name}`)
+            logger.info({ fileName: file.name }, "✅ File uploaded successfully")
             uploadedDocuments.push(uploadResult.documentRecord)
             filesUploaded++
 
           } catch (fileError) {
-            console.error(`❌ Error uploading file ${file.name}:`, fileError)
+            logger.error({ fileName: file.name, error: fileError }, "❌ Error uploading file")
             fileErrors.push(`Failed to upload ${file.name}: ${fileError instanceof Error ? fileError.message : String(fileError)}`)
           }
         }
 
-        console.log(`📎 File upload summary: ${filesUploaded} files uploaded successfully, ${fileErrors.length} errors`)
+        logger.info({ filesUploaded, errorCount: fileErrors.length }, "📎 File upload summary")
 
         if (filesUploaded > 0) {
           // Update intervention to mark it as having attachments
           await interventionService.update(intervention.id, {
             has_attachments: true
           })
-          console.log("✅ Updated intervention to mark has_attachments = true")
+          logger.info({}, "✅ Updated intervention to mark has_attachments = true")
         }
 
         if (fileErrors.length > 0) {
-          console.warn("⚠️ Some files could not be uploaded:", fileErrors)
+          logger.warn({ fileErrors }, "⚠️ Some files could not be uploaded")
           // Note: We don't fail the whole creation if some files fail - the intervention was created successfully
         }
 
       } catch (fileProcessingError) {
-        console.error("❌ Error during file processing (intervention still created):", fileProcessingError)
+        logger.error({ error: fileProcessingError }, "❌ Error during file processing (intervention still created)")
         // Don't fail the whole creation if file processing fails - the intervention was created successfully
       }
     }
 
 
-    console.log("🎉 Intervention creation completed successfully")
+    logger.info({}, "🎉 Intervention creation completed successfully")
 
     return NextResponse.json({
       success: true,
@@ -564,11 +572,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in create-intervention API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in create-intervention API")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details")
 
     return NextResponse.json({
       success: false,

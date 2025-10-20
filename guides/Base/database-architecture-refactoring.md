@@ -60,7 +60,7 @@ users (Profils utilisateurs authentifiés)
 Tables de liaison (Gestion des relations)
 ├── building_contacts (tous les contacts liés aux bâtiments)
 ├── lot_contacts (tous les contacts liés aux lots) 
-├── intervention_contacts (tous les contacts liés aux interventions)
+├──intervention_assignments (tous les contacts liés aux interventions)
 └── Types de relations: gestionnaire, locataire, prestataire, syndic, etc.
 ```
 

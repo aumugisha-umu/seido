@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService, interventionService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
+import { logger, logError } from '@/lib/logger'
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  console.log("📅 PUT select-slot API called for intervention:", id)
+  logger.info({ id: id }, "📅 PUT select-slot API called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -58,12 +63,12 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json()
-    console.log("📥 [SELECT-SLOT] Request body received:", body)
+    logger.info({ body: body }, "📥 [SELECT-SLOT] Request body received:")
     const { selectedSlot, comment } = body
 
-    console.log("🔍 [SELECT-SLOT] Validating selectedSlot:", selectedSlot)
+    logger.info({ selectedSlot: selectedSlot }, "🔍 [SELECT-SLOT] Validating selectedSlot:")
     if (!selectedSlot || !selectedSlot.date || !selectedSlot.startTime || !selectedSlot.endTime) {
-      console.error("❌ [SELECT-SLOT] Invalid selectedSlot:", { selectedSlot, hasDate: !!selectedSlot?.date, hasStartTime: !!selectedSlot?.startTime, hasEndTime: !!selectedSlot?.endTime })
+      logger.error({ selectedSlot, hasDate: !!selectedSlot?.date, hasStartTime: !!selectedSlot?.startTime, hasEndTime: !!selectedSlot?.endTime }, "❌ [SELECT-SLOT] Invalid selectedSlot:")
       return NextResponse.json({
         success: false,
         error: 'Créneau sélectionné invalide (date, startTime, endTime requis)'
@@ -83,7 +88,7 @@ export async function PUT(
           id,
           lot_contacts(user_id, is_primary)
         ),
-        intervention_contacts(
+       intervention_assignments(
           user_id,
           role,
           user:user_id(id, name, email, role)
@@ -101,9 +106,9 @@ export async function PUT(
 
     // Check if user has permission to select slot (tenant, assigned participants, or gestionnaire)
     const isUserTenant = intervention.lot?.lot_contacts?.some(
-      (contact: any) => contact.user_id === user.id
+      (contact) => contact.user_id === user.id
     )
-    console.log("👤 [SELECT-SLOT] User access check:", { userId: user.id, userRole: user.role, isUserTenant })
+    logger.info({ userId: user.id, userRole: user.role, isUserTenant }, "👤 [SELECT-SLOT] User access check:")
 
     const hasAccess = (
       isUserTenant ||
@@ -112,56 +117,56 @@ export async function PUT(
     )
 
     if (!hasAccess) {
-      console.error("🚫 [SELECT-SLOT] Access denied:", { userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_contacts.map(ic => ic.user_id) })
+      logger.error({ userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_contacts.map(ic => ic.user_id, "🚫 [SELECT-SLOT] Access denied:") })
       return NextResponse.json({
         success: false,
         error: 'Accès non autorisé à cette intervention'
       }, { status: 403 })
     }
-    console.log("✅ [SELECT-SLOT] User has access to intervention")
+    logger.info({}, "✅ [SELECT-SLOT] User has access to intervention")
 
     // Check if intervention is in correct status for slot selection
-    console.log("📊 [SELECT-SLOT] Current intervention status:", intervention.status)
+    logger.info({ intervention: intervention.status }, "📊 [SELECT-SLOT] Current intervention status:")
     if (!['planification', 'approuvee', 'planifiee'].includes(intervention.status)) {
-      console.error("❌ [SELECT-SLOT] Invalid status for slot selection:", { currentStatus: intervention.status, allowedStatuses: ['planification', 'approuvee', 'planifiee'] })
+      logger.error({ currentStatus: intervention.status, allowedStatuses: ['planification', 'approuvee', 'planifiee'] }, "❌ [SELECT-SLOT] Invalid status for slot selection:")
       return NextResponse.json({
         success: false,
         error: `Impossible de planifier: statut actuel "${intervention.status}"`
       }, { status: 400 })
     }
-    console.log("✅ [SELECT-SLOT] Intervention status is valid for slot selection")
+    logger.info({}, "✅ [SELECT-SLOT] Intervention status is valid for slot selection")
 
     // Log if this is a re-scheduling
     if (intervention.status === 'planifiee') {
-      console.log("🔄 [SELECT-SLOT] Re-scheduling an already planned intervention")
+      logger.info({}, "🔄 [SELECT-SLOT] Re-scheduling an already planned intervention")
     }
 
     // Validate the selected slot
     const selectedDate = new Date(selectedSlot.date)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    console.log("📅 [SELECT-SLOT] Date validation:", { selectedDate: selectedSlot.date, parsedDate: selectedDate, today })
+    logger.info({ selectedDate: selectedSlot.date, parsedDate: selectedDate, today }, "📅 [SELECT-SLOT] Date validation:")
 
     if (selectedDate < today) {
-      console.error("❌ [SELECT-SLOT] Cannot schedule in the past:", { selectedDate, today })
+      logger.error({ selectedDate, today }, "❌ [SELECT-SLOT] Cannot schedule in the past:")
       return NextResponse.json({
         success: false,
         error: 'Impossible de planifier dans le passé'
       }, { status: 400 })
     }
-    console.log("✅ [SELECT-SLOT] Date is valid (not in the past)")
+    logger.info({}, "✅ [SELECT-SLOT] Date is valid (not in the past)")
 
     // Validate time format
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
-    console.log("🕐 [SELECT-SLOT] Time format validation:", { startTime: selectedSlot.startTime, endTime: selectedSlot.endTime })
+    logger.info({ startTime: selectedSlot.startTime, endTime: selectedSlot.endTime }, "🕐 [SELECT-SLOT] Time format validation:")
     if (!timeRegex.test(selectedSlot.startTime) || !timeRegex.test(selectedSlot.endTime)) {
-      console.error("❌ [SELECT-SLOT] Invalid time format:", { startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, regex: timeRegex.toString() })
+      logger.error({ startTime: selectedSlot.startTime, endTime: selectedSlot.endTime, regex: timeRegex.toString() }, "❌ [SELECT-SLOT] Invalid time format")
       return NextResponse.json({
         success: false,
         error: 'Format d\'heure invalide (HH:MM attendu)'
       }, { status: 400 })
     }
-    console.log("✅ [SELECT-SLOT] Time format is valid")
+    logger.info({}, "✅ [SELECT-SLOT] Time format is valid")
 
     // Check if end time is after start time
     const [startHour, startMin] = selectedSlot.startTime.split(':').map(Number)
@@ -185,7 +190,7 @@ export async function PUT(
       .eq('date', selectedSlot.date)
 
     if (availError) {
-      console.error("❌ Error fetching availabilities:", availError)
+      logger.error({ error: availError }, "❌ Error fetching availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la vérification des disponibilités'
@@ -212,13 +217,13 @@ export async function PUT(
     }
 
     // Log the verification result
-    console.log(`📊 Slot verification: ${availableUsers.length} available, ${conflictingUsers.length} conflicts`)
+    logger.info({ availableUsers: availableUsers.length, conflictingUsers: conflictingUsers.length }, "📊 Slot verification: available, conflicts")
 
     // Create the scheduled date-time
     const scheduledDateTime = `${selectedSlot.date}T${selectedSlot.startTime}:00.000Z`
 
     // Update the intervention with the selected slot
-    const updateData: any = {
+    const updateData = {
       status: 'planifiee' as Database['public']['Enums']['intervention_status'],
       scheduled_date: scheduledDateTime,
       updated_at: new Date().toISOString()
@@ -232,11 +237,11 @@ export async function PUT(
     }
 
     // Update intervention
-    console.log("💾 [SELECT-SLOT] Updating intervention with data:", updateData)
+    logger.info({ data: updateData }, "💾 [SELECT-SLOT] Updating intervention with data:")
     const updatedIntervention = await interventionService.update(interventionId, updateData)
-    console.log("💾 [SELECT-SLOT] Intervention updated successfully:", { id: updatedIntervention.id, status: updatedIntervention.status, scheduled_date: updatedIntervention.scheduled_date })
+    logger.info({ id: updatedIntervention.id, status: updatedIntervention.status, scheduled_date: updatedIntervention.scheduled_date }, "💾 [SELECT-SLOT] Intervention updated successfully:")
 
-    console.log(`✅ [SELECT-SLOT] Intervention ${interventionId} scheduled for ${scheduledDateTime}`)
+    logger.info({ interventionId, scheduledDateTime }, "✅ [SELECT-SLOT] Intervention scheduled for")
 
     // Clear any existing time slots and matches for this intervention
     await supabase.from('intervention_time_slots').delete().eq('intervention_id', interventionId)
@@ -246,14 +251,14 @@ export async function PUT(
     const notificationPromises = []
 
     // Find tenant ID from lot_contacts for notifications
-    const tenantContact = intervention.lot?.lot_contacts?.find((contact: any) => contact.is_primary)
+    const tenantContact = intervention.lot?.lot_contacts?.find((contact) => contact.is_primary)
     const tenantId = tenantContact?.user_id || intervention.tenant_id // fallback to old structure
 
     // Notify tenant if they're not the one who selected the slot
     if (tenantId && tenantId !== user.id) {
       notificationPromises.push(
         notificationService.createNotification({
-          userId: tenantId,
+          userId: _tenantId,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
@@ -301,9 +306,9 @@ export async function PUT(
     // Send all notifications
     try {
       await Promise.all(notificationPromises)
-      console.log(`✅ Sent ${notificationPromises.length} notifications for slot selection`)
+      logger.info({ notificationPromises: notificationPromises.length }, "✅ Sent notifications for slot selection")
     } catch (notificationError) {
-      console.warn("⚠️ Some notifications failed to send:", notificationError)
+      logger.warn({ notificationError: notificationError }, "⚠️ Some notifications failed to send:")
       // Don't fail the API call for notification errors
     }
 
@@ -328,8 +333,8 @@ export async function PUT(
     })
 
   } catch (error) {
-    console.error("💥 [SELECT-SLOT] Unexpected error in select-slot API:", error)
-    console.error("Stack trace:", error instanceof Error ? error.stack : 'No stack trace available')
+    logger.error({ error: error }, "💥 [SELECT-SLOT] Unexpected error in select-slot API:")
+    logger.error({ stack: error instanceof Error ? error.stack : 'No stack trace available' }, "Stack trace")
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la sélection du créneau',

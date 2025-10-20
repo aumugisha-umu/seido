@@ -1,7 +1,10 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { interventionService } from '@/lib/database-service'
+import { createBrowserInterventionService } from '@/lib/services'
+import { useResolvedUserId } from './use-resolved-user-id'
+import { logger, logError } from '@/lib/logger'
+const interventionService = createBrowserInterventionService()
 
 interface PendingAction {
   id: string
@@ -31,12 +34,14 @@ interface UseTenantPendingActionsReturn {
 }
 
 export function useTenantPendingActions(userId: string): UseTenantPendingActionsReturn {
+  const resolvedUserId = useResolvedUserId(userId)
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchPendingActions = async () => {
-    if (!userId) {
+    // Attendre la résolution du user ID (JWT → UUID)
+    if (!resolvedUserId) {
       setLoading(false)
       return
     }
@@ -44,11 +49,16 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
     try {
       setError(null)
 
-      // Récupérer les interventions du locataire
-      const interventions = await interventionService.getByTenantId(userId)
+      logger.info('📋 [useTenantPendingActions] Fetching pending actions', {
+        originalUserId: userId,
+        resolvedUserId
+      })
+
+      // Récupérer les interventions du locataire avec l'ID résolu
+      const interventions = await interventionService.getByTenantId(resolvedUserId)
 
       // Filtrer les interventions nécessitant une action du locataire
-      const actionsRequirantes = interventions.filter((intervention: any) => {
+      const actionsRequirantes = interventions.filter((intervention: unknown) => {
         // Statuts nécessitant une action du locataire
         return [
           'planification',     // Renseigner ses disponibilités
@@ -60,7 +70,7 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
       })
 
       // Convertir en format PendingAction
-      const actions: PendingAction[] = actionsRequirantes.map((intervention: any) => {
+      const actions: PendingAction[] = actionsRequirantes.map((intervention: unknown) => {
         let description = ''
         let actionUrl = `/locataire/interventions/${intervention.id}`
 
@@ -107,7 +117,7 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
 
       setPendingActions(actions)
     } catch (err) {
-      console.error('Error fetching tenant pending actions:', err)
+      logger.error('Error fetching tenant pending actions:', err)
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
     } finally {
       setLoading(false)
@@ -121,7 +131,7 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
 
   useEffect(() => {
     fetchPendingActions()
-  }, [userId])
+  }, [resolvedUserId])
 
   return {
     pendingActions,

@@ -17,6 +17,16 @@ interface StepProgressHeaderProps {
   currentStep: number
 }
 
+/**
+ * 🎨 V3 - Minimal Progress Header
+ *
+ * Design Philosophy: Focus sur l'étape actuelle + grande barre stylisée
+ * - Grande icône + titre pour l'étape actuelle
+ * - Pourcentage géant bien visible
+ * - Animation shimmer sur la barre
+ * - Marqueurs sur la barre de progression
+ * - Design épuré et moderne
+ */
 export const StepProgressHeader = ({
   title,
   backButtonText = "Retour",
@@ -25,95 +35,138 @@ export const StepProgressHeader = ({
   currentStep,
 }: StepProgressHeaderProps) => {
   const currentStepData = steps[currentStep - 1]
-  
-  return (
-    <div className="mb-6 sm:mb-8">
-      {/* Header with Title (left) and Back Button (right) on same line */}
-      <div className="flex items-center justify-between mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex-1 pr-4">
-          {title}
-        </h1>
-        <Button variant="ghost" onClick={onBack} className="px-3 py-2 sm:px-4 sm:py-2 flex-shrink-0">
-          <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
-          <span className="hidden sm:inline">{backButtonText}</span>
-        </Button>
-      </div>
+  const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
 
-      {/* Step Progress - Mobile: Vertical compact, Desktop: Horizontal */}
-      <div className="w-full">
-        {/* Mobile Steps (< sm) */}
-        <div className="sm:hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              {currentStepData && (
-                <>
-                  <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-                    <currentStepData.icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {currentStepData.label}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Étape {currentStep} sur {steps.length}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="flex space-x-1">
-              {steps.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    currentStep > index + 1 ? "bg-blue-500" : 
-                    currentStep === index + 1 ? "bg-blue-300" : "bg-gray-200"
-                  }`}
-                />
-              ))}
-            </div>
+  return (
+    <div className="sticky top-20 z-40 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-3 mb-2 max-w-7xl mx-4 sm:mx-6 xl:mx-auto space-y-2">
+        {/* Single Line Header: Title (left) + Step Info (center) + Back Button (right) */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Page Title */}
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex-shrink-0">
+            {title}
+          </h1>
+
+          {/* Center: Current Step Info */}
+          <div className="flex-1 text-center">
+            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
+              Étape {currentStep} sur {steps.length}
+            </p>
+            <h2 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">
+              {currentStepData.label}
+            </h2>
           </div>
+
+          {/* Right: Back Button */}
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="px-3 py-1.5 hover:bg-gray-100 flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">{backButtonText}</span>
+          </Button>
         </div>
 
-        {/* Desktop Steps (sm+) */}
-        <div className="hidden sm:flex items-center justify-center">
-          <div className="flex items-center space-x-3 lg:space-x-6">
-            {steps.map((step, index) => {
+        {/* Main Progress Section */}
+        <div className="space-y-2 mt-5">
+
+        {/* Progress Bar - Compact */}
+        <div className="px-12">
+          <div className="relative">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 rounded-full transition-all duration-700 ease-out relative"
+                style={{ width: `${progressPercentage}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+              </div>
+            </div>
+
+            {/* Step Markers on Progress Bar */}
+            <div className="absolute top-0 left-0 right-0 flex justify-between" style={{ transform: 'translateY(-50%)' }}>
+            {steps.map((_, index) => {
               const stepNumber = index + 1
-              const isActive = currentStep >= stepNumber
+              const stepPosition = (index / (steps.length - 1)) * 100
+              const isComplete = currentStep > stepNumber
               const isCurrent = currentStep === stepNumber
-              const isLast = index === steps.length - 1
-              
+
               return (
-                <div key={index} className="flex items-center">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center transition-colors ${
-                        isActive 
-                          ? "bg-blue-500 text-white" 
-                          : "bg-gray-200 text-gray-500"
-                      } ${isCurrent ? "ring-2 ring-blue-200" : ""}`}
-                    >
-                      <step.icon className="h-4 w-4 lg:h-5 lg:w-5" />
-                    </div>
-                    <div className="mt-2 text-center max-w-[80px] lg:max-w-none">
-                      <p className="text-xs lg:text-sm font-medium text-gray-900 truncate">
-                        {step.label}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {!isLast && (
-                    <div className={`h-1 w-8 lg:w-12 mx-2 lg:mx-6 rounded-full transition-colors ${
-                      currentStep > stepNumber ? "bg-blue-500" : "bg-gray-200"
-                    }`} />
-                  )}
+                <div
+                  key={index}
+                  className="absolute"
+                  style={{ left: `${stepPosition}%`, transform: 'translateX(-50%)' }}
+                >
+                  <div className={`w-5 h-5 rounded-full border-3 transition-all duration-300 ${
+                    isCurrent
+                      ? "bg-blue-600 border-white shadow-lg scale-110"
+                      : isComplete
+                        ? "bg-blue-600 border-white"
+                        : "bg-white border-gray-300"
+                  }`} />
                 </div>
               )
             })}
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* All Steps - Minimal List - Aligned with markers */}
+        <div className="px-12">
+          <div className="relative pt-1.5">
+          {steps.map((step, index) => {
+            const stepNumber = index + 1
+            const stepPosition = (index / (steps.length - 1)) * 100
+            const isComplete = currentStep > stepNumber
+            const isCurrent = currentStep === stepNumber
+
+            return (
+              <div
+                key={index}
+                className="absolute"
+                style={{ left: `${stepPosition}%`, transform: 'translateX(-50%)' }}
+              >
+                <div
+                  className={`flex flex-col items-center transition-all duration-300 ${
+                    isCurrent ? "scale-105" : isComplete ? "scale-100" : "scale-95 opacity-60"
+                  }`}
+                >
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${
+                    isCurrent
+                      ? "bg-blue-100 text-blue-600"
+                      : isComplete
+                        ? "bg-green-100 text-green-600"
+                        : "bg-gray-100 text-gray-400"
+                  }`}>
+                    <step.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </div>
+                  <p className={`text-[10px] sm:text-xs font-medium text-center max-w-[70px] sm:max-w-[120px] ${
+                    isCurrent ? "text-gray-900" : isComplete ? "text-gray-700" : "text-gray-400"
+                  }`}>
+                    {step.label}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+          {/* Spacer to maintain height */}
+          <div style={{ height: '65px' }} />
+          </div>
+        </div>
+        </div>
+
+      <style jsx>{`
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
     </div>
   )
 }

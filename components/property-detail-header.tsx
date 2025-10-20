@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import {
   ArrowLeft,
   Building2,
@@ -10,9 +11,6 @@ import {
   User,
   Archive,
   Edit,
-  Trash2,
-  Eye,
-  Plus,
   Users,
   Home,
 } from "lucide-react"
@@ -65,7 +63,7 @@ interface PropertyHeaderProps {
   customActions?: Array<{
     key: string
     label: string
-    icon: any
+    icon: React.ComponentType<{ className?: string }>
     onClick: () => void
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost"
   }>
@@ -178,7 +176,7 @@ export const PropertyDetailHeader = ({
                   </h1>
                   
                   {/* Badges dynamiques */}
-                  {config.badges.map((badge: any, index: number) => {
+                  {config.badges.map((badge: { icon: React.ComponentType<{ className?: string }>, color: string, label: string }, index: number) => {
                     const BadgeIcon = badge.icon
                     return (
                       <Badge key={index} className={`${badge.color} flex items-center space-x-1 font-medium border`}>

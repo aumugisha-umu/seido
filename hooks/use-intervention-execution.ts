@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { 
-  interventionActionsService, 
-  type InterventionAction, 
-  type ExecutionData 
+import { logger, logError } from '@/lib/logger'
+import {
+  interventionActionsService,
+  type InterventionAction,
+  type ExecutionData
 } from "@/lib/intervention-actions-service"
 
 interface ExecutionModal {
@@ -112,7 +113,7 @@ export const useInterventionExecution = () => {
 
       resetExecutionForm()
     } catch (error) {
-      console.error("Error executing intervention:", error)
+      logger.error("Error executing intervention:", error)
       // TODO: Handle error state
     }
   }

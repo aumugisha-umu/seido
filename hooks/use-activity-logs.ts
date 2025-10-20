@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-
+import { logger, logError } from '@/lib/logger'
 export interface ActivityLog {
   id: string
   team_id: string
@@ -106,7 +106,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
-      console.error('Error fetching activity logs:', err)
+      logger.error('Error fetching activity logs:', err)
     } finally {
       setLoading(false)
     }
@@ -128,7 +128,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
         setStats(result.data)
       }
     } catch (err) {
-      console.error('Error fetching activity stats:', err)
+      logger.error('Error fetching activity stats:', err)
     }
   }
 

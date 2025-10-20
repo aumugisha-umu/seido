@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
-
+import { logger, logError } from '@/lib/logger'
 interface CancelQuoteResponse {
   success: boolean
   message: string
@@ -17,10 +17,10 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const cancelQuote = async (quoteId: string) => {
+  const cancelQuote = async (_quoteId: string) => {
     try {
       setIsLoading(true)
-      console.log('🔍 [HOOK] Attempting to cancel quote with ID:', quoteId)
+      logger.info('🔍 [HOOK] Attempting to cancel quote with ID:', quoteId)
 
       const response = await fetch(`/api/quotes/${quoteId}/cancel`, {
         method: 'PATCH',
@@ -48,7 +48,7 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
 
       return { success: true }
     } catch (error) {
-      console.error('❌ Error cancelling quote:', error)
+      logger.error('❌ Error cancelling quote:', error)
       
       // Notification d'erreur
       toast({
@@ -65,8 +65,8 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
     }
   }
 
-  const handleCancelRequest = (quoteId: string) => {
-    console.log('🔍 [HOOK] Cancel request for quote ID:', quoteId)
+  const handleCancelRequest = (_quoteId: string) => {
+    logger.info('🔍 [HOOK] Cancel request for quote ID:', quoteId)
     setPendingQuoteId(quoteId)
     setIsConfirmModalOpen(true)
   }

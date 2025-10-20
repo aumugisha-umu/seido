@@ -30,13 +30,12 @@ import { useActivityLogs } from "@/hooks/use-activity-logs"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useToast } from "@/hooks/use-toast"
-
-
+import { logger, logError } from '@/lib/logger'
 function getNotificationIcon(type: string, priority?: string) {
   const isUrgent = priority === 'urgent' || priority === 'high'
   const className = isUrgent ? "h-5 w-5 text-red-500" : "h-5 w-5 text-blue-500"
 
-  switch (type) {
+  switch (_type) {
     case "intervention":
       return isUrgent ? <AlertTriangle className={className} /> : <Bell className={className} />
     case "assignment":
@@ -58,7 +57,7 @@ function getNotificationIcon(type: string, priority?: string) {
   }
 }
 
-function formatDate(dateString: string) {
+function formatDate(_dateString: string) {
   const date = new Date(dateString)
   
   // Use a consistent format that doesn't depend on current time for SSR/hydration
@@ -72,9 +71,9 @@ function formatDate(dateString: string) {
 
 export default function NotificationsPage() {
   const { user } = useAuth()
-  const { teamStatus, hasTeam } = useTeamStatus()
+  const { teamStatus } = useTeamStatus()
   const { toast } = useToast()
-  const [userTeam, setUserTeam] = useState<any>(null)
+  const [userTeam, setUserTeam] = useState<{ id: string } | null>(null)
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
@@ -85,7 +84,7 @@ export default function NotificationsPage() {
     error: teamNotificationsError,
     unreadCount,
     refetch: refetchTeamNotifications,
-    markAsRead: markTeamNotificationAsRead,
+    // markAsRead: markTeamNotificationAsRead,
     markAllAsRead: markAllTeamNotificationsAsRead 
   } = useNotifications({
     teamId: userTeam?.id,
@@ -101,7 +100,7 @@ export default function NotificationsPage() {
     error: personalNotificationsError,
     unreadCount: personalUnreadCount,
     refetch: refetchPersonalNotifications,
-    markAsRead: markPersonalNotificationAsRead 
+    // markAsRead: markPersonalNotificationAsRead
   } = useNotifications({
     teamId: userTeam?.id,
     scope: 'personal', // Mes notifications personnelles
@@ -128,13 +127,14 @@ export default function NotificationsPage() {
       if (!user?.id || teamStatus !== 'verified') return
 
       try {
-        const { teamService } = await import('@/lib/database-service')
+        const { createServerTeamService } = await import('@/lib/services')
+        const teamService = createServerTeamService()
         const teams = await teamService.getUserTeams(user.id)
         if (teams && teams.length > 0) {
           setUserTeam(teams[0])
         }
       } catch (error) {
-        console.error('Error fetching user team:', error)
+        logger.error('Error fetching user team:', error)
       }
     }
 
@@ -178,7 +178,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      console.error('Error toggling notification read status:', error)
+      logger.error('Error toggling notification read status:', error)
       toast({
         title: "❌ Erreur",
         description: "Impossible de modifier le statut de la notification. Veuillez réessayer.",
@@ -210,7 +210,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+      logger.error('Error marking all notifications as read:', error)
       
       // Show error toast
       toast({
@@ -257,7 +257,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      console.error('Error archiving notification:', error)
+      logger.error('Error archiving notification:', error)
       toast({
         title: "❌ Erreur",
         description: "Impossible d'archiver la notification. Veuillez réessayer.",
@@ -524,7 +524,7 @@ function NotificationsList({
   onMarkAsRead: (notification: Notification) => void
   onArchive: (id: string, title: string) => void
   updatingNotifications: Set<string>
-  emptyStateIcon: any
+  emptyStateIcon: React.ComponentType<{ className?: string }>
   emptyStateTitle: string
   emptyStateDescription: string
 }) {
@@ -721,7 +721,7 @@ function EmptyNotificationsState({
   title, 
   description 
 }: { 
-  icon: React.ComponentType<any>, 
+  icon: React.ComponentType<{ className?: string }>, 
   title: string, 
   description: string 
 }) {

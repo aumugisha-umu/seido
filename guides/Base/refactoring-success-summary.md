@@ -42,13 +42,13 @@ auth.users (Supabase Auth)
 
 users (Table unifiée)  
 ├── Tous les contacts (gestionnaires, locataires, prestataires)
-├── Relations via building_contacts, lot_contacts, intervention_contacts
+├── Relations via building_contacts, lot_contacts,intervention_assignments
 └── Un seul système de gestion
 
 Tables de liaison
 ├── building_contacts (gestionnaires, syndics...)
 ├── lot_contacts (locataires, propriétaires...)  
-└── intervention_contacts (prestataires assignés...)
+└──intervention_assignments (prestataires assignés...)
 ```
 
 ### ✅ **Bénéfices Obtenus**

@@ -1,6 +1,6 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from './database.types'
-
+import { logger, logError } from '@/lib/logger'
 export interface FileUploadMetadata {
   interventionId: string
   uploadedBy: string // user_id from database (not auth.user.id)
@@ -30,7 +30,7 @@ export const fileService = {
     metadata: FileUploadMetadata
   ): Promise<FileUploadResult> {
     try {
-      console.log("📁 Starting file upload:", {
+      logger.info("📁 Starting file upload:", {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type,
@@ -46,7 +46,7 @@ export const fileService = {
       // Define storage path: interventions/{intervention_id}/{unique_filename}
       const storagePath = `interventions/${metadata.interventionId}/${uniqueFileName}`
 
-      console.log("📁 Generated storage path:", storagePath)
+      logger.info("📁 Generated storage path:", storagePath)
 
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -57,11 +57,11 @@ export const fileService = {
         })
 
       if (uploadError) {
-        console.error("❌ Storage upload error:", uploadError)
+        logger.error("❌ Storage upload error:", uploadError)
         throw new Error(`Upload failed: ${uploadError.message}`)
       }
 
-      console.log("✅ File uploaded to storage:", uploadData.path)
+      logger.info("✅ File uploaded to storage:", uploadData.path)
 
       // Get the public URL (for signed URL generation later)
       const { data: urlData } = supabase.storage
@@ -84,7 +84,7 @@ export const fileService = {
         is_validated: false
       }
 
-      console.log("💾 Creating database record:", documentData)
+      logger.info("💾 Creating database record:", documentData)
 
       const { data: documentRecord, error: dbError } = await supabase
         .from('intervention_documents')
@@ -93,22 +93,22 @@ export const fileService = {
         .single()
 
       if (dbError) {
-        console.error("❌ Database insert error:", dbError)
+        logger.error("❌ Database insert error:", dbError)
 
         // Try to clean up uploaded file if database insert fails
         try {
           await supabase.storage
             .from('intervention-documents')
             .remove([storagePath])
-          console.log("🧹 Cleaned up uploaded file after database error")
+          logger.info("🧹 Cleaned up uploaded file after database error")
         } catch (cleanupError) {
-          console.error("❌ Failed to cleanup file after database error:", cleanupError)
+          logger.error("❌ Failed to cleanup file after database error:", cleanupError)
         }
 
         throw new Error(`Database insert failed: ${dbError.message}`)
       }
 
-      console.log("✅ Document record created:", documentRecord.id)
+      logger.info("✅ Document record created:", documentRecord.id)
 
       return {
         storageUrl: urlData.publicUrl,
@@ -117,7 +117,7 @@ export const fileService = {
       }
 
     } catch (error) {
-      console.error("❌ File upload service error:", error)
+      logger.error("❌ File upload service error:", error)
       throw error
     }
   },
@@ -130,7 +130,7 @@ export const fileService = {
     supabase: SupabaseClient<Database>,
     filesToUpload: FileToUpload[]
   ): Promise<FileUploadResult[]> {
-    console.log(`📁 Uploading ${filesToUpload.length} files...`)
+    logger.info(`📁 Uploading ${filesToUpload.length} files...`)
 
     const results: FileUploadResult[] = []
     const errors: Error[] = []
@@ -139,12 +139,12 @@ export const fileService = {
       const { file, metadata } = filesToUpload[i]
 
       try {
-        console.log(`📁 Uploading file ${i + 1}/${filesToUpload.length}: ${file.name}`)
+        logger.info(`📁 Uploading file ${i + 1}/${filesToUpload.length}: ${file.name}`)
         const result = await this.uploadInterventionDocument(supabase, file, metadata)
         results.push(result)
-        console.log(`✅ File ${i + 1} uploaded successfully`)
+        logger.info(`✅ File ${i + 1} uploaded successfully`)
       } catch (error) {
-        console.error(`❌ Failed to upload file ${i + 1}: ${file.name}`, error)
+        logger.error(`❌ Failed to upload file ${i + 1}: ${file.name}`, error)
         errors.push(error instanceof Error ? error : new Error(String(error)))
       }
     }
@@ -152,11 +152,11 @@ export const fileService = {
     // If some files failed but others succeeded, we still return the successful ones
     // The caller can decide how to handle partial failures
     if (errors.length > 0) {
-      console.warn(`⚠️ ${errors.length} out of ${filesToUpload.length} files failed to upload`)
+      logger.warn(`⚠️ ${errors.length} out of ${filesToUpload.length} files failed to upload`)
       // Optionally, we could throw an error here for stricter error handling
     }
 
-    console.log(`✅ Successfully uploaded ${results.length} out of ${filesToUpload.length} files`)
+    logger.info(`✅ Successfully uploaded ${results.length} out of ${filesToUpload.length} files`)
     return results
   },
 
@@ -171,13 +171,13 @@ export const fileService = {
         .createSignedUrl(storagePath, expiresInSeconds)
 
       if (error) {
-        console.error("❌ Error creating signed URL:", error)
+        logger.error("❌ Error creating signed URL:", error)
         throw new Error(`Failed to create signed URL: ${error.message}`)
       }
 
       return data.signedUrl
     } catch (error) {
-      console.error("❌ Signed URL service error:", error)
+      logger.error("❌ Signed URL service error:", error)
       throw error
     }
   },
@@ -188,7 +188,7 @@ export const fileService = {
    */
   async deleteInterventionDocument(supabase: SupabaseClient<Database>, documentId: string): Promise<boolean> {
     try {
-      console.log("🗑️ Deleting document:", documentId)
+      logger.info("🗑️ Deleting document:", documentId)
 
       // Get document record first to get storage path
       const { data: document, error: fetchError } = await supabase
@@ -198,7 +198,7 @@ export const fileService = {
         .single()
 
       if (fetchError) {
-        console.error("❌ Error fetching document for deletion:", fetchError)
+        logger.error("❌ Error fetching document for deletion:", fetchError)
         throw new Error(`Failed to fetch document: ${fetchError.message}`)
       }
 
@@ -212,7 +212,7 @@ export const fileService = {
         .remove([document.storage_path])
 
       if (storageError) {
-        console.error("❌ Error deleting from storage:", storageError)
+        logger.error("❌ Error deleting from storage:", storageError)
         // Continue with database deletion even if storage deletion fails
       }
 
@@ -223,15 +223,15 @@ export const fileService = {
         .eq('id', documentId)
 
       if (dbError) {
-        console.error("❌ Error deleting from database:", dbError)
+        logger.error("❌ Error deleting from database:", dbError)
         throw new Error(`Failed to delete from database: ${dbError.message}`)
       }
 
-      console.log("✅ Document deleted successfully")
+      logger.info("✅ Document deleted successfully")
       return true
 
     } catch (error) {
-      console.error("❌ Delete document service error:", error)
+      logger.error("❌ Delete document service error:", error)
       throw error
     }
   },

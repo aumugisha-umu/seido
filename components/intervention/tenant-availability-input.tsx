@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Calendar, Clock, Plus, Trash2, Save, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-
+import { logger, logError } from '@/lib/logger'
 interface TenantAvailability {
   date: string
   startTime: string
@@ -40,15 +40,15 @@ export function TenantAvailabilityInput({
   // Load existing availabilities on mount
   useEffect(() => {
     loadExistingAvailabilities()
-  }, [interventionId])
+  }, [interventionId, loadExistingAvailabilities])
 
-  const loadExistingAvailabilities = async () => {
+  const loadExistingAvailabilities = useCallback(async () => {
     try {
       const response = await fetch(`/api/intervention/${interventionId}/tenant-availability`)
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.availabilities) {
-          const existing = result.availabilities.map((avail: any) => ({
+          const existing = result.availabilities.map((avail: { date: string; start_time: string; end_time: string }) => ({
             date: avail.date,
             startTime: avail.start_time,
             endTime: avail.end_time
@@ -57,11 +57,11 @@ export function TenantAvailabilityInput({
         }
       }
     } catch (error) {
-      console.warn("Could not load existing availabilities:", error)
+      logger.warn("Could not load existing availabilities:", error)
     } finally {
       setLoadingExisting(false)
     }
-  }
+  }, [interventionId])
 
   const addAvailability = () => {
     setAvailabilities([...availabilities, {
@@ -116,7 +116,7 @@ export function TenantAvailabilityInput({
 
     // Validate each availability
     for (const avail of validAvailabilities) {
-      const error = validateAvailability(avail)
+      const _error = validateAvailability(avail)
       if (error) {
         setError(error)
         return
@@ -148,14 +148,14 @@ export function TenantAvailabilityInput({
       }, 2000)
 
     } catch (error) {
-      console.error('Error saving tenant availabilities:', error)
+      logger.error('Error saving tenant availabilities:', error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const getProviderAvailabilitiesForDate = (date: string) => {
+  const getProviderAvailabilitiesForDate = (_date: string) => {
     return providerAvailabilities.filter(avail => avail.date === date)
   }
 
@@ -175,7 +175,7 @@ export function TenantAvailabilityInput({
     })
   }
 
-  const timeToMinutes = (time: string): number => {
+  const timeToMinutes = (_time: string): number => {
     const [hours, minutes] = time.split(':').map(Number)
     return hours * 60 + minutes
   }

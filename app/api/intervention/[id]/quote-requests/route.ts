@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  console.log("✅ intervention/[id]/quote-requests GET API route called for intervention:", params.id)
+  const resolvedParams = await params
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ intervention/[id]/quote-requests GET API route called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -112,14 +117,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: quoteRequests, error: queryError } = await query
 
     if (queryError) {
-      console.error("❌ Error fetching quote requests:", queryError)
+      logger.error({ error: queryError }, "❌ Error fetching quote requests:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des demandes de devis'
       }, { status: 500 })
     }
 
-    let result: any = {
+    const result = {
       success: true,
       quoteRequests: quoteRequests || []
     }
@@ -132,13 +137,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           *,
           provider:provider_id(id, name, email, provider_category)
         `)
-        .eq('intervention_id', params.id)
+        .eq('intervention_id', resolvedParams.id)
         .in('provider_id', quoteRequests.map(qr => qr.provider_id))
 
       if (!quotesError) {
         result.quotes = quotes || []
       } else {
-        console.warn("⚠️ Could not fetch associated quotes:", quotesError)
+        logger.warn({ quotesError: quotesError }, "⚠️ Could not fetch associated quotes:")
       }
 
       // Also include availabilities if requested
@@ -148,14 +153,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           *,
           user:user_id(id, name)
         `)
-        .eq('intervention_id', params.id)
+        .eq('intervention_id', resolvedParams.id)
         .in('user_id', quoteRequests.map(qr => qr.provider_id))
         .not('quote_request_id', 'is', null) // Only availabilities linked to quote requests
 
       if (!availError) {
         result.availabilities = availabilities || []
       } else {
-        console.warn("⚠️ Could not fetch associated availabilities:", availError)
+        logger.warn({ availError: availError }, "⚠️ Could not fetch associated availabilities:")
       }
     }
 
@@ -174,7 +179,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(result)
 
   } catch (error) {
-    console.error("❌ Error in intervention/[id]/quote-requests GET API:", error)
+    logger.error({ error: error }, "❌ Error in intervention/[id]/quote-requests GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération des demandes de devis'

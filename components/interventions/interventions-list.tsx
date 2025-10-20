@@ -4,33 +4,40 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
+import type { InterventionWithRelations } from "@/lib/services"
+import { logger, logError } from '@/lib/logger'
+interface EmptyStateConfig {
+  title: string
+  description: string
+  showCreateButton?: boolean
+  createButtonText?: string
+  createButtonAction?: () => void
+}
+
+interface ContactContext {
+  contactId: string
+  contactName: string
+  contactRole?: 'gestionnaire' | 'prestataire' | 'locataire'
+}
+
+interface ActionHooks {
+  approvalHook?: () => void
+  quotingHook?: () => void
+  planningHook?: () => void
+  executionHook?: () => void
+  finalizationHook?: () => void
+}
 
 interface InterventionsListProps {
-  interventions: any[]
+  interventions: InterventionWithRelations[]
   loading?: boolean
   compact?: boolean
   maxItems?: number
-  emptyStateConfig?: {
-    title: string
-    description: string
-    showCreateButton?: boolean
-    createButtonText?: string
-    createButtonAction?: () => void
-  }
+  emptyStateConfig?: EmptyStateConfig
   showStatusActions?: boolean
-  contactContext?: {
-    contactId: string
-    contactName: string
-    contactRole?: string
-  }
+  contactContext?: ContactContext
   className?: string
-  actionHooks?: {
-    approvalHook?: any
-    quotingHook?: any
-    planningHook?: any
-    executionHook?: any
-    finalizationHook?: any
-  }
+  actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
 }
 
@@ -54,7 +61,7 @@ export function InterventionsList({
   // Handle action completion callback
   const handleActionComplete = () => {
     // Could trigger a refresh of the interventions list if needed
-    console.log('[InterventionsList] Action completed, list may need refresh')
+    logger.info('[InterventionsList] Action completed, list may need refresh')
   }
 
   // Compact rendering for dashboard
@@ -211,3 +218,4 @@ export function InterventionsList({
     </div>
   )
 }
+

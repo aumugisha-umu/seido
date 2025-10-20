@@ -122,8 +122,8 @@ export const handlers = [
       filteredLots = filteredLots.filter(lot => lot.building_id === buildingId)
     }
 
-    if (tenantId) {
-      filteredLots = filteredLots.filter(lot => lot.tenant_id === tenantId)
+    if (_tenantId) {
+      filteredLots = filteredLots.filter(lot => lot.tenant_id === _tenantId)
     }
 
     return HttpResponse.json(filteredLots)

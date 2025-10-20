@@ -1,14 +1,17 @@
 import { useState } from "react"
-import { 
-  interventionActionsService, 
-  type InterventionAction, 
-  type PlanningData 
+import { toast } from "sonner"
+import { logger, logError } from '@/lib/logger'
+import {
+  interventionActionsService,
+  type InterventionAction,
+  type PlanningData
 } from "@/lib/intervention-actions-service"
+import { programInterventionAction } from "@/app/actions/intervention-actions"
 
 interface PlanningModal {
   isOpen: boolean
   intervention: InterventionAction | null
-  acceptedQuote?: any
+  acceptedQuote?: unknown
 }
 
 interface ProgrammingModal {
@@ -19,6 +22,32 @@ interface ProgrammingModal {
 interface PlanningSuccessModal {
   isOpen: boolean
   interventionTitle: string
+}
+
+interface CancelSlotModal {
+  isOpen: boolean
+  slotId: string | null
+  interventionId: string | null
+  slot: {
+    id: string
+    slot_date: string
+    start_time: string
+    end_time: string
+    notes?: string | null
+  } | null
+}
+
+interface RejectSlotModal {
+  isOpen: boolean
+  slotId: string | null
+  interventionId: string | null
+  slot: {
+    id: string
+    slot_date: string
+    start_time: string
+    end_time: string
+    notes?: string | null
+  } | null
 }
 
 interface TimeSlot {
@@ -45,6 +74,20 @@ export const useInterventionPlanning = () => {
     interventionTitle: "",
   })
 
+  const [cancelSlotModal, setCancelSlotModal] = useState<CancelSlotModal>({
+    isOpen: false,
+    slotId: null,
+    interventionId: null,
+    slot: null,
+  })
+
+  const [rejectSlotModal, setRejectSlotModal] = useState<RejectSlotModal>({
+    isOpen: false,
+    slotId: null,
+    interventionId: null,
+    slot: null,
+  })
+
   // État des formulaires de planification
   const [planningOption, setPlanningOption] = useState<"direct" | "propose" | "organize" | null>(null)
   const [directSchedule, setDirectSchedule] = useState<TimeSlot>({
@@ -66,7 +109,7 @@ export const useInterventionPlanning = () => {
   ])
 
   // Actions de planification (après acceptation d'un devis)
-  const handlePlanningModal = (intervention: InterventionAction, acceptedQuote?: any) => {
+  const handlePlanningModal = (intervention: InterventionAction, acceptedQuote?: unknown) => {
     setPlanningModal({
       isOpen: true,
       intervention,
@@ -102,7 +145,7 @@ export const useInterventionPlanning = () => {
 
       resetPlanningState()
     } catch (error) {
-      console.error("Error planning intervention:", error)
+      logger.error("Error planning intervention:", error)
       // TODO: Handle error state
     }
   }
@@ -125,22 +168,35 @@ export const useInterventionPlanning = () => {
     }
 
     try {
-      await interventionActionsService.programIntervention(
-        programmingModal.intervention,
+      // ✅ FIX AUTH BUG: Use Server Action instead of client-side fetch
+      logger.info("📅 Using Server Action for programming intervention")
+
+      const result = await programInterventionAction(
+        programmingModal.intervention.id,
         planningData
       )
 
+      if (!result.success) {
+        throw new Error(result.error || 'Erreur lors de la planification')
+      }
+
+      // Fermer la modale
       setProgrammingModal({ isOpen: false, intervention: null })
 
-      setPlanningSuccessModal({
-        isOpen: true,
-        interventionTitle: programmingModal.intervention.title || "",
-      })
+      // Message de succès adapté
+      const successMessage = programmingOption === 'organize'
+        ? 'Planification autonome activée'
+        : 'Créneaux proposés avec succès'
+
+      toast.success(successMessage)
 
       resetProgrammingState()
+
+      // Rafraîchir la page pour afficher les changements
+      window.location.reload()
     } catch (error) {
-      console.error("Error programming intervention:", error)
-      // TODO: Handle error state
+      logger.error("Error programming intervention:", error)
+      toast.error('Erreur lors de la planification')
     }
   }
 
@@ -215,37 +271,76 @@ export const useInterventionPlanning = () => {
     })
   }
 
+  const openCancelSlotModal = (slot: CancelSlotModal['slot'], interventionId: string) => {
+    if (!slot) return
+    setCancelSlotModal({
+      isOpen: true,
+      slotId: slot.id,
+      interventionId,
+      slot,
+    })
+  }
+
+  const closeCancelSlotModal = () => {
+    setCancelSlotModal({
+      isOpen: false,
+      slotId: null,
+      interventionId: null,
+      slot: null,
+    })
+  }
+
+  const openRejectSlotModal = (slot: RejectSlotModal['slot'], interventionId: string) => {
+    if (!slot) return
+    setRejectSlotModal({
+      isOpen: true,
+      slotId: slot.id,
+      interventionId,
+      slot,
+    })
+  }
+
+  const closeRejectSlotModal = () => {
+    setRejectSlotModal({
+      isOpen: false,
+      slotId: null,
+      interventionId: null,
+      slot: null,
+    })
+  }
+
   // Validation
   const isPlanningFormValid = () => {
     if (!planningOption) return false
-    
+
     if (planningOption === "direct") {
-      return directSchedule.date && directSchedule.startTime && directSchedule.endTime
+      // For direct appointment: only date and start time required (no end time)
+      return directSchedule.date && directSchedule.startTime
     }
-    
+
     if (planningOption === "propose") {
-      return proposedSlots.length > 0 && 
+      return proposedSlots.length > 0 &&
         proposedSlots.every(slot => slot.date && slot.startTime && slot.endTime)
     }
-    
+
     return planningOption === "organize"
   }
 
   const isProgrammingFormValid = () => {
     if (!programmingOption) return false
-    
+
     if (programmingOption === "direct") {
-      return programmingDirectSchedule.date && 
-        programmingDirectSchedule.startTime && 
-        programmingDirectSchedule.endTime
+      // For direct appointment: only date and start time required (no end time)
+      return programmingDirectSchedule.date &&
+        programmingDirectSchedule.startTime
     }
-    
+
     if (programmingOption === "propose") {
-      return programmingProposedSlots.every(slot => 
+      return programmingProposedSlots.every(slot =>
         slot.date && slot.startTime && slot.endTime
       )
     }
-    
+
     return programmingOption === "organize"
   }
 
@@ -254,6 +349,8 @@ export const useInterventionPlanning = () => {
     planningModal,
     programmingModal,
     planningSuccessModal,
+    cancelSlotModal,
+    rejectSlotModal,
 
     // États des formulaires
     planningOption,
@@ -268,11 +365,12 @@ export const useInterventionPlanning = () => {
     setDirectSchedule,
     setProgrammingOption,
     setProgrammingDirectSchedule,
+    setProgrammingProposedSlots,
 
     // Actions principales
     handlePlanningModal,
     handlePlanningConfirmation,
-    handleProgrammingModal,
+    openProgrammingModal: handleProgrammingModal,
     handleProgrammingConfirm,
 
     // Gestion des créneaux
@@ -287,6 +385,10 @@ export const useInterventionPlanning = () => {
     closePlanningModal,
     closeProgrammingModal,
     closePlanningSuccessModal,
+    openCancelSlotModal,
+    closeCancelSlotModal,
+    openRejectSlotModal,
+    closeRejectSlotModal,
 
     // Validation
     isPlanningFormValid,

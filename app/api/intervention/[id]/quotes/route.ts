@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService } from '@/lib/database-service'
+import { logger, logError } from '@/lib/logger'
+import { createServerUserService } from '@/lib/services'
+
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const interventionId = params.id
+    const resolvedParams = await params
+    const interventionId = resolvedParams.id
 
     // Initialize Supabase client
     const cookieStore = await cookies()
@@ -43,8 +46,12 @@ export async function GET(
       }, { status: 401 })
     }
 
+    // Initialize user service
+    const userService = await createServerUserService()
+
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+    const user = userResult?.data ?? null
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -52,7 +59,7 @@ export async function GET(
       }, { status: 404 })
     }
 
-    console.log("🔍 Getting quotes for intervention:", interventionId, "by user:", user.role)
+    logger.info({ interventionId, userRole: user.role }, "🔍 Getting quotes for intervention")
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
@@ -75,42 +82,11 @@ export async function GET(
     }
 
     // Check permissions - only gestionnaires can view all quotes, prestataires can only view their own
+    // Pour l'éligibilité, on a besoin uniquement de : provider_id (identifier le prestataire) et status (vérifier si pending/sent/accepted)
     let quotesQuery = supabase
       .from('intervention_quotes')
-      .select(`
-        id,
-        intervention_id,
-        provider_id,
-        labor_cost,
-        materials_cost,
-        total_amount,
-        description,
-        work_details,
-        estimated_duration_hours,
-        estimated_start_date,
-        terms_and_conditions,
-        attachments,
-        status,
-        submitted_at,
-        reviewed_at,
-        reviewed_by,
-        review_comments,
-        rejection_reason,
-        provider:provider_id(
-          id,
-          name,
-          email,
-          phone,
-          provider_category,
-          speciality
-        ),
-        reviewer:reviewed_by(
-          id,
-          name
-        )
-      `)
+      .select('id, provider_id, status')
       .eq('intervention_id', interventionId)
-      .order('submitted_at', { ascending: false })
 
     // If user is prestataire, only show their own quote
     if (user.role === 'prestataire') {
@@ -144,35 +120,22 @@ export async function GET(
     const { data: quotes, error: quotesError } = await quotesQuery
 
     if (quotesError) {
-      console.error('❌ Error fetching quotes:', quotesError)
+      logger.error({ error: quotesError }, '❌ Error fetching quotes:')
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des devis'
       }, { status: 500 })
     }
 
-    console.log(`✅ Found ${quotes?.length || 0} quotes for intervention ${interventionId}`)
-
-    // Parse attachments JSON
-    const quotesWithParsedAttachments = quotes?.map(quote => ({
-      ...quote,
-      attachments: typeof quote.attachments === 'string'
-        ? JSON.parse(quote.attachments)
-        : quote.attachments || []
-    })) || []
+    logger.info({ quotesCount: quotes?.length || 0, interventionId }, "✅ Found quotes for intervention")
 
     return NextResponse.json({
       success: true,
-      quotes: quotesWithParsedAttachments,
-      intervention: {
-        id: intervention.id,
-        title: intervention.title,
-        status: intervention.status
-      }
+      quotes: quotes || []
     })
 
   } catch (error) {
-    console.error('❌ Error in intervention quotes API:', error)
+    logger.error({ error: error }, '❌ Error in intervention quotes API:')
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

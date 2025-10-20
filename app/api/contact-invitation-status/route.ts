@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-
+import { logger, logError } from '@/lib/logger'
 /**
  * GET /api/contact-invitation-status
  * Récupère le statut d'invitation d'un contact spécifique
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "ID du contact requis" }, { status: 400 })
     }
 
-    console.log("🔍 Checking invitation status for contact:", contactId)
+    logger.info({ contactId: contactId }, "🔍 Checking invitation status for contact:")
 
     // D'abord, vérifier que le contact existe et appartient au gestionnaire
     const { data: contact, error: contactError } = await supabase
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (contactError || !contact) {
-      console.log("❌ Contact not found:", contactError)
+      logger.info({ contactError: contactError }, "❌ Contact not found:")
       return NextResponse.json({ error: "Contact non trouvé" }, { status: 404 })
     }
 
@@ -79,20 +79,20 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (!managerTeam || contact.team_id !== managerTeam.team_id) {
-      console.log("❌ Contact not in same team as manager")
+      logger.info({}, "❌ Contact not in same team as manager")
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
     }
 
-    console.log("🔍 Contact details:", {
+    logger.info({
       email: contact.email,
       hasAuthUserId: !!contact.auth_user_id,
       authUserId: contact.auth_user_id
-    })
+    }, "🔍 Contact details:")
 
     // ✅ LOGIQUE CORRIGÉE : Vérifier d'ABORD les invitations (priorité sur auth_user_id)
     const { data: invitation, error: invitationError } = await supabase
       .from("user_invitations")
-      .select("id, status, created_at, expires_at, invitation_code")
+      .select("id, status, created_at, expires_at, invitation_token")
       .eq("email", contact.email)
       .eq("team_id", contact.team_id)
       .order("created_at", { ascending: false })
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (invitationError && invitationError.code !== 'PGRST116') {
-      console.error("❌ Error fetching invitation:", invitationError)
+      logger.error({ error: invitationError }, "❌ Error fetching invitation:")
       return NextResponse.json({ error: "Erreur lors de la récupération" }, { status: 500 })
     }
 
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      console.log("✅ Invitation found with status:", status)
+      logger.info({ status: status }, "✅ Invitation found with status:")
 
     return NextResponse.json({
       status,
@@ -132,18 +132,18 @@ export async function GET(request: NextRequest) {
         id: invitation.id,
         created_at: invitation.created_at,
         expires_at: invitation.expires_at,
-        invitation_code: invitation.invitation_code
+        invitation_token: invitation.invitation_token
       }
     })
     }
 
     // ✅ LOGIQUE SIMPLIFIÉE : Si pas d'invitation trouvée, toujours "pas de compte"
     // Seules les invitations avec status="accepted" indiquent un compte réellement actif
-    console.log("ℹ️ No invitation found for contact, treating as no account:", contact.email)
+    logger.info({ contact: contact.email }, "ℹ️ No invitation found for contact, treating as no account:")
     return NextResponse.json({ status: null }, { status: 200 })
 
   } catch (error) {
-    console.error("❌ Error in contact-invitation-status API:", error)
+    logger.error({ error: error }, "❌ Error in contact-invitation-status API:")
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }

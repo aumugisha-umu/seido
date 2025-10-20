@@ -20,8 +20,8 @@ import { useDocumentUpload } from "@/hooks/use-document-upload"
 
 interface DocumentUploadSectionProps {
   interventionId?: string
-  onUploadComplete?: (documents: any[]) => void
-  onUploadError?: (error: string) => void
+  onUploadComplete?: (documents: unknown[]) => void
+  onUploadError?: (_error: string) => void
   maxFiles?: number
   maxFileSize?: number // in bytes
   acceptedTypes?: string[]

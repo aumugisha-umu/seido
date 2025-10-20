@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText, User, Wrench } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [

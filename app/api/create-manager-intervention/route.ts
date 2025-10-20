@@ -1,43 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService, lotService, buildingService, contactService, teamService } from '@/lib/database-service'
+
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
-// Helper function to determine document type from file type and name
-function getDocumentType(mimeType: string, filename: string): string {
-  const lowerFilename = filename.toLowerCase()
-  
-  // Photos
-  if (mimeType.startsWith('image/')) {
-    if (lowerFilename.includes('avant')) return 'photo_avant'
-    if (lowerFilename.includes('apres') || lowerFilename.includes('après')) return 'photo_apres'
-    return 'photo_avant' // Default for images
-  }
-  
-  // Documents
-  if (mimeType === 'application/pdf') {
-    if (lowerFilename.includes('rapport')) return 'rapport'
-    if (lowerFilename.includes('facture')) return 'facture'
-    if (lowerFilename.includes('devis')) return 'devis'
-    if (lowerFilename.includes('plan')) return 'plan'
-    if (lowerFilename.includes('certificat')) return 'certificat'
-    if (lowerFilename.includes('garantie')) return 'garantie'
-  }
-  
-  // Spreadsheets and documents
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
-    if (lowerFilename.includes('devis')) return 'devis'
-    if (lowerFilename.includes('facture')) return 'facture'
-  }
-  
-  return 'autre' // Default type
-}
+import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService, createServerSupabaseClient } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
+import { createQuoteRequestsForProviders } from './create-quote-requests'
 
 export async function POST(request: NextRequest) {
-  console.log("🔧 create-manager-intervention API route called")
-  
+  logger.info({}, "🔧 create-manager-intervention API route called")
+
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+    const lotService = await createServerLotService()
+    const buildingService = await createServerBuildingService()
+    const interventionService = await createServerInterventionService()
     // Get the authenticated user 
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -69,18 +47,18 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     
     if (authError || !authUser) {
-      console.error("❌ Auth error:", authError)
+      logger.error({ authError }, "❌ Auth error")
       return NextResponse.json({
         success: false,
         error: 'Erreur d\'authentification'
       }, { status: 401 })
     }
 
-    console.log("✅ Authenticated user:", authUser.id)
+    logger.info({ userId: authUser.id }, "✅ Authenticated user")
 
     // Parse the request body
     const body = await request.json()
-    console.log("📝 Request body:", body)
+    logger.info({ body }, "📝 Request body")
     
     const {
       // Basic intervention data
@@ -91,7 +69,6 @@ export async function POST(request: NextRequest) {
       location,
       
       // Housing selection
-      selectedLogement,
       selectedBuildingId,
       selectedLotId,
       
@@ -121,12 +98,12 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    console.log("🔍 Validating required fields:", { 
-      title: !!title, 
-      description: !!description, 
+    logger.info({
+      title: !!title,
+      description: !!description,
       selectedManagerIds: selectedManagerIds?.length || 0,
-      hasLogement: !!(selectedBuildingId || selectedLotId) 
-    })
+      hasLogement: !!(selectedBuildingId || selectedLotId)
+    }, "🔍 Validating required fields")
     
     if (!title || !description || (!selectedBuildingId && !selectedLotId)) {
       return NextResponse.json({
@@ -143,53 +120,68 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data from database
-    console.log("👤 Getting user data...")
-    console.log("👤 Looking for user with auth_user_id:", authUser.id)
+    logger.info({}, "👤 Getting user data...")
+    logger.info({ authUserId: authUser.id }, "👤 Looking for user with auth_user_id")
     
     // ✅ Utiliser findByAuthUserId au lieu de getById pour la nouvelle structure DB
     let user
     try {
-      user = await userService.findByAuthUserId(authUser.id)
-      console.log("✅ Found user via findByAuthUserId:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+      const userResult = await userService.findByAuthUserId(authUser.id)
+      if (userResult?.success === false) {
+        logger.error({ error: userResult.error }, "❌ findByAuthUserId returned error")
+      }
+      user = userResult?.data ?? null
+      logger.info({ user: user ? { id: user.id, name: user.name, role: user.role } : null }, "✅ Found user via findByAuthUserId")
     } catch (error) {
-      console.error("❌ Error with findByAuthUserId, trying getById:", error)
+      logger.error({ error }, "❌ Error with findByAuthUserId, trying getById")
       // Fallback: essayer avec getById au cas où
       try {
-        user = await userService.getById(authUser.id)
-        console.log("✅ Found user via getById fallback:", user ? { id: user.id, name: user.name, role: user.role } : 'null')
+        const byIdResult = await userService.getById(authUser.id)
+        if (byIdResult?.success === false) {
+          logger.error({ error: byIdResult.error }, "❌ getById returned error")
+        }
+        user = byIdResult?.data ?? null
+        logger.info({ user: user ? { id: user.id, name: user.name, role: user.role } : null }, "✅ Found user via getById fallback")
       } catch (fallbackError) {
-        console.error("❌ Both methods failed:", fallbackError)
+        logger.error({ fallbackError }, "❌ Both methods failed")
       }
     }
     
     if (!user) {
-      console.error("❌ No user found for auth_user_id:", authUser.id)
+      logger.error({ authUserId: authUser.id }, "❌ No user found for auth_user_id")
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
       }, { status: 404 })
     }
 
-    if (user.role !== 'gestionnaire') {
+    // Accept both FR and EN role labels (DB may use FR 'gestionnaire')
+    const roleValue = (user.role || '').toString().toLowerCase()
+    const isManager = roleValue === 'gestionnaire' || roleValue === 'manager'
+    if (!isManager) {
       return NextResponse.json({
         success: false,
         error: 'Accès réservé aux gestionnaires'
       }, { status: 403 })
     }
 
-    console.log("✅ Manager user found:", user.name, user.role)
+    logger.info({ name: user.name, role: user.role }, "✅ Manager user found")
 
     // Determine if this is a building or lot intervention
     let lotId: string | null = null
     let buildingId: string | null = null
-    let tenantId: string | null = null
+    // ✅ FIX 2025-10-15: tenant_id REMOVED - tenants added via intervention_assignments
     let interventionTeamId = teamId
 
-    if (selectedLotId) {
+    // Sanitize IDs that might come as 'undefined' strings from the client
+    const safeSelectedLotId = selectedLotId && selectedLotId !== 'undefined' && selectedLotId !== 'null' ? selectedLotId : null
+    const safeSelectedBuildingId = selectedBuildingId && selectedBuildingId !== 'undefined' && selectedBuildingId !== 'null' ? selectedBuildingId : null
+
+    if (safeSelectedLotId) {
       // Lot-specific intervention
-      lotId = selectedLotId.toString()
-      console.log("🏠 Creating lot-specific intervention for lot ID:", lotId)
-      
+      lotId = safeSelectedLotId.toString()
+      logger.info({ lotId }, "🏠 Creating lot-specific intervention for lot ID")
+
       if (!lotId) {
         return NextResponse.json({
           success: false,
@@ -205,55 +197,19 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Get tenant for this lot if exists
-      console.log("👤 Looking for tenant in lot...")
-      
-      // ✅ Utiliser uniquement lot_contacts (nouvelle architecture)
-      console.log("🔄 Using only lot_contacts for tenant lookup...")
-      
-      {
-        // ✅ Look for tenant in lot_contacts avec nouvelle logique
-        const { data: tenantContactData } = await supabase
-          .from('lot_contacts')
-          .select(`
-            user:user_id (
-              id,
-              name,
-              email,
-              role,
-              provider_category
-            ),
-            is_primary
-          `)
-          .eq('lot_id', lotId)
-          .or('end_date.is.null,end_date.gt.now()') // Contacts actifs
-
-        if (tenantContactData && tenantContactData.length > 0) {
-          // ✅ Trouver le locataire parmi les contacts (rôle français DB)
-          const tenantContact = tenantContactData.find(contact => {
-            return contact.user?.role === 'locataire' // Utiliser le rôle français de la DB
-          })
-          
-          if (tenantContact?.user) {
-            tenantId = tenantContact.user.id
-            console.log("✅ Found tenant from lot_contacts:", tenantId)
-          } else {
-            console.log("ℹ️ No tenant found in lot_contacts")
-          }
-        } else {
-          console.log("ℹ️ No contacts found for this lot")
-        }
-      }
+      // ✅ FIX 2025-10-15: No longer extract tenant_id here
+      // Tenants will be added via intervention_assignments AFTER intervention creation
+      logger.info({}, "ℹ️ Tenants will be linked via intervention_assignments")
 
       // Use lot's team if available, otherwise use provided teamId
       if (lot.team_id) {
         interventionTeamId = lot.team_id
       }
-    } else if (selectedBuildingId) {
+    } else if (safeSelectedBuildingId) {
       // Building-wide intervention
-      buildingId = selectedBuildingId.toString()
-      console.log("🏢 Creating building-wide intervention for building ID:", buildingId)
-      
+      buildingId = safeSelectedBuildingId.toString()
+      logger.info({ buildingId }, "🏢 Creating building-wide intervention for building ID")
+
       if (!buildingId) {
         return NextResponse.json({
           success: false,
@@ -269,14 +225,13 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      tenantId = null
-      
+      // ✅ FIX 2025-10-15: No tenant_id for building-wide interventions
       // Use building's team if available, otherwise use provided teamId
       if (building.team_id) {
         interventionTeamId = building.team_id
       }
 
-      console.log("✅ Building-wide intervention will be linked directly to building")
+      logger.info({}, "✅ Building-wide intervention - tenants via intervention_assignments")
     }
 
     // Map frontend values to database enums
@@ -334,56 +289,53 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Note: assigned_contact_id n'existe plus dans la nouvelle structure DB
-    // Les assignations se font maintenant via intervention_contacts
+    // Les assignations se font maintenant viaintervention_assignments
 
     // Prepare intervention data
-    console.log("📝 Preparing intervention data with multiple managers:", selectedManagerIds)
+    logger.info({ selectedManagerIds }, "📝 Preparing intervention data with multiple managers")
     
     // ✅ LOGIQUE MÉTIER: Déterminer le statut selon les règles de création par gestionnaire
     let interventionStatus: Database['public']['Enums']['intervention_status']
     
-    console.log("🔍 Analyse des conditions pour déterminer le statut:", {
+    logger.info({
       hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
       expectsQuote,
-      hasTenant: !!tenantId,
       onlyOneManager: selectedManagerIds.length === 1,
       noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
       schedulingType,
       hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
-    })
-    
+    }, "🔍 Analyse des conditions pour déterminer le statut")
+
     // CAS 1: Demande de devis si prestataires assignés + devis requis
     if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
       interventionStatus = 'demande_de_devis'
-      console.log("✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
-      
+      logger.info({}, "✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
+
     // CAS 2: Planifiée directement si conditions strictes remplies
     } else if (
-      !tenantId && // Pas de locataire dans le bien
       selectedManagerIds.length === 1 && // Que le gestionnaire créateur
       (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
       schedulingType === 'fixed' && // Date/heure fixe
       fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
     ) {
       interventionStatus = 'planifiee'
-      console.log("✅ Statut déterminé: PLANIFIEE (pas locataire + seul gestionnaire + date fixe)")
-      
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe)")
+
     // CAS 3: Planification dans tous les autres cas
     } else {
       interventionStatus = 'planification'
-      console.log("✅ Statut déterminé: PLANIFICATION (cas par défaut)")
+      logger.info({}, "✅ Statut déterminé: PLANIFICATION (cas par défaut)")
     }
     
-    const interventionData: any = {
+    const interventionData: Record<string, unknown> = {
       title,
       description,
       type: mapInterventionType(type || ''),
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
-      tenant_id: tenantId, // Can be null for manager-created interventions
-      // ✅ Pas de manager_id dans la nouvelle structure - les assignations se font via intervention_contacts
+      // ✅ FIX 2025-10-15: tenant_id REMOVED - all participants via intervention_assignments
       team_id: interventionTeamId,
-      status: interventionStatus, // ✅ NOUVEAU: Statut déterminé selon les règles métier
+      status: interventionStatus, // ✅ Statut déterminé selon les règles métier
       scheduled_date: scheduledDate,
       manager_comment: location ? `Localisation: ${location}` : null,
       requires_quote: expectsQuote || false,
@@ -396,78 +348,240 @@ export async function POST(request: NextRequest) {
       interventionData.lot_id = lotId
     }
 
-    // Add building_id only if it exists (for building-wide interventions)  
+    // Add building_id only if it exists (for building-wide interventions)
     if (buildingId) {
       interventionData.building_id = buildingId
     }
 
-    console.log("📝 Creating intervention with data:", interventionData)
+    logger.info({ interventionData }, "📝 Creating intervention with data")
 
     // Create the intervention
-    const intervention = await interventionService.create(interventionData)
-    console.log("✅ Intervention created:", intervention.id)
+    // ✅ FIX: Pass user.id as second parameter (required by interventionService.create signature)
+    const interventionResult = await interventionService.create(interventionData, user.id)
+
+    // ✅ CRITICAL: Check if creation succeeded BEFORE continuing
+    if (!interventionResult.success || !interventionResult.data) {
+      logger.error({ error: interventionResult.error }, "❌ Intervention creation failed")
+      return NextResponse.json({
+        success: false,
+        error: interventionResult.error?.message || 'Failed to create intervention'
+      }, { status: 500 })
+    }
+
+    const intervention = interventionResult.data
+    logger.info({ interventionId: intervention.id }, "✅ Intervention created successfully")
 
     // Handle multiple contact assignments
-    console.log("👥 Creating contact assignments...")
-    console.log("👥 Selected managers:", selectedManagerIds.length)
-    console.log("👥 Selected providers:", selectedProviderIds?.length || 0)
-    
+    logger.info({}, "👥 Creating contact assignments...")
+    logger.info({ count: selectedManagerIds.length }, "👥 Selected managers")
+    logger.info({ count: selectedProviderIds?.length || 0 }, "👥 Selected providers")
+
+    // ✅ VALIDATE user IDs before creating assignments
+    logger.info({}, "🔍 Validating selected user IDs...")
+    const allUserIds = [
+      ...selectedManagerIds,
+      ...(selectedProviderIds || [])
+    ]
+
+    if (allUserIds.length > 0) {
+      const { data: validUsers, error: validateError } = await supabase
+        .from('users')
+        .select('id, name, role')
+        .in('id', allUserIds)
+
+      if (validateError) {
+        logger.error({ error: validateError }, "❌ Error validating user IDs")
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de la validation des utilisateurs sélectionnés'
+        }, { status: 500 })
+      } else {
+        const validUserIds = new Set(validUsers?.map(u => u.id) || [])
+        const invalidManagerIds = selectedManagerIds.filter(id => !validUserIds.has(id))
+        const invalidProviderIds = (selectedProviderIds || []).filter(id => !validUserIds.has(id))
+
+        if (invalidManagerIds.length > 0 || invalidProviderIds.length > 0) {
+          logger.error({
+            invalidManagerIds,
+            invalidProviderIds
+          }, "❌ Invalid user IDs detected")
+
+          return NextResponse.json({
+            success: false,
+            error: 'Certains utilisateurs sélectionnés sont invalides',
+            details: {
+              invalidManagers: invalidManagerIds,
+              invalidProviders: invalidProviderIds
+            }
+          }, { status: 400 })
+        }
+
+        logger.info({
+          validCount: validUsers?.length || 0,
+          totalProvided: allUserIds.length,
+          validUsers: validUsers?.map(u => ({ id: u.id, name: u.name, role: u.role }))
+        }, "✅ All user IDs validated successfully")
+      }
+    }
+
     const contactAssignments: Array<{
       intervention_id: string,
       user_id: string, // ✅ Correction: c'est user_id, pas contact_id
       role: string,
       is_primary: boolean,
-      individual_message?: string
+      notes?: string,
+      assigned_by: string
     }> = []
 
     // ✅ Add all manager assignments
     selectedManagerIds.forEach((managerId: string, index: number) => {
-      console.log(`👥 Adding manager assignment ${index + 1}:`, managerId)
+      logger.info({ assignmentNumber: index + 1, managerId }, "👥 Adding manager assignment")
       contactAssignments.push({
         intervention_id: intervention.id,
         user_id: managerId, // ✅ Correction: user_id
         role: 'gestionnaire',
         is_primary: index === 0, // First manager is primary
-        individual_message: messageType === 'individual' ? individualMessages[managerId] : undefined
+        notes: messageType === 'individual' ? individualMessages[managerId] : undefined,
+        assigned_by: user.id
       })
     })
 
     // ✅ Add provider assignments
     if (selectedProviderIds && selectedProviderIds.length > 0) {
       selectedProviderIds.forEach((providerId: string, index: number) => {
-        console.log(`🔧 Adding provider assignment ${index + 1}:`, providerId)
+        logger.info({ assignmentNumber: index + 1, providerId }, "🔧 Adding provider assignment")
         contactAssignments.push({
           intervention_id: intervention.id,
           user_id: providerId, // ✅ Correction: user_id
           role: 'prestataire',
           is_primary: false, // Les gestionnaires sont prioritaires pour is_primary
-          individual_message: messageType === 'individual' ? individualMessages[providerId] : undefined
+          notes: messageType === 'individual' ? individualMessages[providerId] : undefined,
+          assigned_by: user.id
         })
       })
     }
 
     // Insert contact assignments
     if (contactAssignments.length > 0) {
-      console.log("📝 Creating contact assignments:", contactAssignments.length)
-      const { error: assignmentError } = await supabase
-        .from('intervention_contacts')
+      logger.info({ count: contactAssignments.length }, "📝 Creating contact assignments")
+
+      // ✅ LOG LE PAYLOAD EXACT AVANT L'INSERT
+      logger.info({
+        currentUserId: user.id,
+        assignments: contactAssignments.map(a => ({
+          intervention_id: a.intervention_id,
+          user_id: a.user_id,
+          role: a.role,
+          is_primary: a.is_primary,
+          assigned_by: a.assigned_by,
+          has_notes: !!a.notes
+        }))
+      }, "📋 Assignment payload details")
+
+      const { error: assignmentError, data: assignmentData } = await supabase
+        .from('intervention_assignments')
         .insert(contactAssignments)
+        .select()
 
       if (assignmentError) {
-        console.error("⚠️ Error creating contact assignments:", assignmentError)
-        // Don't fail the entire operation, just log the error
+        // ✅ LOG L'ERREUR COMPLÈTE
+        logger.error({
+          error: assignmentError,
+          code: assignmentError.code,
+          message: assignmentError.message,
+          details: assignmentError.details,
+          hint: assignmentError.hint
+        }, "❌ ERREUR DÉTAILLÉE lors de l'insertion des assignments")
+
+        // ✅ Retourner l'erreur au client pour debugging
+        return NextResponse.json({
+          success: false,
+          error: `Erreur lors de l'assignation: ${assignmentError.message}`,
+          details: {
+            code: assignmentError.code,
+            hint: assignmentError.hint
+          }
+        }, { status: 500 })
       } else {
-        console.log("✅ Contact assignments created:", contactAssignments.length)
+        logger.info({
+          count: assignmentData?.length || 0,
+          inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
+        }, "✅ Contact assignments created successfully")
+      }
+    }
+
+    // ✅ NEW 2025-10-17: Auto-create quote requests if expectsQuote and providers assigned
+    if (expectsQuote && selectedProviderIds && selectedProviderIds.length > 0) {
+      await createQuoteRequestsForProviders({
+        interventionId: intervention.id,
+        teamId: interventionTeamId,
+        providerIds: selectedProviderIds,
+        createdBy: user.id,
+        messageType,
+        globalMessage,
+        individualMessages,
+        supabase
+      })
+    }
+
+    // ✅ NEW 2025-10-15: Auto-assign tenants from lot_contacts (if lot intervention)
+    if (lotId) {
+      logger.info({}, "👤 Extracting and assigning tenants from lot_contacts...")
+
+      try {
+        const { data: tenantContactsData, error: tenantsError } = await supabase
+          .from('lot_contacts')
+          .select(`
+            user_id,
+            is_primary,
+            users!inner (
+              id,
+              name,
+              email,
+              role
+            )
+          `)
+          .eq('lot_id', lotId)
+          .eq('users.role', 'locataire')
+
+        if (tenantsError) {
+          logger.error({ error: tenantsError }, "⚠️ Error fetching tenants from lot_contacts")
+        } else if (tenantContactsData && tenantContactsData.length > 0) {
+          // Prepare tenant assignments
+          const tenantAssignments = tenantContactsData.map((contact: any, index: number) => ({
+            intervention_id: intervention.id,
+            user_id: contact.user_id,
+            role: 'locataire',
+            is_primary: contact.is_primary || index === 0, // Use lot_contacts is_primary or first tenant
+            assigned_by: user.id
+          }))
+
+          // Insert tenant assignments
+          const { error: tenantAssignError } = await supabase
+            .from('intervention_assignments')
+            .insert(tenantAssignments)
+
+          if (tenantAssignError) {
+            logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
+          } else {
+            logger.info({ count: tenantAssignments.length }, "✅ Tenants auto-assigned from lot_contacts")
+          }
+        } else {
+          logger.info({}, "ℹ️ No tenants found in lot_contacts for this lot")
+        }
+      } catch (error) {
+        logger.error({ error }, "❌ Error in tenant auto-assignment")
+        // Don't fail the entire operation for tenant assignment errors
       }
     }
 
     // Handle scheduling slots if provided
     if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
-      console.log("📅 Creating time slots:", timeSlots.length)
+      logger.info({ count: timeSlots.length }, "📅 Creating time slots")
       
       const timeSlotsToInsert = timeSlots
-        .filter((slot: any) => slot.date && slot.startTime && slot.endTime) // Only valid slots
-        .map((slot: any) => ({
+        .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
+        .map((slot: { date: string; startTime: string; endTime: string }) => ({
           intervention_id: intervention.id,
           slot_date: slot.date,
           start_time: slot.startTime,
@@ -481,16 +595,16 @@ export async function POST(request: NextRequest) {
           .insert(timeSlotsToInsert)
 
         if (slotsError) {
-          console.error("⚠️ Error creating time slots:", slotsError)
+          logger.error({ error: slotsError }, "⚠️ Error creating time slots")
         } else {
-          console.log("✅ Time slots created:", timeSlotsToInsert.length)
+          logger.info({ count: timeSlotsToInsert.length }, "✅ Time slots created")
         }
       }
     }
 
     // ✅ Handle manager availabilities if provided (gestionnaire's own availability)
     if (managerAvailabilities && managerAvailabilities.length > 0) {
-      console.log("📅 Processing manager availabilities:", managerAvailabilities.length)
+      logger.info({ count: managerAvailabilities.length }, "📅 Processing manager availabilities")
 
       try {
         // Validate and prepare manager availability data
@@ -503,21 +617,21 @@ export async function POST(request: NextRequest) {
 
           // Basic validation
           if (!date || !startTime || !endTime) {
-            console.warn("⚠️ Skipping invalid manager availability:", avail)
+            logger.warn({ availability: avail }, "⚠️ Skipping invalid manager availability")
             continue
           }
 
           // Validate date is not in the past
           const availDate = new Date(date)
           if (isNaN(availDate.getTime()) || availDate < today) {
-            console.warn("⚠️ Skipping past date manager availability:", date)
+            logger.warn({ date }, "⚠️ Skipping past date manager availability")
             continue
           }
 
           // Validate time format
           const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
           if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
-            console.warn("⚠️ Skipping invalid time format:", startTime, endTime)
+            logger.warn({ startTime, endTime }, "⚠️ Skipping invalid time format")
             continue
           }
 
@@ -525,7 +639,7 @@ export async function POST(request: NextRequest) {
           const [startHour, startMin] = startTime.split(':').map(Number)
           const [endHour, endMin] = endTime.split(':').map(Number)
           if (startHour > endHour || (startHour === endHour && startMin >= endMin)) {
-            console.warn("⚠️ Skipping invalid time range:", startTime, endTime)
+            logger.warn({ startTime, endTime }, "⚠️ Skipping invalid time range")
             continue
           }
 
@@ -546,42 +660,42 @@ export async function POST(request: NextRequest) {
             .select()
 
           if (availError) {
-            console.error("❌ Error saving manager availabilities:", availError)
+            logger.error({ error: availError }, "❌ Error saving manager availabilities")
             // Don't fail the whole intervention creation, just log the error
           } else {
-            console.log("✅ Manager availabilities saved:", savedAvailabilities.length)
+            logger.info({ count: savedAvailabilities.length }, "✅ Manager availabilities saved")
           }
         } else {
-          console.log("ℹ️ No valid manager availabilities to save")
+          logger.info({}, "ℹ️ No valid manager availabilities to save")
         }
       } catch (availabilityError) {
-        console.error("❌ Error processing manager availabilities:", availabilityError)
+        logger.error({ error: availabilityError }, "❌ Error processing manager availabilities")
         // Don't fail the intervention creation for availability errors
       }
     }
 
     // Handle file uploads if provided
     if (files && files.length > 0) {
-      console.log("📎 Processing file uploads:", files.length)
+      logger.info({ count: files.length }, "📎 Processing file uploads")
       
       try {
         // Store file information for later processing
         // Note: Actual file upload will be handled by separate API calls from the frontend
         // This is because FormData with files needs special handling in Next.js
-        console.log("📝 Files will be uploaded separately via upload API")
-        console.log("Files to upload:", files.map((f: any) => ({ name: f.name, size: f.size, type: f.type })))
+        logger.info({}, "📝 Files will be uploaded separately via upload API")
+        logger.info({ files: files.map((f: { name: string; size: number; type: string }) => ({ name: f.name, size: f.size, type: f.type })) }, "Files to upload")
         
         // We'll return the file information so the frontend can handle the uploads
         // The frontend will call /api/upload-intervention-document for each file
         
       } catch (error) {
-        console.error("❌ Error handling file information:", error)
+        logger.error({ error }, "❌ Error handling file information")
         // Don't fail the entire intervention creation for file handling errors
       }
     }
 
     // Store additional metadata in manager_comment
-    let managerCommentParts = []
+    const managerCommentParts = []
     if (buildingId && !lotId) managerCommentParts.push('Intervention sur bâtiment entier')
     if (location) managerCommentParts.push(`Localisation: ${location}`)
     if (expectsQuote) managerCommentParts.push('Devis requis')
@@ -591,12 +705,13 @@ export async function POST(request: NextRequest) {
 
     // Update intervention with additional metadata if needed
     if (managerCommentParts.length > 0) {
+      // ✅ FIX: Pass user.id as third parameter (required by interventionService.update signature)
       await interventionService.update(intervention.id, {
         manager_comment: managerCommentParts.join(' | ')
-      })
+      }, user.id)
     }
 
-    console.log("🎉 Manager intervention creation completed successfully")
+    logger.info({}, "🎉 Manager intervention creation completed successfully")
 
     return NextResponse.json({
       success: true,
@@ -611,11 +726,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in create-manager-intervention API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in create-manager-intervention API")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details")
 
     return NextResponse.json({
       success: false,

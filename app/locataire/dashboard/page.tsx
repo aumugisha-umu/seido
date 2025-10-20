@@ -1,64 +1,93 @@
-"use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Home,
-  MessageSquare,
-  CreditCard,
-  AlertTriangle,
-  Calendar,
-  FileText,
-  Clock,
-  CheckCircle,
-  Wrench,
-  User,
-  MessageCircle,
-  MapPin,
-  Building2,
-  Eye,
-  Droplets,
-  Zap,
-  Flame,
-  Key,
-  Paintbrush,
-  Hammer,
-  Archive,
-  Plus
+  Wrench
 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { useTenantData } from "@/hooks/use-tenant-data"
-import { useTenantPendingActions } from "@/hooks/use-tenant-pending-actions"
-import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
-import { useRouter } from "next/navigation"
-import ContentNavigator from "@/components/content-navigator"
-import { PendingActionsCard } from "@/components/shared/pending-actions-card"
-import { InterventionsList } from "@/components/interventions/interventions-list"
+import { requireRole } from "@/lib/auth-dal"
 import {
-  getInterventionLocationText,
-  getInterventionLocationIcon,
-  isBuildingWideIntervention,
-  getStatusColor,
-  getStatusLabel,
-  getPriorityColor,
-  getPriorityLabel
-} from "@/lib/intervention-utils"
+  createServerTenantService,
+  createServerBuildingService
+} from '@/lib/services'
 
-export default function LocataireDashboard() {
-  const { user } = useAuth()
-  const { tenantData, tenantStats, tenantInterventions, loading, error } = useTenantData()
-  const { pendingActions, loading: pendingActionsLoading, error: pendingActionsError, refresh: refreshPendingActions } = useTenantPendingActions(user?.id || '')
-  const router = useRouter()
+import { LocataireDashboardClient } from "./locataire-dashboard-client"
+import { logger, logError } from '@/lib/logger'
+/**
+ * 🔐 DASHBOARD LOCATAIRE - SERVER COMPONENT (Migration Server Components)
+ *
+ * Multi-layer security implementation:
+ * 1. Route level: requireRole() vérification
+ * 2. Data layer: DAL avec authentification
+ * 3. UI level: Masquage conditionnel
+ * 4. Server actions: Validation dans actions
+ */
 
-  // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
-  useDashboardSessionTimeout()
+export default async function LocataireDashboard() {
+  // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
+  const { user, profile } = await requireRole(['locataire'])
 
-  if (!user) return <div>Chargement...</div>
+  // ✅ CORRECTIF (2025-10-07): Use TenantService to properly query lot_contacts junction table
+  const tenantService = await createServerTenantService()
+  const buildingService = await createServerBuildingService()
 
-  if (loading) {
-    return <LoadingSkeleton />
+  // ✅ LAYER 2: Data Layer Security - Récupération données locataire via TenantService
+  let tenantData: { id: string; building_id?: string; building?: unknown; reference: string; category?: string; floor?: number; rooms?: string; surface_area?: number; charges_amount?: number } | null = null
+  let tenantInterventions: { id: string; title: string; description: string; status: string; created_at: string; urgency_level?: string }[] = []
+  let pendingActions: { id: string; type: string; title: string; description: string; priority: string; href: string }[] = []
+  let error: string | null = null
+
+  try {
+    logger.info('🔍 [LOCATAIRE-DASHBOARD] Loading tenant data via TenantService for user:', profile.id)
+
+    // ✅ NEW APPROACH: Use TenantService.getTenantData() which queries lot_contacts properly
+    const fullTenantData = await tenantService.getTenantData(profile.id)
+
+    if (fullTenantData && fullTenantData.lots.length > 0) {
+      // Get primary lot or first lot
+      const primaryLotData = fullTenantData.lots.find(l => l.is_primary) || fullTenantData.lots[0]
+      tenantData = primaryLotData.lot
+
+      // Get building information if lot has building_id
+      if (tenantData.building_id) {
+        const buildingResult = await buildingService.getById(tenantData.building_id)
+        if (buildingResult.success && buildingResult.data) {
+          tenantData.building = buildingResult.data
+        }
+      }
+
+      // Get interventions (already fetched by TenantService)
+      tenantInterventions = fullTenantData.interventions.map(i => ({
+        id: i.id,
+        title: i.title,
+        description: i.description || '',
+        status: i.status,
+        created_at: i.created_at,
+        urgency_level: i.urgency || 'normale'
+      }))
+
+      // Calculate pending actions
+      pendingActions = tenantInterventions.filter(i =>
+        i.status === 'cloturee_par_prestataire' ||
+        i.status === 'demande'
+      ).map(i => ({
+        id: i.id,
+        type: i.status === 'cloturee_par_prestataire' ? 'validation_required' : 'new_request',
+        title: i.title,
+        description: i.description,
+        priority: i.urgency_level || 'medium',
+        href: `/locataire/interventions/${i.id}`
+      }))
+
+      logger.info('✅ [LOCATAIRE-DASHBOARD] Tenant data loaded successfully:', {
+        lotId: tenantData.id,
+        interventionsCount: tenantInterventions.length,
+        pendingActionsCount: pendingActions.length
+      })
+    } else {
+      logger.warn('⚠️ [LOCATAIRE-DASHBOARD] No lots found for tenant:', profile.id)
+    }
+  } catch (err) {
+    logger.error('❌ [LOCATAIRE-DASHBOARD] Error loading tenant data:', err)
+    error = 'Erreur lors du chargement des données'
   }
 
   if (error) {
@@ -67,7 +96,7 @@ export default function LocataireDashboard() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
-              Erreur lors du chargement des données: {error}
+              {error}
             </p>
           </CardContent>
         </Card>
@@ -89,128 +118,85 @@ export default function LocataireDashboard() {
     )
   }
 
-  const handleInterventionClick = (interventionId: string) => {
-    router.push(`/locataire/interventions/${interventionId}`)
-  }
-
-  const handleNewIntervention = () => {
-    router.push('/locataire/interventions/nouvelle-demande')
-  }
-
-  const handleOpenChat = () => {
-    // TODO: Remplacer par la vraie logique de chat
-    console.log('Opening chat with manager...')
-    
-    // Exemples d'implémentation possibles :
-    // 1. Router vers une page de chat dédiée
-    // router.push('/locataire/chat/manager')
-    
-    // 2. Ouvrir un modal de chat
-    // setIsChatModalOpen(true)
-    
-    // 3. Router vers une liste de conversations
-    // router.push('/locataire/conversations')
-    
-    // Pour l'instant, on peut rediriger vers le dashboard comme fallback
-    router.push('/locataire/dashboard')
-  }
 
 
-  // Filter function for interventions based on tab (pour locataires)
-  // ✅ COUVERTURE COMPLÈTE : Tous les statuts sont mappés pour garantir qu'aucune intervention ne disparaisse
-  const getFilteredInterventions = (tabId: string) => {
-    if (tabId === "en_cours") {
-      // En cours : tous les statuts nécessitant une action du locataire ou en cours de traitement
-      return tenantInterventions.filter((i) => [
-        "demande",                   // Nouvelle demande en attente
-        "approuvee",                 // Approuvée par le gestionnaire  
-        "demande_de_devis",          // En attente de devis du prestataire
-        "planification",             // Phase de planification des dates
-        "planifiee",                 // Dates planifiées, en attente d'exécution
-        "en_cours",                  // Intervention en cours d'exécution
-        "cloturee_par_prestataire"   // ✅ DÉPLACÉ : Le locataire doit encore valider la clôture !
-      ].includes(i.status))
-    } else if (tabId === "cloturees") {
-      // Clôturées : interventions définitivement terminées (aucune action requise du locataire)
-      return tenantInterventions.filter((i) => [
-        "cloturee_par_locataire",    // Validée et clôturée par le locataire
-        "cloturee_par_gestionnaire", // Clôturée administrativement par le gestionnaire
-        "rejetee",                   // Rejetée par le gestionnaire
-        "annulee"                    // Annulée (par n'importe quel acteur)
-      ].includes(i.status))
-    }
-    return tenantInterventions
-  }
 
-  // Function to render interventions list (utilise maintenant le composant standardisé)
-  const renderInterventionsList = (tabId: string) => {
-    const filteredInterventions = getFilteredInterventions(tabId)
-
-    return (
-      <InterventionsList
-        interventions={filteredInterventions}
-        loading={loading}
-        emptyStateConfig={{
-          title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention clôturée",
-          description: tabId === "en_cours"
-            ? "Vos demandes d'intervention apparaîtront ici"
-            : "L'historique de vos interventions clôturées apparaîtra ici",
-          showCreateButton: tabId === "en_cours",
-          createButtonText: "Créer une nouvelle demande",
-          createButtonAction: handleNewIntervention
-        }}
-        showStatusActions={true}
-        userContext="locataire"
-      />
-    )
-  }
-
-  // Tabs configuration pour les locataires
-  const interventionsTabsConfig = [
-    {
-      id: "en_cours",
-      label: "En cours",
-      icon: Clock,
-      count: loading ? "..." : getFilteredInterventions("en_cours").length,
-      content: renderInterventionsList("en_cours")
-    },
-    {
-      id: "cloturees",
-      label: "Clôturées",
-      icon: Archive,
-      count: loading ? "..." : getFilteredInterventions("cloturees").length,
-      content: renderInterventionsList("cloturees")
-    }
-  ]
+  // Construire l'adresse complète avec toutes les informations
+  const buildingName = tenantData.building?.name || ''
+  const lotReference = tenantData.reference || ''
+  const apartmentNumber = tenantData.apartment_number || ''
+  const street = tenantData.building?.address || ''
+  const postalCode = tenantData.building?.postal_code || ''
+  const city = tenantData.building?.city || ''
+  const floor = tenantData.floor !== undefined ? `Étage ${tenantData.floor}` : ''
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-      {/* Page Header - Simple et centré */}
-      <div className="text-center lg:text-left mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user.name} 👋</h1>
-            <p className="text-slate-600">Signalez vos problèmes ici et faites-en le suivi facilement</p>
+      {/* Header avec informations du logement */}
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex-1">
+            {/* Référence du lot + Nom de l'immeuble */}
+            <div className="flex items-center gap-3 mb-3">
+              <Home className="w-6 h-6 text-blue-600 flex-shrink-0" />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {lotReference}
+                  {buildingName && <span className="text-slate-600 font-normal"> • {buildingName}</span>}
+                </h1>
+              </div>
+            </div>
+
+            {/* Adresse complète */}
+            <div className="space-y-1 text-slate-600">
+              {street && (
+                <p className="text-base">
+                  {street}
+                  {(floor || apartmentNumber) && (
+                    <span className="text-slate-500">
+                      {floor && `, ${floor}`}
+                      {apartmentNumber && `, Porte ${apartmentNumber}`}
+                    </span>
+                  )}
+                </p>
+              )}
+              {(postalCode || city) && (
+                <p className="text-base">
+                  {postalCode} {city}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex justify-center lg:justify-end">
-            <Button className="px-6 py-3 text-base font-semibold" onClick={handleNewIntervention}>
-              <Plus className="w-5 h-5 mr-2" />
-              Créer une nouvelle demande
-            </Button>
-          </div>
+
+          {/* Bouton créer demande */}
+          <LocataireDashboardClient />
         </div>
       </div>
 
       {/* Section 1: Actions en attente */}
       <section>
-        <PendingActionsCard
-          actions={pendingActions}
-          userRole="locataire"
-          loading={pendingActionsLoading}
-        />
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Actions en attente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pendingActions.length > 0 ? (
+              <div className="space-y-3">
+                {pendingActions.map((action) => (
+                  <div key={action.id} className="p-4 border rounded-lg">
+                    <h3 className="font-medium">{action.title}</h3>
+                    <p className="text-sm text-gray-600">{action.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500">Aucune action en attente</p>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
-      {/* Section 3: Interventions avec ContentNavigator */}
+      {/* Section 3: Interventions */}
       <section>
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
@@ -218,243 +204,49 @@ export default function LocataireDashboard() {
               <Wrench className="w-5 h-5 text-slate-900" />
               <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
             </div>
-            <Button 
-              className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start" 
-              onClick={handleNewIntervention}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Créer une nouvelle demande</span>
-            </Button>
           </div>
         </div>
 
-        <ContentNavigator
-          tabs={interventionsTabsConfig}
-          defaultTab="en_cours"
-          searchPlaceholder="Rechercher par titre ou description..."
-          onSearch={(value) => console.log("Recherche:", value)}
-        />
-      </section>
-
-      {/* Section 2: Informations du logement */}
-      <section>
-        <Card className="mb-8">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-slate-900">
-              <Home className="w-5 h-5" />
-              Informations du logement
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Nom / Référence */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Nom / Référence</p>
-                  <p className="font-semibold text-slate-900">
-                    {tenantData.building?.name || `Lot ${tenantData.reference}`}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    {tenantData.building ? tenantData.reference : `${tenantData.category || 'appartement'} • ${tenantData.reference}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Adresse */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Adresse</p>
-                  <p className="text-slate-900">
-                    {tenantData.building ?
-                      `${tenantData.building.address}, ${tenantData.building.postal_code} ${tenantData.building.city}` :
-                      'Lot indépendant'
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Gestionnaire */}
-              <div>
-                <div className="space-y-1">
-                  <p className="text-sm text-slate-600">Gestionnaire</p>
-                  <div 
-                    onClick={handleOpenChat}
-                    className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-full cursor-pointer transition-colors group"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        handleOpenChat()
-                      }
-                    }}
-                    aria-label="Jean Martin • Cliquer pour ouvrir le chat"
-                  >
-                    <User className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium">Jean Martin</span>
-                    <MessageCircle className="w-4 h-4 text-blue-600 opacity-70 group-hover:opacity-100 transition-opacity ml-1" />
+        <Card>
+          <CardContent className="pt-6">
+            {tenantInterventions.length > 0 ? (
+              <div className="space-y-4">
+                {tenantInterventions.slice(0, 5).map((intervention) => (
+                  <div key={intervention.id} className="p-4 border rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium">{intervention.title}</h3>
+                        <p className="text-sm text-gray-600">{intervention.description}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(intervention.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        intervention.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        intervention.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {intervention.status}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            </div>
-
-            {/* Informations supplémentaires du lot */}
-            {(tenantData.floor !== undefined || tenantData.rooms || tenantData.surface_area || tenantData.charges_amount) && (
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <h3 className="text-base font-medium text-slate-900 mb-4">Détails du logement</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {tenantData.floor !== undefined && (
-                    <div>
-                      <p className="text-sm text-slate-600">Étage</p>
-                      <p className="font-semibold text-slate-900">{tenantData.floor}</p>
-                    </div>
-                  )}
-                  {tenantData.rooms && (
-                    <div>
-                      <p className="text-sm text-slate-600">Pièces</p>
-                      <p className="font-semibold text-slate-900">{tenantData.rooms}</p>
-                    </div>
-                  )}
-                  {tenantData.surface_area && (
-                    <div>
-                      <p className="text-sm text-slate-600">Surface</p>
-                      <p className="font-semibold text-slate-900">{tenantData.surface_area} m²</p>
-                    </div>
-                  )}
-                  {tenantData.charges_amount && (
-                    <div>
-                      <p className="text-sm text-slate-600">Charges</p>
-                      <p className="font-semibold text-slate-900">{tenantData.charges_amount.toFixed(2)} €</p>
-                    </div>
-                  )}
-                </div>
+            ) : (
+              <div className="text-center py-8">
+                <Wrench className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">Aucune intervention</p>
+                <p className="text-sm text-gray-400">Vos demandes apparaîtront ici</p>
               </div>
             )}
           </CardContent>
         </Card>
       </section>
 
-      
     </div>
   )
 }
 
-function LoadingSkeleton() {
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-      {/* Header skeleton */}
-      <div className="text-center lg:text-left mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <Skeleton className="h-8 w-64 mb-2 mx-auto lg:mx-0" />
-            <Skeleton className="h-5 w-80 mx-auto lg:mx-0" />
-          </div>
-          <Skeleton className="h-12 w-48 mx-auto lg:mx-0" />
-        </div>
-      </div>
-
-      {/* Informations du logement skeleton */}
-      <Card className="mb-8">
-        <CardHeader className="pb-4">
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-5 w-48" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-40 rounded-full" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Interventions en cours skeleton */}
-      <Card className="mb-8">
-        <CardHeader className="pb-4">
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="border rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Skeleton className="w-5 h-5 mt-0.5" />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="h-5 w-40" />
-                      <Skeleton className="h-6 w-20" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                    <Skeleton className="h-4 w-64" />
-                    <div className="space-y-1">
-                      <Skeleton className="h-3 w-32" />
-                      <Skeleton className="h-3 w-36" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-          {/* Interventions skeleton */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Skeleton className="w-5 h-5" />
-          <Skeleton className="h-6 w-48" />
-        </div>
-        
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            {/* Tab skeleton */}
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-32" />
-              <Skeleton className="h-10 w-32" />
-            </div>
-            
-            {/* Grid skeleton */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3 flex-1">
-                      <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                        <Skeleton className="h-5 w-40" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-8 w-16" />
-                  </div>
-                  <div className="flex gap-2">
-                      <Skeleton className="h-6 w-20" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                  <Skeleton className="h-4 w-full" />
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex gap-3">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-4 w-18" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      </div>
-    </div>
-  )
-}
+// LoadingSkeleton component removed as it was unused
 
 // Les fonctions de style sont maintenant gérées par les utilitaires dans /lib/intervention-utils

@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("✅ tenant-availability API route called for intervention:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ tenant-availability API route called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }, { status: 400 })
     }
 
-    console.log("📅 Saving tenant availabilities:", tenantAvailabilities.length)
+    logger.info({ tenantAvailabilities: tenantAvailabilities.length }, "📅 Saving tenant availabilities:")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -149,12 +153,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq('intervention_id', resolvedParams.id)
 
     if (deleteError) {
-      console.warn("⚠️ Could not delete existing tenant availabilities:", deleteError)
+      logger.warn({ deleteError: deleteError }, "⚠️ Could not delete existing tenant availabilities:")
       // Don't fail completely for this
     }
 
     // Insert new tenant availabilities
-    const availabilityData = tenantAvailabilities.map((avail: any) => ({
+    const availabilityData = tenantAvailabilities.map((avail) => ({
       user_id: user.id,
       intervention_id: resolvedParams.id,
       date: avail.date,
@@ -167,17 +171,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .insert(availabilityData)
 
     if (insertError) {
-      console.error("❌ Error inserting tenant availabilities:", insertError)
+      logger.error({ error: insertError }, "❌ Error inserting tenant availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde des disponibilités'
       }, { status: 500 })
     }
 
-    console.log("✅ Tenant availabilities saved successfully")
+    logger.info({}, "✅ Tenant availabilities saved successfully")
 
     // Now trigger automatic matching between tenant and provider availabilities
-    console.log("🔄 Triggering automatic availability matching...")
+    logger.info({}, "🔄 Triggering automatic availability matching...")
 
     // Get provider availabilities for this intervention
     const { data: providerAvailabilities, error: providerError } = await supabase
@@ -191,7 +195,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq('user.role', 'prestataire')
 
     if (providerError) {
-      console.warn("⚠️ Could not fetch provider availabilities for matching:", providerError)
+      logger.warn({ providerError: providerError }, "⚠️ Could not fetch provider availabilities for matching:")
     } else if (providerAvailabilities && providerAvailabilities.length > 0) {
       // Call matching algorithm (we'll implement this next)
       try {
@@ -205,7 +209,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         if (matchingResponse.ok) {
           const matchingResult = await matchingResponse.json()
-          console.log("✅ Automatic matching completed:", matchingResult)
+          logger.info({ matchingResult: matchingResult }, "✅ Automatic matching completed:")
 
           // If we found a perfect match, transition to planifiee status
           if (matchingResult.success && matchingResult.perfectMatch) {
@@ -220,20 +224,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               .eq('id', resolvedParams.id)
 
             if (statusUpdateError) {
-              console.warn("⚠️ Could not update intervention status:", statusUpdateError)
+              logger.warn({ statusUpdateError: statusUpdateError }, "⚠️ Could not update intervention status:")
             } else {
-              console.log("✅ Intervention status updated to 'planifiee' with scheduled date/time")
+              logger.info("✅ Intervention status updated to 'planifiee' with scheduled date/time")
             }
           }
         } else {
-          console.warn("⚠️ Matching API call failed:", await matchingResponse.text())
+          const errorText = await matchingResponse.text()
+          logger.warn({ errorText }, "⚠️ Matching API call failed")
         }
       } catch (matchingError) {
-        console.warn("⚠️ Error during automatic matching:", matchingError)
+        logger.warn({ error: matchingError }, "⚠️ Error during automatic matching:")
         // Don't fail the availability save for matching errors
       }
     } else {
-      console.log("ℹ️ No provider availabilities found, skipping matching")
+      logger.info({}, "ℹ️ No provider availabilities found, skipping matching")
     }
 
     return NextResponse.json({
@@ -243,11 +248,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error("❌ Error in tenant-availability API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in tenant-availability API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,
@@ -259,7 +264,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 // GET endpoint to retrieve tenant's current availabilities
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("✅ GET tenant-availability API route called for intervention:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "✅ GET tenant-availability API route called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -313,7 +318,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .order('start_time', { ascending: true })
 
     if (availError) {
-      console.error("❌ Error fetching tenant availabilities:", availError)
+      logger.error({ error: availError }, "❌ Error fetching tenant availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -326,7 +331,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error("❌ Error in GET tenant-availability API:", error)
+    logger.error({ error: error }, "❌ Error in GET tenant-availability API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur lors de la récupération des disponibilités'

@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,8 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, CheckCircle, Shield, Check, X } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
-
+import { createBrowserSupabaseClient } from "@/lib/services"
+import { logger, logError } from '@/lib/logger'
 interface PasswordCriteria {
   minLength: boolean
   hasUppercase: boolean
@@ -22,7 +21,8 @@ interface PasswordCriteria {
 }
 
 export default function SetPasswordPage() {
-  const [password, setPassword] = useState("")
+  const supabase = createBrowserSupabaseClient()
+  const [_password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -41,17 +41,24 @@ export default function SetPasswordPage() {
 
   useEffect(() => {
     const checkUserPasswordStatus = async () => {
-      console.log('🔐 [SET-PASSWORD] Component mounted, checking user state...')
+      logger.info('🔐 [SET-PASSWORD] Component mounted, checking user state...')
+
+      // ✅ NOUVEAU: Vérifier que l'utilisateur vient d'un callback invitation valide
+      const callbackContext = sessionStorage.getItem('auth_callback_context')
+      if (callbackContext) {
+        logger.info('⚠️ [SET-PASSWORD] Found orphaned callback context, cleaning up')
+        sessionStorage.removeItem('auth_callback_context')
+      }
 
       // Si pas d'utilisateur connecté et pas en cours de chargement, rediriger
       if (!loading && !user) {
-        console.log('❌ [SET-PASSWORD] No authenticated user, redirecting to login')
+        logger.info('❌ [SET-PASSWORD] No authenticated user, redirecting to login')
         router.push('/auth/login?message=session-required')
         return
       }
 
       if (user) {
-        console.log('✅ [SET-PASSWORD] User authenticated:', user.email, 'role:', user.role)
+        logger.info('✅ [SET-PASSWORD] User authenticated:', user.email, 'role:', user.role)
 
         // ✅ SÉCURITÉ: Vérifier que l'utilisateur a vraiment besoin de définir son mot de passe
         let shouldRedirect = user.password_set === true
@@ -70,36 +77,52 @@ export default function SetPasswordPage() {
               const profileData = await response.json()
               if (profileData.success && profileData.user) {
                 shouldRedirect = profileData.user.password_set === true
-                console.log('🔍 [SET-PASSWORD] Retrieved password_set from DB:', profileData.user.password_set)
+                logger.info('🔍 [SET-PASSWORD] Retrieved password_set from DB:', profileData.user.password_set)
               }
             }
           } catch (error) {
-            console.warn('⚠️ [SET-PASSWORD] Failed to check password_set from DB:', error)
+            logger.warn('⚠️ [SET-PASSWORD] Failed to check password_set from DB:', error)
           }
         }
 
         if (shouldRedirect) {
-          console.log('⚠️ [SET-PASSWORD] User already has password set, redirecting to dashboard')
+          logger.info('⚠️ [SET-PASSWORD] User already has password set, redirecting to dashboard')
           const dashboardPath = `/${user.role}/dashboard`
-          router.push(dashboardPath)
+
+          // ✅ SÉCURITÉ: Utiliser router.replace pour éviter retour en arrière
+          router.replace(dashboardPath)
           return
         }
+
+        logger.info('✅ [SET-PASSWORD] User needs to set password, showing form')
       }
     }
 
     checkUserPasswordStatus()
   }, [user, loading, router])
 
+  // ✅ NOUVEAU: Timeout de sécurité - si user reste null après 10s, forcer redirection login
+  useEffect(() => {
+    const securityTimeout = setTimeout(() => {
+      if (!loading && !user) {
+        logger.warn('⚠️ [SET-PASSWORD] Security timeout - no user after 10s, redirecting to login')
+        window.location.href = '/auth/login?reason=timeout'
+      }
+    }, 10000)
+
+    return () => clearTimeout(securityTimeout)
+  }, [user, loading])
+
   useEffect(() => {
     // Vérifier les critères du mot de passe en temps réel
     const newCriteria: PasswordCriteria = {
-      minLength: password.length >= 8,
-      hasUppercase: /[A-Z]/.test(password),
-      hasLowercase: /[a-z]/.test(password),
-      hasNumber: /\d/.test(password)
+      minLength: _password.length >= 8,
+      hasUppercase: /[A-Z]/.test(_password),
+      hasLowercase: /[a-z]/.test(_password),
+      hasNumber: /\d/.test(_password)
     }
     setCriteria(newCriteria)
-  }, [password])
+  }, [_password])
 
   const isPasswordValid = () => {
     return Object.values(criteria).every(criterion => criterion)
@@ -111,7 +134,7 @@ export default function SetPasswordPage() {
     setIsLoading(true)
 
     // Validations
-    if (!password || !confirmPassword) {
+    if (!_password || !confirmPassword) {
       setError("Veuillez remplir tous les champs")
       setIsLoading(false)
       return
@@ -123,26 +146,26 @@ export default function SetPasswordPage() {
       return
     }
 
-    if (password !== confirmPassword) {
+    if (_password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas")
       setIsLoading(false)
       return
     }
 
     try {
-      console.log("🔐 [SET-PASSWORD] Updating user password...")
+      logger.info("🔐 [SET-PASSWORD] Updating user password...")
 
       const { error: updateError } = await supabase.auth.updateUser({
-        password: password
+        password: _password
       })
 
       if (updateError) {
-        console.error("❌ [SET-PASSWORD] Error updating password:", updateError.message)
+        logger.error("❌ [SET-PASSWORD] Error updating password:", updateError.message)
         setError("Erreur lors de la définition du mot de passe : " + updateError.message)
       } else {
-        console.log("✅ [SET-PASSWORD] Password set successfully")
+        logger.info("✅ [SET-PASSWORD] Password set successfully")
 
-        // ✅ NOUVEAU: Marquer password_set à true en base de données
+        // ✅ ÉTAPE 1: Marquer password_set à true en base de données
         try {
           const response = await fetch('/api/update-user-profile', {
             method: 'PATCH',
@@ -151,37 +174,61 @@ export default function SetPasswordPage() {
           })
 
           if (response.ok) {
-            console.log("✅ [SET-PASSWORD] password_set marked as true in database")
+            logger.info("✅ [SET-PASSWORD] password_set marked as true in database")
           } else {
-            console.warn("⚠️ [SET-PASSWORD] Failed to update password_set in database")
+            logger.warn("⚠️ [SET-PASSWORD] Failed to update password_set in database")
           }
         } catch (dbError) {
-          console.warn("⚠️ [SET-PASSWORD] Error updating password_set:", dbError)
+          logger.warn("⚠️ [SET-PASSWORD] Error updating password_set:", dbError)
         }
+
+        // ✅ ÉTAPE 2: Mettre à jour statut invitation si applicable
+        try {
+          const invitationResponse = await fetch('/api/accept-invitation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          })
+
+          if (invitationResponse.ok) {
+            logger.info("✅ [SET-PASSWORD] Invitation marked as accepted")
+          } else {
+            logger.warn("⚠️ [SET-PASSWORD] Failed to update invitation status (non-blocking)")
+          }
+        } catch (invError) {
+          logger.warn("⚠️ [SET-PASSWORD] Error updating invitation:", invError)
+        }
+
+        // ✅ CORRECTIF (2025-10-07): Attendre propagation Supabase
+        logger.info("⏳ [SET-PASSWORD] Waiting for session propagation...")
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Vérifier que la session est bien mise à jour
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          logger.error("❌ [SET-PASSWORD] Session lost after password update")
+          setError("Session perdue. Veuillez vous reconnecter.")
+          setIsLoading(false)
+          return
+        }
+
+        logger.info("✅ [SET-PASSWORD] Session still valid after password update")
 
         setIsCompleted(true)
         setError("")
 
-        // ✅ Refresh user data pour s'assurer de la synchronisation, puis rediriger après 1 seconde
-        try {
-          await refreshUser()
-          console.log("✅ [SET-PASSWORD] User data refreshed")
-        } catch (refreshError) {
-          console.warn("⚠️ [SET-PASSWORD] Failed to refresh user data:", refreshError)
-        }
-
+        // ✅ CORRECTIF (2025-10-07): Hard redirect avec window.location (bypass Next.js cache)
         setTimeout(() => {
           if (user?.role) {
             const dashboardPath = `/${user.role}/dashboard`
-            console.log("🔄 [SET-PASSWORD] Redirecting to dashboard:", dashboardPath)
-            router.push(dashboardPath)
+            logger.info("🔄 [SET-PASSWORD] Hard redirect to dashboard:", dashboardPath)
+            window.location.href = dashboardPath  // Hard redirect au lieu de router.push
           } else {
-            router.push('/auth/login')
+            window.location.href = '/auth/login'
           }
-        }, 1000)
+        }, 1500)  // Augmenté à 1.5s pour laisser temps à la session de se propager
       }
     } catch (error) {
-      console.error("❌ [SET-PASSWORD] Unexpected error:", error)
+      logger.error("❌ [SET-PASSWORD] Unexpected error:", error)
       setError("Une erreur inattendue s'est produite. Veuillez réessayer.")
     } finally {
       setIsLoading(false)
@@ -235,7 +282,11 @@ export default function SetPasswordPage() {
               <Button
                 onClick={() => {
                   if (user?.role) {
-                    router.push(`/${user.role}/dashboard`)
+                    const dashboardPath = `/${user.role}/dashboard`
+                    logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
+                    window.location.href = dashboardPath  // Hard redirect
+                  } else {
+                    window.location.href = '/auth/login'
                   }
                 }}
                 className="w-full bg-sky-600 hover:bg-sky-700 text-white"
@@ -295,7 +346,7 @@ export default function SetPasswordPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Votre mot de passe"
-                    value={password}
+                    value={_password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="bg-white border-slate-200 pr-10"
                     required
@@ -367,7 +418,7 @@ export default function SetPasswordPage() {
                     )}
                   </Button>
                 </div>
-                {confirmPassword && password !== confirmPassword && (
+                {confirmPassword && _password !== confirmPassword && (
                   <p className="text-xs text-red-600">Les mots de passe ne correspondent pas</p>
                 )}
               </div>
@@ -375,7 +426,7 @@ export default function SetPasswordPage() {
               <Button
                 type="submit"
                 className="w-full bg-sky-600 hover:bg-sky-700 text-white"
-                disabled={isLoading || !isPasswordValid() || password !== confirmPassword}
+                disabled={isLoading || !isPasswordValid() || _password !== confirmPassword}
               >
                 {isLoading ? "Configuration..." : "Définir le mot de passe"}
               </Button>

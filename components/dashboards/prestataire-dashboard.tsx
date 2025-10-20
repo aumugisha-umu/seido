@@ -1,9 +1,10 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Wrench, MapPin, Clock, CheckCircle, AlertCircle, Archive, Calendar, FileText, Euro } from "lucide-react"
+import { Wrench, Clock, AlertCircle, Archive } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
@@ -18,12 +19,21 @@ import { InterventionsList } from "@/components/interventions/interventions-list
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { PendingActionsCard } from "@/components/shared/pending-actions-card"
-
+import { logger, logError } from '@/lib/logger'
 export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { stats, interventions, urgentInterventions, loading, error } = usePrestataireData(user?.id || '')
+  const { interventions, loading, error } = usePrestataireData(user?.id || '')
+
+  // 🎯 FIX: Pattern "mounted" pour éviter l'erreur d'hydration React
+  // Le composant "use client" est pré-rendu côté serveur dans Next.js 15/React 19
+  // On doit s'assurer que le rendu initial est identique entre serveur et client
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
@@ -45,7 +55,9 @@ export default function PrestataireDashboard() {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
 
-  if (loading) {
+  // 🎯 FIX: Afficher skeleton si pas encore monté OU si loading
+  // Garantit que serveur et client rendent la même chose initialement
+  if (!mounted || loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="animate-pulse">
@@ -96,7 +108,7 @@ export default function PrestataireDashboard() {
         "demande_de_devis",          // Demandes de devis (nouvellement ajouté)
         "devis-a-fournir",           // Devis à fournir (mappé depuis demande_de_devis)
         "planification",             // Phase de planification des dates
-        "programmee",                // Dates planifiées, prêt à exécuter (mappé depuis planifiee)
+        "planifiee",                 // Dates planifiées, prêt à exécuter
         "en_cours"                   // Intervention en cours d'exécution
       ].includes(i.status))
     } else if (tabId === "cloturees") {
@@ -131,16 +143,6 @@ export default function PrestataireDashboard() {
     )
   }
 
-  // Get pending actions count for summary card (excluding quote requests which have their own section)
-  // ⚠️ IMPORTANT: Utiliser les statuts FRONTEND mappés par le hook usePrestataireData
-  const getPendingActionsCount = () => {
-    return interventions.filter((i) => [
-      "devis-a-fournir",     // Devis à fournir (mappé depuis demande_de_devis) - Legacy, devrait être demande_de_devis
-      "planification",       // Planification à faire
-      "programmee",          // Prêt à commencer (mappé depuis planifiee)
-      "en_cours"             // En cours d'exécution
-    ].includes(i.status)).length
-  }
 
   // Tabs configuration pour les prestataires
   const interventionsTabsConfig = [
@@ -167,7 +169,7 @@ export default function PrestataireDashboard() {
         "devis-a-fournir",
         "demande_de_devis",
         "planification",
-        "programmee",
+        "planifiee",
         "en_cours"
       ].includes(intervention.status))
       .map((intervention) => ({
@@ -198,8 +200,7 @@ export default function PrestataireDashboard() {
         <div className="text-center lg:text-left mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user?.name} 👋</h1>
-              <p className="text-slate-600">Gérez vos interventions assignées</p>
+              <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user?.first_name} 👋</h1>
             </div>
             <div className="flex justify-center lg:justify-end">
               <Button
@@ -235,7 +236,7 @@ export default function PrestataireDashboard() {
             tabs={interventionsTabsConfig}
             defaultTab="en_cours"
             searchPlaceholder="Rechercher par titre, description, ou référence..."
-            onSearch={(value) => console.log("Recherche:", value)}
+            onSearch={(value) => logger.info("Recherche:", value)}
           />
         </section>
       </div>

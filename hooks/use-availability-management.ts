@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-
+import { logger, logError } from '@/lib/logger'
 export interface UserAvailability {
   id?: string
   date: string
@@ -111,7 +111,7 @@ export interface AvailabilityData {
   }
 }
 
-export const useAvailabilityManagement = (interventionId: string) => {
+export const useAvailabilityManagement = (_interventionId: string) => {
   // État des données
   const [data, setData] = useState<AvailabilityData | null>(null)
   const [matchingResult, setMatchingResult] = useState<MatchingResult | null>(null)
@@ -145,7 +145,7 @@ export const useAvailabilityManagement = (interventionId: string) => {
       }
 
       setData(result)
-      setUserAvailabilities(result.userAvailabilities.map((avail: any) => ({
+      setUserAvailabilities(result.userAvailabilities.map((_avail: unknown) => ({
         id: avail.id,
         date: avail.date,
         startTime: avail.start_time ? avail.start_time.substring(0, 5) : avail.start_time, // Normalize HH:MM:SS → HH:MM
@@ -153,7 +153,7 @@ export const useAvailabilityManagement = (interventionId: string) => {
       })))
 
     } catch (err) {
-      console.error('Error loading availabilities:', err)
+      logger.error('Error loading availabilities:', err)
       setError(err instanceof Error ? err.message : 'Erreur de chargement')
     } finally {
       setIsLoading(false)
@@ -194,7 +194,7 @@ export const useAvailabilityManagement = (interventionId: string) => {
       return true
 
     } catch (err) {
-      console.error('Error saving availabilities:', err)
+      logger.error('Error saving availabilities:', err)
       setError(err instanceof Error ? err.message : 'Erreur de sauvegarde')
       return false
     } finally {
@@ -232,7 +232,7 @@ export const useAvailabilityManagement = (interventionId: string) => {
       return true
 
     } catch (err) {
-      console.error('Error running matching:', err)
+      logger.error('Error running matching:', err)
       setError(err instanceof Error ? err.message : 'Erreur de matching')
       return false
     } finally {
@@ -278,7 +278,7 @@ export const useAvailabilityManagement = (interventionId: string) => {
       return true
 
     } catch (err) {
-      console.error('Error selecting slot:', err)
+      logger.error('Error selecting slot:', err)
       setError(err instanceof Error ? err.message : 'Erreur de sélection')
       return false
     } finally {

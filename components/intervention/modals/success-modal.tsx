@@ -15,7 +15,6 @@ export const SuccessModal = ({
   isOpen,
   onClose,
   action,
-  interventionTitle,
 }: SuccessModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

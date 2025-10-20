@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  console.log("❌ intervention-reject API route called")
+  logger.info({}, "❌ intervention-reject API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   
   try {
     // Initialize Supabase client
@@ -56,7 +62,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Rejecting intervention:", interventionId, "Reason:", rejectionReason)
+    logger.info({ interventionId, rejectionReason }, "📝 Rejecting intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -87,7 +93,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("🔄 Updating intervention status to 'rejetee'...")
+    logger.info("🔄 Updating intervention status to 'rejetee'...")
 
     // Build manager comment with rejection reason and internal comment
     const managerCommentParts = [`REJETÉ: ${rejectionReason}`]
@@ -126,7 +132,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     })
 
-    console.log("❌ Intervention rejected successfully")
+    logger.info({}, "❌ Intervention rejected successfully")
 
     // Send notifications with proper logic (personal/team)
     try {
@@ -137,9 +143,9 @@ export async function POST(request: NextRequest) {
         user.id,
         rejectionReason // Pass the rejection reason
       )
-      console.log("📧 Rejection notifications sent with proper logic")
+      logger.info({}, "📧 Rejection notifications sent with proper logic")
     } catch (notifError) {
-      console.warn("⚠️ Could not send notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send notifications:")
       // Don't fail the rejection for notification errors
     }
 
@@ -156,11 +162,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-reject API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-reject API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

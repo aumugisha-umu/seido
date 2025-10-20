@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, Calendar, MessageSquare, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { logger, logError } from '@/lib/logger'
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
-  isBuildingWideIntervention,
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
@@ -25,16 +25,25 @@ interface Provider {
   provider_category?: string
 }
 
+interface InterventionForQuote {
+  id: string
+  title: string
+  description?: string
+  type?: string
+  urgency?: string
+  created_at: string
+}
+
 interface QuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  intervention: any | null
+  intervention: InterventionForQuote | null
   deadline: string
   additionalNotes: string
   selectedProviderId: string
   providers: Provider[]
-  onDeadlineChange: (deadline: string) => void
-  onNotesChange: (notes: string) => void
+  onDeadlineChange: (_deadline: string) => void
+  onNotesChange: (_notes: string) => void
   onProviderSelect: (providerId: string, providerName: string) => void
   onSubmit: () => void
   isLoading: boolean
@@ -90,7 +99,7 @@ export const QuoteRequestModal = ({
 
     // Logique de fallback : si aucun prestataire ne correspond au filtrage, afficher tous les prestataires
     if (relevantProviders.length === 0 && providers.length > 0) {
-      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+      logger.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
       setFilteredProviders(providers)
     } else {
       setFilteredProviders(relevantProviders)

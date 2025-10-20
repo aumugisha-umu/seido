@@ -6,36 +6,39 @@ import {
   XCircle,
   Calendar,
   Play,
-  Pause,
   Clock,
   UserCheck,
-  Settings,
   AlertTriangle,
-  MessageSquare,
+  AlertCircle,
   TrendingUp,
   FileText,
   Euro,
   Edit3,
-  Trash2
+  Trash2,
+  Edit
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getActionStyling as getActionStylingFromLib } from "@/lib/intervention-action-styles"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { interventionActionsService } from "@/lib/intervention-actions-service"
+import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
 import { WorkCompletionReport } from "./work-completion-report"
+import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
 import { TenantValidationForm } from "./tenant-validation-form"
-import { ManagerFinalizationForm } from "./manager-finalization-form"
+import { FinalizationModalLive } from "./finalization-modal-live"
+import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useAuth } from "@/hooks/use-auth"
-import { QuoteRequestModal } from "./modals/quote-request-modal"
 import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { WorkCompletionReportData, TenantValidationData, ManagerFinalizationData } from "./closure/types"
-
+import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
+import type { SimpleWorkCompletionData } from "./closure/simple-types"
+import { logger, logError } from '@/lib/logger'
 interface InterventionActionPanelHeaderProps {
   intervention: {
     id: string
@@ -44,20 +47,38 @@ interface InterventionActionPanelHeaderProps {
     tenant_id?: string
     scheduled_date?: string
     quotes?: Quote[]
+    availabilities?: Array<{
+      person: string
+      role: string
+      date: string
+      startTime: string
+      endTime: string
+      userId?: string
+    }>
   }
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
   userId: string
-  onActionComplete?: () => void
+  onActionComplete?: (navigateToTab?: string) => void
   onOpenQuoteModal?: () => void
-  onCancelQuote?: (quoteId: string) => void
+  onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
+  onRejectQuoteRequest?: (_quote: Quote) => void
+  onProposeSlots?: () => void
+  timeSlots?: Array<{
+    id: string
+    slot_date: string
+    start_time: string
+    end_time: string
+    status?: string
+    proposed_by?: string
+  }>
 }
 
 interface ActionConfig {
   key: string
   label: string
-  icon: React.ComponentType<any>
-  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'
+  icon: React.ComponentType<{ className?: string }>
+  variant?: 'default' | 'destructive' | 'outline' | 'outlined-danger' | 'secondary' | 'ghost' // Optional: getActionStyling() calculates this automatically
   description: string
   requiresComment?: boolean
   confirmationMessage?: string
@@ -77,7 +98,10 @@ export function InterventionActionPanelHeader({
   onActionComplete,
   onOpenQuoteModal,
   onCancelQuote,
-  onCancelIntervention
+  onCancelIntervention,
+  onRejectQuoteRequest,
+  onProposeSlots,
+  timeSlots = []
 }: InterventionActionPanelHeaderProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -87,8 +111,10 @@ export function InterventionActionPanelHeader({
 
   // States for closure modals
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
+  const [showSimpleWorkCompletionModal, setShowSimpleWorkCompletionModal] = useState(false)
   const [showTenantValidationModal, setShowTenantValidationModal] = useState(false)
-  const [showManagerFinalizationModal, setShowManagerFinalizationModal] = useState(false)
+  const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
+  const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
 
   // Hook for quote management
   const quoting = useInterventionQuoting()
@@ -97,60 +123,32 @@ export function InterventionActionPanelHeader({
   // Fonction pour détecter le devis existant du prestataire connecté
   const getCurrentUserQuote = () => {
     if (userRole !== 'prestataire' || !intervention.quotes) return null
-    return intervention.quotes.find(quote =>
-      quote.isCurrentUserQuote &&
-      (quote.status === 'pending' || quote.status === 'approved')
-    )
+    return intervention.quotes.find(quote => quote.isCurrentUserQuote)
   }
 
   const currentUserQuote = getCurrentUserQuote()
 
-  // Fonction de mapping couleurs selon le Design System
+  // Use centralized Material Design 3 based action styling
   const getActionStyling = (actionKey: string, userRole: string) => {
-    // Types d'actions selon le Design System
-    const actionTypes = {
-      // Actions positives (succès, validation)
-      positive: ['approve', 'validate_work', 'finalize', 'complete_work', 'start_work', 'confirm_slot'],
-      // Actions destructives (suppression, rejet, annulation)
-      destructive: ['reject', 'cancel', 'contest_work', 'delete', 'reject_schedule', 'cancel_quote'],
-      // Actions neutres (planification, demande, gestion)
-      neutral: ['request_quotes', 'start_planning', 'plan_intervention', 'schedule', 'manage_quotes', 'submit_quote', 'run_matching', 'propose_slots', 'add_availabilities', 'modify_schedule', 'reschedule', 'pause_work', 'edit_quote'],
-      // Actions informatives (consultation)
-      informative: ['view', 'consult', 'check', 'view_quote']
+    return getActionStylingFromLib(actionKey, userRole as 'gestionnaire' | 'locataire' | 'prestataire')
+  }
+
+  // Fonction helper pour filtrer les disponibilités selon les devis approuvés
+  const getFilteredAvailabilitiesForModal = () => {
+    // Si pas de disponibilités du tout, retourner tableau vide
+    if (!intervention.availabilities) {
+      return []
     }
 
-    // Déterminer le type d'action
-    let actionType = 'neutral' // par défaut
-    for (const [type, actions] of Object.entries(actionTypes)) {
-      if (actions.includes(actionKey)) {
-        actionType = type
-        break
-      }
-    }
+    // Important : passer quotes même si undefined/null
+    // La fonction getValidAvailabilities gère correctement ce cas
+    const { filteredAvailabilities } = getValidAvailabilities(
+      intervention.availabilities,
+      intervention.quotes || [], // Passer un tableau vide si quotes est undefined
+      'locataire'
+    )
 
-    // Mapping selon le rôle et le type d'action
-    const styleMapping = {
-      locataire: {
-        positive: { variant: 'default' as const, className: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500' },
-        destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
-        informative: { variant: 'ghost' as const, className: '' }
-      },
-      gestionnaire: {
-        positive: { variant: 'default' as const, className: 'bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500' },
-        destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
-        informative: { variant: 'ghost' as const, className: '' }
-      },
-      prestataire: {
-        positive: { variant: 'default' as const, className: 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500' },
-        destructive: { variant: 'destructive' as const, className: '' },
-        neutral: { variant: 'secondary' as const, className: '' },
-        informative: { variant: 'ghost' as const, className: '' }
-      }
-    }
-
-    return styleMapping[userRole]?.[actionType] || { variant: 'secondary' as const, className: '' }
+    return filteredAvailabilities
   }
 
   // Définir les actions disponibles selon le statut et le rôle
@@ -165,7 +163,6 @@ export function InterventionActionPanelHeader({
               key: 'approve',
               label: 'Approuver',
               icon: CheckCircle,
-              variant: 'default',
               description: 'Approuver cette demande d\'intervention',
               requiresComment: false,
               confirmationMessage: 'Êtes-vous sûr de vouloir approuver cette intervention ?'
@@ -174,7 +171,6 @@ export function InterventionActionPanelHeader({
               key: 'reject',
               label: 'Rejeter',
               icon: XCircle,
-              variant: 'destructive',
               description: 'Rejeter cette demande avec un motif',
               requiresComment: true,
               confirmationMessage: 'Cette intervention sera rejetée. Veuillez indiquer le motif.'
@@ -190,14 +186,12 @@ export function InterventionActionPanelHeader({
               key: 'request_quotes',
               label: 'Demander des devis',
               icon: FileText,
-              variant: 'default',
               description: 'Solliciter des devis auprès de prestataires'
             },
             {
               key: 'start_planning',
               label: 'Organiser la planification',
               icon: Calendar,
-              variant: 'outline',
               description: 'Commencer le processus de planification'
             }
           )
@@ -238,29 +232,65 @@ export function InterventionActionPanelHeader({
           if (currentUserQuote) {
             // Le prestataire a déjà un devis en cours
             if (currentUserQuote.status === 'pending') {
+              // Vérifier si c'est une demande créée par gestionnaire (amount = 0)
+              // ou un devis déjà soumis en attente d'approbation (amount > 0)
+              const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
+
+              if (isQuoteRequest) {
+                // Demande de devis : le prestataire peut rejeter ou soumettre
+                actions.push(
+                  {
+                    key: 'reject_quote_request',
+                    label: 'Rejeter la demande',
+                    icon: XCircle,
+                    description: 'Rejeter cette demande de devis'
+                  },
+                  {
+                    key: 'submit_quote',
+                    label: 'Soumettre un devis',
+                    icon: FileText,
+                    description: 'Soumettre votre devis pour cette intervention'
+                  }
+                )
+              } else {
+                // Devis déjà soumis : le prestataire peut le modifier
+                actions.push(
+                  {
+                    key: 'edit_quote',
+                    label: 'Modifier le devis',
+                    icon: Edit3,
+                    description: 'Modifier votre devis en attente d\'évaluation'
+                  },
+                  {
+                    key: 'cancel_quote',
+                    label: 'Annuler le devis',
+                    icon: Trash2,
+                    description: 'Annuler votre devis actuel'
+                  }
+                )
+              }
+            } else if (currentUserQuote.status === 'sent') {
+              // Devis envoyé : le prestataire peut le modifier ou l'annuler
               actions.push(
                 {
                   key: 'edit_quote',
                   label: 'Modifier le devis',
                   icon: Edit3,
-                  variant: 'default',
-                  description: 'Modifier votre devis en attente d\'évaluation'
+                  description: 'Modifier votre devis envoyé'
                 },
                 {
                   key: 'cancel_quote',
                   label: 'Annuler le devis',
                   icon: Trash2,
-                  variant: 'destructive',
-                  description: 'Annuler votre devis actuel'
+                  description: 'Annuler votre devis'
                 }
               )
-            } else if (currentUserQuote.status === 'approved') {
+            } else if (currentUserQuote.status === 'accepted') {
               // Devis approuvé - actions limitées
               actions.push({
                 key: 'view_quote',
                 label: 'Voir le devis',
                 icon: FileText,
-                variant: 'outline',
                 description: 'Consulter votre devis approuvé'
               })
             }
@@ -270,7 +300,6 @@ export function InterventionActionPanelHeader({
               key: 'submit_quote',
               label: 'Soumettre un devis',
               icon: FileText,
-              variant: 'default',
               description: 'Proposer votre devis pour cette intervention'
             })
           }
@@ -279,52 +308,58 @@ export function InterventionActionPanelHeader({
 
       case 'planification':
         if (userRole === 'gestionnaire') {
-          actions.push(
-            {
-              key: 'run_matching',
-              label: 'Lancer le matching',
-              icon: TrendingUp,
-              variant: 'default',
-              description: 'Trouver automatiquement les créneaux compatibles'
-            },
-            {
-              key: 'propose_slots',
-              label: 'Proposer des créneaux',
-              icon: Clock,
-              variant: 'outline',
-              description: 'Proposer manuellement des créneaux'
-            }
-          )
+          const hasTimeSlots = timeSlots && timeSlots.length > 0
+          actions.push({
+            key: 'propose_slots',
+            label: hasTimeSlots ? 'Modifier la planification' : 'Planifier',
+            icon: hasTimeSlots ? Edit : Clock,
+            description: hasTimeSlots ? 'Modifier la planification existante' : 'Planifier l\'intervention'
+          })
         }
         if (userRole === 'locataire') {
           actions.push({
             key: 'confirm_slot',
             label: 'Valider un créneau',
             icon: CheckCircle,
-            variant: 'default',
             description: 'Confirmer un créneau proposé'
           })
         }
         if (userRole === 'prestataire') {
-          actions.push({
-            key: 'add_availabilities',
-            label: 'Ajouter mes disponibilités',
-            icon: Calendar,
-            variant: 'outline',
-            description: 'Saisir vos créneaux de disponibilité'
-          })
+          // Check if there are any slots with status 'pending' OR 'requested'
+          // 'requested' = proposed by gestionnaire
+          // 'pending' = proposed by prestataire/locataire
+          const hasPendingSlots = timeSlots?.some(slot =>
+            slot.status === 'pending' || slot.status === 'requested'
+          )
+
+          if (hasPendingSlots) {
+            // There are pending/requested slots - show confirm action
+            actions.push({
+              key: 'confirm_availabilities',
+              label: 'Confirmer disponibilités',
+              icon: CheckCircle,
+              description: 'Valider ou rejeter les créneaux proposés'
+            })
+          } else {
+            // No pending slots - show add action
+            actions.push({
+              key: 'add_availabilities',
+              label: 'Ajouter mes disponibilités',
+              icon: Calendar,
+              description: 'Saisir vos créneaux de disponibilité'
+            })
+          }
         }
         break
 
       case 'planifiee':
         if (userRole === 'prestataire') {
           actions.push({
-            key: 'start_work',
-            label: 'Commencer l\'intervention',
-            icon: Play,
+            key: 'complete_work',
+            label: 'Marquer comme terminé',
+            icon: CheckCircle,
             variant: 'default',
-            description: 'Marquer le début des travaux',
-            confirmationMessage: 'Confirmer le début de l\'intervention ?'
+            description: 'Signaler la fin des travaux'
           })
         }
         if (userRole === 'locataire' && intervention.tenant_id === userId) {
@@ -333,14 +368,12 @@ export function InterventionActionPanelHeader({
               key: 'modify_schedule',
               label: 'Modifier le créneau',
               icon: Calendar,
-              variant: 'outline',
               description: 'Modifier le créneau planifié'
             },
             {
               key: 'reject_schedule',
               label: 'Rejeter la planification',
               icon: XCircle,
-              variant: 'destructive',
               description: 'Rejeter le créneau proposé',
               requiresComment: true,
               confirmationMessage: 'Cette planification sera rejetée et devra être refaite.'
@@ -352,7 +385,6 @@ export function InterventionActionPanelHeader({
             key: 'reschedule',
             label: 'Replanifier',
             icon: Calendar,
-            variant: 'outline',
             description: 'Modifier la planification'
           })
         }
@@ -364,20 +396,15 @@ export function InterventionActionPanelHeader({
             key: 'complete_work',
             label: 'Marquer comme terminé',
             icon: CheckCircle,
-            variant: 'default',
-            description: 'Signaler la fin des travaux',
-            requiresComment: true,
-            confirmationMessage: 'Confirmer la fin des travaux ?'
+            description: 'Signaler la fin des travaux'
           })
         }
         if (userRole === 'gestionnaire') {
           actions.push({
-            key: 'pause_work',
-            label: 'Suspendre',
-            icon: Pause,
-            variant: 'outline',
-            description: 'Suspendre temporairement l\'intervention',
-            requiresComment: true
+            key: 'complete_work',
+            label: 'Marquer comme terminé',
+            icon: CheckCircle,
+            description: 'Marquer l\'intervention comme terminée'
           })
         }
         break
@@ -389,7 +416,6 @@ export function InterventionActionPanelHeader({
               key: 'validate_work',
               label: 'Valider les travaux',
               icon: CheckCircle,
-              variant: 'default',
               description: 'Confirmer que les travaux sont satisfaisants',
               requiresComment: false,
               confirmationMessage: 'Confirmer que les travaux sont bien terminés ?'
@@ -398,12 +424,20 @@ export function InterventionActionPanelHeader({
               key: 'contest_work',
               label: 'Contester',
               icon: AlertTriangle,
-              variant: 'destructive',
               description: 'Signaler un problème avec les travaux',
               requiresComment: true,
               confirmationMessage: 'Signaler un problème nécessitera une révision.'
             }
           )
+        }
+        if (userRole === 'gestionnaire') {
+          actions.push({
+            key: 'finalize',
+            label: 'Finaliser',
+            icon: UserCheck,
+            description: 'Clôturer définitivement l\'intervention',
+            requiresComment: false
+          })
         }
         break
 
@@ -411,12 +445,10 @@ export function InterventionActionPanelHeader({
         if (userRole === 'gestionnaire') {
           actions.push({
             key: 'finalize',
-            label: 'Finaliser définitivement',
+            label: 'Finaliser',
             icon: UserCheck,
-            variant: 'default',
             description: 'Clôturer définitivement l\'intervention',
-            requiresComment: false,
-            confirmationMessage: 'Cette action finalisera définitivement l\'intervention.'
+            requiresComment: false
           })
         }
         break
@@ -429,7 +461,6 @@ export function InterventionActionPanelHeader({
           key: 'cancel',
           label: 'Annuler',
           icon: XCircle,
-          variant: 'destructive',
           description: 'Annuler cette intervention',
           requiresComment: true,
           confirmationMessage: 'Cette intervention sera annulée.'
@@ -520,6 +551,13 @@ export function InterventionActionPanelHeader({
           }
           return
 
+        case 'reject_quote_request':
+          // Ouvrir la modale de rejet de demande de devis
+          if (currentUserQuote && onRejectQuoteRequest) {
+            onRejectQuoteRequest(currentUserQuote)
+          }
+          return
+
         case 'cancel_quote':
           // Annuler le devis existant
           if (currentUserQuote && onCancelQuote) {
@@ -534,6 +572,27 @@ export function InterventionActionPanelHeader({
 
         case 'start_planning':
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=planning`
+          return
+
+        case 'propose_slots':
+          // Ouvrir la modale de programmation si callback fourni
+          if (onProposeSlots) {
+            onProposeSlots()
+            return
+          }
+          // Fallback vers onglet time-slots
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          return
+
+        case 'confirm_availabilities':
+          // Navigate to execution tab to confirm/reject slots
+          onActionComplete?.('execution')
+          return
+
+        case 'add_availabilities':
+        case 'reschedule':
+          // Rediriger vers l'onglet Créneaux pour gérer la planification
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
           return
 
         case 'start_work':
@@ -557,7 +616,7 @@ export function InterventionActionPanelHeader({
           break
 
         case 'complete_work':
-          setShowWorkCompletionModal(true)
+          setShowSimpleWorkCompletionModal(true)
           return
 
         case 'validate_work':
@@ -566,7 +625,12 @@ export function InterventionActionPanelHeader({
           return
 
         case 'finalize':
-          setShowManagerFinalizationModal(true)
+          setShowSimplifiedFinalizationModal(true)
+          return
+
+        case 'confirm_slot':
+          // Ouvrir la modale de confirmation de créneau
+          setShowSlotConfirmationModal(true)
           return
 
         case 'cancel':
@@ -597,7 +661,7 @@ export function InterventionActionPanelHeader({
       }
 
     } catch (err) {
-      console.error('Error executing action:', err)
+      logger.error('Error executing action:', err)
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
     } finally {
       setIsProcessing(false)
@@ -646,8 +710,44 @@ export function InterventionActionPanelHeader({
         setError(errorData.error || 'Erreur lors de la soumission du rapport')
         return false
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erreur lors de la soumission du rapport')
+      return false
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Handler for simple work completion
+  const handleSimpleWorkCompletion = async (data: SimpleWorkCompletionData): Promise<boolean> => {
+    try {
+      setIsProcessing(true)
+
+      // Map modal data to intervention-complete API format
+      const completionData = {
+        interventionId: intervention.id,
+        workDescription: data.workReport,
+        completionNotes: data.workReport
+        // mediaFiles upload deferred to later implementation
+      }
+
+      const response = await fetch(`/api/intervention-complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(completionData)
+      })
+
+      if (response.ok) {
+        setShowSimpleWorkCompletionModal(false)
+        onActionComplete?.()
+        return true
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Erreur lors de la finalisation de l\'intervention')
+        return false
+      }
+    } catch (_error) {
+      setError('Erreur lors de la finalisation de l\'intervention')
       return false
     } finally {
       setIsProcessing(false)
@@ -674,7 +774,7 @@ export function InterventionActionPanelHeader({
         setError(errorData.error || 'Erreur lors de la validation')
         return false
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erreur lors de la validation')
       return false
     } finally {
@@ -682,29 +782,24 @@ export function InterventionActionPanelHeader({
     }
   }
 
-  // Handler for manager finalization
-  const handleManagerFinalization = async (finalizationData: ManagerFinalizationData): Promise<boolean> => {
+
+  // Handler for slot confirmation
+  const handleSlotConfirmation = async (selectedSlot: { date: string; startTime: string; endTime: string; }, comment?: string): Promise<void> => {
     try {
       setIsProcessing(true)
+      setError(null)
 
-      const response = await fetch(`/api/intervention/${intervention.id}/manager-finalization`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalizationData)
-      })
+      const result = await interventionActionsService.confirmSlot(intervention.id, selectedSlot, comment)
 
-      if (response.ok) {
-        setShowManagerFinalizationModal(false)
+      if (result.success) {
+        setShowSlotConfirmationModal(false)
         onActionComplete?.()
-        return true
       } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'Erreur lors de la finalisation')
-        return false
+        throw new Error(result.error || 'Erreur lors de la confirmation du créneau')
       }
     } catch (error) {
-      setError('Erreur lors de la finalisation')
-      return false
+      setError(error instanceof Error ? error.message : 'Erreur lors de la confirmation du créneau')
+      throw error
     } finally {
       setIsProcessing(false)
     }
@@ -720,8 +815,15 @@ export function InterventionActionPanelHeader({
   return (
     <>
       {/* Actions principales en boutons */}
-      <div className="flex flex-col items-end space-y-1">
-        <span className="text-xs text-slate-600 font-medium">Actions en attente</span>
+      <div className="flex flex-col items-end space-y-2">
+        {availableActions.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-700" />
+            <span className="text-sm text-amber-900 font-semibold">
+              Action en attente
+            </span>
+          </div>
+        )}
         <div className="flex items-center space-x-2">
           {availableActions.map((action) => {
             const IconComponent = action.icon
@@ -852,6 +954,15 @@ export function InterventionActionPanelHeader({
         isLoading={isProcessing}
       />
 
+      {/* Simple Work Completion Modal */}
+      <SimpleWorkCompletionModal
+        intervention={intervention}
+        isOpen={showSimpleWorkCompletionModal}
+        onClose={() => setShowSimpleWorkCompletionModal(false)}
+        onSubmit={handleSimpleWorkCompletion}
+        isLoading={isProcessing}
+      />
+
       {/* Tenant Validation Modal */}
       <TenantValidationForm
         intervention={intervention}
@@ -861,13 +972,22 @@ export function InterventionActionPanelHeader({
         isLoading={isProcessing}
       />
 
-      {/* Manager Finalization Modal */}
-      <ManagerFinalizationForm
-        intervention={intervention}
-        isOpen={showManagerFinalizationModal}
-        onClose={() => setShowManagerFinalizationModal(false)}
-        onSubmit={handleManagerFinalization}
-        isLoading={isProcessing}
+      {/* Finalization Modal - Live (Connected to DB) */}
+      <FinalizationModalLive
+        interventionId={intervention.id}
+        isOpen={showSimplifiedFinalizationModal}
+        onClose={() => setShowSimplifiedFinalizationModal(false)}
+        onComplete={onActionComplete}
+      />
+
+      {/* Tenant Slot Confirmation Modal */}
+      <TenantSlotConfirmationModal
+        isOpen={showSlotConfirmationModal}
+        onClose={() => setShowSlotConfirmationModal(false)}
+        availabilities={getFilteredAvailabilitiesForModal()}
+        interventionTitle={intervention.title}
+        onConfirm={handleSlotConfirmation}
+        loading={isProcessing}
       />
 
       {/* Quote Request Modals */}
@@ -876,12 +996,13 @@ export function InterventionActionPanelHeader({
         onClose={quoting.closeQuoteRequestModal}
         intervention={quoting.quoteRequestModal.intervention}
         providers={quoting.providers}
+        ineligibleProviders={quoting.ineligibleProviders}
         selectedProviders={quoting.formData.selectedProviders}
         selectedProviderIds={quoting.formData.providerIds}
         additionalNotes={quoting.formData.additionalNotes}
         individualMessages={quoting.formData.individualMessages}
         onProviderToggle={quoting.toggleProvider}
-        onNotesChange={(additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
+        onNotesChange={(_additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
         onIndividualMessageChange={quoting.updateIndividualMessage}
         onSubmit={quoting.submitQuoteRequest}
         isLoading={quoting.isLoading}

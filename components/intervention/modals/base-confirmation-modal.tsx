@@ -11,6 +11,7 @@ interface BaseConfirmationModalProps {
   onConfirm: () => void
   intervention: InterventionAction | null
   title: string
+  message?: string
   confirmText: string
   confirmVariant?: "approve" | "reject" | "default"
   isLoading?: boolean
@@ -29,7 +30,7 @@ export const BaseConfirmationModal = ({
   isLoading = false,
   children,
 }: BaseConfirmationModalProps) => {
-  
+
   const getIcon = () => {
     switch (confirmVariant) {
       case "approve":

@@ -1,8 +1,6 @@
 import {
   ArrowLeft,
   Bell,
-  Check,
-  Clock,
   AlertTriangle,
   Info,
   Eye,
@@ -61,8 +59,8 @@ const mockNotifications: Notification[] = [
   },
 ]
 
-function getNotificationIcon(type: string) {
-  switch (type) {
+function getNotificationIcon(_type: string) {
+  switch (_type) {
     case "security":
       return <Shield className="h-5 w-5 text-red-600" />
     case "system":

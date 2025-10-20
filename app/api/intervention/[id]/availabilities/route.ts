@@ -2,15 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService } from '@/lib/database-service'
-
+import { createServerUserService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log("📅 GET availabilities API called for intervention:", params.id)
+  const { id } = await params
+  logger.info({ id: id }, "📅 GET availabilities API called for intervention:")
 
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+
     // Initialize Supabase client
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -52,7 +56,7 @@ export async function GET(
       }, { status: 404 })
     }
 
-    const interventionId = params.id
+    const interventionId = id
 
     // Verify intervention exists and user has access
     const { data: intervention, error: interventionError } = await supabase
@@ -64,7 +68,7 @@ export async function GET(
         tenant_id,
         team_id,
         scheduled_date,
-        intervention_contacts(
+       intervention_assignments(
           user_id,
           role,
           user:user_id(id, name, role)
@@ -116,7 +120,7 @@ export async function GET(
       .order('date', { ascending: true })
 
     if (availError) {
-      console.error("❌ Error fetching availabilities:", availError)
+      logger.error({ error: availError }, "❌ Error fetching availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -131,7 +135,7 @@ export async function GET(
       .order('slot_date', { ascending: true })
 
     if (timeSlotsError) {
-      console.warn("⚠️ Error fetching time slots:", timeSlotsError)
+      logger.warn({ error: timeSlotsError }, "⚠️ Error fetching time slots:")
     }
 
     // Get existing matches (résultats du matching automatique)
@@ -142,7 +146,7 @@ export async function GET(
       .order('match_score', { ascending: false })
 
     if (matchesError) {
-      console.warn("⚠️ Error fetching matches:", matchesError)
+      logger.warn({ error: matchesError }, "⚠️ Error fetching matches:")
     }
 
     // Group availabilities by user
@@ -223,7 +227,7 @@ export async function GET(
       ['planification', 'approuvee'].includes(intervention.status)
     )
 
-    console.log(`✅ Retrieved availabilities: ${stats.total_availability_slots} slots from ${stats.participants_with_availabilities} users`)
+    logger.info({ stats: stats.total_availability_slots, stats: stats.participants_with_availabilities }, "✅ Retrieved availabilities: slots from users")
 
     return NextResponse.json({
       success: true,
@@ -241,16 +245,14 @@ export async function GET(
       recommendations: {
         shouldRunMatching,
         canSelectSlot: stats.total_matches > 0 || stats.total_time_slots > 0,
-        nextAction: shouldRunMatching
-          ? 'run_matching'
-          : stats.is_scheduled
-            ? 'intervention_scheduled'
-            : 'need_more_availabilities'
+        nextAction: stats.is_scheduled
+          ? 'intervention_scheduled'
+          : 'need_more_availabilities'
       }
     })
 
   } catch (error) {
-    console.error("❌ Error in availabilities GET API:", error)
+    logger.error({ error: error }, "❌ Error in availabilities GET API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur lors de la récupération des disponibilités'

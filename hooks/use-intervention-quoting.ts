@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "./use-auth"
-
+import { logger, logError } from '@/lib/logger'
 interface Provider {
   id: string
   name: string
@@ -10,9 +10,14 @@ interface Provider {
   provider_category?: string
 }
 
+interface IneligibleProvider {
+  id: string
+  reason: string
+}
+
 interface QuoteRequestModal {
   isOpen: boolean
-  intervention: any | null
+  intervention: unknown | null
 }
 
 interface QuoteRequestData {
@@ -63,35 +68,36 @@ export const useInterventionQuoting = () => {
   // État des prestataires
   const [providers, setProviders] = useState<Provider[]>([])
   const [eligibleProviders, setEligibleProviders] = useState<Provider[]>([])
+  const [ineligibleProviders, setIneligibleProviders] = useState<IneligibleProvider[]>([])
   const [providersLoading, setProvidersLoading] = useState(false)
 
   // Récupérer les prestataires disponibles
   useEffect(() => {
     const fetchProviders = async () => {
       if (!user?.team_id) {
-        console.warn('🚨 [PROVIDERS] No team_id available, user:', user)
+        logger.warn('🚨 [PROVIDERS] No team_id available, user:', user)
         return
       }
 
-      console.log('🔍 [PROVIDERS] Fetching providers for team:', user.team_id)
+      logger.info('🔍 [PROVIDERS] Fetching providers for team:', user.team_id)
       setProvidersLoading(true)
       try {
         const url = `/api/team-contacts?teamId=${user.team_id}&type=prestataire`
-        console.log('🌐 [PROVIDERS] API URL:', url)
+        logger.info('🌐 [PROVIDERS] API URL:', url)
         
         const response = await fetch(url)
-        console.log('📡 [PROVIDERS] Response status:', response.status, response.statusText)
-        
+        logger.info('📡 [PROVIDERS] Response status:', response.status, response.statusText)
+
         if (response.ok) {
           const data = await response.json()
-          console.log('📊 [PROVIDERS] API Response data:', data)
-          console.log('👥 [PROVIDERS] Found providers:', data.contacts?.length || 0, data.contacts)
+          logger.info('📊 [PROVIDERS] API Response data:', data)
+          logger.info('👥 [PROVIDERS] Found providers:', data.contacts?.length || 0, data.contacts)
           setProviders(data.contacts || [])
         } else {
-          console.error('❌ [PROVIDERS] API Error response:', await response.text())
+          logger.error('❌ [PROVIDERS] API Error response:', await response.text())
         }
       } catch (err) {
-        console.error('❌ [PROVIDERS] Fetch error:', err)
+        logger.error('❌ [PROVIDERS] Fetch error:', err)
       } finally {
         setProvidersLoading(false)
       }
@@ -101,17 +107,23 @@ export const useInterventionQuoting = () => {
   }, [user?.team_id])
 
   // Récupérer les prestataires éligibles pour une intervention
-  const fetchEligibleProviders = async (interventionId: string) => {
+  const fetchEligibleProviders = async (_interventionId: string) => {
     if (!user?.team_id) {
-      console.warn('🚨 [ELIGIBLE-PROVIDERS] No team_id available')
+      logger.warn('🚨 [ELIGIBLE-PROVIDERS] No team_id available')
       return
     }
 
-    console.log('🔍 [ELIGIBLE-PROVIDERS] Fetching eligible providers for intervention:', interventionId)
+    logger.info('🔍 [ELIGIBLE-PROVIDERS] Fetching eligible providers for intervention:', _interventionId)
     setProvidersLoading(true)
     try {
-      // D'abord récupérer tous les prestataires
-      const allProvidersResponse = await fetch(`/api/team-contacts?teamId=${user.team_id}&type=prestataire`)
+      // ⚡ OPTIMISATION: Récupérer prestataires et devis EN PARALLÈLE
+      logger.info('🏃 [ELIGIBLE-PROVIDERS] Loading providers and quotes IN PARALLEL...')
+
+      const [allProvidersResponse, quotesResponse] = await Promise.all([
+        fetch(`/api/team-contacts?teamId=${user.team_id}&type=prestataire`),
+        fetch(`/api/intervention/${_interventionId}/quotes`)
+      ])
+
       if (!allProvidersResponse.ok) {
         throw new Error('Erreur lors de la récupération des prestataires')
       }
@@ -119,34 +131,48 @@ export const useInterventionQuoting = () => {
       const allProvidersData = await allProvidersResponse.json()
       const allProviders = allProvidersData.contacts || []
 
-      // Ensuite récupérer les devis existants pour cette intervention
-      const quotesResponse = await fetch(`/api/intervention/${interventionId}/quotes`)
       let existingQuotes = []
-
       if (quotesResponse.ok) {
         const quotesData = await quotesResponse.json()
         existingQuotes = quotesData.quotes || []
+      } else {
+        const errorText = await quotesResponse.text()
+        logger.error('Failed to fetch quotes:', { status: quotesResponse.status, error: errorText })
       }
 
-      // Filtrer les prestataires éligibles (exclure ceux avec devis pending/approved)
-      const ineligibleProviderIds = existingQuotes
-        .filter(quote => quote.status === 'pending' || quote.status === 'approved')
-        .map(quote => quote.provider_id)
+      logger.info('✅ [ELIGIBLE-PROVIDERS] Parallel fetch complete')
+
+      // Filtrer les prestataires éligibles (exclure ceux avec quote pending/sent/accepted)
+      const ineligibleData: IneligibleProvider[] = []
+      const ineligibleProviderIds: string[] = []
+
+      existingQuotes.forEach(quote => {
+        if (quote.status === 'pending' || quote.status === 'sent' || quote.status === 'accepted') {
+          ineligibleProviderIds.push(quote.provider_id)
+          const reason =
+            quote.status === 'pending' ? 'Demande en attente' :
+            quote.status === 'sent' ? 'Devis soumis en attente de validation' :
+            'Devis approuvé'
+          ineligibleData.push({ id: quote.provider_id, reason })
+        }
+      })
 
       const eligible = allProviders.filter(provider =>
         !ineligibleProviderIds.includes(provider.id)
       )
 
-      console.log('📊 [ELIGIBLE-PROVIDERS] Eligible providers:', {
+      logger.info('📊 [ELIGIBLE-PROVIDERS] Eligible providers:', {
         total: allProviders.length,
         eligible: eligible.length,
-        ineligible: ineligibleProviderIds.length
+        ineligible: ineligibleProviderIds.length,
+        ineligibleReasons: ineligibleData
       })
 
       setProviders(allProviders)
       setEligibleProviders(eligible)
+      setIneligibleProviders(ineligibleData)
     } catch (err) {
-      console.error('❌ [ELIGIBLE-PROVIDERS] Error:', err)
+      logger.error('❌ [ELIGIBLE-PROVIDERS] Error:', err)
       setError('Erreur lors de la récupération des prestataires éligibles')
     } finally {
       setProvidersLoading(false)
@@ -156,12 +182,12 @@ export const useInterventionQuoting = () => {
   /**
    * Ouvrir la modal de demande de devis
    */
-  const handleQuoteRequest = async (intervention: any) => {
-    console.log('🎯 [QUOTE-REQUEST] Opening quote request modal for intervention:', intervention.id)
+  const handleQuoteRequest = async (_intervention: unknown) => {
+    logger.info('🎯 [QUOTE-REQUEST] Opening quote request modal for intervention:', _intervention.id)
 
     setQuoteRequestModal({
       isOpen: true,
-      intervention,
+      intervention: _intervention,
     })
 
     // Calculer une deadline par défaut (7 jours)
@@ -180,7 +206,7 @@ export const useInterventionQuoting = () => {
     setError(null)
 
     // Récupérer les prestataires éligibles pour cette intervention
-    await fetchEligibleProviders(intervention.id)
+    await fetchEligibleProviders(_intervention.id)
   }
 
   /**
@@ -301,7 +327,7 @@ export const useInterventionQuoting = () => {
       deadlineDate.setDate(deadlineDate.getDate() + 30)
       const autoDeadline = deadlineDate.toISOString().split('T')[0] // Format YYYY-MM-DD
 
-      console.log('📤 [QUOTE-REQUEST] Submitting quote request:', {
+      logger.info('📤 [QUOTE-REQUEST] Submitting quote request:', {
         interventionId: quoteRequestModal.intervention.id,
         providerIds: formData.providerIds,
         deadline: autoDeadline,
@@ -329,7 +355,7 @@ export const useInterventionQuoting = () => {
         throw new Error(result.error || 'Erreur lors de la demande de devis')
       }
 
-      console.log('✅ [QUOTE-REQUEST] Quote request successful:', result)
+      logger.info('✅ [QUOTE-REQUEST] Quote request successful:', result)
 
       // Fermer la modal de demande
       closeQuoteRequestModal()
@@ -347,7 +373,7 @@ export const useInterventionQuoting = () => {
       }, 1500)
 
     } catch (error) {
-      console.error('❌ [QUOTE-REQUEST] Error submitting quote request:', error)
+      logger.error('❌ [QUOTE-REQUEST] Error submitting quote request:', error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue')
     } finally {
       setIsLoading(false)
@@ -374,6 +400,7 @@ export const useInterventionQuoting = () => {
     formData,
     providers,
     eligibleProviders,
+    ineligibleProviders,
     providersLoading,
 
     // États UI

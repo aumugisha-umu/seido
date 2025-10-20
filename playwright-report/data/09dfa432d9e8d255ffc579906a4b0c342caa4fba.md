@@ -1,0 +1,125 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - navigation [ref=e5]:
+        - link "SEIDO" [ref=e9] [cursor=pointer]:
+          - /url: /gestionnaire/dashboard
+          - img "SEIDO" [ref=e10] [cursor=pointer]
+        - generic [ref=e11]:
+          - link "Dashboard" [ref=e12] [cursor=pointer]:
+            - /url: /gestionnaire/dashboard
+            - img [ref=e13] [cursor=pointer]
+            - generic [ref=e16] [cursor=pointer]: Dashboard
+          - link "Biens" [ref=e17] [cursor=pointer]:
+            - /url: /gestionnaire/biens
+            - img [ref=e18] [cursor=pointer]
+            - generic [ref=e22] [cursor=pointer]: Biens
+          - link "Interventions" [ref=e23] [cursor=pointer]:
+            - /url: /gestionnaire/interventions
+            - img [ref=e24] [cursor=pointer]
+            - generic [ref=e26] [cursor=pointer]: Interventions
+          - link "Contacts" [ref=e27] [cursor=pointer]:
+            - /url: /gestionnaire/contacts
+            - img [ref=e28] [cursor=pointer]
+            - generic [ref=e33] [cursor=pointer]: Contacts
+        - generic [ref=e34]:
+          - link "Notifications" [ref=e35] [cursor=pointer]:
+            - /url: /gestionnaire/notifications
+            - img [ref=e36] [cursor=pointer]
+          - button "A Arthur Umugisha Gestionnaire" [ref=e40]:
+            - generic [ref=e42]: A
+            - generic [ref=e43]:
+              - generic [ref=e44]: Arthur Umugisha
+              - generic [ref=e45]: Gestionnaire
+            - img
+    - main [ref=e46]:
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - heading "Ajouter un immeuble" [level=1] [ref=e51]
+            - button "Retour aux biens" [ref=e52]:
+              - img
+              - generic [ref=e53]: Retour aux biens
+          - generic [ref=e56]:
+            - generic [ref=e58]:
+              - img [ref=e60]
+              - paragraph [ref=e64]: Informations générales
+            - generic [ref=e67]:
+              - img [ref=e69]
+              - paragraph [ref=e73]: Lots
+            - generic [ref=e76]:
+              - img [ref=e78]
+              - paragraph [ref=e84]: Contacts
+            - generic [ref=e87]:
+              - img [ref=e89]
+              - paragraph [ref=e92]: Confirmation
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - img [ref=e98]
+                - text: Responsable de l'immeuble
+              - generic [ref=e101]:
+                - paragraph [ref=e102]:
+                  - img [ref=e103]
+                  - generic [ref=e105]: Aucun gestionnaire trouvé dans votre équipe
+                - paragraph [ref=e106]: Contactez l'administrateur pour ajouter des gestionnaires à votre équipe.
+            - generic [ref=e107]:
+              - generic [ref=e108]:
+                - img [ref=e109]
+                - text: Référence de l'immeuble
+                - generic [ref=e112]: "*"
+              - textbox "Référence de l'immeuble *" [ref=e113]
+              - paragraph [ref=e114]: Référence unique pour identifier facilement votre immeuble (requis)
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - img [ref=e117]
+                - text: Rue et numéro*
+              - textbox "Rue et numéro*" [ref=e120]
+            - generic [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]:
+                  - img [ref=e124]
+                  - text: Code postal*
+                - textbox "Code postal*" [ref=e127]
+              - generic [ref=e128]:
+                - generic [ref=e129]:
+                  - img [ref=e130]
+                  - text: Ville*
+                - textbox "Ville*" [ref=e133]
+              - generic [ref=e134]:
+                - generic [ref=e135]:
+                  - img [ref=e136]
+                  - text: Pays*
+                - combobox [ref=e139]:
+                  - img
+                - combobox [ref=e140]
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - generic [ref=e143]:
+                  - img [ref=e144]
+                  - text: Année de construction
+                - textbox "Année de construction" [ref=e146]
+              - generic [ref=e147]:
+                - generic [ref=e148]:
+                  - img [ref=e149]
+                  - text: Nombre d'étages
+                - textbox "Nombre d'étages" [ref=e152]
+            - generic [ref=e153]:
+              - generic [ref=e154]:
+                - img [ref=e155]
+                - text: Description
+                - generic [ref=e158]: (optionnel)
+              - textbox "Description (optionnel)" [ref=e159]
+              - paragraph [ref=e160]: "Décrivez votre immeuble : commodités, particularités, état général..."
+          - generic [ref=e161]:
+            - button "Continuer vers les lots" [disabled]
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e167] [cursor=pointer]:
+    - img [ref=e168] [cursor=pointer]
+  - alert [ref=e171]
+```

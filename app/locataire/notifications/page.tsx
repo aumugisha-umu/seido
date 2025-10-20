@@ -4,8 +4,6 @@ import { useState } from "react"
 import {
   ArrowLeft,
   Bell,
-  Check,
-  Clock,
   AlertTriangle,
   Info,
   Eye,
@@ -24,9 +22,9 @@ import { Badge } from "@/components/ui/badge"
 import { useNotifications } from "@/hooks/use-notifications"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
-function getNotificationIcon(type: string) {
-  switch (type) {
+import { logger, logError } from '@/lib/logger'
+function getNotificationIcon(_type: string) {
+  switch (_type) {
     case "intervention":
       return <Wrench className="h-5 w-5 text-blue-600" />
     case "payment":
@@ -44,7 +42,7 @@ function getNotificationIcon(type: string) {
   }
 }
 
-function formatDate(dateString: string) {
+function formatDate(_dateString: string) {
   const date = new Date(dateString)
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -55,7 +53,7 @@ function formatDate(dateString: string) {
   }).format(date)
 }
 
-function getPriorityBadge(priority: string) {
+function getPriorityBadge(_priority: string) {
   switch (priority) {
     case "urgent":
       return (
@@ -95,34 +93,34 @@ export default function NotificationsPage() {
     refreshInterval: 30000
   })
 
-  const handleMarkAsRead = async (notificationId: string) => {
+  const handleMarkAsRead = async (_notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await markAsRead(notificationId)
     } catch (err) {
-      console.error('Error marking as read:', err)
+      logger.error('Error marking as read:', err)
     } finally {
       setActionLoading(null)
     }
   }
 
-  const handleMarkAsUnread = async (notificationId: string) => {
+  const handleMarkAsUnread = async (_notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await markAsUnread(notificationId)
     } catch (err) {
-      console.error('Error marking as unread:', err)
+      logger.error('Error marking as unread:', err)
     } finally {
       setActionLoading(null)
     }
   }
 
-  const handleDelete = async (notificationId: string) => {
+  const handleDelete = async (_notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await deleteNotification(notificationId)
     } catch (err) {
-      console.error('Error deleting notification:', err)
+      logger.error('Error deleting notification:', err)
     } finally {
       setActionLoading(null)
     }
@@ -133,7 +131,7 @@ export default function NotificationsPage() {
     try {
       await markAllAsRead()
     } catch (err) {
-      console.error('Error marking all as read:', err)
+      logger.error('Error marking all as read:', err)
     } finally {
       setActionLoading(null)
     }

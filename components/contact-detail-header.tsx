@@ -50,11 +50,11 @@ interface ContactHeaderProps {
   onBack: () => void
   onEdit: () => void
   onArchive: () => void
-  onInvitationAction: (action: string) => void
+  onInvitationAction: (_action: string) => void
   customActions?: Array<{
     key: string
     label: string
-    icon: any
+    icon: React.ComponentType<{ className?: string }>
     onClick: () => void
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost"
   }>
@@ -71,8 +71,8 @@ export const ContactDetailHeader = ({
   customActions = [],
 }: ContactHeaderProps) => {
   // Configuration des rôles
-  const getRoleConfig = (role: string) => {
-    switch (role.toLowerCase()) {
+  const getRoleConfig = (_role: string) => {
+    switch (_role.toLowerCase()) {
       case "locataire":
         return {
           color: "bg-blue-100 text-blue-800 border-blue-200",
@@ -95,7 +95,7 @@ export const ContactDetailHeader = ({
         return {
           color: "bg-slate-100 text-slate-700 border-slate-200",
           dot: "bg-slate-500",
-          label: role,
+          label: _role,
         }
     }
   }
@@ -278,7 +278,7 @@ export const ContactDetailHeader = ({
                   </h1>
                   
                   {/* Badges dynamiques */}
-                  {badges.map((badge: any, index: number) => {
+                  {badges.map((badge, index: number) => {
                     const BadgeIcon = badge.icon
                     return (
                       <Badge key={index} className={`${badge.color} flex items-center space-x-1 font-medium border`}>

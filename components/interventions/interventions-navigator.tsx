@@ -10,32 +10,39 @@ import {
 
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
+import type { InterventionWithRelations } from "@/lib/services"
+
+interface EmptyStateConfig {
+  title: string
+  description: string
+  showCreateButton?: boolean
+  createButtonText?: string
+  createButtonAction?: () => void
+}
+
+interface ContactContext {
+  contactId: string
+  contactName: string
+  contactRole?: 'gestionnaire' | 'prestataire' | 'locataire'
+}
+
+interface ActionHooks {
+  approvalHook?: () => void
+  planningHook?: () => void
+  executionHook?: () => void
+  finalizationHook?: () => void
+}
 
 interface InterventionsNavigatorProps {
-  interventions: any[]
+  interventions: InterventionWithRelations[]
   loading?: boolean
-  emptyStateConfig?: {
-    title: string
-    description: string
-    showCreateButton?: boolean
-    createButtonText?: string
-    createButtonAction?: () => void
-  }
+  emptyStateConfig?: EmptyStateConfig
   showStatusActions?: boolean
-  contactContext?: {
-    contactId: string
-    contactName: string
-    contactRole?: string
-  }
+  contactContext?: ContactContext
   className?: string
   searchPlaceholder?: string
   showFilters?: boolean
-  actionHooks?: {
-    approvalHook?: any
-    planningHook?: any
-    executionHook?: any
-    finalizationHook?: any
-  }
+  actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
 }
 
@@ -51,7 +58,6 @@ export function InterventionsNavigator({
   actionHooks,
   userContext = 'gestionnaire'
 }: InterventionsNavigatorProps) {
-  const [filteredInterventions, setFilteredInterventions] = useState<any[]>(interventions)
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     type: "all",
@@ -60,7 +66,7 @@ export function InterventionsNavigator({
 
   // Filter function for interventions based on tab (NOUVEAU WORKFLOW)
   const getFilteredInterventions = (tabId: string) => {
-    let baseInterventions = filteredInterventions
+    let baseInterventions = interventions
 
     if (tabId === "toutes") {
       baseInterventions = interventions
@@ -82,7 +88,7 @@ export function InterventionsNavigator({
   }
 
   // Apply search and filters to interventions
-  const applySearchAndFilters = (baseInterventions: any[]) => {
+  const applySearchAndFilters = (baseInterventions: InterventionWithRelations[]) => {
     let result = baseInterventions
 
     // Search filter

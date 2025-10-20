@@ -1,27 +1,27 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
+import type { User, Team, Building } from "@/lib/services/core/service-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { useManagerStats } from "@/hooks/use-manager-stats"
-import { buildingService, teamService } from "@/lib/database-service"
+
+
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle } from "lucide-react"
 import { BuildingInfoForm } from "@/components/building-info-form"
-
+import { logger, logError } from '@/lib/logger'
 interface BuildingInfo {
   name: string
   address: string
   postalCode: string
   city: string
   country: string
-  constructionYear: string
-  floors: string
   description: string
 }
 
@@ -29,23 +29,20 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
   const router = useRouter()
   const resolvedParams = use(params)
   const { user } = useAuth()
-  const { teamStatus, hasTeam } = useTeamStatus()
+  const { teamStatus } = useTeamStatus()
 
   // States
-  const [building, setBuilding] = useState<any>(null)
+  const [building, setBuilding] = useState<Building | null>(null)
   const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>({
     name: "",
     address: "",
     postalCode: "",
     city: "",
     country: "Belgique",
-    constructionYear: "",
-    floors: "",
     description: "",
   })
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<any[]>([])
-  const [userTeam, setUserTeam] = useState<any>(null)
+  const [teamManagers, setTeamManagers] = useState<User[]>([])
+  const [userTeam, setUserTeam] = useState<Team | null>(null)
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -68,29 +65,31 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
 
       try {
         // 1. Récupérer les équipes de l'utilisateur
-        const userTeams = await teamService.getUserTeams(user.id)
-        
+        const teamsResult = await teamService.getUserTeams(user.id)
+        const userTeams = teamsResult?.data || []
+
         if (userTeams.length === 0) {
-          console.warn('No teams found for user')
+          logger.warn('No teams found for user')
           return
         }
-        
+
         // 2. Prendre la première équipe
         const primaryTeam = userTeams[0]
         setUserTeam(primaryTeam)
-        
+
         // 3. Récupérer les membres de cette équipe
         let teamMembers = []
         try {
-          teamMembers = await teamService.getMembers(primaryTeam.id)
+          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          teamMembers = membersResult?.data || []
           setTeamManagers(teamMembers)
         } catch (membersError) {
-          console.error("Error loading team members:", membersError)
+          logger.error("Error loading team members:", membersError)
           setTeamManagers([])
         }
         
       } catch (error) {
-        console.error('Error loading team and managers:', error)
+        logger.error('Error loading team and managers:', error)
         setTeamManagers([])
       }
     }
@@ -104,7 +103,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       setError(null)
 
       const buildingData = await buildingService.getById(resolvedParams.id)
-      console.log("🏢 Building loaded for edit:", buildingData)
+      logger.info("🏢 Building loaded for edit:", buildingData)
       
       setBuilding(buildingData)
       
@@ -115,16 +114,14 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         postalCode: buildingData.postal_code || "",
         city: buildingData.city || "",
         country: buildingData.country || "Belgique",
-        constructionYear: buildingData.construction_year?.toString() || "",
-        floors: buildingData.floors?.toString() || "",
         description: buildingData.description || "",
       })
       
-      // TODO: Migrer vers le nouveau système de building_contacts
-      // setSelectedManagerId(buildingData.manager_id || "")
+      // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
+      // setSelectedManagerId(buildingData.gestionnaire_id || "")
 
     } catch (error) {
-      console.error("❌ Error loading building data:", error)
+      logger.error("❌ Error loading building data:", error)
       setError("Erreur lors du chargement des données de l'immeuble")
     } finally {
       setLoading(false)
@@ -165,10 +162,8 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
         country: buildingInfo.country.trim() || "Belgique",
         postal_code: buildingInfo.postalCode.trim() || "",
         description: buildingInfo.description.trim(),
-        construction_year: buildingInfo.constructionYear ? parseInt(buildingInfo.constructionYear) : undefined,
-        floors: buildingInfo.floors ? parseInt(buildingInfo.floors) : undefined,
-        // TODO: Migrer vers le nouveau système de building_contacts
-        // manager_id: selectedManagerId,
+        // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
+        // gestionnaire_id: selectedManagerId,
       }
 
       await buildingService.update(resolvedParams.id, updateData)
@@ -181,7 +176,7 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
       }, 2000)
 
     } catch (error) {
-      console.error("❌ Error updating building:", error)
+      logger.error("❌ Error updating building:", error)
       setError("Erreur lors de la modification de l'immeuble")
     } finally {
       setSaving(false)
@@ -338,8 +333,6 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
             <BuildingInfoForm
               buildingInfo={buildingInfo}
               setBuildingInfo={setBuildingInfo}
-              selectedManagerId=""
-              setSelectedManagerId={() => {}}
               teamManagers={[]}
               userTeam={null}
               isLoading={teamManagers.length === 0 && userTeam === null}
@@ -354,3 +347,4 @@ export default function EditBuildingPage({ params }: { params: Promise<{ id: str
     </div>
   )
 }
+

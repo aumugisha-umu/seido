@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-09-30T14:29:06.126Z",
+  "suite": {
+    "status": "failed",
+    "duration": 139394,
+    "stats": {
+      "passed": 0,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "timedOut": 0,
+      "interrupted": 0
+    }
+  },
+  "projects": []
+}

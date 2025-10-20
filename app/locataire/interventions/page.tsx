@@ -1,280 +1,16 @@
-"use client"
-import { Search, Filter, Wrench, Plus, Eye, Clock, CheckCircle, AlertTriangle } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+// Server Component - loads interventions server-side
+import { notFound } from 'next/navigation'
+import { createServerInterventionService } from '@/lib/services'
+import { createServerSupabaseClient } from '@/lib/services'
+import InterventionsClient from './interventions-client'
+import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useTenantData } from "@/hooks/use-tenant-data"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Plus, Wrench } from "lucide-react"
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case "nouvelle_demande":
-    case "en_attente_validation":
-      return <Clock className="h-4 w-4" />
-    case "validee":
-    case "en_cours":
-      return <AlertTriangle className="h-4 w-4" />
-    case "terminee":
-      return <CheckCircle className="h-4 w-4" />
-    default:
-      return <Clock className="h-4 w-4" />
-  }
-}
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    // Phase 1: Demande
-    case "demande":
-      return "bg-red-100 text-red-800"
-    case "rejetee":
-      return "bg-red-100 text-red-800"
-    case "approuvee":
-      return "bg-green-100 text-green-800"
-    
-    // Phase 2: Planification & Exécution
-    case "demande_de_devis":
-      return "bg-blue-100 text-blue-800"
-    case "planification":
-      return "bg-yellow-100 text-yellow-800"
-    case "planifiee":
-      return "bg-purple-100 text-purple-800"
-    case "en_cours":
-      return "bg-indigo-100 text-indigo-800"
-    
-    // Phase 3: Clôture
-    case "cloturee_par_prestataire":
-      return "bg-orange-100 text-orange-800"
-    case "cloturee_par_locataire":
-      return "bg-emerald-100 text-emerald-800"
-    case "cloturee_par_gestionnaire":
-      return "bg-green-100 text-green-800"
-    
-    // Transversal
-    case "annulee":
-      return "bg-gray-100 text-gray-800"
-    
-    default:
-      return "bg-gray-100 text-gray-800"
-  }
-}
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    // Phase 1: Demande
-    case "demande":
-      return "Demande"
-    case "rejetee":
-      return "Rejetée"
-    case "approuvee":
-      return "Approuvée"
-    
-    // Phase 2: Planification & Exécution
-    case "demande_de_devis":
-      return "Demande de devis"
-    case "planification":
-      return "Planification"
-    case "planifiee":
-      return "Planifiée"
-    case "en_cours":
-      return "En cours"
-    
-    // Phase 3: Clôture
-    case "cloturee_par_prestataire":
-      return "Clôturée par prestataire"
-    case "cloturee_par_locataire":
-      return "Clôturée par locataire"
-    case "cloturee_par_gestionnaire":
-      return "Clôturée par gestionnaire"
-    
-    // Transversal
-    case "annulee":
-      return "Annulée"
-    
-    default:
-      return status
-  }
-}
-
-const getPriorityColor = (priority: string) => {
-  switch (priority) {
-    case "critique":
-      return "bg-red-100 text-red-800"
-    case "urgent":
-      return "bg-orange-100 text-orange-800"
-    case "normale":
-      return "bg-gray-100 text-gray-800"
-    default:
-      return "bg-gray-100 text-gray-800"
-  }
-}
-
-export default function LocataireInterventionsPage() {
-  const router = useRouter()
-  const { tenantInterventions, loading, error } = useTenantData()
-
-  const handleViewDetails = (interventionId: string) => {
-    router.push(`/locataire/interventions/${interventionId}`)
-  }
-
-  if (loading) {
-    return <LoadingSkeleton />
-  }
-
-  if (error) {
-    return (
-      <div className="py-2">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-destructive">
-              Erreur lors du chargement des données: {error}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  return (
-    <div className="py-2">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Demandes</h1>
-          <p className="text-gray-600">Suivez vos demandes d'intervention pour votre logement</p>
-        </div>
-        <Link href="/locataire/interventions/nouvelle-demande">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvelle demande
-          </Button>
-        </Link>
-      </div>
-
-      <div className="space-y-6">
-        {/* Section Header */}
-        <div className="flex items-center space-x-2 mb-4">
-          <Wrench className="h-5 w-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Mes demandes d'intervention ({tenantInterventions.length})
-          </h2>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="flex items-center space-x-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input placeholder="Rechercher par titre ou description..." className="pl-10" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <Select defaultValue="all">
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Tous les statuts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="demande">Demande</SelectItem>
-                <SelectItem value="rejetee">Rejetée</SelectItem>
-                <SelectItem value="approuvee">Approuvée</SelectItem>
-                <SelectItem value="demande_de_devis">Demande de devis</SelectItem>
-                <SelectItem value="planification">Planification</SelectItem>
-                <SelectItem value="planifiee">Planifiée</SelectItem>
-                <SelectItem value="en_cours">En cours</SelectItem>
-                <SelectItem value="cloturee_par_prestataire">Clôturée par prestataire</SelectItem>
-                <SelectItem value="cloturee_par_locataire">Clôturée par locataire</SelectItem>
-                <SelectItem value="cloturee_par_gestionnaire">Clôturée par gestionnaire</SelectItem>
-                <SelectItem value="annulee">Annulée</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {tenantInterventions.length > 0 ? (
-            tenantInterventions.map((intervention) => (
-              <Card key={intervention.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{intervention.title}</h3>
-                        <Badge className={getStatusColor(intervention.status)}>
-                          {getStatusIcon(intervention.status)}
-                          <span className="ml-1">{getStatusLabel(intervention.status)}</span>
-                        </Badge>
-                        {intervention.priority && (
-                          <Badge className={getPriorityColor(intervention.priority)}>
-                            {intervention.priority.charAt(0).toUpperCase() + intervention.priority.slice(1)}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <p className="text-gray-600 mb-3">{intervention.description}</p>
-
-                      <div className="flex items-center space-x-6 text-sm text-gray-500">
-                        <span>
-                          <strong>Type:</strong> {intervention.intervention_type || "Non spécifié"}
-                        </span>
-                        <span>
-                          <strong>Localisation:</strong> {intervention.location || "Non spécifié"}
-                        </span>
-                        <span>
-                          <strong>Créée le:</strong> {new Date(intervention.created_at).toLocaleDateString("fr-FR")}
-                        </span>
-                        {intervention.estimated_duration && (
-                          <span>
-                            <strong>Durée estimée:</strong> {intervention.estimated_duration}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-2 text-sm text-gray-500">
-                        <span>
-                          <strong>Assignée à:</strong> {intervention.assigned_to || "En attente d'assignation"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="ml-4">
-                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(intervention.id)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Détails
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="p-4 bg-gray-100 rounded-full">
-                  <Wrench className="h-8 w-8 text-gray-400" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium text-gray-900">Aucune demande d'intervention</h3>
-                  <p className="text-gray-500">Vous n'avez pas encore créé de demande d'intervention.</p>
-                </div>
-                <Link href="/locataire/interventions/nouvelle-demande">
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Créer ma première demande
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function LoadingSkeleton() {
+// Loading skeleton while data is fetched
+function InterventionsLoading() {
   return (
     <div className="py-2">
       {/* Header skeleton */}
@@ -329,4 +65,112 @@ function LoadingSkeleton() {
       </div>
     </div>
   )
+}
+
+export default async function LocataireInterventionsPage() {
+  const startTime = Date.now()
+
+  logger.info('🏠 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading tenant interventions', {
+    timestamp: new Date().toISOString()
+  })
+
+  try {
+    // Get current user from server session
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      logger.error('❌ [TENANT-INTERVENTIONS-PAGE-SERVER] User not authenticated', {
+        error: userError
+      })
+      notFound()
+    }
+
+    // Verify user is a tenant
+    const { data: userData, error: roleError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (roleError || !userData || userData.role !== 'locataire') {
+      logger.error('❌ [TENANT-INTERVENTIONS-PAGE-SERVER] User is not a tenant', {
+        userId: user.id,
+        role: userData?.role,
+        error: roleError
+      })
+      notFound()
+    }
+
+    logger.info('✅ [TENANT-INTERVENTIONS-PAGE-SERVER] User authenticated as tenant', {
+      userId: user.id,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Load tenant interventions
+    logger.info('📍 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading interventions...', { userId: user.id })
+    const interventionService = await createServerInterventionService()
+    const result = await interventionService.getByTenant(user.id)
+
+    const interventions = result.success ? (result.data || []) : []
+
+    logger.info('✅ [TENANT-INTERVENTIONS-PAGE-SERVER] Interventions loaded', {
+      interventionCount: interventions.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    logger.info('🎉 [TENANT-INTERVENTIONS-PAGE-SERVER] All data loaded successfully', {
+      userId: user.id,
+      totalElapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Pass data to Client Component
+    return <InterventionsClient interventions={interventions} />
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error('❌ [TENANT-INTERVENTIONS-PAGE-SERVER] Failed to load interventions', {
+      error: errorMessage,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Show error state
+    return (
+      <div className="py-2">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Demandes</h1>
+            <p className="text-gray-600">Suivez vos demandes d'intervention pour votre logement</p>
+          </div>
+          <Button disabled>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle demande
+          </Button>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="p-4 bg-red-100 rounded-full inline-block">
+                <Wrench className="h-8 w-8 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Erreur de chargement</h3>
+                <p className="text-destructive mt-2">
+                  Une erreur est survenue lors du chargement de vos interventions.
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+}
+
+// Optional: Export loading component for Suspense boundary
+export function Loading() {
+  return <InterventionsLoading />
 }

@@ -31,7 +31,7 @@
 -- ✅ Tables de liaison (Relations UNIQUEMENT)
 -- building_contacts: contact_type = 'gestionnaire', 'syndic', etc.
 -- lot_contacts: contact_type = 'locataire', 'propriétaire', etc.
--- intervention_contacts: contact_type = 'prestataire', etc.
+--intervention_assignments: contact_type = 'prestataire', etc.
 ```
 
 ---

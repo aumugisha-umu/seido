@@ -6,7 +6,7 @@ import { QuoteRequestCard } from "./quote-request-card"
 import { Button } from "@/components/ui/button"
 import { Receipt, Send, FileText, ChevronDown, ChevronRight } from "lucide-react"
 import { useState } from "react"
-import { getQuoteEmptyStateMessage, getQuoteStateSummary, analyzeQuoteState } from "@/lib/quote-state-utils"
+import { getQuoteEmptyStateMessage } from "@/lib/quote-state-utils"
 
 // Type local pour les devis dans ce composant
 interface Quote {
@@ -26,7 +26,12 @@ interface Quote {
   reviewedAt?: string
   reviewComments?: string
   rejectionReason?: string
-  attachments: any[]
+  attachments: Array<{
+    id: string
+    name: string
+    url: string
+    type: string
+  }>
 }
 
 // Importé depuis quote-state-utils.ts
@@ -51,23 +56,28 @@ interface IntegratedQuotesSectionProps {
   quotes: Quote[]
   quoteRequests?: QuoteRequest[]
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
-  onDownloadAttachment?: (attachment: any) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
+  onDownloadAttachment?: (attachment: {
+    id: string
+    name: string
+    url: string
+    type: string
+  }) => void
   onDataChange?: () => void
-  onResendRequest?: (requestId: string) => void
-  onCancelRequest?: (requestId: string) => void
-  onNewRequest?: (requestId: string) => void
-  onViewProvider?: (providerId: string) => void
+  onResendRequest?: (_requestId: string) => void
+  onCancelRequest?: (_requestId: string) => void
+  onNewRequest?: (_requestId: string) => void
+  onViewProvider?: (_providerId: string) => void
   showActions?: boolean
   compact?: boolean
   title?: string
-  titleIcon?: React.ComponentType<any>
+  titleIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
   emptyStateConfig?: {
     title?: string
     description?: string
-    icon?: React.ComponentType<any>
+    icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
   }
   showAsCard?: boolean
   className?: string

@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Search, Filter, ChevronDown } from "lucide-react"
@@ -12,7 +11,7 @@ import { Search, Filter, ChevronDown } from "lucide-react"
 interface TabConfig {
   id: string
   label: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<{ className?: string }>
   count?: number | string
   content: React.ReactNode
 }
@@ -29,7 +28,7 @@ interface ContentNavigatorProps {
   defaultTab?: string
   searchPlaceholder?: string
   filters?: FilterConfig[]
-  onSearch?: (value: string) => void
+  onSearch?: (_value: string) => void
   onFilterChange?: (filterId: string, value: string) => void
   onResetFilters?: () => void
   className?: string
@@ -51,17 +50,17 @@ export default function ContentNavigator({
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
 
-  const handleSearchChange = (value: string) => {
-    setSearchValue(value)
-    onSearch?.(value)
+  const handleSearchChange = (_value: string) => {
+    setSearchValue(_value)
+    onSearch?.(_value)
   }
 
   const handleFilterChange = (filterId: string, value: string) => {
     onFilterChange?.(filterId, value)
   }
 
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId)
+  const handleTabChange = (_tabId: string) => {
+    setActiveTab(_tabId)
   }
 
   const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0]

@@ -1,21 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, Calendar, MessageSquare, MapPin, Wrench, Clock, AlertTriangle, Plus, Minus, X } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
+// Removed unused Input import
+// Removed unused Checkbox import
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+// Removed unused Separator import
 import ContactSelector from "@/components/ui/contact-selector"
+import { logger, logError } from '@/lib/logger'
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
-  isBuildingWideIntervention,
+  // isBuildingWideIntervention,
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
@@ -28,16 +29,22 @@ interface Provider {
   provider_category?: string
 }
 
+interface IneligibleProvider {
+  id: string
+  reason: string
+}
+
 interface MultiQuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  intervention: any | null
+  intervention: { id: string; title: string; description: string; [key: string]: unknown } | null
   additionalNotes: string
   selectedProviderIds: string[]
   selectedProviders: Provider[]
   individualMessages: Record<string, string>
   providers: Provider[]
-  onNotesChange: (notes: string) => void
+  ineligibleProviders?: IneligibleProvider[]
+  onNotesChange: (_notes: string) => void
   onProviderToggle: (provider: Provider) => void
   onIndividualMessageChange: (providerId: string, message: string) => void
   onSubmit: () => void
@@ -55,6 +62,7 @@ export const MultiQuoteRequestModal = ({
   selectedProviders,
   individualMessages,
   providers,
+  ineligibleProviders = [],
   onNotesChange,
   onProviderToggle,
   onIndividualMessageChange,
@@ -63,7 +71,7 @@ export const MultiQuoteRequestModal = ({
   error,
   teamId
 }: MultiQuoteRequestModalProps) => {
-  const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
+  const [filteredProviders, setFilteredProviders] = useState<Provider[]>(providers || [])
 
   // Callback pour la sélection de contact via le ContactSelector
   const handleContactSelect = (contactId: string) => {
@@ -74,14 +82,21 @@ export const MultiQuoteRequestModal = ({
   }
 
   // Callback pour la création d'un nouveau contact
-  const handleContactCreated = (contact: any) => {
+  const handleContactCreated = (contact: { id: string; name: string; [key: string]: unknown }) => {
     // Pour l'instant, nous ne gérons pas la création depuis la modale de devis
-    console.log('Nouveau contact créé:', contact)
+    logger.info('Nouveau contact créé:', contact)
     // TODO: Ajouter le nouveau prestataire à la liste des providers
   }
 
   useEffect(() => {
-    if (!intervention || !providers) {
+    // Si pas d'intervention, afficher tous les prestataires
+    if (!intervention) {
+      setFilteredProviders(providers || [])
+      return
+    }
+
+    // Si pas de providers, liste vide
+    if (!providers || providers.length === 0) {
       setFilteredProviders([])
       return
     }
@@ -114,7 +129,7 @@ export const MultiQuoteRequestModal = ({
     const finalProviders = relevantProviders.length === 0 && providers.length > 0 ? providers : relevantProviders
 
     if (relevantProviders.length === 0 && providers.length > 0) {
-      console.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
+      logger.warn(`🚨 Aucun prestataire trouvé pour le type "${intervention.type}", affichage de tous les prestataires disponibles`)
     }
 
     setFilteredProviders(finalProviders)
@@ -132,10 +147,10 @@ export const MultiQuoteRequestModal = ({
       <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-3 pb-6">
           <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demander des devis - Multi-prestataires
+            Demander de devis
           </DialogTitle>
           <p className="text-slate-600">
-            Sélectionnez plusieurs prestataires et personnalisez les messages pour chacun
+            Sélectionnez un ou plusieurs prestataires et personnalisez les messages si vous le souhaitez.
           </p>
         </DialogHeader>
 
@@ -207,7 +222,7 @@ export const MultiQuoteRequestModal = ({
               Sélection des prestataires
             </Label>
             <ContactSelector
-              contacts={providers.map(p => ({
+              contacts={filteredProviders.map(p => ({
                 id: p.id,
                 name: p.name,
                 email: p.email,
@@ -215,6 +230,10 @@ export const MultiQuoteRequestModal = ({
                 speciality: p.provider_category
               }))}
               selectedContactIds={selectedProviderIds}
+              ineligibleContactIds={ineligibleProviders.map(ip => ip.id)}
+              ineligibilityReasons={Object.fromEntries(
+                ineligibleProviders.map(ip => [ip.id, ip.reason])
+              )}
               onContactSelect={handleContactSelect}
               onContactCreated={handleContactCreated}
               contactType="prestataire"

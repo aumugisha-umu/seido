@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useCallback } from "react"
-
+import { logger, logError } from '@/lib/logger'
 interface CreationSuccessOptions {
   successTitle: string
   successDescription: string
@@ -25,7 +25,7 @@ export function useCreationSuccess() {
     hardRefreshFallback = true,
     hardRefreshDelay = 3000
   }: CreationSuccessOptions) => {
-    console.log("🎉 Handling creation success...")
+    logger.info("🎉 Handling creation success...")
 
     // 1. Redirection immédiate
     router.push(redirectPath)
@@ -37,12 +37,12 @@ export function useCreationSuccess() {
       // 3. Tentative de soft refresh
       if (refreshData) {
         try {
-          console.log("🔄 Attempting soft refresh...")
+          logger.info("🔄 Attempting soft refresh...")
           await refreshData()
           softRefreshSuccess = true
-          console.log("✅ Soft refresh successful")
+          logger.info("✅ Soft refresh successful")
         } catch (error) {
-          console.warn("⚠️ Soft refresh failed:", error)
+          logger.warn("⚠️ Soft refresh failed:", error)
         }
       }
       
@@ -55,9 +55,9 @@ export function useCreationSuccess() {
       
       // 5. Hard refresh fallback si nécessaire
       if (!softRefreshSuccess && hardRefreshFallback) {
-        console.log(`🔄 Scheduling hard refresh in ${hardRefreshDelay}ms...`)
+        logger.info(`🔄 Scheduling hard refresh in ${hardRefreshDelay}ms...`)
         setTimeout(() => {
-          console.log("🔄 Soft refresh failed, doing hard refresh...")
+          logger.info("🔄 Soft refresh failed, doing hard refresh...")
           window.location.reload()
         }, hardRefreshDelay)
       }
@@ -68,3 +68,4 @@ export function useCreationSuccess() {
 
   return { handleSuccess }
 }
+

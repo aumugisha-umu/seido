@@ -2,14 +2,14 @@
 
 import { useState, useMemo } from "react"
 import { User, Clock, Info, Filter, AlertCircle } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
+import { logger, logError } from '@/lib/logger'
 import {
-  getValidAvailabilities,
-  type AvailabilityFilterState
+  getValidAvailabilities
 } from "@/lib/availability-filtering-utils"
 
 interface UserAvailability {
@@ -25,7 +25,6 @@ interface Quote {
   id: string
   providerId: string
   status: 'pending' | 'approved' | 'rejected'
-  [key: string]: any
 }
 
 interface UserAvailabilitiesDisplayProps {
@@ -47,7 +46,7 @@ export function UserAvailabilitiesDisplay({
   showCard = true,
   quotes
 }: UserAvailabilitiesDisplayProps) {
-  const [showFilterDetails, setShowFilterDetails] = useState(false)
+  const [_showFilterDetails, _setShowFilterDetails] = useState(false)
 
   // Calculer les disponibilités filtrées et l'état du filtrage
   const { filteredByQuotes, filterState, filterMessage } = useMemo(() => {
@@ -60,13 +59,13 @@ export function UserAvailabilitiesDisplay({
       }
     }
 
-    const result = getValidAvailabilities(availabilities, quotes)
+    const result = getValidAvailabilities(availabilities, quotes, userRole)
     return {
       filteredByQuotes: result.filteredAvailabilities,
       filterState: result.filterState,
       filterMessage: result.filterMessage
     }
-  }, [availabilities, quotes])
+  }, [availabilities, quotes, userRole])
 
   // Appliquer ensuite le filtrage par rôle si spécifié
   const filteredAvailabilities = useMemo(() => {
@@ -77,7 +76,7 @@ export function UserAvailabilitiesDisplay({
   }, [filteredByQuotes, filterRole])
 
   // Debug log pour tracer le filtrage des disponibilités
-  console.log('🔍 [AVAILABILITY-DEBUG] Filtering results:', {
+  logger.info('🔍 [AVAILABILITY-DEBUG] Filtering results:', {
     original: availabilities.length,
     filteredByQuotes: filteredByQuotes.length,
     finalFiltered: filteredAvailabilities.length,
@@ -92,11 +91,6 @@ export function UserAvailabilitiesDisplay({
   // Calculer si toutes les disponibilités ont été filtrées
   const allFilteredOut = availabilities.length > 0 && filteredAvailabilities.length === 0
   const someFilteredByQuotes = filterState && filterState.excludedAvailabilities > 0
-
-  // Si aucune disponibilité initiale, ne rien afficher
-  if (availabilities.length === 0) {
-    return null
-  }
 
   // Grouper les disponibilités par personne et rôle (en utilisant userId pour éviter les collisions)
   const groupedAvailabilities = useMemo(() => {
@@ -120,8 +114,13 @@ export function UserAvailabilitiesDisplay({
     }>)
   }, [filteredAvailabilities])
 
+  // Si aucune disponibilité initiale, ne rien afficher
+  if (availabilities.length === 0) {
+    return null
+  }
+
   // Debug log pour tracer le groupement des disponibilités
-  console.log('👥 [GROUPING-DEBUG] Grouped availabilities:', {
+  logger.info('👥 [GROUPING-DEBUG] Grouped availabilities:', {
     totalGroups: Object.keys(groupedAvailabilities).length,
     groups: Object.entries(groupedAvailabilities).map(([key, group]) => ({
       key,
@@ -140,7 +139,7 @@ export function UserAvailabilitiesDisplay({
   const displayTitle = title || defaultTitle
 
   // Fonction pour obtenir la couleur du badge selon le rôle
-  const getRoleBadgeColor = (role: string) => {
+  const getRoleBadgeColor = (_role: string) => {
     switch (role.toLowerCase()) {
       case 'prestataire':
         return "bg-blue-100 text-blue-700"
@@ -162,7 +161,7 @@ export function UserAvailabilitiesDisplay({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-medium text-gray-900">{displayTitle}</h4>
-            {someFilteredByQuotes && (
+            {someFilteredByQuotes && userRole === 'gestionnaire' && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -192,8 +191,8 @@ export function UserAvailabilitiesDisplay({
             )}
           </div>
 
-          {/* Message d'information sur le filtrage */}
-          {someFilteredByQuotes && filterMessage?.show && (
+          {/* Message d'information sur le filtrage - Visible uniquement pour les gestionnaires */}
+          {someFilteredByQuotes && filterMessage?.show && userRole === 'gestionnaire' && (
             <Alert className="mt-2 mb-3 bg-blue-50 border-blue-200">
               <Info className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-700">

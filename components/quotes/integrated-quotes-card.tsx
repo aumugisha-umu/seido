@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { FileText, Euro, Clock, TrendingUp, Users, AlertTriangle, CheckCircle, Plus, XCircle, User } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { FileText, Clock, AlertTriangle, CheckCircle, Plus, XCircle, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +11,7 @@ import { QuoteRequestModal } from "@/components/intervention/modals/quote-reques
 import { QuoteValidationModal } from "@/components/quotes/quote-validation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useQuoteToast } from "@/hooks/use-quote-toast"
-
+import { logger, logError } from '@/lib/logger'
 interface Quote {
   id: string
   intervention_id: string
@@ -45,9 +45,16 @@ interface Quote {
   }
 }
 
+interface Intervention {
+  id: string
+  title: string
+  status: string
+  quote_deadline?: string
+}
+
 interface IntegratedQuotesCardProps {
   interventionId: string
-  intervention: any
+  intervention: Intervention
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
   onQuoteStatusChange?: () => void
 }
@@ -92,7 +99,7 @@ export function IntegratedQuotesCard({
   } = useInterventionQuoting()
 
   // Charger les devis
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await fetch(`/api/intervention/${interventionId}/quotes`)
@@ -105,16 +112,16 @@ export function IntegratedQuotesCard({
         setError(errorData.error || 'Erreur lors du chargement des devis')
       }
     } catch (err) {
-      console.error('Error fetching quotes:', err)
+      logger.error('Error fetching quotes:', err)
       setError('Erreur de connexion')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [interventionId])
 
   useEffect(() => {
     fetchQuotes()
-  }, [interventionId])
+  }, [interventionId, fetchQuotes])
 
   // Fonctions pour gérer le modal de validation
   const openValidationModal = (quote: Quote, action: 'approve' | 'reject') => {
@@ -172,7 +179,7 @@ export function IntegratedQuotesCard({
         quoteToast.quoteError(errorMessage, 'l\'approbation du devis')
       }
     } catch (err) {
-      console.error('Error approving quote:', err)
+      logger.error('Error approving quote:', err)
       setError('Erreur lors de l\'approbation du devis')
     } finally {
       setIsSubmitting(false)
@@ -209,7 +216,7 @@ export function IntegratedQuotesCard({
         quoteToast.quoteError(errorMessage, 'le rejet du devis')
       }
     } catch (err) {
-      console.error('Error rejecting quote:', err)
+      logger.error('Error rejecting quote:', err)
       setError('Erreur lors du rejet du devis')
     } finally {
       setIsSubmitting(false)
@@ -217,7 +224,7 @@ export function IntegratedQuotesCard({
   }
 
   // Couleurs selon Design System SEIDO
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (_status: string) => {
     switch (status) {
       case 'demande': return 'bg-amber-100 text-amber-800 border-amber-200'
       case 'approuvee': return 'bg-emerald-100 text-emerald-800 border-emerald-200'
@@ -228,8 +235,8 @@ export function IntegratedQuotesCard({
   }
 
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
-  const approvedQuotes = quotes.filter(q => q.status === 'approved')
-  const rejectedQuotes = quotes.filter(q => q.status === 'rejected')
+  const approvedQuotes = quotes.filter(q => q.status === 'accepted')
+  const _rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
   // Si l'intervention n'est pas en phase de devis
   if (intervention.status !== 'demande_de_devis' && quotes.length === 0) {

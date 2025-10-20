@@ -4,10 +4,8 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
-  X, 
   Download, 
   ExternalLink, 
   FileText, 
@@ -18,11 +16,10 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Maximize2
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-
+import { logger, logError } from '@/lib/logger'
 interface Document {
   id: string
   name: string
@@ -85,7 +82,7 @@ export const DocumentViewerModal = ({
       setZoom(100)
       setRotation(0)
     }
-  }, [isOpen, document])
+  }, [isOpen, document, loadDocumentView])
 
   const loadDocumentView = async () => {
     if (!document) return
@@ -96,17 +93,17 @@ export const DocumentViewerModal = ({
     try {
       const response = await fetch(`/api/view-intervention-document?documentId=${document.id}`)
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors du chargement du document')
       }
-      
+
       setViewUrl(data.viewUrl)
       setDocumentInfo(data.document)
       setInterventionInfo(data.intervention)
       
     } catch (error) {
-      console.error("❌ Error loading document view:", error)
+      logger.error("❌ Error loading document view:", error)
       setError(error instanceof Error ? error.message : 'Erreur inconnue')
     } finally {
       setLoading(false)
@@ -134,7 +131,7 @@ export const DocumentViewerModal = ({
           throw new Error(data.error || 'Erreur lors du téléchargement')
         }
       } catch (error) {
-        console.error("❌ Error downloading document:", error)
+        logger.error("❌ Error downloading document:", error)
         setError(error instanceof Error ? error.message : 'Erreur de téléchargement')
       }
     }
@@ -248,7 +245,7 @@ export const DocumentViewerModal = ({
                   Ajouté le {format(new Date(documentInfo.uploadedAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
                 </span>
                 {documentInfo.description && (
-                  <span className="italic">"{documentInfo.description}"</span>
+                  <span className="italic">&ldquo;{documentInfo.description}&rdquo;</span>
                 )}
               </div>
             </div>
@@ -320,6 +317,7 @@ export const DocumentViewerModal = ({
             <div className="h-full overflow-auto bg-slate-100 rounded-lg">
               {isImage(document?.type || '') ? (
                 <div className="h-full flex items-center justify-center p-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={viewUrl}
                     alt={document?.name}

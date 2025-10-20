@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { QuoteNotification } from "@/components/notifications/quote-notifications"
-
+import { logger, logError } from '@/lib/logger'
 interface UseQuoteNotificationsProps {
   userId: string
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
@@ -28,7 +28,7 @@ export function useQuoteNotifications({
 
       // TODO: Remplacer par un vrai appel API
       // const response = await fetch(`/api/notifications/quotes?userId=${userId}&role=${userRole}`)
-      // const data = await response.json()
+      // const _data = await response.json()
 
       // Simulation de données selon le rôle et le design system
       const mockNotifications: QuoteNotification[] = []
@@ -95,7 +95,7 @@ export function useQuoteNotifications({
 
       setNotifications(mockNotifications)
     } catch (err) {
-      console.error('Error fetching quote notifications:', err)
+      logger.error('Error fetching quote notifications:', err)
       setError('Erreur lors du chargement des notifications')
     } finally {
       setIsLoading(false)
@@ -103,7 +103,7 @@ export function useQuoteNotifications({
   }, [userId, userRole, enabled])
 
   // Fonction pour marquer une notification comme lue
-  const markAsRead = useCallback(async (notificationId: string) => {
+  const markAsRead = useCallback(async (_notificationId: string) => {
     try {
       // TODO: Appel API pour marquer comme lue
       // await fetch(`/api/notifications/${notificationId}/mark-read`, { method: 'POST' })
@@ -116,7 +116,7 @@ export function useQuoteNotifications({
         )
       )
     } catch (err) {
-      console.error('Error marking notification as read:', err)
+      logger.error('Error marking notification as read:', err)
     }
   }, [])
 
@@ -130,7 +130,7 @@ export function useQuoteNotifications({
         prev.map(notification => ({ ...notification, read: true }))
       )
     } catch (err) {
-      console.error('Error marking all notifications as read:', err)
+      logger.error('Error marking all notifications as read:', err)
     }
   }, [])
 

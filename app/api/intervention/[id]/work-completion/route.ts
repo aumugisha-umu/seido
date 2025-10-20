@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
+import { logger, logError } from '@/lib/logger'
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const interventionId = params.id
+    const resolvedParams = await params
+    const interventionId = resolvedParams.id
 
     // Initialize Supabase client
     const cookieStore = await cookies()
@@ -139,7 +144,7 @@ export async function POST(
       }, { status: 403 })
     }
 
-    console.log("📝 Processing work completion report for intervention:", interventionId)
+    logger.info({ interventionId: interventionId }, "📝 Processing work completion report for intervention:")
 
     // TODO: Handle file uploads to Supabase Storage
     // For now, we'll store file references as JSON
@@ -175,7 +180,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      console.error("❌ Error creating work completion record:", insertError)
+      logger.error({ error: insertError }, "❌ Error creating work completion record:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde du rapport'
@@ -192,14 +197,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      console.error("❌ Error updating intervention status:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention status:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    console.log("✅ Work completion report submitted successfully")
+    logger.info({}, "✅ Work completion report submitted successfully")
 
     // Send notifications
     try {
@@ -253,9 +258,9 @@ export async function POST(
       ) || []
 
       await Promise.all([tenantNotificationPromise, ...managerNotificationPromises])
-      console.log("📧 Work completion notifications sent")
+      logger.info({}, "📧 Work completion notifications sent")
     } catch (notifError) {
-      console.warn("⚠️ Could not send work completion notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications:")
     }
 
     return NextResponse.json({
@@ -269,7 +274,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error("❌ Error in work completion API:", error)
+    logger.error({ error: error }, "❌ Error in work completion API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

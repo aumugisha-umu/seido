@@ -177,7 +177,7 @@ export const mockInterventions = [
     description: 'Radiateurs froids dans le salon',
     type: 'chauffage',
     urgency: 'haute',
-    status: 'programmee',
+    status: 'planifiee',
     location_details: 'Salon et chambre',
     tenant_id: 'tenant-1',
     manager_id: 'manager-1',

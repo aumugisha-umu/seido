@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-complete API route called")
+  logger.info({}, "✅ intervention-complete API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   
   try {
     // Initialize Supabase client
@@ -58,10 +64,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Completing intervention:", interventionId)
+    logger.info({ interventionId: interventionId }, "📝 Completing intervention:")
 
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+
+    // Extract user data from service response wrapper
+    const user = userResult?.data
+
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -84,7 +94,7 @@ export async function POST(request: NextRequest) {
         *,
         lot:lot_id(id, reference, building:building_id(name, address, team_id)),
         team:team_id(id, name),
-        intervention_contacts(
+        intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email)
@@ -94,7 +104,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -102,7 +112,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can be completed
-    if (intervention.status !== 'en_cours') {
+    // Allow completion from 'en_cours' OR 'planifiee' (direct completion without starting)
+    if (!['en_cours', 'planifiee'].includes(intervention.status)) {
       return NextResponse.json({
         success: false,
         error: `L'intervention ne peut pas être terminée (statut actuel: ${intervention.status})`
@@ -111,10 +122,10 @@ export async function POST(request: NextRequest) {
 
     // For prestataires, check if they are assigned to this intervention
     if (user.role === 'prestataire') {
-      const isAssigned = intervention.intervention_contacts?.some(ic => 
+      const isAssigned = intervention.intervention_assignments?.some(ic =>
         ic.role === 'prestataire' && ic.user.id === user.id
       )
-      
+
       if (!isAssigned) {
         return NextResponse.json({
           success: false,
@@ -131,7 +142,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("🔄 Updating intervention status to 'cloturee_par_prestataire'...")
+    logger.info("🔄 Updating intervention status to 'cloturee_par_prestataire'...")
 
     // Build completion comment
     const commentParts = []
@@ -156,7 +167,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention status and details
-    const updateData: any = {
+    const updateData = {
       status: 'cloturee_par_prestataire' as Database['public']['Enums']['intervention_status'],
       completed_date: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -173,9 +184,60 @@ export async function POST(request: NextRequest) {
       updateData.final_cost = parseFloat(finalCost)
     }
 
-    const updatedIntervention = await interventionService.update(interventionId, updateData)
+    // Note: Don't pass userId - let RLS handle permissions (like all other endpoints)
+    const updateResult = await interventionService.update(interventionId, updateData)
 
-    console.log("✅ Intervention completed successfully")
+    // Check if update failed
+    if (!updateResult || !updateResult.success || updateResult.error) {
+      logger.error({
+        error: updateResult?.error,
+        interventionId
+      }, "❌ Failed to update intervention status")
+
+      return NextResponse.json({
+        success: false,
+        error: updateResult?.error?.message || 'Erreur lors de la mise à jour de l\'intervention',
+        details: updateResult?.error
+      }, { status: 500 })
+    }
+
+    const updatedIntervention = updateResult.data
+
+    logger.info({}, "✅ Intervention status updated successfully")
+
+    // Create intervention report if work description provided
+    if (workDescription && intervention.team_id) {
+      try {
+        const { error: reportError } = await supabase
+          .from('intervention_reports')
+          .insert({
+            intervention_id: interventionId,
+            team_id: intervention.team_id,
+            report_type: 'provider_report',
+            title: `Rapport de fin de travaux - ${intervention.title}`,
+            content: workDescription,
+            created_by: user.id,
+            is_internal: false,
+            metadata: {
+              completed_date: new Date().toISOString(),
+              completed_by_name: user.name,
+              completed_by_role: user.role,
+              final_cost: finalCost || null,
+              has_completion_notes: !!completionNotes,
+              lot_reference: intervention.lot?.reference,
+              building_name: intervention.lot?.building?.name
+            }
+          })
+
+        if (reportError) {
+          logger.warn({ reportError }, "⚠️ Could not create intervention report:")
+        } else {
+          logger.info({}, "📝 Intervention report created successfully")
+        }
+      } catch (reportCreationError) {
+        logger.warn({ reportCreationError }, "⚠️ Error creating intervention report:")
+      }
+    }
 
     // Create notifications
     const notificationMessage = `L'intervention "${intervention.title}" a été terminée par ${user.name}. Elle est maintenant en attente de votre validation.`
@@ -204,15 +266,15 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        console.log("📧 Completion notification sent to tenant for validation")
+        logger.info({}, "📧 Completion notification sent to tenant for validation")
       } catch (notifError) {
-        console.warn("⚠️ Could not send notification to tenant:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
       }
     }
 
     // Notify gestionnaires if completed by prestataire
     if (user.role === 'prestataire') {
-      const managers = intervention.intervention_contacts?.filter(ic => 
+      const managers = intervention.intervention_assignments?.filter(ic =>
         ic.role === 'gestionnaire'
       ) || []
 
@@ -236,7 +298,7 @@ export async function POST(request: NextRequest) {
             relatedEntityId: intervention.id
           })
         } catch (notifError) {
-          console.warn("⚠️ Could not send notification to manager:", manager.user.name, notifError)
+          logger.warn({ manager: manager.user.name, notifError }, "⚠️ Could not send notification to manager:")
         }
       }
     }
@@ -259,11 +321,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-complete API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in intervention-complete API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

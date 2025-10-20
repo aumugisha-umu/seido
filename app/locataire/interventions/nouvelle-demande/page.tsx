@@ -8,7 +8,6 @@ import {
   Building2,
   CheckCircle,
   AlertTriangle,
-  Plus,
   X,
   Upload,
   File,
@@ -23,12 +22,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
-import { useTenantData } from "@/hooks/use-tenant-data"
 import { useAuth } from "@/hooks/use-auth"
+import { logger, logError } from '@/lib/logger'
+import { getTenantLots } from '../actions'
 
 interface UploadedFile {
   id: string
@@ -40,18 +39,16 @@ interface UploadedFile {
 
 export default function NouvelleDemandePage() {
   const router = useRouter()
-  const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
-  const { tenantData, loading, error, refreshData } = useTenantData()
-  
+
   // ALL useState hooks must be declared before any conditional returns
-  const [allTenantLots, setAllTenantLots] = useState<any[]>([])
+  const [allTenantLots, setAllTenantLots] = useState<{ id: string; apartment_number?: string; reference: string; building?: { id: string; name: string; address: string; postal_code: string; city: string }; surface_area?: number }[]>([])
   const [lotsLoading, setLotsLoading] = useState(true)
+  const [lotsError, setLotsError] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [countdown, setCountdown] = useState(10)
   const [formData, setFormData] = useState({
     titre: "",
     type: "",
@@ -97,12 +94,13 @@ export default function NouvelleDemandePage() {
 
       try {
         setLotsLoading(true)
-        // Import du service tenant
-        const { tenantService } = await import('@/lib/database-service')
-        const lots = await tenantService.getAllTenantLots(user.id)
+        setLotsError(null)
+        // ✅ Use Server Action instead of direct service call
+        const lots = await getTenantLots(user.id)
         setAllTenantLots(lots || [])
       } catch (err) {
-        console.error('Error fetching tenant lots:', err)
+        logger.error('Error fetching tenant lots:', err)
+        setLotsError(err instanceof Error ? err.message : 'Erreur lors du chargement des logements')
         setAllTenantLots([])
       } finally {
         setLotsLoading(false)
@@ -142,16 +140,16 @@ export default function NouvelleDemandePage() {
 
   // Conditional returns AFTER all hooks
   if (!user) return <div>Chargement...</div>
-  
-  if (loading || lotsLoading) return <LoadingSkeleton />
-  
-  if (error) {
+
+  if (lotsLoading) return <LoadingSkeleton />
+
+  if (lotsError) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
-              Erreur lors du chargement des données: {error}
+              Erreur lors du chargement des données: {lotsError}
             </p>
           </CardContent>
         </Card>
@@ -181,7 +179,7 @@ export default function NouvelleDemandePage() {
     )
   }
 
-  const handleLogementSelect = (logementId: string) => {
+  const handleLogementSelect = (_logementId: string) => {
     setSelectedLogement(logementId)
     setCurrentStep(2)
   }
@@ -195,8 +193,8 @@ export default function NouvelleDemandePage() {
     setCurrentStep(3)
   }
 
-  const interventionId = createdInterventionId || generateInterventionId()
-  const numeroDeclaration = `#${interventionId}`
+  // const interventionId = createdInterventionId || generateInterventionId()
+  // const numeroDeclaration = `#${interventionId}` // unused
 
   const handleConfirmCreation = async () => {
     if (isCreating) return // Prevent multiple submissions
@@ -206,7 +204,7 @@ export default function NouvelleDemandePage() {
       setCreationError(null) // Clear any previous error
       
       // Get the selected lot data
-      const selectedLotData = logements.find(l => l.id === selectedLogement)
+      // const selectedLotData = logements.find(l => l.id === selectedLogement)
       
       // Prepare the intervention data
       const interventionData = {
@@ -217,7 +215,7 @@ export default function NouvelleDemandePage() {
         lot_id: selectedLogement, // Use the selected lot ID
       }
 
-      console.log("🔧 Creating intervention with data:", interventionData)
+      logger.info("🔧 Creating intervention with data:", interventionData)
 
       // Create FormData to handle files
       const formDataToSend = new FormData()
@@ -240,7 +238,7 @@ export default function NouvelleDemandePage() {
       // Add file count for easier processing on backend
       formDataToSend.append('fileCount', uploadedFiles.length.toString())
 
-      console.log(`🔧 Sending intervention with ${uploadedFiles.length} files`)
+      logger.info(`🔧 Sending intervention with ${uploadedFiles.length} files`)
 
       // Call the API to create the intervention
       const response = await fetch('/api/create-intervention', {
@@ -255,7 +253,7 @@ export default function NouvelleDemandePage() {
         throw new Error(result.error || `API returned ${response.status}`)
       }
 
-      console.log("✅ Intervention created successfully:", result.intervention)
+      logger.info("✅ Intervention created successfully:", result.intervention)
 
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
@@ -269,7 +267,7 @@ export default function NouvelleDemandePage() {
       })
 
     } catch (error) {
-      console.error("❌ Error creating intervention:", error)
+      logger.error("❌ Error creating intervention:", error)
       
       // Store error message to display in UI
       setCreationError(error instanceof Error ? error.message : 'Erreur inconnue lors de la création')
@@ -283,7 +281,7 @@ export default function NouvelleDemandePage() {
   }
 
   const handleVoirDetails = () => {
-    const realInterventionId = createdInterventionId || interventionId
+    const realInterventionId = createdInterventionId || generateInterventionId()
     router.push(`/locataire/interventions/${realInterventionId}`)
   }
 
@@ -304,7 +302,7 @@ export default function NouvelleDemandePage() {
     event.target.value = ""
   }
 
-  const removeFile = (fileId: string) => {
+  const removeFile = (_fileId: string) => {
     setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId))
   }
 
@@ -618,13 +616,7 @@ export default function NouvelleDemandePage() {
   }
 
   if (currentStep === 3) {
-    const dateEnvoi = new Date().toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+    // const dateEnvoi = new Date().toLocaleDateString("fr-FR", { ... }) // unused
 
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -783,9 +775,9 @@ export default function NouvelleDemandePage() {
                 </Button>
               </div>
 
-              <p className="text-center text-sm text-gray-500 mt-4">
-                Redirection automatique vers les détails dans {countdown} secondes
-              </p>
+              {/* <p className="text-center text-sm text-gray-500 mt-4">
+                Redirection automatique vers les détails dans 10 secondes
+              </p> */}
             </div>
           </div>
         )}
@@ -869,3 +861,4 @@ function LoadingSkeleton() {
     </div>
   )
 }
+

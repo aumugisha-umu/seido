@@ -11,7 +11,6 @@ import {
   FileText,
   Calendar,
   Clock,
-  Building,
   MessageSquare,
   DollarSign,
   User
@@ -26,7 +25,7 @@ interface ActionConfig {
   iconColor: string
   textColor: string
   subtextColor: string
-  icon: any
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   actionLabel: string
   buttonText: string
   urgentAction?: boolean
@@ -48,7 +47,7 @@ interface PendingAction {
     name: string
     role: string
   }
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   actionUrl: string
 }
 
@@ -77,7 +76,7 @@ export function PendingActionsCard({
 
   // Configuration des actions selon le rôle utilisateur et le type/statut
   const getActionConfig = (action: PendingAction): ActionConfig => {
-    const { type, status } = action
+    const { status } = action
 
     // Configurations pour les locataires
     if (userRole === 'locataire') {
@@ -96,7 +95,6 @@ export function PendingActionsCard({
             urgentAction: true
           }
         case 'demande':
-        case 'nouvelle_demande':
           return {
             bgColor: "bg-yellow-50",
             borderColor: "border-yellow-200",
@@ -187,7 +185,7 @@ export function PendingActionsCard({
             actionLabel: "À planifier",
             buttonText: "Planifier"
           }
-        case "programmee":
+        case "planifiee":
         case "en_cours":
           return {
             bgColor: "bg-emerald-50",
@@ -215,7 +213,88 @@ export function PendingActionsCard({
       }
     }
 
-    // Configuration par défaut pour gestionnaires ou autres rôles
+    // Configurations pour les gestionnaires
+    if (userRole === 'gestionnaire') {
+      switch (status) {
+        case 'demande':
+          return {
+            bgColor: "bg-orange-50",
+            borderColor: "border-orange-200",
+            iconBg: "bg-orange-100",
+            iconColor: "text-orange-600",
+            textColor: "text-orange-900",
+            subtextColor: "text-orange-700",
+            icon: AlertCircle,
+            actionLabel: "À valider",
+            buttonText: "Valider",
+            urgentAction: true
+          }
+        case 'demande_de_devis':
+          return {
+            bgColor: "bg-purple-50",
+            borderColor: "border-purple-200",
+            iconBg: "bg-purple-100",
+            iconColor: "text-purple-600",
+            textColor: "text-purple-900",
+            subtextColor: "text-purple-700",
+            icon: DollarSign,
+            actionLabel: "Devis à approuver",
+            buttonText: "Examiner devis",
+            urgentAction: true
+          }
+        case 'approuvee':
+          return {
+            bgColor: "bg-blue-50",
+            borderColor: "border-blue-200",
+            iconBg: "bg-blue-100",
+            iconColor: "text-blue-600",
+            textColor: "text-blue-900",
+            subtextColor: "text-blue-700",
+            icon: FileText,
+            actionLabel: "Devis en attente",
+            buttonText: "Voir détails"
+          }
+        case 'planification':
+          return {
+            bgColor: "bg-amber-50",
+            borderColor: "border-amber-200",
+            iconBg: "bg-amber-100",
+            iconColor: "text-amber-600",
+            textColor: "text-amber-900",
+            subtextColor: "text-amber-700",
+            icon: Calendar,
+            actionLabel: "Planification en cours",
+            buttonText: "Suivre"
+          }
+        case 'planifiee':
+        case 'en_cours':
+          return {
+            bgColor: "bg-green-50",
+            borderColor: "border-green-200",
+            iconBg: "bg-green-100",
+            iconColor: "text-green-600",
+            textColor: "text-green-900",
+            subtextColor: "text-green-700",
+            icon: Wrench,
+            actionLabel: "En cours d'exécution",
+            buttonText: "Surveiller"
+          }
+        default:
+          return {
+            bgColor: "bg-slate-50",
+            borderColor: "border-slate-200",
+            iconBg: "bg-slate-100",
+            iconColor: "text-slate-600",
+            textColor: "text-slate-900",
+            subtextColor: "text-slate-700",
+            icon: Clock,
+            actionLabel: "Action requise",
+            buttonText: "Traiter"
+          }
+      }
+    }
+
+    // Configuration par défaut pour autres rôles
     return {
       bgColor: "bg-slate-50",
       borderColor: "border-slate-200",

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-import { notificationService } from "@/lib/notification-service"
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { notificationService } from '@/lib/notification-service'
+import { logger } from '@/lib/logger'
 
 interface CancelRequest {
   interventionId: string
@@ -11,26 +13,29 @@ interface CancelRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   try {
     const { interventionId, cancellationReason, internalComment }: CancelRequest = 
       await request.json()
 
-    console.log(`🚫 API: Cancelling intervention ${interventionId}`)
+    logger.info({ interventionId }, "🚫 API: Cancelling intervention")
 
     // Validation des données avec logs de debug
-    console.log('🔍 [API-CANCEL] Validation check:', {
+    logger.info({
       interventionId,
       cancellationReason,
       trimmed: cancellationReason?.trim(),
       length: cancellationReason?.trim()?.length
-    })
+    }, '🔍 [API-CANCEL] Validation check')
     
     if (!interventionId || !cancellationReason?.trim()) {
-      console.log('❌ [API-CANCEL] Validation failed:', {
+      logger.info({
         hasInterventionId: !!interventionId,
         hasCancellationReason: !!cancellationReason,
         trimmedLength: cancellationReason?.trim()?.length || 0
-      })
+      }, '❌ [API-CANCEL] Validation failed')
       return NextResponse.json(
         { success: false, error: "ID d'intervention et motif d'annulation requis" },
         { status: 400 }
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    console.log(`🚫 Cancelling intervention ${interventionId} by user ${authUser.id}`)
+    logger.info({ interventionId, authUser: authUser.id }, "🚫 Cancelling intervention by user")
 
     // D'abord récupérer l'intervention de base sans relations
     const { data: intervention, error: fetchError } = await supabase
@@ -79,7 +84,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (fetchError) {
-      console.error("❌ Error fetching intervention:", fetchError)
+      logger.error({ error: fetchError }, "❌ Error fetching intervention:")
       return NextResponse.json(
         { success: false, error: `Erreur base de données: ${fetchError.message}` },
         { status: 500 }
@@ -87,14 +92,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!intervention) {
-      console.error("❌ Intervention not found with ID:", interventionId)
+      logger.error({ interventionId: interventionId }, "❌ Intervention not found with ID:")
       return NextResponse.json(
         { success: false, error: "Intervention introuvable" },
         { status: 404 }
       )
     }
 
-    console.log(`📋 Found intervention "${intervention.title}" with status: ${intervention.status}`)
+    logger.info({ title: intervention.title, status: intervention.status }, `📋 Found intervention "${intervention.title}" with status: ${intervention.status}`)
 
     // Vérifier que l'intervention peut être annulée
     const cancellableStatuses = [
@@ -125,14 +130,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (updateError) {
-      console.error("❌ Error updating intervention:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention:")
       return NextResponse.json(
         { success: false, error: "Erreur lors de la mise à jour" },
         { status: 500 }
       )
     }
 
-    console.log(`✅ Intervention status updated to: ${updatedIntervention.status}`)
+    logger.info({ updatedIntervention: updatedIntervention.status }, "✅ Intervention status updated to:")
 
     // Créer un log d'activité pour l'annulation
     const { error: logError } = await supabase
@@ -154,14 +159,13 @@ export async function POST(request: NextRequest) {
       })
 
     if (logError) {
-      console.warn("⚠️ Error creating activity log:", logError)
+      logger.warn({ error: logError }, "⚠️ Error creating activity log:")
       // Ne pas faire échouer la requête pour un problème de log
     }
 
     // Envoyer les notifications
     try {
-      console.log("📧 Sending cancellation notifications...")
-      const notificationService = new NotificationService()
+      logger.info({}, "📧 Sending cancellation notifications...")
       
       // Paramètres: intervention, statusFrom, statusTo, changedBy, reason
       await notificationService.notifyInterventionStatusChanged(
@@ -172,9 +176,9 @@ export async function POST(request: NextRequest) {
         cancellationReason  // reason
       )
       
-      console.log("✅ Notifications sent successfully")
+      logger.info({}, "✅ Notifications sent successfully")
     } catch (notificationError) {
-      console.error("❌ Error sending notifications:", notificationError)
+      logger.error({ error: notificationError }, "❌ Error sending notifications:")
       // Ne pas faire échouer la requête pour un problème de notification
     }
 
@@ -185,7 +189,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ API Error:", error)
+    logger.error({ error: error }, "❌ API Error:")
     return NextResponse.json(
       { 
         success: false, 

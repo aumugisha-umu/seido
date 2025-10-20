@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-
+import { createServerSupabaseClient } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log('🚀 [API-APPROVE] Starting quote approval API')
+  logger.info({}, '🚀 [API-APPROVE] Starting quote approval API')
 
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createServerSupabaseClient()
     const { comments } = await request.json()
     const { id } = await params
 
-    console.log('📋 [API-APPROVE] Request details:', {
+    logger.info({
       quoteId: id,
       comments: comments,
       timestamp: new Date().toISOString()
-    })
+    }, '📋 [API-APPROVE] Request details')
 
     // Vérifier l'authentification
-    console.log('🔐 [API-APPROVE] Checking authentication...')
+    logger.info({}, '🔐 [API-APPROVE] Checking authentication...')
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError) {
-      console.error('❌ [API-APPROVE] Auth error:', authError)
+      logger.error({ error: authError }, '❌ [API-APPROVE] Auth error:')
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
     if (!user) {
-      console.error('❌ [API-APPROVE] No user found')
+      logger.error({}, '❌ [API-APPROVE] No user found')
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
@@ -40,18 +40,18 @@ export async function POST(
       .single()
 
     if (userError || !userData) {
-      console.error('❌ [API-APPROVE] User not found in users table:', userError)
+      logger.error({ user: userError }, '❌ [API-APPROVE] User not found in users table:')
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 401 })
     }
 
-    console.log('✅ [API-APPROVE] User authenticated:', {
+    logger.info({
       authUserId: user.id,
       userId: userData.id,
       email: user.email
-    })
+    }, '✅ [API-APPROVE] User authenticated:')
 
     // Récupérer le devis par ID seulement
-    console.log('🔍 [API-APPROVE] Searching for quote with ID:', id)
+    logger.info({ id: id }, '🔍 [API-APPROVE] Searching for quote with ID:')
 
     const { data: quote, error: quoteError } = await supabase
       .from('intervention_quotes')
@@ -62,7 +62,7 @@ export async function POST(
       .eq('id', id)
       .single()
 
-    console.log('📊 [API-APPROVE] Quote query result:', {
+    logger.info({
       found: !!quote,
       error: quoteError,
       quoteData: quote ? {
@@ -71,10 +71,10 @@ export async function POST(
         provider_id: quote.provider_id,
         intervention_id: quote.intervention_id
       } : null
-    })
+    }, '📊 [API-APPROVE] Quote query result:')
 
     if (quoteError) {
-      console.error('❌ [API-APPROVE] Database error while fetching quote:', quoteError)
+      logger.error({ error: quoteError }, '❌ [API-APPROVE] Database error while fetching quote:')
       return NextResponse.json({
         error: 'Devis non trouvé',
         debug: { quoteError }
@@ -82,7 +82,7 @@ export async function POST(
     }
 
     if (!quote) {
-      console.error('❌ [API-APPROVE] Quote not found with ID:', id)
+      logger.error({ id: id }, '❌ [API-APPROVE] Quote not found with ID:')
       return NextResponse.json({
         error: 'Devis non trouvé',
         debug: { searchedId: id }
@@ -90,34 +90,34 @@ export async function POST(
     }
 
     // Vérifier que le devis est en attente (validation JavaScript)
-    console.log('🔍 [API-APPROVE] Checking quote status:', quote.status)
+    logger.info({ quote: quote.status }, '🔍 [API-APPROVE] Checking quote status:')
 
-    // Accepter les statuts "pending" (anglais) et "En attente" (français legacy)
-    const isPending = quote.status === 'pending' || quote.status === 'En attente'
+    // Accepter les statuts "pending" (anglais), "En attente" (français legacy), et "sent" (soumis par prestataire)
+    const isApprovable = quote.status === 'pending' || quote.status === 'En attente' || quote.status === 'sent'
 
-    if (!isPending) {
-      console.error('❌ [API-APPROVE] Quote not in pending status:', quote.status)
+    if (!isApprovable) {
+      logger.error({ quote: quote.status }, '❌ [API-APPROVE] Quote not in approvable status:')
       return NextResponse.json({
-        error: `Ce devis a déjà été traité (statut: ${quote.status})`,
-        debug: { currentStatus: quote.status }
+        error: `Ce devis ne peut pas être approuvé (statut actuel: ${quote.status})`,
+        debug: { currentStatus: quote.status, allowedStatuses: ['pending', 'En attente', 'sent'] }
       }, { status: 400 })
     }
 
-    console.log('✅ [API-APPROVE] Quote found successfully:', {
+    logger.info({
       id: quote.id,
       status: quote.status,
       interventionId: quote.intervention_id
-    })
+    }, '✅ [API-APPROVE] Quote found successfully:')
 
     // Démarrer une transaction pour mettre à jour le devis et l'intervention
-    console.log('💾 [API-APPROVE] Updating quote status to approved...')
+    logger.info({}, '💾 [API-APPROVE] Updating quote status to accepted...')
     const updateData = {
-      status: 'approved',
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: userData.id,
-      review_comments: comments || null
+      status: 'accepted',
+      validated_at: new Date().toISOString(),
+      validated_by: userData.id
+      // Note: review_comments will be handled in a separate table in the future
     }
-    console.log('💾 [API-APPROVE] Update data:', updateData)
+    logger.info({ data: updateData }, '💾 [API-APPROVE] Update data:')
 
     const { error: approveError } = await supabase
       .from('intervention_quotes')
@@ -125,27 +125,26 @@ export async function POST(
       .eq('id', id)
 
     if (approveError) {
-      console.error('❌ [API-APPROVE] Error updating quote:', approveError)
+      logger.error({ error: approveError }, '❌ [API-APPROVE] Error updating quote:')
       return NextResponse.json({
         error: 'Erreur lors de l\'approbation du devis',
         debug: { approveError }
       }, { status: 500 })
     }
 
-    console.log('✅ [API-APPROVE] Quote updated successfully')
+    logger.info({}, '✅ [API-APPROVE] Quote updated successfully')
 
     // Mettre à jour le statut de l'intervention vers "planification"
     const { error: interventionError } = await supabase
       .from('interventions')
       .update({
         status: 'planification',
-        selected_quote_id: id,
         updated_at: new Date().toISOString()
       })
       .eq('id', quote.intervention_id)
 
     if (interventionError) {
-      console.error('Erreur lors de la mise à jour de l\'intervention:', interventionError)
+      logger.error({ interventionError: interventionError }, 'Erreur lors de la mise à jour de l\'intervention:')
       return NextResponse.json({
         error: 'Erreur lors de la mise à jour de l\'intervention'
       }, { status: 500 })
@@ -156,30 +155,30 @@ export async function POST(
       .from('intervention_quotes')
       .update({
         status: 'rejected',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: userData.id,
+        validated_at: new Date().toISOString(),
+        validated_by: userData.id,
         rejection_reason: 'Autre devis sélectionné'
       })
       .eq('intervention_id', quote.intervention_id)
-      .in('status', ['pending', 'En attente'])
+      .in('status', ['pending', 'En attente', 'sent'])
       .neq('id', id)
 
     if (rejectOthersError) {
-      console.error('⚠️ [API-APPROVE] Error rejecting other quotes (non-critical):', rejectOthersError)
+      logger.error({ error: rejectOthersError }, '⚠️ [API-APPROVE] Error rejecting other quotes (non-critical):')
       // On continue même si cette étape échoue
     } else {
-      console.log('✅ [API-APPROVE] Other pending quotes rejected successfully')
+      logger.info({}, '✅ [API-APPROVE] Other pending quotes rejected successfully')
     }
 
-    console.log('🎉 [API-APPROVE] Process completed successfully!')
+    logger.info({}, '🎉 [API-APPROVE] Process completed successfully!')
     return NextResponse.json({
       success: true,
       message: 'Devis approuvé avec succès'
     })
 
   } catch (error) {
-    console.error('💥 [API-APPROVE] Unexpected error:', error)
-    console.error('💥 [API-APPROVE] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    logger.error({ error: error }, '💥 [API-APPROVE] Unexpected error:')
+    logger.error({ error: error instanceof Error ? error.stack : 'No stack trace' }, '💥 [API-APPROVE] Error stack:')
     return NextResponse.json({
       error: 'Erreur interne du serveur',
       debug: { error: error instanceof Error ? error.message : 'Unknown error' }

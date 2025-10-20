@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { userService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
+import { logger, logError } from '@/lib/logger'
+// TODO: Initialize services for new architecture
+// Example: const userService = await createServerUserService()
+// Remember to make your function async if it isn't already
+
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const interventionId = params.id
+    const resolvedParams = await params
+    const interventionId = resolvedParams.id
 
     // Initialize Supabase client
     const cookieStore = await cookies()
@@ -152,7 +157,7 @@ export async function POST(
       }, { status: 403 })
     }
 
-    console.log(`📝 Processing manager finalization (${finalStatus}) for intervention:`, interventionId)
+    logger.info(`📝 Processing manager finalization (${finalStatus}) for intervention:`, interventionId)
 
     // TODO: Handle additional documents upload to Supabase Storage
     const processedDocuments = additionalDocuments || []
@@ -182,7 +187,7 @@ export async function POST(
       .single()
 
     if (insertError) {
-      console.error("❌ Error creating manager finalization record:", insertError)
+      logger.error({ error: insertError }, "❌ Error creating manager finalization record:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde de la finalisation'
@@ -202,14 +207,14 @@ export async function POST(
       .eq('id', interventionId)
 
     if (updateError) {
-      console.error("❌ Error updating intervention:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour de l\'intervention'
       }, { status: 500 })
     }
 
-    console.log(`✅ Manager finalization (${finalStatus}) completed successfully`)
+    logger.info({ finalStatus }, "✅ Manager finalization () completed successfully")
 
     // Send final notifications
     try {
@@ -263,14 +268,14 @@ export async function POST(
       ) || []
 
       await Promise.all([tenantNotificationPromise, ...contactNotificationPromises])
-      console.log("📧 Finalization notifications sent")
+      logger.info({}, "📧 Finalization notifications sent")
     } catch (notifError) {
-      console.warn("⚠️ Could not send finalization notifications:", notifError)
+      logger.warn({ notifError: notifError }, "⚠️ Could not send finalization notifications:")
     }
 
     // Schedule follow-up actions if needed
     if (followUpActions?.warrantyReminder || followUpActions?.maintenanceSchedule || followUpActions?.feedbackRequest) {
-      console.log("📅 Follow-up actions scheduled:", followUpActions)
+      logger.info({ followUpActions: followUpActions }, "📅 Follow-up actions scheduled:")
       // TODO: Implement follow-up scheduling system
     }
 
@@ -286,7 +291,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error("❌ Error in manager finalization API:", error)
+    logger.error({ error: error }, "❌ Error in manager finalization API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

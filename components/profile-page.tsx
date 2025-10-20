@@ -11,19 +11,19 @@ import { useAuth } from "@/hooks/use-auth"
 import { ChangePasswordModal, ChangeEmailModal } from "@/components/ui/security-modals"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Save, 
-  ArrowLeft, 
-  Shield, 
-  Lock, 
+import { logger, logError } from '@/lib/logger'
+import {
+  User,
+  Mail,
+  Phone,
+  Save,
+  ArrowLeft,
+  Shield,
+  Lock,
   Camera,
   Building2,
   Home,
   Wrench,
-  Star
 } from "lucide-react"
 
 interface ProfilePageProps {
@@ -110,7 +110,7 @@ export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
       // Composer le nom complet à partir du prénom et nom
       const fullName = `${firstName} ${lastName}`.trim()
       
-      console.log('🔄 [PROFILE-UPDATE] Sending update data:', {
+      logger.info('🔄 [PROFILE-UPDATE] Sending update data:', {
         name: fullName,
         first_name: firstName,
         last_name: lastName,
@@ -125,7 +125,7 @@ export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
       })
 
       if (error) {
-        console.error("Erreur lors de la mise à jour du profil:", error)
+        logger.error("Erreur lors de la mise à jour du profil:", error)
         const errorMessage = error.message || "Une erreur est survenue lors de la mise à jour de votre profil"
         toast({
           title: "Erreur",
@@ -141,7 +141,7 @@ export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
         })
       }
     } catch (error) {
-      console.error("Erreur lors de la mise à jour du profil:", error)
+      logger.error("Erreur lors de la mise à jour du profil:", error)
       toast({
         title: "Erreur",
         description: "Une erreur inattendue est survenue",
@@ -209,7 +209,7 @@ export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
       window.location.reload()
 
     } catch (error) {
-      console.error("Error uploading avatar:", error)
+      logger.error("Error uploading avatar:", error)
       toast({
         title: "Erreur d'upload",
         description: error instanceof Error ? error.message : "Erreur inconnue",

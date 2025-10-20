@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+// Removed unused useState import
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -51,9 +51,22 @@ import {
   getStatusActionMessage
 } from "@/lib/intervention-utils"
 import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
-
+import { logger, logError } from '@/lib/logger'
 interface InterventionCardProps {
-  intervention: any
+  intervention: {
+    id: string
+    title: string
+    status: string
+    type?: string
+    urgency?: string
+    description?: string
+    scheduled_date?: string
+    created_at?: string
+    created_by_user?: { name: string }
+    creator?: { name: string }
+    tenant?: { name: string }
+    [key: string]: unknown
+  }
   userContext: 'gestionnaire' | 'prestataire' | 'locataire'
   compact?: boolean
   showStatusActions?: boolean
@@ -63,11 +76,21 @@ interface InterventionCardProps {
     contactRole?: string
   }
   actionHooks?: {
-    approvalHook?: any
-    quotingHook?: any
-    planningHook?: any
-    executionHook?: any
-    finalizationHook?: any
+    approvalHook?: {
+      handleApprovalAction?: (intervention: unknown, action: string) => void
+    }
+    quotingHook?: {
+      handleQuoteRequest?: (intervention: unknown) => void
+    }
+    planningHook?: {
+      handleProgrammingModal?: (intervention: unknown) => void
+    }
+    executionHook?: {
+      handleExecutionModal?: (intervention: unknown, type: string) => void
+    }
+    finalizationHook?: {
+      handleFinalizeModal?: (intervention: unknown) => void
+    }
   }
   onActionComplete?: () => void
 }
@@ -97,7 +120,7 @@ export function InterventionCard({
   }
 
   // Get creator name
-  const getCreatorName = (intervention: any): string => {
+  const getCreatorName = (intervention: InterventionCardProps['intervention']): string => {
     if (intervention.created_by_user?.name) {
       return intervention.created_by_user.name
     }
@@ -111,7 +134,7 @@ export function InterventionCard({
   }
 
   // Get intervention type icon and color
-  const getInterventionTypeIcon = (type: string) => {
+  const getInterventionTypeIcon = (_type: string) => {
     const typeConfig = {
       plomberie: { icon: Droplets, color: "bg-blue-100", iconColor: "text-blue-600" },
       electricite: { icon: Zap, color: "bg-yellow-100", iconColor: "text-yellow-600" },
@@ -121,7 +144,7 @@ export function InterventionCard({
       maintenance: { icon: Hammer, color: "bg-orange-100", iconColor: "text-orange-600" },
     }
 
-    return typeConfig[type?.toLowerCase() as keyof typeof typeConfig] || {
+    return typeConfig[_type?.toLowerCase() as keyof typeof typeConfig] || {
       icon: Wrench,
       color: "bg-amber-100",
       iconColor: "text-amber-600"
@@ -196,18 +219,11 @@ export function InterventionCard({
 
       case 'planification':
         if (userContext === 'gestionnaire') {
-          actions.push(
-            {
-              label: "Lancer le matching",
-              icon: TrendingUp,
-              onClick: () => handleAction('run_matching'),
-            },
-            {
-              label: "Proposer des créneaux",
-              icon: Clock,
-              onClick: () => handleAction('propose_slots'),
-            }
-          )
+          actions.push({
+            label: "Planifier",
+            icon: Clock,
+            onClick: () => handleAction('propose_slots'),
+          })
         }
         if (userContext === 'locataire') {
           actions.push({
@@ -281,7 +297,7 @@ export function InterventionCard({
       case 'cloturee_par_locataire':
         if (userContext === 'gestionnaire') {
           actions.push({
-            label: "Finaliser définitivement",
+            label: "Finaliser",
             icon: UserCheck,
             onClick: () => handleAction('finalize'),
           })
@@ -315,8 +331,8 @@ export function InterventionCard({
   }
 
   // Handle action clicks
-  const handleAction = (actionType: string) => {
-    console.log(`[InterventionCard] Action: ${actionType} for intervention ${intervention.id}`)
+  const handleAction = (_actionType: string) => {
+    logger.info(`[InterventionCard] Action: ${actionType} for intervention ${intervention.id}`)
 
     // Route to specific actions based on type
     switch (actionType) {
@@ -334,7 +350,6 @@ export function InterventionCard({
         router.push(`${getInterventionUrl(intervention.id)}?tab=quotes`)
         break
       case 'start_planning':
-      case 'run_matching':
       case 'propose_slots':
         actionHooks?.planningHook?.handleProgrammingModal?.(intervention)
         break
@@ -360,7 +375,7 @@ export function InterventionCard({
         break
       case 'delete':
         // Handle delete confirmation
-        console.log(`Delete intervention ${intervention.id}`)
+        logger.info(`Delete intervention ${intervention.id}`)
         break
       default:
         // Default to opening details page
@@ -634,3 +649,4 @@ export function InterventionCard({
     </Card>
   )
 }
+

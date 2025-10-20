@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-
+import { logger, logError } from '@/lib/logger'
 export interface Notification {
   id: string
   user_id: string
@@ -45,9 +45,9 @@ interface UseNotificationsReturn {
   error: string | null
   unreadCount: number
   refetch: () => Promise<void>
-  markAsRead: (id: string) => Promise<void>
+  markAsRead: (_id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
-  archive: (id: string) => Promise<void>
+  archive: (_id: string) => Promise<void>
 }
 
 export const useNotifications = (options: UseNotificationsOptions = {}): UseNotificationsReturn => {
@@ -67,7 +67,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   } = options
 
   const fetchNotifications = async () => {
-    console.log('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
+    logger.info('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
       userId: user?.id,
       teamId,
       scope,
@@ -77,7 +77,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     })
     
     if (!user?.id || !teamId) {
-      console.log('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
+      logger.info('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
       setLoading(false)
       return
     }
@@ -101,21 +101,21 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       if (type) params.append('type', type)
 
       const url = `/api/notifications?${params}`
-      console.log('📡 [USE-NOTIFICATIONS] Fetching from:', url)
+      logger.info('📡 [USE-NOTIFICATIONS] Fetching from:', url)
       
       const response = await fetch(url)
       
-      console.log('📡 [USE-NOTIFICATIONS] Response status:', response.status)
+      logger.info('📡 [USE-NOTIFICATIONS] Response status:', response.status)
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.log('❌ [USE-NOTIFICATIONS] Error response:', errorData)
+        logger.info('❌ [USE-NOTIFICATIONS] Error response:', errorData)
         throw new Error(`Failed to fetch notifications: ${errorData.details || response.statusText}`)
       }
 
       const result = await response.json()
       
-      console.log('📬 [USE-NOTIFICATIONS] API result:', {
+      logger.info('📬 [USE-NOTIFICATIONS] API result:', {
         success: result.success,
         dataLength: result.data?.length || 0,
         data: result.data
@@ -129,13 +129,13 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
-      console.error('Error fetching notifications:', err)
+      logger.error('Error fetching notifications:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = async (_id: string) => {
     try {
       const response = await fetch(`/api/notifications?id=${id}`, {
         method: 'PATCH',
@@ -161,7 +161,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
         )
       }
     } catch (err) {
-      console.error('Error marking notification as read:', err)
+      logger.error('Error marking notification as read:', err)
       throw err
     }
   }
@@ -174,12 +174,12 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       const promises = unreadNotifications.map(notif => markAsRead(notif.id))
       await Promise.all(promises)
     } catch (err) {
-      console.error('Error marking all notifications as read:', err)
+      logger.error('Error marking all notifications as read:', err)
       throw err
     }
   }
 
-  const archive = async (id: string) => {
+  const archive = async (_id: string) => {
     try {
       const response = await fetch(`/api/notifications?id=${id}`, {
         method: 'PATCH',
@@ -201,7 +201,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
         )
       }
     } catch (err) {
-      console.error('Error archiving notification:', err)
+      logger.error('Error archiving notification:', err)
       throw err
     }
   }

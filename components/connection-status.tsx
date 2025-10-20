@@ -1,7 +1,7 @@
 "use client"
 
 import { useConnectionStatus } from '@/lib/connection-manager'
-import { AlertTriangle, Wifi, WifiOff } from 'lucide-react'
+import { Wifi, WifiOff } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'

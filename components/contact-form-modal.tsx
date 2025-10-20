@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,16 +8,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { X, Building2, Mail, AlertCircle } from "lucide-react"
+import { Building2, Mail, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { contactService } from "@/lib/database-service"
-import { supabase } from "@/lib/supabase"
 
+import { createBrowserSupabaseClient } from "@/lib/services"
+import { logger, logError } from '@/lib/logger'
 interface ContactFormModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (contactData: ContactFormData) => Promise<void>
   defaultType?: string
+  teamId: string // ✅ AJOUT: ID de l'équipe pour validation multi-équipes
   onSuccess?: () => Promise<void> | void // Fonction optionnelle appelée après création réussie
 }
 
@@ -29,16 +28,11 @@ interface ContactFormData {
   lastName: string
   email: string
   phone: string
-  address: string
   speciality?: string
   notes: string
   inviteToApp: boolean
 }
 
-interface ValidationError {
-  field: string
-  message: string
-}
 
 interface FormErrors {
   firstName?: string
@@ -92,7 +86,8 @@ const getContactTitle = (type: string) => {
   }
 }
 
-const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", onSuccess }: ContactFormModalProps) => {
+const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", teamId, onSuccess }: ContactFormModalProps) => {
+  const supabase = createBrowserSupabaseClient()
   const { toast } = useToast()
   
   // Types de contacts qui doivent avoir la checkbox cochée par défaut
@@ -106,7 +101,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
     lastName: "",
     email: "",
     phone: "",
-    address: "",
     speciality: "",
     notes: "",
     inviteToApp: shouldInviteByDefault(defaultType),
@@ -114,6 +108,18 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Sync defaultType from parent when modal opens or defaultType changes
+  useEffect(() => {
+    if (!isOpen) return
+    setFormData(prev => ({
+      ...prev,
+      type: defaultType,
+      speciality: defaultType === "provider" ? prev.speciality : "",
+      inviteToApp: shouldInviteByDefault(defaultType)
+    }))
+    setErrors({})
+  }, [defaultType, isOpen])
 
   // Mettre à jour la checkbox quand le type change
   useEffect(() => {
@@ -126,37 +132,97 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
   }, [formData.type])
 
   // Fonction pour valider un email
-  const isValidEmail = (email: string): boolean => {
+  const isValidEmail = (_email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email.trim())
+    return emailRegex.test(_email.trim())
   }
 
   // Fonction pour valider un numéro de téléphone français
-  const isValidPhone = (phone: string): boolean => {
-    if (!phone.trim()) return true // Le téléphone n'est pas obligatoire
+  const isValidPhone = (_phone: string): boolean => {
+    if (!_phone.trim()) return true // Le téléphone n'est pas obligatoire
     const phoneRegex = /^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/
-    return phoneRegex.test(phone.replace(/\s/g, ''))
+    return phoneRegex.test(_phone.replace(/\s/g, ''))
   }
 
-  // Fonction pour vérifier si l'email existe déjà
-  const checkEmailExists = async (email: string): Promise<boolean> => {
+  // ✅ NOUVELLE FONCTION: Vérifier email avec support multi-équipes (via API avec Service Role)
+  const checkEmailAndTeam = async (_email: string): Promise<{
+    existsInCurrentTeam: boolean
+    existsInOtherTeams: boolean
+    canCreate: boolean
+    message: string
+  }> => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email.trim().toLowerCase())
-        .limit(1)
-        .single()
+      logger.info({ email: _email, teamId }, '🔍 [CONTACT-FORM] Checking email availability for team')
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Erreur lors de la vérification de l\'email:', error)
-        return false
+      const response = await fetch('/api/check-email-team', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: _email.trim().toLowerCase(),
+          teamId
+        })
+      })
+
+      if (!response.ok) {
+        // ✅ Gérer de manière robuste les réponses d'erreur (JSON ou texte)
+        let errorData: any = {}
+        try {
+          errorData = await response.json()
+        } catch (jsonError) {
+          // Si le parsing JSON échoue, essayer de récupérer le texte brut
+          try {
+            const errorText = await response.text()
+            errorData = { message: errorText || `HTTP ${response.status}: ${response.statusText}` }
+          } catch {
+            errorData = { message: `HTTP ${response.status}: ${response.statusText}` }
+          }
+        }
+        logger.error({ error: errorData, status: response.status }, '❌ [CONTACT-FORM] Email validation API error')
+        return {
+          existsInCurrentTeam: false,
+          existsInOtherTeams: false,
+          canCreate: true, // En cas d'erreur, permettre la création (le backend fera la validation finale)
+          message: 'Erreur de validation, veuillez réessayer'
+        }
       }
 
-      return data !== null
+      // ✅ Parser la réponse de succès avec gestion d'erreur
+      try {
+        const result = await response.json()
+        logger.info({ result }, '✅ [CONTACT-FORM] Email validation result')
+        return result
+      } catch (jsonError) {
+        logger.error({ error: jsonError }, '❌ [CONTACT-FORM] Failed to parse success response')
+        // Retourner un résultat sécurisé par défaut
+        return {
+          existsInCurrentTeam: false,
+          existsInOtherTeams: false,
+          canCreate: true,
+          message: 'Erreur lors du traitement de la réponse'
+        }
+      }
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'email:', error)
-      return false
+      // ✅ Gérer les erreurs réseau et autres exceptions
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+      const errorType = error instanceof TypeError ? 'network' : 'unknown'
+
+      logger.error({
+        error: errorMessage,
+        errorType,
+        email: _email,
+        teamId
+      }, '❌ [CONTACT-FORM] Exception in email validation')
+
+      return {
+        existsInCurrentTeam: false,
+        existsInOtherTeams: false,
+        canCreate: true, // En cas d'erreur, permettre la création (le backend fera la validation finale)
+        message: errorType === 'network'
+          ? 'Problème de connexion. Vérifiez votre réseau et réessayez.'
+          : 'Erreur de validation, veuillez réessayer'
+      }
     }
   }
 
@@ -188,10 +254,13 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
     } else if (!isValidEmail(formData.email)) {
       newErrors.email = "Le format de l'email n'est pas valide"
     } else {
-      // Vérifier si l'email existe déjà
-      const emailExists = await checkEmailExists(formData.email)
-      if (emailExists) {
-        newErrors.email = "Un contact avec cet email existe déjà"
+      // ✅ Vérifier si l'email existe dans l'équipe courante (support multi-équipes)
+      const emailCheck = await checkEmailAndTeam(formData.email)
+      if (emailCheck.existsInCurrentTeam) {
+        newErrors.email = "Un contact avec cet email existe déjà dans votre équipe"
+      } else if (emailCheck.existsInOtherTeams) {
+        // ℹ️ Email existe dans autre équipe → permis mais on informe l'utilisateur
+        logger.info({ email: formData.email }, '📝 [CONTACT-FORM] Email exists in other team, creation allowed')
       }
     }
 
@@ -208,19 +277,19 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (isSubmitting) return
 
     setIsSubmitting(true)
     setErrors({})
-    
+
     try {
       // Validation complète du formulaire
       const validation = await validateForm()
-      
+
       if (!validation.isValid) {
         setErrors(validation.errors)
-        
+
         // Afficher un toast d'erreur général
         const firstError = Object.values(validation.errors)[0]
         toast({
@@ -228,9 +297,8 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
           description: firstError || "Veuillez corriger les erreurs dans le formulaire",
           variant: "destructive"
         })
-        
-        setIsSubmitting(false)
-        return
+
+        return // ✅ FIX: Pas besoin de setIsSubmitting(false) ici, le finally le fera
       }
 
       // Appeler la fonction onSubmit et attendre sa completion
@@ -238,7 +306,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
 
       // Construire le message de succès adapté selon l'invitation
       const contactName = `${formData.firstName} ${formData.lastName}`
-      const invitationMessage = formData.inviteToApp 
+      const invitationMessage = formData.inviteToApp
         ? "Une invitation à rejoindre l'application a été envoyée par email."
         : "Aucune invitation n'a été envoyée."
 
@@ -256,7 +324,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         lastName: "",
         email: "",
         phone: "",
-        address: "",
         speciality: "",
         notes: "",
         inviteToApp: shouldInviteByDefault(defaultType),
@@ -271,13 +338,13 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
         try {
           await onSuccess()
         } catch (refreshError) {
-          console.error('❌ Erreur lors du rafraîchissement des données:', refreshError)
+          logger.error('❌ Erreur lors du rafraîchissement des données:', refreshError)
           // Le toast de succès a déjà été affiché, on n'affiche pas d'erreur pour ne pas confuser l'utilisateur
         }
       }
 
-    } catch (error: any) {
-      console.error('❌ Erreur lors de la création du contact:', error)
+    } catch (error: unknown) {
+      logger.error('❌ Erreur lors de la création du contact:', error)
       
       // Gestion des erreurs spécifiques
       let errorMessage = "Une erreur est survenue lors de la création du contact. Veuillez réessayer."
@@ -311,7 +378,6 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", o
       lastName: "",
       email: "",
       phone: "",
-      address: "",
       speciality: "",
       notes: "",
       inviteToApp: shouldInviteByDefault(defaultType),

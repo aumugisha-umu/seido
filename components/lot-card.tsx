@@ -16,15 +16,23 @@ interface LotCardProps {
     surface_area?: number
     rooms?: number
     apartment_number?: string
-    is_occupied?: boolean
-    tenant_id?: string
+    tenant_id?: string | null // ⚠️ Deprecated: Use lot_contacts instead
     building_id?: string
-    has_active_tenants?: boolean
+    has_active_tenants?: boolean // Calculated field from queries
+    is_occupied?: boolean // Calculated field from queries
     tenant?: {
       id: string
       name: string
     }
-    lot_tenants?: Array<{
+    lot_contacts?: Array<{
+      user?: {
+        id: string
+        name: string
+        role?: string
+      }
+      is_primary?: boolean
+    }>
+    lot_tenants?: Array<{ // ⚠️ Deprecated: Use lot_contacts instead
       contact?: {
         name: string
       }
@@ -44,9 +52,9 @@ interface LotCardProps {
   showBuilding?: boolean
 }
 
-export default function LotCard({ 
-  lot, 
-  interventions = [], 
+export default function LotCard({
+  lot,
+  interventions = [],
   mode = "view",
   isSelected = false,
   onSelect,
@@ -54,9 +62,13 @@ export default function LotCard({
 }: LotCardProps) {
   const router = useRouter()
   const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
-  const isOccupied = lot.is_occupied || lot.tenant_id || lot.has_active_tenants
-  const tenantName = lot.tenant?.name || (lot.lot_tenants?.[0]?.contact?.name) || null
-  const tenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
+
+  // ✅ Phase 2: Calculate occupancy from lot_contacts (not tenant_id)
+  const tenants = lot.lot_contacts?.filter(lc => lc.user?.role === 'locataire') || []
+  const isOccupied = tenants.length > 0 || lot.has_active_tenants || lot.is_occupied
+
+  const tenantName = tenants[0]?.user?.name || lot.tenant?.name || null
+  const tenantCount = tenants.length || (lot.tenant ? 1 : 0)
   const buildingAddress = lot.building ? `${lot.building.address}, ${lot.building.city}` : 'Adresse non disponible'
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -66,9 +78,7 @@ export default function LotCard({
     }
     
     if (mode === "select" && onSelect) {
-      if (isSelected) {
-        onSelect(null)
-      } else {
+      if (!isSelected) {
         onSelect(lot.id, lot.building?.id)
       }
     }
@@ -117,9 +127,7 @@ export default function LotCard({
                     className="h-8 px-3 text-xs"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (isSelected) {
-                        onSelect?.(null)
-                      } else {
+                      if (!isSelected) {
                         onSelect?.(lot.id, lot.building?.id)
                       }
                     }}
@@ -218,7 +226,7 @@ export default function LotCard({
                         {/* Show all tenants */}
                         {lot.lot_tenants?.length > 0 ? (
                           <div className="space-y-1">
-                            {lot.lot_tenants.map((tenantInfo: any, idx: number) => (
+                            {lot.lot_tenants.map((tenantInfo, idx: number) => (
                               <div key={idx} className="flex items-center gap-2 text-xs">
                                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                                 <span className="text-slate-700">{tenantInfo.contact?.name}</span>
@@ -278,3 +286,4 @@ export default function LotCard({
     </Card>
   )
 }
+

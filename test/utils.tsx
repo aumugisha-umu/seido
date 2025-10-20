@@ -7,7 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 // Mock AuthContext since we don't have the actual one
 const MockAuthProvider = ({ children, user }: {
   children: ReactNode,
-  user?: any
+  user?: unknown
 }) => {
   return <>{children}</>
 }
@@ -23,7 +23,7 @@ const AllTheProviders = ({
   userRole = 'gestionnaire',
   userId = 'test-user-id',
   teamId = 'test-team-id'
-}: any) => {
+}: unknown) => {
   const mockUser = {
     id: userId,
     email: `test@${userRole}.fr`,

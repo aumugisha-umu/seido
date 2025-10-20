@@ -4,16 +4,17 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-
+import { createBrowserSupabaseClient } from "@/lib/services"
+import { logger, logError } from '@/lib/logger'
 export default function UpdatePasswordPage() {
+  const supabase = createBrowserSupabaseClient()
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -24,23 +25,22 @@ export default function UpdatePasswordPage() {
   const [isValidSession, setIsValidSession] = useState(false)
   
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
-    console.log("🔄 [UPDATE-PASSWORD] Checking session validity...")
+    logger.info("🔄 [UPDATE-PASSWORD] Checking session validity...")
     checkSessionValidity()
   }, [])
 
   const checkSessionValidity = async () => {
     try {
-      console.log("🔍 [UPDATE-PASSWORD] Checking URL for recovery tokens...")
+      logger.info("🔍 [UPDATE-PASSWORD] Checking URL for recovery tokens...")
       
       // Les tokens de récupération sont dans le hash (#) de l'URL
       const urlHash = window.location.hash
-      console.log("🔧 [UPDATE-PASSWORD] URL hash:", urlHash)
+      logger.info("🔧 [UPDATE-PASSWORD] URL hash:", urlHash)
       
       if (urlHash && urlHash.includes('access_token') && urlHash.includes('type=recovery')) {
-        console.log("🔑 [UPDATE-PASSWORD] Found recovery tokens in URL hash")
+        logger.info("🔑 [UPDATE-PASSWORD] Found recovery tokens in URL hash")
         
         // Parser manuellement les tokens du hash
         const hashParams = new URLSearchParams(urlHash.substring(1)) // enlever le #
@@ -48,21 +48,21 @@ export default function UpdatePasswordPage() {
         const refreshToken = hashParams.get('refresh_token')
         const tokenType = hashParams.get('type')
         
-        console.log("🔧 [UPDATE-PASSWORD] Parsed tokens:", {
+        logger.info("🔧 [UPDATE-PASSWORD] Parsed tokens:", {
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
           tokenType: tokenType
         })
         
         if (accessToken && refreshToken && tokenType === 'recovery') {
-          console.log("🔑 [UPDATE-PASSWORD] Setting session with recovery tokens...")
+          logger.info("🔑 [UPDATE-PASSWORD] Setting session with recovery tokens...")
           
           const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
           })
           
-          console.log("🔧 [UPDATE-PASSWORD] setSession result:", {
+          logger.info("🔧 [UPDATE-PASSWORD] setSession result:", {
             hasError: !!sessionError,
             hasSession: !!sessionData?.session,
             hasUser: !!sessionData?.session?.user,
@@ -70,7 +70,7 @@ export default function UpdatePasswordPage() {
           })
           
           if (sessionError) {
-            console.error("❌ [UPDATE-PASSWORD] Error setting recovery session:", sessionError.message)
+            logger.error("❌ [UPDATE-PASSWORD] Error setting recovery session:", sessionError.message)
             setError("Session de récupération invalide ou expirée. Veuillez refaire une demande de réinitialisation.")
             return
           }
@@ -78,20 +78,20 @@ export default function UpdatePasswordPage() {
           // Pour la récupération de mot de passe, nous n'avons besoin que de la session
           // Le profil utilisateur peut timeout mais ce n'est pas critique ici
           if (sessionData.session) {
-            console.log("✅ [UPDATE-PASSWORD] Recovery session established")
+            logger.info("✅ [UPDATE-PASSWORD] Recovery session established")
             setIsValidSession(true)
             
             // Nettoyer l'URL après avoir traité les tokens
             window.history.replaceState({}, document.title, window.location.pathname)
             return
           } else {
-            console.log("⚠️ [UPDATE-PASSWORD] No session data returned, waiting for auth state change...")
+            logger.info("⚠️ [UPDATE-PASSWORD] No session data returned, waiting for auth state change...")
             // Attendre que l'auth state change nous confirme la connexion
             await new Promise(resolve => setTimeout(resolve, 2000))
             
             // Si nous atteignons ici après le timeout, considérer que la session est valide
             // car nous avons vu "SIGNED_IN true" dans les logs
-            console.log("✅ [UPDATE-PASSWORD] Assuming session is valid based on auth state change")
+            logger.info("✅ [UPDATE-PASSWORD] Assuming session is valid based on auth state change")
             setIsValidSession(true)
             window.history.replaceState({}, document.title, window.location.pathname)
             return
@@ -100,13 +100,13 @@ export default function UpdatePasswordPage() {
       }
       
       // Fallback : attendre un peu puis vérifier si Supabase a traité automatiquement
-      console.log("🔄 [UPDATE-PASSWORD] Waiting for Supabase auto-detection...")
+      logger.info("🔄 [UPDATE-PASSWORD] Waiting for Supabase auto-detection...")
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
       
       if (!sessionError && sessionData.session && sessionData.session.user) {
-        console.log("✅ [UPDATE-PASSWORD] Session auto-detected for:", sessionData.session.user.email)
+        logger.info("✅ [UPDATE-PASSWORD] Session auto-detected for:", sessionData.session.user.email)
         setIsValidSession(true)
         return
       }
@@ -115,16 +115,16 @@ export default function UpdatePasswordPage() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       
       if (userError || !user) {
-        console.error("❌ [UPDATE-PASSWORD] No authenticated user:", userError?.message || "No user")
+        logger.error("❌ [UPDATE-PASSWORD] No authenticated user:", userError?.message || "No user")
         setError("Session invalide ou expirée. Veuillez refaire une demande de réinitialisation.")
         return
       }
       
-      console.log("✅ [UPDATE-PASSWORD] Session is valid for user:", user.email)
+      logger.info("✅ [UPDATE-PASSWORD] Session is valid for user:", user.email)
       setIsValidSession(true)
       
     } catch (error) {
-      console.error("❌ [UPDATE-PASSWORD] Unexpected error checking session:", error)
+      logger.error("❌ [UPDATE-PASSWORD] Unexpected error checking session:", error)
       setError("Erreur lors de la vérification de la session. Veuillez réessayer.")
     }
   }
@@ -154,16 +154,16 @@ export default function UpdatePasswordPage() {
     }
 
     try {
-      console.log("🔄 [UPDATE-PASSWORD] Updating user password...")
+      logger.info("🔄 [UPDATE-PASSWORD] Updating user password...")
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       })
 
       if (updateError) {
-        console.error("❌ [UPDATE-PASSWORD] Error updating password:", updateError.message)
+        logger.error("❌ [UPDATE-PASSWORD] Error updating password:", updateError.message)
         setError("Erreur lors de la mise à jour du mot de passe : " + updateError.message)
       } else {
-        console.log("✅ [UPDATE-PASSWORD] Password updated successfully")
+        logger.info("✅ [UPDATE-PASSWORD] Password updated successfully")
         setIsUpdated(true)
         setError("")
         
@@ -173,7 +173,7 @@ export default function UpdatePasswordPage() {
         }, 3000)
       }
     } catch (error) {
-      console.error("❌ [UPDATE-PASSWORD] Unexpected error:", error)
+      logger.error("❌ [UPDATE-PASSWORD] Unexpected error:", error)
       setError("Une erreur inattendue s'est produite. Veuillez réessayer.")
     } finally {
       setIsLoading(false)
@@ -388,3 +388,4 @@ export default function UpdatePasswordPage() {
     </div>
   )
 }
+

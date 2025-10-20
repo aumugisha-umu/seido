@@ -1,15 +1,12 @@
 import {
   ArrowLeft,
   Bell,
-  Check,
-  Clock,
   AlertTriangle,
   Info,
   Eye,
   EyeOff,
   Trash2,
   Calendar,
-  User,
   Building,
   Wrench,
 } from "lucide-react"
@@ -64,8 +61,8 @@ const mockNotifications: Notification[] = [
   },
 ]
 
-function getNotificationIcon(type: string) {
-  switch (type) {
+function getNotificationIcon(_type: string) {
+  switch (_type) {
     case "intervention":
       return <Wrench className="h-5 w-5 text-blue-600" />
     case "payment":

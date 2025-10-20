@@ -1,31 +1,39 @@
 "use client"
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
+import { useState, useCallback, forwardRef, useImperativeHandle } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { 
-  User, 
-  Briefcase, 
-  Shield, 
-  FileCheck, 
-  Car, 
-  MoreHorizontal, 
-  Plus, 
-  X, 
-  Search, 
-  Loader2, 
-  Users 
+import {
+  User,
+  Briefcase,
+  Shield,
+  FileCheck,
+  Car,
+  MoreHorizontal,
+  Plus,
+  X,
+  Search,
+  Loader2,
+  Users,
+  Home
 } from "lucide-react"
 import ContactFormModal from "@/components/contact-form-modal"
-import { contactService, contactInvitationService, determineAssignmentType } from "@/lib/database-service"
+
+
+import { determineAssignmentType, createContactInvitationService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
+import { useTeamContacts } from '@/hooks/use-team-contacts'
+
+const contactInvitationService = createContactInvitationService()
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
+  { key: "owner", label: "Propriétaire", icon: Home, color: "text-amber-600" },
   { key: "syndic", label: "Syndic", icon: Shield, color: "text-purple-600" },
   { key: "notary", label: "Notaire", icon: FileCheck, color: "text-orange-600" },
   { key: "insurance", label: "Assurance", icon: Car, color: "text-red-600" },
@@ -60,8 +68,10 @@ interface ContactSelectorProps {
   onContactSelected?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Callback quand un contact est retiré - AVEC CONTEXTE
   onContactRemoved?: (contactId: string, contactType: string, context?: { lotId?: string }) => void
+  // Callback pour suppression directe (depuis l'interface des lots)
+  onDirectContactRemove?: (contactId: string, contactType: string, lotId?: string) => void
   // Callback quand un nouveau contact est créé - AVEC CONTEXTE
-  onContactCreated?: (contact: any, contactType: string, context?: { lotId?: string }) => void
+  onContactCreated?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Classe CSS personnalisée
   className?: string
   // Si true, ne pas afficher le titre
@@ -84,6 +94,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   selectedContacts = {},
   onContactSelected,
   onContactRemoved,
+  onDirectContactRemove,
   onContactCreated,
   className = "",
   hideTitle = false,
@@ -93,113 +104,57 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [selectedContactType, setSelectedContactType] = useState<string>("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [existingContacts, setExistingContacts] = useState<any[]>([])
-  const [isLoadingContacts, setIsLoadingContacts] = useState(false)
   // NOUVEAU : État pour stocker le lotId temporaire lors de l'ouverture externe
   const [externalLotId, setExternalLotId] = useState<string | undefined>(undefined)
-  
+
   // États pour le modal de création
   const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
   const [prefilledContactType, setPrefilledContactType] = useState<string>("")
 
+  // ✅ Hook SWR pour fetcher les contacts avec cache intelligent
+  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError } = useTeamContacts(teamId)
+
+  // ✅ Plus besoin de refs pour le chargement - SWR gère tout
+
   // Filtrer les types de contacts autorisés
-  const filteredContactTypes = contactTypes.filter(type => 
+  const filteredContactTypes = contactTypes.filter(type =>
     allowedContactTypes.includes(type.key)
   )
 
-  // Fonction interne pour ouvrir le modal (sera utilisée par le composant et exposée via ref)
-  const handleOpenContactModal = async (contactType: string) => {
-    console.log('🚀 [ContactSelector] openContactModal appelé avec type:', contactType)
-    setSelectedContactType(contactType)
+  // ✅ Fonction simplifiée pour ouvrir le modal - Les données sont déjà en cache via SWR!
+  const handleOpenContactModal = useCallback((_contactType: string) => {
+    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType)
+
+    // Initialiser l'état du modal
+    setSelectedContactType(_contactType)
     setSearchTerm("")
     setIsContactModalOpen(true)
-    
-    // Charger les contacts existants du type correspondant
-    if (teamId) {
-      setIsLoadingContacts(true)
-      try {
-        console.log('📞 [ContactSelector] Loading contacts for team:', teamId)
-        const teamContacts = await contactService.getTeamContacts(teamId)
-        
-        console.log('✅ [ContactSelector] Loaded', teamContacts?.length, 'contacts')
-        console.log('📋 [ContactSelector] Sample contact:', JSON.stringify(teamContacts?.[0], null, 2))
-        
-        // Filtrer selon le type de contact demandé (logique centralisée)
-        const filteredContacts = teamContacts.filter(contact => {
-          // Convertir les noms de rôles français (BDD) vers anglais (interface TypeScript)
-          const mappedRole = (() => {
-            switch(contact.role) {
-              case 'gestionnaire': return 'manager'
-              case 'locataire': return 'tenant'  
-              case 'prestataire': return 'provider'
-              case 'admin': return 'admin'
-              default: return contact.role
-            }
-          })()
 
-          // Convertir les catégories françaises (BDD) vers anglaises (interface TypeScript)
-          const mappedProviderCategory = (() => {
-            switch(contact.provider_category) {
-              case 'prestataire': return 'service'
-              case 'assurance': return 'insurance'
-              case 'notaire': return 'legal'
-              case 'proprietaire': return 'owner'
-              case 'autre': return 'other'
-              case 'syndic': return 'syndic'  // Reste pareil
-              default: return contact.provider_category
-            }
-          })()
-
-          const assignmentUser = {
-            id: contact.id,
-            role: mappedRole as any,
-            provider_category: mappedProviderCategory as any,
-            speciality: (contact.speciality || undefined) as string | undefined  // Convertir null en undefined
-          }
-          
-          console.log('🧪 [ContactSelector] Processing:', contact?.name, 'DB role:', contact?.role, '→ mapped:', mappedRole, 'DB category:', contact?.provider_category, '→ mapped:', mappedProviderCategory)
-          
-          const assignmentType = determineAssignmentType(assignmentUser)
-          const matches = assignmentType === contactType
-          
-          console.log('🧪 [ContactSelector] AssignmentType:', assignmentType, 'matches', contactType, '?', matches)
-          
-          return matches
-        })
-        
-        console.log('🎯 [ContactSelector] Filtered:', filteredContacts.length, '/', teamContacts.length, 'contacts')
-        setExistingContacts(filteredContacts)
-      } catch (error) {
-        console.error("❌ [ContactSelector] Error loading contacts:", error)
-        setExistingContacts([])
-      } finally {
-        setIsLoadingContacts(false)
-      }
-    } else {
-      console.log('⚠️ [ContactSelector] No teamId provided')
-    }
-  }
+    // ✅ Pas d'appel API - SWR a déjà chargé les données!
+    // ✅ Pas de timeout - les données sont instantanées depuis le cache
+    // ✅ Pas de loading state manuel - SWR gère isLoading automatiquement
+  }, [])
 
   // Exposer les méthodes publiques via ref
   useImperativeHandle(ref, () => ({
     openContactModal: (contactType: string, contextLotId?: string) => {
-      console.log('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
+      logger.info('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
       setExternalLotId(contextLotId)
       handleOpenContactModal(contactType)
     }
-  }), [teamId, handleOpenContactModal])
+  }), [handleOpenContactModal])
 
   // [SUPPRIMÉ] Ancienne fonction openContactModal remplacée par handleOpenContactModal
 
   // Ouvrir le modal de création de contact
-  const openContactFormModal = (type: string) => {
-    setPrefilledContactType(type)
+  const openContactFormModal = (_type: string) => {
+    setPrefilledContactType(_type)
     setIsContactFormModalOpen(true)
     setIsContactModalOpen(false)
   }
 
   // Ajouter un contact existant (callback centralisé)
-  const handleAddExistingContact = (contact: any) => {
+  const handleAddExistingContact = (contact: Contact) => {
     const newContact: Contact = {
       id: contact.id,
       name: contact.name,
@@ -212,29 +167,44 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
     const contextLotId = externalLotId || lotId
     
-    console.log('✅ [ContactSelector] Contact selected:', newContact.name, 'type:', selectedContactType, 'lotId:', contextLotId)
+    logger.info('✅ [ContactSelector] Contact selected:', newContact.name, 'type:', selectedContactType, 'lotId:', contextLotId)
     
     // Appeler le callback parent avec contexte
     if (onContactSelected) {
       onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
     } else {
-      console.error('❌ [ContactSelector] onContactSelected callback is missing!')
+      logger.error('❌ [ContactSelector] onContactSelected callback is missing!')
     }
     
-    setIsContactModalOpen(false)
-    setSearchTerm("")
-    setExternalLotId(undefined)  // Nettoyer le contexte externe
+    // Ne pas fermer la modale pour permettre la sélection multiple
+    // setIsContactModalOpen(false)
+    // setSearchTerm("")
+    // setExternalLotId(undefined)  // Nettoyer le contexte externe
+  }
+
+  // Retirer un contact sélectionné
+  const handleRemoveSelectedContact = (contactId: string) => {
+    const contextLotId = externalLotId || lotId
+    
+    logger.info('🗑️ [ContactSelector] Contact removed:', contactId, 'type:', selectedContactType, 'lotId:', contextLotId)
+    
+    // Appeler le callback parent avec contexte
+    if (onContactRemoved) {
+      onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
+    } else {
+      logger.error('❌ [ContactSelector] onContactRemoved callback is missing!')
+    }
   }
 
   // Créer un contact (logique centralisée)
-  const handleContactCreated = async (contactData: any) => {
+  const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
     try {
       if (!teamId) {
-        console.error("❌ [ContactSelector] No teamId provided")
+        logger.error("❌ [ContactSelector] No teamId provided")
         return
       }
 
-      console.log('🆕 [ContactSelector] Creating contact:', contactData.firstName, contactData.lastName, 'type:', selectedContactType)
+      logger.info('🆕 [ContactSelector] Creating contact:', contactData.firstName, contactData.lastName, 'type:', selectedContactType)
 
       // Utiliser le service d'invitation pour créer le contact
       const result = await contactInvitationService.createContactWithOptionalInvite({
@@ -243,39 +213,50 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         lastName: contactData.lastName,
         email: contactData.email,
         phone: contactData.phone,
-        address: contactData.address,
         speciality: contactData.speciality,
         notes: contactData.notes,
         inviteToApp: contactData.inviteToApp,
         teamId: teamId
       })
 
-      // Créer le contact pour l'état local
+      // Vérifier la réussite et sécuriser l'accès aux propriétés
+      const responseData: any = (result as any) || {}
+      const responseContact: any = responseData.contact || responseData.data?.contact || null
+
+      if (!responseContact) {
+        logger.warn('⚠️ [ContactSelector] Contact created but no contact payload returned. Proceeding with form data fallback')
+      }
+
+      // Créer le contact pour l'état local (fallbacks si certaines infos manquent)
       const newContact: Contact = {
-        id: result.contact.id,
-        name: result.contact.name,
-        email: result.contact.email,
+        id: responseContact?.id || '',
+        name: responseContact?.name || `${contactData.firstName} ${contactData.lastName}`.trim(),
+        email: responseContact?.email || contactData.email,
         type: selectedContactType,
-        phone: result.contact.phone,
-        speciality: result.contact.speciality,
+        phone: responseContact?.phone || contactData.phone,
+        speciality: responseContact?.speciality || contactData.speciality,
       }
       
-      console.log('✅ [ContactSelector] Contact created:', newContact.name)
+      logger.info('✅ [ContactSelector] Contact created:', newContact.name)
+      
+      // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
+      const contextLotId = externalLotId || lotId
       
       // Appeler les callbacks parent
       if (onContactSelected) {
-        onContactSelected(newContact, selectedContactType)
+        onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
       }
       
       if (onContactCreated) {
-        onContactCreated(result.contact, selectedContactType)
+        onContactCreated(newContact, selectedContactType, { lotId: contextLotId })
       }
       
+      // Fermer seulement le modal de création, pas le modal de sélection
       setIsContactFormModalOpen(false)
-      cleanContactContext()
+      // Ne pas appeler cleanContactContext() pour garder la modale de sélection ouverte
       
     } catch (error) {
-      console.error("❌ Erreur lors de la création du contact:", error)
+      logger.error("❌ Erreur lors de la création du contact:", error)
     }
   }
 
@@ -285,9 +266,51 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     setPrefilledContactType("")
   }
 
-  // Filtrer les contacts selon le terme de recherche
+  // ✅ Filtrer les contacts depuis le cache SWR selon le type et le terme de recherche
   const getFilteredContacts = () => {
-    return !searchTerm.trim() ? existingContacts : existingContacts.filter(contact => 
+    if (!teamContacts) return []
+
+    // Étape 1: Filtrer par type de contact (tenant, provider, etc.)
+    const contactsByType = teamContacts.filter(contact => {
+      // Convertir les rôles français (BDD) vers anglais (interface TypeScript)
+      const mappedRole = (() => {
+        switch(contact.role) {
+          case 'gestionnaire': return 'manager'
+          case 'locataire': return 'tenant'
+          case 'prestataire': return 'provider'
+          case 'admin': return 'admin'
+          default: return contact.role
+        }
+      })()
+
+      // Convertir les catégories françaises (BDD) vers anglaises (interface TypeScript)
+      const mappedProviderCategory = (() => {
+        switch(contact.provider_category) {
+          case 'prestataire': return 'service'
+          case 'assurance': return 'insurance'
+          case 'notaire': return 'legal'
+          case 'proprietaire': return 'owner'
+          case 'autre': return 'other'
+          case 'syndic': return 'syndic'
+          default: return contact.provider_category
+        }
+      })()
+
+      const assignmentUser = {
+        id: contact.id,
+        role: mappedRole,
+        provider_category: mappedProviderCategory,
+        speciality: (contact.speciality || undefined) as string | undefined
+      }
+
+      const assignmentType = determineAssignmentType(assignmentUser)
+      return assignmentType === selectedContactType
+    })
+
+    // Étape 2: Filtrer par terme de recherche
+    if (!searchTerm.trim()) return contactsByType
+
+    return contactsByType.filter(contact =>
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (contact.phone && contact.phone.includes(searchTerm))
@@ -300,8 +323,14 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // Obtenir les contacts sélectionnés pour un type donné (centralisé)
-  const getSelectedContactsByType = (contactType: string): Contact[] => {
-    return selectedContacts[contactType] || []
+  const getSelectedContactsByType = (_contactType: string): Contact[] => {
+    return selectedContacts[_contactType] || []
+  }
+
+  // Vérifier si un contact est déjà sélectionné pour le type actuel
+  const isContactSelected = (contactId: string, contactType: string): boolean => {
+    const selectedContactsOfType = getSelectedContactsByType(contactType)
+    return selectedContactsOfType.some(contact => contact.id === contactId)
   }
 
   // Rendu en mode compact (pour création d'immeuble)
@@ -322,7 +351,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         </div>
       )}
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
         {filteredContactTypes.map((type) => {
           const Icon = type.icon
           const contacts = getSelectedContactsByType(type.key)
@@ -344,7 +373,13 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onContactRemoved?.(contact.id, type.key)}
+                      onClick={() => {
+                        if (onDirectContactRemove) {
+                          onDirectContactRemove(contact.id, type.key, lotId)
+                        } else {
+                          onContactRemoved?.(contact.id, type.key)
+                        }
+                      }}
                       className="text-red-500 hover:text-red-700 h-5 w-5 p-0 flex-shrink-0"
                     >
                       <X className="w-3 h-3" />
@@ -399,7 +434,13 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onContactRemoved?.(contact.id, type.key)}
+                      onClick={() => {
+                        if (onDirectContactRemove) {
+                          onDirectContactRemove(contact.id, type.key, lotId)
+                        } else {
+                          onContactRemoved?.(contact.id, type.key)
+                        }
+                      }}
                       className="h-6 w-6 p-0"
                     >
                       <X className="h-3 w-3" />
@@ -434,15 +475,22 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
             <DialogTitle className="flex items-center gap-2">
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
+              {selectedContactType === 'owner' && <Home className="w-5 h-5" />}
               {selectedContactType === 'syndic' && <Shield className="w-5 h-5" />}
               {selectedContactType === 'notary' && <FileCheck className="w-5 h-5" />}
               {selectedContactType === 'insurance' && <Car className="w-5 h-5" />}
               {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
               Sélectionner un {getSelectedContactTypeInfo().label.toLowerCase()}
+              {getSelectedContactsByType(selectedContactType).length > 0 && (
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  {getSelectedContactsByType(selectedContactType).length} sélectionné(s)
+                </Badge>
+              )}
             </DialogTitle>
             <DialogDescription>
               {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
               {selectedContactType === 'provider' && 'Prestataire pour les interventions'}
+              {selectedContactType === 'owner' && 'Propriétaire du bien immobilier'}
               {selectedContactType === 'syndic' && 'Syndic de copropriété'}
               {selectedContactType === 'notary' && 'Notaire pour les actes'}
               {selectedContactType === 'insurance' && 'Compagnie d\'assurance'}
@@ -469,43 +517,90 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               </div>
             )}
 
+            {/* Error state */}
+            {!isLoadingContacts && loadingError && (
+              <div className="border border-red-200 bg-red-50 rounded-lg p-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <X className="w-8 h-8 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-red-900 mb-2">
+                      Erreur de chargement
+                    </h3>
+                    <p className="text-sm text-red-700">
+                      {loadingError instanceof Error ? loadingError.message : 'Erreur inconnue'}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => handleOpenContactModal(selectedContactType)}
+                    variant="outline"
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    Réessayer
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Contacts list */}
-            {!isLoadingContacts && (
+            {!isLoadingContacts && !loadingError && (
               <div className="max-h-64 overflow-y-auto">
                 {getFilteredContacts().length > 0 ? (
                   <div className="space-y-2">
-                    {getFilteredContacts().map((contact) => (
-                      <div
-                        key={contact.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium">{contact.name}</div>
-                          <div className="text-sm text-gray-500">{contact.email}</div>
-                          {contact.phone && (
-                            <div className="text-xs text-gray-400">{contact.phone}</div>
-                          )}
-                          {contact.speciality && (
-                            <div className="text-xs text-green-600 capitalize mt-1">
-                              {contact.speciality}
-                            </div>
-                          )}
-                        </div>
-                        <Button 
-                          onClick={() => handleAddExistingContact(contact)} 
-                          className="bg-blue-600 text-white hover:bg-blue-700"
-                          size="sm"
+                    {getFilteredContacts().map((contact) => {
+                      const isSelected = isContactSelected(contact.id, selectedContactType)
+                      return (
+                        <div
+                          key={contact.id}
+                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                            isSelected 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'hover:bg-gray-50'
+                          }`}
                         >
-                          Sélectionner
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="flex-1">
+                            <div className="font-medium flex items-center gap-2">
+                              {contact.name}
+                              {isSelected && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                  Sélectionné
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">{contact.email}</div>
+                            {contact.phone && (
+                              <div className="text-xs text-gray-400">{contact.phone}</div>
+                            )}
+                            {contact.speciality && (
+                              <div className="text-xs text-green-600 capitalize mt-1">
+                                {contact.speciality}
+                              </div>
+                            )}
+                          </div>
+                          <Button 
+                            onClick={() => isSelected 
+                              ? handleRemoveSelectedContact(contact.id)
+                              : handleAddExistingContact(contact)
+                            } 
+                            className={isSelected 
+                              ? "bg-red-600 text-white hover:bg-red-700" 
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                            }
+                            size="sm"
+                          >
+                            {isSelected ? "Retirer" : "Sélectionner"}
+                          </Button>
+                        </div>
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       {selectedContactType === 'tenant' && <User className="w-8 h-8 text-blue-600" />}
                       {selectedContactType === 'provider' && <Briefcase className="w-8 h-8 text-green-600" />}
+                      {selectedContactType === 'owner' && <Home className="w-8 h-8 text-amber-600" />}
                       {selectedContactType === 'syndic' && <Shield className="w-8 h-8 text-purple-600" />}
                       {selectedContactType === 'notary' && <FileCheck className="w-8 h-8 text-orange-600" />}
                       {selectedContactType === 'insurance' && <Car className="w-8 h-8 text-red-600" />}
@@ -534,12 +629,28 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                 <Plus className="w-4 h-4" />
                 Ajouter un {getSelectedContactTypeInfo().label.toLowerCase()}
               </Button>
-              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => {
-                setIsContactModalOpen(false)
-                cleanContactContext()
-              }}>
-                Annuler
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="default" 
+                  className="w-full sm:w-auto" 
+                  onClick={() => {
+                    setIsContactModalOpen(false)
+                    cleanContactContext()
+                  }}
+                >
+                  Terminé
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full sm:w-auto" 
+                  onClick={() => {
+                    setIsContactModalOpen(false)
+                    cleanContactContext()
+                  }}
+                >
+                  Annuler
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -554,6 +665,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         }}
         onSubmit={handleContactCreated}
         defaultType={prefilledContactType}
+        teamId={teamId || ''}
       />
     </>
   )

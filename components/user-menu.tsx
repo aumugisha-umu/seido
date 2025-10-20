@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-
+import { logger, logError } from '@/lib/logger'
 interface UserMenuProps {
   userName: string
   userInitial: string
@@ -25,20 +25,20 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
 
   const handleLogout = async () => {
     try {
-      console.log('👤 [USER-MENU] Logout button clicked')
-      
+      logger.info('👤 [USER-MENU] Logout button clicked')
+
       // Effectuer la déconnexion
       await signOut()
-      console.log('👤 [USER-MENU] Sign out completed, redirecting to login')
-      
+      logger.info('👤 [USER-MENU] Sign out completed, redirecting to login')
+
       // Redirection forcée pour s'assurer que ça marche
       window.location.href = "/auth/login"
-      
+
     } catch (error) {
-      console.error('❌ [USER-MENU] Error during logout:', error)
-      
+      logger.error('❌ [USER-MENU] Error during logout:', error)
+
       // Même en cas d'erreur, rediriger vers login
-      console.log('🔄 [USER-MENU] Forcing redirect to login after error')
+      logger.info('🔄 [USER-MENU] Forcing redirect to login after error')
       window.location.href = "/auth/login"
     }
   }
@@ -47,14 +47,14 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
     router.push(`/${role}/profile`)
   }
 
-  const getRoleDisplayName = (role: string) => {
+  const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
-      gestionnaire: "Gestionnaire", 
+      gestionnaire: "Gestionnaire",
       prestataire: "Prestataire",
       locataire: "Locataire"
     }
-    return roleNames[role as keyof typeof roleNames] || role.charAt(0).toUpperCase() + role.slice(1)
+    return roleNames[_role as keyof typeof roleNames] || _role.charAt(0).toUpperCase() + _role.slice(1)
   }
 
   return (

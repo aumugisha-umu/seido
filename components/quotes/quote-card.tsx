@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Check, X, User, Download, Trash2 } from "lucide-react"
+import { Check, X, User, Download, Trash2 } from "lucide-react"
 import { QuoteApprovalModal } from "./quote-approval-modal"
 import { QuoteRejectionModal } from "./quote-rejection-modal"
 
@@ -25,14 +25,24 @@ interface QuoteCardProps {
     reviewedAt?: string
     reviewComments?: string
     rejectionReason?: string
-    attachments: Array<any>
+    attachments: Array<{
+      id: string
+      name: string
+      url: string
+      type: string
+    }>
     isCurrentUserQuote?: boolean
   }
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
-  onDownloadAttachment?: (attachment: any) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
+  onDownloadAttachment?: (attachment: {
+    id: string
+    name: string
+    url: string
+    type: string
+  }) => void
   onDataChange?: () => void
   showActions?: boolean
   compact?: boolean
@@ -41,8 +51,6 @@ interface QuoteCardProps {
 export function QuoteCard({
   quote,
   userContext = 'gestionnaire',
-  onApprove,
-  onReject,
   onCancel,
   onDownloadAttachment,
   onDataChange,
@@ -52,42 +60,51 @@ export function QuoteCard({
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showRejectionModal, setShowRejectionModal] = useState(false)
   
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (_status: string) => {
+    switch (quote.status) {
       case 'approved':
+      case 'accepted':
         return 'bg-green-50 border-green-200 text-green-800'
       case 'rejected':
         return 'bg-red-50 border-red-200 text-red-800'
       case 'cancelled':
         return 'bg-gray-50 border-gray-200 text-gray-800'
+      case 'sent':
+        return 'bg-blue-50 border-blue-200 text-blue-800'
       case 'pending':
       default:
         return 'bg-yellow-50 border-yellow-200 text-yellow-800'
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
+  const getStatusLabel = (_status: string) => {
+    switch (quote.status) {
       case 'approved':
+      case 'accepted':
         return 'Accepté'
       case 'rejected':
         return 'Refusé'
       case 'cancelled':
         return 'Annulé'
+      case 'sent':
+        return 'En attente de validation'
       case 'pending':
       default:
         return 'En attente'
     }
   }
 
-  const getBadgeColor = (status: string) => {
-    switch (status) {
+  const getBadgeColor = (_status: string) => {
+    switch (quote.status) {
       case 'approved':
+      case 'accepted':
         return 'bg-green-100 text-green-800'
       case 'rejected':
         return 'bg-red-100 text-red-800'
       case 'cancelled':
         return 'bg-gray-100 text-gray-800'
+      case 'sent':
+        return 'bg-blue-100 text-blue-800'
       case 'pending':
       default:
         return 'bg-yellow-100 text-yellow-800'
@@ -98,7 +115,7 @@ export function QuoteCard({
     const buttons = []
 
     // Actions selon le contexte et le statut
-    if (userContext === 'gestionnaire' && quote.status === 'pending' && showActions) {
+    if (userContext === 'gestionnaire' && (quote.status === 'pending' || quote.status === 'sent') && showActions) {
       buttons.push(
         <Button
           key="approve"
@@ -287,7 +304,7 @@ export function QuoteCard({
         </div>
       )}
 
-      {quote.status === 'approved' && quote.reviewComments && (
+      {quote.status === 'accepted' && quote.reviewComments && (
         <div className="mb-3 p-2 bg-green-50 rounded text-xs text-green-700">
           <strong>Commentaires:</strong> {quote.reviewComments}
         </div>

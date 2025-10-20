@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { FileText, Euro, CheckCircle, XCircle, Bell, Clock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
+import { logger, logError } from '@/lib/logger'
 export interface QuoteNotification {
   id: string
   type: 'quote_request' | 'quote_submitted' | 'quote_approved' | 'quote_rejected'
@@ -24,7 +23,7 @@ interface QuoteNotificationsProps {
   userId: string
   userRole: 'locataire' | 'gestionnaire' | 'prestataire'
   onNotificationClick?: (notification: QuoteNotification) => void
-  onMarkAsRead?: (notificationId: string) => void
+  onMarkAsRead?: (_notificationId: string) => void
 }
 
 export function QuoteNotifications({
@@ -76,7 +75,7 @@ export function QuoteNotifications({
 
         setNotifications(mockNotifications)
       } catch (error) {
-        console.error('Error fetching notifications:', error)
+        logger.error('Error fetching notifications:', error)
       } finally {
         setIsLoading(false)
       }
@@ -231,7 +230,7 @@ export function QuoteNotificationsPanel({
 }: Omit<QuoteNotificationsProps, 'onMarkAsRead'>) {
   const [notifications, setNotifications] = useState<QuoteNotification[]>([])
 
-  const markAsRead = (notificationId: string) => {
+  const markAsRead = (_notificationId: string) => {
     setNotifications(prev =>
       prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
     )

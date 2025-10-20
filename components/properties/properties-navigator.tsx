@@ -6,8 +6,14 @@ import { Building2, Home } from "lucide-react"
 import ContentNavigator from "@/components/content-navigator"
 import { PropertiesList } from "@/components/properties/properties-list"
 
+interface Property {
+  id: string
+  type: 'building' | 'lot'
+  [key: string]: unknown
+}
+
 interface PropertiesNavigatorProps {
-  properties: any[]
+  properties: Property[]
   loading?: boolean
   emptyStateConfig?: {
     title: string
@@ -54,7 +60,7 @@ export function PropertiesNavigator({
   const lots = properties.filter(p => p.type === 'lot') || []
 
   // Apply search and filters to buildings
-  const applySearchAndFilters = (propertiesList: any[], propertyType: 'building' | 'lot') => {
+  const applySearchAndFilters = (propertiesList: Property[], propertyType: 'building' | 'lot') => {
     let result = propertiesList
 
     // Search filter
@@ -81,8 +87,10 @@ export function PropertiesNavigator({
     if (filters.status !== "all") {
       result = result.filter(property => {
         if (propertyType === 'lot') {
-          if (filters.status === "occupied") return property.is_occupied
-          if (filters.status === "vacant") return !property.is_occupied
+          // Phase 2: Occupancy determined by tenant_id presence
+          const isOccupied = !!property.tenant_id
+          if (filters.status === "occupied") return isOccupied
+          if (filters.status === "vacant") return !isOccupied
         }
         // For buildings, we could check if they have occupied lots
         // but let's keep it simple for now

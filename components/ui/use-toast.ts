@@ -18,12 +18,14 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement
 }
 
-const actionTypes = {
+const _actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",
   DISMISS_TOAST: "DISMISS_TOAST",
   REMOVE_TOAST: "REMOVE_TOAST",
 } as const
+
+type ActionType = typeof _actionTypes[keyof typeof _actionTypes]
 
 let count = 0
 
@@ -32,23 +34,23 @@ function genId() {
   return count.toString()
 }
 
-type ActionType = typeof actionTypes
+type ActionTypeValues = typeof _actionTypes
 
 type Action =
   | {
-      type: ActionType["ADD_TOAST"]
+      type: ActionTypeValues["ADD_TOAST"]
       toast: ToasterToast
     }
   | {
-      type: ActionType["UPDATE_TOAST"]
+      type: ActionTypeValues["UPDATE_TOAST"]
       toast: Partial<ToasterToast>
     }
   | {
-      type: ActionType["DISMISS_TOAST"]
+      type: ActionTypeValues["DISMISS_TOAST"]
       toastId?: ToasterToast["id"]
     }
   | {
-      type: ActionType["REMOVE_TOAST"]
+      type: ActionTypeValues["REMOVE_TOAST"]
       toastId?: ToasterToast["id"]
     }
 
@@ -58,7 +60,7 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
-const addToRemoveQueue = (toastId: string) => {
+const addToRemoveQueue = (_toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-
+import { logger, logError } from '@/lib/logger'
 // Client admin pour les opérations privilégiées
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('📧 [TEAM-INVITATIONS] Fetching all invitations for team:', teamId)
+    logger.info({ teamId: teamId }, '📧 [TEAM-INVITATIONS] Fetching all invitations for team:')
 
     // Récupérer toutes les invitations de cette équipe (tous statuts)
     const { data: invitations, error } = await supabaseAdmin
@@ -46,14 +46,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('❌ [TEAM-INVITATIONS] Database error:', error)
+      logger.error({ error: error }, '❌ [TEAM-INVITATIONS] Database error:')
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des invitations' },
         { status: 500 }
       )
     }
 
-    console.log('✅ [TEAM-INVITATIONS] Found', invitations?.length || 0, 'invitations')
+    logger.info({ invitationCount: invitations?.length || 0 }, '✅ [TEAM-INVITATIONS] Found invitations')
 
     return NextResponse.json({
       success: true,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('❌ [TEAM-INVITATIONS] Unexpected error:', error)
+    logger.error({ error: error }, '❌ [TEAM-INVITATIONS] Unexpected error:')
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

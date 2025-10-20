@@ -6,11 +6,9 @@ import {
   X,
   AlertTriangle,
   Star,
-  Camera,
   MessageSquare,
   ThumbsUp,
   ThumbsDown,
-  Clock,
   Wrench
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
@@ -114,7 +111,7 @@ export function TenantValidationForm({
         }
       }))
     } else {
-      const { issues, ...rest } = formData
+      const { issues: _issues, ...rest } = formData
       setFormData(rest)
     }
     setError(null)

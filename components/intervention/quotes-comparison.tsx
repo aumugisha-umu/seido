@@ -13,7 +13,8 @@ import {
   Phone,
   Mail,
   Info,
-  MessageSquare
+  MessageSquare,
+  Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,7 +38,7 @@ interface Quote {
   estimated_start_date?: string
   terms_and_conditions?: string
   attachments: string[]
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
   submitted_at: string
   reviewed_at?: string
   reviewed_by?: string
@@ -57,8 +58,16 @@ interface Quote {
   }
 }
 
+interface Intervention {
+  id: string
+  title: string
+  description: string
+  urgency: string
+  quote_deadline?: string
+}
+
 interface QuotesComparisonProps {
-  intervention: any
+  intervention: Intervention
   quotes: Quote[]
   onQuoteApprove: (quoteId: string, comments?: string) => void
   onQuoteReject: (quoteId: string, reason: string) => void
@@ -79,7 +88,7 @@ export const QuotesComparison = ({
   const [rejectionReason, setRejectionReason] = useState("")
 
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
-  const approvedQuotes = quotes.filter(q => q.status === 'approved')
+  const approvedQuotes = quotes.filter(q => q.status === 'accepted')
   const rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
   const handleApproveClick = (quote: Quote) => {
@@ -161,7 +170,7 @@ export const QuotesComparison = ({
     const score = getQuoteScore(quote)
 
     return (
-      <Card className={`h-full ${quote.status === 'approved' ? 'border-green-500 bg-green-50' : quote.status === 'rejected' ? 'border-red-500 bg-red-50' : ''}`}>
+      <Card className={`h-full ${quote.status === 'accepted' ? 'border-green-500 bg-green-50' : quote.status === 'rejected' ? 'border-red-500 bg-red-50' : ''}`}>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -176,12 +185,12 @@ export const QuotesComparison = ({
               )}
               <Badge
                 className={
-                  quote.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  quote.status === 'accepted' ? 'bg-green-100 text-green-800' :
                   quote.status === 'rejected' ? 'bg-red-100 text-red-800' :
                   'bg-yellow-100 text-yellow-800'
                 }
               >
-                {quote.status === 'approved' ? 'Approuvé' :
+                {quote.status === 'accepted' ? 'Approuvé' :
                  quote.status === 'rejected' ? 'Rejeté' :
                  'En attente'}
               </Badge>
@@ -266,7 +275,7 @@ export const QuotesComparison = ({
           )}
 
           {/* Statut et commentaires */}
-          {quote.status === 'approved' && quote.review_comments && (
+          {quote.status === 'accepted' && quote.review_comments && (
             <div className="bg-green-50 border border-green-200 rounded p-3">
               <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
@@ -286,18 +295,8 @@ export const QuotesComparison = ({
             </div>
           )}
 
-          {/* Alerte expiration */}
-          {isExpired && quote.status === 'pending' && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                Ce devis a expiré. Contactez le prestataire pour une mise à jour.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Actions */}
-          {showActions && quote.status === 'pending' && !isExpired && (
+          {showActions && quote.status === 'pending' && (
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
@@ -342,7 +341,7 @@ export const QuotesComparison = ({
             Aucun devis reçu
           </h3>
           <p className="text-slate-600">
-            Les devis soumis par les prestataires apparaîtront ici pour comparaison.
+            Les devis soumis par les prestataires appara&icirc;tront ici pour comparaison.
           </p>
         </CardContent>
       </Card>

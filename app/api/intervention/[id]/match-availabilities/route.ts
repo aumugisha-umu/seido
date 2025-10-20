@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 interface UserAvailability {
@@ -43,7 +42,7 @@ interface MatchingResult {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const resolvedParams = await params
-  console.log("🔄 match-availabilities API route called for intervention:", resolvedParams.id)
+  logger.info({ resolvedParams: resolvedParams.id }, "🔄 match-availabilities API route called for intervention:")
 
   try {
     // Initialize Supabase client
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .order('start_time', { ascending: true })
 
     if (availError) {
-      console.error("❌ Error fetching availabilities:", availError)
+      logger.error({ error: availError }, "❌ Error fetching availabilities:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la récupération des disponibilités'
@@ -104,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    console.log("📅 Processing availabilities:", allAvailabilities.length)
+    logger.info({ allAvailabilities: allAvailabilities.length }, "📅 Processing availabilities:")
 
     // Group availabilities by user role
     const tenantAvailabilities = allAvailabilities.filter(avail => avail.user.role === 'locataire')
@@ -124,8 +123,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    console.log("🏠 Tenant availabilities:", tenantAvailabilities.length)
-    console.log("🔧 Provider availabilities:", providerAvailabilities.length)
+    logger.info({ tenantAvailabilities: tenantAvailabilities.length }, "🏠 Tenant availabilities:")
+    logger.info({ providerAvailabilities: providerAvailabilities.length }, "🔧 Provider availabilities:")
 
     // Perform matching algorithm
     const matchingResult = performAvailabilityMatching(tenantAvailabilities, providerAvailabilities)
@@ -173,13 +172,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             .insert(matchesToSave)
 
           if (saveError) {
-            console.warn("⚠️ Could not save matches to database:", saveError)
+            logger.warn({ data: saveError }, "⚠️ Could not save matches to database:")
           } else {
-            console.log("✅ Saved", matchesToSave.length, "matches to database")
+            logger.info({ matchCount: matchesToSave.length }, "✅ Saved matches to database")
           }
         }
       } catch (saveError) {
-        console.warn("⚠️ Error saving matches:", saveError)
+        logger.warn({ error: saveError }, "⚠️ Error saving matches:")
         // Don't fail the whole operation for this
       }
     }
@@ -187,11 +186,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(matchingResult)
 
   } catch (error) {
-    console.error("❌ Error in match-availabilities API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in match-availabilities API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,
@@ -206,7 +205,7 @@ function performAvailabilityMatching(
 ): MatchingResult {
   const matches: MatchedSlot[] = []
 
-  console.log("🔍 Starting availability matching algorithm...")
+  logger.info({}, "🔍 Starting availability matching algorithm...")
 
   // For each tenant availability, find overlapping provider availabilities
   for (const tenantAvail of tenantAvailabilities) {
@@ -233,7 +232,7 @@ function performAvailabilityMatching(
           score: score
         })
 
-        console.log(`✨ Found overlap on ${tenantAvail.date}: ${overlap.duration} minutes (score: ${score})`)
+        logger.info({ tenantAvail: tenantAvail.date, overlap: overlap.duration, score }, "✨ Found overlap on : minutes (score: )")
       }
     }
   }
@@ -257,12 +256,12 @@ function performAvailabilityMatching(
     message = 'Aucun créneau compatible trouvé, veuillez ajuster vos disponibilités'
   }
 
-  console.log("📊 Matching results:", {
+  logger.info({
     perfectMatch: !!perfectMatch,
     partialMatches: partialMatches.length,
     suggestions: suggestions.length,
     totalMatches: matches.length
-  })
+  }, "📊 Matching results:")
 
   return {
     success: matches.length > 0,
@@ -325,7 +324,7 @@ function calculateMatchScore(overlapDuration: number, date: string): number {
   return Math.min(100, score) // Cap at 100
 }
 
-function timeToMinutes(time: string): number {
+function timeToMinutes(_time: string): number {
   const [hours, minutes] = time.split(':').map(Number)
   return hours * 60 + minutes
 }
@@ -336,7 +335,7 @@ function minutesToTime(minutes: number): string {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(_dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',

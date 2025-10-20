@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  console.log("👍 intervention-validate-tenant API route called")
+  logger.info({}, "👍 intervention-validate-tenant API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   
   try {
     // Initialize Supabase client
@@ -65,7 +71,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Tenant validating intervention:", interventionId, "Status:", validationStatus)
+    logger.info({ interventionId, validationStatus }, "📝 Tenant validating intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
         *,
         lot:lot_id(id, reference, building:building_id(name, address, team_id)),
         team:team_id(id, name),
-        intervention_contacts(
+       intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email)
@@ -101,7 +107,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -116,8 +122,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if user is the tenant assigned to this intervention
-    if (intervention.tenant_id !== user.id) {
+    // Check if user is a tenant assigned to this intervention
+    const { data: assignment } = await supabase
+      .from('intervention_assignments')
+      .select('id')
+      .eq('intervention_id', interventionId)
+      .eq('user_id', user.id)
+      .eq('role', 'locataire')
+      .single()
+
+    if (!assignment) {
       return NextResponse.json({
         success: false,
         error: 'Vous n\'êtes pas le locataire assigné à cette intervention'
@@ -143,7 +157,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("🔄 Updating intervention status to:", newStatus)
+    logger.info({ newStatus: newStatus }, "🔄 Updating intervention status to:")
 
     // Build tenant comment
     const commentParts = []
@@ -163,7 +177,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention
-    const updateData: any = {
+    const updateData = {
       status: newStatus,
       tenant_comment: updatedComment,
       updated_at: new Date().toISOString()
@@ -179,7 +193,7 @@ export async function POST(request: NextRequest) {
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
-    console.log(`✅ Intervention ${validationStatus} by tenant successfully`)
+    logger.info({ validationStatus }, "✅ Intervention by tenant successfully")
 
     // Create notifications for stakeholders
     const priority = validationStatus === 'contested' ? 'high' : 'normal'
@@ -214,7 +228,7 @@ export async function POST(request: NextRequest) {
             relatedEntityId: intervention.id
           })
         } catch (notifError) {
-          console.warn("⚠️ Could not send notification to manager:", manager.user.name, notifError)
+          logger.warn({ manager: manager.user.name, notifError }, "⚠️ Could not send notification to manager:")
         }
       }
     }
@@ -246,7 +260,7 @@ export async function POST(request: NextRequest) {
           relatedEntityId: intervention.id
         })
       } catch (notifError) {
-        console.warn("⚠️ Could not send notification to provider:", provider.user.name, notifError)
+        logger.warn({ provider: provider.user.name, notifError }, "⚠️ Could not send notification to provider:")
       }
     }
 
@@ -269,11 +283,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-validate-tenant API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-validate-tenant API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

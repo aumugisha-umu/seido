@@ -1,0 +1,1093 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\config\\playwright.e2e.config.ts",
+    "rootDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\helpers\\global-setup.ts",
+    "globalTeardown": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\helpers\\global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 3,
+    "metadata": {
+      "testSuite": "SEIDO E2E Complete",
+      "version": "0.1.0",
+      "environment": "test",
+      "timestamp": "2025-09-30T20:29:53.561Z",
+      "features": [
+        "Multi-role authentication",
+        "Cross-role workflows",
+        "Performance benchmarks",
+        "Security validation",
+        "Pino logging integration",
+        "Agent debugger analysis"
+      ],
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\html",
+          "open": "on-failure"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\reports\\json\\playwright-results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\helpers\\custom-pino-reporter.ts",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Tests d'authentification pour tous les rôles",
+          "priority": "critical"
+        },
+        "id": "auth-tests",
+        "name": "auth-tests",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/phase1-auth\\/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Tests de gestion des contacts (invitations, recherche, filtres)",
+          "priority": "high",
+          "role": "gestionnaire"
+        },
+        "id": "phase2-contacts",
+        "name": "phase2-contacts",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/phase2-contacts\\/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Tests de gestion des bâtiments et lots (CRUD, attribution, statistiques)",
+          "priority": "high",
+          "role": "gestionnaire"
+        },
+        "id": "phase2-buildings",
+        "name": "phase2-buildings",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/phase2-buildings\\/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Workflow complet administrateur",
+          "role": "admin"
+        },
+        "id": "admin-workflow",
+        "name": "admin-workflow",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/admin-workflow\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Workflow complet gestionnaire",
+          "role": "gestionnaire"
+        },
+        "id": "gestionnaire-workflow",
+        "name": "gestionnaire-workflow",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/gestionnaire-workflow\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Workflow complet locataire",
+          "role": "locataire"
+        },
+        "id": "locataire-workflow",
+        "name": "locataire-workflow",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/locataire-workflow\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Workflow complet prestataire",
+          "role": "prestataire"
+        },
+        "id": "prestataire-workflow",
+        "name": "prestataire-workflow",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/prestataire-workflow\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Tests d'intégration et performance",
+          "priority": "high"
+        },
+        "id": "integration-tests",
+        "name": "integration-tests",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/phase3-integration\\/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/screenshots/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "description": "Tests critiques sur mobile",
+          "priority": "medium"
+        },
+        "id": "mobile-critical",
+        "name": "mobile-critical",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/docs/refacto/Tests/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/auth-login\\.spec\\.ts|locataire-workflow\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 3,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "phase2-buildings\\buildings-management.spec.ts",
+      "file": "phase2-buildings/buildings-management.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "🏢 Phase 2 - Buildings Management",
+          "file": "phase2-buildings/buildings-management.spec.ts",
+          "line": 78,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display buildings list with correct data",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1009,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:81:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                          "column": 12,
+                          "line": 81
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 79 |\u001b[39m\n \u001b[90m 80 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Building CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 83 |\u001b[39m   })\n \u001b[90m 84 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                            "column": 12,
+                            "line": 81
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  79 |\n  80 |   test.beforeEach(async ({ page }) => {\n> 81 |     logger.testStart('Building CRUD test')\n     |            ^\n  82 |     await loginAsGestionnaire(page)\n  83 |   })\n  84 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:81:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                            "column": 12,
+                            "line": 90
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  88 |       fullPage: true\n  89 |     })\n> 90 |     logger.testEnd()\n     |            ^\n  91 |   })\n  92 |\n  93 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:90:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MjIuNjA0ICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWJ1aWxkaW5ncy1jcnVkIGZvciByb2xlOiB1bmtub3duG1szOW0KICAgIBtbMzVtdGVzdElkG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQtMTc1OTI2NDIyMjU5Ny1iem9kOGJuMnUiCiAgICAbWzM1bXRlc3RGaWxlG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MjIuNjAzWiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCg=="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-30T20:30:22.626Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-ceba6-ings-list-with-correct-data-phase2-buildings\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-ceba6-ings-list-with-correct-data-phase2-buildings\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-ceba6-ings-list-with-correct-data-phase2-buildings\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                        "column": 12,
+                        "line": 81
+                      }
+                    },
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1057,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:81:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                          "column": 12,
+                          "line": 81
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 79 |\u001b[39m\n \u001b[90m 80 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Building CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 83 |\u001b[39m   })\n \u001b[90m 84 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                            "column": 12,
+                            "line": 81
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  79 |\n  80 |   test.beforeEach(async ({ page }) => {\n> 81 |     logger.testStart('Building CRUD test')\n     |            ^\n  82 |     await loginAsGestionnaire(page)\n  83 |   })\n  84 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:81:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                            "column": 12,
+                            "line": 90
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  88 |       fullPage: true\n  89 |     })\n> 90 |     logger.testEnd()\n     |            ^\n  91 |   })\n  92 |\n  93 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:90:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MjcuMTQ2ICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWJ1aWxkaW5ncy1jcnVkIGZvciByb2xlOiB1bmtub3duG1szOW0KICAgIBtbMzVtdGVzdElkG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQtMTc1OTI2NDIyNzEzNC1tMXl2ZTlscGYiCiAgICAbWzM1bXRlc3RGaWxlG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MjcuMTQ1WiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCg=="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-09-30T20:30:27.167Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-ceba6-ings-list-with-correct-data-phase2-buildings-retry1\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-ceba6-ings-list-with-correct-data-phase2-buildings-retry1\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-ceba6-ings-list-with-correct-data-phase2-buildings-retry1\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                        "column": 12,
+                        "line": 81
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-a14ab447da6eb59eb65e",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 96,
+              "column": 7
+            },
+            {
+              "title": "should create a new building successfully",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 829,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:81:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                          "column": 12,
+                          "line": 81
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 79 |\u001b[39m\n \u001b[90m 80 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Building CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 83 |\u001b[39m   })\n \u001b[90m 84 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                            "column": 12,
+                            "line": 81
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  79 |\n  80 |   test.beforeEach(async ({ page }) => {\n> 81 |     logger.testStart('Building CRUD test')\n     |            ^\n  82 |     await loginAsGestionnaire(page)\n  83 |   })\n  84 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:81:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                            "column": 12,
+                            "line": 90
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  88 |       fullPage: true\n  89 |     })\n> 90 |     logger.testEnd()\n     |            ^\n  91 |   })\n  92 |\n  93 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts:90:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MzIuMTI0ICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWJ1aWxkaW5ncy1jcnVkIGZvciByb2xlOiB1bmtub3duG1szOW0KICAgIBtbMzVtdGVzdElkG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQtMTc1OTI2NDIzMjExMi1yMDlyZTVoemciCiAgICAbWzM1bXRlc3RGaWxlG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MzIuMTIzWiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCg=="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-30T20:30:32.163Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-dc4bb-a-new-building-successfully-phase2-buildings\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-dc4bb-a-new-building-successfully-phase2-buildings\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-dc4bb-a-new-building-successfully-phase2-buildings\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\buildings-management.spec.ts",
+                        "column": 12,
+                        "line": 81
+                      }
+                    },
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 0,
+                      "status": "interrupted",
+                      "duration": 856,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MzUuNzY5ICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWJ1aWxkaW5ncy1jcnVkIGZvciByb2xlOiB1bmtub3duG1szOW0KICAgIBtbMzVtdGVzdElkG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQtMTc1OTI2NDIzNTc1OS1uNnMyNW4xemoiCiAgICAbWzM1bXRlc3RGaWxlG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MzUuNzY4WiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItYnVpbGRpbmdzLWNydWQiCg=="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-09-30T20:30:35.800Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-dc4bb-a-new-building-successfully-phase2-buildings-retry1\\test-failed-1.png"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-buildings-dc4bb-a-new-building-successfully-phase2-buildings-retry1\\trace.zip"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-469fbf3f3f9a4afc2b0c",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 134,
+              "column": 7
+            },
+            {
+              "title": "should edit an existing building",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-8365360b7321636cf854",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 224,
+              "column": 7
+            },
+            {
+              "title": "should delete a building with confirmation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-4f125266f8696b735df4",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 292,
+              "column": 7
+            },
+            {
+              "title": "should show validation errors for invalid building data",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-ec9f536621e24be9d286",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 353,
+              "column": 7
+            },
+            {
+              "title": "should filter buildings by search query",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-779b9826c3f2851918db",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 406,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "🔒 Phase 2 - Buildings Access Control",
+          "file": "phase2-buildings/buildings-management.spec.ts",
+          "line": 453,
+          "column": 6,
+          "specs": [
+            {
+              "title": "gestionnaire should have full CRUD access to buildings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bf5c89483cf9d3a08442-60da02689934b3756f3b",
+              "file": "phase2-buildings/buildings-management.spec.ts",
+              "line": 455,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "phase2-buildings\\lots-management.spec.ts",
+      "file": "phase2-buildings/lots-management.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "🏠 Phase 2 - Lots Management",
+          "file": "phase2-buildings/lots-management.spec.ts",
+          "line": 91,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display lots list for a building with correct data",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 1015,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 12,
+                          "line": 94
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 92 |\u001b[39m\n \u001b[90m 93 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 94 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Lot CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 95 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 96 |\u001b[39m   })\n \u001b[90m 97 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 94
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  92 |\n  93 |   test.beforeEach(async ({ page }) => {\n> 94 |     logger.testStart('Lot CRUD test')\n     |            ^\n  95 |     await loginAsGestionnaire(page)\n  96 |   })\n  97 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 103
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  101 |       fullPage: true\n  102 |     })\n> 103 |     logger.testEnd()\n      |            ^\n  104 |   })\n  105 |\n  106 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:103:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MjIuNTgzICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWxvdHMtY3J1ZCBmb3Igcm9sZTogdW5rbm93bhtbMzltCiAgICAbWzM1bXRlc3RJZBtbMzltOiAicGhhc2UyLWxvdHMtY3J1ZC0xNzU5MjY0MjIyNTc0LXN2NGJ0dWZ3NCIKICAgIBtbMzVtdGVzdEZpbGUbWzM5bTogInBoYXNlMi1sb3RzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MjIuNTgzWiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItbG90cy1jcnVkIgo="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-30T20:30:22.613Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-phase2-buildings\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-phase2-buildings\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-phase2-buildings\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 12,
+                        "line": 94
+                      }
+                    },
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 1065,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 12,
+                          "line": 94
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 92 |\u001b[39m\n \u001b[90m 93 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 94 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Lot CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 95 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 96 |\u001b[39m   })\n \u001b[90m 97 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 94
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  92 |\n  93 |   test.beforeEach(async ({ page }) => {\n> 94 |     logger.testStart('Lot CRUD test')\n     |            ^\n  95 |     await loginAsGestionnaire(page)\n  96 |   })\n  97 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 103
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  101 |       fullPage: true\n  102 |     })\n> 103 |     logger.testEnd()\n      |            ^\n  104 |   })\n  105 |\n  106 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:103:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MjcuMTYwICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWxvdHMtY3J1ZCBmb3Igcm9sZTogdW5rbm93bhtbMzltCiAgICAbWzM1bXRlc3RJZBtbMzltOiAicGhhc2UyLWxvdHMtY3J1ZC0xNzU5MjY0MjI3MTUxLW82YjVwYzU4ZSIKICAgIBtbMzVtdGVzdEZpbGUbWzM5bTogInBoYXNlMi1sb3RzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MjcuMTU5WiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItbG90cy1jcnVkIgo="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-09-30T20:30:27.190Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-phase2-buildings-retry1\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-phase2-buildings-retry1\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-116ec--building-with-correct-data-phase2-buildings-retry1\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 12,
+                        "line": 94
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-ddd66256558a2e891b70",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 109,
+              "column": 7
+            },
+            {
+              "title": "should create a new lot in a building successfully",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 897,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 12,
+                          "line": 94
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 92 |\u001b[39m\n \u001b[90m 93 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 94 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Lot CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 95 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 96 |\u001b[39m   })\n \u001b[90m 97 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 94
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  92 |\n  93 |   test.beforeEach(async ({ page }) => {\n> 94 |     logger.testStart('Lot CRUD test')\n     |            ^\n  95 |     await loginAsGestionnaire(page)\n  96 |   })\n  97 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 103
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  101 |       fullPage: true\n  102 |     })\n> 103 |     logger.testEnd()\n      |            ^\n  104 |   })\n  105 |\n  106 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:103:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MzEuMDI1ICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWxvdHMtY3J1ZCBmb3Igcm9sZTogdW5rbm93bhtbMzltCiAgICAbWzM1bXRlc3RJZBtbMzltOiAicGhhc2UyLWxvdHMtY3J1ZC0xNzU5MjY0MjMxMDEzLWJjem5rNHRjeSIKICAgIBtbMzVtdGVzdEZpbGUbWzM5bTogInBoYXNlMi1sb3RzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MzEuMDIzWiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItbG90cy1jcnVkIgo="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-30T20:30:31.060Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-phase2-buildings\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-phase2-buildings\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-phase2-buildings\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 12,
+                        "line": 94
+                      }
+                    },
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 1029,
+                      "error": {
+                        "message": "TypeError: logger.testStart is not a function",
+                        "stack": "TypeError: logger.testStart is not a function\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12",
+                        "location": {
+                          "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                          "column": 12,
+                          "line": 94
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 92 |\u001b[39m\n \u001b[90m 93 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeEach(\u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 94 |\u001b[39m     logger\u001b[33m.\u001b[39mtestStart(\u001b[32m'Lot CRUD test'\u001b[39m)\n \u001b[90m    |\u001b[39m            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 95 |\u001b[39m     \u001b[36mawait\u001b[39m loginAsGestionnaire(page)\n \u001b[90m 96 |\u001b[39m   })\n \u001b[90m 97 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 94
+                          },
+                          "message": "TypeError: logger.testStart is not a function\n\n  92 |\n  93 |   test.beforeEach(async ({ page }) => {\n> 94 |     logger.testStart('Lot CRUD test')\n     |            ^\n  95 |     await loginAsGestionnaire(page)\n  96 |   })\n  97 |\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:94:12"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                            "column": 12,
+                            "line": 103
+                          },
+                          "message": "TypeError: logger.testEnd is not a function\n\n  101 |       fullPage: true\n  102 |     })\n> 103 |     logger.testEnd()\n      |            ^\n  104 |   })\n  105 |\n  106 |   /**\n    at C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts:103:12"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "buffer": "WzIwMjUtMDktMzAgMjI6MzA6MzUuNTcyICswMjAwXSAbWzMybUlORk8bWzM5bSAoc2VpZG8tZTJlLXRlc3RzKTogG1szNm1TdGFydGluZyBFMkUgdGVzdDogcGhhc2UyLWxvdHMtY3J1ZCBmb3Igcm9sZTogdW5rbm93bhtbMzltCiAgICAbWzM1bXRlc3RJZBtbMzltOiAicGhhc2UyLWxvdHMtY3J1ZC0xNzU5MjY0MjM1NTU0LWVxYnNiZTAxcyIKICAgIBtbMzVtdGVzdEZpbGUbWzM5bTogInBoYXNlMi1sb3RzLWNydWQiCiAgICAbWzM1bXVzZXJSb2xlG1szOW06ICJ1bmtub3duIgogICAgG1szNW1zdGFydFRpbWUbWzM5bTogIjIwMjUtMDktMzBUMjA6MzA6MzUuNTcxWiIKICAgIBtbMzVtZXZlbnQbWzM5bTogInRlc3Rfc3RhcnQiCiAgICAbWzM1bXRlc3ROYW1lG1szOW06ICJwaGFzZTItbG90cy1jcnVkIgo="
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-09-30T20:30:35.603Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-phase2-buildings-retry1\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-phase2-buildings-retry1\\video.webm"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\screenshots\\test-results\\phase2-buildings-lots-mana-f6b08--in-a-building-successfully-phase2-buildings-retry1\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\\refacto\\Tests\\tests\\phase2-buildings\\lots-management.spec.ts",
+                        "column": 12,
+                        "line": 94
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-ff29ce672069a07914ff",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 163,
+              "column": 7
+            },
+            {
+              "title": "should edit an existing lot",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-d1aec7c7d2b9a86ed8c0",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 258,
+              "column": 7
+            },
+            {
+              "title": "should assign a tenant to a vacant lot",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-dd78323a58b21bab7c01",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 328,
+              "column": 7
+            },
+            {
+              "title": "should change lot occupancy status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-5a31f30e37ed53f062e5",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 396,
+              "column": 7
+            },
+            {
+              "title": "should delete a lot with confirmation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-220aac5a24c051c62a18",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 448,
+              "column": 7
+            },
+            {
+              "title": "should display occupancy statistics correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-4ce08d4e7add009c943f",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 510,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "🔍 Phase 2 - Lots Filtering",
+          "file": "phase2-buildings/lots-management.spec.ts",
+          "line": 556,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should filter lots by occupancy status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-075ae19855bbc0a6f5d3",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 563,
+              "column": 7
+            },
+            {
+              "title": "should filter lots by type (apartment, parking, etc.)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phase2-buildings",
+                  "projectName": "phase2-buildings",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "372ca942c6c74b0166d3-8999114007819db896f4",
+              "file": "phase2-buildings/lots-management.spec.ts",
+              "line": 613,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "message": "\u001b[31mTesting stopped early after 3 maximum allowed failures.\u001b[39m"
+    }
+  ],
+  "stats": {
+    "startTime": "2025-09-30T20:29:53.645Z",
+    "duration": 44545.757000000005,
+    "expected": 0,
+    "skipped": 12,
+    "unexpected": 4,
+    "flaky": 0
+  }
+}

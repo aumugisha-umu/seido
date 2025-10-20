@@ -145,8 +145,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
       case "planification":
         return "Vous devez planifier l'intervention"
       case "planifiee":
-      case "programmee":
-        return "Intervention programmée - Vous pouvez commencer"
+        return "Intervention planifiée - Vous pouvez commencer"
       case "en_cours":
         return "Intervention en cours - Terminez quand c'est fait"
 
@@ -222,8 +221,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
     case "planification":
       return "En attente des disponibilités du locataire et prestataire"
     case "planifiee":
-    case "programmee":
-      return "Intervention programmée"
+      return "Intervention planifiée"
     case "en_cours":
       return "Intervention en cours d'exécution"
 

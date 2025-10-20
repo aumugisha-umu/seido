@@ -7,7 +7,12 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { isInAuthTransition } from '@/lib/auth-router'
+// Fonction simplifiée pour détecter les transitions d'auth (sans import DAL)
+function isInAuthTransition(pathname: string): boolean {
+  return pathname.includes('/auth/callback') ||
+         pathname.includes('/auth/signup-success') ||
+         pathname.includes('/auth/reset-password')
+}
 
 export interface AuthLoadingState {
   isAuthLoading: boolean
@@ -18,7 +23,7 @@ export interface AuthLoadingState {
 /**
  * Hook pour gérer l'état de loading des transitions d'auth
  */
-export const useAuthLoading = (userLoading: boolean, user: any | null) => {
+export const useAuthLoading = (userLoading: boolean, user: unknown | null) => {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('Vérification de l\'authentification...')
   const pathname = usePathname()

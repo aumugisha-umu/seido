@@ -9,6 +9,7 @@ import { TeamStatusProvider } from "@/hooks/use-team-status"
 import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
+import LoggerInitializer from "@/components/logger-initializer"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
         className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
         suppressHydrationWarning={true}
       >
+        <LoggerInitializer />
         <EnvironmentLogger />
         <AuthProvider>
           <TeamStatusProvider>

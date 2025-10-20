@@ -1,32 +1,30 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import React, { useState, useEffect, use, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  ArrowLeft, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Building2, 
-  Save, 
-  AlertCircle, 
+import {
+  ArrowLeft,
+  User,
+  Mail,
+  Phone,
+  Save,
+  AlertCircle,
   Check,
   Loader2
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { contactService } from "@/lib/database-service"
-
+import { createContactService, createContactInvitationService } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 interface ContactData {
   id: string
   name: string // Généré automatiquement à partir de first_name + last_name
@@ -39,6 +37,7 @@ interface ContactData {
   speciality?: string
   notes?: string
   team_id?: string
+  auth_user_id?: string | null // ✅ Lien vers l'utilisateur authentifié (null si pas de compte)
 }
 
 // ✅ Rôles principaux basés sur le nouvel enum user_role de la DB
@@ -104,18 +103,10 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   const [showResendModal, setShowResendModal] = useState(false)
   const [resending, setResending] = useState(false)
 
-  // Charger les données du contact et son statut d'invitation
-  useEffect(() => {
-    if (resolvedParams.id && user) {
-      loadContact()
-      loadInvitationStatus()
-    }
-  }, [resolvedParams.id, user])
-
-  const loadInvitationStatus = async () => {
+  const loadInvitationStatus = useCallback(async () => {
     try {
       setInvitationLoading(true)
-      console.log("🔍 Loading invitation status for contact:", resolvedParams.id)
+      logger.info("🔍 Loading invitation status for contact:", resolvedParams.id)
       
       // Récupérer le statut d'invitation via l'API
       const response = await fetch(`/api/contact-invitation-status?contactId=${resolvedParams.id}`)
@@ -124,32 +115,41 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         const { status, invitationId: apiInvitationId } = await response.json()
         setInvitationStatus(status)
         setInvitationId(apiInvitationId || null) // ✅ Stocker l'ID de l'invitation
-        console.log("✅ Invitation status loaded:", status, "ID:", apiInvitationId)
+        logger.info("✅ Invitation status loaded:", status, "ID:", apiInvitationId)
       } else {
-        console.log("ℹ️ No invitation found for this contact")
+        logger.info("ℹ️ No invitation found for this contact")
         setInvitationStatus(null)
         setInvitationId(null)
       }
       
     } catch (error) {
-      console.error("❌ Error loading invitation status:", error)
+      logger.error("❌ Error loading invitation status:", error)
       // Ne pas afficher d'erreur pour le statut d'invitation
       setInvitationStatus(null)
     } finally {
       setInvitationLoading(false)
     }
-  }
+  }, [resolvedParams.id])
 
-  const loadContact = async () => {
+  const loadContact = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      console.log("📞 Loading contact:", resolvedParams.id)
-      
-      const contactData = await contactService.getById(resolvedParams.id)
-      console.log("✅ Contact loaded:", contactData)
-      
-      setContact(contactData as ContactData)
+      logger.info("📞 Loading contact:", resolvedParams.id)
+
+      const contactService = createContactService()
+      const result = await contactService.getById(resolvedParams.id)
+      logger.info("✅ Contact service response:", result)
+
+      // ✅ CORRECTIF: Extraire data de la réponse du service
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || 'Contact non trouvé')
+      }
+
+      const contactData = result.data
+      logger.info("✅ Contact data extracted:", contactData)
+
+      setContact(contactData)
       setFormData({
         id: contactData.id,
         name: contactData.name || "", // Valeur existante
@@ -161,16 +161,25 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         provider_category: contactData.provider_category || "prestataire", // ✅ Catégorie directe
         speciality: contactData.speciality || "",
         notes: contactData.notes || "",
-        team_id: contactData.team_id || undefined
+        team_id: contactData.team_id || undefined,
+        auth_user_id: contactData.auth_user_id || null // ✅ Extraire le lien d'authentification
       })
-      
+
     } catch (error) {
-      console.error("❌ Error loading contact:", error)
+      logger.error("❌ Error loading contact:", error)
       setError("Erreur lors du chargement du contact")
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams.id])
+
+  // Charger les données du contact et son statut d'invitation
+  useEffect(() => {
+    if (resolvedParams.id && user) {
+      loadContact()
+      loadInvitationStatus()
+    }
+  }, [resolvedParams.id, user, loadContact, loadInvitationStatus])
 
   const validateForm = () => {
     const errors: {[key: string]: string} = {}
@@ -215,24 +224,26 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     try {
       setSaving(true)
       setError(null)
-      
-      console.log("💾 Saving contact:", JSON.stringify(formData, null, 2))
-      
+
+      logger.info("💾 Saving contact:", JSON.stringify(formData, null, 2))
+
       // ✅ Préparer les données pour la mise à jour - nom généré automatiquement
       const updateData = {
         name: `${formData.first_name} ${formData.last_name}`.trim(), // Généré à partir prénom + nom
         first_name: formData.first_name || null,
         last_name: formData.last_name || null,
-        email: formData.email,
+        // ✅ PROTECTION: Si l'utilisateur est lié à un compte authentifié, conserver l'email d'origine
+        email: contact?.auth_user_id ? contact.email : formData.email,
         phone: formData.phone || null,
         role: formData.role, // ✅ Utilisation directe du rôle
         provider_category: formData.provider_category, // ✅ Utilisation directe de la catégorie
         speciality: formData.speciality || null,
         notes: formData.notes || null,
       }
-      
+
+      const contactService = createContactService()
       const updatedContact = await contactService.update(resolvedParams.id, updateData)
-      console.log("✅ Contact updated:", updatedContact)
+      logger.info("✅ Contact updated:", updatedContact)
       
       toast({
         title: "Contact modifié",
@@ -243,7 +254,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       router.push("/gestionnaire/contacts")
       
     } catch (error) {
-      console.error("❌ Error saving contact:", error)
+      logger.error("❌ Error saving contact:", error)
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de la sauvegarde"
       setError(errorMessage)
       toast({
@@ -291,66 +302,62 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   }
 
   // ✅ Nouvelle fonction pour obtenir le label du rôle/catégorie
-  const getRoleLabel = (contact: ContactData) => {
-    // Trouver le label du rôle principal
-    const roleLabel = userRoles.find(r => r.value === contact.role)?.label || contact.role
-    
-    // Pour les prestataires, ajouter la catégorie
-    if (contact.role === "prestataire" && contact.provider_category) {
-      const categoryLabel = providerCategories.find(c => c.value === contact.provider_category)?.label
-      return categoryLabel || roleLabel
-    }
-    
-    return roleLabel
-  }
+  // const getRoleLabel = (contact: ContactData) => {
+  //   // Trouver le label du rôle principal
+  //   const roleLabel = userRoles.find(r => r.value === contact.role)?.label || contact.role
+  //   
+  //   // Pour les prestataires, ajouter la catégorie
+  //   if (contact.role === "prestataire" && contact.provider_category) {
+  //     const categoryLabel = providerCategories.find(c => c.value === contact.provider_category)?.label
+  //     return categoryLabel || roleLabel
+  //   }
+  //   
+  //   return roleLabel
+  // }
 
-  const getSpecialityLabel = (speciality: string) => {
-    return specialities.find(s => s.value === speciality)?.label || speciality
-  }
+  // const getSpecialityLabel = (_speciality: string) => {
+  //   return specialities.find(s => s.value === speciality)?.label || speciality
+  // }
 
   // Gestion des invitations
   const handleRevokeInvitation = async () => {
     try {
       setRevoking(true)
-      console.log("🚫 Revoking invitation for contact:", contact?.email)
-      
+      logger.info("🚫 Revoking access for contact:", contact?.id)
+
       const response = await fetch('/api/revoke-invitation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          contactEmail: contact?.email,
-          contactId: contact?.id 
+        body: JSON.stringify({
+          contactId: contact?.id,     // ✅ Changement: contact ID au lieu de email
+          teamId: contact?.team_id    // ✅ Ajout: team ID pour validation
         })
       })
 
       const result = await response.json()
-      
+
       if (response.ok && result.success) {
-        console.log("✅ Invitation/Access revoked successfully")
-        
-        // ✅ Réinitialiser le statut selon l'action effectuée
-        const wasPending = invitationStatus === 'pending'
-        setInvitationStatus(wasPending ? 'cancelled' : null)
+        logger.info("✅ Access revoked successfully")
+
+        // Réinitialiser le statut d'invitation
+        setInvitationStatus('cancelled')
         setShowRevokeModal(false)
-        
+
         toast({
-          title: wasPending ? "Invitation annulée" : "Accès révoqué", 
-          description: result.message || `L'action sur ${contact?.name} a été effectuée avec succès`,
-          variant: "success"
+          title: "Accès révoqué",
+          description: result.message || "L'accès de ce contact a été révoqué avec succès"
         })
       } else {
         throw new Error(result.error || 'Erreur lors de la révocation')
       }
-      
+
     } catch (error) {
-      console.error("❌ Error revoking invitation:", error)
-      const errorMessage = error instanceof Error ? error.message : "Erreur lors de la révocation"
-      
+      logger.error("❌ Error revoking access:", error)
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "Erreur lors de la révocation",
         variant: "destructive"
       })
     } finally {
@@ -364,13 +371,13 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     
     try {
       setResending(true)
-      console.log("📧 Resending invitation for contact:", contact.email, "InvitationId:", invitationId)
+      logger.info("📧 Resending invitation for contact:", contact.email, "InvitationId:", invitationId)
       
       let response, result
       
       // ✅ Si une invitation existe déjà (même annulée), utiliser resend-invitation
       if (invitationId) {
-        console.log("🔄 Using resend-invitation API for existing invitation")
+        logger.info("🔄 Using resend-invitation API for existing invitation")
         response = await fetch('/api/resend-invitation', {
           method: 'POST',
           headers: {
@@ -383,7 +390,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       } 
       // ✅ Sinon, créer une nouvelle invitation avec invite-user
       else {
-        console.log("🆕 Using invite-user API for new invitation")
+        logger.info("🆕 Using invite-user API for new invitation")
         response = await fetch('/api/invite-user', {
           method: 'POST',
           headers: {
@@ -406,7 +413,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       result = await response.json()
       
       if (response.ok && result.success) {
-        console.log("✅ Invitation sent successfully")
+        logger.info("✅ Invitation sent successfully")
         
         // Recharger le statut d'invitation
         await loadInvitationStatus()
@@ -414,15 +421,14 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
         
         toast({
           title: "Invitation envoyée",
-          description: `Une nouvelle invitation a été envoyée à ${contact.name}`,
-          variant: "success"
+          description: `Une nouvelle invitation a été envoyée à ${contact.name}`
         })
       } else {
         throw new Error(result.error || 'Erreur lors de l\'envoi de l\'invitation')
       }
       
     } catch (error) {
-      console.error("❌ Error resending invitation:", error)
+      logger.error("❌ Error resending invitation:", error)
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'envoi de l'invitation"
       
       toast({
@@ -469,6 +475,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     )
   }
 
+  // Early returns for loading and error states
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -496,7 +503,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       </div>
     )
   }
-
+    
   if (!contact) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -511,7 +518,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
       </div>
     )
   }
-
+    
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -595,11 +602,21 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="Ex: jean.dupont@email.com"
-                    className={`w-full pl-10 ${validationErrors.email ? "border-red-500" : ""}`}
+                    disabled={!!contact?.auth_user_id}
+                    className={`w-full pl-10 ${validationErrors.email ? "border-red-500" : ""} ${contact?.auth_user_id ? "bg-slate-50 text-slate-600 cursor-not-allowed" : ""}`}
                   />
                 </div>
                 {validationErrors.email && (
                   <p className="text-sm text-red-600">{validationErrors.email}</p>
+                )}
+                {/* ✅ Message explicatif si l'email est lié à un compte authentifié */}
+                {contact?.auth_user_id && (
+                  <Alert className="bg-amber-50 border-amber-200">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-sm text-amber-800">
+                      Cet email est lié à un compte utilisateur et ne peut pas être modifié. Pour changer l'email, vous devez révoquer l'accès du contact puis créer un nouveau contact.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
 
@@ -979,3 +996,4 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     </div>
   )
 }
+

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  console.log("✅ intervention-quote-validate API route called")
+  logger.info({}, "✅ intervention-quote-validate API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
 
   try {
     // Initialize Supabase client
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log(`📝 ${action === 'approve' ? 'Approving' : 'Rejecting'} quote:`, quoteId)
+    logger.info(`📝 ${action === 'approve' ? 'Approving' : 'Rejecting'} quote:`, quoteId)
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (quoteError || !quote) {
-      console.error("❌ Quote not found:", quoteError)
+      logger.error({ quoteError: quoteError }, "❌ Quote not found:")
       return NextResponse.json({
         success: false,
         error: 'Devis non trouvé'
@@ -127,19 +133,18 @@ export async function POST(request: NextRequest) {
 
     // Quote validation checks could be added here if needed
 
-    console.log(`🔄 Updating quote status to '${action === 'approve' ? 'approved' : 'rejected'}'...`)
+    logger.info({ status: action === 'approve' ? 'accepted' : 'rejected' }, `🔄 Updating quote status to ${action === 'approve' ? 'accepted' : 'rejected'}`)
 
     // Prepare update data
-    const updateData: any = {
-      status: action === 'approve' ? 'approved' : 'rejected',
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: user.id,
+    const updateData = {
+      status: action === 'approve' ? 'accepted' : 'rejected',
+      validated_at: new Date().toISOString(),
+      validated_by: user.id,
       updated_at: new Date().toISOString()
     }
 
-    if (action === 'approve' && comments?.trim()) {
-      updateData.review_comments = comments.trim()
-    } else if (action === 'reject' && rejectionReason?.trim()) {
+    // Note: review_comments will be handled in a separate table in the future
+    if (action === 'reject' && rejectionReason?.trim()) {
       updateData.rejection_reason = rejectionReason.trim()
     }
 
@@ -155,29 +160,27 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (updateError) {
-      console.error("❌ Error updating quote:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating quote:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du devis'
       }, { status: 500 })
     }
 
-    console.log(`✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
+    logger.info({ status: action === 'approve' ? 'approved' : 'rejected' }, `✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
 
     // If quote is approved, update intervention status and reject other pending quotes
     if (action === 'approve') {
-      console.log("🔄 Updating intervention status to 'planifiee'...")
+      logger.info("🔄 Updating intervention status to 'planifiee'...")
 
       // Update intervention status
       await interventionService.update(quote.intervention_id, {
         status: 'planifiee' as Database['public']['Enums']['intervention_status'],
-        selected_quote_id: quoteId,
-        final_cost: quote.total_amount,
         updated_at: new Date().toISOString()
       })
 
       // Automatically reject other pending quotes for this intervention
-      console.log("🔄 Rejecting other pending quotes for this intervention...")
+      logger.info({}, "🔄 Rejecting other pending quotes for this intervention...")
 
       const { data: otherQuotes } = await supabase
         .from('intervention_quotes')
@@ -193,8 +196,8 @@ export async function POST(request: NextRequest) {
             .from('intervention_quotes')
             .update({
               status: 'rejected',
-              reviewed_at: new Date().toISOString(),
-              reviewed_by: user.id,
+              validated_at: new Date().toISOString(),
+              validated_by: user.id,
               rejection_reason: 'Un autre devis a été sélectionné pour cette intervention',
               updated_at: new Date().toISOString()
             })
@@ -221,12 +224,12 @@ export async function POST(request: NextRequest) {
               relatedEntityId: quote.intervention_id
             })
           } catch (notifError) {
-            console.warn(`⚠️ Could not send rejection notification to provider ${otherQuote.provider.id}:`, notifError)
+            logger.warn(`⚠️ Could not send rejection notification to provider ${otherQuote.provider.id}:`, notifError)
           }
         })
 
         await Promise.all(rejectPromises)
-        console.log(`✅ Rejected ${otherQuotes.length} other pending quote(s)`)
+        logger.info({ otherQuotes: otherQuotes.length }, "✅ Rejected other pending quote(s)")
       }
     }
 
@@ -257,9 +260,9 @@ export async function POST(request: NextRequest) {
       }
 
       await notificationService.createNotification(notificationData)
-      console.log(`📧 Quote validation notification sent to provider`)
+      logger.info({}, "📧 Quote validation notification sent to provider")
     } catch (notifError) {
-      console.warn("⚠️ Could not send quote validation notification:", notifError)
+      logger.warn({ notifError }, "⚠️ Could not send quote validation notification")
       // Don't fail the validation for notification errors
     }
 
@@ -272,9 +275,9 @@ export async function POST(request: NextRequest) {
           'planifiee',
           user.id
         )
-        console.log("📧 Intervention status change notifications sent")
+        logger.info({}, "📧 Intervention status change notifications sent")
       } catch (notifError) {
-        console.warn("⚠️ Could not send status change notifications:", notifError)
+        logger.warn({ notifError }, "⚠️ Could not send status change notifications")
       }
     }
 
@@ -283,16 +286,13 @@ export async function POST(request: NextRequest) {
       quote: {
         id: updatedQuote.id,
         status: updatedQuote.status,
-        reviewed_at: updatedQuote.reviewed_at,
-        reviewed_by: updatedQuote.reviewed_by,
-        review_comments: updatedQuote.review_comments,
+        validated_at: updatedQuote.validated_at,
+        validated_by: updatedQuote.validated_by,
         rejection_reason: updatedQuote.rejection_reason
       },
       intervention: action === 'approve' ? {
         id: quote.intervention.id,
-        status: 'planifiee',
-        selected_quote_id: quoteId,
-        final_cost: quote.total_amount
+        status: 'planifiee'
       } : undefined,
       message: action === 'approve'
         ? `Devis de ${quote.provider.name} approuvé avec succès`
@@ -300,11 +300,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-quote-validate API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-quote-validate API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

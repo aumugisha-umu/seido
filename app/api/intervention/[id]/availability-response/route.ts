@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 interface TenantCounterProposal {
@@ -25,22 +24,22 @@ interface AvailabilityResponsePayload {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  console.log("🚀 [DEBUG] availability-response route started")
+  logger.info({}, "🚀 [DEBUG] availability-response route started")
 
   try {
     const resolvedParams = await params
     const id = resolvedParams.id
-    console.log("✅ [DEBUG] params resolved, intervention ID:", id)
+    logger.info({ id: id }, "✅ [DEBUG] params resolved, intervention ID:")
 
     if (!id) {
-      console.error("❌ [DEBUG] No intervention ID provided")
+      logger.error({}, "❌ [DEBUG] No intervention ID provided")
       return NextResponse.json({
         success: false,
         error: 'ID d\'intervention manquant'
       }, { status: 400 })
     }
     // Initialize Supabase client
-    console.log("🔧 [DEBUG] Initializing Supabase client")
+    logger.info({}, "🔧 [DEBUG] Initializing Supabase client")
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,22 +61,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         },
       }
     )
-    console.log("✅ [DEBUG] Supabase client initialized")
+    logger.info({}, "✅ [DEBUG] Supabase client initialized")
 
     // Get current user
-    console.log("👤 [DEBUG] Getting authenticated user")
+    logger.info({}, "👤 [DEBUG] Getting authenticated user")
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     if (authError || !authUser) {
-      console.error("❌ [DEBUG] Auth error or no user:", authError?.message || "No user")
+      logger.error({ error: authError?.message || "No user" }, "❌ [DEBUG] Auth error or no user:")
       return NextResponse.json({
         success: false,
         error: 'Non autorisé'
       }, { status: 401 })
     }
-    console.log("✅ [DEBUG] User authenticated:", authUser.id)
+    logger.info({ user: authUser.id }, "✅ [DEBUG] User authenticated:")
 
     // Get user details
-    console.log("👤 [DEBUG] Getting user details from database")
+    logger.info({}, "👤 [DEBUG] Getting user details from database")
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -85,40 +84,40 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (userError || !user) {
-      console.error("❌ [DEBUG] User not found in database:", userError?.message || "No user")
+      logger.error({ user: userError?.message || "No user" }, "❌ [DEBUG] User not found in database:")
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
       }, { status: 401 })
     }
 
-    console.log("✅ [DEBUG] User found:", { id: user.id, role: user.role })
+    logger.info({ id: user.id, role: user.role }, "✅ [DEBUG] User found:")
 
     // Verify user is a tenant
     if (user.role !== 'locataire') {
-      console.error("❌ [DEBUG] User is not a tenant:", user.role)
+      logger.error({ user: user.role }, "❌ [DEBUG] User is not a tenant:")
       return NextResponse.json({
         success: false,
         error: 'Seuls les locataires peuvent répondre aux disponibilités'
       }, { status: 403 })
     }
 
-    console.log("✅ [DEBUG] User role verified: locataire")
+    logger.info({}, "✅ [DEBUG] User role verified: locataire")
 
     // Parse request body
-    console.log("📝 [DEBUG] Parsing request body")
+    logger.info({}, "📝 [DEBUG] Parsing request body")
     const body: AvailabilityResponsePayload = await request.json()
     const { responseType, message, selectedSlots, counterProposals } = body
 
-    console.log("📝 [DEBUG] Tenant availability response:", {
+    logger.info({
       responseType,
       messageLength: message?.length || 0,
       selectedSlotsCount: selectedSlots?.length || 0,
       counterProposalsCount: counterProposals?.length || 0
-    })
+    }, "📝 [DEBUG] Tenant availability response:")
 
     // Get intervention details
-    console.log("🏠 [DEBUG] Getting intervention details")
+    logger.info({}, "🏠 [DEBUG] Getting intervention details")
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .select(`
@@ -133,33 +132,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ [DEBUG] Intervention not found:", interventionError?.message || "No intervention")
+      logger.error({ interventionError: interventionError?.message || "No intervention" }, "❌ [DEBUG] Intervention not found")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
       }, { status: 404 })
     }
 
-    console.log("✅ [DEBUG] Intervention found:", { id: intervention.id, status: intervention.status })
+    logger.info({ id: intervention.id, status: intervention.status }, "✅ [DEBUG] Intervention found:")
 
     // Verify user is the tenant for this intervention
-    console.log("🔐 [DEBUG] Verifying tenant permissions")
+    logger.info({}, "🔐 [DEBUG] Verifying tenant permissions")
     const isUserTenant = intervention.lot?.lot_contacts?.some(
-      (contact: any) => contact.user_id === user.id
+      (contact: { user_id: string; is_primary: boolean }) => contact.user_id === user.id
     )
 
     if (!isUserTenant) {
-      console.error("❌ [DEBUG] User is not a tenant for this intervention:", {
+      logger.error({
         userId: user.id,
-        lotContacts: intervention.lot?.lot_contacts?.map((c: any) => c.user_id) || []
-      })
+        lotContacts: intervention.lot?.lot_contacts?.map((c: { user_id: string; is_primary: boolean }) => c.user_id) || []
+      }, "❌ [DEBUG] User is not a tenant for this intervention")
       return NextResponse.json({
         success: false,
         error: 'Vous n\'êtes pas autorisé pour cette intervention'
       }, { status: 403 })
     }
 
-    console.log("✅ [DEBUG] Tenant permissions verified")
+    logger.info({}, "✅ [DEBUG] Tenant permissions verified")
 
     // Process response based on type
     let newStatus = intervention.status
@@ -190,7 +189,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           .eq('intervention_id', id)
 
         if (deleteError) {
-          console.warn("⚠️ Could not delete existing tenant availabilities:", deleteError)
+          logger.warn({ deleteError: deleteError }, "⚠️ Could not delete existing tenant availabilities:")
         }
 
         // Insert new tenant counter-proposals
@@ -207,14 +206,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           .insert(availabilityData)
 
         if (insertError) {
-          console.error("❌ Error saving tenant counter-proposals:", insertError)
+          logger.error({ error: insertError }, "❌ Error saving tenant counter-proposals:")
           return NextResponse.json({
             success: false,
             error: 'Erreur lors de la sauvegarde des contre-propositions'
           }, { status: 500 })
         }
 
-        console.log("✅ Tenant counter-proposals saved successfully")
+        logger.info({}, "✅ Tenant counter-proposals saved successfully")
       }
     }
 
@@ -228,17 +227,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq('id', id)
 
     if (updateError) {
-      console.error("❌ Error updating intervention status:", updateError)
+      logger.error({ error: updateError }, "❌ Error updating intervention status:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    console.log(`✅ [DEBUG] Intervention status updated to: ${newStatus}`)
+    logger.info({ newStatus }, "✅ [DEBUG] Intervention status updated to:")
 
     // Create notification for managers and providers
-    console.log("🔔 [DEBUG] Creating notifications")
+    logger.info({}, "🔔 [DEBUG] Creating notifications")
     try {
       await notificationService.notifyAvailabilityResponse({
         interventionId: id,
@@ -249,9 +248,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         teamId: intervention.lot?.building?.team_id,
         lotReference: intervention.lot?.reference
       })
-      console.log('✅ Availability response notifications sent')
+      logger.info({}, '✅ Availability response notifications sent')
     } catch (notificationError) {
-      console.error('❌ Error sending availability response notifications:', notificationError)
+      logger.error({ error: notificationError }, '❌ Error sending availability response notifications:')
       // Don't fail the request for notification errors
     }
 
@@ -267,17 +266,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         })
 
         if (matchingResponse.ok) {
-          console.log('✅ Automatic matching triggered for counter-proposals')
+          logger.info({}, '✅ Automatic matching triggered for counter-proposals')
         } else {
-          console.warn('⚠️ Could not trigger automatic matching')
+          logger.warn({}, '⚠️ Could not trigger automatic matching')
         }
       } catch (matchingError) {
-        console.warn("⚠️ Error triggering matching:", matchingError)
+        logger.warn({ error: matchingError }, "⚠️ Error triggering matching:")
         // Don't fail the request for matching errors
       }
     }
 
-    console.log("🎉 [DEBUG] Route successful, sending response")
+    logger.info({}, "🎉 [DEBUG] Route successful, sending response")
     return NextResponse.json({
       success: true,
       message: statusMessage,
@@ -285,8 +284,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error('❌ [DEBUG] Critical error in availability-response route:', error)
-    console.error('❌ [DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    logger.error({ error }, '❌ [DEBUG] Critical error in availability-response route:')
+    logger.error({ error: error instanceof Error ? error.stack : 'No stack trace' }, '❌ [DEBUG] Error stack:')
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur'

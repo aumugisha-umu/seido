@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient, getServerSession } from '@/lib/supabase-server'
-
+import { createServerSupabaseClient, getServerSession } from '@/lib/services'
+import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
     // Vérifier l'authentification
     const session = await getServerSession()
     if (!session) {
-      console.log('❌ [NOTIFICATIONS-API] Unauthorized request')
+      logger.info({}, '❌ [NOTIFICATIONS-API] Unauthorized request')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    console.log('🔍 [NOTIFICATIONS-API] Request params:', {
+    logger.info({
       userId,
       teamId,
       scope,
@@ -33,27 +33,28 @@ export async function GET(request: NextRequest) {
       limit,
       offset,
       sessionUserId: session.user.id
-    })
+    }, '🔍 [NOTIFICATIONS-API] Request params:')
 
-    const supabaseGet = await createSupabaseServerClient()
+    const supabaseGet = await createServerSupabaseClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
     // Récupérer l'ID utilisateur de la table users à partir de l'ID Supabase Auth
-    const { userService } = await import('@/lib/database-service')
+    const { createServerUserService } = await import('@/lib/services')
+    const userService = createServerUserService()
     const dbUserGet = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserGet) {
-      console.log('❌ [NOTIFICATIONS-API] User not found in database for auth ID:', session.user.id)
+      logger.info({ user: session.user.id }, '❌ [NOTIFICATIONS-API] User not found in database for auth ID:')
       return NextResponse.json(
         { error: 'User not found in database' },
         { status: 404 }
       )
     }
     
-    console.log('🔄 [NOTIFICATIONS-API] Auth ID converted:', {
+    logger.info({
       authId: session.user.id,
       dbUserId: dbUserGet.id
-    })
+    }, '🔄 [NOTIFICATIONS-API] Auth ID converted:')
 
     // Construire la requête de base
     let query = supabaseGet
@@ -74,19 +75,19 @@ export async function GET(request: NextRequest) {
 
     // Appliquer les filtres selon le scope
     if (scope === 'personal') {
-      console.log('🔍 [NOTIFICATIONS-API] Using personal scope filter')
+      logger.info({}, '🔍 [NOTIFICATIONS-API] Using personal scope filter')
       // Notifications personnelles : seulement celles adressées à l'utilisateur connecté avec is_personal = true
       query = query.eq('user_id', dbUserGet.id).eq('is_personal', true)
       if (teamId) {
         query = query.eq('team_id', teamId)
       }
     } else if (scope === 'team') {
-      console.log('🔍 [NOTIFICATIONS-API] Using team scope filter')
+      logger.info({}, '🔍 [NOTIFICATIONS-API] Using team scope filter')
       // Notifications d'équipe : notifications de l'équipe avec is_personal = false ET destinées à l'utilisateur connecté
       if (teamId) {
         query = query.eq('team_id', teamId).eq('user_id', dbUserGet.id).eq('is_personal', false)
       } else {
-        console.log('❌ [NOTIFICATIONS-API] team_id required for team scope')
+        logger.info({}, '❌ [NOTIFICATIONS-API] team_id required for team scope')
         // Si pas de teamId spécifié pour le scope team, renvoyer erreur
         return NextResponse.json(
           { error: 'team_id is required for team scope' },
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         )
       }
     } else {
-      console.log('🔍 [NOTIFICATIONS-API] Using default scope filter')
+      logger.info({}, '🔍 [NOTIFICATIONS-API] Using default scope filter')
       // Comportement par défaut (toutes les notifications selon les filtres)
       if (userId) {
         query = query.eq('user_id', userId)
@@ -118,14 +119,14 @@ export async function GET(request: NextRequest) {
     const { data: notifications, error } = await query
 
     if (error) {
-      console.error('❌ [NOTIFICATIONS-API] Database error:', error)
+      logger.error({ error: error }, '❌ [NOTIFICATIONS-API] Database error:')
       return NextResponse.json(
         { error: 'Failed to fetch notifications', details: error.message, code: error.code },
         { status: 500 }
       )
     }
 
-    console.log('📊 [NOTIFICATIONS-API] Query result:', {
+    logger.info({
       count: notifications?.length || 0,
       notifications: notifications?.map(n => ({
         id: n.id,
@@ -135,7 +136,7 @@ export async function GET(request: NextRequest) {
         team_id: n.team_id,
         read: n.read,
         created_at: n.created_at
-      }))
+      }, '📊 [NOTIFICATIONS-API] Query result:'))
     })
 
     return NextResponse.json({
@@ -145,7 +146,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Notifications API error:', error)
+    logger.error({ error: error }, 'Notifications API error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -166,10 +167,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabasePost = await createSupabaseServerClient()
+    const supabasePost = await createServerSupabaseClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
-    const { userService } = await import('@/lib/database-service')
+    const { createServerUserService } = await import('@/lib/services')
+    const userService = createServerUserService()
     const dbUserPost = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserPost) {
@@ -219,7 +221,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creating notification:', error)
+      logger.error({ error: error }, 'Error creating notification:')
       return NextResponse.json(
         { error: 'Failed to create notification' },
         { status: 500 }
@@ -232,7 +234,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Create notification error:', error)
+    logger.error({ error: error }, 'Create notification error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -264,7 +266,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    let updateData: any = {}
+    let updateData = {}
 
     switch (action) {
       case 'mark_read':
@@ -286,10 +288,11 @@ export async function PATCH(request: NextRequest) {
         )
     }
 
-    const supabasePatch = await createSupabaseServerClient()
+    const supabasePatch = await createServerSupabaseClient()
 
     // ✅ CONVERSION AUTH ID → DATABASE ID
-    const { userService } = await import('@/lib/database-service')
+    const { createServerUserService } = await import('@/lib/services')
+    const userService = createServerUserService()
     const dbUserPatch = await userService.findByAuthUserId(session.user.id)
     
     if (!dbUserPatch) {
@@ -326,7 +329,7 @@ export async function PATCH(request: NextRequest) {
 
     // Vérifier les permissions : soit c'est sa notification personnelle, soit il fait partie de l'équipe
     const isOwner = notificationCheck.user_id === dbUserPatch.id
-    const isTeamMember = notificationCheck.teams?.team_members?.some((member: any) => member.user_id === dbUserPatch.id)
+    const isTeamMember = notificationCheck.teams?.team_members?.some((member) => member.user_id === dbUserPatch.id)
 
     if (!isOwner && !isTeamMember) {
       return NextResponse.json(
@@ -355,7 +358,7 @@ export async function PATCH(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Update notification error:', error)
+    logger.error({ error: error }, 'Update notification error:')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

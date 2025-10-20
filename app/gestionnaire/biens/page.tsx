@@ -1,59 +1,161 @@
-"use client"
+import { BiensPageClient } from './biens-page-client'
+import {
+  createServerBuildingService,
+  createServerLotService,
+  createServerTeamService
+} from '@/lib/services'
+import { logger } from '@/lib/logger'
+import { requireRole } from '@/lib/auth-dal'
 
-import { Plus, Building2, Home } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import NavigationDebugPanel from "@/components/debug/navigation-debug"
-import PropertySelector from "@/components/property-selector"
-import { useRouter } from "next/navigation"
+// ✅ Force dynamic rendering - cette page dépend toujours de la session
+export const dynamic = 'force-dynamic'
 
-export default function BiensPage() {
-  const router = useRouter()
-  
-  // PropertySelector gère tout : données, onglets, loading, etc.
+export default async function BiensPage() {
+  try {
+    // ✅ LAYER 1: Auth validation FIRST (Dashboard pattern)
+    logger.info("🔵 [BIENS-PAGE] Server-side fetch starting")
+    const { user, profile } = await requireRole(['gestionnaire'])
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Page Header - Harmonized */}
-        <div className="mb-6 lg:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                Mon Patrimoine
-              </h1>
-              <p className="text-slate-600">
-                Gérez vos biens immobiliers et leurs locataires
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button 
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={() => window.location.href = '/gestionnaire/biens/lots/nouveau'}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Lot</span>
-              </Button>
-              <Button 
-                className="flex items-center space-x-2"
-                onClick={() => window.location.href = '/gestionnaire/biens/immeubles/nouveau'}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Immeuble</span>
-              </Button>
-            </div>
-          </div>
-        </div>
+    // ✅ LAYER 2: Create services AFTER auth validation
+    const teamService = await createServerTeamService()
+    const buildingService = await createServerBuildingService()
+    const lotService = await createServerLotService()
 
-        {/* Property Selector avec onglets intégrés */}
-        <PropertySelector
-          mode="view"
-          showActions={true}
+    // 1. Récupérer l'équipe de l'utilisateur
+    // 🔍 CORRECTIF: Utiliser profile.id (users table ID) au lieu de user.id (auth_user_id)
+    const teamsResult = await teamService.getUserTeams(profile.id)
+    const teams = teamsResult?.data || []
+
+    if (!teams || teams.length === 0) {
+      logger.info("⚠️ [BIENS-PAGE] No team found for user")
+      return (
+        <BiensPageClient
+          initialBuildings={[]}
+          initialLots={[]}
+          teamId={null}
         />
-      </main>
+      )
+    }
 
-      {/* ✅ DEBUG PANEL - Avec toggle pour afficher/cacher */}
-      <NavigationDebugPanel />
-    </div>
-  )
+    const teamId = teams[0].id
+    logger.info(`🏢 [BIENS-PAGE] Found team: ${teamId}`)
+
+    // ⚡ PERFORMANCE OPTIMIZATION: Use summary query for list view (90% less data)
+    // 2. Récupérer les buildings de l'équipe (version légère)
+    const buildingsResult = await buildingService.getBuildingsByTeamSummary(teamId)
+
+    if (!buildingsResult.success || !buildingsResult.data) {
+      logger.error("❌ [BIENS-PAGE] Error fetching buildings")
+      return (
+        <BiensPageClient
+          initialBuildings={[]}
+          initialLots={[]}
+          teamId={teamId}
+        />
+      )
+    }
+
+    const buildings = buildingsResult.data
+    logger.info(`🏗️ [BIENS-PAGE] Loaded ${buildings.length} buildings (summary view)`)
+
+    // 3. Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
+    logger.info(`🏠 [BIENS-PAGE] Loading ALL lots for team ${teamId} (including independent lots)`)
+
+    const lotsResult = await lotService.getLotsByTeam(teamId)
+
+    if (!lotsResult.success || !lotsResult.data) {
+      logger.error("❌ [BIENS-PAGE] Error fetching team lots")
+      return (
+        <BiensPageClient
+          initialBuildings={buildings}
+          initialLots={[]}
+          teamId={teamId}
+        />
+      )
+    }
+
+    const allLots = lotsResult.data
+    logger.info(`🏠 [BIENS-PAGE] Loaded ${allLots.length} total lots for team`)
+
+    // Initialize lots array for each building
+    buildings.forEach((building: any) => {
+      building.lots = []
+    })
+
+    // Séparer les lots et les attacher aux buildings correspondants
+    const independentLots: any[] = []
+
+    allLots.forEach((lot: any) => {
+      // ✅ Phase 2: Calculate status from is_occupied
+      const isOccupied = lot.is_occupied || false
+      const lotWithStatus = {
+        ...lot,
+        status: isOccupied ? "occupied" : "vacant"
+      }
+
+      if (lot.building_id) {
+        // Lot lié à un immeuble - attacher au building
+        const building = buildings.find((b: any) => b.id === lot.building_id)
+        if (building) {
+          if (!building.lots) building.lots = []
+          building.lots.push({
+            ...lotWithStatus,
+            building_name: building.name
+          })
+        }
+      } else {
+        // Lot indépendant (building_id: NULL)
+        independentLots.push({
+          ...lotWithStatus,
+          building_name: null  // Pas d'immeuble associé
+        })
+      }
+    })
+
+    logger.info(`🏢 [BIENS-PAGE] Lots by building: ${allLots.length - independentLots.length}`)
+    logger.info(`🏠 [BIENS-PAGE] Independent lots: ${independentLots.length}`)
+    logger.info(`📊 [BIENS-PAGE] Total lots: ${allLots.length}`)
+
+    // ✅ FIX: Pass ALL lots for display in Lots tab, not just independent ones
+    // ✅ Phase 2: Calculate status from is_occupied (calculated by repository)
+    const allLotsForDisplay = allLots.map((lot: any) => {
+      const isOccupied = lot.is_occupied || false
+      return {
+        ...lot,
+        status: isOccupied ? "occupied" : "vacant",
+        building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
+      }
+    })
+    logger.info(`📊 [BIENS-PAGE] Server data ready - Buildings: ${buildings.length}, Total lots for display: ${allLotsForDisplay.length}`)
+
+    // ✅ Pass data to Client Component
+    return (
+      <BiensPageClient
+        initialBuildings={buildings}
+        initialLots={allLotsForDisplay}
+        teamId={teamId}
+      />
+    )
+  } catch (error) {
+    logger.error("❌ [BIENS-PAGE] Server error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    })
+
+    // Re-throw NEXT_REDIRECT errors
+    if (error && typeof error === 'object' && 'digest' in error &&
+        typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
+
+    // For other errors, render empty state
+    return (
+      <BiensPageClient
+        initialBuildings={[]}
+        initialLots={[]}
+        teamId={null}
+      />
+    )
+  }
 }

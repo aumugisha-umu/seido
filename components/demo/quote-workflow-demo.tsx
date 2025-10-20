@@ -90,7 +90,7 @@ export function QuoteWorkflowDemo() {
     )
   }
 
-  const getStepColor = (status: string) => {
+  const getStepColor = (_status: string) => {
     switch (status) {
       case "completed":
         return "bg-emerald-50 border-emerald-200 text-emerald-800"
@@ -154,7 +154,7 @@ export function QuoteWorkflowDemo() {
 
         {/* Steps du workflow */}
         <div className="space-y-4">
-          {steps.map((step, index) => (
+          {steps.map((step) => (
             <Card
               key={step.id}
               className={`transition-all duration-300 ${getStepColor(

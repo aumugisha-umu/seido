@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  Building2,
   Calendar,
   ChevronDown,
   FileText,
@@ -14,7 +13,6 @@ import {
   XCircle,
   Clock,
   Play,
-  Square,
   RefreshCw,
   Send,
   Eye,
@@ -40,8 +38,8 @@ interface InterventionHeaderProps {
     id: string
     title: string
     reference: string
-    status: string
-    urgency: string
+    status?: string  // 🔍 CORRECTIF: Optionnel pour éviter les crashes
+    urgency?: string  // 🔍 CORRECTIF: Optionnel pour éviter les crashes
     createdAt: string
     createdBy: string
     lot?: {
@@ -56,7 +54,7 @@ interface InterventionHeaderProps {
   }
   onBack: () => void
   onArchive: () => void
-  onStatusAction: (action: string) => void
+  onStatusAction: (_action: string) => void
   displayMode?: "dropdown" | "buttons" | "custom"
   actionPanel?: React.ReactNode
 }
@@ -69,33 +67,36 @@ export const InterventionDetailHeader = ({
   displayMode = "dropdown",
   actionPanel,
 }: InterventionHeaderProps) => {
-  const getUrgencyConfig = (urgency: string) => {
-    switch (urgency.toLowerCase()) {
+  const getUrgencyConfig = (urgency?: string) => {
+    // 🔍 CORRECTIF: Gérer les valeurs undefined/null avec une valeur par défaut
+    const safeUrgency = (urgency || 'normale').toLowerCase()
+    switch (safeUrgency) {
       case "urgent":
-        return { 
-          color: "bg-red-100 text-red-800 border-red-200", 
-          dot: "bg-red-500" 
+        return {
+          color: "bg-red-100 text-red-800 border-red-200",
+          dot: "bg-red-500"
         }
       case "normale":
-        return { 
-          color: "bg-blue-100 text-blue-800 border-blue-200", 
-          dot: "bg-blue-500" 
+        return {
+          color: "bg-blue-100 text-blue-800 border-blue-200",
+          dot: "bg-blue-500"
         }
       case "faible":
-        return { 
-          color: "bg-slate-100 text-slate-700 border-slate-200", 
-          dot: "bg-slate-500" 
+        return {
+          color: "bg-slate-100 text-slate-700 border-slate-200",
+          dot: "bg-slate-500"
         }
       default:
-        return { 
-          color: "bg-slate-100 text-slate-700 border-slate-200", 
-          dot: "bg-slate-500" 
+        return {
+          color: "bg-slate-100 text-slate-700 border-slate-200",
+          dot: "bg-slate-500"
         }
     }
   }
 
-  const getStatusConfig = (status: string) => {
-    const statusLower = status.toLowerCase()
+  const getStatusConfig = (status?: string) => {
+    // 🔍 CORRECTIF: Gérer les valeurs undefined/null avec une valeur par défaut
+    const statusLower = (status || 'demande').toLowerCase()
     switch (statusLower) {
       case "demande":
         return { 
@@ -173,8 +174,9 @@ export const InterventionDetailHeader = ({
   }
 
   // Actions disponibles selon le statut
-  const getAvailableActions = (status: string) => {
-    const statusLower = status.toLowerCase()
+  const getAvailableActions = (status?: string) => {
+    // 🔍 CORRECTIF: Gérer les valeurs undefined/null avec une valeur par défaut
+    const statusLower = (status || 'demande').toLowerCase()
     const actions = []
     
     switch (statusLower) {
@@ -252,14 +254,21 @@ export const InterventionDetailHeader = ({
 
   // Fonction pour obtenir le texte de localisation
   const getLocationText = () => {
-    if (intervention.lot) {
-      return intervention.lot.building
-        ? `Lot ${intervention.lot.reference} • ${intervention.lot.building.name}`
-        : `Lot indépendant ${intervention.lot.reference}`
-    } else if (intervention.building) {
-      return `Bâtiment entier • ${intervention.building.name}`
+    const parts = []
+
+    // Ajouter le bâtiment si présent (via lot ou directement)
+    if (intervention.lot?.building?.name) {
+      parts.push(intervention.lot.building.name)
+    } else if (intervention.building?.name) {
+      parts.push(intervention.building.name)
     }
-    return "Localisation non spécifiée"
+
+    // Ajouter la référence du lot si présent
+    if (intervention.lot?.reference) {
+      parts.push(`Lot ${intervention.lot.reference}`)
+    }
+
+    return parts.length > 0 ? parts.join(' • ') : "Localisation non spécifiée"
   }
 
   return (
@@ -316,20 +325,19 @@ export const InterventionDetailHeader = ({
                     <MapPin className="h-3 w-3" />
                     <span className="truncate max-w-xs">{getLocationText()}</span>
                   </div>
-                  
+
                   <div className="hidden md:flex items-center space-x-1">
                     <User className="h-3 w-3" />
-                    <span>{intervention.createdBy}</span>
+                    <span>Créée par : {intervention.createdBy}</span>
                   </div>
-                  
+
                   <div className="hidden lg:flex items-center space-x-1">
                     <Calendar className="h-3 w-3" />
                     <span>
-                      {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
+                      Créé le : {new Date(intervention.createdAt).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
+                        year: "numeric"
                       })}
                     </span>
                   </div>

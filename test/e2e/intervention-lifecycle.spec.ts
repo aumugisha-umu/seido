@@ -74,7 +74,7 @@ test.describe('Intervention Lifecycle E2E', () => {
     await gestionnairePage.click('button[type="submit"]')
 
     // Verify scheduling
-    await expect(gestionnairePage.locator('[data-status="programmee"]')).toBeVisible()
+    await expect(gestionnairePage.locator('[data-status="planifiee"]')).toBeVisible()
 
     // 3. Prestataire se connecte et traite l'intervention
     const prestataireContext = await context.browser()?.newContext()

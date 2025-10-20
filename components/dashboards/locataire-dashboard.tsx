@@ -55,7 +55,7 @@ export default function LocataireDashboard() {
     )
   }
 
-  const handleInterventionClick = (interventionId: string) => {
+  const handleInterventionClick = (_interventionId: string) => {
     router.push(`/locataire/interventions/${interventionId}`)
   }
 
@@ -309,32 +309,30 @@ function LoadingSkeleton() {
   )
 }
 
-function getStatusVariant(status: string) {
+function getStatusVariant(_status: string) {
   switch (status) {
     case 'terminee':
       return 'outline' as const
     case 'en_cours':
       return 'default' as const
-    case 'nouvelle_demande':
-    case 'en_attente_validation':
+    case 'demande':
       return 'secondary' as const
-    case 'validee':
+    case 'approuvee':
       return 'default' as const
     default:
       return 'outline' as const
   }
 }
 
-function getStatusClassName(status: string) {
+function getStatusClassName(_status: string) {
   switch (status) {
     case 'terminee':
       return 'border-green-200 text-green-800'
     case 'en_cours':
       return 'bg-blue-100 text-blue-800'
-    case 'validee':
+    case 'approuvee':
       return 'bg-orange-100 text-orange-800'
-    case 'nouvelle_demande':
-    case 'en_attente_validation':
+    case 'demande':
       return ''
     case 'annulee':
       return 'border-red-200 text-red-800'
@@ -343,22 +341,21 @@ function getStatusClassName(status: string) {
   }
 }
 
-function getStatusLabel(status: string) {
+function getStatusLabel(_status: string) {
   switch (status) {
     case 'terminee':
       return 'Terminé'
     case 'en_cours':
       return 'En cours'
-    case 'nouvelle_demande':
-      return 'Nouvelle demande'
-    case 'en_attente_validation':
-      return 'En attente'
-    case 'validee':
-      return 'Validé'
+    case 'demande':
+      return 'Demande'
+    case 'approuvee':
+      return 'Approuvée'
     case 'annulee':
       return 'Annulé'
     default:
       return status
   }
 }
+
 

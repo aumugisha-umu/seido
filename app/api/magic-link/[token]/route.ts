@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const token = params.token
+    const resolvedParams = await params
+    const token = resolvedParams.token
 
     if (!token) {
       return NextResponse.json({
@@ -40,7 +41,7 @@ export async function GET(
       }
     )
 
-    console.log("🔍 Looking up magic link for token:", token.substring(0, 8) + '...')
+    logger.info({ token: token.substring(0, 8) + '...' }, "🔍 Looking up magic link for token")
 
     // Fetch magic link with related data
     const { data: magicLink, error: magicLinkError } = await supabase
@@ -74,7 +75,7 @@ export async function GET(
       .single()
 
     if (magicLinkError || !magicLink) {
-      console.error("❌ Magic link not found:", magicLinkError)
+      logger.error({ magicLinkError: magicLinkError }, "❌ Magic link not found:")
       return NextResponse.json({
         success: false,
         error: 'Lien non trouvé ou invalide'
@@ -126,7 +127,7 @@ export async function GET(
       existingQuote = quote
     }
 
-    console.log("✅ Magic link found and validated")
+    logger.info({}, "✅ Magic link found and validated")
 
     return NextResponse.json({
       success: true,
@@ -137,7 +138,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error("❌ Error in magic-link API:", error)
+    logger.error({ error: error }, "❌ Error in magic-link API:")
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

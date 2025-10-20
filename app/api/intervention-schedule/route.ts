@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { interventionService, userService } from '@/lib/database-service'
+
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
+import { logger } from '@/lib/logger'
+import { createServerUserService, createServerInterventionService } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
-  console.log("📅 intervention-schedule API route called")
+  logger.info({}, "📅 intervention-schedule API route called")
+
+  // Initialize services
+  const userService = await createServerUserService()
+  const interventionService = await createServerInterventionService()
   
   try {
     // Initialize Supabase client
@@ -58,11 +64,22 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Scheduling intervention:", interventionId, "Type:", planningType)
+    logger.info({ interventionId, planningType }, "📝 Scheduling intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
+
+    // 🔍 DEBUG: Log user retrieval details
+    logger.info({
+      authUserId: authUser.id,
+      userId: user?.id,
+      userRole: user?.role,
+      userEmail: user?.email,
+      userName: user?.name
+    }, "🔍 DEBUG: User retrieved from database")
+
     if (!user) {
+      logger.error({ authUserId: authUser.id }, "❌ User not found in database")
       return NextResponse.json({
         success: false,
         error: 'Utilisateur non trouvé'
@@ -71,6 +88,11 @@ export async function POST(request: NextRequest) {
 
     // Check if user is gestionnaire
     if (user.role !== 'gestionnaire') {
+      logger.warn({
+        userId: user.id,
+        userRole: user.role,
+        expected: 'gestionnaire'
+      }, "⚠️ User role mismatch: not gestionnaire")
       return NextResponse.json({
         success: false,
         error: 'Seuls les gestionnaires peuvent planifier les interventions'
@@ -84,7 +106,7 @@ export async function POST(request: NextRequest) {
         *,
         lot:lot_id(id, reference, building:building_id(name, address, team_id)),
         team:team_id(id, name),
-        intervention_contacts(
+       intervention_assignments(
           role,
           is_primary,
           user:user_id(id, name, email)
@@ -94,7 +116,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -118,29 +140,56 @@ export async function POST(request: NextRequest) {
     }
 
     let newStatus: Database['public']['Enums']['intervention_status']
-    let scheduledDate: string | null = null
     let notificationMessage = ''
 
     // Handle different planning types
     switch (planningType) {
       case 'direct':
-        // Direct scheduling with fixed date/time
-        if (!directSchedule || !directSchedule.date || !directSchedule.startTime || !directSchedule.endTime) {
+        // Direct appointment - create time slot, wait for confirmation
+        if (!directSchedule || !directSchedule.date || !directSchedule.startTime) {
           return NextResponse.json({
             success: false,
-            error: 'Date et heures sont requises pour la planification directe'
+            error: 'Date et heure sont requises pour fixer le rendez-vous'
           }, { status: 400 })
         }
 
-        newStatus = 'planifiee'
-        scheduledDate = `${directSchedule.date}T${directSchedule.startTime}:00.000Z`
-        notificationMessage = `Votre intervention "${intervention.title}" a été planifiée pour le ${new Date(directSchedule.date).toLocaleDateString('fr-FR')} de ${directSchedule.startTime} à ${directSchedule.endTime}.`
-        
-        console.log("📅 Direct scheduling:", scheduledDate)
+        // Stay in 'planification' status - not 'planifiee' yet
+        newStatus = 'planification'
+
+        // Create ONE time slot for the fixed appointment
+        const directTimeSlot = {
+          intervention_id: interventionId,
+          slot_date: directSchedule.date,
+          start_time: directSchedule.startTime,
+          end_time: directSchedule.startTime, // No end time for appointments
+          is_selected: false, // Not yet confirmed by tenant/provider
+          proposed_by: user.id, // Gestionnaire who proposed it
+          notes: 'Rendez-vous fixé par le gestionnaire'
+        }
+
+        // Delete any existing slots first
+        await supabase
+          .from('intervention_time_slots')
+          .delete()
+          .eq('intervention_id', interventionId)
+
+        // Insert the appointment slot
+        const { error: insertSlotError } = await supabase
+          .from('intervention_time_slots')
+          .insert([directTimeSlot])
+
+        if (insertSlotError) {
+          logger.error({ error: insertSlotError }, "❌ Error creating appointment slot:")
+          throw new Error('Erreur lors de la création du rendez-vous')
+        }
+
+        notificationMessage = `Un rendez-vous a été proposé pour votre intervention "${intervention.title}" le ${new Date(directSchedule.date).toLocaleDateString('fr-FR')} à ${directSchedule.startTime}. Veuillez confirmer votre disponibilité.`
+
+        logger.info({ directTimeSlot }, "📅 Direct appointment slot created (awaiting confirmation)")
         break
 
       case 'propose':
-        // Propose multiple slots for selection
+        // Propose multiple slots for tenant/provider selection
         if (!proposedSlots || proposedSlots.length === 0) {
           return NextResponse.json({
             success: false,
@@ -149,39 +198,42 @@ export async function POST(request: NextRequest) {
         }
 
         newStatus = 'planification'
-        notificationMessage = `Des créneaux ont été proposés pour votre intervention "${intervention.title}". Veuillez choisir celui qui vous convient le mieux.`
-        
-        // Store proposed time slots
-        const timeSlots = proposedSlots.map((slot: any) => ({
+        notificationMessage = `Des créneaux ont été proposés pour votre intervention "${intervention.title}". Veuillez indiquer vos préférences.`
+
+        // Store proposed time slots with proposed_by field
+        const timeSlots = proposedSlots.map((slot) => ({
           intervention_id: interventionId,
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          is_selected: false
+          is_selected: false, // Not yet confirmed
+          proposed_by: user.id // Gestionnaire who proposed these slots
         }))
 
-        const { error: slotsError } = await supabase
+        // Delete any existing slots first
+        await supabase
           .from('intervention_time_slots')
           .delete()
           .eq('intervention_id', interventionId)
 
+        // Insert the proposed slots
         const { error: insertSlotsError } = await supabase
           .from('intervention_time_slots')
           .insert(timeSlots)
 
         if (insertSlotsError) {
-          console.error("❌ Error inserting time slots:", insertSlotsError)
+          logger.error({ error: insertSlotsError }, "❌ Error inserting time slots:")
           throw new Error('Erreur lors de la création des créneaux')
         }
 
-        console.log("📅 Proposed slots created:", timeSlots.length)
+        logger.info({ slotsCount: timeSlots.length }, "📅 Proposed slots created (awaiting preferences):")
         break
 
       case 'organize':
-        // Will organize with tenant/provider availability later
+        // Autonomous organization - tenant and provider coordinate directly
         newStatus = 'planification'
-        notificationMessage = `Votre intervention "${intervention.title}" est en cours de planification. Nous vous contacterons pour convenir d'un créneau.`
-        console.log("📅 Organization mode - will coordinate later")
+        notificationMessage = `Votre intervention "${intervention.title}" est en cours de planification. Le locataire et le prestataire peuvent proposer des créneaux et s'organiser directement.`
+        logger.info({}, "📅 Organization mode - autonomous coordination between parties")
         break
 
       default:
@@ -191,7 +243,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
     }
 
-    console.log("🔄 Updating intervention status to:", newStatus)
+    logger.info({ newStatus: newStatus }, "🔄 Updating intervention status to:")
 
     // Build manager comment
     const managerCommentParts = []
@@ -199,19 +251,17 @@ export async function POST(request: NextRequest) {
       managerCommentParts.push(`Planification: ${internalComment}`)
     }
     if (planningType === 'direct') {
-      managerCommentParts.push(`Planifiée directement pour le ${directSchedule.date} ${directSchedule.startTime}-${directSchedule.endTime}`)
+      managerCommentParts.push(`Rendez-vous proposé pour le ${directSchedule.date} à ${directSchedule.startTime}`)
     } else if (planningType === 'propose') {
       managerCommentParts.push(`${proposedSlots.length} créneaux proposés`)
+    } else if (planningType === 'organize') {
+      managerCommentParts.push(`Planification autonome activée`)
     }
 
-    // Update intervention
+    // Update intervention - no scheduled_date for any mode (set only after confirmation)
     const updateData: any = {
       status: newStatus,
       updated_at: new Date().toISOString()
-    }
-
-    if (scheduledDate) {
-      updateData.scheduled_date = scheduledDate
     }
 
     if (managerCommentParts.length > 0) {
@@ -221,34 +271,37 @@ export async function POST(request: NextRequest) {
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
-    console.log("✅ Intervention scheduled successfully")
+    logger.info({}, "✅ Intervention scheduled successfully")
 
     // Create notification for tenant if exists
     if (intervention.tenant_id && intervention.team_id) {
       try {
+        const notificationTitle = planningType === 'organize'
+          ? 'Planification autonome'
+          : 'Nouveau créneau proposé'
+
         await notificationService.createNotification({
           userId: intervention.tenant_id,
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: planningType === 'direct' ? 'high' : 'normal',
-          title: planningType === 'direct' ? 'Intervention planifiée' : 'Planification en cours',
+          priority: 'normal', // Always normal - requires confirmation
+          title: notificationTitle,
           message: notificationMessage,
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
             scheduledBy: user.name,
             planningType: planningType,
-            scheduledDate: scheduledDate,
             lotReference: intervention.lot?.reference,
             buildingName: intervention.lot?.building?.name
           },
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        console.log("📧 Scheduling notification sent to tenant")
+        logger.info({}, "📧 Scheduling notification sent to tenant")
       } catch (notifError) {
-        console.warn("⚠️ Could not send notification to tenant:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
         // Don't fail the scheduling for notification errors
       }
     }
@@ -257,26 +310,29 @@ export async function POST(request: NextRequest) {
     const providers = intervention.intervention_contacts?.filter(ic => ic.role === 'prestataire') || []
     for (const provider of providers) {
       try {
+        const notificationTitle = planningType === 'organize'
+          ? 'Planification autonome'
+          : 'Nouveau créneau proposé'
+
         await notificationService.createNotification({
           userId: provider.user.id,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'high',
-          title: planningType === 'direct' ? 'Intervention planifiée' : 'Planification en cours',
-          message: `Une intervention "${intervention.title}" ${planningType === 'direct' ? 'a été planifiée' : 'est en cours de planification'}.`,
+          priority: 'normal', // Always normal - requires confirmation
+          title: notificationTitle,
+          message: notificationMessage,
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
             scheduledBy: user.name,
-            planningType: planningType,
-            scheduledDate: scheduledDate
+            planningType: planningType
           },
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
       } catch (notifError) {
-        console.warn("⚠️ Could not send notification to provider:", provider.user.name, notifError)
+        logger.warn({ provider: provider.user.name, notifError }, "⚠️ Could not send notification to provider:")
       }
     }
 
@@ -284,22 +340,22 @@ export async function POST(request: NextRequest) {
       success: true,
       intervention: {
         id: updatedIntervention.id,
-        status: updatedIntervention.status,
+        status: updatedIntervention.status, // Always 'planification'
         title: updatedIntervention.title,
-        scheduled_date: updatedIntervention.scheduled_date,
         updated_at: updatedIntervention.updated_at
       },
       planningType,
-      scheduledDate,
-      message: `Intervention ${planningType === 'direct' ? 'planifiée' : 'en cours de planification'} avec succès`
+      message: planningType === 'organize'
+        ? 'Planification autonome activée'
+        : 'Créneaux proposés avec succès. En attente de confirmation.'
     })
 
   } catch (error) {
-    console.error("❌ Error in intervention-schedule API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in intervention-schedule API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

@@ -4,9 +4,10 @@
  */
 
 import { UserRole } from './auth'
-
+import * as React from 'react'
+import { logger, logError } from '@/lib/logger'
 type LogLevel = 'info' | 'warn' | 'error' | 'debug'
-type SEIDOComponent = 'AUTH' | 'INTERVENTION' | 'DASHBOARD' | 'NOTIFICATION' | 'DATABASE' | 'PERMISSION'
+type SEIDOComponent = 'AUTH' | 'INTERVENTION' | 'DASHBOARD' | 'NOTIFICATION' | 'DATABASE' | 'PERMISSION' | 'DEBUG'
 
 interface DebugContext {
   userId?: string
@@ -14,7 +15,7 @@ interface DebugContext {
   interventionId?: string
   component?: string
   action?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export class SEIDODebugger {
@@ -28,7 +29,7 @@ export class SEIDODebugger {
     level: LogLevel,
     message: string,
     context?: DebugContext,
-    data?: any
+    data?: unknown
   ) {
     if (!this.isEnabled) return
 
@@ -53,13 +54,13 @@ export class SEIDODebugger {
     operation: string,
     userRole: UserRole,
     userId: string,
-    resource: any,
+    resource: unknown,
     authorized: boolean,
     reason?: string
   ) {
     this.log('PERMISSION', authorized ? 'info' : 'error',
       `Permission ${authorized ? 'granted' : 'denied'} for ${operation}`,
-      { userRole, userId, operation },
+      { userRole, userId, action: operation },
       { resource, reason }
     )
   }
@@ -108,7 +109,7 @@ export class SEIDODebugger {
     recipientRole: UserRole,
     recipientId: string,
     delivered: boolean,
-    payload?: any
+    payload?: unknown
   ) {
     this.log('NOTIFICATION', delivered ? 'info' : 'warn',
       `Notification ${delivered ? 'delivered' : 'failed'}: ${type}`,
@@ -125,8 +126,8 @@ export class SEIDODebugger {
     operation: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE',
     userRole: UserRole,
     userId: string,
-    filters?: Record<string, any>,
-    result?: { data?: any[], count?: number, error?: any }
+    filters?: Record<string, unknown>,
+    result?: { data?: unknown[], count?: number, error?: Error | unknown }
   ) {
     this.log('DATABASE', result?.error ? 'error' : 'info',
       `${operation} on ${table}`,
@@ -173,7 +174,7 @@ export class SEIDODebugger {
   /**
    * Trace complète d'une intervention depuis la création
    */
-  static async traceIntervention(interventionId: string) {
+  static async traceIntervention(_interventionId: string) {
     if (!this.isEnabled) return
 
     console.group(`🔍 [SEIDO-TRACE] Intervention Timeline: ${interventionId}`)
@@ -182,7 +183,7 @@ export class SEIDODebugger {
     const events = await this.getInterventionEvents(interventionId)
 
     events.forEach(event => {
-      console.log(`📍 ${event.timestamp} | ${event.userRole} | ${event.action}`, event.data)
+      logger.info(`📍 ${event.timestamp} | ${event.userRole} | ${event.action}`, event.data)
     })
 
     console.groupEnd()
@@ -193,7 +194,7 @@ export class SEIDODebugger {
    */
   static validateSEIDOData(
     dataType: 'intervention' | 'user' | 'building' | 'lot',
-    data: any,
+    data: Record<string, unknown>,
     userRole: UserRole
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = []
@@ -243,22 +244,22 @@ export class SEIDODebugger {
 
     try {
       // Test auth
-      console.log('Testing auth...')
+      logger.info('Testing auth...')
       // const { data: { user } } = await supabase.auth.getUser()
-      console.log('✅ Auth service accessible')
+      logger.info('✅ Auth service accessible')
 
       // Test database
-      console.log('Testing database...')
+      logger.info('Testing database...')
       // const { data } = await supabase.from('users').select('count')
-      console.log('✅ Database accessible')
+      logger.info('✅ Database accessible')
 
       // Test real-time
-      console.log('Testing real-time...')
+      logger.info('Testing real-time...')
       // Test de subscription
-      console.log('✅ Real-time service accessible')
+      logger.info('✅ Real-time service accessible')
 
     } catch (error) {
-      console.error('❌ Connectivity test failed:', error)
+      logger.error('❌ Connectivity test failed:', error)
     }
 
     console.groupEnd()
@@ -267,7 +268,7 @@ export class SEIDODebugger {
   /**
    * Helper pour récupérer les événements d'intervention (à implémenter)
    */
-  private static async getInterventionEvents(interventionId: string) {
+  private static async getInterventionEvents(_interventionId: string) {
     // Cette méthode doit être implémentée selon votre système d'audit/logging
     return [
       {
@@ -296,17 +297,19 @@ export class SEIDODebugger {
  */
 export function useSEIDODebug(
   componentName: string,
-  props?: any,
-  dependencies: any[] = []
+  props?: Record<string, unknown>,
+  dependencies: React.DependencyList = []
 ) {
-  if (typeof window === 'undefined') return // Server-side
-
+  // Hook utilisable seulement côté client - pas de conditional hooks
   React.useEffect(() => {
-    SEIDODebugger.log('DEBUG', 'info', `Component ${componentName} rendered`,
-      { component: componentName },
-      { props }
-    )
-  }, dependencies)
+    if (typeof window !== 'undefined') {
+      SEIDODebugger.log('DEBUG', 'info', `Component ${componentName} rendered`,
+        { component: componentName },
+        { props }
+      )
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [componentName, ...dependencies])
 
   React.useDebugValue({ componentName, props })
 }

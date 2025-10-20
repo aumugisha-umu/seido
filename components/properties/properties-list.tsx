@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { logger, logError } from '@/lib/logger'
 import {
   Eye,
   MoreVertical,
@@ -20,12 +21,20 @@ import {
   MapPin,
   Users,
   Calendar,
-  Euro,
   Plus,
 } from "lucide-react"
 
+interface Property {
+  id: string
+  type: 'building' | 'lot'
+  name?: string
+  reference?: string
+  address?: string
+  [key: string]: unknown
+}
+
 interface PropertiesListProps {
-  properties: any[]
+  properties: Property[]
   loading?: boolean
   emptyStateConfig?: {
     title: string
@@ -60,7 +69,7 @@ export function PropertiesList({
   const router = useRouter()
 
   // Get property type configuration
-  const getPropertyTypeConfig = (type: string) => {
+  const getPropertyTypeConfig = (_type: string) => {
     if (type === 'lot') {
       return {
         icon: Home,
@@ -85,10 +94,16 @@ export function PropertiesList({
   }
 
   // Get occupancy status for lots
-  const getOccupancyStatus = (property: any) => {
+  const getOccupancyStatus = (property: Property) => {
     if (property.type !== 'lot') return null
-    
-    return property.is_occupied ? {
+
+    // ✅ Phase 2: Calculate occupancy from lot_contacts (not tenant_id)
+    const hasLotContacts = !!property.lot_contacts?.some((lc: any) =>
+      lc.user?.role === 'locataire'
+    )
+    const isOccupied = hasLotContacts || !!property.is_occupied || !!property.tenant_id
+
+    return isOccupied ? {
       label: "Occupé",
       className: "bg-green-100 text-green-800"
     } : {
@@ -98,7 +113,7 @@ export function PropertiesList({
   }
 
   // Get property actions
-  const getPropertyActions = (property: any) => {
+  const getPropertyActions = (property: Property) => {
     return [
       {
         label: "Voir détails",
@@ -125,7 +140,7 @@ export function PropertiesList({
       {
         label: "Supprimer",
         icon: Trash2,
-        onClick: () => console.log(`[PropertiesList] Delete ${property.type} ${property.id}`),
+        onClick: () => logger.info(`[PropertiesList] Delete ${property.type} ${property.id}`),
         className: "text-red-600 hover:text-red-800",
       },
     ]
@@ -295,12 +310,6 @@ export function PropertiesList({
                             <span>📮 {property.postal_code}</span>
                           </div>
                         )}
-                        {property.construction_year && (
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Construit en {property.construction_year}</span>
-                          </div>
-                        )}
                         {property.lots && property.lots.length > 0 && (
                           <div className="flex items-center space-x-1">
                             <Home className="h-3 w-3" />
@@ -360,3 +369,4 @@ export function PropertiesList({
     </div>
   )
 }
+

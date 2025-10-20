@@ -1,0 +1,210 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\playwright.config.ts",
+    "rootDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": "C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\test\\global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "./test/reports/html",
+          "open": "never",
+          "host": "localhost",
+          "port": 9323
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "./test/reports/test-results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "./test/reports/junit.xml"
+        }
+      ],
+      [
+        "list",
+        {
+          "printSteps": true
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "mobile-chrome",
+        "name": "mobile-chrome",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "mobile-safari",
+        "name": "mobile-safari",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "gestionnaire",
+        "name": "gestionnaire",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e/gestionnaire",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "prestataire",
+        "name": "prestataire",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e/prestataire",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "locataire",
+        "name": "locataire",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e/locataire",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "admin",
+        "name": "admin",
+        "testDir": "C:/Users/arthu/Desktop/Coding/Seido-app/test/e2e/admin",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 6,
+    "webServer": {
+      "command": "npm run dev:test",
+      "url": "http://localhost:3001",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "stdout": "ignore",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: Process from config.webServer exited early.",
+      "stack": "Error: Process from config.webServer exited early."
+    }
+  ],
+  "stats": {
+    "startTime": "2025-09-27T14:19:41.551Z",
+    "duration": 3745.1429999999996,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

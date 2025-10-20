@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -12,21 +12,18 @@ import {
   Eye, 
   Search, 
   Filter, 
-  Calendar,
   Wrench,
-  User,
   ChevronDown,
   ChevronRight,
   Paperclip,
   File,
-  Image,
   FileSpreadsheet,
   FileImage
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { DocumentViewerModal } from "./document-viewer-modal"
-
+import { logger, logError } from '@/lib/logger'
 interface Document {
   id: string
   name: string
@@ -120,7 +117,7 @@ export function DocumentsSection({
     }
   }
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (_status: string) => {
     switch (status) {
       case 'completed': return 'Terminée'
       case 'in_progress': return 'En cours'
@@ -157,7 +154,7 @@ export function DocumentsSection({
       try {
         const response = await fetch(`/api/download-intervention-document?documentId=${document.id}`)
         const data = await response.json()
-        
+
         if (response.ok && data.downloadUrl) {
           // Create a temporary link to trigger download
           const link = window.document.createElement('a')
@@ -167,11 +164,11 @@ export function DocumentsSection({
           link.click()
           window.document.body.removeChild(link)
         } else {
-          console.error("Erreur de téléchargement:", data.error)
+          logger.error("Erreur de téléchargement:", data.error)
           // Could show a toast notification here
         }
       } catch (error) {
-        console.error("Erreur lors du téléchargement:", error)
+        logger.error("Erreur lors du téléchargement:", error)
         // Could show a toast notification here
       }
     }

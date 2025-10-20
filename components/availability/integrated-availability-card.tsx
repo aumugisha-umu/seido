@@ -21,7 +21,7 @@ interface IntegratedAvailabilityCardProps {
 export function IntegratedAvailabilityCard({
   interventionId,
   userRole,
-  planning
+  // planning
 }: IntegratedAvailabilityCardProps) {
   const {
     data,
@@ -131,8 +131,8 @@ export function IntegratedAvailabilityCard({
     )
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (_status: string) => {
+    switch (_status) {
       case 'demande': return 'bg-yellow-100 text-yellow-800'
       case 'approuvee': return 'bg-green-100 text-green-800'
       case 'planification': return 'bg-blue-100 text-blue-800'
@@ -281,7 +281,6 @@ export function IntegratedAvailabilityCard({
           {/* Prochaine action recommandée */}
           {data.recommendations.nextAction !== 'intervention_scheduled' && (
             <div className="text-center text-sm text-gray-600">
-              {data.recommendations.nextAction === 'run_matching' && 'Prêt pour le matching automatique'}
               {data.recommendations.nextAction === 'need_more_availabilities' && 'En attente de plus de disponibilités'}
             </div>
           )}

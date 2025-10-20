@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-
+import { logger, logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
-  console.log("👁️ view-intervention-document API route called")
+  logger.info({}, "👁️ view-intervention-document API route called")
   
   try {
     // Initialize Supabase client
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
               cookiesToSet.forEach(({ name, value, options }) => {
                 cookieStore.set(name, value, options)
               })
-            } catch (error) {
+            } catch {
               // Ignore cookie setting errors in API routes
             }
           },
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("👁️ Getting document for viewing:", documentId)
+    logger.info({ documentId: documentId }, "👁️ Getting document for viewing:")
 
     // Get document information and verify access
     const { data: document, error: docError } = await supabase
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (docError || !document) {
-      console.error("❌ Document not found:", docError)
+      logger.error({ docError: docError }, "❌ Document not found:")
       return NextResponse.json({ 
         error: 'Document non trouvé' 
       }, { status: 404 })
@@ -75,17 +75,17 @@ export async function GET(request: NextRequest) {
 
     // Check if user is member of the team that owns this intervention
     const userHasAccess = document.intervention.team.members.some(
-      (member: any) => member.user_id === user.id
+      (member) => member.user_id === user.id
     )
 
     if (!userHasAccess) {
-      console.error("❌ User not member of document's intervention team")
+      logger.error("❌ User not member of document's intervention team")
       return NextResponse.json({ 
         error: 'Accès refusé à ce document' 
       }, { status: 403 })
     }
 
-    console.log("🔐 Generating signed URL for viewing:", document.storage_path)
+    logger.info({ document: document.storage_path }, "🔐 Generating signed URL for viewing:")
 
     // Generate signed URL for viewing (valid for 30 minutes)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
@@ -93,13 +93,13 @@ export async function GET(request: NextRequest) {
       .createSignedUrl(document.storage_path, 1800) // 30 minutes expiry
 
     if (signedUrlError || !signedUrlData) {
-      console.error("❌ Error generating signed URL:", signedUrlError)
+      logger.error({ error: signedUrlError }, "❌ Error generating signed URL:")
       return NextResponse.json({ 
         error: 'Erreur lors de la génération de l\'URL de visualisation' 
       }, { status: 500 })
     }
 
-    console.log("✅ Signed URL for viewing generated successfully")
+    logger.info({}, "✅ Signed URL for viewing generated successfully")
 
     return NextResponse.json({
       success: true,
@@ -122,11 +122,11 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("❌ Error in view-intervention-document API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error: error }, "❌ Error in view-intervention-document API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

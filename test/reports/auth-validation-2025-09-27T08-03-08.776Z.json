@@ -1,0 +1,28 @@
+{
+  "authentication": [
+    {
+      "account": "arthur+prest@seido.pm",
+      "success": true,
+      "userId": "50ced0f3-73e4-41a2-90de-832c33d14b69",
+      "role": "prestataire"
+    },
+    {
+      "account": "arthur+loc@seido.pm",
+      "success": true,
+      "userId": "ea14f1f7-32ff-45bc-a1cc-e3f539baddf9",
+      "role": "locataire"
+    }
+  ],
+  "dashboard": [],
+  "api": [],
+  "errors": [
+    {
+      "test": "Authentication",
+      "account": "arthur@umumentum.com"
+    },
+    {
+      "test": "Authentication",
+      "account": "arthur+admin@seido.pm"
+    }
+  ]
+}

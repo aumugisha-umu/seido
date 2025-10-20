@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
@@ -7,7 +9,7 @@ import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
 import { useGlobalNotifications } from "@/hooks/use-global-notifications"
-
+import { logger, logError } from '@/lib/logger'
 interface NavigationItem {
   href: string
   label: string
@@ -23,6 +25,9 @@ interface HeaderConfig {
 
 interface DashboardHeaderProps {
   role: string
+  userName?: string
+  userInitial?: string
+  userEmail?: string
 }
 
 const roleConfigs: Record<string, HeaderConfig> = {
@@ -41,7 +46,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
     subtitle: "Gestionnaire",
     navigation: [
       { href: "/gestionnaire/dashboard", label: "Dashboard", icon: Home },
-      { href: "/gestionnaire/biens", label: "Biens", icon: Building2 },
+      { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2 },
       { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench },
       { href: "/gestionnaire/contacts", label: "Contacts", icon: Users },
     ],
@@ -50,39 +55,38 @@ const roleConfigs: Record<string, HeaderConfig> = {
   prestataire: {
     title: "SEIDO Pro",
     subtitle: "Prestataire",
-    navigation: [
-      { href: "/prestataire/dashboard", label: "Dashboard", icon: Home },
-      { href: "/prestataire/interventions", label: "Mes Interventions", icon: Wrench },
-    ],
+    navigation: [], // Pas de navigation dans le header - accès via dashboard
     showUserElements: true,
   },
   locataire: {
-    title: "SEIDO Tenant",
-    subtitle: "Espace locataire",
-    navigation: [
-      { href: "/locataire/dashboard", label: "Dashboard", icon: Home },
-      { href: "/locataire/interventions", label: "Mes Interventions", icon: Wrench },
-      { href: "/locataire/interventions/nouvelle-demande", label: "Nouvelle Demande", icon: MessageSquare },
-    ],
+    title: "SEIDO",
+    subtitle: "Locataire",
+    navigation: [], // Pas de navigation dans le header - accès via dashboard
     showUserElements: true,
   },
 }
 
-export default function DashboardHeader({ role }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  role,
+  userName: serverUserName,
+  userInitial: serverUserInitial,
+  userEmail: serverUserEmail
+}: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user, signOut } = useAuth()
   const pathname = usePathname()
-  const router = useRouter()
-  const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications()
-  
-  const userName = user?.display_name || user?.name || "Utilisateur"
-  const userInitial = userName.charAt(0).toUpperCase()
+  const { unreadCount: globalUnreadCount } = useGlobalNotifications()
+
+  // ✅ Utiliser les props du serveur en priorité pour éviter hydration mismatch
+  // Fallback sur useAuth() seulement si props non fournies (backward compatibility)
+  const displayName = serverUserName || user?.name || user?.email?.split('@')[0] || "Utilisateur"
+  const displayInitial = serverUserInitial || displayName.charAt(0).toUpperCase()
 
   const isActivePage = (href: string) => {
     // Correspondance exacte pour toutes les pages
     if (pathname === href) return true
-    
+
     // Pour les pages non-dashboard, vérifier si on est dans une sous-section
     // Ex: /gestionnaire/biens active aussi /gestionnaire/biens/nouveau
     if (!href.endsWith('/dashboard')) {
@@ -93,24 +97,24 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
     return false
   }
 
-  const getRoleDisplayName = (role: string) => {
+  const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
-      gestionnaire: "Gestionnaire", 
+      gestionnaire: "Gestionnaire",
       prestataire: "Prestataire",
       locataire: "Locataire"
     }
-    return roleNames[role as keyof typeof roleNames] || role.charAt(0).toUpperCase() + role.slice(1)
+    return roleNames[_role as keyof typeof roleNames] || _role.charAt(0).toUpperCase() + _role.slice(1)
   }
 
   const handleLogout = async () => {
     try {
-      console.log('👤 [DASHBOARD-HEADER] Logout button clicked')
+      logger.info('👤 [DASHBOARD-HEADER] Logout button clicked')
       await signOut()
-      console.log('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
+      logger.info('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
       window.location.href = "/auth/login"
     } catch (error) {
-      console.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
+      logger.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
       window.location.href = "/auth/login"
     }
   }
@@ -149,7 +153,7 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
                 <div className="flex-shrink-0">
                   <Link href={`/${role}/dashboard`} className="block">
                     <Image 
-                      src="/images/Seido_Main_Side_last.png"
+                      src="/images/Logo/Logo_Seido_Color.png"
                       alt="SEIDO"
                       width={140}
                       height={38}
@@ -160,30 +164,32 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
               </div>
             </div>
 
-            {/* Navigation desktop - cachée sur mobile et tablet */}
-            <div className="hidden lg:flex items-center space-x-1">
-              {config.navigation.map((item) => {
-                const Icon = item.icon
-                const isActive = isActivePage(item.href)
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`
-                      flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
-                      ${isActive 
-                        ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
-                        : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 hover:scale-[1.02] hover:shadow-sm'
-                      }
-                    `}
-                  >
-                    <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-slate-900'}`} />
-                    <span className="transition-all duration-200">{item.label}</span>
-                  </Link>
-                )
-              })}
-            </div>
+            {/* Navigation desktop - cachée sur mobile et tablet - affichée seulement si navigation existe */}
+            {config.navigation.length > 0 && (
+              <div className="hidden lg:flex items-center space-x-1">
+                {config.navigation.map((item) => {
+                  const Icon = item.icon
+                  const isActive = isActivePage(item.href)
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`
+                        flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
+                        ${isActive
+                          ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
+                          : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 hover:scale-[1.02] hover:shadow-sm'
+                        }
+                      `}
+                    >
+                      <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-slate-900'}`} />
+                      <span className="transition-all duration-200">{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Éléments droite */}
             <div className="flex items-center space-x-2">
@@ -212,10 +218,10 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
               {/* Menu utilisateur - caché sur mobile, visible sur desktop */}
               {config.showUserElements && (
                 <div className="hidden lg:block">
-                  <UserMenu 
-                    userName={userName} 
-                    userInitial={userInitial} 
-                    role={role} 
+                  <UserMenu
+                    userName={displayName}
+                    userInitial={displayInitial}
+                    role={role}
                   />
                 </div>
               )}
@@ -251,34 +257,38 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
           <div className="fixed top-16 inset-x-0 bottom-0 bg-white border-b border-slate-200 shadow-lg">
             <div className="flex flex-col h-full max-w-7xl mx-auto px-4 sm:px-6 py-4">
               
-              {/* Navigation principale */}
-              <nav className="space-y-2 mb-4">
-                {config.navigation.map((item) => {
-                  const Icon = item.icon
-                  const isActive = isActivePage(item.href)
-                  
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`
-                        flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px]
-                        ${isActive 
-                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
-                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <Icon className={`h-6 w-6 ${isActive ? 'text-primary' : ''}`} />
-                      <span className="text-base">{item.label}</span>
-                    </Link>
-                  )
-                })}
-              </nav>
+              {/* Navigation principale - affichée seulement si navigation existe */}
+              {config.navigation.length > 0 && (
+                <>
+                  <nav className="space-y-2 mb-4">
+                    {config.navigation.map((item) => {
+                      const Icon = item.icon
+                      const isActive = isActivePage(item.href)
 
-              {/* Séparation */}
-              <div className="border-t border-slate-200 mb-4"></div>
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`
+                            flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px]
+                            ${isActive
+                              ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300'
+                            }
+                          `}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Icon className={`h-6 w-6 ${isActive ? 'text-primary' : ''}`} />
+                          <span className="text-base">{item.label}</span>
+                        </Link>
+                      )
+                    })}
+                  </nav>
+
+                  {/* Séparation */}
+                  <div className="border-t border-slate-200 mb-4"></div>
+                </>
+              )}
 
               {/* Section actions utilisateur */}
               {config.showUserElements && (
@@ -313,10 +323,10 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
                     {/* Informations utilisateur */}
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
                       <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-primary-foreground font-medium text-base">{userInitial}</span>
+                        <span className="text-primary-foreground font-medium text-base">{displayInitial}</span>
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-slate-900 font-semibold text-base leading-tight truncate">{userName}</span>
+                        <span className="text-slate-900 font-semibold text-base leading-tight truncate">{displayName}</span>
                         <span className="text-slate-600 text-sm leading-tight truncate">{getRoleDisplayName(role)}</span>
                       </div>
                     </div>
@@ -343,3 +353,4 @@ export default function DashboardHeader({ role }: DashboardHeaderProps) {
     </>
   )
 }
+

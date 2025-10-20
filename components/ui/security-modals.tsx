@@ -8,15 +8,15 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Lock, 
-  Mail, 
-  Eye, 
-  EyeOff, 
-  CheckCircle, 
-  AlertCircle, 
+import { logger, logError } from '@/lib/logger'
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
   Shield,
-  X
 } from "lucide-react"
 
 interface ChangePasswordModalProps {
@@ -45,13 +45,13 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   const [error, setError] = useState("")
   const { toast } = useToast()
 
-  const validatePassword = (password: string) => {
+  const validatePassword = (_password: string) => {
     const requirements = {
       length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /\d/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      uppercase: /[A-Z]/.test(_password),
+      lowercase: /[a-z]/.test(_password),
+      number: /\d/.test(_password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(_password)
     }
     return requirements
   }
@@ -120,7 +120,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
       handleClose()
 
     } catch (error) {
-      console.error("Error changing password:", error)
+      logger.error("Error changing password:", error)
       setError(error instanceof Error ? error.message : "Erreur inconnue")
     } finally {
       setIsLoading(false)
@@ -293,7 +293,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
   const [error, setError] = useState("")
   const { toast } = useToast()
 
-  const isEmailValid = (email: string) => {
+  const isEmailValid = (_email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
   }
@@ -364,7 +364,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
       }, 1000)
 
     } catch (error) {
-      console.error("Error changing email:", error)
+      logger.error("Error changing email:", error)
       setError(error instanceof Error ? error.message : "Erreur inconnue")
     } finally {
       setIsLoading(false)

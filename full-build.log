@@ -1,0 +1,142 @@
+
+> seido-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.2.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+{"level":30,"time":"2025-10-06T20:39:22.358Z","pid":22164,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async V (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:780)
+    at async W (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:10766)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+{"level":30,"time":"2025-10-06T20:39:22.782Z","pid":26236,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async es (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:295:5975)
+    at async eu (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:8208)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+    at async eC (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:40283)
+{"level":30,"time":"2025-10-06T20:39:23.060Z","pid":22352,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.198Z","pid":21652,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.265Z","pid":31708,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.264Z","pid":30796,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.267Z","pid":22680,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.319Z","pid":14460,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.428Z","pid":28360,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.493Z","pid":10248,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:23.517Z","pid":4028,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+   Generating static pages (0/88) ...
+{"level":30,"time":"2025-10-06T20:39:31.029Z","pid":16952,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:31.094Z","pid":15404,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:31.209Z","pid":15404,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:31.131Z","pid":26016,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:31.435Z","pid":26016,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:31.170Z","pid":11096,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+{"level":30,"time":"2025-10-06T20:39:31.453Z","pid":11096,"hostname":"XPS-Arthur-Umugisha","msg":"🌍 [ENV-CONFIG] Environment detected: PRODUCTION/STAGING"}
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async V (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:780)
+    at async W (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:130:10766)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+{"level":30,"time":"2025-10-06T20:39:31.137Z","pid":15404,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [DASHBOARD-ROUTER] Determining user role for redirection..."}
+{"level":50,"time":"2025-10-06T20:39:31.154Z","pid":15404,"hostname":"XPS-Arthur-Umugisha","msg":"❌ [DASHBOARD-ROUTER] Error determining user role:"}
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async F (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:2089)
+    at async L (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:89:8245)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async es (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:295:5975)
+    at async eu (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:8208)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async Q (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:276:1365)
+    at async ea (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:286:3470)
+Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+    at f (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\4999.js:1:14288)
+    at u (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:44568)
+    at async R (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:705)
+    at async D (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:9:5259)
+    at async eC (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\chunks\5225.js:325:40283)
+{"level":30,"time":"2025-10-06T20:39:31.866Z","pid":26016,"hostname":"XPS-Arthur-Umugisha","msg":"🔄 [SIGNUP-SERVER] Signup page rendered server-side"}
+Error occurred prerendering page "/prestataire/notifications". Read more: https://nextjs.org/docs/messages/prerender-error
+ReferenceError: type is not defined
+    at C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\app\prestataire\notifications\page.js:1:8150
+    at C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\app\prestataire\notifications\page.js:1:8451
+    at Array.map (<anonymous>)
+    at y (C:\Users\arthu\Desktop\Coding\Seido-app\.next\server\app\prestataire\notifications\page.js:1:7772)
+    at ek (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:17:13337)
+    at e (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:17:17246)
+    at e$ (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:17:17708)
+    at Array.toJSON (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:17:14854)
+    at stringify (<anonymous>)
+    at eF (C:\Users\arthu\Desktop\Coding\Seido-app\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:17:26079)
+Export encountered an error on /prestataire/notifications/page: /prestataire/notifications, exiting the build.
+   Generating static pages (22/88) 
+ ⨯ Next.js build worker exited with code: 1 and signal: null

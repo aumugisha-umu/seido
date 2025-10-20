@@ -1,0 +1,191 @@
+
+Running 6 tests using 1 worker
+
+[1A[2K[1/6] [chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully
+[1A[2K[chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully
+🔐 Logging in as: arthur@seido.pm
+
+[1A[2K📝 Filling login form... { email: [32m'arthur@seido.pm'[39m }
+
+[1A[2K✅ Login form filled
+
+[1A[2K🚀 Submitting login form...
+
+[1A[2K✅ Login form submitted
+
+[1A[2K  1) [chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully 
+
+    [31mTest timeout of 30000ms exceeded while running "beforeEach" hook.[39m
+
+      41 |
+      42 | test.describe('Building Creation - E2E Tests', () => {
+    > 43 |   test.beforeEach(async ({ page }) => {
+         |        ^
+      44 |     // Login before each test
+      45 |     await loginAsGestionnaire(page)
+      46 |   })
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:43:8
+
+    Error: page.waitForURL: net::ERR_ABORTED; maybe frame was detached?
+    =========================== logs ===========================
+    waiting for navigation to "**/dashboard" until "load"
+      navigated to "http://localhost:3000/auth/login"
+    ============================================================
+
+       at helpers\auth-helpers.ts:344
+
+      342 |
+      343 |   // Attendre redirection dashboard (timeout 45s pour auth + middleware)
+    > 344 |   await page.waitForURL('**/dashboard', { timeout: 45000 })
+          |              ^
+      345 |
+      346 |   console.log(`✅ Logged in successfully as: ${credentials.email}`)
+      347 | }
+        at login (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\auth-helpers.ts:344:14)
+        at loginAsGestionnaire (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\auth-helpers.ts:353:3)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:45:5
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\buildings-create-building--34a5c-lding-with-lot-successfully-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K[2/6] [chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name
+[1A[2K[chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name
+🔐 Logging in as: arthur@seido.pm
+
+[1A[2K📝 Filling login form... { email: [32m'arthur@seido.pm'[39m }
+
+[1A[2K✅ Login form filled
+
+[1A[2K🚀 Submitting login form...
+
+[1A[2K✅ Login form submitted
+
+[1A[2K✅ Logged in successfully as: arthur@seido.pm
+
+[1A[2K🧪 TEST: Testing duplicate name detection
+
+[1A[2K📍 Navigating to building creation page...
+
+[1A[2K  2) [chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.goto: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3000/gestionnaire/biens/immeubles/nouveau", waiting until "load"[22m
+
+
+       at helpers\building-helpers.ts:19
+
+      17 |
+      18 |   // Option 1: Direct URL
+    > 19 |   await page.goto('http://localhost:3000/gestionnaire/biens/immeubles/nouveau')
+         |              ^
+      20 |
+      21 |   // Wait for page to load
+      22 |   await page.waitForLoadState('networkidle')
+        at navigateToBuildingCreation (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\building-helpers.ts:19:14)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:83:37
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\buildings-create-building--1c4f4-ect-duplicate-building-name-chromium\error-context.md
+
+
+[1A[2K[3/6] [chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty
+[1A[2K[chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty
+🔐 Logging in as: arthur@seido.pm
+
+[1A[2K📝 Filling login form... { email: [32m'arthur@seido.pm'[39m }
+
+[1A[2K✅ Login form filled
+
+[1A[2K🚀 Submitting login form...
+
+[1A[2K✅ Login form submitted
+
+[1A[2K✅ Logged in successfully as: arthur@seido.pm
+
+[1A[2K🧪 TEST: Testing auto-generated building name
+
+[1A[2K📍 Navigating to building creation page...
+
+[1A[2K  3) [chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
+
+       at helpers\building-helpers.ts:22
+
+      20 |
+      21 |   // Wait for page to load
+    > 22 |   await page.waitForLoadState('networkidle')
+         |              ^
+      23 |   await page.waitForTimeout(1000)  // Give React time to hydrate
+      24 |
+      25 |   console.log('✅ Building creation page loaded')
+        at navigateToBuildingCreation (C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\helpers\building-helpers.ts:22:14)
+        at C:\Users\arthu\Desktop\Coding\Seido-app\tests-new\buildings\create-building.spec.ts:116:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\buildings-create-building--db205-me-when-name-field-is-empty-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\buildings-create-building--db205-me-when-name-field-is-empty-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\buildings-create-building--db205-me-when-name-field-is-empty-chromium\error-context.md
+
+
+[1A[2K[4/6] [chromium] › tests-new\buildings\create-building.spec.ts:134:7 › Building Creation - E2E Tests › should validate lot category is French enum value
+[1A[2K  4) [chromium] › tests-new\buildings\create-building.spec.ts:134:7 › Building Creation - E2E Tests › should validate lot category is French enum value 
+
+    Error: browserType.launch: Target page, context or browser has been closed
+    Browser logs:
+
+    <launching> C:\Users\arthu\AppData\Local\ms-playwright\chromium_headless_shell-1193\chrome-win\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\Users\arthu\AppData\Local\Temp\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window
+    <launched> pid=32448
+    Call log:
+    [2m  - <launching> C:\Users\arthu\AppData\Local\ms-playwright\chromium_headless_shell-1193\chrome-win\headless_shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\Users\arthu\AppData\Local\Temp\playwright_chromiumdev_profile-GP3rxZ --remote-debugging-pipe --no-startup-window[22m
+    [2m  - <launched> pid=32448[22m
+    [2m  - [pid=32448] <gracefully close start>[22m
+    [2m  - [pid=32448] <kill>[22m
+    [2m  - [pid=32448] <will force kill>[22m
+    [2m  - [pid=32448] <process did exit: exitCode=3221225794, signal=null>[22m
+    [2m  - [pid=32448] starting temporary directories cleanup[22m
+    [2m  - [pid=32448] finished temporary directories cleanup[22m
+    [2m  - [pid=32448] <gracefully close end>[22m
+
+
+
+[1A[2K[5/6] [chromium] › tests-new\buildings\create-building.spec.ts:159:7 › Building Creation - E2E Tests › should handle contact assignment without contact_type error
+[1A[2K  5) [chromium] › tests-new\buildings\create-building.spec.ts:159:7 › Building Creation - E2E Tests › should handle contact assignment without contact_type error 
+
+    Error: worker process exited unexpectedly (code=3221225794, signal=null)
+
+
+[1A[2K[6/6] [chromium] › tests-new\buildings\create-building.spec.ts:184:7 › Building Creation - E2E Tests › should create building with multiple lots
+[1A[2K  6) [chromium] › tests-new\buildings\create-building.spec.ts:184:7 › Building Creation - E2E Tests › should create building with multiple lots 
+
+    Error: worker process exited unexpectedly (code=3221225794, signal=null)
+
+
+[1A[2K  6 failed
+    [chromium] › tests-new\buildings\create-building.spec.ts:48:7 › Building Creation - E2E Tests › should create building with lot successfully 
+    [chromium] › tests-new\buildings\create-building.spec.ts:77:7 › Building Creation - E2E Tests › should detect duplicate building name 
+    [chromium] › tests-new\buildings\create-building.spec.ts:113:7 › Building Creation - E2E Tests › should use auto-generated name when name field is empty 
+    [chromium] › tests-new\buildings\create-building.spec.ts:134:7 › Building Creation - E2E Tests › should validate lot category is French enum value 
+    [chromium] › tests-new\buildings\create-building.spec.ts:159:7 › Building Creation - E2E Tests › should handle contact assignment without contact_type error 
+    [chromium] › tests-new\buildings\create-building.spec.ts:184:7 › Building Creation - E2E Tests › should create building with multiple lots 
+
+[36m  Serving HTML report at http://localhost:52534. Press Ctrl+C to quit.[39m

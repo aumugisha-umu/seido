@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
+import { logger, logError } from '@/lib/logger'
 
 // Types pour le système de logging
 type ActivityActionType = Database['public']['Enums']['activity_action_type']
-type ActivityEntityType = Database['public']['Enums']['activity_entity_type']  
+type ActivityEntityType = Database['public']['Enums']['activity_entity_type']
 type ActivityStatus = Database['public']['Enums']['activity_status']
 
 interface LogActivityParams {
@@ -15,7 +16,7 @@ interface LogActivityParams {
   entityName?: string
   description: string
   status?: ActivityStatus
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   errorMessage?: string
   ipAddress?: string
   userAgent?: string
@@ -29,7 +30,12 @@ interface ActivityLoggerContext {
 }
 
 class ActivityLogger {
+  private supabase: ServerSupabaseClient
   private context: ActivityLoggerContext = {}
+
+  constructor(supabase: ServerSupabaseClient) {
+    this.supabase = supabase
+  }
 
   /**
    * Configure le contexte global pour éviter de répéter les mêmes informations
@@ -64,7 +70,7 @@ class ActivityLogger {
         return null
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('activity_logs')
         .insert(logData)
         .select('id')
@@ -96,7 +102,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'invite' | 'accept_invite',
     userId: string,
     userName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -135,7 +141,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete',
     teamId: string,
     teamName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -168,7 +174,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete',
     buildingId: string,
     buildingName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -201,7 +207,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'assign' | 'unassign',
     lotId: string,
     lotReference: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -240,7 +246,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'assign' | 'unassign',
     contactId: string,
     contactName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -279,7 +285,7 @@ class ActivityLogger {
     actionType: 'create' | 'update' | 'delete' | 'assign' | 'approve' | 'reject' | 'complete' | 'cancel' | 'status_change',
     interventionId: string,
     interventionRef: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -332,7 +338,7 @@ class ActivityLogger {
     actionType: 'upload' | 'download' | 'delete',
     documentId: string,
     fileName: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     let description = ''
     
@@ -363,7 +369,7 @@ class ActivityLogger {
   // Logs pour les sessions
   async logSessionAction(
     actionType: 'login' | 'logout',
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     const description = actionType === 'login' 
       ? 'Connexion à l\'application' 
@@ -387,7 +393,7 @@ class ActivityLogger {
     entityType: ActivityEntityType,
     entityName: string,
     errorMessage: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     return this.log({
       actionType,
@@ -477,7 +483,6 @@ class ActivityLogger {
    */
   async getActivityStats(teamId: string, period: '24h' | '7d' | '30d' = '7d') {
     try {
-      const now = new Date()
       const startDate = new Date()
       
       switch (period) {
@@ -492,7 +497,7 @@ class ActivityLogger {
           break
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('activity_logs')
         .select('action_type, entity_type, status')
         .eq('team_id', teamId)
@@ -530,16 +535,28 @@ class ActivityLogger {
   }
 }
 
-// Instance singleton pour réutilisation
-export const activityLogger = new ActivityLogger()
-
-// Hook pour utiliser dans les composants React
-export const useActivityLogger = (context?: ActivityLoggerContext) => {
-  if (context) {
-    activityLogger.setContext(context)
-  }
-  
-  return activityLogger
+// Factory function for creating service instances (RECOMMENDED)
+export const createActivityLogger = async () => {
+  const supabase = await createServerSupabaseClient()
+  return new ActivityLogger(supabase)
 }
+
+// Legacy singleton for backward compatibility
+// @deprecated Use createActivityLogger() for proper server context
+// This uses a browser client as fallback - only for legacy code
+let _legacyInstance: ActivityLogger | null = null
+
+export const activityLogger = new Proxy({} as ActivityLogger, {
+  get(_target, prop) {
+    // Lazy initialization on first access
+    if (!_legacyInstance) {
+      // Import dynamically to avoid circular dependencies
+      const { createBrowserSupabaseClient } = require('./services')
+      const supabase = createBrowserSupabaseClient()
+      _legacyInstance = new ActivityLogger(supabase)
+    }
+    return (_legacyInstance as any)[prop]
+  }
+})
 
 export default ActivityLogger

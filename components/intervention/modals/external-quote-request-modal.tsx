@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 interface ExternalQuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  intervention: any | null
+  intervention: { id: string; title: string; description: string; [key: string]: unknown } | null
   onSubmit: (data: {
     providerEmails: string[]
     deadline: string

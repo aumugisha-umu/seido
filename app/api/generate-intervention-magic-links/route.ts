@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { userService } from '@/lib/database-service'
 import { notificationService } from '@/lib/notification-service'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
+import { createServerUserService } from '@/lib/services'
 import crypto from 'crypto'
-
+import { logger, logError } from '@/lib/logger'
 // Admin client for sending emails
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -21,9 +21,12 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 ) : null
 
 export async function POST(request: NextRequest) {
-  console.log("✅ generate-intervention-magic-links API route called")
+  logger.info({}, "✅ generate-intervention-magic-links API route called")
 
   try {
+    // Initialize services
+    const userService = await createServerUserService()
+
     // Initialize Supabase client
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log("📝 Generating magic links for intervention:", interventionId, "for emails:", providerEmails)
+    logger.info({ interventionId, providerEmails }, "📝 Generating magic links for intervention")
 
     // Get current user from database
     const user = await userService.findByAuthUserId(authUser.id)
@@ -104,7 +107,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (interventionError || !intervention) {
-      console.error("❌ Intervention not found:", interventionError)
+      logger.error({ interventionError: interventionError }, "❌ Intervention not found:")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    console.log("🔗 Generating magic links for", providerEmails.length, "external providers...")
+    logger.info({ providerEmailCount: providerEmails.length }, "🔗 Generating magic links for external providers")
 
     // Generate magic links for each provider email
     const magicLinkResults = []
@@ -146,9 +149,9 @@ export async function POST(request: NextRequest) {
 
         if (existingProvider) {
           providerId = existingProvider.id
-          console.log(`📧 Provider ${email} already exists in system with ID: ${providerId}`)
+          logger.info({ email, providerId }, "📧 Provider already exists in system with ID:")
         } else {
-          console.log(`📧 Provider ${email} is external, will be created on first access`)
+          logger.info({ email }, "📧 Provider is external, will be created on first access")
         }
 
         // Create magic link record
@@ -168,46 +171,23 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (linkError) {
-          console.error(`❌ Error creating magic link for ${email}:`, linkError)
+          logger.error(`❌ Error creating magic link for ${email}:`, linkError)
           errors.push({ email, error: linkError.message })
           continue
         }
 
         // Generate the actual magic link URL
-        const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/intervention/${token}`
+        const magicLinkUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/prestataire/intervention/${token}`
 
-        console.log(`✅ Magic link generated for ${email}:`, magicLink.id)
+        logger.info(`✅ Magic link generated for ${email}:`, magicLink.id)
 
         // Send email notification with magic link
         if (supabaseAdmin) {
           try {
-            const emailSubject = `Demande de devis - ${intervention.title}`
-            const individualMessage = individualMessages[email] || additionalNotes || ''
+            // const individualMessage = individualMessages[email] || additionalNotes || ''
 
-            const emailContent = `
-Bonjour,
-
-Vous avez reçu une demande de devis pour l'intervention suivante :
-
-**${intervention.title}**
-${intervention.description}
-
-📍 Localisation : ${intervention.lot?.building?.name || 'Immeuble'} - ${intervention.lot?.reference || 'Lot non spécifié'}
-⏰ ${deadline ? `Date limite : ${new Date(deadline).toLocaleDateString('fr-FR')}` : 'Aucune date limite spécifiée'}
-
-${individualMessage ? `**Message spécifique :**\n${individualMessage}\n` : ''}
-
-**Pour consulter les détails et soumettre votre devis, cliquez sur ce lien :**
-${magicLinkUrl}
-
-Ce lien est valide jusqu'au ${expiresAt.toLocaleDateString('fr-FR')}.
-
-Si vous n'avez pas de compte, vous pourrez en créer un en suivant ce lien.
-
-Cordialement,
-${user.name}
-${intervention.team?.name || 'Équipe de gestion'}
-            `
+            // Email content would be sent here
+            // TODO: Implement email sending when ready
 
             // Use Supabase Edge Function or email service to send the email
             // For now, we'll create a notification in the system
@@ -232,9 +212,9 @@ ${intervention.team?.name || 'Équipe de gestion'}
               relatedEntityId: interventionId
             })
 
-            console.log(`📧 Email notification queued for ${email}`)
+            logger.info({ email }, "📧 Email notification queued for")
           } catch (emailError) {
-            console.warn(`⚠️ Could not send email to ${email}:`, emailError)
+            logger.warn(`⚠️ Could not send email to ${email}:`, emailError)
             // Don't fail the magic link generation for email errors
           }
         }
@@ -250,7 +230,7 @@ ${intervention.team?.name || 'Équipe de gestion'}
         })
 
       } catch (error) {
-        console.error(`❌ Error processing ${email}:`, error)
+        logger.error(`❌ Error processing ${email}:`, error)
         errors.push({
           email,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -260,7 +240,7 @@ ${intervention.team?.name || 'Équipe de gestion'}
 
     // Update intervention status to quote request if any links were generated successfully
     if (magicLinkResults.length > 0) {
-      console.log("🔄 Updating intervention status to 'demande_de_devis'...")
+      logger.info("🔄 Updating intervention status to 'demande_de_devis'...")
 
       await supabase
         .from('interventions')
@@ -272,7 +252,7 @@ ${intervention.team?.name || 'Équipe de gestion'}
         })
         .eq('id', interventionId)
 
-      console.log("✅ Intervention status updated to quote request")
+      logger.info({}, "✅ Intervention status updated to quote request")
 
       // Send status change notification
       try {
@@ -282,9 +262,9 @@ ${intervention.team?.name || 'Équipe de gestion'}
           'demande_de_devis',
           user.id
         )
-        console.log("📧 Status change notifications sent")
+        logger.info({}, "📧 Status change notifications sent")
       } catch (notifError) {
-        console.warn("⚠️ Could not send status notifications:", notifError)
+        logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
       }
     }
 
@@ -309,11 +289,11 @@ ${intervention.team?.name || 'Équipe de gestion'}
     })
 
   } catch (error) {
-    console.error("❌ Error in generate-intervention-magic-links API:", error)
-    console.error("❌ Error details:", {
+    logger.error({ error }, "❌ Error in generate-intervention-magic-links API:")
+    logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',
-    })
+    }, "❌ Error details:")
 
     return NextResponse.json({
       success: false,

@@ -1,15 +1,25 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit } from "lucide-react"
-import { useManagerStats } from "@/hooks/use-manager-stats"
+import { useBuildings } from "@/hooks/use-buildings"
+import type { Building as BuildingType, Lot as LotType } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
 import ContentNavigator from "@/components/content-navigator"
+
+type Lot = LotType
+type Building = BuildingType
+
+interface BuildingsData {
+  buildings: Building[]
+  lots: Lot[]
+  teamId: string | null
+}
 
 interface PropertySelectorProps {
   mode: "view" | "select"
@@ -18,16 +28,33 @@ interface PropertySelectorProps {
   selectedBuildingId?: string
   selectedLotId?: string
   showActions?: boolean
+  initialData?: BuildingsData  // ✅ Optional server data
 }
 
-export default function PropertySelector({
-  mode = "view",
+interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initialData'> {
+  buildings: Building[]
+  individualLots: Lot[]
+  loading: boolean
+}
+
+// ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
+// When initialData is provided (server-side rendering), we skip the useBuildings hook entirely
+
+/**
+ * Internal component that renders the property selector UI
+ * This component doesn't call any hooks, it just renders the provided data
+ */
+function PropertySelectorView({
+  mode,
   onBuildingSelect,
   onLotSelect,
   selectedBuildingId,
   selectedLotId,
-  showActions = true,
-}: PropertySelectorProps) {
+  showActions: _showActions = true,
+  buildings,
+  individualLots,
+  loading
+}: PropertySelectorViewProps) {
   const router = useRouter()
   const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -35,10 +62,6 @@ export default function PropertySelector({
     status: "all",
     interventions: "all"
   })
-  const { data, loading, error } = useManagerStats()
-
-  const buildings = data?.buildings || []
-  const individualLots = data?.lots || []
 
   const toggleBuildingExpansion = (buildingId: string) => {
     setExpandedBuildings((prev) =>
@@ -57,14 +80,16 @@ export default function PropertySelector({
     }))
   }
 
-  const filterBuildings = (buildingsList: any[]) => {
-    return buildingsList.filter(building => {
+  // ⚡ PERFORMANCE: Memoize filtered results to avoid recalculating on every render
+  // Only recompute when buildings, searchTerm, or filters change
+  const filteredBuildings = useMemo(() => {
+    return buildings.filter(building => {
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
         const matchesName = building.name.toLowerCase().includes(searchLower)
         const matchesAddress = building.address.toLowerCase().includes(searchLower)
-        const matchesLots = building.lots.some((lot: any) => 
+        const matchesLots = (building.lots || []).some((lot: Lot) =>
           lot.reference.toLowerCase().includes(searchLower)
         )
         if (!matchesName && !matchesAddress && !matchesLots) return false
@@ -72,24 +97,26 @@ export default function PropertySelector({
 
       // Status filter
       if (filters.status !== "all") {
-        const hasOccupiedLots = building.lots.some((lot: any) => lot.status === "occupied")
+        const hasOccupiedLots = (building.lots || []).some((lot: Lot) => lot.status === "occupied")
         if (filters.status === "occupied" && !hasOccupiedLots) return false
         if (filters.status === "vacant" && hasOccupiedLots) return false
       }
 
       // Interventions filter
       if (filters.interventions !== "all") {
-        const hasInterventions = building.lots.some((lot: any) => lot.interventions > 0)
+        const hasInterventions = (building.lots || []).some((lot: Lot) => (lot.interventions || 0) > 0)
         if (filters.interventions === "with" && !hasInterventions) return false
         if (filters.interventions === "without" && hasInterventions) return false
       }
 
       return true
     })
-  }
+  }, [buildings, searchTerm, filters])
 
-  const filterIndividualLots = (lotsList: any[]) => {
-    return lotsList.filter(lot => {
+  // ⚡ PERFORMANCE: Memoize filtered lots to avoid recalculating on every render
+  // Only recompute when lots, searchTerm, or filters change
+  const filteredIndividualLots = useMemo(() => {
+    return individualLots.filter(lot => {
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
@@ -106,17 +133,14 @@ export default function PropertySelector({
 
       // Interventions filter
       if (filters.interventions !== "all") {
-        const hasInterventions = lot.interventions > 0
+        const hasInterventions = (lot.interventions || 0) > 0
         if (filters.interventions === "with" && !hasInterventions) return false
         if (filters.interventions === "without" && hasInterventions) return false
       }
 
       return true
     })
-  }
-
-  const filteredBuildings = filterBuildings(buildings)
-  const filteredIndividualLots = filterIndividualLots(individualLots)
+  }, [individualLots, searchTerm, filters])
 
   const buildingsContent = (
     <div className="space-y-4">
@@ -150,9 +174,9 @@ export default function PropertySelector({
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Building2 className="h-8 w-8 text-slate-400" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">No buildings</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun immeuble trouvé </h3>
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Start by adding your first building to manage your real estate portfolio
+              Ajoutez votre premier immeuble pour gérer votre portefeuille immobilier
             </p>
             <Button 
               size="lg"
@@ -167,8 +191,8 @@ export default function PropertySelector({
           filteredBuildings.map((building) => {
             const buildingIdStr = building.id.toString()
             const isExpanded = expandedBuildings.includes(buildingIdStr)
-            const occupiedLots = building.lots.filter((lot: any) => lot.status === "occupied").length
-            const totalInterventions = building.lots.reduce((sum: number, lot: any) => sum + lot.interventions, 0)
+            const occupiedLots = (building.lots || []).filter((lot: Lot) => lot.status === "occupied").length
+            const totalInterventions = (building.lots || []).reduce((sum: number, lot: Lot) => sum + (lot.interventions || 0), 0)
             const isSelected = selectedBuildingId === buildingIdStr
 
             return (
@@ -237,7 +261,7 @@ export default function PropertySelector({
                             <div className="w-5 h-5 bg-amber-100 rounded-md flex items-center justify-center">
                               <Home className="h-3 w-3 text-amber-600" />
                             </div>
-                            <span className="text-sm font-medium text-slate-900">{building.lots.length}</span>
+                            <span className="text-sm font-medium text-slate-900">{(building.lots || []).length}</span>
                             <span className="text-xs text-slate-600">lots</span>
                           </div>
                           
@@ -259,7 +283,7 @@ export default function PropertySelector({
                           )}
                         </div>
 
-                        {building.lots.length > 0 && (
+                        {(building.lots || []).length > 0 && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -276,9 +300,9 @@ export default function PropertySelector({
                         )}
                       </div>
 
-                      {building.lots.length > 0 && !isExpanded && (
+                      {(building.lots || []).length > 0 && !isExpanded && (
                         <div className="grid grid-cols-1 gap-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">
-                          {building.lots.slice(0, 2).map((lot: any) => {
+                          {(building.lots || []).slice(0, 2).map((lot: Lot) => {
                             const isLotSelected = selectedLotId === lot.id.toString()
                             return (
                               <div
@@ -342,10 +366,8 @@ export default function PropertySelector({
                                         size="sm"
                                         className="h-6 px-2 text-xs"
                                         onClick={() => {
-                                          if (isLotSelected) {
-                                            onLotSelect?.(null)
-                                          } else {
-                                            onLotSelect?.(lot.id, building.id)
+                                          if (!isLotSelected) {
+                                            onLotSelect?.(lot.id.toString(), building.id.toString())
                                           }
                                         }}
                                       >
@@ -358,7 +380,7 @@ export default function PropertySelector({
                             )
                           })}
                           
-                          {building.lots.length > 2 && (
+                          {(building.lots || []).length > 2 && (
                             <div className="text-center">
                               <Button
                                 variant="ghost"
@@ -366,18 +388,18 @@ export default function PropertySelector({
                                 onClick={() => toggleBuildingExpansion(buildingIdStr)}
                                 className="h-7 px-3 text-xs text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 w-full"
                               >
-                                +{building.lots.length - 2} more lots
+                                +{(building.lots || []).length - 2} more lots
                               </Button>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {isExpanded && building.lots.length > 0 && (
+                      {isExpanded && (building.lots || []).length > 0 && (
                         <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
                           <div className="max-h-64 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 rounded-md">
                             <div className="space-y-2 pr-2">
-                              {building.lots.map((lot: any) => {
+                              {(building.lots || []).map((lot: Lot) => {
                                 const isLotSelected = selectedLotId === lot.id.toString()
                                 return (
                                   <div
@@ -400,7 +422,7 @@ export default function PropertySelector({
                                         
                                         <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0">
                                           <span>Floor {lot.floor}</span>
-                                          {lot.interventions > 0 && (
+                                          {(lot.interventions || 0) > 0 && (
                                             <div className="flex items-center text-amber-700">
                                               <Zap className="h-3 w-3 mr-1" />
                                               <span>{lot.interventions}</span>
@@ -439,9 +461,7 @@ export default function PropertySelector({
                                             size="sm"
                                             className="h-7 px-3 text-xs"
                                             onClick={() => {
-                                              if (isLotSelected) {
-                                                onLotSelect?.(null)
-                                              } else {
+                                              if (!isLotSelected) {
                                                 onLotSelect?.(lot.id.toString(), building.id.toString())
                                               }
                                             }}
@@ -477,9 +497,9 @@ export default function PropertySelector({
             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Home className="h-8 w-8 text-amber-600" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">No individual lots</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun lot trouvé</h3>
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Add your first lot to manage your individual properties
+              Ajoutez votre premier lot pour gérer vos propriétés individuelles
             </p>
             <Button 
               size="lg"
@@ -487,17 +507,42 @@ export default function PropertySelector({
               className="w-full sm:w-auto"
             >
               <Home className="h-4 w-4 mr-2" />
-              Add lot
+              Ajouter un lot
             </Button>
           </div>
         ) : (
           filteredIndividualLots.map((lot) => {
             const isSelected = selectedLotId === lot.id?.toString()
-            
+
+            const lotForCard = {
+              id: lot.id?.toString() || "",
+              reference: lot.reference,
+              // ✅ Phase 2: Pass lot_contacts and is_occupied for proper occupancy calculation
+              lot_contacts: (lot as any).lot_contacts || [],
+              is_occupied: (lot as any).is_occupied || false,
+              tenant_id: lot.status === "occupied" ? "occupied" : null, // Fallback for compatibility
+              tenant: undefined as undefined | { id: string; name: string },
+              // ✅ Pass building with complete address info
+              building: lot.building_name
+                ? {
+                    id: (lot as any).building?.id || "",
+                    name: lot.building_name,
+                    address: (lot as any).building?.address || lot.address || undefined,
+                    city: (lot as any).building?.city || lot.city || undefined
+                  }
+                : undefined,
+              // Additional lot properties for LotCard display
+              floor: (lot as any).floor,
+              surface_area: (lot as any).surface_area,
+              rooms: (lot as any).rooms,
+              apartment_number: (lot as any).apartment_number,
+              category: (lot as any).category,
+            }
+
             return (
               <LotCard
-                key={lot.id}
-                lot={lot}
+                key={lot.id as any}
+                lot={lotForCard}
                 mode={mode}
                 isSelected={isSelected}
                 onSelect={onLotSelect}
@@ -513,7 +558,7 @@ export default function PropertySelector({
   const tabs = [
     {
       id: "buildings",
-      label: "Buildings",
+      label: "Immeubles",
       icon: Building2,
       count: filteredBuildings.length,
       content: buildingsContent
@@ -561,3 +606,80 @@ export default function PropertySelector({
     />
   )
 }
+
+/**
+ * Wrapper that uses initialData directly (server-side data)
+ * This skips the useBuildings hook entirely, avoiding duplicate fetches
+ */
+function PropertySelectorWithInitialData(props: PropertySelectorProps & { initialData: BuildingsData }) {
+  // DEBUG: Log received data in PropertySelector with detailed lot info
+  console.log('🔍 [PROPERTY-SELECTOR] Received initialData:', {
+    buildingsCount: props.initialData.buildings.length,
+    lotsCount: props.initialData.lots.length,
+    firstLot: props.initialData.lots[0] ? {
+      reference: props.initialData.lots[0].reference,
+      status: props.initialData.lots[0].status,
+      is_occupied: props.initialData.lots[0].is_occupied
+    } : null,
+    buildings: props.initialData.buildings.map(b => ({
+      id: b.id,
+      name: b.name,
+      lotsCount: b.lots?.length || 0,
+      lotsDetail: b.lots?.map(l => ({
+        reference: l.reference,
+        status: l.status,
+        is_occupied: l.is_occupied
+      }))
+    }))
+  })
+
+  // DEBUG: Specifically check first building's first lot
+  if (props.initialData.buildings[0]?.lots?.[0]) {
+    console.log('🔍 [PROPERTY-SELECTOR] First building first lot:', {
+      reference: props.initialData.buildings[0].lots[0].reference,
+      status: props.initialData.buildings[0].lots[0].status,
+      is_occupied: props.initialData.buildings[0].lots[0].is_occupied
+    })
+  }
+
+  return (
+    <PropertySelectorView
+      {...props}
+      buildings={props.initialData.buildings}
+      individualLots={props.initialData.lots}
+      loading={false}
+    />
+  )
+}
+
+/**
+ * Wrapper that uses the useBuildings hook (client-side fetching)
+ * This is used when no server-side data is provided
+ */
+function PropertySelectorWithHook(props: PropertySelectorProps) {
+  const hookData = useBuildings()
+
+  return (
+    <PropertySelectorView
+      {...props}
+      buildings={hookData.data?.buildings || []}
+      individualLots={hookData.data?.lots || []}
+      loading={hookData.loading}
+    />
+  )
+}
+
+/**
+ * Main PropertySelector component
+ * Conditionally renders either the initialData version or hook version
+ * This prevents duplicate data fetching when server-side data is available
+ */
+export default function PropertySelector(props: PropertySelectorProps) {
+  // ⚡ PERFORMANCE: Choose the right component based on initialData availability
+  // If initialData is provided, use it directly (no hook call, no duplicate fetch)
+  // Otherwise, fetch data via the useBuildings hook
+  return props.initialData
+    ? <PropertySelectorWithInitialData {...props} initialData={props.initialData} />
+    : <PropertySelectorWithHook {...props} />
+}
+

@@ -2,7 +2,7 @@
 
 import { QuoteCard } from "./quote-card"
 import { Receipt, AlertCircle, Clock } from "lucide-react"
-import { getQuoteEmptyStateMessage, analyzeQuoteState } from "@/lib/quote-state-utils"
+import { getQuoteEmptyStateMessage } from "@/lib/quote-state-utils"
 
 interface Quote {
   id: string
@@ -21,24 +21,34 @@ interface Quote {
   reviewedAt?: string
   reviewComments?: string
   rejectionReason?: string
-  attachments: Array<any>
+  attachments: Array<{
+    id: string
+    name: string
+    url: string
+    type: string
+  }>
   isCurrentUserQuote?: boolean
 }
 
 interface QuotesListProps {
   quotes: Quote[]
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
-  onApprove?: (quoteId: string) => void
-  onReject?: (quoteId: string) => void
-  onCancel?: (quoteId: string) => void
-  onDownloadAttachment?: (attachment: any) => void
+  onApprove?: (_quoteId: string) => void
+  onReject?: (_quoteId: string) => void
+  onCancel?: (_quoteId: string) => void
+  onDownloadAttachment?: (attachment: {
+    id: string
+    name: string
+    url: string
+    type: string
+  }) => void
   onDataChange?: () => void
   showActions?: boolean
   compact?: boolean
   emptyStateConfig?: {
     title?: string
     description?: string
-    icon?: React.ComponentType<any>
+    icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
   }
   className?: string
 }
@@ -88,7 +98,6 @@ export function QuotesList({
   const IconComponent = config.icon
 
   if (quotes.length === 0) {
-    const state = analyzeQuoteState(quotes)
     const contextualMessage = getQuoteEmptyStateMessage(quotes)
 
     // Couleur de l'icône selon le contexte

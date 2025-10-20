@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { logEnvironmentInfo } from "@/lib/environment"
+import { logger, logError } from '@/lib/logger'
 
 /**
  * ✅ COMPOSANT CLIENT - INITIALISATION LOGS D'ENVIRONNEMENT

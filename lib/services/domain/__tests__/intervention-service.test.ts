@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { InterventionService } from '../intervention-service'
 import { NotFoundException, ValidationException, PermissionException } from '../../core/error-handler'
-import type { InterventionRepository } from '../../repositories/intervention-repository'
+import type { InterventionRepository } from '../../repositories/intervention.repository'
 import type { QuoteRepository } from '../../repositories/quote-repository'
 import type { NotificationRepository } from '../../repositories/notification-repository'
 import type { ConversationRepository } from '../../repositories/conversation-repository'

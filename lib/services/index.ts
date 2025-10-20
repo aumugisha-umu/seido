@@ -220,13 +220,6 @@ export {
   createInterventionRepository,
   createServerInterventionRepository,
   createServerActionInterventionRepository
-} from './repositories/intervention-repository'
-
-// Legacy intervention repository (to be deprecated)
-export {
-  InterventionRepository as LegacyInterventionRepository,
-  createInterventionRepository as createLegacyInterventionRepository,
-  createServerInterventionRepository as createServerLegacyInterventionRepository
 } from './repositories/intervention.repository'
 
 // Enhanced Intervention Service with full Phase 3 workflow

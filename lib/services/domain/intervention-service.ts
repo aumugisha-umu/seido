@@ -9,7 +9,7 @@ import {
   createInterventionRepository,
   createServerInterventionRepository,
   createServerActionInterventionRepository
-} from '../repositories/intervention-repository'
+} from '../repositories/intervention.repository'
 import {
   QuoteRepository,
   createQuoteRepository,

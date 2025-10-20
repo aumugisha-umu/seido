@@ -44,7 +44,7 @@ export const InvitationEmail = ({
   const roleInfo = roleDescriptions[role]
 
   return (
-    <EmailLayout preview={`${inviterName} vous invite à rejoindre ${teamName} sur SEIDO`}>
+    <EmailLayout preview={`${inviterName} vous invite à le rejoindre sur SEIDO`}>
       {/* Header avec sujet */}
       <EmailHeader subject={`Invitation de ${inviterName}`} />
 

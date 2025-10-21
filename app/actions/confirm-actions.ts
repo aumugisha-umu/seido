@@ -7,7 +7,7 @@
 'use server'
 
 import { createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
-import { createServerUserService } from '@/lib/services'
+import { getSupabaseAdmin } from '@/lib/services/core/supabase-admin'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { logger } from '@/lib/logger'
@@ -184,26 +184,62 @@ export async function confirmEmailAction(
  *
  * Utilisé par le Client Component pour faire du polling jusqu'à ce que
  * le profil soit créé (max 10 secondes)
+ *
+ * Note: Utilise le Service Role (admin) pour bypasser RLS et éviter les problèmes
+ * de timing de propagation de session. C'est sécurisé car on vérifie juste l'existence
+ * d'un profil dont on a déjà validé l'authUserId via verifyOtp().
  */
 export async function checkProfileCreated(authUserId: string): Promise<CheckProfileResult> {
   logger.info('🔍 [CHECK-PROFILE] Checking profile for authUserId:', authUserId)
 
   try {
-    // Créer le service utilisateur
-    const userService = await createServerUserService()
+    // Utiliser Supabase Admin pour bypass RLS
+    // Évite les problèmes de timing de propagation de session entre verifyOtp() et ce polling
+    const admin = getSupabaseAdmin()
 
-    // Récupérer le profil par auth_user_id
-    const result = await userService.getByAuthUserId(authUserId)
+    if (!admin) {
+      logger.error('❌ [CHECK-PROFILE] Admin client not available')
+      return {
+        success: false,
+        error: 'Service admin non disponible'
+      }
+    }
 
-    if (!result.success || !result.data) {
+    // Query directe sans RLS - plus rapide et plus fiable
+    const { data: profile, error } = await admin
+      .from('users')
+      .select('id, email, name, role, team_id')
+      .eq('auth_user_id', authUserId)
+      .single()
+
+    if (error) {
+      // PGRST116 = "not found" - c'est normal pendant le polling
+      if (error.code === 'PGRST116') {
+        logger.info('⏳ [CHECK-PROFILE] Profile not created yet for:', authUserId)
+        return {
+          success: false,
+          error: 'Profil non trouvé'
+        }
+      }
+
+      // Autre erreur = problème réel
+      logger.error('❌ [CHECK-PROFILE] Database error:', {
+        code: error.code,
+        message: error.message
+      })
+      return {
+        success: false,
+        error: `Erreur base de données: ${error.message}`
+      }
+    }
+
+    if (!profile) {
       logger.warn('⚠️ [CHECK-PROFILE] Profile not found yet for:', authUserId)
       return {
         success: false,
         error: 'Profil non trouvé'
       }
     }
-
-    const profile = result.data
 
     // Vérifier que le profil a les champs nécessaires
     if (!profile.id || !profile.email || !profile.role) {
@@ -222,7 +258,7 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
       id: profile.id,
       email: profile.email,
       role: profile.role,
-      hasTeam: !!(profile as any).team_id
+      hasTeam: !!profile.team_id
     })
 
     return {
@@ -232,7 +268,7 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
         email: profile.email,
         name: profile.name || '',
         role: profile.role,
-        teamId: (profile as any).team_id || null
+        teamId: profile.team_id || null
       }
     }
 

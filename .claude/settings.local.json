@@ -18,7 +18,9 @@
       "Bash(test -d guides)",
       "Bash(while read file)",
       "Bash(do echo \"FILE: $file\")",
-      "WebFetch(domain:resend.com)"
+      "WebFetch(domain:resend.com)",
+      "WebFetch(domain:developers.frill.co)",
+      "WebFetch(domain:frill.co)"
     ],
     "deny": [],
     "ask": []

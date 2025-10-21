@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, Building2, Users, Wrench, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,8 +27,7 @@ interface SignupSuccessModalProps {
  * Affiche:
  * - Message de bienvenue personnalisé
  * - Prochaines étapes selon le rôle
- * - Countdown de 5 secondes
- * - Bouton pour continuer immédiatement
+ * - Bouton pour continuer manuellement (pas de redirection automatique)
  */
 export const SignupSuccessModal = ({
   isOpen,
@@ -39,22 +37,6 @@ export const SignupSuccessModal = ({
   onContinue
 }: SignupSuccessModalProps) => {
   const router = useRouter()
-  const [countdown, setCountdown] = useState(5)
-
-  // Countdown automatique
-  useEffect(() => {
-    if (!isOpen) return
-
-    if (countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(c => c - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    } else {
-      // Countdown terminé → redirection
-      handleContinue()
-    }
-  }, [countdown, isOpen, dashboardPath])
 
   const handleContinue = () => {
     if (onContinue) {
@@ -188,19 +170,13 @@ export const SignupSuccessModal = ({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-3">
-          {/* Countdown */}
-          <div className="flex items-center justify-center sm:justify-start flex-1 text-sm text-muted-foreground">
-            Redirection dans <span className="mx-1 font-semibold text-foreground">{countdown}s</span>
-          </div>
-
-          {/* Bouton continuer */}
+        <DialogFooter className="flex justify-center sm:justify-end">
           <Button
             onClick={handleContinue}
             className="w-full sm:w-auto"
             size="lg"
           >
-            Continuer maintenant
+            Continuer
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </DialogFooter>

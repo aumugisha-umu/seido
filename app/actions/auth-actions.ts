@@ -376,7 +376,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     // ✅ AUTHENTIFICATION: Utiliser client server Supabase
     const supabase = await createServerSupabaseClient()
     const { error } = await supabase.auth.resetPasswordForEmail(validatedData.email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`
+      redirectTo: `${EMAIL_CONFIG.appUrl}/auth/update-password`
     })
 
     if (error) {

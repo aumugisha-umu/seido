@@ -212,7 +212,9 @@ export async function POST(request: NextRequest) {
       }
 
       // ✅ NOUVEAU: Envoyer l'email via Resend avec template React
-      const resetUrl = resetData.properties.action_link
+      const hashedToken = resetData.properties.hashed_token
+      // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+      const resetUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=recovery`
       const firstName = userExists.user_metadata?.first_name || userExists.email?.split('@')[0] || 'Utilisateur'
 
       const emailResult = await emailService.sendPasswordResetEmail(email, {

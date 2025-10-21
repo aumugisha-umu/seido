@@ -5,6 +5,7 @@ import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
 import { createServerUserService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 // Admin client for creating auth users
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
       const { error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: email,
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+        redirectTo: `${EMAIL_CONFIG.appUrl}/auth/reset-password`
       })
 
       if (magicLinkError) {

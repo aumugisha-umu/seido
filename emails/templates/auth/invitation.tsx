@@ -56,7 +56,7 @@ export const InvitationEmail = ({
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-5">
-          <strong>{inviterName}</strong> vous invite à rejoindre son organisation sur SEIDO, la plateforme de gestion immobilière.
+          <strong>{inviterName}</strong> vous invite sur SEIDO, la plateforme de gestion immobilière collaborative.
         </Text>
 
         {/* Informations sur le rôle */}

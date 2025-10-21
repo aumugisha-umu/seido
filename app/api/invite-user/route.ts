@@ -263,9 +263,11 @@ export async function POST(request: Request) {
           throw new Error('Failed to generate invitation link: ' + inviteError?.message)
         }
 
-        // ✅ Récupérer l'auth_user_id créé automatiquement par generateLink
+        // ✅ Récupérer l'auth_user_id et le hashed_token
         authUserId = inviteLink.user.id
-        const invitationUrl = inviteLink.properties.action_link
+        const hashedToken = inviteLink.properties.hashed_token
+        // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+        const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
         logger.info({ user: authUserId }, '✅ [STEP-3-INVITE-1] Auth user created + invite link generated:')
 
         // SOUS-ÉTAPE 2: Lier l'auth au profil (utiliser Service Role pour bypasser RLS)
@@ -298,7 +300,7 @@ export async function POST(request: Request) {
             provider_category: finalProviderCategory,
             team_id: teamId,
             invited_by: currentUserProfile.id,
-            invitation_token: inviteLink.properties.hashed_token,  // ✅ Token Supabase complet (VARCHAR 255)
+            invitation_token: hashedToken,  // ✅ Token Supabase complet (VARCHAR 255)
             user_id: userProfile.id,
             status: 'pending',
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),

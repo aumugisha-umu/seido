@@ -4,6 +4,7 @@ import { createServerUserService } from '@/lib/services'
 import { getServerSession } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
 
 
@@ -120,8 +121,9 @@ export async function POST(request: Request) {
       )
     }
 
-    const magicLink = inviteLink.properties.action_link
     const hashedToken = inviteLink.properties.hashed_token
+    // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+    const magicLink = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
     logger.info({ magicLink: magicLink.substring(0, 100) + '...' }, '✅ [STEP-2] Invitation link generated')
 
     // ============================================================================

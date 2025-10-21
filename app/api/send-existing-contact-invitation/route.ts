@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerUserService, getServerSession } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
 
 const supabaseAdmin = createClient<Database>(
@@ -116,8 +117,9 @@ export async function POST(request: Request) {
       }
 
       authUserId = inviteLink.user.id
-      invitationUrl = inviteLink.properties.action_link
       hashedToken = inviteLink.properties.hashed_token
+      // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+      invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
 
       logger.info({ authUserId }, '✅ New auth user created')
 
@@ -146,8 +148,9 @@ export async function POST(request: Request) {
         )
       }
 
-      invitationUrl = magicLink.properties.action_link
       hashedToken = magicLink.properties.hashed_token
+      // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+      invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
 
       logger.info({}, '✅ Magic link generated for existing auth user')
     }

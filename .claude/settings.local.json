@@ -20,7 +20,11 @@
       "Bash(do echo \"FILE: $file\")",
       "WebFetch(domain:resend.com)",
       "WebFetch(domain:developers.frill.co)",
-      "WebFetch(domain:frill.co)"
+      "WebFetch(domain:frill.co)",
+      "Bash(dir \"C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\")",
+      "Bash(findstr:*)",
+      "Bash(npm run build:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

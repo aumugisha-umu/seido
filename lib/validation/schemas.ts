@@ -259,26 +259,50 @@ const urgencyEnum = z.enum(['faible', 'moyenne', 'haute', 'urgente'], {
 
 /**
  * POST /api/create-intervention
+ * Note: Uses snake_case (lot_id) per existing API contract
  */
 export const createInterventionSchema = z.object({
-  lotId: uuidSchema,
+  lot_id: uuidSchema,
   title: z.string().min(1).max(200).trim(),
   description: z.string().min(1).max(5000).trim(),
-  urgency: urgencyEnum,
-  requestedBy: uuidSchema,
-  category: z.string().min(1).max(100).trim().optional(),
+  urgency: urgencyEnum.optional(), // Optional - defaults applied in service layer
+  type: z.string().min(1).max(100).trim().optional(),
 })
 
 /**
  * POST /api/create-manager-intervention
+ * Note: Complex schema with multi-manager support, scheduling, quotes
  */
 export const createManagerInterventionSchema = z.object({
-  lotId: uuidSchema,
+  // Basic intervention data
   title: z.string().min(1).max(200).trim(),
   description: z.string().min(1).max(5000).trim(),
+  type: z.string().min(1).max(100).trim().optional(),
   urgency: urgencyEnum,
-  category: z.string().min(1).max(100).trim().optional(),
-  assignedTo: uuidSchema.optional(),
+  location: z.string().max(500).trim().optional(),
+
+  // Housing selection (must have either building or lot)
+  selectedBuildingId: uuidSchema.optional().nullable(),
+  selectedLotId: uuidSchema.optional().nullable(),
+
+  // Contact assignments (arrays)
+  selectedManagerIds: z.array(uuidSchema).optional(),
+  selectedProviderIds: z.array(uuidSchema).optional(),
+
+  // Scheduling
+  schedulingType: z.enum(['none', 'fixed', 'flexible']).optional(),
+  fixedDateTime: dateStringSchema.optional().nullable(),
+  timeSlots: z.array(z.object({
+    start: dateStringSchema,
+    end: dateStringSchema,
+  })).optional(),
+
+  // Options
+  expectsQuote: z.boolean().optional(),
+
+  // Messages
+  messageType: z.enum(['none', 'global', 'individual']).optional(),
+  globalMessage: z.string().max(5000).trim().optional(),
 })
 
 /**

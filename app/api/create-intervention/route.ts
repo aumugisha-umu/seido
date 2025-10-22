@@ -3,6 +3,7 @@ import { createServerUserService, createServerTenantService, createServerBuildin
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { Database } from '@/lib/database.types'
+import { createInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-intervention API route called")
@@ -72,21 +73,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(createInterventionSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CREATE-INTERVENTION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
     const {
       title,
       description,
       type,
       urgency,
       lot_id
-    } = body
-
-    // Validate required fields
-    if (!title || !description || !lot_id) {
-      return NextResponse.json({
-        success: false,
-        error: 'Champs requis manquants (titre, description, lot_id)'
-      }, { status: 400 })
-    }
+    } = validation.data
 
     // Get user data from database using auth_user_id
     logger.info({}, "👤 Getting user data...")

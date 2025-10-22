@@ -4,6 +4,7 @@ import { createServerUserService, createServerLotService, createServerBuildingSe
 import { logger } from '@/lib/logger'
 import { createQuoteRequestsForProviders } from './create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createManagerInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -26,7 +27,18 @@ export async function POST(request: NextRequest) {
     // Parse the request body
     const body = await request.json()
     logger.info({ body }, "📝 Request body")
-    
+
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(createManagerInterventionSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CREATE-MANAGER-INTERVENTION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
     const {
       // Basic intervention data
       title,
@@ -34,33 +46,33 @@ export async function POST(request: NextRequest) {
       type,
       urgency,
       location,
-      
+
       // Housing selection
       selectedBuildingId,
       selectedLotId,
-      
+
       // Contact assignments
       selectedManagerIds, // ✅ Nouveau format: array de gestionnaires
       selectedProviderIds,
-      
+
       // Scheduling
       schedulingType,
       fixedDateTime,
       timeSlots,
-      managerAvailabilities, // Disponibilités du gestionnaire (en plus des timeSlots proposés)
-      
+
       // Messages
       messageType,
       globalMessage,
-      individualMessages,
-      
+
       // Options
       expectsQuote,
-      
-      // Files
+    } = validation.data
+
+    // Fields not in schema validation (passed through from body)
+    const {
+      managerAvailabilities,
+      individualMessages,
       files,
-      
-      // Team context
       teamId
     } = body
 

@@ -6,16 +6,15 @@ import {
   createServerBuildingService,
   createServerLotService,
   createServerInterventionService,
-  createServerSupabaseClient,
-  getServerSession,
   type Contact as ContactType,
   type Intervention as InterventionType,
   type Lot as LotType,
   type Building as BuildingType,
   type User as UserType
 } from '@/lib/services'
+import { getServerAuthContext } from '@/lib/server-context'
 import { ContactDetailsClient } from './contact-details-client'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -41,24 +40,9 @@ export default async function ContactDetailsPage({ params }: PageProps) {
   // ============================================================================
   // ÉTAPE 1 : Authentication & User Context
   // ============================================================================
-  const session = await getServerSession()
-
-  if (!session?.user) {
-    redirect('/auth/login')
-  }
-
-  // Fetch user profile from database
-  const supabase = await createServerSupabaseClient()
-  const { data: currentUser, error: userError } = await supabase
-    .from('users')
-    .select('*')
-    .eq('auth_user_id', session.user.id)
-    .single()
-
-  if (userError || !currentUser) {
-    console.error('❌ Error fetching user profile:', userError)
-    redirect('/auth/login')
-  }
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  // Remplace ~20 lignes d'auth manuelle (getServerSession + profile fetch)
+  const { profile: currentUser, supabase } = await getServerAuthContext('gestionnaire')
 
   // ============================================================================
   // ÉTAPE 2 : Fetch Contact Data (Server-side avec SSR auth)

@@ -5,7 +5,7 @@
 
 import { notFound, redirect } from 'next/navigation'
 import { getInterventionAction } from '@/app/actions/intervention-actions'
-import { createServerSupabaseClient } from '@/lib/services'
+import { getServerAuthContext } from '@/lib/server-context'
 import { LocataireInterventionDetailClient } from './components/intervention-detail-client'
 
 type PageProps = {
@@ -16,24 +16,9 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
   const resolvedParams = await params
   const { id } = resolvedParams
 
-  // Auth check
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Get user role
-  const { data: userData } = await supabase
-    .from('users')
-    .select('*')
-    .eq('auth_user_id', user.id)
-    .single()
-
-  if (!userData || userData.role !== 'locataire') {
-    redirect('/')
-  }
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  // Remplace ~18 lignes d'auth manuelle (getUser + role check)
+  const { profile: userData, supabase } = await getServerAuthContext('locataire')
 
   // Load intervention data
   const result = await getInterventionAction(id)

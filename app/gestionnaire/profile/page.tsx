@@ -1,18 +1,12 @@
 import ProfilePage from "@/components/profile-page"
-import { getUserProfile } from '@/lib/auth-dal'
-import { redirect } from 'next/navigation'
+import { getServerAuthContext } from '@/lib/server-context'
 import type { AuthUser } from '@/lib/auth-service'
 
 export default async function GestionnaireProfilePage() {
-  // ✅ Charger les données côté serveur (évite les problèmes de RLS client-side)
-  const userContext = await getUserProfile()
-
-  if (!userContext || !userContext.profile) {
-    redirect('/auth/login')
-  }
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  const { user, profile } = await getServerAuthContext('gestionnaire')
 
   // Convertir le profil en AuthUser
-  const profile = userContext.profile
   const initialUser: AuthUser = {
     id: profile.id,
     email: profile.email,

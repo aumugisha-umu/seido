@@ -24,7 +24,8 @@
       "Bash(dir \"C:\\Users\\arthu\\Desktop\\Coding\\Seido-app\\docs\")",
       "Bash(findstr:*)",
       "Bash(npm run build:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "WebFetch(domain:supabase.com)"
     ],
     "deny": [],
     "ask": []

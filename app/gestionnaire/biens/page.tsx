@@ -1,48 +1,28 @@
 import { BiensPageClient } from './biens-page-client'
 import {
   createServerBuildingService,
-  createServerLotService,
-  createServerTeamService
+  createServerLotService
 } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { requireRole } from '@/lib/auth-dal'
+import { getServerAuthContext } from '@/lib/server-context'
 
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
 
 export default async function BiensPage() {
   try {
-    // ✅ LAYER 1: Auth validation FIRST (Dashboard pattern)
+    // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     logger.info("🔵 [BIENS-PAGE] Server-side fetch starting")
-    const { user, profile } = await requireRole(['gestionnaire'])
+    const { team } = await getServerAuthContext('gestionnaire')
 
-    // ✅ LAYER 2: Create services AFTER auth validation
-    const teamService = await createServerTeamService()
+    // ✅ Create services
     const buildingService = await createServerBuildingService()
     const lotService = await createServerLotService()
 
-    // 1. Récupérer l'équipe de l'utilisateur
-    // 🔍 CORRECTIF: Utiliser profile.id (users table ID) au lieu de user.id (auth_user_id)
-    const teamsResult = await teamService.getUserTeams(profile.id)
-    const teams = teamsResult?.data || []
-
-    if (!teams || teams.length === 0) {
-      logger.info("⚠️ [BIENS-PAGE] No team found for user")
-      return (
-        <BiensPageClient
-          initialBuildings={[]}
-          initialLots={[]}
-          teamId={null}
-        />
-      )
-    }
-
-    const teamId = teams[0].id
-    logger.info(`🏢 [BIENS-PAGE] Found team: ${teamId}`)
+    logger.info(`🏢 [BIENS-PAGE] Using team from context: ${team.id}`)
 
     // ⚡ PERFORMANCE OPTIMIZATION: Use summary query for list view (90% less data)
-    // 2. Récupérer les buildings de l'équipe (version légère)
-    const buildingsResult = await buildingService.getBuildingsByTeamSummary(teamId)
+    const buildingsResult = await buildingService.getBuildingsByTeamSummary(team.id)
 
     if (!buildingsResult.success || !buildingsResult.data) {
       logger.error("❌ [BIENS-PAGE] Error fetching buildings")
@@ -50,7 +30,7 @@ export default async function BiensPage() {
         <BiensPageClient
           initialBuildings={[]}
           initialLots={[]}
-          teamId={teamId}
+          teamId={team.id}
         />
       )
     }
@@ -59,9 +39,9 @@ export default async function BiensPage() {
     logger.info(`🏗️ [BIENS-PAGE] Loaded ${buildings.length} buildings (summary view)`)
 
     // 3. Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
-    logger.info(`🏠 [BIENS-PAGE] Loading ALL lots for team ${teamId} (including independent lots)`)
+    logger.info(`🏠 [BIENS-PAGE] Loading ALL lots for team ${team.id} (including independent lots)`)
 
-    const lotsResult = await lotService.getLotsByTeam(teamId)
+    const lotsResult = await lotService.getLotsByTeam(team.id)
 
     if (!lotsResult.success || !lotsResult.data) {
       logger.error("❌ [BIENS-PAGE] Error fetching team lots")
@@ -69,7 +49,7 @@ export default async function BiensPage() {
         <BiensPageClient
           initialBuildings={buildings}
           initialLots={[]}
-          teamId={teamId}
+          teamId={team.id}
         />
       )
     }
@@ -133,7 +113,7 @@ export default async function BiensPage() {
       <BiensPageClient
         initialBuildings={buildings}
         initialLots={allLotsForDisplay}
-        teamId={teamId}
+        teamId={team.id}
       />
     )
   } catch (error) {

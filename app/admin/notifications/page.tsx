@@ -15,6 +15,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { getServerAuthContext } from '@/lib/server-context'
 
 interface Notification {
   id: string
@@ -85,7 +86,11 @@ function formatDate(dateString: string, time?: string) {
   }).format(date)
 }
 
-export default function NotificationsPage() {
+export default async function NotificationsPage() {
+  // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  await getServerAuthContext('admin')
+
   const unreadCount = mockNotifications.filter((n) => !n.read).length
 
   return (

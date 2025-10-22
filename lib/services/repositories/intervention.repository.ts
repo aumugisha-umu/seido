@@ -350,6 +350,55 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   }
 
   /**
+   * Get interventions by team
+   */
+  async findByTeam(teamId: string, filters?: any) {
+    let queryBuilder = this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        lot:lot_id(
+          id, reference,
+          building:building_id(id, name, address, team_id)
+        ),
+        intervention_assignments(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
+      `)
+      .eq('team_id', teamId)
+      .is('deleted_at', null)
+
+    // Apply filters if provided
+    if (filters?.status) {
+      queryBuilder = queryBuilder.eq('status', filters.status)
+    }
+    if (filters?.urgency) {
+      queryBuilder = queryBuilder.eq('urgency', filters.urgency)
+    }
+    if (filters?.type) {
+      queryBuilder = queryBuilder.eq('type', filters.type)
+    }
+    if (filters?.building_id) {
+      queryBuilder = queryBuilder.eq('building_id', filters.building_id)
+    }
+    if (filters?.lot_id) {
+      queryBuilder = queryBuilder.eq('lot_id', filters.lot_id)
+    }
+
+    queryBuilder = queryBuilder.order('created_at', { ascending: false })
+
+    const { data, error } = await queryBuilder
+
+    if (error) {
+      return createErrorResponse(handleError(error, 'intervention:findByTeam'))
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
    * Update intervention status with validation
    */
   async updateStatus(id: string, newStatus: Intervention['status'], _updatedBy?: string) {

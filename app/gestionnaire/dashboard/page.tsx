@@ -4,9 +4,8 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Building2, Home, Users, Wrench, Plus } from "lucide-react"
 import Link from "next/link"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import {
-  createServerActionTeamService,
   createServerActionUserService,
   createServerActionBuildingService,
   createServerActionLotService,
@@ -14,28 +13,29 @@ import {
   createServerActionStatsService
 } from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
-import { logger as baseLogger, logError } from '@/lib/logger'
+import { logger as baseLogger } from '@/lib/logger'
 import { InterventionsList } from "@/components/interventions/interventions-list"
-import type { InterventionWithRelations, Building, User } from "@/lib/services"
+import type { InterventionWithRelations } from "@/lib/services"
 
 // Relax logger typing locally to avoid strict method signature constraints for rich logs in this server component
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const logger: any = baseLogger
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dashLogger: any = logger
+
 /**
- * 🔐 DASHBOARD GESTIONNAIRE - SERVER COMPONENT (Bonnes Pratiques 2025)
+ * 🔐 DASHBOARD GESTIONNAIRE - SERVER COMPONENT (Next.js 15 Pattern)
  *
- * Multi-layer security implementation:
- * 1. Route level: requireRole() vérification
- * 2. Data layer: DAL avec authentification
- * 3. UI level: Masquage conditionnel
- * 4. Server actions: Validation dans actions
+ * Pattern officiel Next.js 15 + React 19:
+ * 1. getServerAuthContext() centralisé (1 ligne vs 10+)
+ * 2. React.cache() déduplique automatiquement avec layout
+ * 3. Server-side data loading avec Promise.all() parallèle
+ * 4. Pass all data to Client Components (no client fetching)
  */
 
 export default async function DashboardGestionnaire() {
-  // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
-  const { user, profile } = await requireRole(['gestionnaire'])
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  const { profile, team, supabase } = await getServerAuthContext('gestionnaire')
 
   // ✅ LAYER 2: Data Layer Security - Récupération données sécurisée
   let stats = {
@@ -55,87 +55,28 @@ export default async function DashboardGestionnaire() {
 
   let recentInterventions: InterventionWithRelations[] = []
   let allInterventions: InterventionWithRelations[] = []
-  let userTeamId = ''  // ✅ Déclarer ici pour accessibilité globale
 
   try {
-    // ✅ Vérifier session Supabase AVANT de créer les services
-    // 🔐 SECURITY: Use .getUser() instead of .getSession() (recommended by Supabase)
-    // .getUser() verifies the token with Auth server (more secure)
-    dashLogger.info('🔐 [DASHBOARD] Checking Supabase authenticated user...')
-    const { createServerActionSupabaseClient } = await import('@/lib/services/core/supabase-client')
-    const supabase = await createServerActionSupabaseClient()
-    const { data: { user: sessionUser }, error: sessionError } = await supabase.auth.getUser()
-
-    dashLogger.info('🔐 [DASHBOARD] Auth user status:', {
-      hasUser: !!sessionUser,
-      sessionUserId: sessionUser?.id,
-      profileAuthUserId: profile.auth_user_id,
-      profileUserId: profile.id,
-      userIdMatch: sessionUser?.id === profile.auth_user_id,
-      sessionError: sessionError?.message || null
-    })
-
-    if (sessionError) {
-      throw new Error(`Supabase auth error: ${sessionError.message}`)
-    }
-
-    if (!sessionUser) {
-      throw new Error('No authenticated user found')
-    }
-
-    // Initialiser les services avec ServerAction clients (auth complète)
     dashLogger.info('🔧 [DASHBOARD] Starting service initialization...')
 
-    dashLogger.info('🔧 [DASHBOARD] Creating TeamService...')
-    const teamService = await createServerActionTeamService()
-    dashLogger.info('✅ [DASHBOARD] TeamService created')
-
-    dashLogger.info('🔧 [DASHBOARD] Creating UserService...')
+    // Initialiser les services
     const userService = await createServerActionUserService()
-    dashLogger.info('✅ [DASHBOARD] UserService created')
-
-    dashLogger.info('🔧 [DASHBOARD] Creating BuildingService...')
     const buildingService = await createServerActionBuildingService()
-    dashLogger.info('✅ [DASHBOARD] BuildingService created')
-
-    dashLogger.info('🔧 [DASHBOARD] Creating LotService...')
     const lotService = await createServerActionLotService()
-    dashLogger.info('✅ [DASHBOARD] LotService created')
-
-    dashLogger.info('🔧 [DASHBOARD] Creating InterventionService...')
     const interventionService = await createServerActionInterventionService()
-    dashLogger.info('✅ [DASHBOARD] InterventionService created')
-
-    dashLogger.info('🔧 [DASHBOARD] Creating StatsService...')
-    const statsService = await createServerActionStatsService()
-    dashLogger.info('✅ [DASHBOARD] StatsService created')
 
     dashLogger.info('✅ [DASHBOARD] All services initialized successfully')
+    dashLogger.info('📦 [DASHBOARD] Using team ID from context:', team.id)
 
-    // Récupérer l'équipe de l'utilisateur (structure actuelle: users.team_id)
-    dashLogger.info('🔍 [DASHBOARD] Getting teams for user:', profile.id)
-    const teamsResult = await teamService.getUserTeams(profile.id)
-    dashLogger.info('📦 [DASHBOARD] Teams result:', teamsResult)
+    // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
+    dashLogger.info('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', team.id)
 
-    // Extraire les données selon le format RepositoryResult
-    const teams = teamsResult?.data || []
-    dashLogger.info('📦 [DASHBOARD] Teams array:', teams)
-    dashLogger.info('📦 [DASHBOARD] Teams count:', teams.length)
-
-    if (teams && teams.length > 0) {
-      dashLogger.info('📦 [DASHBOARD] First team:', teams[0])
-      userTeamId = teams[0].id  // ✅ Assigner à la variable déclarée plus haut
-      dashLogger.info('📦 [DASHBOARD] Using team ID:', userTeamId)
-
-      // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
-      dashLogger.info('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', userTeamId)
-
-      // ⚡ Phase 1: Charger buildings, users et interventions en parallèle
-      const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
-        buildingService.getBuildingsByTeam(userTeamId),
-        userService.getUsersByTeam(userTeamId),
-        interventionService.getByTeam(userTeamId)  // ✅ Phase 3: Use team-scoped method (replaces getAll)
-      ])
+    // ⚡ Phase 1: Charger buildings, users et interventions en parallèle
+    const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
+      buildingService.getBuildingsByTeam(team.id),
+      userService.getUsersByTeam(team.id),
+      interventionService.getByTeam(team.id)
+    ])
 
       // Traiter résultats buildings
       let buildings: any[] = []
@@ -168,9 +109,9 @@ export default async function DashboardGestionnaire() {
       }
       allInterventions = interventions
 
-      // ⚡ OPTIMISATION: Charger TOUS les lots (building + indépendants) en 1 seule requête team-scoped
-      dashLogger.info('🏠 [DASHBOARD] Loading ALL lots (including independent) for team:', userTeamId)
-      const allLotsResult = await lotService.getLotsByTeam(userTeamId)
+    // ⚡ OPTIMISATION: Charger TOUS les lots (building + indépendants) en 1 seule requête team-scoped
+    dashLogger.info('🏠 [DASHBOARD] Loading ALL lots (including independent) for team:', team.id)
+    const allLotsResult = await lotService.getLotsByTeam(team.id)
 
       let allLots: any[] = []
       if (allLotsResult.success) {
@@ -229,14 +170,10 @@ export default async function DashboardGestionnaire() {
         contactsByType
       }
 
-      // Interventions triées récentes
-      allInterventions = (allInterventions || [])
-        .sort((a, b) => (new Date(b.created_at ?? '').getTime() || 0) - (new Date(a.created_at ?? '').getTime() || 0))
-      recentInterventions = (allInterventions || []).slice(0, 3)
-    } else {
-      dashLogger.info('⚠️ [DASHBOARD] No teams found for user:', user.id)
-      dashLogger.info('⚠️ [DASHBOARD] Using default stats (all zeros)')
-    }
+    // Interventions triées récentes
+    allInterventions = (allInterventions || [])
+      .sort((a, b) => (new Date(b.created_at ?? '').getTime() || 0) - (new Date(a.created_at ?? '').getTime() || 0))
+    recentInterventions = (allInterventions || []).slice(0, 3)
   } catch (error) {
     // Capturer toutes les propriétés de l'erreur pour diagnostic complet
     const errorDetails = {
@@ -266,9 +203,6 @@ export default async function DashboardGestionnaire() {
     // Les stats par défaut restent (valeurs 0)
   }
 
-  // ✅ userTeamId déjà récupéré dans le try block (ligne 81)
-  // Pas besoin de refaire l'appel getUserTeams ici
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -286,7 +220,7 @@ export default async function DashboardGestionnaire() {
             </div>
 
             {/* Actions rapides - Composant client sécurisé */}
-            <DashboardClient teamId={userTeamId} />
+            <DashboardClient teamId={team.id} />
           </div>
         </div>
 

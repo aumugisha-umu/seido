@@ -3,7 +3,7 @@ import {
   Home,
   Wrench
 } from "lucide-react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from '@/lib/server-context'
 import {
   createServerTenantService,
   createServerBuildingService
@@ -15,15 +15,15 @@ import { logger, logError } from '@/lib/logger'
  * 🔐 DASHBOARD LOCATAIRE - SERVER COMPONENT (Migration Server Components)
  *
  * Multi-layer security implementation:
- * 1. Route level: requireRole() vérification
+ * 1. Route level: getServerAuthContext() centralized auth
  * 2. Data layer: DAL avec authentification
  * 3. UI level: Masquage conditionnel
  * 4. Server actions: Validation dans actions
  */
 
 export default async function LocataireDashboard() {
-  // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
-  const { user, profile } = await requireRole(['locataire'])
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  const { user, profile } = await getServerAuthContext('locataire')
 
   // ✅ CORRECTIF (2025-10-07): Use TenantService to properly query lot_contacts junction table
   const tenantService = await createServerTenantService()

@@ -1,15 +1,19 @@
 import type React from "react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import DashboardHeader from "@/components/dashboard-header"
 import { GestionnaireLayoutClient } from "./layout-client"
 
 /**
- * 🔐 GESTIONNAIRE LAYOUT - SERVER COMPONENT (Architecture 2025)
+ * 🔐 GESTIONNAIRE LAYOUT - SERVER COMPONENT (Architecture Next.js 15)
  *
- * Nouvelle architecture conforme aux best practices Next.js/Supabase :
- * - Authentification gérée par middleware + Server Component
- * - Plus d'AuthGuard client (redondant et source de conflits)
- * - Protection native avec requireRole() du DAL
+ * Pattern officiel Next.js 15 + Supabase:
+ * - Middleware: Token refresh + basic gatekeeper
+ * - Layout: Fetches own data for UI (getServerAuthContext cached)
+ * - Pages: Fetch same data independently (React.cache() deduplicates!)
+ *
+ * ✅ Key insight: Layouts CAN fetch data for themselves
+ * ❌ But they CANNOT pass props to {children}
+ * ✅ React.cache() ensures getServerAuthContext() is called once per request
  */
 
 export default async function GestionnaireLayout({
@@ -17,17 +21,15 @@ export default async function GestionnaireLayout({
 }: {
   children: React.ReactNode
 }) {
-  // ✅ AUTHENTIFICATION SERVEUR: Le middleware a déjà vérifié l'auth
-  // requireRole() valide en plus le rôle spécifique côté serveur
-  const { user, profile } = await requireRole(['gestionnaire'])
+  // ✅ Fetch data for layout UI (cached via React.cache())
+  // Pages will call getServerAuthContext() too - automatically deduped!
+  const { user, profile } = await getServerAuthContext('gestionnaire')
 
-  // Préparer les données utilisateur pour éviter hydration mismatch
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header centralisé avec toutes les améliorations */}
       <DashboardHeader
         role="gestionnaire"
         userName={userName}

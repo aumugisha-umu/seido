@@ -1,22 +1,22 @@
 import { InterventionsPageClient } from './interventions-page-client'
 import { createServerInterventionService } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { requireRole } from '@/lib/auth-dal'
+import { getServerAuthContext } from '@/lib/server-context'
 
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
 
 export default async function InterventionsPage() {
   try {
-    // ✅ LAYER 1: Auth validation FIRST (Dashboard pattern)
+    // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     logger.info("🔵 [INTERVENTIONS-PAGE] Server-side fetch starting")
-    const { user } = await requireRole(['gestionnaire'])
+    const { profile, team } = await getServerAuthContext('gestionnaire')
 
-    // ✅ LAYER 2: Create services AFTER auth validation
+    // ✅ Create service
     const interventionService = await createServerInterventionService()
 
-    // ✅ LAYER 3: Fetch interventions
-    const result = await interventionService.getAll({ limit: 100 })
+    // ✅ Fetch interventions using team_id
+    const result = await interventionService.getByTeam(team.id, {})
 
     let interventions: any[] = []
 
@@ -29,8 +29,12 @@ export default async function InterventionsPage() {
 
     logger.info(`📊 [INTERVENTIONS-PAGE] Server data ready - Interventions: ${interventions.length}`)
 
-    // ✅ Pass data to Client Component
-    return <InterventionsPageClient initialInterventions={interventions} />
+    // ✅ Pass data AND user context to Client Component
+    return <InterventionsPageClient
+      initialInterventions={interventions}
+      teamId={team.id}
+      userId={profile.id}
+    />
   } catch (error) {
     // 🔍 DETAILED ERROR LOGGING FOR DIAGNOSTICS
     const errorDetails = {
@@ -54,7 +58,11 @@ export default async function InterventionsPage() {
       throw error
     }
 
-    // For other errors, render empty state
-    return <InterventionsPageClient initialInterventions={[]} />
+    // For other errors, render empty state (teamId/userId will be undefined, hooks will handle gracefully)
+    return <InterventionsPageClient
+      initialInterventions={[]}
+      teamId={undefined}
+      userId={undefined}
+    />
   }
 }

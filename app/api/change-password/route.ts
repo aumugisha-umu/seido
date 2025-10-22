@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { emailService } from "@/lib/email/email-service"
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { changePasswordSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * POST /api/change-password
@@ -18,26 +19,23 @@ export async function POST(request: NextRequest) {
 
     // Récupérer les données du body
     const body = await request.json()
-    const { currentPassword, newPassword } = body
 
-    // Validation des champs requis
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json({ 
-        error: "Le mot de passe actuel et le nouveau mot de passe sont requis" 
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(changePasswordSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CHANGE-PASSWORD] Validation failed')
+      return NextResponse.json({
+        error: "Données invalides",
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
 
-    // Validation de la complexité du nouveau mot de passe
-    if (newPassword.length < 8) {
-      return NextResponse.json({ 
-        error: "Le nouveau mot de passe doit contenir au moins 8 caractères" 
-      }, { status: 400 })
-    }
+    const { currentPassword, newPassword } = validation.data
 
     // Vérifier que le nouveau mot de passe est différent de l'actuel
     if (currentPassword === newPassword) {
-      return NextResponse.json({ 
-        error: "Le nouveau mot de passe doit être différent du mot de passe actuel" 
+      return NextResponse.json({
+        error: "Le nouveau mot de passe doit être différent du mot de passe actuel"
       }, { status: 400 })
     }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerUserService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { changeEmailSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * POST /api/change-email
@@ -22,27 +23,23 @@ export async function POST(request: NextRequest) {
 
     // Récupérer les données du body
     const body = await request.json()
-    const { currentPassword, newEmail } = body
 
-    // Validation des champs requis
-    if (!currentPassword || !newEmail) {
-      return NextResponse.json({ 
-        error: "Le mot de passe actuel et le nouvel email sont requis" 
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(changeEmailSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CHANGE-EMAIL] Validation failed')
+      return NextResponse.json({
+        error: "Données invalides",
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
 
-    // Validation du format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(newEmail)) {
-      return NextResponse.json({ 
-        error: "Le format de l'email n'est pas valide" 
-      }, { status: 400 })
-    }
+    const { password: currentPassword, newEmail } = validation.data
 
     // Vérifier que le nouvel email est différent de l'actuel
     if (authUser.email === newEmail) {
-      return NextResponse.json({ 
-        error: "Le nouvel email doit être différent de l'email actuel" 
+      return NextResponse.json({
+        error: "Le nouvel email doit être différent de l'email actuel"
       }, { status: 400 })
     }
 

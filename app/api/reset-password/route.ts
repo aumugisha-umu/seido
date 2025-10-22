@@ -4,6 +4,7 @@ import { Database } from "@/lib/database.types"
 import { emailService } from "@/lib/email/email-service"
 import { EMAIL_CONFIG } from "@/lib/email/resend-client"
 import { logger, logError } from '@/lib/logger'
+import { resetPasswordSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 /**
  * POST /api/reset-password
  * Envoi d'email de réinitialisation de mot de passe via Service Role Key
@@ -63,29 +64,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email } = body
 
-    // Validation de l'email
-    if (!email) {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'Email requis' 
-        },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(resetPasswordSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [RESET-PASSWORD-API] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'Format d\'email invalide' 
-        },
-        { status: 400 }
-      )
-    }
+    const { email } = validation.data
 
     logger.info({ email: email }, '📧 [RESET-PASSWORD-API] Processing reset for email:')
 

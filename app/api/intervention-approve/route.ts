@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { requireApiRole } from '@/lib/api-auth-helper'
+import { interventionApproveSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-approve API route called")
@@ -20,17 +21,22 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      interventionId,
-      internalComment
-    } = body
 
-    if (!interventionId) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionApproveSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [INTERVENTION-APPROVE] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'interventionId est requis'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const {
+      interventionId,
+      notes: internalComment
+    } = validation.data
 
     logger.info({ interventionId }, "📝 Approving intervention:")
 

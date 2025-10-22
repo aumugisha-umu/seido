@@ -450,6 +450,215 @@ export const selectSlotSchema = z.object({
   slotEnd: dateStringSchema,
 })
 
+/**
+ * POST /api/intervention-finalize
+ */
+export const interventionFinalizeSchema = z.object({
+  interventionId: uuidSchema,
+  finalizationNotes: z.string().max(5000).trim().optional(),
+  finalizedAt: dateStringSchema.optional(),
+})
+
+/**
+ * POST /api/intervention-quote-request
+ */
+export const interventionQuoteRequestSchema = z.object({
+  interventionId: uuidSchema,
+  providerIds: z.array(uuidSchema).min(1).max(50),
+  message: z.string().max(2000).trim().optional(),
+  deadline: dateStringSchema.optional(),
+})
+
+/**
+ * POST /api/intervention-validate-tenant
+ */
+export const interventionValidateTenantSchema = z.object({
+  interventionId: uuidSchema,
+  validationNotes: z.string().max(2000).trim().optional(),
+})
+
+/**
+ * POST /api/intervention/[id]/availability-response
+ */
+export const availabilityResponseSchema = z.object({
+  available: z.boolean(),
+  availabilitySlots: z.array(z.object({
+    start: dateStringSchema,
+    end: dateStringSchema,
+  })).optional(),
+  reason: z.string().max(1000).trim().optional(),
+})
+
+/**
+ * POST /api/intervention/[id]/manager-finalization
+ */
+export const managerFinalizationSchema = z.object({
+  status: z.enum(['approved', 'rejected', 'requires_changes']),
+  notes: z.string().max(5000).trim().optional(),
+  finalCost: z.number().positive().max(1000000).optional(),
+})
+
+/**
+ * POST /api/intervention/[id]/match-availabilities
+ */
+export const matchAvailabilitiesSchema = z.object({
+  proposedSlots: z.array(z.object({
+    start: dateStringSchema,
+    end: dateStringSchema,
+  })).min(1).max(10),
+})
+
+/**
+ * POST /api/intervention/[id]/work-completion
+ * POST /api/intervention/[id]/simple-work-completion
+ */
+export const workCompletionSchema = z.object({
+  completionNotes: z.string().max(5000).trim().optional(),
+  workQuality: z.enum(['excellent', 'good', 'acceptable', 'poor']).optional(),
+  completedAt: dateStringSchema.optional(),
+})
+
+/**
+ * POST /api/intervention/[id]/tenant-validation
+ */
+export const tenantValidationSchema = z.object({
+  approved: z.boolean(),
+  feedback: z.string().max(2000).trim().optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+})
+
+// ============================================================================
+// QUOTE REQUEST SCHEMAS
+// ============================================================================
+
+/**
+ * PUT /api/quote-requests/[id]
+ */
+export const quoteRequestUpdateSchema = z.object({
+  status: z.enum(['pending', 'accepted', 'rejected', 'cancelled']),
+  response: z.string().max(2000).trim().optional(),
+})
+
+/**
+ * POST /api/quotes/[id]/approve
+ */
+export const quoteApproveSchema = z.object({
+  notes: z.string().max(2000).trim().optional(),
+})
+
+/**
+ * POST /api/quotes/[id]/reject
+ */
+export const quoteRejectSchema = z.object({
+  reason: z.string().min(1).max(2000).trim(),
+})
+
+/**
+ * POST /api/quotes/[id]/cancel
+ */
+export const quoteCancelSchema = z.object({
+  reason: z.string().min(1).max(2000).trim(),
+})
+
+// ============================================================================
+// PROPERTY DOCUMENT SCHEMAS
+// ============================================================================
+
+/**
+ * POST /api/property-documents
+ */
+export const createPropertyDocumentSchema = z.object({
+  buildingId: uuidSchema.optional().nullable(),
+  lotId: uuidSchema.optional().nullable(),
+  title: z.string().min(1).max(200).trim(),
+  description: z.string().max(2000).trim().optional(),
+  visibility: documentVisibilityEnum,
+  documentType: z.string().max(100).trim().optional(),
+}).refine(data => data.buildingId || data.lotId, {
+  message: 'Either buildingId or lotId must be provided'
+})
+
+/**
+ * PUT /api/property-documents/[id]
+ */
+export const updatePropertyDocumentSchema = z.object({
+  title: z.string().min(1).max(200).trim().optional(),
+  description: z.string().max(2000).trim().optional(),
+  visibility: documentVisibilityEnum.optional(),
+})
+
+// ============================================================================
+// INVITATION SCHEMAS
+// ============================================================================
+
+/**
+ * POST /api/cancel-invitation
+ */
+export const cancelInvitationSchema = z.object({
+  invitationId: uuidSchema,
+  reason: z.string().max(500).trim().optional(),
+})
+
+/**
+ * POST /api/resend-invitation
+ */
+export const resendInvitationSchema = z.object({
+  invitationId: uuidSchema,
+})
+
+/**
+ * POST /api/revoke-invitation
+ */
+export const revokeInvitationSchema = z.object({
+  invitationId: uuidSchema,
+  reason: z.string().max(500).trim().optional(),
+})
+
+/**
+ * POST /api/mark-invitation-accepted
+ */
+export const markInvitationAcceptedSchema = z.object({
+  invitationId: uuidSchema,
+  acceptedAt: dateStringSchema.optional(),
+})
+
+// ============================================================================
+// OTHER SCHEMAS
+// ============================================================================
+
+/**
+ * POST /api/send-welcome-email
+ */
+export const sendWelcomeEmailSchema = z.object({
+  userId: uuidSchema,
+  email: emailSchema,
+  firstName: z.string().min(1).max(100).trim(),
+})
+
+/**
+ * POST /api/check-email-team
+ */
+export const checkEmailTeamSchema = z.object({
+  email: emailSchema,
+})
+
+/**
+ * PATCH /api/notifications
+ */
+export const notificationUpdateSchema = z.object({
+  notificationIds: z.array(uuidSchema).min(1).max(100),
+  read: z.boolean(),
+})
+
+/**
+ * POST /api/generate-intervention-magic-links
+ */
+export const generateMagicLinksSchema = z.object({
+  interventionId: uuidSchema,
+  recipientTypes: z.array(z.enum(['manager', 'provider', 'tenant'])).min(1),
+  expiresIn: z.number().int().min(1).max(168).optional(), // max 1 week in hours
+})
+
 // ============================================================================
 // HELPER FUNCTION
 // ============================================================================

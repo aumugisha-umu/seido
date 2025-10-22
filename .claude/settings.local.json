@@ -25,7 +25,15 @@
       "Bash(findstr:*)",
       "Bash(npm run build:*)",
       "Bash(test:*)",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(find:*)",
+      "Bash(for route in intervention-reject intervention-cancel intervention-start intervention-complete)",
+      "Bash(do)",
+      "Bash(file=\"app/api/$route/route.ts\")",
+      "Bash(if [ -f \"$file\" ])",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

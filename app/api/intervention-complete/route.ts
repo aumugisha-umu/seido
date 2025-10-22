@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { interventionCompleteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-complete API route called")
@@ -28,20 +29,30 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionCompleteSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [intervention-complete] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       interventionId,
-      completionNotes,
+      completionNotes
+    } = validatedData
+
+    // Additional fields not in schema (backward compatibility)
+    const {
       internalComment,
       finalCost, // Montant final (optionnel)
       workDescription // Description des travaux effectués
     } = body
-
-    if (!interventionId) {
-      return NextResponse.json({
-        success: false,
-        error: 'interventionId est requis'
-      }, { status: 400 })
-    }
 
     logger.info({ interventionId: interventionId }, "📝 Completing intervention:")
 

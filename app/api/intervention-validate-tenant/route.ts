@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { interventionValidateTenantSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "👍 intervention-validate-tenant API route called")
@@ -20,18 +21,33 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      interventionId,
-      validationStatus, // 'approved' | 'contested'
-      tenantComment, // Commentaire du locataire
-      contestReason, // Si contested, raison de la contestation
-      satisfactionRating // Note de satisfaction (1-5) (optionnel)
-    } = body
 
-    if (!interventionId || !validationStatus) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionValidateTenantSchema, {
+      interventionId: body.interventionId,
+      validationNotes: body.tenantComment || body.validationNotes
+    })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [TENANT-VALIDATE] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'interventionId et validationStatus sont requis'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { interventionId, validationNotes: tenantComment } = validatedData
+
+    // Extract additional fields not in schema but required by business logic
+    const validationStatus = body.validationStatus // 'approved' | 'contested'
+    const contestReason = body.contestReason
+    const satisfactionRating = body.satisfactionRating
+
+    if (!validationStatus || !['approved', 'contested'].includes(validationStatus)) {
+      return NextResponse.json({
+        success: false,
+        error: 'validationStatus (approved/contested) est requis'
       }, { status: 400 })
     }
 

@@ -297,7 +297,7 @@ function calculateMatchScore(overlapDuration: number, date: string): number {
   return Math.min(100, score) // Cap at 100
 }
 
-function timeToMinutes(_time: string): number {
+function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number)
   return hours * 60 + minutes
 }
@@ -308,7 +308,7 @@ function minutesToTime(minutes: number): string {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
 }
 
-function formatDate(_dateStr: string): string {
+function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',

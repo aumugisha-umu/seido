@@ -326,9 +326,20 @@ export const interventionRejectSchema = z.object({
  */
 export const interventionScheduleSchema = z.object({
   interventionId: uuidSchema,
-  scheduledDate: dateStringSchema,
-  estimatedDuration: z.number().int().min(1).max(480), // max 8 hours in minutes
-  notes: z.string().max(2000).trim().optional(),
+  planningType: z.enum(['direct', 'propose', 'organize'], {
+    errorMap: () => ({ message: 'Invalid planning type' })
+  }),
+  directSchedule: z.object({
+    date: z.string().min(1),
+    startTime: z.string().min(1),
+    endTime: z.string().optional(),
+  }).optional(),
+  proposedSlots: z.array(z.object({
+    date: z.string().min(1),
+    startTime: z.string().min(1),
+    endTime: z.string().min(1),
+  })).optional(),
+  internalComment: z.string().max(2000).trim().optional(),
 })
 
 /**
@@ -455,7 +466,13 @@ export const selectSlotSchema = z.object({
  */
 export const interventionFinalizeSchema = z.object({
   interventionId: uuidSchema,
-  finalizationNotes: z.string().max(5000).trim().optional(),
+  finalizationComment: z.string().max(5000).trim().optional(),
+  paymentStatus: z.enum(['pending', 'approved', 'paid', 'disputed'], {
+    errorMap: () => ({ message: 'Invalid payment status' })
+  }).optional(),
+  finalAmount: z.number().positive().max(1000000).optional(), // max 1M EUR
+  paymentMethod: z.string().max(100).trim().optional(),
+  adminNotes: z.string().max(2000).trim().optional(),
   finalizedAt: dateStringSchema.optional(),
 })
 

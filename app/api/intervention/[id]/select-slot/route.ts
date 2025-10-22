@@ -3,6 +3,7 @@ import { Database } from '@/lib/database.types'
 import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { selectSlotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 export async function PUT(
@@ -31,16 +32,31 @@ export async function PUT(
     // Parse request body
     const body = await request.json()
     logger.info({ body: body }, "📥 [SELECT-SLOT] Request body received:")
-    const { selectedSlot, comment } = body
 
-    logger.info({ selectedSlot: selectedSlot }, "🔍 [SELECT-SLOT] Validating selectedSlot:")
-    if (!selectedSlot || !selectedSlot.date || !selectedSlot.startTime || !selectedSlot.endTime) {
-      logger.error({ selectedSlot, hasDate: !!selectedSlot?.date, hasStartTime: !!selectedSlot?.startTime, hasEndTime: !!selectedSlot?.endTime }, "❌ [SELECT-SLOT] Invalid selectedSlot:")
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(selectSlotSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [SELECT-SLOT] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'Créneau sélectionné invalide (date, startTime, endTime requis)'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { slotStart, slotEnd } = validatedData
+    const { comment } = body // comment is not in schema, extract from body
+
+    // Parse ISO date-time strings to extract date and time components
+    const startDate = new Date(slotStart)
+    const endDate = new Date(slotEnd)
+    const selectedSlot = {
+      date: slotStart.split('T')[0], // Extract date part (YYYY-MM-DD)
+      startTime: startDate.toISOString().split('T')[1].substring(0, 5), // Extract time (HH:MM)
+      endTime: endDate.toISOString().split('T')[1].substring(0, 5) // Extract time (HH:MM)
+    }
+    logger.info({ selectedSlot }, "🔍 [SELECT-SLOT] Parsed slot from validated data:")
 
     // Verify intervention exists and user has access
     const { data: intervention, error: interventionError } = await supabase
@@ -55,7 +71,7 @@ export async function PUT(
           id,
           lot_contacts(user_id, is_primary)
         ),
-       intervention_assignments(
+       intervention_contacts(
           user_id,
           role,
           user:user_id(id, name, email, role)
@@ -84,7 +100,7 @@ export async function PUT(
     )
 
     if (!hasAccess) {
-      logger.error({ userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_contacts.map(ic => ic.user_id, "🚫 [SELECT-SLOT] Access denied:") })
+      logger.error({ userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_contacts.map(ic => ic.user_id) }, "🚫 [SELECT-SLOT] Access denied:")
       return NextResponse.json({
         success: false,
         error: 'Accès non autorisé à cette intervention'
@@ -190,7 +206,7 @@ export async function PUT(
     const scheduledDateTime = `${selectedSlot.date}T${selectedSlot.startTime}:00.000Z`
 
     // Update the intervention with the selected slot
-    const updateData = {
+    const updateData: any = {
       status: 'planifiee' as Database['public']['Enums']['intervention_status'],
       scheduled_date: scheduledDateTime,
       updated_at: new Date().toISOString()
@@ -205,7 +221,21 @@ export async function PUT(
 
     // Update intervention
     logger.info({ data: updateData }, "💾 [SELECT-SLOT] Updating intervention with data:")
-    const updatedIntervention = await interventionService.update(interventionId, updateData)
+    const { data: updatedIntervention, error: updateInterventionError } = await supabase
+      .from('interventions')
+      .update(updateData)
+      .eq('id', interventionId)
+      .select()
+      .single()
+
+    if (updateInterventionError || !updatedIntervention) {
+      logger.error({ error: updateInterventionError }, "❌ [SELECT-SLOT] Error updating intervention:")
+      return NextResponse.json({
+        success: false,
+        error: 'Erreur lors de la mise à jour de l\'intervention'
+      }, { status: 500 })
+    }
+
     logger.info({ id: updatedIntervention.id, status: updatedIntervention.status, scheduled_date: updatedIntervention.scheduled_date }, "💾 [SELECT-SLOT] Intervention updated successfully:")
 
     logger.info({ interventionId, scheduledDateTime }, "✅ [SELECT-SLOT] Intervention scheduled for")
@@ -225,7 +255,7 @@ export async function PUT(
     if (tenantId && tenantId !== user.id) {
       notificationPromises.push(
         notificationService.createNotification({
-          userId: _tenantId,
+          userId: tenantId,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',

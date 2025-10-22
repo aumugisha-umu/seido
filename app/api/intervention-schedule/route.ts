@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { interventionScheduleSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "📅 intervention-schedule API route called")
@@ -20,20 +21,26 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionScheduleSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [intervention-schedule] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       interventionId,
       planningType, // 'direct', 'propose', 'organize'
       directSchedule, // { date, startTime, endTime } - pour planningType === 'direct'
       proposedSlots,  // [{ date, startTime, endTime }] - pour planningType === 'propose'
       internalComment
-    } = body
-
-    if (!interventionId || !planningType) {
-      return NextResponse.json({
-        success: false,
-        error: 'interventionId et planningType sont requis'
-      }, { status: 400 })
-    }
+    } = validatedData
 
     logger.info({ interventionId, planningType }, "📝 Scheduling intervention")
 

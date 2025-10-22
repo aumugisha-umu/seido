@@ -3,6 +3,7 @@ import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { submitQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-quote-submit API route called")
@@ -18,29 +19,49 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
+
+    // Prepare data for validation - adapt from old format to schema format
+    const validationData = {
+      interventionId: body.interventionId,
+      providerId: user.id, // Current user is the provider
+      amount: body.laborCost ? parseFloat(body.laborCost) + (body.materialsCost ? parseFloat(body.materialsCost) : 0) : 0,
+      description: body.description,
+      estimatedDuration: body.estimatedDurationHours ? Math.round(body.estimatedDurationHours * 60) : undefined, // Convert hours to minutes
+    }
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(submitQuoteSchema, validationData)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-SUBMIT] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       interventionId,
-      laborCost,
-      materialsCost = 0,
+      amount: totalAmount,
       description,
-      estimatedDurationHours,
-      providerAvailabilities = []
-    } = body
+      estimatedDuration,
+    } = validatedData
+
+    // Extract original values for line items
+    const laborCostNum = body.laborCost ? parseFloat(body.laborCost) : 0
+    const materialsCostNum = body.materialsCost ? parseFloat(body.materialsCost) : 0
+    const estimatedDurationHours = body.estimatedDurationHours
+    const providerAvailabilities = body.providerAvailabilities || []
 
     logger.info({
       interventionId,
-      laborCost,
-      materialsCost,
+      laborCost: laborCostNum,
+      materialsCost: materialsCostNum,
+      totalAmount,
       hasDescription: !!description,
       availabilitiesCount: providerAvailabilities.length
-    }, "📝 Quote submission data received")
-
-    if (!interventionId || !laborCost || !description) {
-      return NextResponse.json({
-        success: false,
-        error: 'interventionId, laborCost et description sont requis'
-      }, { status: 400 })
-    }
+    }, "📝 Quote submission data received and validated")
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
@@ -82,27 +103,6 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ quoteId: existingQuote.id, currentStatus: existingQuote.status }, "✅ Found existing quote to update")
-
-    // Validate costs
-    const laborCostNum = parseFloat(laborCost)
-    const materialsCostNum = parseFloat(materialsCost || 0)
-    const totalAmount = laborCostNum + materialsCostNum
-
-    if (isNaN(laborCostNum) || laborCostNum < 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Le coût de la main d\'œuvre doit être un nombre positif'
-      }, { status: 400 })
-    }
-
-    if (isNaN(materialsCostNum) || materialsCostNum < 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Le coût des matériaux doit être un nombre positif'
-      }, { status: 400 })
-    }
-
-    logger.info({ laborCost: laborCostNum, materialsCost: materialsCostNum, totalAmount }, "💰 Quote costs validated")
 
     // Prepare line_items JSONB with breakdown
     const lineItems = [

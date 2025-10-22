@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { interventionStartSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🚀 intervention-start API route called")
@@ -28,11 +29,20 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      interventionId,
-      startComment,
-      internalComment
-    } = body
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionStartSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [INTERVENTION-START] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const { interventionId, startedAt } = validation.data
+    const { startComment, internalComment } = body // Not in schema
 
     if (!interventionId) {
       return NextResponse.json({

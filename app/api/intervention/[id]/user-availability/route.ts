@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { userAvailabilitySchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 export async function POST(
@@ -27,14 +28,26 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
-    const { availabilities } = body // Array of { date, startTime, endTime }
 
-    if (!availabilities || !Array.isArray(availabilities)) {
+    // Transform old format to schema format
+    const availabilities = body.availabilities || []
+    const transformedSlots = availabilities.map((avail: any) => ({
+      start: avail.date && avail.startTime ? `${avail.date}T${avail.startTime}:00.000Z` : '',
+      end: avail.date && avail.endTime ? `${avail.date}T${avail.endTime}:00.000Z` : ''
+    }))
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(userAvailabilitySchema, { slots: transformedSlots })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [USER-AVAILABILITY] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'Format de disponibilités invalide'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
 
     const interventionId = resolvedParams.id
 

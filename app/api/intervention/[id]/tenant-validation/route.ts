@@ -3,6 +3,7 @@ import { Database } from '@/lib/database.types'
 import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { tenantValidationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 export async function POST(
@@ -21,6 +22,22 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(tenantValidationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [TENANT-VALIDATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { approved, feedback, rating } = validatedData
+
+    // Additional fields not in schema (complex nested data)
     const {
       validationType,
       satisfaction,
@@ -118,7 +135,7 @@ export async function POST(
     }
 
     // Insert validation record
-    const { data: validation, error: insertError } = await supabase
+    const { data: tenantValidation, error: insertError } = await supabase
       .from('intervention_tenant_validations')
       .insert(validationData)
       .select()
@@ -203,10 +220,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       validation: {
-        id: validation.id,
-        intervention_id: validation.intervention_id,
-        validation_type: validation.validation_type,
-        submitted_at: validation.submitted_at
+        id: tenantValidation.id,
+        intervention_id: tenantValidation.intervention_id,
+        validation_type: tenantValidation.validation_type,
+        submitted_at: tenantValidation.submitted_at
       },
       message: validationType === 'approve'
         ? 'Travaux validés avec succès'

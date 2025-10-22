@@ -4,12 +4,7 @@ import { createServerInterventionService } from '@/lib/services'
 import { notificationService } from '@/lib/notification-service'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
-
-interface CancelRequest {
-  interventionId: string
-  cancellationReason: string
-  internalComment?: string
-}
+import { interventionCancelSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   // Initialize services
@@ -22,8 +17,21 @@ export async function POST(request: NextRequest) {
 
     const { supabase, authUser } = authResult.data
 
-    const { interventionId, cancellationReason, internalComment }: CancelRequest =
-      await request.json()
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionCancelSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [INTERVENTION-CANCEL] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const { interventionId, cancellationReason } = validation.data
+    const { internalComment } = body // Not in schema
 
     logger.info({ interventionId }, "🚫 API: Cancelling intervention")
 

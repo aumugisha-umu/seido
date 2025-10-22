@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { userAvailabilitySchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 interface RouteParams {
@@ -23,14 +24,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Parse request body
     const body = await request.json()
-    const { tenantAvailabilities = [] } = body
+    const tenantAvailabilities = body.tenantAvailabilities || []
 
-    if (!tenantAvailabilities || !Array.isArray(tenantAvailabilities)) {
+    // Transform old format to schema format
+    const transformedSlots = tenantAvailabilities.map((avail: any) => ({
+      start: avail.date && avail.startTime ? `${avail.date}T${avail.startTime}:00.000Z` : '',
+      end: avail.date && avail.endTime ? `${avail.date}T${avail.endTime}:00.000Z` : ''
+    }))
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(userAvailabilitySchema, { slots: transformedSlots })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [TENANT-AVAILABILITY] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'tenantAvailabilities est requis et doit être un tableau'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
 
     logger.info({ tenantAvailabilities: tenantAvailabilities.length }, "📅 Saving tenant availabilities:")
 

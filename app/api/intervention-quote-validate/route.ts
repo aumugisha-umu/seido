@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { validateQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-quote-validate API route called")
@@ -20,17 +21,29 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      quoteId,
-      action, // 'approve' or 'reject'
-      comments,
-      rejectionReason
-    } = body
 
-    if (!quoteId || !action || !['approve', 'reject'].includes(action)) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(validateQuoteSchema, { quoteId: body.quoteId, notes: body.comments || body.notes })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-VALIDATE] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'quoteId et action (approve/reject) sont requis'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { quoteId, notes: comments } = validatedData
+
+    // Extract action and rejection reason (not in schema but required by business logic)
+    const action = body.action // 'approve' or 'reject'
+    const rejectionReason = body.rejectionReason
+
+    if (!action || !['approve', 'reject'].includes(action)) {
+      return NextResponse.json({
+        success: false,
+        error: 'action (approve/reject) est requise'
       }, { status: 400 })
     }
 

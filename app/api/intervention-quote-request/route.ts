@@ -6,6 +6,7 @@ import { createServerInterventionService } from '@/lib/services'
 import { createQuoteRequestsForProviders } from '../create-manager-intervention/create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createServerClient } from '@supabase/ssr'
+import { interventionQuoteRequestSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis
@@ -72,24 +73,28 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      interventionId,
-      providerId,      // Compatibilité mono-prestataire (legacy)
-      providerIds,     // Nouveau: support multi-prestataires
-      deadline,        // Date limite pour le devis
-      additionalNotes, // Notes générales
-      individualMessages = {} // Nouveau: messages individualisés par prestataire
-    } = body
 
-    // Support legacy (providerId) ET nouveau format (providerIds)
-    const targetProviderIds = providerIds || (providerId ? [providerId] : [])
-
-    if (!interventionId || !targetProviderIds || targetProviderIds.length === 0) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionQuoteRequestSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-REQUEST] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'interventionId et au moins un prestataire sont requis'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const {
+      interventionId,
+      providerIds: targetProviderIds,
+      message: additionalNotes,
+      deadline,
+    } = validatedData
+
+    // Support legacy individualMessages if needed (not in schema but used in code)
+    const individualMessages = (body as any).individualMessages || {}
 
     logger.info({ interventionId, targetProviderIds }, "📝 Requesting quote for intervention")
 

@@ -3,6 +3,7 @@ import { Database } from '@/lib/database.types'
 import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { managerFinalizationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 export async function POST(
@@ -21,9 +22,23 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(managerFinalizationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [MANAGER-FINALIZATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { status: finalStatus, notes: adminComments, finalCost } = validatedData
+
+    // Additional validation for complex nested data (not covered by schema)
     const {
-      finalStatus,
-      adminComments,
       qualityControl,
       financialSummary,
       documentation,
@@ -31,21 +46,6 @@ export async function POST(
       followUpActions,
       additionalDocuments
     } = body
-
-    // Validation
-    if (!finalStatus || !['completed', 'archived_with_issues', 'cancelled'].includes(finalStatus)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Statut final invalide'
-      }, { status: 400 })
-    }
-
-    if (!adminComments?.trim()) {
-      return NextResponse.json({
-        success: false,
-        error: 'Les commentaires administratifs sont requis'
-      }, { status: 400 })
-    }
 
     // Check quality control requirements
     const qcValues = Object.values(qualityControl || {})

@@ -4,6 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { interventionRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "❌ intervention-reject API route called")
@@ -20,18 +21,25 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      interventionId,
-      rejectionReason,
-      internalComment
-    } = body
 
-    if (!interventionId || !rejectionReason) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(interventionRejectSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [INTERVENTION-REJECT] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'interventionId et rejectionReason sont requis'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const {
+      interventionId,
+      reason: rejectionReason
+    } = validation.data
+
+    // Keep internalComment from body (not in schema)
+    const { internalComment } = body
 
     logger.info({ interventionId, rejectionReason }, "📝 Rejecting intervention")
 

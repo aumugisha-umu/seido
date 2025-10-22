@@ -3,23 +3,11 @@ import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { availabilityResponseSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 interface RouteParams {
   params: Promise<{
     id: string
   }>
-}
-
-interface TenantCounterProposal {
-  date: string
-  startTime: string
-  endTime: string
-}
-
-interface AvailabilityResponsePayload {
-  responseType: 'accept' | 'reject' | 'counter'
-  message?: string
-  selectedSlots?: string[] // Pour l'acceptation
-  counterProposals?: TenantCounterProposal[] // Pour les contre-propositions
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -59,14 +47,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Parse request body
     logger.info({}, "📝 [DEBUG] Parsing request body")
-    const body: AvailabilityResponsePayload = await request.json()
-    const { responseType, message, selectedSlots, counterProposals } = body
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(availabilityResponseSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [AVAILABILITY-RESPONSE] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { available, availabilitySlots, reason } = validatedData
 
     logger.info({
-      responseType,
-      messageLength: message?.length || 0,
-      selectedSlotsCount: selectedSlots?.length || 0,
-      counterProposalsCount: counterProposals?.length || 0
+      available,
+      availabilitySlotsCount: availabilitySlots?.length || 0,
+      reasonLength: reason?.length || 0
     }, "📝 [DEBUG] Tenant availability response:")
 
     // Get intervention details
@@ -113,61 +113,64 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     logger.info({}, "✅ [DEBUG] Tenant permissions verified")
 
-    // Process response based on type
+    // Process response based on availability flag
     let newStatus = intervention.status
     let statusMessage = ''
 
-    if (responseType === 'accept') {
-      newStatus = 'planifiee'
-      statusMessage = 'Le locataire a accepté les créneaux proposés - Intervention planifiée'
-
-      // TODO: Save selected slots for future scheduling
-      // For now, we'll update the intervention status
-
-    } else if (responseType === 'reject') {
+    if (available && availabilitySlots && availabilitySlots.length > 0) {
+      // Tenant is available and provided slots
       newStatus = 'planification'
-      statusMessage = 'Le locataire a rejeté les créneaux proposés - En attente de nouvelles propositions'
+      statusMessage = 'Le locataire a fourni ses disponibilités - En cours de planification'
 
-    } else if (responseType === 'counter') {
-      newStatus = 'planification'
-      statusMessage = 'Le locataire a proposé d\'autres créneaux - En cours de planification'
+      // Save tenant availabilities as user_availabilities
+      // First, delete existing tenant availabilities for this intervention
+      const { error: deleteError } = await supabase
+        .from('user_availabilities')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('intervention_id', id)
 
-      // Save tenant counter-proposals as user_availabilities
-      if (counterProposals && counterProposals.length > 0) {
-        // First, delete existing tenant availabilities for this intervention
-        const { error: deleteError } = await supabase
-          .from('user_availabilities')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('intervention_id', id)
+      if (deleteError) {
+        logger.warn({ deleteError: deleteError }, "⚠️ Could not delete existing tenant availabilities:")
+      }
 
-        if (deleteError) {
-          logger.warn({ deleteError: deleteError }, "⚠️ Could not delete existing tenant availabilities:")
-        }
-
-        // Insert new tenant counter-proposals
-        const availabilityData = counterProposals.map((proposal) => ({
+      // Insert new tenant availabilities
+      const availabilityData = availabilitySlots.map((slot) => {
+        const startDate = new Date(slot.start)
+        const endDate = new Date(slot.end)
+        return {
           user_id: user.id,
           intervention_id: id,
-          date: proposal.date,
-          start_time: proposal.startTime,
-          end_time: proposal.endTime
-        }))
-
-        const { error: insertError } = await supabase
-          .from('user_availabilities')
-          .insert(availabilityData)
-
-        if (insertError) {
-          logger.error({ error: insertError }, "❌ Error saving tenant counter-proposals:")
-          return NextResponse.json({
-            success: false,
-            error: 'Erreur lors de la sauvegarde des contre-propositions'
-          }, { status: 500 })
+          date: slot.start.split('T')[0], // Extract date (YYYY-MM-DD)
+          start_time: startDate.toISOString().split('T')[1].substring(0, 5), // Extract time (HH:MM)
+          end_time: endDate.toISOString().split('T')[1].substring(0, 5) // Extract time (HH:MM)
         }
+      })
 
-        logger.info({}, "✅ Tenant counter-proposals saved successfully")
+      const { error: insertError } = await supabase
+        .from('user_availabilities')
+        .insert(availabilityData)
+
+      if (insertError) {
+        logger.error({ error: insertError }, "❌ Error saving tenant availabilities:")
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de la sauvegarde des disponibilités'
+        }, { status: 500 })
       }
+
+      logger.info({}, "✅ Tenant availabilities saved successfully")
+
+    } else if (!available) {
+      // Tenant is not available
+      newStatus = 'planification'
+      statusMessage = reason
+        ? `Le locataire n'est pas disponible - Raison: ${reason}`
+        : 'Le locataire n\'est pas disponible - En attente de nouvelles propositions'
+    } else {
+      // Available but no slots provided
+      newStatus = 'planifiee'
+      statusMessage = 'Le locataire a confirmé sa disponibilité'
     }
 
     // Update intervention status
@@ -195,9 +198,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       await notificationService.notifyAvailabilityResponse({
         interventionId: id,
         interventionTitle: intervention.title || `Intervention ${intervention.type || ''}`,
-        responseType,
+        responseType: available ? 'accept' : 'reject',
         tenantName: user.name,
-        message: message || '',
+        message: reason || statusMessage,
         teamId: intervention.lot?.building?.team_id,
         lotReference: intervention.lot?.reference
       })
@@ -207,8 +210,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       // Don't fail the request for notification errors
     }
 
-    // If it's a counter-proposal, try to trigger matching with provider availabilities
-    if (responseType === 'counter') {
+    // If tenant provided availability slots, try to trigger matching with provider availabilities
+    if (available && availabilitySlots && availabilitySlots.length > 0) {
       try {
         const matchingResponse = await fetch(`${request.nextUrl.origin}/api/intervention/${id}/match-availabilities`, {
           method: 'POST',
@@ -219,7 +222,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         })
 
         if (matchingResponse.ok) {
-          logger.info({}, '✅ Automatic matching triggered for counter-proposals')
+          logger.info({}, '✅ Automatic matching triggered for tenant availabilities')
         } else {
           logger.warn({}, '⚠️ Could not trigger automatic matching')
         }

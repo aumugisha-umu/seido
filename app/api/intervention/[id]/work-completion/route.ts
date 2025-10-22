@@ -3,6 +3,7 @@ import { Database } from '@/lib/database.types'
 import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { workCompletionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 export async function POST(
@@ -21,6 +22,22 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(workCompletionSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [WORK-COMPLETION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { completionNotes, workQuality, completedAt } = validatedData
+
+    // Additional fields not in schema (complex nested data)
     const {
       workSummary,
       workDetails,
@@ -35,7 +52,7 @@ export async function POST(
       qualityAssurance
     } = body
 
-    // Validation
+    // Validation for non-schema fields
     if (!workSummary?.trim() || !workDetails?.trim() || !actualDurationHours) {
       return NextResponse.json({
         success: false,

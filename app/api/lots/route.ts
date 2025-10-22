@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotInsert } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * GET /api/lots
@@ -81,28 +82,33 @@ export async function POST(request: NextRequest) {
     const { supabase, userProfile } = authResult.data
 
     // Parser le body
-    const body: LotInsert = await request.json()
+    const body = await request.json()
 
-    logger.info({
-      reference: body.reference,
-      buildingId: body.building_id,
-      userId: userProfile.id
-    }, '🏠 [LOTS-API] POST request - Creating lot')
-
-    // Valider les champs requis
-    if (!body.reference || !body.building_id || !body.team_id) {
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(createLotSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [LOTS-API] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'Champs requis manquants : reference, building_id, team_id'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+
+    logger.info({
+      reference: validatedData.reference,
+      buildingId: validatedData.building_id,
+      userId: userProfile.id
+    }, '🏠 [LOTS-API] POST request - Creating lot')
 
     // Initialiser le service
     const lotService = await createLotService()
 
     // Créer le lot
     const result = await lotService.create({
-      ...body,
+      ...validatedData,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })

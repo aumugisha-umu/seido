@@ -160,12 +160,12 @@ export const createBuildingSchema = z.object({
   address: z.string().min(1).max(500).trim(),
   city: z.string().min(1).max(100).trim(),
   postal_code: z.string().regex(/^\d{5}$/, { message: 'Invalid French postal code' }),
-  country: z.string().min(1).max(100).trim().default('France'),
+  country: z.enum(['France', 'Belgique', 'Suisse', 'Luxembourg'], {
+    errorMap: () => ({ message: 'Invalid country' })
+  }).optional(),
+  description: z.string().max(5000).trim().optional().nullable(),
   team_id: uuidSchema,
-  total_floors: z.number().int().min(0).max(200).optional(),
-  total_units: z.number().int().min(0).max(10000).optional(),
-  construction_year: z.number().int().min(1800).max(new Date().getFullYear()).optional(),
-  notes: z.string().max(5000).trim().optional(),
+  gestionnaire_id: uuidSchema, // Primary manager for the building
 })
 
 /**
@@ -177,16 +177,22 @@ export const updateBuildingSchema = createBuildingSchema.partial().extend({
 
 /**
  * POST /api/lots
+ * Note: Uses 'reference' field (not lot_number) per database schema
  */
 export const createLotSchema = z.object({
-  building_id: uuidSchema,
-  lot_number: z.string().min(1).max(50).trim(),
-  category: lotCategoryEnum,
-  floor: z.number().int().min(-10).max(200).optional(),
-  area_sqm: z.number().positive().max(100000).optional(),
-  rooms: z.number().int().min(0).max(100).optional(),
-  monthly_rent: z.number().nonnegative().max(1000000).optional(),
-  notes: z.string().max(5000).trim().optional(),
+  reference: z.string().min(1).max(100).trim(),
+  team_id: uuidSchema,
+  building_id: uuidSchema.optional().nullable(),
+  category: lotCategoryEnum.optional(),
+  apartment_number: z.string().max(50).trim().optional().nullable(),
+  floor: z.number().int().min(-10).max(200).optional().nullable(),
+  street: z.string().max(500).trim().optional().nullable(),
+  city: z.string().max(100).trim().optional().nullable(),
+  postal_code: z.string().regex(/^\d{5}$/, { message: 'Invalid French postal code' }).optional().nullable(),
+  country: z.enum(['France', 'Belgique', 'Suisse', 'Luxembourg'], {
+    errorMap: () => ({ message: 'Invalid country' })
+  }).optional().nullable(),
+  description: z.string().max(5000).trim().optional().nullable(),
 })
 
 /**

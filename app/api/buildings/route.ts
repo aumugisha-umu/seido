@@ -4,6 +4,7 @@ import { createBuildingService } from '@/lib/services/domain/building.service'
 import { createBuildingRepository } from '@/lib/services/repositories/building.repository'
 import type { CreateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * GET /api/buildings
@@ -81,28 +82,33 @@ export async function POST(request: NextRequest) {
     const { supabase, userProfile } = authResult.data
 
     // Parser le body
-    const body: CreateBuildingDTO = await request.json()
+    const body = await request.json()
 
-    logger.info({
-      name: body.name,
-      teamId: body.team_id,
-      userId: userProfile.id
-    }, '🏢 [BUILDINGS-API] POST request - Creating building')
-
-    // Valider les champs requis
-    if (!body.name || !body.address || !body.city || !body.postal_code || !body.team_id || !body.gestionnaire_id) {
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(createBuildingSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [BUILDINGS-API] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'Champs requis manquants : name, address, city, postal_code, team_id, gestionnaire_id'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+
+    logger.info({
+      name: validatedData.name,
+      teamId: validatedData.team_id,
+      userId: userProfile.id
+    }, '🏢 [BUILDINGS-API] POST request - Creating building')
 
     // Initialiser le service
     const buildingService = createBuildingService(supabase)
 
     // Créer le bâtiment
     const result = await buildingService.create({
-      ...body,
+      ...validatedData,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })

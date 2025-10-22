@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
+import { getRateLimiterForRoute, getClientIdentifier } from '@/lib/rate-limit'
 
 /**
  * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
@@ -22,9 +23,58 @@ import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
  * - Vérification signaux de coordination avant auth check
  * - Respect du loading state AuthProvider
  * - Éviter race conditions sur redirections
+ *
+ * 🚦 RATE LIMITING (22 oct. 2025)
+ * - Protection contre brute force et DoS attacks
+ * - Rate limits différenciés par type de route
+ * - Upstash Redis (production) + fallback in-memory (dev)
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // 🚦 RATE LIMITING: Appliquer sur toutes les routes API
+  if (pathname.startsWith('/api/')) {
+    try {
+      const ratelimiter = getRateLimiterForRoute(pathname)
+      const identifier = getClientIdentifier(request)
+
+      const { success, limit, remaining, reset } = await ratelimiter.limit(identifier)
+
+      // Ajouter les headers de rate limit dans tous les cas
+      const headers = new Headers()
+      headers.set('X-RateLimit-Limit', limit.toString())
+      headers.set('X-RateLimit-Remaining', remaining.toString())
+      headers.set('X-RateLimit-Reset', new Date(reset).toISOString())
+
+      if (!success) {
+        console.warn(`[RATE-LIMIT] ⚠️  Limit exceeded for ${pathname} (${identifier})`)
+        return new NextResponse(
+          JSON.stringify({
+            error: 'Too Many Requests',
+            message: 'Rate limit exceeded. Please try again later.',
+            retryAfter: new Date(reset).toISOString()
+          }),
+          {
+            status: 429,
+            headers: {
+              ...Object.fromEntries(headers),
+              'Content-Type': 'application/json',
+              'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString()
+            }
+          }
+        )
+      }
+
+      // Si rate limit OK, continuer avec les headers
+      // Note: Les headers seront ajoutés à la response finale
+      request.headers.set('x-ratelimit-limit', limit.toString())
+      request.headers.set('x-ratelimit-remaining', remaining.toString())
+      request.headers.set('x-ratelimit-reset', new Date(reset).toISOString())
+    } catch (error) {
+      console.error('[RATE-LIMIT] ❌ Error checking rate limit:', error)
+      // En cas d'erreur, laisser passer la requête (fail-open pour éviter de bloquer le service)
+    }
+  }
 
   // Routes publiques (accessibles sans authentification)
   const publicRoutes = [

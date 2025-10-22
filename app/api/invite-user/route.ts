@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
-import { createServerUserService, createServerTeamService } from '@/lib/services'
-import { createActivityLogger } from '@/lib/activity-logger'
-import { getServerSession } from '@/lib/services'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
@@ -26,29 +25,11 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
-    // Vérifier l'authentification et récupérer le profil utilisateur
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
+    // ✅ AUTH: 22 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Initialize services
-    const userService = await createServerUserService()
-    const teamService = await createServerTeamService()
-
-    // Récupérer le profil utilisateur pour avoir le bon ID
-    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
-    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
-      return NextResponse.json(
-        { error: 'Profil utilisateur non trouvé' },
-        { status: 404 }
-      )
-    }
-
-    const currentUserProfile = currentUserProfileResult.data
+    const { userProfile: currentUserProfile } = authResult.data
 
     // Vérifier si le service d'invitation est disponible
     if (!supabaseAdmin) {

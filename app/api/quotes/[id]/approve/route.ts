@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -8,7 +9,12 @@ export async function POST(
   logger.info({}, '🚀 [API-APPROVE] Starting quote approval API')
 
   try {
-    const supabase = await createServerSupabaseClient()
+    // ✅ AUTH: 51 lignes → 3 lignes! (uniformisation createServerSupabaseClient → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, userProfile: userData, authUser: user } = authResult.data
+
     const { comments } = await request.json()
     const { id } = await params
 
@@ -17,32 +23,6 @@ export async function POST(
       comments: comments,
       timestamp: new Date().toISOString()
     }, '📋 [API-APPROVE] Request details')
-
-    // Vérifier l'authentification
-    logger.info({}, '🔐 [API-APPROVE] Checking authentication...')
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError) {
-      logger.error({ error: authError }, '❌ [API-APPROVE] Auth error:')
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
-
-    if (!user) {
-      logger.error({}, '❌ [API-APPROVE] No user found')
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
-
-    // Récupérer l'ID utilisateur depuis la table users
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single()
-
-    if (userError || !userData) {
-      logger.error({ user: userError }, '❌ [API-APPROVE] User not found in users table:')
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 401 })
-    }
 
     logger.info({
       authUserId: user.id,

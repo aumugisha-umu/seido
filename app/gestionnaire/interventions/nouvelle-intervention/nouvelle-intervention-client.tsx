@@ -206,17 +206,27 @@ export default function NouvelleInterventionClient({
     setLoading(true)
     try {
       logger.info("🔄 Chargement des données en cours...")
-      // 1. Récupérer l'équipe de l'utilisateur
-      const teamsResult = await services.team.getUserTeams(user.id)
+      // 1. ✅ APPEL API: Récupérer l'équipe de l'utilisateur
+      const teamsResponse = await fetch(`/api/user-teams?userId=${user.id}`)
+      if (!teamsResponse.ok) {
+        logger.error("❌ Failed to fetch user teams")
+        return
+      }
+      const teamsResult = await teamsResponse.json()
       const teams = teamsResult?.data || []
       const team = teams[0]
       if (team) {
         setCurrentUserTeam(team)
 
-        // 2. NOUVELLE LOGIQUE UNIFIÉE : Récupérer tous les contacts et filtrer
-        const contactsResult = await services.contact.getTeamContacts(team.id)
-        const contacts = contactsResult?.data || []
-        logger.info("📋 All team contacts:", contacts.map(c => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
+        // 2. ✅ APPEL API: Utiliser la route API au lieu du service browser
+        const response = await fetch(`/api/team-contacts?teamId=${team.id}`)
+        if (!response.ok) {
+          logger.error("❌ Failed to fetch team contacts")
+          return
+        }
+        const contactsResult = await response.json()
+        const contacts = contactsResult?.contacts || []
+        logger.info("📋 All team contacts:", contacts.map((c: any) => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
         
         // Filtrer les gestionnaires avec la même logique que les prestataires
         const managersData = contacts

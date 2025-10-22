@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotUpdate } from '@/lib/services/core/service-types'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 /**
  * GET /api/lots/[id]
@@ -16,50 +14,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH: 42 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     logger.info({ lotId: id, userId: userProfile.id }, '🏠 [LOTS-API] GET by ID request')
 
@@ -103,58 +63,12 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH + ROLE CHECK: 51 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
-
-    // Vérifier les permissions
-    if (!['gestionnaire', 'admin'].includes(userProfile.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Permission refusée : seuls les gestionnaires et admins peuvent modifier des lots'
-      }, { status: 403 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     // Parser le body
     const body: LotUpdate = await request.json()
@@ -207,58 +121,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH + ROLE CHECK: 51 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
-
-    // Vérifier les permissions
-    if (!['gestionnaire', 'admin'].includes(userProfile.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Permission refusée : seuls les gestionnaires et admins peuvent supprimer des lots'
-      }, { status: 403 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     logger.info({
       lotId: id,

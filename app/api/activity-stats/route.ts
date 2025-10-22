@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
+    // ✅ AUTH: FAILLE SÉCURITÉ CORRIGÉE! (route était accessible sans authentification)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase } = authResult.data
+
     const { searchParams } = new URL(request.url)
 
     // Récupération des paramètres

@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
-import { getServerSession } from '@/lib/services'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -44,14 +44,9 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
  */
 export async function POST(request: Request) {
   try {
-    // Vérifier l'authentification
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
+    // ✅ AUTH: 12 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
     // Vérifier que le service admin est disponible
     if (!supabaseAdmin) {

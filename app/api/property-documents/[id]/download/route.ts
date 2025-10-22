@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createPropertyDocumentService, createStorageService } from '@/lib/services'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 /**
  * GET /api/property-documents/[id]/download
@@ -18,50 +16,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH: 42 lignes → 3 lignes!
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     // Parser query params
     const { searchParams } = new URL(request.url)

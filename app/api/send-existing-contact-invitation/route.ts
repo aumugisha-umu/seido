@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerUserService, getServerSession } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,20 +14,11 @@ const supabaseAdmin = createClient<Database>(
 
 export async function POST(request: Request) {
   try {
-    // ============================================================================
-    // ÉTAPE 1: AUTH VERIFICATION
-    // ============================================================================
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
+    // ✅ AUTH: 16 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    const userService = await createServerUserService()
-    const currentUserResult = await userService.getByAuthUserId(session.user.id)
-    if (!currentUserResult.success || !currentUserResult.data) {
-      return NextResponse.json({ error: 'Profil non trouvé' }, { status: 404 })
-    }
-    const currentUser = currentUserResult.data
+    const { userProfile: currentUser } = authResult.data
 
     logger.info({ currentUser: currentUser.id }, '📧 [SEND-EXISTING-CONTACT-INVITATION] Starting process')
 

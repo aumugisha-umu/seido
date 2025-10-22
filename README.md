@@ -36,6 +36,36 @@
 
 ---
 
+## 🚀 Dernières Mises à Jour - Octobre 2025
+
+### ✅ Migration Architecture API Complète (22 oct. 2025)
+
+**72 routes API migrées** vers un pattern d'authentification centralisé :
+- ✅ **9 failles de sécurité critiques corrigées**
+- ✅ **~4,000 lignes de code dupliqué éliminées**
+- ✅ **Pattern Next.js 15 + Supabase SSR officiel** partout
+- ✅ **Build production validé** (0 erreur TypeScript)
+
+**Impact sécurité** :
+- Authentification obligatoire sur 100% des routes API
+- Isolation multi-tenant renforcée (scoping `team_id` automatique)
+- Contrôle d'accès basé sur les rôles uniformisé
+- 2 bugs critiques corrigés (appels de services non définis)
+
+**Helper centralisé** :
+```typescript
+// Pattern standard pour toutes les routes API
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
+const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+if (!authResult.success) return authResult.error
+const { supabase, userProfile } = authResult.data
+```
+
+Voir [rapport d'audit complet](./docs/rapport-audit-complet-seido.md) et [HANDOVER.md](./HANDOVER.md) pour les détails techniques.
+
+---
+
 ## 🏗️ Architecture Technique
 
 ### Stack Technologique
@@ -62,7 +92,7 @@
 │                      Next.js 15 App Router                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │  UI Layer    │  │ Server       │  │ API Routes   │     │
-│  │  (React 19)  │  │ Actions      │  │ (70+ routes) │     │
+│  │  (React 19)  │  │ Actions      │  │ (72 routes)  │     │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
 └─────────┼──────────────────┼──────────────────┼────────────┘
           │                  │                  │

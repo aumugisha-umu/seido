@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { Database } from "@/lib/database.types"
 import { emailService } from "@/lib/email/email-service"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 /**
  * POST /api/change-password
  * Permet à un utilisateur authentifié de changer son mot de passe
@@ -11,34 +10,11 @@ import { logger, logError } from '@/lib/logger'
  */
 export async function POST(request: NextRequest) {
   try {
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: 29 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
+    const { supabase, authUser } = authResult.data
 
     // Récupérer les données du body
     const body = await request.json()

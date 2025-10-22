@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient()
+    // ✅ AUTH: 29 lignes → 3 lignes! (uniformisation createServerSupabaseClient → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, userProfile: userData } = authResult.data
+
     const { reason } = await request.json()
     const { id } = await params
 
@@ -14,24 +20,6 @@ export async function POST(
       return NextResponse.json({
         error: 'Un motif de rejet est requis'
       }, { status: 400 })
-    }
-
-    // Vérifier l'authentification
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
-
-    // Récupérer l'ID utilisateur depuis la table users
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single()
-
-    if (userError || !userData) {
-      logger.error({ user: userError }, '❌ [API-REJECT] User not found in users table:')
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 401 })
     }
 
     // Récupérer le devis par ID seulement

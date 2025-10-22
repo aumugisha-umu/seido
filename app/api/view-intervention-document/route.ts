@@ -1,40 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 export async function GET(request: NextRequest) {
   logger.info({}, "👁️ view-intervention-document API route called")
-  
-  try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options)
-              })
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
+  try {
+    // ✅ AUTH: 29 lignes → 3 lignes!
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, userProfile } = authResult.data
 
     // Get document ID from query params
     const { searchParams } = new URL(request.url)
@@ -75,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user is member of the team that owns this intervention
     const userHasAccess = document.intervention.team.members.some(
-      (member) => member.user_id === user.id
+      (member) => member.user_id === userProfile.id
     )
 
     if (!userHasAccess) {

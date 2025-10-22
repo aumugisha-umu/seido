@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerContactService } from '@/lib/services'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Créer un client Supabase avec les permissions service-role pour bypass les RLS
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -24,6 +26,11 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
+    // ✅ SECURITY FIX: Cette route n'avait AUCUNE vérification d'auth!
+    // N'importe qui pouvait créer des contacts sans être connecté
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
     const body = await request.json()
     
     const {

@@ -1,37 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient()
+    // ✅ AUTH: 33 lignes → 3 lignes! (uniformisation createServerSupabaseClient → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !authUser) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      )
-    }
-
-    // Trouver l'utilisateur local correspondant à l'auth user
-    const { data: localUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (userError || !localUser) {
-      logger.error({ user: authUser.id, userError }, '❌ Local user not found for auth user:')
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      )
-    }
+    const { supabase, userProfile: localUser } = authResult.data
 
     // Await params pour Next.js 15
     const resolvedParams = await params

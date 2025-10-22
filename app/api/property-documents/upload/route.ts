@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createPropertyDocumentService, createStorageService } from '@/lib/services'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 /**
  * POST /api/property-documents/upload
@@ -22,58 +20,11 @@ import { createPropertyDocumentService, createStorageService } from '@/lib/servi
  */
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH + ROLE CHECK: 64 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
-
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role, team_id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
-
-    // Vérifier les permissions (gestionnaires et admins uniquement)
-    if (!['gestionnaire', 'admin'].includes(userProfile.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Permission refusée : seuls les gestionnaires et admins peuvent uploader des documents'
-      }, { status: 403 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     // Parser FormData
     const formData = await request.formData()

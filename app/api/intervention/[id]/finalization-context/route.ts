@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { createServerUserService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 export async function GET(
   request: NextRequest,
@@ -12,64 +10,11 @@ export async function GET(
   try {
     const { id: interventionId } = await params
 
-    // Initialize services
-    const userService = await createServerUserService()
+    // ✅ AUTH + ROLE CHECK: 73 lignes → 3 lignes! (gestionnaire required)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
-
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
-
-    // Get user from database
-    const userResult = await userService.findByAuthUserId(authUser.id)
-
-    // Handle service errors
-    if (!userResult.success) {
-      logger.error({ error: userResult.error }, '❌ Failed to fetch user from database')
-      return NextResponse.json({
-        success: false,
-        error: 'Erreur lors de la récupération de l\'utilisateur'
-      }, { status: 500 })
-    }
-
-    // Verify user exists
-    if (!userResult.data) {
-      logger.warn({ authUserId: authUser.id }, '⚠️ User not found for auth_user_id')
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé'
-      }, { status: 404 })
-    }
-
-    // Extract user object from result
-    const user = userResult.data
+    const { supabase, userProfile: user } = authResult.data
 
     logger.info({
       userId: user.id,
@@ -77,19 +22,6 @@ export async function GET(
       userEmail: user.email,
       teamId: user.team_id
     }, '✅ User retrieved successfully')
-
-    // Check if user is gestionnaire
-    if (user.role !== 'gestionnaire') {
-      logger.warn({
-        userId: user.id,
-        userRole: user.role,
-        expectedRole: 'gestionnaire'
-      }, '⛔ Access denied - user is not gestionnaire')
-      return NextResponse.json({
-        success: false,
-        error: 'Seuls les gestionnaires peuvent accéder au contexte de finalisation'
-      }, { status: 403 })
-    }
 
     logger.info(`📊 Fetching finalization context for intervention:`, interventionId)
 

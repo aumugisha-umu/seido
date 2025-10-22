@@ -1,58 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService, createServerSupabaseClient } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService } from '@/lib/services'
+import { logger } from '@/lib/logger'
 import { createQuoteRequestsForProviders } from './create-quote-requests'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
 
   try {
+    // ✅ AUTH: createServerClient pattern → getApiAuthContext (42 lignes → 6 lignes)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
+
+    const { supabase, authUser } = authResult.data
+
     // Initialize services
     const userService = await createServerUserService()
     const lotService = await createServerLotService()
     const buildingService = await createServerBuildingService()
     const interventionService = await createServerInterventionService()
-    // Get the authenticated user 
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // The `setAll` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
-            }
-          },
-        },
-      }
-    )
-    
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser()
-    
-    if (authError || !authUser) {
-      logger.error({ authError }, "❌ Auth error")
-      return NextResponse.json({
-        success: false,
-        error: 'Erreur d\'authentification'
-      }, { status: 401 })
-    }
 
     logger.info({ userId: authUser.id }, "✅ Authenticated user")
 
@@ -155,16 +122,7 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Accept both FR and EN role labels (DB may use FR 'gestionnaire')
-    const roleValue = (user.role || '').toString().toLowerCase()
-    const isManager = roleValue === 'gestionnaire' || roleValue === 'manager'
-    if (!isManager) {
-      return NextResponse.json({
-        success: false,
-        error: 'Accès réservé aux gestionnaires'
-      }, { status: 403 })
-    }
-
+    // ✅ Role check already done by getApiAuthContext({ requiredRole: 'gestionnaire' })
     logger.info({ name: user.name, role: user.role }, "✅ Manager user found")
 
     // Determine if this is a building or lot intervention

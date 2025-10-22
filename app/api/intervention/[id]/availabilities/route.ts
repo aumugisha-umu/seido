@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
-import { createServerUserService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,43 +10,12 @@ export async function GET(
   logger.info({ id: id }, "📅 GET availabilities API called for intervention:")
 
   try {
-    // Initialize services
-    const userService = await createServerUserService()
+    // ✅ AUTH: 45 lignes → 3 lignes! (any authenticated user)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    const { supabase, userProfile: user } = authResult.data
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
-
-    // Get user data from database
-    const user = await userService.findByAuthUserId(authUser.id)
     if (!user) {
       return NextResponse.json({
         success: false,

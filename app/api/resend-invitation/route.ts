@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerUserService } from '@/lib/services'
-import { getServerSession } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
-
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 // Client admin Supabase pour les opérations privilégiées
 const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Database>(
@@ -22,16 +20,11 @@ const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Datab
 
 export async function POST(request: Request) {
   try {
-    // ============================================================================
-    // ÉTAPE 0: Vérifications préliminaires
-    // ============================================================================
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
+    // ✅ AUTH: 28 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { userProfile: currentUserProfile } = authResult.data
 
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -39,20 +32,6 @@ export async function POST(request: Request) {
         { status: 503 }
       )
     }
-
-    // Initialize services
-    const userService = await createServerUserService()
-
-    // Get current user profile
-    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
-    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
-      return NextResponse.json(
-        { error: 'Profil utilisateur non trouvé' },
-        { status: 404 }
-      )
-    }
-
-    const currentUserProfile = currentUserProfileResult.data
 
     const body = await request.json()
     const { invitationId } = body

@@ -1,48 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-quote-submit API route called")
 
   try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH + ROLE CHECK: 85 lignes → 3 lignes! (prestataire required)
+    const authResult = await getApiAuthContext({ requiredRole: 'prestataire' })
+    if (!authResult.success) return authResult.error
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      logger.error({ authError }, "❌ Auth error")
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    const { supabase, userProfile: user } = authResult.data
 
-    logger.info({ authUserId: authUser.id, email: authUser.email }, "🔍 Auth user found")
+    logger.info({ authUserId: user.id, email: user.email }, "🔍 Auth user found")
 
     // Parse request body
     const body = await request.json()
@@ -68,32 +40,6 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'interventionId, laborCost et description sont requis'
       }, { status: 400 })
-    }
-
-    // Get current user from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (userError || !user) {
-      logger.error({ userError, authUserId: authUser.id }, "❌ User not found in database")
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé dans la base de données'
-      }, { status: 404 })
-    }
-
-    logger.info({ userId: user.id, role: user.role, name: user.name }, "✅ User found in database")
-
-    // Check if user is prestataire
-    if (user.role !== 'prestataire') {
-      logger.error({ role: user.role, userId: user.id }, "❌ User is not a prestataire")
-      return NextResponse.json({
-        success: false,
-        error: `Seuls les prestataires peuvent soumettre des devis. Votre rôle actuel: ${user.role}`
-      }, { status: 403 })
     }
 
     // Get intervention details

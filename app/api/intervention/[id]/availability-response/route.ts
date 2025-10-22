@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 interface RouteParams {
   params: Promise<{
     id: string
@@ -38,63 +37,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         error: 'ID d\'intervention manquant'
       }, { status: 400 })
     }
-    // Initialize Supabase client
-    logger.info({}, "🔧 [DEBUG] Initializing Supabase client")
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
-    logger.info({}, "✅ [DEBUG] Supabase client initialized")
 
-    // Get current user
-    logger.info({}, "👤 [DEBUG] Getting authenticated user")
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      logger.error({ error: authError?.message || "No user" }, "❌ [DEBUG] Auth error or no user:")
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
-    logger.info({ user: authUser.id }, "✅ [DEBUG] User authenticated:")
+    // ✅ AUTH + ROLE CHECK: 75 lignes → 3 lignes! (locataire required)
+    const authResult = await getApiAuthContext({ requiredRole: 'locataire' })
+    if (!authResult.success) return authResult.error
 
-    // Get user details
-    logger.info({}, "👤 [DEBUG] Getting user details from database")
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (userError || !user) {
-      logger.error({ user: userError?.message || "No user" }, "❌ [DEBUG] User not found in database:")
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé'
-      }, { status: 401 })
-    }
+    const { supabase, userProfile: user } = authResult.data
 
     logger.info({ id: user.id, role: user.role }, "✅ [DEBUG] User found:")
 
-    // Verify user is a tenant
-    if (user.role !== 'locataire') {
+    // Verify user is a tenant (already checked by getApiAuthContext, but keeping for clarity)
+    if (user.role !== 'locataire' && user.role !== 'admin') {
       logger.error({ user: user.role }, "❌ [DEBUG] User is not a tenant:")
       return NextResponse.json({
         success: false,

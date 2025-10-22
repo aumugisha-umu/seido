@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
-import { getServerSession } from '@/lib/services'
-import { createServerUserService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 // Client admin Supabase pour les opérations privilégiées
 const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Database>(
@@ -19,17 +18,11 @@ const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Datab
 
 export async function POST(request: Request) {
   try {
-    // Initialize services
-    const userService = await createServerUserService()
+    // ✅ AUTH: 40 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérifier l'authentification
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
+    const { userProfile: currentUserProfile, authUser: session } = authResult.data
 
     // Vérifier si le service est disponible
     if (!supabaseAdmin) {
@@ -50,18 +43,6 @@ export async function POST(request: Request) {
     }
 
     logger.info({ invitationId: invitationId }, '🚫 [CANCEL-INVITATION-API] Processing cancellation for invitation:')
-
-    // Récupérer le profil utilisateur courant
-    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
-    const currentUserProfile = currentUserProfileResult.success ? currentUserProfileResult.data : null
-    if (!currentUserProfile) {
-      logger.error({ user: session.user.id }, '❌ [CANCEL-INVITATION-API] User profile not found for auth user:')
-      return NextResponse.json(
-        { error: 'Profil utilisateur non trouvé' },
-        { status: 404 }
-      )
-    }
-
     logger.info({
       id: currentUserProfile.id,
       email: currentUserProfile.email

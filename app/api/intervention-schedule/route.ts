@@ -1,51 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-
 import { notificationService } from '@/lib/notification-service'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
-import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { createServerInterventionService } from '@/lib/services'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "📅 intervention-schedule API route called")
 
   // Initialize services
-  const userService = await createServerUserService()
   const interventionService = await createServerInterventionService()
-  
-  try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'Non autorisé' 
-      }, { status: 401 })
-    }
+  try {
+    // ✅ AUTH + ROLE CHECK: 83 lignes → 3 lignes! (gestionnaire required)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
+
+    const { supabase, userProfile: user } = authResult.data
 
     // Parse request body
     const body = await request.json()
@@ -65,39 +36,6 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ interventionId, planningType }, "📝 Scheduling intervention")
-
-    // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
-
-    // 🔍 DEBUG: Log user retrieval details
-    logger.info({
-      authUserId: authUser.id,
-      userId: user?.id,
-      userRole: user?.role,
-      userEmail: user?.email,
-      userName: user?.name
-    }, "🔍 DEBUG: User retrieved from database")
-
-    if (!user) {
-      logger.error({ authUserId: authUser.id }, "❌ User not found in database")
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé'
-      }, { status: 404 })
-    }
-
-    // Check if user is gestionnaire
-    if (user.role !== 'gestionnaire') {
-      logger.warn({
-        userId: user.id,
-        userRole: user.role,
-        expected: 'gestionnaire'
-      }, "⚠️ User role mismatch: not gestionnaire")
-      return NextResponse.json({
-        success: false,
-        error: 'Seuls les gestionnaires peuvent planifier les interventions'
-      }, { status: 403 })
-    }
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase

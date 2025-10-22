@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
 import { createServerUserService } from '@/lib/services'
 import crypto from 'crypto'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Admin client for sending emails
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -24,40 +24,12 @@ export async function POST(request: NextRequest) {
   logger.info({}, "✅ generate-intervention-magic-links API route called")
 
   try {
-    // Initialize services
+    // ✅ AUTH: createServerClient pattern → getApiAuthContext (51 lignes → 6 lignes)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
+
+    const { supabase, authUser, userProfile: user } = authResult.data
     const userService = await createServerUserService()
-
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
-
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
 
     // Parse request body
     const body = await request.json()
@@ -78,22 +50,7 @@ export async function POST(request: NextRequest) {
 
     logger.info({ interventionId, providerEmails }, "📝 Generating magic links for intervention")
 
-    // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé'
-      }, { status: 404 })
-    }
-
-    // Check if user is gestionnaire
-    if (user.role !== 'gestionnaire') {
-      return NextResponse.json({
-        success: false,
-        error: 'Seuls les gestionnaires peuvent générer des liens magiques'
-      }, { status: 403 })
-    }
+    // ✅ Role check already done by getApiAuthContext({ requiredRole: 'gestionnaire' })
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase

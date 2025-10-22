@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Client admin pour les opérations privilégiées
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,6 +17,10 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+    // ✅ AUTH: FAILLE SÉCURITÉ CORRIGÉE! (admin client utilisé sans auth check)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
     const body = await request.json()
     const { emails, teamId } = body
 

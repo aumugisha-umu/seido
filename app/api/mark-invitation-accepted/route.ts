@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Créer un client Supabase avec les permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
@@ -21,6 +23,11 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
+    // ✅ SECURITY FIX: Cette route n'avait AUCUNE vérification d'auth!
+    // N'importe qui pouvait marquer des invitations comme acceptées
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Service non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },

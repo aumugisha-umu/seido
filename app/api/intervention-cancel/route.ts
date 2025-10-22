@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
 import { Database } from "@/lib/database.types"
-import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { createServerInterventionService } from '@/lib/services'
 import { notificationService } from '@/lib/notification-service'
 import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 interface CancelRequest {
   interventionId: string
@@ -14,10 +13,16 @@ interface CancelRequest {
 
 export async function POST(request: NextRequest) {
   // Initialize services
-  const userService = await createServerUserService()
   const interventionService = await createServerInterventionService()
+
   try {
-    const { interventionId, cancellationReason, internalComment }: CancelRequest = 
+    // ✅ AUTH: 50 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, authUser } = authResult.data
+
+    const { interventionId, cancellationReason, internalComment }: CancelRequest =
       await request.json()
 
     logger.info({ interventionId }, "🚫 API: Cancelling intervention")
@@ -29,7 +34,7 @@ export async function POST(request: NextRequest) {
       trimmed: cancellationReason?.trim(),
       length: cancellationReason?.trim()?.length
     }, '🔍 [API-CANCEL] Validation check')
-    
+
     if (!interventionId || !cancellationReason?.trim()) {
       logger.info({
         hasInterventionId: !!interventionId,
@@ -40,38 +45,6 @@ export async function POST(request: NextRequest) {
         { success: false, error: "ID d'intervention et motif d'annulation requis" },
         { status: 400 }
       )
-    }
-
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
-
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'Non autorisé' 
-      }, { status: 401 })
     }
 
     logger.info({ interventionId, authUser: authUser.id }, "🚫 Cancelling intervention by user")

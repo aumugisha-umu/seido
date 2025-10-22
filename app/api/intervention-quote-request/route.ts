@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-
 import { notificationService } from '@/lib/notification-service'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
-import { createServerUserService, createServerInterventionService } from '@/lib/services'
+import { createServerInterventionService } from '@/lib/services'
 import { createQuoteRequestsForProviders } from '../create-manager-intervention/create-quote-requests'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createServerClient } from '@supabase/ssr'
 
 /**
  * Identifie les prestataires éligibles pour recevoir une demande de devis
@@ -62,41 +61,14 @@ export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-quote-request API route called")
 
   // Initialize services
-  const userService = await createServerUserService()
   const interventionService = await createServerInterventionService()
 
   try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH + ROLE CHECK: 73 lignes → 3 lignes! (gestionnaire required)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    const { supabase, userProfile: user } = authResult.data
 
     // Parse request body
     const body = await request.json()
@@ -120,25 +92,6 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ interventionId, targetProviderIds }, "📝 Requesting quote for intervention")
-
-    // Get current user from database
-    const userResult = await userService.findByAuthUserId(authUser.id)
-    const user = userResult?.data ?? null
-
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé'
-      }, { status: 404 })
-    }
-
-    // Check if user is gestionnaire
-    if (user.role !== 'gestionnaire') {
-      return NextResponse.json({
-        success: false,
-        error: 'Seuls les gestionnaires peuvent demander des devis'
-      }, { status: 403 })
-    }
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase

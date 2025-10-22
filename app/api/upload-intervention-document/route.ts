@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Helper function to determine document type from file type and name
 function getDocumentType(mimeType: string, filename: string): string {
   const lowerFilename = filename.toLowerCase()
@@ -34,47 +33,24 @@ function getDocumentType(mimeType: string, filename: string): string {
 }
 
 // Generate unique filename to avoid conflicts
-function generateUniqueFilename(_originalFilename: string): string {
+function generateUniqueFilename(originalFilename: string): string {
   const timestamp = Date.now()
   const randomString = Math.random().toString(36).substring(2, 8)
   const extension = originalFilename.split('.').pop()
   const nameWithoutExt = originalFilename.split('.').slice(0, -1).join('.')
-  
+
   return `${timestamp}-${randomString}-${nameWithoutExt}.${extension}`
 }
 
 export async function POST(request: NextRequest) {
   logger.info({}, "📤 upload-intervention-document API route called")
-  
-  try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options)
-              })
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
+  try {
+    // ✅ AUTH: 29 lignes → 3 lignes!
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, userProfile } = authResult.data
 
     // Parse the form data
     const formData = await request.formData()
@@ -117,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user is member of the team
     const userHasAccess = intervention.team.members.some(
-      (member) => member.user_id === user.id
+      (member) => member.user_id === userProfile.id
     )
 
     if (!userHasAccess) {
@@ -162,7 +138,7 @@ export async function POST(request: NextRequest) {
         storage_path: uploadData.path,
         storage_bucket: 'intervention-documents',
         document_type: getDocumentType(file.type, file.name),
-        uploaded_by: user.id,
+        uploaded_by: userProfile.id,
         description: description || `Document ajouté pour l'intervention`
       })
       .select(`

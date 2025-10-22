@@ -280,3 +280,150 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
     }
   }
 }
+
+/**
+ * ✅ SERVER ACTION: Vérifier invitation ou récupération mot de passe
+ *
+ * Cette action gère les cas où l'utilisateur clique sur :
+ * - Un lien d'invitation (type=invite)
+ * - Un lien de récupération mot de passe (type=recovery)
+ *
+ * Pattern Next.js 15 + Supabase SSR :
+ * 1. Vérifie l'OTP avec Supabase (crée la session avec cookies)
+ * 2. Retourne les infos pour que le Client Component redirige
+ */
+export async function verifyInviteOrRecoveryAction(
+  tokenHash: string,
+  type: 'invite' | 'recovery'
+): Promise<{
+  success: boolean
+  error?: string
+  data?: {
+    shouldSetPassword: boolean
+    role?: string
+    redirectTo?: string
+  }
+}> {
+  logger.info('🔐 [VERIFY-INVITE-RECOVERY] Starting verification:', {
+    type,
+    hasToken: !!tokenHash,
+    tokenLength: tokenHash?.length || 0
+  })
+
+  try {
+    // Validation paramètres
+    if (!tokenHash || !type) {
+      return {
+        success: false,
+        error: 'Paramètres de confirmation manquants'
+      }
+    }
+
+    // Créer client Supabase avec cookies (Server Action)
+    const supabase = await createServerActionSupabaseClient()
+
+    logger.info('🔧 [VERIFY-INVITE-RECOVERY] Calling verifyOtp...')
+
+    // Vérifier l'OTP
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as any
+    })
+
+    if (error || !data?.user) {
+      logger.error('❌ [VERIFY-INVITE-RECOVERY] OTP verification failed:', {
+        message: error?.message,
+        status: error?.status
+      })
+
+      // Messages d'erreur user-friendly
+      const errorMessages: Record<string, string> = {
+        'Token has expired or is invalid': 'Le lien a expiré. Veuillez demander un nouveau lien.',
+        'Email link is invalid or has expired': 'Le lien a expiré. Veuillez demander un nouveau lien.',
+        'Invalid token': 'Lien invalide. Veuillez vérifier votre email.',
+      }
+
+      const errorMessage = error?.message
+        ? errorMessages[error.message] || `Erreur de vérification: ${error.message}`
+        : 'Erreur de vérification. Veuillez réessayer.'
+
+      return {
+        success: false,
+        error: errorMessage
+      }
+    }
+
+    const user = data.user
+    logger.info('✅ [VERIFY-INVITE-RECOVERY] OTP verified for:', user.email)
+
+    // Extraire métadonnées
+    const role = (user.raw_user_meta_data?.role || user.user_metadata?.role || 'gestionnaire') as string
+
+    // ✅ CORRECTION LOGIQUE INVERSÉE: Par défaut, on assume que le password DOIT être défini
+    // Sauf si password_set est explicitement true/'true'
+    // Cela gère les cas: undefined, null, false, 'false' → tous redirigent vers set-password
+    const passwordSet = user.raw_user_meta_data?.password_set
+    const passwordAlreadySet = passwordSet === true || passwordSet === 'true'
+    const needsPasswordSetup = !passwordAlreadySet
+
+    logger.info('📋 [VERIFY-INVITE-RECOVERY] User metadata:', {
+      role,
+      passwordSet,                        // Valeur brute (boolean/string/undefined)
+      passwordSetType: typeof passwordSet, // Type JavaScript
+      passwordAlreadySet,                 // true si explicitement défini
+      needsPasswordSetup,                 // Résultat de la logique
+      email: user.email
+    })
+
+    // Décider de la redirection selon le type
+    if (type === 'invite') {
+      if (needsPasswordSetup) {
+        logger.info('🔑 [VERIFY-INVITE-RECOVERY] Invitation confirmed - password NOT set (default behavior), redirect to set-password')
+        return {
+          success: true,
+          data: {
+            shouldSetPassword: true,
+            role,
+            redirectTo: '/auth/set-password'
+          }
+        }
+      } else {
+        logger.info('✅ [VERIFY-INVITE-RECOVERY] Invitation confirmed - password already set, redirect to dashboard')
+        return {
+          success: true,
+          data: {
+            shouldSetPassword: false,
+            role,
+            redirectTo: `/${role}/dashboard?welcome=true`
+          }
+        }
+      }
+    }
+
+    if (type === 'recovery') {
+      logger.info('🔑 [VERIFY-INVITE-RECOVERY] Password recovery confirmed - redirect to update-password')
+      return {
+        success: true,
+        data: {
+          shouldSetPassword: false,
+          role,
+          redirectTo: '/auth/update-password'
+        }
+      }
+    }
+
+    // Type non reconnu (ne devrait jamais arriver)
+    logger.error('❌ [VERIFY-INVITE-RECOVERY] Unknown type:', type)
+    return {
+      success: false,
+      error: 'Type de confirmation non reconnu'
+    }
+
+  } catch (error) {
+    logger.error('❌ [VERIFY-INVITE-RECOVERY] Unexpected error:', error)
+    return {
+      success: false,
+      error: 'Une erreur inattendue est survenue. Veuillez réessayer.'
+    }
+  }
+}

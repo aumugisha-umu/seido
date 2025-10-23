@@ -41,7 +41,7 @@
 --
 -- CONCURRENTLY: Safe for production, allows reads/writes during index creation
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_interventions_team_status
+CREATE INDEX IF NOT EXISTS idx_interventions_team_status
   ON interventions(team_id, status)
   WHERE deleted_at IS NULL;
 
@@ -70,7 +70,7 @@ COMMENT ON INDEX idx_interventions_team_status IS
 --   - Assignment validation in API routes
 --   - Dashboard permission filtering
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_intervention_assignments_user_role
+CREATE INDEX IF NOT EXISTS idx_intervention_assignments_user_role
   ON intervention_assignments(user_id, role);
 
 COMMENT ON INDEX idx_intervention_assignments_user_role IS
@@ -98,7 +98,7 @@ COMMENT ON INDEX idx_intervention_assignments_user_role IS
 
 DROP INDEX IF EXISTS idx_lot_contacts_lot_user;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lot_contacts_covering
+CREATE INDEX IF NOT EXISTS idx_lot_contacts_covering
   ON lot_contacts(lot_id, user_id)
   INCLUDE (role);
 

@@ -75,7 +75,13 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     if ('status' in data && data.status) {
-      validateEnum(data.status, ['pending', 'approved', 'in_progress', 'completed', 'cancelled'], 'status')
+      // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
+      validateEnum(data.status, [
+        'demande', 'rejetee', 'approuvee', 'demande_de_devis',
+        'planification', 'planifiee', 'en_cours',
+        'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire',
+        'annulee'
+      ], 'status')
     }
 
     if ('priority' in data && data.priority) {
@@ -416,8 +422,9 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       updated_at: new Date().toISOString()
     }
 
-    // Set completion date if status is completed
-    if (newStatus === 'completed') {
+    // Set completion date if status is final closure (gestionnaire)
+    // ✅ FIX (Oct 23, 2025): Use French status 'cloturee_par_gestionnaire'
+    if (newStatus === 'cloturee_par_gestionnaire') {
       updates.completed_date = new Date().toISOString()
     }
 
@@ -506,14 +513,21 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     // Calculate statistics
+    // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
     const stats = {
       total: statusStats?.length || 0,
       byStatus: {
-        pending: 0,
-        approved: 0,
-        in_progress: 0,
-        completed: 0,
-        cancelled: 0
+        demande: 0,
+        rejetee: 0,
+        approuvee: 0,
+        demande_de_devis: 0,
+        planification: 0,
+        planifiee: 0,
+        en_cours: 0,
+        cloturee_par_prestataire: 0,
+        cloturee_par_locataire: 0,
+        cloturee_par_gestionnaire: 0,
+        annulee: 0
       },
       byPriority: {
         low: 0,
@@ -601,18 +615,35 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    * Private helper to validate status transitions
    */
   private validateStatusTransition(currentStatus: Intervention['status'], newStatus: Intervention['status']) {
+    // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
+    // Previously used English ('pending', 'approved', etc.) which never matched DB values
+    // This caused ALL status transition validations to fail, allowing workflow bypass
     const validTransitions: Record<Intervention['status'], Intervention['status'][]> = {
-      'pending': ['approved', 'cancelled'],
-      'approved': ['in_progress', 'cancelled'],
-      'in_progress': ['completed', 'cancelled'],
-      'completed': [], // No transitions from completed
-      'cancelled': [] // No transitions from cancelled
+      'demande': ['rejetee', 'approuvee', 'annulee'],
+      'rejetee': [], // Terminal state
+      'approuvee': ['demande_de_devis', 'planification', 'annulee'],
+      'demande_de_devis': ['planification', 'annulee'],
+      'planification': ['planifiee', 'annulee'],
+      'planifiee': ['en_cours', 'annulee'],
+      'en_cours': ['cloturee_par_prestataire', 'annulee'],
+      'cloturee_par_prestataire': ['cloturee_par_locataire', 'en_cours'], // Can reopen if contested
+      'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
+      'cloturee_par_gestionnaire': [], // Terminal state
+      'annulee': [] // Terminal state
     }
 
     const allowedNextStatuses = validTransitions[currentStatus]
+    if (!allowedNextStatuses) {
+      throw new ValidationException(
+        `Unknown intervention status: '${currentStatus}'`,
+        'interventions',
+        'status'
+      )
+    }
+
     if (!allowedNextStatuses.includes(newStatus)) {
       throw new ValidationException(
-        `Invalid status transition from '${currentStatus}' to '${newStatus}'`,
+        `Invalid status transition from '${currentStatus}' to '${newStatus}'. Allowed: ${allowedNextStatuses.join(', ')}`,
         'interventions',
         'status'
       )

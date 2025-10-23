@@ -16,8 +16,8 @@
 -- - Permission checks need both user_id AND role, currently requires two index lookups
 --
 -- EXPECTED IMPROVEMENTS:
--- - Dashboard load time: 2-5s ’ <500ms
--- - Permission checks: 200ms ’ <50ms
+-- - Dashboard load time: 2-5s -> <500ms
+-- - Permission checks: 200ms -> <50ms
 -- - Reduced database CPU usage by ~70%
 --
 -- ============================================================================
@@ -28,9 +28,9 @@
 --
 -- PROBLEM: Dashboard queries filter by team_id AND status simultaneously
 -- CURRENT STATE:
---   - idx_interventions_team (team_id) WHERE deleted_at IS NULL 
---   - idx_interventions_status (status) WHERE deleted_at IS NULL 
---   - But NO composite index for (team_id, status) L
+--   - idx_interventions_team (team_id) WHERE deleted_at IS NULL (exists)
+--   - idx_interventions_status (status) WHERE deleted_at IS NULL (exists)
+--   - But NO composite index for (team_id, status) (missing)
 --
 -- QUERY PATTERN (Frequent - Every dashboard load):
 --   SELECT * FROM interventions
@@ -56,9 +56,9 @@ COMMENT ON INDEX idx_interventions_team_status IS
 --
 -- PROBLEM: Permission checks need to verify user_id AND role simultaneously
 -- CURRENT STATE:
---   - idx_intervention_assignments_user (user_id) 
---   - idx_intervention_assignments_role (role) 
---   - But NO composite index for (user_id, role) L
+--   - idx_intervention_assignments_user (user_id) (exists)
+--   - idx_intervention_assignments_role (role) (exists)
+--   - But NO composite index for (user_id, role) (missing)
 --
 -- QUERY PATTERN (Frequent - Every intervention access check):
 --   SELECT * FROM intervention_assignments
@@ -86,8 +86,8 @@ COMMENT ON INDEX idx_intervention_assignments_user_role IS
 --
 -- PROBLEM: Queries need lot_id + user_id + role but role requires table lookup
 -- CURRENT STATE:
---   - idx_lot_contacts_lot_user (lot_id, user_id) 
---   - But does NOT include 'role' column L
+--   - idx_lot_contacts_lot_user (lot_id, user_id) (exists)
+--   - But does NOT include 'role' column (missing)
 --
 -- QUERY PATTERN (Frequent - Contact resolution for lots):
 --   SELECT lot_id, user_id, role FROM lot_contacts

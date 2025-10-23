@@ -1991,115 +1991,247 @@ module.exports = {
 
 ### 🟡 IMPORTANT Performance Issues
 
-#### 5. Limited React Optimization - RE-RENDERS
+**Note**: Issues #5-8 require **profiling-first approach**. Document analysis completed (Oct 23, 2025), implementation deferred pending performance metrics.
 
-**Issue**: Minimal use of React.memo, useCallback, useMemo.
+---
 
-**Stats**:
+#### 5. Limited React Optimization - 📊 REQUIRES PROFILING (Oct 23, 2025)
+
+**Status**: 📊 **ANALYZED - PROFILING REQUIRED** - Must measure before optimizing
+
+**Original Assessment**:
 - React.memo: 14 components only (< 10%)
 - useCallback/useMemo: 32 instances across 14 files
+- Impact: Unnecessary re-renders in complex components
 
-**Impact**:
-- ❌ Unnecessary re-renders in complex components
-- ❌ Dashboard performance degradation with many interventions
+**Updated Analysis** (Oct 23, 2025):
 
-**Recommendation**:
+**⚠️ Why Profiling First is Critical**:
+
 ```typescript
-// ✅ Memoize expensive components
-export const InterventionCard = React.memo(({ intervention }) => {
-  return <div>...</div>;
-});
+// ❌ ANTI-PATTERN: Premature memoization
+export const SimpleComponent = React.memo(({ text }) => {
+  return <div>{text}</div>
+})
+// Problem: React.memo adds overhead (shallow prop comparison)
+// If this component rarely re-renders, memo SLOWS it down
 
-// ✅ Memoize callbacks passed as props
-const handleClick = useCallback(() => {
-  updateIntervention(id);
-}, [id]); // Only recreate if id changes
-
-// ✅ Memoize expensive computations
-const filteredInterventions = useMemo(() => {
-  return interventions.filter(i => i.status === selectedStatus);
-}, [interventions, selectedStatus]);
+// ✅ ONLY memoize if profiling shows re-render bottleneck
+// Use React DevTools Profiler to identify hot paths first
 ```
 
-**Priority**: 🟡 **Optimize hot paths (dashboards, lists)**
+**Memoization Decision Tree**:
+
+1. **Profile First** (React DevTools Profiler)
+   - Record interaction (e.g., dashboard load, filter change)
+   - Identify components with **> 10 re-renders per interaction**
+   - Measure time spent (components taking > 16ms per render)
+
+2. **Analyze Root Cause**
+   - Is parent re-rendering unnecessarily? → Fix parent first
+   - Are props changing every render? → useMemo the props
+   - Is expensive computation repeated? → useMemo the result
+   - Is component inherently expensive? → React.memo
+
+3. **Apply Targeted Optimization**
+   - Dashboard lists (hot path) ✅ High priority
+   - Modal content (cold path) ❌ Low priority
+   - Static UI (never changes) ❌ Skip memoization
+
+**Candidates for Memoization** (Based on Size Analysis from Issue #3):
+
+**High Priority** (Large components in hot paths):
+- `InterventionCard` (652 lines) - Rendered in lists (10-50 instances)
+- `IntegrationQuotesCard` (542 lines) - Multiple instances per intervention
+- `ExecutionTab` (695 lines) - Re-renders on status updates
+
+**Medium Priority** (Medium components, frequent updates):
+- `PropertySelector` (685 lines) - Dropdown with hundreds of options
+- `ContactSelector` (677 lines) - Similar pattern
+
+**Low Priority** (Modals, infrequent renders):
+- `FinalizationModalLive` (832 lines) - Opens once per intervention
+- `DocumentViewerModal` (?) - User-triggered, not hot path
+
+**Recommended Approach**:
+
+**Phase 1: Profiling & Baseline** (Week 1)
+```bash
+# Enable React Profiler in development
+npm install --save-dev @welldone-software/why-did-you-render
+
+# Profile hot paths
+1. Dashboard load with 50+ interventions
+2. Filter/search operations
+3. Status updates (e.g., approve intervention)
+4. List scrolling performance
+```
+
+**Phase 2: Targeted Memoization** (Week 2)
+```typescript
+// ✅ ONLY IF profiling shows > 10 unnecessary re-renders
+export const InterventionCard = React.memo(({ intervention, onUpdate }) => {
+  // Memoize expensive computations
+  const statusBadge = useMemo(() =>
+    getStatusBadge(intervention.status),
+    [intervention.status]
+  )
+
+  // Memoize callbacks passed to children
+  const handleClick = useCallback(() => {
+    onUpdate(intervention.id)
+  }, [intervention.id, onUpdate])
+
+  return (
+    <Card onClick={handleClick}>
+      {statusBadge}
+      {/* ... */}
+    </Card>
+  )
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if intervention data changed
+  return prevProps.intervention.id === nextProps.intervention.id &&
+         prevProps.intervention.updated_at === nextProps.intervention.updated_at
+})
+```
+
+**Phase 3: Measure Impact** (Week 3)
+- Re-profile with memoization applied
+- Compare render counts before/after
+- Validate perceived performance improvement
+- Rollback if no measurable gain
+
+**Expected Improvements** (If Properly Applied):
+- Dashboard re-renders: 50-100 → 5-10 (~90% reduction)
+- Filter operation time: 500ms → < 100ms
+- List scroll FPS: 30 → 60 fps
+
+**Why Deferred**:
+- **Measure first**: Can't optimize what you don't measure
+- **Risk of slowdown**: Incorrect memoization adds overhead
+- **Low ROI without data**: DB optimizations (Issues #1, #2) likely resolved most perf issues
+- **Better tooling needed**: Need React DevTools Profiler + Why Did You Render setup
+
+**Priority**: 🟡 **REQUIRES PROFILING - Implement only after measuring**
 
 ---
 
-#### 6. No Code Splitting - LARGE BUNDLES
+#### 6. No Code Splitting - 🔄 RELATED TO ISSUE #3 (Oct 23, 2025)
 
-**Issue**: Only 3 lazy-loaded components found.
+**Status**: 🔄 **DEFERRED TO COMPONENT REFACTORING** - Address with Issue #3 (Large Components)
 
-**Location**: `components/property-creation/optimized/LazyWizardComponents.tsx`
+**Finding**: Code splitting is **closely tied to component decomposition**. After splitting large components (Issue #3), lazy loading becomes straightforward.
 
-**Recommendation**:
+**Current State**:
+- Next.js App Router: **Automatic route-based splitting** ✅
+- Manual lazy loading: 5 files use `dynamic()` or `lazy()`
+- Large modals: NOT lazy loaded (e.g., 832-line FinalizationModalLive)
+
+**Why Defer to Issue #3**:
+1. **Can't split monoliths**: 1,698-line components can't be lazy-loaded effectively
+2. **After decomposition**: Natural split points emerge (wizard steps, modal sections)
+3. **Higher ROI**: Component splitting (Issue #3) delivers code splitting as byproduct
+
+**Example After Issue #3 Refactoring**:
 ```typescript
-// ✅ Lazy load heavy modals
-const FinalizationModal = dynamic(
-  () => import('./finalization-modal-live'),
-  { ssr: false, loading: () => <Spinner /> }
-);
+// AFTER Issue #3: Component decomposed into steps
+const LotBasicInfoStep = dynamic(() => import('./steps/lot-basic-info-step'))
+const LotContactsStep = dynamic(() => import('./steps/lot-contacts-step'))
+const LotConfirmationStep = dynamic(() => import('./steps/lot-confirmation-step'))
 
-// ✅ Route-based code splitting (App Router does this automatically)
+// Each step lazy-loads independently (~100 lines each)
+// vs loading entire 1,698-line monolith upfront
 ```
 
-**Priority**: 🟡 **Lazy load modals and heavy components**
+**Priority**: 🔄 **ADDRESS WITH ISSUE #3** - Natural outcome of component decomposition
 
 ---
 
-#### 7. No Caching Headers - REPEATED REQUESTS
+#### 7. No Caching Headers - 🟢 NICE-TO-HAVE (Oct 23, 2025)
 
-**Issue**: Static data fetched repeatedly without cache headers.
+**Status**: 🟢 **LOW PRIORITY** - Supabase handles caching, minimal API routes serve static data
 
-**Locations**:
-- `app/api/activity-stats/route.ts` - Stats that change infrequently
-- All GET endpoints for reference data
+**Analysis**:
+- Most data fetched via **Supabase client-side** (caches in React Query/SWR pattern)
+- API routes primarily for **server actions** (auth, mutations)
+- Few routes serve truly static reference data
 
-**Recommendation**:
+**Quick Win Candidates** (If Implemented):
 ```typescript
-// ✅ Add cache headers
-return NextResponse.json(data, {
-  headers: {
-    'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
-  }
-});
+// app/api/lot-categories/route.ts (if exists)
+export const revalidate = 3600 // 1 hour - categories rarely change
 
-// ✅ Use Next.js caching
-export const revalidate = 60; // Revalidate every 60 seconds
+// app/api/intervention-statuses/route.ts (if exists)
+export const revalidate = 3600 // 1 hour - enum values static
 ```
 
-**Priority**: 🟡 **Add caching for reference data**
+**Why Low Priority**:
+- DB query optimizations (Issue #1, #2) already delivered major gains
+- Client-side caching (React hooks) already in place
+- Static reference data minimal in this app (most data user-specific)
+
+**Priority**: 🟢 **NICE-TO-HAVE** - Minimal impact, revisit if API response times become issue
 
 ---
 
-#### 8. Large Response Payloads - NO PAGINATION
+#### 8. Large Response Payloads - 🟡 MODERATE PRIORITY (Oct 23, 2025)
 
-**Issue**: Unbounded result sets returned without pagination.
+**Status**: 🟡 **NEEDS PAGINATION** - But likely not yet a problem (early-stage app)
 
-**Locations**:
-- `app/api/team-invitations/route.ts:31` - Fetches ALL invitations
-- `app/api/activity-logs/route.ts` - Returns full history
+**Unbounded Queries Identified**:
+1. `app/api/team-invitations/route.ts` - Fetches ALL invitations per team
+2. `app/api/activity-logs/route.ts` - Returns full activity history
 
-**Recommendation**:
+**Impact Assessment**:
+
+| Endpoint | Current Scale | Breaking Point | Priority |
+|----------|---------------|----------------|----------|
+| team-invitations | ~10-20 per team | > 100 invitations | 🟡 Medium |
+| activity-logs | ~100-500 logs | > 10,000 logs | 🟡 Medium |
+| interventions | RLS-filtered | Already paginated? | ✅ Check |
+
+**When to Implement Pagination**:
+- **Now**: If any dashboard shows > 100 items without scrolling
+- **Soon**: When team-invitations or activity-logs exceed 100 records
+- **Later**: For reference data that grows unbounded
+
+**Recommended Pattern** (Cursor-based):
 ```typescript
-// ✅ Implement cursor-based pagination
+// ✅ Cursor-based pagination (better for real-time data)
 const { data, error } = await supabase
   .from('activity_logs')
   .select('*')
   .order('created_at', { ascending: false })
-  .range((page - 1) * limit, page * limit - 1); // Pagination
+  .range(0, 49) // First 50 records
+  // .range(50, 99) // Next 50 records (cursor = created_at of last item)
+
+// Return with cursor for next page
+return NextResponse.json({
+  data,
+  cursor: data[data.length - 1]?.created_at,
+  hasMore: data.length === 50
+})
+```
+
+**Alternative** (Offset-based for simple cases):
+```typescript
+// ✅ Offset-based (simpler, but slower on large datasets)
+const page = parseInt(request.nextUrl.searchParams.get('page') || '1')
+const limit = 50
+
+const { data, count } = await supabase
+  .from('activity_logs')
+  .select('*', { count: 'exact' })
+  .range((page - 1) * limit, page * limit - 1)
 
 return NextResponse.json({
   data,
-  pagination: {
-    page,
-    limit,
-    total: count,
-    hasMore: data.length === limit
-  }
-});
+  page,
+  totalPages: Math.ceil(count / limit)
+})
 ```
 
-**Priority**: 🟡 **Add pagination to all list endpoints**
+**Priority**: 🟡 **IMPLEMENT WHEN SCALE REQUIRES** - Monitor record counts, add when > 100
 
 ---
 

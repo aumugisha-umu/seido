@@ -1057,57 +1057,90 @@ try {
 
 ### 🔴 CRITICAL Multi-Role Security Issues (SEIDO-Specific)
 
-#### 6. RLS Permission Bypass - CROSS-TEAM ACCESS
+#### 6. RLS Permission Bypass - ✅ RESOLVED (Oct 23, 2025) - FALSE ALARM
 
-**Issue**: RLS helper function `can_manager_update_user()` doesn't validate team ownership.
+**Status**: ✅ **SECURE** - Function correctly validates team membership via INNER JOIN
 
-**Location**: `supabase/migrations/20251009000001_phase1_users_teams_companies_invitations.sql:620-635`
+**Investigation (Oct 23, 2025)**:
+After code audit, discovered that the RLS function **ALREADY VALIDATES** team ownership correctly.
 
-**Impact**:
-- ❌ Manager in Team A can update users in Team B
-- ❌ Cross-team data manipulation
-- ❌ Multi-tenant isolation broken
-
-**Current Policy**:
+**Actual Implementation** (lines 400-431):
 ```sql
--- ❌ Missing team validation
-CREATE FUNCTION can_manager_update_user(target_user_id UUID)
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN is_team_manager(); -- ❌ No team_id check
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-**Recommendation**:
-```sql
--- ✅ Validate team membership
-CREATE OR REPLACE FUNCTION can_manager_update_user(target_user_id UUID)
-RETURNS BOOLEAN AS $$
+CREATE OR REPLACE FUNCTION public.can_manager_update_user(target_user_id UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER STABLE
+AS $$
 DECLARE
-  current_user_id UUID := auth.uid();
-  user_team_id UUID;
-  manager_team_id UUID;
+  current_user_id UUID;
+  current_user_role TEXT;
 BEGIN
-  -- Get target user's team
-  SELECT team_id INTO user_team_id
-  FROM users
-  WHERE id = target_user_id AND deleted_at IS NULL;
+  -- 1. Get current user
+  SELECT u.id, u.role INTO current_user_id, current_user_role
+  FROM public.users u
+  WHERE u.auth_user_id = auth.uid() AND u.deleted_at IS NULL;
 
-  -- Get current manager's teams
-  SELECT team_id INTO manager_team_id
-  FROM team_members
-  WHERE user_id = current_user_id
-    AND role IN ('admin', 'gestionnaire')
-    AND left_at IS NULL;
+  -- 2. Check role (gestionnaire or admin)
+  IF current_user_id IS NULL OR current_user_role NOT IN ('gestionnaire', 'admin') THEN
+    RETURN FALSE;
+  END IF;
 
-  -- Only allow if same team
-  RETURN user_team_id = manager_team_id;
+  -- 3. ✅ CRITICAL: Validate SAME TEAM via INNER JOIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.team_members tm_target
+    INNER JOIN public.team_members tm_manager
+      ON tm_manager.team_id = tm_target.team_id  -- ✅ SAME TEAM CHECK!
+    WHERE tm_target.user_id = target_user_id
+      AND tm_manager.user_id = current_user_id
+      AND tm_target.left_at IS NULL              -- ✅ Active members only
+      AND tm_manager.left_at IS NULL
+  );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 ```
 
-**Priority**: 🔴 **Fix immediately - multi-tenant isolation breach**
+**Security Analysis**:
+
+| Check | Implementation | Status |
+|-------|----------------|--------|
+| **Role validation** | `current_user_role IN ('gestionnaire', 'admin')` | ✅ Correct |
+| **Team isolation** | `INNER JOIN ON tm_manager.team_id = tm_target.team_id` | ✅ **Enforced** |
+| **Active members** | `left_at IS NULL` (both sides) | ✅ Correct |
+| **Soft delete** | `deleted_at IS NULL` | ✅ Correct |
+
+**Multi-Tenant Isolation**:
+```sql
+-- The INNER JOIN guarantees cross-team isolation:
+tm_manager.team_id = tm_target.team_id
+
+-- Scenario: Manager in Team A tries to update user in Team B
+-- Result: INNER JOIN returns NO ROWS → EXISTS returns FALSE → UPDATE BLOCKED ✅
+```
+
+**Usage in RLS Policies** (lines 695-698):
+```sql
+CREATE POLICY "users_update_by_team_managers" ON users FOR UPDATE
+TO authenticated
+USING (can_manager_update_user(users.id))       -- ✅ Check before update
+WITH CHECK (can_manager_update_user(users.id)); -- ✅ Check after update
+```
+
+**Verification**:
+```bash
+# Function definition
+$ grep -A30 "CREATE.*FUNCTION.*can_manager_update_user" migrations/*.sql
+✅ INNER JOIN on team_id found (line 424)
+
+# RLS policy usage
+$ grep "can_manager_update_user" migrations/*.sql
+✅ Used in users UPDATE policy (lines 697-698)
+```
+
+**Conclusion**:
+- ✅ **No vulnerability** - Team validation working correctly via INNER JOIN
+- ✅ **Multi-tenant isolation intact** - Cross-team access impossible
+- ✅ **Defense in depth** - Role check + team check + active check
+
+**Priority**: ✅ **RESOLVED** - False alarm, security confirmed
 
 ---
 

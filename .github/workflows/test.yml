@@ -2,110 +2,82 @@ name: SEIDO Tests
 
 on:
   push:
-    branches: [ main, develop, refacto ]
+    branches: [main, develop, preview]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Variables d'environnement globales pour les tests
+env:
+  NODE_ENV: test
+  # ⚠️ Configurer ces secrets dans GitHub Settings > Secrets
+  # NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+  # NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+  # SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_KEY }}
+
 jobs:
-  unit-tests:
-    name: Unit Tests
+  # Job 1: Tests unitaires et composants (Vitest)
+  vitest-tests:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run all Vitest tests
+        run: npm run test:run
 
       - name: Generate coverage
         run: npm run test:coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        if: always()
         with:
           file: ./coverage/lcov.info
           flags: unittests
-          name: seido-unit-tests
+          name: seido-vitest-tests
+        continue-on-error: true
 
-  component-tests:
-    name: Component Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run component tests
-        run: npm run test:components
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run integration tests
-        run: npm run test:integration
-
+  # Job 2: Tests E2E (Playwright)
   e2e-tests:
-    name: E2E Tests
+    name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Build application
-        run: npm run build
+        run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          CI: true
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -115,58 +87,27 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  lighthouse-audit:
-    name: Lighthouse Performance Audit
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build application
-        run: npm run build
-
-      - name: Start application
-        run: npm start &
-        env:
-          NODE_ENV: production
-
-      - name: Wait for server
-        run: npx wait-on http://localhost:3000
-
-      - name: Run Lighthouse audit
-        run: |
-          npm run lighthouse
-          cat lighthouse-report.json
-
-      - name: Upload Lighthouse report
+      - name: Upload test results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: lighthouse-report
-          path: lighthouse-report.json
+          name: test-results
+          path: test-results.json
+          retention-days: 7
 
+  # Job 3: Build et Lint
   build-check:
-    name: Build Check
+    name: Build & Lint Check
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -180,28 +121,80 @@ jobs:
 
       - name: Build application
         run: npm run build
+        env:
+          # Variables d'environnement pour le build
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
 
+  # Job 4: Lighthouse (Pull Requests uniquement)
+  lighthouse-audit:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
+
+      - name: Start application
+        run: npm start &
+        env:
+          NODE_ENV: production
+          PORT: 3000
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Run Lighthouse audit
+        run: npm run lighthouse
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: lighthouse-report.json
+          retention-days: 7
+
+  # Job 5: Test Summary
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [unit-tests, component-tests, integration-tests, e2e-tests, build-check]
+    needs: [vitest-tests, e2e-tests, build-check]
     if: always()
 
     steps:
       - name: Check test results
         run: |
-          echo "Unit tests: ${{ needs.unit-tests.result }}"
-          echo "Component tests: ${{ needs.component-tests.result }}"
-          echo "Integration tests: ${{ needs.integration-tests.result }}"
+          echo "📊 Test Results Summary"
+          echo "======================="
+          echo "Vitest tests: ${{ needs.vitest-tests.result }}"
           echo "E2E tests: ${{ needs.e2e-tests.result }}"
           echo "Build check: ${{ needs.build-check.result }}"
+          echo ""
 
       - name: Report success
-        if: ${{ needs.unit-tests.result == 'success' && needs.component-tests.result == 'success' && needs.integration-tests.result == 'success' && needs.e2e-tests.result == 'success' && needs.build-check.result == 'success' }}
+        if: ${{ needs.vitest-tests.result == 'success' && needs.e2e-tests.result == 'success' && needs.build-check.result == 'success' }}
         run: echo "✅ All tests passed successfully!"
 
       - name: Report failure
-        if: ${{ needs.unit-tests.result == 'failure' || needs.component-tests.result == 'failure' || needs.integration-tests.result == 'failure' || needs.e2e-tests.result == 'failure' || needs.build-check.result == 'failure' }}
+        if: ${{ needs.vitest-tests.result == 'failure' || needs.e2e-tests.result == 'failure' || needs.build-check.result == 'failure' }}
         run: |
-          echo "❌ Some tests failed. Please check the individual job logs."
+          echo "❌ Some tests failed. Please check the individual job logs above."
           exit 1

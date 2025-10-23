@@ -1,3 +1,8 @@
+/**
+ * Vitest Configuration - Next.js 15 App Router
+ * Configuration suivant les recommandations officielles Next.js
+ * @see https://nextjs.org/docs/app/building-your-application/testing/vitest
+ */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -5,58 +10,81 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Environnement jsdom pour simuler le navigateur
     environment: 'jsdom',
-    setupFiles: ['./test/setup.ts'],
-    globals: true,
-    pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: true
-      }
+
+    // Charger les variables d'environnement depuis .env.test
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: 'https://test-placeholder.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-placeholder-anon-key-12345',
+      SUPABASE_SERVICE_ROLE_KEY: 'test-placeholder-service-key-12345',
+      NEXT_PUBLIC_SITE_URL: 'http://localhost:3000',
+      LOG_LEVEL: 'error',
     },
+
+    // Setup global (mocks, cleanup, etc.)
+    setupFiles: ['./__tests__/setup.ts'],
+
+    // Globals activés pour éviter d'importer describe, it, expect
+    globals: true,
+
+    // Inclure les tests dans ces patterns
     include: [
-      'test/**/*.test.{ts,tsx}',
-      'tests-new/**/*.test.{ts,tsx}',
-      'app/**/*.test.{ts,tsx}',
+      '__tests__/**/*.test.{ts,tsx}',
+      'lib/**/*.test.{ts,tsx}',
       'components/**/*.test.{ts,tsx}',
-      'lib/**/*.test.{ts,tsx}'
+      'app/**/*.test.{ts,tsx}',
+      'hooks/**/*.test.{ts,tsx}',
     ],
+
+    // Exclure
     exclude: [
       'node_modules',
       'dist',
       '.next',
       'coverage',
-      'test/e2e/**',
-      'tests-new/auth/**',
-      'tests-new/config/**',
-      'tests-new/agents/**',
-      'tests-new/helpers/**',
-      'tests-new/fixtures/**'
+      'e2e/**',
+      'backups/**',
+      '**/*.d.ts',
+      '**/*.config.*',
     ],
+
+    // Configuration de couverture
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
       exclude: [
         'node_modules/',
-        'test/',
+        '__tests__/**',
+        'e2e/**',
         '**/*.d.ts',
         '**/*.config.*',
-        'components/ui/**', // Exclude shadcn/ui components from coverage
-        'app/api/**', // Exclude API routes from coverage for now
-        'lib/database.types.ts', // Exclude generated types
+        'components/ui/**', // shadcn/ui components
+        'lib/database.types.ts', // Types générés
+        '.next/**',
+        'backups/**',
       ],
       thresholds: {
         global: {
-          branches: 60,
-          functions: 60,
-          lines: 60,
-          statements: 60
-        }
-      }
+          branches: 70,
+          functions: 70,
+          lines: 70,
+          statements: 70,
+        },
+      },
     },
-    // Améliorer la stabilité des tests
+
+    // Timeouts
     testTimeout: 10000,
-    hookTimeout: 10000
+    hookTimeout: 10000,
+
+    // Pool de threads pour isolation
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: true, // Évite les race conditions
+      },
+    },
   },
   resolve: {
     alias: {
@@ -66,7 +94,6 @@ export default defineConfig({
       '@/app': path.resolve(__dirname, './app'),
       '@/hooks': path.resolve(__dirname, './hooks'),
       '@/contexts': path.resolve(__dirname, './contexts'),
-      '@/test': path.resolve(__dirname, './test'),
     },
   },
 })

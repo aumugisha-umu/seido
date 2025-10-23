@@ -45,3 +45,5 @@ test-report/
 cookies_*.txt
 dashboard.html
 test-*.html
+# Test environment variables
+.env.test

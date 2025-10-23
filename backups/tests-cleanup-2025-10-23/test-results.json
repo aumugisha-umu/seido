@@ -1,0 +1,108 @@
+{
+  "authentication": {
+    "admin": {
+      "status": "FAIL",
+      "error": "Email ou mot de passe incorrect",
+      "currentUrl": "http://localhost:3000/auth/login"
+    },
+    "gestionnaire": {
+      "status": "PASS",
+      "redirectUrl": "http://localhost:3000/gestionnaire/dashboard"
+    },
+    "prestataire": {
+      "status": "FAIL",
+      "error": "Login page did not load"
+    },
+    "locataire": {
+      "status": "FAIL",
+      "error": "Login page did not load"
+    }
+  },
+  "dashboards": {
+    "admin": {
+      "status": "PASS",
+      "elements": {
+        "hasHeader": false,
+        "hasMainContent": false,
+        "cardCount": 0
+      }
+    },
+    "gestionnaire": {
+      "status": "PASS",
+      "elements": {
+        "hasHeader": false,
+        "hasMainContent": false,
+        "cardCount": 0
+      }
+    },
+    "prestataire": {
+      "status": "PASS",
+      "elements": {
+        "hasHeader": false,
+        "hasMainContent": false,
+        "cardCount": 0
+      }
+    },
+    "locataire": {
+      "status": "PASS",
+      "elements": {
+        "hasHeader": false,
+        "hasMainContent": false,
+        "cardCount": 0
+      }
+    }
+  },
+  "workflows": {},
+  "ui": {
+    "mobile": {
+      "status": "PASS",
+      "details": {
+        "hasOverflow": false,
+        "viewportWidth": 375,
+        "contentWidth": 377,
+        "fitsViewport": true
+      }
+    },
+    "tablet": {
+      "status": "PASS",
+      "details": {
+        "hasOverflow": false,
+        "viewportWidth": 768,
+        "contentWidth": 753,
+        "fitsViewport": true
+      }
+    },
+    "desktop": {
+      "status": "PASS",
+      "details": {
+        "hasOverflow": false,
+        "viewportWidth": 1920,
+        "contentWidth": 1905,
+        "fitsViewport": true
+      }
+    }
+  },
+  "performance": {
+    "status": "PASS",
+    "loadTime": "1986ms",
+    "metrics": {
+      "domContentLoaded": 0.09999990463256836,
+      "loadComplete": 0,
+      "firstPaint": 292,
+      "firstContentfulPaint": 292
+    }
+  },
+  "accessibility": {
+    "status": "WARN",
+    "checks": {
+      "hasLangAttribute": true,
+      "hasTitle": true,
+      "imagesHaveAlt": true,
+      "formsHaveLabels": true,
+      "hasHeadings": true,
+      "hasSkipLink": false,
+      "buttonsHaveText": true
+    }
+  },
+  "errors": []
+}

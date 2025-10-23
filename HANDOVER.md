@@ -1837,39 +1837,155 @@ npx eslint --ext .tsx --max-warnings 0 app components
 
 ---
 
-#### 4. Missing Image Optimization - RAW <IMG> TAGS
+#### 4. Missing Image Optimization - 🟢 LOW PRIORITY (Oct 23, 2025)
 
-**Issue**: Using raw `<img>` tags instead of Next.js `<Image>` component.
+**Status**: 🟢 **ANALYZED - DEFERRED** - Marginal impact, complexity vs benefit unfavorable
 
-**Locations**:
-- `components/intervention/document-viewer-modal.tsx:321`
-- `components/intervention/finalization-modal-live.tsx:540,568`
+**Analysis Results** (Oct 23, 2025):
 
-**Impact**:
-- ❌ No automatic image optimization
-- ❌ No lazy loading
-- ❌ No responsive srcset
-- ❌ Larger page weight
+| Metric | Value | Assessment |
+|--------|-------|------------|
+| **Total raw `<img>` tags** | 3 | ✅ Very few instances |
+| **Files affected** | 2 | ✅ Isolated to modal components |
+| **Render context** | Modals (lazy) | ✅ Not in initial page load |
+| **Image source** | Supabase Storage | ✅ Already CDN-optimized |
+| **Complex cases** | 1/3 | 🟡 Dynamic zoom/rotation transforms |
 
-**Recommendation**:
+**Locations Found**:
+
+1. **`components/intervention/document-viewer-modal.tsx:321`** 🟡 **COMPLEX**
+   - Image viewer with dynamic zoom/rotation controls
+   - Uses CSS transforms via state: `transform: scale(${zoom}) rotate(${rotation}deg)`
+   - Next.js Image generates wrapper structure that complicates CSS transforms
+   - Would require significant refactoring
+
+2. **`components/intervention/finalization-modal-live.tsx:540`** 🟢 **SIMPLE**
+   - Before photos grid in finalization modal
+   - Simple hover scale animation: `hover:scale-105`
+   - Easy to convert to Next.js Image
+
+3. **`components/intervention/finalization-modal-live.tsx:568`** 🟢 **SIMPLE**
+   - After photos grid in finalization modal
+   - Same hover scale animation
+   - Easy to convert to Next.js Image
+
+**Impact Analysis**:
+
+**❌ Why NOT Critical**:
+- **Context**: All images in **modal dialogs** (not initial page load)
+- **Source**: Supabase Storage already provides:
+  - ✅ CDN delivery (edge caching globally)
+  - ✅ Optimized storage
+  - ✅ Fast response times
+- **Volume**: Only 3 instances across entire codebase
+- **Performance**: Marginal improvement (modals opened on user action, not render-blocking)
+
+**✅ Benefits of Next.js Image** (if implemented):
+- **Lazy Loading**: Defers image load until modal opens (but modal itself is already lazy-rendered)
+- **Format Optimization**: Serves WebP/AVIF if supported
+  - ⚠️ **BUT**: Supabase Storage URLs are direct file links, Next.js can't re-encode without proxy
+- **Responsive Images**: Generates srcset for different sizes
+  - ⚠️ **BUT**: These are full-size document views, no responsive sizing needed
+
+**🔧 Implementation Complexity**:
+
+**Case 1: document-viewer-modal.tsx** (Complex):
 ```typescript
-// ❌ Raw img tag
-<img src={documentUrl} alt="Document preview" />
+// ❌ CURRENT: Direct CSS transforms
+<img
+  src={viewUrl}
+  style={{ transform: `scale(${zoom/100}) rotate(${rotation}deg)` }}
+  className="max-w-full max-h-full object-contain"
+/>
 
-// ✅ Next.js Image component
-import Image from 'next/image';
+// ✅ WOULD NEED: Wrapper div for transforms
+<div style={{ transform: `scale(${zoom/100}) rotate(${rotation}deg)` }}>
+  <Image
+    src={viewUrl}
+    alt="Document preview"
+    fill
+    className="object-contain"
+  />
+</div>
 
+// ⚠️ PROBLEM: fill mode requires position:relative parent
+// Introduces layout shift issues with zoom/rotation
+```
+
+**Cases 2 & 3: finalization-modal-live.tsx** (Simple):
+```typescript
+// ❌ CURRENT
+<img
+  src={photo.url}
+  alt="Photo"
+  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+/>
+
+// ✅ MIGRATION (straightforward)
 <Image
-  src={documentUrl}
-  alt="Document preview"
-  width={800}
-  height={600}
-  placeholder="blur"
-  quality={85}
+  src={photo.url}
+  alt="Photo"
+  fill
+  sizes="(max-width: 768px) 50vw, 25vw"
+  className="object-cover transition-transform group-hover:scale-105"
 />
 ```
 
-**Priority**: 🔴 **Replace raw img tags with Next.js Image**
+**⚙️ Additional Configuration Required**:
+
+```javascript
+// next.config.js
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co', // Supabase Storage CDN
+        pathname: '/storage/v1/object/**',
+      },
+    ],
+  },
+}
+```
+
+**Why Deferred**:
+
+1. **Minimal Performance Gain**:
+   - Images not in critical render path (modal-only)
+   - Supabase Storage already CDN-optimized
+   - No format re-encoding possible (external URLs)
+   - Expected improvement: < 5% on modal open time
+
+2. **Implementation Complexity**:
+   - 1 complex case (zoom/rotation) requires significant refactoring
+   - Risk of introducing layout bugs
+   - Testing effort disproportionate to benefit
+
+3. **Low Volume**:
+   - Only 3 instances across entire codebase
+   - No pattern of widespread raw `<img>` usage
+   - Most images already use Next.js Image where appropriate
+
+4. **Better Priorities**:
+   - N+1 queries: **80% performance gain** ✅ DONE
+   - DB indexes: **75% query speedup** ✅ DONE
+   - Image optimization: **< 5% modal improvement** ❌ LOW ROI
+
+**Recommendation**:
+
+**Option 1: Fix Simple Cases Only** (2 hours)
+- Convert finalization-modal-live.tsx (2 instances)
+- Leave document-viewer-modal.tsx as-is (complex transforms)
+- Add remotePatterns configuration
+- **ROI**: Low (marginal performance gain on modal load)
+
+**Option 2: Defer Until Major Refactor** ⭐ **RECOMMENDED**
+- Document findings (this section)
+- Revisit during modal component refactoring (Issue #3 Phase 2)
+- Address together with component decomposition
+- **ROI**: Higher (combine with broader modal optimization)
+
+**Priority**: 🟢 **DEFERRED - DOCUMENTED** - Revisit during Phase 3 modal refactoring
 
 ---
 

@@ -528,13 +528,45 @@ export function validateEnum<T extends string>(
   }
 }
 
+/**
+ * Hash a password using bcrypt with 12 rounds (industry standard for security)
+ *
+ * @param password - Plain text password to hash
+ * @returns Bcrypt hashed password (includes salt automatically)
+ *
+ * Security notes:
+ * - Uses bcrypt with 12 rounds (2^12 = 4096 iterations)
+ * - Automatically generates unique salt per password
+ * - Resistant to rainbow table attacks
+ * - Computationally expensive to brute force
+ * - Max password length: 72 bytes (bcrypt limitation)
+ */
 export async function hashPassword(password: string): Promise<string> {
-  // Simple hash function for demo - in production use bcrypt
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const bcrypt = await import('bcryptjs')
+
+  // Validate password length (bcrypt max is 72 bytes)
+  if (password.length > 72) {
+    throw new Error('Password too long (max 72 characters for bcrypt)')
+  }
+
+  // Hash with 12 rounds (industry standard balance between security and performance)
+  // Each additional round doubles the computational cost
+  // 12 rounds ≈ 250ms on modern hardware
+  return await bcrypt.hash(password, 12)
+}
+
+/**
+ * Compare a plain text password with a bcrypt hash
+ *
+ * @param password - Plain text password to verify
+ * @param hash - Bcrypt hash to compare against
+ * @returns true if password matches hash, false otherwise
+ *
+ * Note: This function is constant-time to prevent timing attacks
+ */
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
+  const bcrypt = await import('bcryptjs')
+  return await bcrypt.compare(password, hash)
 }
 
 // Relations

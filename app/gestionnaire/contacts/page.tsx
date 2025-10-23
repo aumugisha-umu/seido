@@ -15,6 +15,20 @@ export default async function ContactsPage() {
     logger.info("🔵 [CONTACTS-PAGE] Server-side fetch starting")
     const { user, team } = await getServerAuthContext('gestionnaire')
 
+    // ✅ Defensive guard in case team is unexpectedly missing
+    if (!team || !team.id) {
+      logger.warn('⚠️ [CONTACTS-PAGE] Missing team in auth context, rendering empty state')
+      return (
+        <ContactsPageClient
+          initialContacts={[]}
+          initialInvitations={[]}
+          initialContactsInvitationStatus={{}}
+          userTeam={{ id: '', name: '' }}
+          user={{ id: user?.id ?? '', email: user?.email ?? '' }}
+        />
+      )
+    }
+
     // ✅ Create services
     const contactService = await createServerContactService()
 

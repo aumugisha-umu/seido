@@ -19,6 +19,20 @@ export default async function NouvelleInterventionPage() {
     // Remplace ~50 lignes d'auth manuelle !
     const { team } = await getServerAuthContext('gestionnaire')
 
+    // ✅ Defensive guard: ensure team exists before accessing team.id
+    if (!team || !team.id) {
+      logger.warn('⚠️ [INTERVENTION-PAGE-SERVER] Missing team in auth context, rendering empty state')
+      return (
+        <NouvelleInterventionClient
+          initialBuildingsData={{
+            buildings: [],
+            lots: [],
+            teamId: null
+          }}
+        />
+      )
+    }
+
     logger.info('✅ [INTERVENTION-PAGE-SERVER] Auth context loaded', {
       teamId: team.id,
       teamName: team.name

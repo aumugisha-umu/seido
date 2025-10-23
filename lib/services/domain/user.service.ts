@@ -243,16 +243,23 @@ export class UserService {
       )
     }
 
-    // Verify all users exist
-    for (const userId of userIds) {
-      const user = await this.repository.findById(userId)
-      if (!user.success || !user.data) {
-        return {
-          success: false as const,
-          error: {
-            code: 'NOT_FOUND',
-            message: `User with ID ${userId} not found`
-          }
+    // ✅ PERFORMANCE FIX (Oct 23, 2025 - Issue #1): Batch query instead of N+1
+    // Fetch all users in a single query instead of N separate queries
+    const usersResult = await this.repository.findByIds(userIds)
+    if (!usersResult.success) {
+      return usersResult
+    }
+
+    // Verify all requested users were found
+    const foundUserIds = new Set(usersResult.data.map(u => u.id))
+    const missingUserIds = userIds.filter(id => !foundUserIds.has(id))
+
+    if (missingUserIds.length > 0) {
+      return {
+        success: false as const,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Users not found: ${missingUserIds.join(', ')}`
         }
       }
     }

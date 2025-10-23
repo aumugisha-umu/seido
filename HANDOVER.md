@@ -1486,53 +1486,102 @@ export function middleware(request: NextRequest) {
 
 ### 🔴 CRITICAL Performance Issues
 
-#### 1. N+1 Query Pattern - MULTIPLE LOCATIONS
+#### 1. N+1 Query Pattern - 🟡 PARTIALLY RESOLVED (Oct 23, 2025)
 
-**Issue**: Sequential database queries in loops causing exponential query count.
+**Status**: 🟡 **2 of 3 locations fixed** - User and Lot services now use batch queries
 
-**Locations**:
-- `lib/services/domain/user.service.ts:247` - User fetching loop
-- `lib/services/domain/lot.service.ts:448` - Lot fetching loop
-- `app/api/create-intervention/route.ts:315-486` - Intervention creation (10+ sequential DB calls)
+**Original Issue**: Sequential database queries in loops causing exponential query count.
 
-**Impact**:
+**Locations & Status**:
+- ✅ `lib/services/domain/user.service.ts:247` - **FIXED** with batch query (Oct 23, 2025)
+- ✅ `lib/services/domain/lot.service.ts:448` - **FIXED** with batch query (Oct 23, 2025)
+- ❌ `app/api/create-intervention/route.ts:315-486` - **STILL NEEDS FIX** (10+ sequential DB calls)
+
+**Impact Before Fix**:
 - ❌ Dashboard loads: 50+ separate queries
-- ❌ Intervention creation: 10-15 sequential DB calls
+- ❌ User operations: N separate queries per user
+- ❌ Lot operations: 2N queries per lot (findById + referenceExists)
 - ❌ Response time: 2-5 seconds instead of < 200ms
 
-**Example**:
+**Fixes Applied**:
+
+**1. User Service - N queries → 1 query** (`user.service.ts:246-267`):
 ```typescript
-// ❌ lib/services/domain/user.service.ts:247
+// ❌ BEFORE (N+1 Pattern)
 for (const userId of userIds) {
-  const user = await this.getUserById(userId); // N+1 query!
-  users.push(user);
+  const user = await this.repository.findById(userId);  // N separate queries!
+  if (!user.success || !user.data) {
+    return { success: false, error: { code: 'NOT_FOUND', message: `User ${userId} not found` } }
+  }
+}
+
+// ✅ AFTER (Oct 23, 2025 - Issue #1)
+// Fetch all users in a single query instead of N separate queries
+const usersResult = await this.repository.findByIds(userIds)
+if (!usersResult.success) {
+  return usersResult
+}
+
+// Verify all requested users were found (Set-based O(1) lookup)
+const foundUserIds = new Set(usersResult.data.map(u => u.id))
+const missingUserIds = userIds.filter(id => !foundUserIds.has(id))
+
+if (missingUserIds.length > 0) {
+  return {
+    success: false as const,
+    error: {
+      code: 'NOT_FOUND',
+      message: `Users not found: ${missingUserIds.join(', ')}`
+    }
+  }
 }
 ```
 
-**Recommendation**:
+**2. Lot Service - 2N queries → 1+N queries** (`lot.service.ts:446-489`):
 ```typescript
-// ✅ Use DataLoader or batch queries
-import DataLoader from 'dataloader';
+// ✅ PERFORMANCE FIX (Oct 23, 2025 - Issue #1): Batch query instead of N+1
+// Fetch all lots in a single query (was N queries)
+const lotsResult = await this.repository.findByIds(lotIds)
+if (!lotsResult.success) {
+  return lotsResult
+}
 
-const userLoader = new DataLoader(async (userIds: UUID[]) => {
-  const { data } = await supabase
-    .from('users')
-    .select('*')
-    .in('id', userIds); // Single query for all IDs
+// Verify all requested lots were found
+const foundLotIds = new Set(lotsResult.data.map(l => l.id))
+const missingLotIds = lotIds.filter(id => !foundLotIds.has(id))
 
-  return userIds.map(id => data.find(u => u.id === id));
-});
+if (missingLotIds.length > 0) {
+  return {
+    success: false as const,
+    error: { code: 'NOT_FOUND', message: `Lots not found: ${missingLotIds.join(', ')}` }
+  }
+}
 
-// Usage
-const users = await Promise.all(userIds.map(id => userLoader.load(id)));
+// Check for reference conflicts (still N queries, but unavoidable without batch API)
+// TODO: Could be optimized further with a batch referenceExists check
+const lotsToMove = []
+for (const lot of lotsResult.data) {
+  const referenceCheck = await this.repository.referenceExists(lot.reference, targetBuildingId)
+  // ... conflict handling
+}
 ```
 
-**Files to Fix**:
-- `lib/services/domain/user.service.ts`
-- `lib/services/domain/lot.service.ts`
-- `app/api/create-intervention/route.ts`
+**Infrastructure Added**:
+- ✅ `user.repository.ts:305-327` - `findByIds()` batch method
+- ✅ `lot.repository.ts:597-619` - `findByIds()` batch method
+- ✅ Set-based validation for O(1) membership checking
+- ✅ Detailed error messages listing missing IDs
 
-**Priority**: 🔴 **Fix immediately - major performance bottleneck**
+**Performance Improvements**:
+- ✅ User operations: **N queries → 1 query** (~90% reduction)
+- ✅ Lot operations: **2N queries → 1+N queries** (~50% reduction)
+- ⏳ Expected response time: < 500ms (down from 2-5 seconds)
+
+**Remaining Work**:
+- ❌ `app/api/create-intervention/route.ts` - 10+ sequential DB calls still need batch refactoring
+- 🔍 Consider DataLoader for request-level caching across multiple API routes
+
+**Priority**: 🟡 **Critical locations fixed, remaining route less frequently used**
 
 ---
 

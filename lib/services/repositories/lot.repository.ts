@@ -578,7 +578,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       return { success: true as const, data: [] }
     }
 
-    const { data, error } = await this.supabase
+    const { data, error} = await this.supabase
       .from(this.tableName)
       .update({
         building_id: buildingId,
@@ -586,6 +586,30 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       })
       .in('id', lotIds)
       .select()
+
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
+   * Find multiple lots by IDs in a single query (batch operation)
+   * ✅ PERFORMANCE FIX (Oct 23, 2025 - Issue #1): Prevents N+1 query pattern
+   *
+   * @param lotIds Array of lot IDs to fetch
+   * @returns Array of lots (may be less than input if some IDs don't exist)
+   */
+  async findByIds(lotIds: string[]) {
+    if (!lotIds.length) {
+      return { success: true as const, data: [] }
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .in('id', lotIds)
 
     if (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:query`))

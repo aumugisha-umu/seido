@@ -531,6 +531,13 @@ export function validateEnum<T extends string>(
 /**
  * Hash a password using bcrypt with 12 rounds (industry standard for security)
  *
+ * ⚠️ **IMPORTANT: Currently UNUSED in production!**
+ * - Supabase Auth manages all password hashing internally
+ * - Auth passwords are passed plain to `supabase.auth.admin.createUser({ password })`
+ * - Supabase hashes them securely (bcrypt/argon2)
+ * - This function is imported by user.service.ts but public.users has no password_hash column
+ * - Kept for potential future use cases (custom auth, password encryption, etc.)
+ *
  * @param password - Plain text password to hash
  * @returns Bcrypt hashed password (includes salt automatically)
  *

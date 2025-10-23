@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { quoteRequestUpdateSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 interface RouteParams {
   params: Promise<{
@@ -86,6 +87,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(quoteRequestUpdateSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-REQUEST-PATCH] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const { action, ...updateData } = body
 
     // Get quote request

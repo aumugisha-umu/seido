@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerContactInvitationService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { revokeInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * POST /api/revoke-invitation
@@ -19,13 +20,21 @@ export async function POST(request: NextRequest) {
     const { userProfile: managerResult } = authResult.data
 
     // 3. Parser les données de la requête
-    const { contactId, teamId } = await request.json()
+    const body = await request.json()
 
-    if (!contactId || !teamId) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(revokeInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [REVOKE-INVITATION] Validation failed')
       return NextResponse.json({
-        error: "Contact ID et Team ID requis"
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { contactId, teamId } = validatedData
 
     logger.info({
       contactId,

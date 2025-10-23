@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { checkActiveUsersSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Client admin pour les opérations privilégiées
 const supabaseAdmin = createClient(
@@ -22,30 +23,30 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) return authResult.error
 
     const body = await request.json()
-    const { emails, teamId } = body
 
-    if (!emails || !Array.isArray(emails) || emails.length === 0) {
-      return NextResponse.json(
-        { error: 'emails array is required' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(checkActiveUsersSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CHECK-ACTIVE-USERS] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
 
-    if (!teamId) {
-      return NextResponse.json(
-        { error: 'teamId is required' },
-        { status: 400 }
-      )
-    }
+    const validatedData = validation.data
+    const { emails, teamId } = validatedData
 
     logger.info({ emailCount: emails.length, teamId }, '👥 [CHECK-ACTIVE-USERS] Checking emails for team')
 
     // Vérifier quels emails correspondent à des utilisateurs actifs
     // Un utilisateur est "actif" s'il existe dans la table users avec cet email
+    // Emails already normalized by schema (toLowerCase + trim)
     const { data: activeUsers, error } = await supabaseAdmin
       .from('users')
       .select('email')
-      .in('email', emails.map(email => email.toLowerCase()))
+      .in('email', emails)
       .eq('team_id', teamId)
 
     if (error) {

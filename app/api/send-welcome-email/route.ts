@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/email/email-service'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { sendWelcomeEmailSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * 📧 API ROUTE - Envoi Email de Bienvenue
@@ -15,15 +16,20 @@ export async function POST(request: NextRequest) {
   try {
     logger.info({}, '📧 [WELCOME-EMAIL-API] Starting welcome email send...')
 
-    const { userId } = await request.json()
+    const body = await request.json()
 
-    if (!userId) {
-      logger.error({}, '❌ [WELCOME-EMAIL-API] Missing userId in request')
-      return NextResponse.json(
-        { success: false, error: 'Missing userId' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(sendWelcomeEmailSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [WELCOME-EMAIL-API] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const { userId, email, firstName } = validation.data
 
     // ✅ AUTH: createServerSupabaseClient pattern → getApiAuthContext (29 lignes → 3 lignes)
     const authResult = await getApiAuthContext()
@@ -54,11 +60,10 @@ export async function POST(request: NextRequest) {
     }, '✅ [WELCOME-EMAIL-API] User profile found:')
 
     // ✅ ENVOYER EMAIL: Email de bienvenue via Resend
-    const firstName = authUser.user_metadata?.first_name || authUser.email?.split('@')[0] || 'Utilisateur'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    logger.info({ user: authUser.email }, '📧 [WELCOME-EMAIL-API] Sending welcome email to:')
-    const emailResult = await emailService.sendWelcomeEmail(authUser.email!, {
+    logger.info({ user: email }, '📧 [WELCOME-EMAIL-API] Sending welcome email to:')
+    const emailResult = await emailService.sendWelcomeEmail(email, {
       firstName,
       confirmationUrl: `${appUrl}/auth/login`,
       role: userRole

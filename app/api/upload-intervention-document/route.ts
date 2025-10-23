@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { uploadInterventionDocumentSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Helper function to determine document type from file type and name
 function getDocumentType(mimeType: string, filename: string): string {
@@ -54,21 +55,42 @@ export async function POST(request: NextRequest) {
 
     // Parse the form data
     const formData = await request.formData()
-    const interventionId = formData.get('interventionId') as string
     const file = formData.get('file') as File
-    const description = formData.get('description') as string || ''
 
-    if (!interventionId || !file) {
-      return NextResponse.json({ 
-        error: 'interventionId et file sont requis' 
+    // Validation basique du fichier
+    if (!file) {
+      return NextResponse.json({
+        error: 'file est requis'
       }, { status: 400 })
     }
 
+    // Construire l'objet pour validation Zod
+    const requestData = {
+      interventionId: formData.get('interventionId') as string,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      description: formData.get('description') as string | undefined
+    }
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(uploadInterventionDocumentSchema, requestData)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [UPLOAD-INTERVENTION-DOC] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+
     logger.info({
-      interventionId,
-      filename: file.name,
-      size: file.size,
-      type: file.type
+      interventionId: validatedData.interventionId,
+      filename: validatedData.fileName,
+      size: validatedData.fileSize,
+      type: validatedData.fileType
     }, "📁 Processing file upload:")
 
     // Verify that the user has access to this intervention
@@ -81,7 +103,7 @@ export async function POST(request: NextRequest) {
           members:team_members!inner(user_id)
         )
       `)
-      .eq('id', interventionId)
+      .eq('id', validatedData.interventionId)
       .single()
 
     if (interventionError || !intervention) {
@@ -104,8 +126,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename and storage path
-    const uniqueFilename = generateUniqueFilename(file.name)
-    const storagePath = `interventions/${interventionId}/${uniqueFilename}`
+    const uniqueFilename = generateUniqueFilename(validatedData.fileName)
+    const storagePath = `interventions/${validatedData.interventionId}/${uniqueFilename}`
 
     logger.info({ storagePath: storagePath }, "☁️ Uploading to Supabase Storage:")
 
@@ -130,16 +152,16 @@ export async function POST(request: NextRequest) {
     const { data: document, error: docError } = await supabase
       .from('intervention_documents')
       .insert({
-        intervention_id: interventionId,
+        intervention_id: validatedData.interventionId,
         filename: uniqueFilename,
-        original_filename: file.name,
-        file_size: file.size,
-        mime_type: file.type,
+        original_filename: validatedData.fileName,
+        file_size: validatedData.fileSize,
+        mime_type: validatedData.fileType,
         storage_path: uploadData.path,
         storage_bucket: 'intervention-documents',
-        document_type: getDocumentType(file.type, file.name),
+        document_type: getDocumentType(validatedData.fileType, validatedData.fileName),
         uploaded_by: userProfile.id,
-        description: description || `Document ajouté pour l'intervention`
+        description: validatedData.description || `Document ajouté pour l'intervention`
       })
       .select(`
         *,
@@ -170,7 +192,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from('interventions')
       .update({ has_attachments: true })
-      .eq('id', interventionId)
+      .eq('id', validatedData.interventionId)
 
     if (updateError) {
       logger.warn({ updateError: updateError }, "⚠️ Warning: Could not update intervention has_attachments flag:")

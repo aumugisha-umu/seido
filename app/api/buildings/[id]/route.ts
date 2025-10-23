@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { createBuildingService } from '@/lib/services/domain/building.service'
 import type { UpdateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { updateBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * GET /api/buildings/[id]
@@ -71,19 +72,32 @@ export async function PUT(
     const { supabase, userProfile } = authResult.data
 
     // Parser le body
-    const body: UpdateBuildingDTO = await request.json()
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(updateBuildingSchema, { ...body, id })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [BUILDINGS-API] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const { id: _id, ...validatedData } = validation.data
 
     logger.info({
       buildingId: id,
       userId: userProfile.id,
-      updates: Object.keys(body)
+      updates: Object.keys(validatedData)
     }, '🏢 [BUILDINGS-API] PUT request - Updating building')
 
     // Initialiser le service
     const buildingService = createBuildingService(supabase)
 
     // Mettre à jour le bâtiment
-    const result = await buildingService.update(id, body)
+    const result = await buildingService.update(id, validatedData as UpdateBuildingDTO)
 
     if (!result.success) {
       logger.error({ buildingId: id, error: result.error }, '❌ [BUILDINGS-API] Error updating building')

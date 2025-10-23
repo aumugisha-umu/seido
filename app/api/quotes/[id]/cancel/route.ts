@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { quoteCancelSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function PATCH(
   request: NextRequest,

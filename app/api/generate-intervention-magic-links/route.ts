@@ -6,6 +6,7 @@ import { createServerUserService } from '@/lib/services'
 import crypto from 'crypto'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { generateMagicLinksSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Admin client for sending emails
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -33,20 +34,26 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(generateMagicLinksSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [GENERATE-MAGIC-LINKS] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       interventionId,
       providerEmails, // Array of email addresses for external providers
       deadline,
       additionalNotes,
       individualMessages = {}
-    } = body
-
-    if (!interventionId || !providerEmails || !Array.isArray(providerEmails) || providerEmails.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'interventionId et providerEmails (array) sont requis'
-      }, { status: 400 })
-    }
+    } = validatedData
 
     logger.info({ interventionId, providerEmails }, "📝 Generating magic links for intervention")
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { notificationActionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function GET(request: NextRequest) {
   try {
@@ -212,7 +213,20 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
 
     const notificationId = searchParams.get('id')
-    const action = body.action // 'mark_read', 'mark_unread', 'archive', etc.
+
+    // ✅ ZOD VALIDATION (for body only, ID comes from query params)
+    const validation = validateRequest(notificationActionSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [NOTIFICATIONS-PATCH] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const action = validatedData.action // 'mark_read', 'mark_unread', 'archive', etc.
 
     // ✅ AUTH: getServerSession + createServerSupabaseClient + userService → getApiAuthContext (22 lignes → 3 lignes)
     const authResult = await getApiAuthContext()

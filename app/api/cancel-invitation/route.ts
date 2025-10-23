@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { cancelInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Client admin Supabase pour les opérations privilégiées
 const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Database>(
@@ -33,14 +34,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { invitationId } = body
 
-    if (!invitationId) {
-      return NextResponse.json(
-        { error: 'ID d\'invitation manquant' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(cancelInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CANCEL-INVITATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { invitationId, reason } = validatedData
 
     logger.info({ invitationId: invitationId }, '🚫 [CANCEL-INVITATION-API] Processing cancellation for invitation:')
     logger.info({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { quoteApproveSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(
   request: NextRequest,
@@ -15,8 +16,22 @@ export async function POST(
 
     const { supabase, userProfile: userData, authUser: user } = authResult.data
 
-    const { comments } = await request.json()
+    const body = await request.json()
     const { id } = await params
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(quoteApproveSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-APPROVE] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { notes: comments } = validatedData
 
     logger.info({
       quoteId: id,

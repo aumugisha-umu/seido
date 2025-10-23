@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { quoteRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(
   request: NextRequest,
@@ -13,14 +14,22 @@ export async function POST(
 
     const { supabase, userProfile: userData } = authResult.data
 
-    const { reason } = await request.json()
+    const body = await request.json()
     const { id } = await params
 
-    if (!reason || reason.trim().length === 0) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(quoteRejectSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-REJECT] Validation failed')
       return NextResponse.json({
-        error: 'Un motif de rejet est requis'
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { reason } = validatedData
 
     // Récupérer le devis par ID seulement
     const { data: quote, error: quoteError } = await supabase

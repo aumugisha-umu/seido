@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { createPropertyDocumentService, createStorageService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { uploadPropertyDocumentSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * POST /api/property-documents/upload
@@ -29,16 +30,8 @@ export async function POST(request: NextRequest) {
     // Parser FormData
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const documentType = formData.get('document_type') as string
-    const teamId = formData.get('team_id') as string
-    const buildingId = formData.get('building_id') as string | null
-    const lotId = formData.get('lot_id') as string | null
-    const visibilityLevel = (formData.get('visibility_level') as string) || 'equipe'
-    const title = formData.get('title') as string | null
-    const description = formData.get('description') as string | null
-    const expiryDate = formData.get('expiry_date') as string | null
 
-    // Validation
+    // Validation basique du fichier
     if (!file) {
       return NextResponse.json({
         success: false,
@@ -46,6 +39,37 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Construire l'objet pour validation Zod
+    const requestData = {
+      buildingId: formData.get('building_id') as string | undefined,
+      lotId: formData.get('lot_id') as string | undefined,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      visibility: (formData.get('visibility_level') as string) || 'equipe',
+      description: formData.get('description') as string | undefined
+    }
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(uploadPropertyDocumentSchema, requestData)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [PROPERTY-DOCS-UPLOAD] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+
+    // Récupérer les champs restants après validation
+    const documentType = formData.get('document_type') as string
+    const teamId = formData.get('team_id') as string
+    const title = formData.get('title') as string | null
+    const expiryDate = formData.get('expiry_date') as string | null
+
+    // Validation des champs non validés par Zod
     if (!documentType || !teamId) {
       return NextResponse.json({
         success: false,
@@ -53,29 +77,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Valider XOR building_id/lot_id
-    if (!buildingId && !lotId) {
-      return NextResponse.json({
-        success: false,
-        error: 'building_id ou lot_id est requis'
-      }, { status: 400 })
-    }
-
-    if (buildingId && lotId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Fournir soit building_id SOIT lot_id, pas les deux'
-      }, { status: 400 })
-    }
-
     logger.info({
-      filename: file.name,
-      size: file.size,
-      type: file.type,
+      filename: validatedData.fileName,
+      size: validatedData.fileSize,
+      type: validatedData.fileType,
       documentType,
       teamId,
-      buildingId,
-      lotId,
+      buildingId: validatedData.buildingId,
+      lotId: validatedData.lotId,
       userId: userProfile.id
     }, '📤 [PROPERTY-DOCS-UPLOAD] Starting upload')
 
@@ -85,8 +94,8 @@ export async function POST(request: NextRequest) {
 
     // Générer un nom de fichier unique
     const timestamp = Date.now()
-    const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const storagePath = `${teamId}/${buildingId || lotId}/${timestamp}_${sanitizedFilename}`
+    const sanitizedFilename = validatedData.fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const storagePath = `${teamId}/${validatedData.buildingId || validatedData.lotId}/${timestamp}_${sanitizedFilename}`
 
     // Upload vers Storage
     const uploadResult = await storageService.uploadFile({
@@ -107,18 +116,18 @@ export async function POST(request: NextRequest) {
     // Créer l'entrée en base de données
     const documentData = {
       filename: sanitizedFilename,
-      original_filename: file.name,
-      file_size: file.size,
-      mime_type: file.type,
+      original_filename: validatedData.fileName,
+      file_size: validatedData.fileSize,
+      mime_type: validatedData.fileType,
       storage_path: uploadResult.data!.path,
       storage_bucket: 'property-documents',
       document_type: documentType,
       team_id: teamId,
-      building_id: buildingId || undefined,
-      lot_id: lotId || undefined,
-      visibility_level: visibilityLevel as 'equipe' | 'locataire',
+      building_id: validatedData.buildingId || undefined,
+      lot_id: validatedData.lotId || undefined,
+      visibility_level: validatedData.visibility as 'equipe' | 'locataire',
       title: title || undefined,
-      description: description || undefined,
+      description: validatedData.description || undefined,
       expiry_date: expiryDate || undefined,
       uploaded_by: userProfile.id
     }

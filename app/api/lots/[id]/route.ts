@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotUpdate } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { updateLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * GET /api/lots/[id]
@@ -71,19 +72,32 @@ export async function PUT(
     const { supabase, userProfile } = authResult.data
 
     // Parser le body
-    const body: LotUpdate = await request.json()
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(updateLotSchema, { ...body, id })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [LOTS-API] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const { id: _id, ...validatedData } = validation.data
 
     logger.info({
       lotId: id,
       userId: userProfile.id,
-      updates: Object.keys(body)
+      updates: Object.keys(validatedData)
     }, '🏠 [LOTS-API] PUT request - Updating lot')
 
     // Initialiser le service
     const lotService = await createLotService()
 
     // Mettre à jour le lot
-    const result = await lotService.update(id, body)
+    const result = await lotService.update(id, validatedData as LotUpdate)
 
     if (!result.success) {
       logger.error({ lotId: id, error: result.error }, '❌ [LOTS-API] Error updating lot')

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { checkEmailTeamSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -57,19 +58,25 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, teamId } = body
 
-    if (!email || !teamId) {
-      return NextResponse.json(
-        { error: 'Email et teamId sont requis' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(checkEmailTeamSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CHECK-EMAIL-TEAM] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { email, teamId } = validatedData
 
     logger.info({ email, teamId }, '🔍 [CHECK-EMAIL-TEAM] Validating email for team')
 
-    // Normaliser l'email
-    const normalizedEmail = email.trim().toLowerCase()
+    // Email already normalized by schema (toLowerCase + trim)
+    const normalizedEmail = email
 
     // Vérifier si l'email existe dans l'équipe courante (Service Role bypass RLS)
     const { data: existingInCurrentTeam, error: currentTeamError } = await supabaseAdmin

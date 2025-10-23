@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { uploadAvatarSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * POST /api/upload-avatar
@@ -18,28 +19,32 @@ export async function POST(request: NextRequest) {
     // Récupérer le fichier depuis FormData
     const formData = await request.formData()
     const file = formData.get('avatar') as File
-    
+
     if (!file) {
-      return NextResponse.json({ 
-        error: "Aucun fichier fourni" 
+      return NextResponse.json({
+        error: "Aucun fichier fourni"
       }, { status: 400 })
     }
 
-    // Validation du fichier
-    const maxSize = 5 * 1024 * 1024 // 5MB
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    
-    if (file.size > maxSize) {
-      return NextResponse.json({ 
-        error: "Le fichier est trop volumineux (maximum 5MB)" 
-      }, { status: 400 })
+    // Construire l'objet pour validation Zod
+    const requestData = {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
     }
-    
-    if (!allowedTypes.includes(file.type)) {
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(uploadAvatarSchema, requestData)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [UPLOAD-AVATAR] Validation failed')
       return NextResponse.json({
-        error: "Type de fichier non supporté (JPG, PNG, WebP uniquement)"
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
 
     logger.info({ user: authUser.email }, "📸 [UPLOAD-AVATAR] Processing upload for user:")
 

@@ -5,6 +5,7 @@ import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { inviteUserSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -40,6 +41,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(inviteUserSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [INVITE-USER] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       email,
       firstName,
@@ -51,7 +65,7 @@ export async function POST(request: Request) {
       notes, // ✅ AJOUT: Notes sur le contact
       speciality, // ✅ AJOUT: Spécialité pour les prestataires
       shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
-    } = body
+    } = validatedData
 
     logger.info({
       email,

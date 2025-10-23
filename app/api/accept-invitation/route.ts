@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { acceptInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

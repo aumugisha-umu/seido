@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
+import { acceptInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
@@ -41,7 +42,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { token } = body // ✅ Token seul, pas besoin d'email
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(acceptInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [ACCEPT-INVITATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { token, password } = validatedData // ✅ Token + password from validation
 
     logger.info({ token }, '🔍 [ACCEPT-INVITATION] Validating invitation token:')
 

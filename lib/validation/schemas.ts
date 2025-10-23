@@ -100,14 +100,12 @@ export const acceptInvitationSchema = z.object({
 
 /**
  * POST /api/create-provider-account
+ * Magic link flow for external providers
  */
 export const createProviderAccountSchema = z.object({
   email: emailSchema,
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().min(1).max(100).trim(),
-  companyName: z.string().min(1).max(200).trim(),
-  phone: phoneSchema,
-  teamId: uuidSchema,
+  magicLinkToken: z.string().min(16, { message: 'Invalid magic link token' }),
+  interventionId: uuidSchema,
 })
 
 // ============================================================================
@@ -115,7 +113,15 @@ export const createProviderAccountSchema = z.object({
 // ============================================================================
 
 /**
- * POST /api/update-user-profile
+ * PATCH /api/update-user-profile
+ * Only updates password_set flag (not full profile update)
+ */
+export const updatePasswordSetSchema = z.object({
+  password_set: z.boolean(),
+})
+
+/**
+ * Future: Full profile update schema (not currently used)
  */
 export const updateUserProfileSchema = z.object({
   firstName: z.string().min(1).max(100).trim().optional(),
@@ -126,13 +132,21 @@ export const updateUserProfileSchema = z.object({
 
 /**
  * POST /api/invite-user
+ * Creates contact + optionally sends invitation
  */
 export const inviteUserSchema = z.object({
   email: emailSchema,
+  firstName: z.string().min(1).max(100).trim(),
+  lastName: z.string().min(1).max(100).trim(),
   role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire'], {
     errorMap: () => ({ message: 'Invalid role' })
   }),
-  teamId: uuidSchema.optional(),
+  providerCategory: z.enum(['syndic', 'notaire', 'assurance', 'proprietaire', 'prestataire', 'autre']).optional().nullable(),
+  teamId: uuidSchema,
+  phone: phoneSchema.nullable(),
+  notes: z.string().max(2000).trim().optional().nullable(),
+  speciality: z.string().max(100).trim().optional().nullable(),
+  shouldInviteToApp: z.boolean().optional().default(false),
 })
 
 // ============================================================================
@@ -208,17 +222,23 @@ export const updateLotSchema = createLotSchema.partial().extend({
 
 /**
  * POST /api/create-contact
+ * Uses snake_case to match database field names
  */
 export const createContactSchema = z.object({
+  name: z.string().min(1).max(200).trim(),
+  first_name: z.string().max(100).trim().optional().nullable(),
+  last_name: z.string().max(100).trim().optional().nullable(),
   email: emailSchema,
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().min(1).max(100).trim(),
-  phone: phoneSchema,
+  phone: z.string().max(50).trim().optional().nullable(),
+  address: z.string().max(500).trim().optional().nullable(),
+  notes: z.string().max(2000).trim().optional().nullable(),
   role: z.enum(['gestionnaire', 'locataire', 'prestataire'], {
     errorMap: () => ({ message: 'Invalid contact role' })
   }),
-  teamId: uuidSchema,
-  companyName: z.string().max(200).trim().optional(),
+  provider_category: z.enum(['syndic', 'notaire', 'assurance', 'proprietaire', 'prestataire', 'autre']).optional().nullable(),
+  speciality: z.string().max(100).trim().optional().nullable(),
+  team_id: uuidSchema,
+  is_active: z.boolean().optional().default(true),
 })
 
 /**
@@ -604,6 +624,25 @@ export const updatePropertyDocumentSchema = z.object({
   visibility: documentVisibilityEnum.optional(),
 })
 
+/**
+ * POST /api/property-documents (actual DTO used by upload service)
+ * Uses snake_case to match CreatePropertyDocumentDTO interface
+ */
+export const createPropertyDocumentDTOSchema = z.object({
+  filename: z.string().min(1).max(255).trim(),
+  original_filename: z.string().min(1).max(255).trim(),
+  file_size: z.number().int().min(1).max(100000000), // 100MB max
+  mime_type: z.string().min(1).max(100).trim(),
+  storage_path: z.string().min(1).max(500).trim(),
+  document_type: z.string().min(1).max(100).trim(),
+  team_id: uuidSchema,
+  building_id: uuidSchema.optional().nullable(),
+  lot_id: uuidSchema.optional().nullable(),
+  description: z.string().max(2000).trim().optional().nullable(),
+}).refine(data => data.building_id || data.lot_id, {
+  message: 'Either building_id or lot_id must be provided'
+})
+
 // ============================================================================
 // INVITATION SCHEMAS
 // ============================================================================
@@ -625,18 +664,22 @@ export const resendInvitationSchema = z.object({
 
 /**
  * POST /api/revoke-invitation
+ * Revokes contact access (soft delete pattern)
  */
 export const revokeInvitationSchema = z.object({
-  invitationId: uuidSchema,
-  reason: z.string().max(500).trim().optional(),
+  contactId: uuidSchema,
+  teamId: uuidSchema,
 })
 
 /**
  * POST /api/mark-invitation-accepted
+ * Marks invitation as accepted using email or invitation code
  */
 export const markInvitationAcceptedSchema = z.object({
-  invitationId: uuidSchema,
-  acceptedAt: dateStringSchema.optional(),
+  email: emailSchema.optional(),
+  invitationCode: z.string().min(10).max(255).trim().optional(),
+}).refine(data => data.email || data.invitationCode, {
+  message: 'Either email or invitationCode must be provided'
 })
 
 // ============================================================================
@@ -657,10 +700,37 @@ export const sendWelcomeEmailSchema = z.object({
  */
 export const checkEmailTeamSchema = z.object({
   email: emailSchema,
+  teamId: uuidSchema,
 })
 
 /**
- * PATCH /api/notifications
+ * POST /api/check-active-users
+ */
+export const checkActiveUsersSchema = z.object({
+  emails: z.array(emailSchema).min(1).max(100),
+  teamId: uuidSchema,
+})
+
+/**
+ * POST /api/activity-logs
+ */
+export const createActivityLogSchema = z.object({
+  teamId: uuidSchema,
+  userId: uuidSchema,
+  actionType: z.string().min(1).max(100).trim(),
+  entityType: z.string().min(1).max(100).trim(),
+  entityId: uuidSchema.optional().nullable(),
+  entityName: z.string().max(200).trim().optional().nullable(),
+  description: z.string().min(1).max(1000).trim(),
+  status: z.enum(['success', 'error', 'warning', 'info']).default('success'),
+  metadata: z.record(z.unknown()).optional(),
+  errorMessage: z.string().max(2000).trim().optional().nullable(),
+  ipAddress: z.string().max(45).trim().optional().nullable(), // IPv6 max length
+  userAgent: z.string().max(500).trim().optional().nullable(),
+})
+
+/**
+ * PATCH /api/notifications (future batch update)
  */
 export const notificationUpdateSchema = z.object({
   notificationIds: z.array(uuidSchema).min(1).max(100),
@@ -668,12 +738,24 @@ export const notificationUpdateSchema = z.object({
 })
 
 /**
+ * PATCH /api/notifications (current single update with action)
+ */
+export const notificationActionSchema = z.object({
+  action: z.enum(['mark_read', 'mark_unread', 'archive', 'unarchive'], {
+    errorMap: () => ({ message: 'Invalid action' })
+  }),
+})
+
+/**
  * POST /api/generate-intervention-magic-links
+ * Generates magic links for external providers
  */
 export const generateMagicLinksSchema = z.object({
   interventionId: uuidSchema,
-  recipientTypes: z.array(z.enum(['manager', 'provider', 'tenant'])).min(1),
-  expiresIn: z.number().int().min(1).max(168).optional(), // max 1 week in hours
+  providerEmails: z.array(emailSchema).min(1).max(20, { message: 'Maximum 20 providers per request' }),
+  deadline: dateStringSchema.optional().nullable(),
+  additionalNotes: z.string().max(2000).trim().optional().nullable(),
+  individualMessages: z.record(z.string().max(2000).trim()).optional(),
 })
 
 // ============================================================================

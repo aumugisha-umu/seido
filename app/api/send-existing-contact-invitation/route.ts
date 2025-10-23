@@ -5,6 +5,7 @@ import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { sendContactInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,10 +26,21 @@ export async function POST(request: Request) {
     // ============================================================================
     // ÉTAPE 2: GET CONTACT
     // ============================================================================
-    const { contactId } = await request.json()
-    if (!contactId) {
-      return NextResponse.json({ error: 'contactId requis' }, { status: 400 })
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(sendContactInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [SEND-EXISTING-CONTACT-INVITATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { contactId, teamId } = validatedData
 
     const { data: contact, error: contactError } = await supabaseAdmin
       .from('users')

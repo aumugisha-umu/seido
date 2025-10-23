@@ -5,6 +5,7 @@ import { createServerUserService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createProviderAccountSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Admin client for creating auth users
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -42,18 +43,24 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(createProviderAccountSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CREATE-PROVIDER-ACCOUNT] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       email,
       magicLinkToken,
       interventionId
-    } = body
-
-    if (!email || !magicLinkToken || !interventionId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Email, token et interventionId sont requis'
-      }, { status: 400 })
-    }
+    } = validatedData
 
     logger.info({ email: email }, "📝 Creating provider account for:")
 

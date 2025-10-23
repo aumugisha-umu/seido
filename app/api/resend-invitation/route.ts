@@ -5,6 +5,7 @@ import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { resendInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Client admin Supabase pour les opérations privilégiées
 const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Database>(
@@ -34,14 +35,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { invitationId } = body
 
-    if (!invitationId) {
-      return NextResponse.json(
-        { error: 'ID d\'invitation manquant' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(resendInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [RESEND-INVITATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { invitationId } = validatedData
 
     logger.info({ invitationId: invitationId }, '🔄 [RESEND-INVITATION] Processing resend for invitation:')
 

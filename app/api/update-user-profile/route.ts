@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createServerUserService } from '@/lib/services'
+import { updatePasswordSetSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function PATCH(request: Request) {
   try {
@@ -13,7 +14,20 @@ export async function PATCH(request: Request) {
     const userService = await createServerUserService()
 
     const body = await request.json()
-    const { password_set } = body
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(updatePasswordSetSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [UPDATE-USER-PROFILE] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
+    const { password_set } = validatedData
 
     logger.info({ user: currentUserProfile.email, passwordSetTo: password_set }, '🔐 [UPDATE-USER-PROFILE] Updating password_set for user')
 

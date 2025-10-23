@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createActivityLogSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function GET(request: NextRequest) {
   try {
@@ -111,45 +112,35 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Validation des champs obligatoires
-    const {
-      teamId,
-      userId,
-      actionType,
-      entityType,
-      entityId,
-      entityName,
-      description,
-      status = 'success',
-      metadata = {},
-      errorMessage,
-      ipAddress,
-      userAgent
-    } = body
-
-    if (!teamId || !userId || !actionType || !entityType || !description) {
-      return NextResponse.json(
-        { error: 'Missing required fields: teamId, userId, actionType, entityType, description' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(createActivityLogSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [ACTIVITY-LOGS] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
 
     // Insertion du log
     const { data, error } = await supabase
       .from('activity_logs')
       .insert({
-        team_id: teamId,
-        user_id: userId,
-        action_type: actionType,
-        entity_type: entityType,
-        entity_id: entityId || null,
-        entity_name: entityName || null,
-        description,
-        status,
-        metadata,
-        error_message: errorMessage || null,
-        ip_address: ipAddress || null,
-        user_agent: userAgent || null,
+        team_id: validatedData.teamId,
+        user_id: validatedData.userId,
+        action_type: validatedData.actionType,
+        entity_type: validatedData.entityType,
+        entity_id: validatedData.entityId || null,
+        entity_name: validatedData.entityName || null,
+        description: validatedData.description,
+        status: validatedData.status,
+        metadata: validatedData.metadata || {},
+        error_message: validatedData.errorMessage || null,
+        ip_address: validatedData.ipAddress || null,
+        user_agent: validatedData.userAgent || null,
       })
       .select('*')
       .single()

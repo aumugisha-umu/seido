@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { markInvitationAcceptedSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 // Créer un client Supabase avec les permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -36,14 +37,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, invitationCode } = body
 
-    if (!email && !invitationCode) {
-      return NextResponse.json(
-        { error: 'Email ou code d\'invitation manquant' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(markInvitationAcceptedSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [MARK-INVITATION-ACCEPTED] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { email, invitationCode } = validatedData
 
     logger.info({ email, hasCode: !!invitationCode }, '📧 [MARK-INVITATION-API] Processing invitation acceptance:')
 

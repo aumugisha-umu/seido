@@ -2,7 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerContactService } from '@/lib/services'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createContactSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 // Créer un client Supabase avec les permissions service-role pour bypass les RLS
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -24,8 +27,25 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
+    // ✅ SECURITY FIX: Cette route n'avait AUCUNE vérification d'auth!
+    // N'importe qui pouvait créer des contacts sans être connecté
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
     const body = await request.json()
-    
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(createContactSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CREATE-CONTACT] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       name,
       first_name,
@@ -35,35 +55,19 @@ export async function POST(request: Request) {
       address,
       notes,
       role, // ✅ Nouveau champ direct
-      provider_category, // ✅ Nouveau champ direct  
+      provider_category, // ✅ Nouveau champ direct
       speciality,
       team_id,
       is_active = true
-    } = body
+    } = validatedData
 
-    logger.info({ 
-      email, 
-      role, 
+    logger.info({
+      email,
+      role,
       provider_category,
       team_id,
-      hasServiceRole: !!supabaseAdmin 
+      hasServiceRole: !!supabaseAdmin
     }, '🚀 [CREATE-CONTACT-API] Received request:')
-
-    // ✅ Validation des données requises (nouvelle logique)
-    if (!name || !email || !role || !team_id) {
-      return NextResponse.json(
-        { error: 'Données requises manquantes: name, email, role, team_id' },
-        { status: 400 }
-      )
-    }
-
-    // ✅ Validation spécifique pour les prestataires
-    if (role === 'prestataire' && !provider_category) {
-      return NextResponse.json(
-        { error: 'provider_category est obligatoire pour les prestataires' },
-        { status: 400 }
-      )
-    }
 
     // Préparer l'objet user (nouvelle architecture)
     const userToCreate = {

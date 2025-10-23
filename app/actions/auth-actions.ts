@@ -191,10 +191,16 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
 export async function signupAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
   logger.info('🚀 [SIGNUP-ACTION] Starting server-side signup...')
 
+  // ✅ PATTERN OFFICIEL NEXT.JS 15: Gestion d'erreur AVANT le try/catch principal
   try {
-    // ✅ SÉCURITÉ: Vérifier que l'utilisateur n'est pas déjà connecté
     await requireGuest()
+  } catch {
+    // Utilisateur déjà connecté - retourner succès
+    logger.info('🔄 [SIGNUP-ACTION] User already authenticated')
+    return { success: true, data: { message: 'Already authenticated' } }
+  }
 
+  try {
     // ✅ VALIDATION: Parser et valider les données
     const rawData = {
       email: formData.get('email') as string,
@@ -349,10 +355,16 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
 export async function resetPasswordAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
   logger.info('🚀 [RESET-PASSWORD-ACTION] Starting server-side reset...')
 
+  // ✅ PATTERN OFFICIEL NEXT.JS 15: Gestion d'erreur AVANT le try/catch principal
   try {
-    // ✅ SÉCURITÉ: Vérifier que l'utilisateur n'est pas déjà connecté
     await requireGuest()
+  } catch {
+    // Utilisateur déjà connecté - retourner succès
+    logger.info('🔄 [RESET-PASSWORD-ACTION] User already authenticated')
+    return { success: true, data: { message: 'Already authenticated' } }
+  }
 
+  try {
     // ✅ VALIDATION: Parser et valider les données
     const rawData = {
       email: formData.get('email') as string
@@ -364,7 +376,7 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     // ✅ AUTHENTIFICATION: Utiliser client server Supabase
     const supabase = await createServerSupabaseClient()
     const { error } = await supabase.auth.resetPasswordForEmail(validatedData.email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`
+      redirectTo: `${EMAIL_CONFIG.appUrl}/auth/update-password`
     })
 
     if (error) {

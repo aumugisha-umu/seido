@@ -25,3 +25,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# logs and temporary files
+*.log
+*.pid
+.logs/
+*-output.log
+*-server.pid
+
+# test outputs
+playwright-report/
+playwright-report-auth/
+test-results/
+test-report/
+
+# temporary files
+*.tmp
+*.temp
+cookies_*.txt
+dashboard.html
+test-*.html
+# Test environment variables
+.env.test

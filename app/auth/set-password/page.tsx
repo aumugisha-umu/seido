@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, Eye, EyeOff, CheckCircle, Shield, Check, X } from "lucide-react"
+import AuthLogo from "@/components/ui/auth-logo"
 import { useAuth } from "@/hooks/use-auth"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
@@ -35,9 +36,39 @@ export default function SetPasswordPage() {
     hasLowercase: false,
     hasNumber: false
   })
+  // ✅ CRITIQUE: Initialisation SYNCHRONE de isWaitingForSession
+  // Détecte verified=true immédiatement, avant tout useEffect
+  const [isWaitingForSession, setIsWaitingForSession] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const isVerified = urlParams.get('verified') === 'true'
+
+      if (isVerified) {
+        logger.info('✅ [SET-PASSWORD] Detected verified=true SYNCHRONOUSLY, activating grace period')
+      }
+
+      return isVerified
+    }
+    return false
+  })
 
   const router = useRouter()
   const { user, loading, refreshUser } = useAuth()
+
+  // ✅ Timer pour désactiver la période de grâce après 5 secondes
+  // Augmenté de 2s → 5s pour laisser plus de temps à onAuthStateChange de fire
+  useEffect(() => {
+    if (isWaitingForSession) {
+      logger.info('⏱️ [SET-PASSWORD] Starting 5s grace period for session sync...')
+
+      const graceTimer = setTimeout(() => {
+        logger.info('⏱️ [SET-PASSWORD] Grace period ended, proceeding with auth check')
+        setIsWaitingForSession(false)
+      }, 5000)
+
+      return () => clearTimeout(graceTimer)
+    }
+  }, [isWaitingForSession])
 
   useEffect(() => {
     const checkUserPasswordStatus = async () => {
@@ -50,9 +81,44 @@ export default function SetPasswordPage() {
         sessionStorage.removeItem('auth_callback_context')
       }
 
-      // Si pas d'utilisateur connecté et pas en cours de chargement, rediriger
+      // ✅ CRITIQUE: Ne pas rediriger si on attend la synchronisation de session
+      if (isWaitingForSession) {
+        logger.info('⏳ [SET-PASSWORD] Waiting for session sync, skipping auth check...')
+        return
+      }
+
+      // ✅ PATTERN DE DOUBLE VÉRIFICATION
+      // Si useAuth() ne voit pas de user, vérifier directement avec Supabase
       if (!loading && !user) {
-        logger.info('❌ [SET-PASSWORD] No authenticated user, redirecting to login')
+        logger.info('🔍 [SET-PASSWORD] useAuth has no user, performing direct session check...')
+
+        try {
+          // Vérification directe avec Supabase (bypass du contexte)
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+          if (sessionError) {
+            logger.error('❌ [SET-PASSWORD] Error getting session directly:', sessionError)
+          } else if (session?.user) {
+            logger.info('✅ [SET-PASSWORD] Found session directly! User:', session.user.email)
+            logger.info('🔄 [SET-PASSWORD] Forcing context refresh to sync useAuth()...')
+
+            // Forcer refresh du contexte (asynchrone, se mettra à jour au prochain render)
+            await refreshUser()
+
+            // ✅ CRITIQUE: Ne PAS attendre que user se mette à jour dans un polling
+            // React state changes are async and won't be visible in same render cycle
+            // Si session existe, on reste sur la page. L'utilisateur peut définir son mot de passe.
+            logger.info('✅ [SET-PASSWORD] Session exists, staying on page. User context will sync eventually.')
+            return // Ne pas rediriger - la session suffit
+          } else {
+            logger.info('ℹ️ [SET-PASSWORD] No session found in direct check either')
+          }
+        } catch (error) {
+          logger.error('❌ [SET-PASSWORD] Exception during direct session check:', error)
+        }
+
+        // Si vraiment aucune session n'existe nulle part, rediriger
+        logger.info('❌ [SET-PASSWORD] No session found anywhere, redirecting to login')
         router.push('/auth/login?message=session-required')
         return
       }
@@ -99,19 +165,27 @@ export default function SetPasswordPage() {
     }
 
     checkUserPasswordStatus()
-  }, [user, loading, router])
+  }, [user, loading, router, isWaitingForSession])
 
-  // ✅ NOUVEAU: Timeout de sécurité - si user reste null après 10s, forcer redirection login
+  // ✅ NOUVEAU: Timeout de sécurité - si user reste null après 15s, forcer redirection login
+  // Désactivé si on vient d'un flow vérifié (isWaitingForSession)
+  // Augmenté à 15s pour laisser le temps aux vérifications de session
   useEffect(() => {
+    // Ne pas appliquer ce timeout si on attend la synchronisation
+    if (isWaitingForSession) {
+      logger.info('⏸️ [SET-PASSWORD] Security timeout disabled during grace period')
+      return
+    }
+
     const securityTimeout = setTimeout(() => {
       if (!loading && !user) {
-        logger.warn('⚠️ [SET-PASSWORD] Security timeout - no user after 10s, redirecting to login')
+        logger.warn('⚠️ [SET-PASSWORD] Security timeout - no user after 15s, redirecting to login')
         window.location.href = '/auth/login?reason=timeout'
       }
-    }, 10000)
+    }, 15000)
 
     return () => clearTimeout(securityTimeout)
-  }, [user, loading])
+  }, [user, loading, isWaitingForSession])
 
   useEffect(() => {
     // Vérifier les critères du mot de passe en temps réel
@@ -235,8 +309,8 @@ export default function SetPasswordPage() {
     }
   }
 
-  // État de chargement pendant la vérification de l'authentification
-  if (loading) {
+  // État de chargement pendant la vérification de l'authentification OU période de grâce
+  if (loading || isWaitingForSession) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -244,7 +318,11 @@ export default function SetPasswordPage() {
             <CardContent className="flex items-center justify-center p-8">
               <div className="text-center space-y-4">
                 <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-slate-600">Vérification de l'authentification...</p>
+                <p className="text-slate-600">
+                  {isWaitingForSession
+                    ? 'Synchronisation de votre session...'
+                    : 'Vérification de l\'authentification...'}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -307,9 +385,7 @@ export default function SetPasswordPage() {
         <Card className="border-slate-200 shadow-lg">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-12 h-12 bg-sky-600 rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-white" />
-              </div>
+              <AuthLogo />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-slate-900">Définir votre mot de passe</CardTitle>

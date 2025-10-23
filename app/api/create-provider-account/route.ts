@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
+import { Database } from '@/lib/database.types'
 import { createServerUserService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createProviderAccountSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 // Admin client for creating auth users
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
@@ -22,6 +24,11 @@ export async function POST(request: NextRequest) {
   logger.info({}, "✅ create-provider-account API route called")
 
   try {
+    // ✅ AUTH: 38 lignes → 3 lignes! (route publique pour magic links, mais vérification token ci-dessous)
+    // Note: Cette route vérifie le magicLinkToken, pas besoin d'auth utilisateur standard
+    const authResult = await getApiAuthContext({ fetchProfile: false })
+    // On vérifie juste la session, pas le profil (car nouveau compte)
+
     if (!supabaseAdmin) {
       return NextResponse.json({
         success: false,
@@ -29,46 +36,31 @@ export async function POST(request: NextRequest) {
       }, { status: 503 })
     }
 
+    const { supabase } = authResult.success ? authResult.data : { supabase: null }
+
     // Initialize services
     const userService = await createServerUserService()
 
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
-
     // Parse request body
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(createProviderAccountSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CREATE-PROVIDER-ACCOUNT] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       email,
       magicLinkToken,
       interventionId
-    } = body
-
-    if (!email || !magicLinkToken || !interventionId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Email, token et interventionId sont requis'
-      }, { status: 400 })
-    }
+    } = validatedData
 
     logger.info({ email: email }, "📝 Creating provider account for:")
 
@@ -204,7 +196,7 @@ export async function POST(request: NextRequest) {
       const { error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: email,
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+        redirectTo: `${EMAIL_CONFIG.appUrl}/auth/reset-password`
       })
 
       if (magicLinkError) {

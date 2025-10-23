@@ -132,6 +132,77 @@ type InterventionStatus =
 - Use semantic HTML
 - Implement error boundaries
 
+### Server Component Authentication Pattern
+
+**🔐 Centralized Auth Context** (`lib/server-context.ts`)
+
+All gestionnaire Server Components **MUST** use `getServerAuthContext()` for authentication:
+
+```typescript
+import { getServerAuthContext } from '@/lib/server-context'
+
+export default async function MyPage() {
+  // ✅ CORRECT: Centralized auth + team fetching (1 line)
+  const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
+
+  // Now use team.id, profile.id, etc.
+  const data = await someService.getData(team.id)
+
+  return <MyPageClient data={data} />
+}
+```
+
+**❌ ANTI-PATTERNS (DO NOT USE):**
+
+```typescript
+// ❌ WRONG 1: Manual auth (10+ lines, no caching)
+const supabase = await createServerSupabaseClient()
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) redirect('/login')
+const { data: profile } = await supabase.from('users').select('*').eq('auth_user_id', user.id).single()
+const teamService = await createServerTeamService()
+const teams = await teamService.getUserTeams(profile.id)
+const team = teams[0]
+
+// ❌ WRONG 2: Using getServerSession directly
+const session = await getServerSession()
+// ... manual profile fetch
+
+// ❌ WRONG 3: No authentication at all (SECURITY ISSUE!)
+export default async function MyPage() {
+  const data = await loadData() // Anyone can access!
+  return <MyPageClient data={data} />
+}
+```
+
+**✅ Benefits:**
+- **Deduplication**: React.cache() ensures layout + page share auth (1 DB query instead of 2)
+- **Type Safety**: Enforced ServerAuthContext interface
+- **Security**: Guaranteed auth check on all pages
+- **Simplicity**: ~150 lines eliminated across 13 pages
+
+**📊 Migration Status (2025-10-22):**
+- ✅ **21 Server Component pages** migrated across **ALL roles**:
+  - **Gestionnaire**: 13 pages (dashboard, biens, contacts, interventions, mail, profile, details pages)
+  - **Prestataire**: 1 page (interventions/[id])
+  - **Locataire**: 4 pages (dashboard, interventions list/detail/new)
+  - **Admin**: 3 pages (dashboard, notifications, profile)
+- ⏭️ Client Components use `useAuth()` + `useTeamStatus()` (separate pattern)
+- 🔥 **~250 lines of duplicated auth code eliminated**
+
+**🔍 Security Fixes Applied:**
+- **3 pages had NO AUTH** before migration → **Critical fixes applied**:
+  - `gestionnaire/biens/immeubles/[id]/page.tsx` - Public building details ⚠️
+  - `gestionnaire/biens/lots/[id]/page.tsx` - Public lot details ⚠️
+  - `admin/notifications/page.tsx` - Public admin notifications ⚠️
+
+**🔒 RLS Policies Verified (2025-10-22):**
+- ✅ Multi-tenant isolation via `is_team_manager(team_id)`
+- ✅ Helper functions: `get_building_team_id()`, `get_lot_team_id()`
+- ✅ Team membership validation via `team_members` table
+- ✅ Admin bypass with `is_admin()` check
+- 📋 All queries properly scoped to user's team(s)
+
 ### Database Integration (Official Supabase + Next.js 15 Patterns)
 
 ```typescript

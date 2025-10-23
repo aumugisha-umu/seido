@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerUserService, createServerContactInvitationService } from '@/lib/services'
+import { createServerContactInvitationService } from '@/lib/services'
 import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { revokeInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * POST /api/revoke-invitation
@@ -11,33 +13,28 @@ import { logger } from '@/lib/logger'
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Récupérer la session utilisateur
-    const userService = await createServerUserService()
-    const session = await userService['repository']['supabase'].auth.getUser()
+    // ✅ AUTH + ROLE CHECK: 20 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    if (!session.data.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
-    // 2. Récupérer et vérifier le profil gestionnaire
-    const managerResult = await userService.getByAuthUserId(session.data.user.id)
-
-    if (!managerResult.success || !managerResult.data) {
-      return NextResponse.json({ error: "Profil non trouvé" }, { status: 404 })
-    }
-
-    if (managerResult.data.role !== 'gestionnaire' && managerResult.data.role !== 'admin') {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
-    }
+    const { userProfile: managerResult } = authResult.data
 
     // 3. Parser les données de la requête
-    const { contactId, teamId } = await request.json()
+    const body = await request.json()
 
-    if (!contactId || !teamId) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(revokeInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [REVOKE-INVITATION] Validation failed')
       return NextResponse.json({
-        error: "Contact ID et Team ID requis"
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { contactId, teamId } = validatedData
 
     logger.info({
       contactId,

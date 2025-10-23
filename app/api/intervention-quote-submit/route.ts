@@ -1,100 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { submitQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-quote-submit API route called")
 
   try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH + ROLE CHECK: 85 lignes → 3 lignes! (prestataire required)
+    const authResult = await getApiAuthContext({ requiredRole: 'prestataire' })
+    if (!authResult.success) return authResult.error
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      logger.error({ authError }, "❌ Auth error")
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    const { supabase, userProfile: user } = authResult.data
 
-    logger.info({ authUserId: authUser.id, email: authUser.email }, "🔍 Auth user found")
+    logger.info({ authUserId: user.id, email: user.email }, "🔍 Auth user found")
 
     // Parse request body
     const body = await request.json()
-    const {
-      interventionId,
-      laborCost,
-      materialsCost = 0,
-      description,
-      estimatedDurationHours,
-      providerAvailabilities = []
-    } = body
 
-    logger.info({
-      interventionId,
-      laborCost,
-      materialsCost,
-      hasDescription: !!description,
-      availabilitiesCount: providerAvailabilities.length
-    }, "📝 Quote submission data received")
+    // Prepare data for validation - adapt from old format to schema format
+    const validationData = {
+      interventionId: body.interventionId,
+      providerId: user.id, // Current user is the provider
+      amount: body.laborCost ? parseFloat(body.laborCost) + (body.materialsCost ? parseFloat(body.materialsCost) : 0) : 0,
+      description: body.description,
+      estimatedDuration: body.estimatedDurationHours ? Math.round(body.estimatedDurationHours * 60) : undefined, // Convert hours to minutes
+    }
 
-    if (!interventionId || !laborCost || !description) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(submitQuoteSchema, validationData)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-SUBMIT] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'interventionId, laborCost et description sont requis'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
 
-    // Get current user from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_user_id', authUser.id)
-      .single()
+    const validatedData = validation.data
+    const {
+      interventionId,
+      amount: totalAmount,
+      description,
+      estimatedDuration,
+    } = validatedData
 
-    if (userError || !user) {
-      logger.error({ userError, authUserId: authUser.id }, "❌ User not found in database")
-      return NextResponse.json({
-        success: false,
-        error: 'Utilisateur non trouvé dans la base de données'
-      }, { status: 404 })
-    }
+    // Extract original values for line items
+    const laborCostNum = body.laborCost ? parseFloat(body.laborCost) : 0
+    const materialsCostNum = body.materialsCost ? parseFloat(body.materialsCost) : 0
+    const estimatedDurationHours = body.estimatedDurationHours
+    const providerAvailabilities = body.providerAvailabilities || []
 
-    logger.info({ userId: user.id, role: user.role, name: user.name }, "✅ User found in database")
-
-    // Check if user is prestataire
-    if (user.role !== 'prestataire') {
-      logger.error({ role: user.role, userId: user.id }, "❌ User is not a prestataire")
-      return NextResponse.json({
-        success: false,
-        error: `Seuls les prestataires peuvent soumettre des devis. Votre rôle actuel: ${user.role}`
-      }, { status: 403 })
-    }
+    logger.info({
+      interventionId,
+      laborCost: laborCostNum,
+      materialsCost: materialsCostNum,
+      totalAmount,
+      hasDescription: !!description,
+      availabilitiesCount: providerAvailabilities.length
+    }, "📝 Quote submission data received and validated")
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
@@ -136,27 +103,6 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ quoteId: existingQuote.id, currentStatus: existingQuote.status }, "✅ Found existing quote to update")
-
-    // Validate costs
-    const laborCostNum = parseFloat(laborCost)
-    const materialsCostNum = parseFloat(materialsCost || 0)
-    const totalAmount = laborCostNum + materialsCostNum
-
-    if (isNaN(laborCostNum) || laborCostNum < 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Le coût de la main d\'œuvre doit être un nombre positif'
-      }, { status: 400 })
-    }
-
-    if (isNaN(materialsCostNum) || materialsCostNum < 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Le coût des matériaux doit être un nombre positif'
-      }, { status: 400 })
-    }
-
-    logger.info({ laborCost: laborCostNum, materialsCost: materialsCostNum, totalAmount }, "💰 Quote costs validated")
 
     // Prepare line_items JSONB with breakdown
     const lineItems = [

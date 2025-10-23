@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2, ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react"
+import AuthLogo from "@/components/ui/auth-logo"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 export default function UpdatePasswordPage() {
@@ -282,9 +283,7 @@ export default function UpdatePasswordPage() {
         <Card className="border-border shadow-lg">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <AuthLogo />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-foreground">Nouveau mot de passe</CardTitle>

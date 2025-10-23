@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
 import { emailService } from '@/lib/email/email-service'
-import { createServerUserService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { sendWelcomeEmailSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 /**
  * 📧 API ROUTE - Envoi Email de Bienvenue
  *
@@ -15,32 +16,32 @@ export async function POST(request: NextRequest) {
   try {
     logger.info({}, '📧 [WELCOME-EMAIL-API] Starting welcome email send...')
 
-    const { userId } = await request.json()
+    const body = await request.json()
 
-    if (!userId) {
-      logger.error({}, '❌ [WELCOME-EMAIL-API] Missing userId in request')
-      return NextResponse.json(
-        { success: false, error: 'Missing userId' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(sendWelcomeEmailSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [WELCOME-EMAIL-API] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const { userId, email, firstName } = validation.data
+
+    // ✅ AUTH: createServerSupabaseClient pattern → getApiAuthContext (29 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { authUser, userProfile: profileResult } = authResult.data
 
     // ✅ SÉCURITÉ: Vérifier que l'utilisateur authentifié correspond au userId
-    const supabase = await createServerSupabaseClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      logger.error({ user: userError?.message }, '❌ [WELCOME-EMAIL-API] No authenticated user:')
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    if (user.id !== userId) {
+    if (authUser.id !== userId) {
       logger.error({
         requestedUserId: userId,
-        authenticatedUserId: user.id
+        authenticatedUserId: authUser.id
       }, '❌ [WELCOME-EMAIL-API] User ID mismatch:')
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -48,30 +49,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info({ user: user.email }, '✅ [WELCOME-EMAIL-API] User authenticated:')
+    logger.info({ user: authUser.email }, '✅ [WELCOME-EMAIL-API] User authenticated:')
 
-    // ✅ RÉCUPÉRER PROFIL: Pour obtenir le rôle réel
-    const userService = await createServerUserService()
-    const profileResult = await userService.getByAuthUserId(userId)
-
-    let userRole: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire' = 'gestionnaire'
-    if (profileResult.success && profileResult.data) {
-      userRole = profileResult.data.role
-      logger.info({
-        userId: profileResult.data.id,
-        role: userRole,
-        teamId: profileResult.data.team_id
-      }, '✅ [WELCOME-EMAIL-API] User profile found:')
-    } else {
-      logger.warn({ userRole: userRole }, '⚠️ [WELCOME-EMAIL-API] Profile not found, using default role:')
-    }
+    // ✅ RÉCUPÉRER PROFIL: Déjà disponible via getApiAuthContext
+    const userRole = profileResult.role
+    logger.info({
+      userId: profileResult.id,
+      role: userRole,
+      teamId: profileResult.team_id
+    }, '✅ [WELCOME-EMAIL-API] User profile found:')
 
     // ✅ ENVOYER EMAIL: Email de bienvenue via Resend
-    const firstName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Utilisateur'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    logger.info({ user: user.email }, '📧 [WELCOME-EMAIL-API] Sending welcome email to:')
-    const emailResult = await emailService.sendWelcomeEmail(user.email!, {
+    logger.info({ user: email }, '📧 [WELCOME-EMAIL-API] Sending welcome email to:')
+    const emailResult = await emailService.sendWelcomeEmail(email, {
       firstName,
       confirmationUrl: `${appUrl}/auth/login`,
       role: userRole

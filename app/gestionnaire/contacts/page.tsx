@@ -1,81 +1,78 @@
 import { ContactsPageClient } from './contacts-page-client'
 import {
   createServerContactService,
-  createServerSupabaseClient,
-  createServerTeamService
+  createServerSupabaseClient
 } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { requireRole } from '@/lib/auth-dal'
+import { getServerAuthContext } from '@/lib/server-context'
 
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
 
 export default async function ContactsPage() {
   try {
-    // ✅ LAYER 1: Auth validation FIRST (like Dashboard)
+    // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     logger.info("🔵 [CONTACTS-PAGE] Server-side fetch starting")
-    const { user, profile } = await requireRole(['gestionnaire'])
+    const { user, team } = await getServerAuthContext('gestionnaire')
 
-    // ✅ LAYER 2: Create services AFTER auth validation
-    const teamService = await createServerTeamService()
-    const contactService = await createServerContactService()
-
-    // Get user's team
-    // 🔍 CORRECTIF: Utiliser profile.id (users table ID) au lieu de user.id (auth_user_id)
-    const teamsResult = await teamService.getUserTeams(profile.id)
-    const teams = teamsResult?.data || []
-    const team = teams.length > 0 ? teams[0] : null
-
-    if (!team?.id) {
-      logger.warn(`⚠️ [CONTACTS-PAGE] No team found for user: ${user.id}`)
-      // Allow render but with empty data
+    // ✅ Defensive guard in case team is unexpectedly missing
+    if (!team || !team.id) {
+      logger.warn('⚠️ [CONTACTS-PAGE] Missing team in auth context, rendering empty state')
+      return (
+        <ContactsPageClient
+          initialContacts={[]}
+          initialInvitations={[]}
+          initialContactsInvitationStatus={{}}
+          userTeam={{ id: '', name: '' }}
+          user={{ id: user?.id ?? '', email: user?.email ?? '' }}
+        />
+      )
     }
 
-    const teamId = team?.id
+    // ✅ Create services
+    const contactService = await createServerContactService()
 
-    // ✅ LAYER 3: Parallel data fetching (Dashboard pattern)
+    // ✅ Parallel data fetching (Dashboard pattern)
     let contacts: any[] = []
     let pendingInvitations: any[] = []
 
-    if (teamId) {
-      const supabase = await createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
 
-      const [contactsResult, invitationsResult] = await Promise.allSettled([
-        contactService.getContactsByTeam(teamId),
-        supabase
-          .from('user_invitations')
-          .select('*')
-          .eq('team_id', teamId)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-      ])
+    const [contactsResult, invitationsResult] = await Promise.allSettled([
+      contactService.getContactsByTeam(team.id),
+      supabase
+        .from('user_invitations')
+        .select('*')
+        .eq('team_id', team.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+    ])
 
-      // Process contacts result
-      if (contactsResult.status === 'fulfilled' && contactsResult.value.success && contactsResult.value.data) {
-        contacts = contactsResult.value.data
-        logger.info(`✅ [CONTACTS-PAGE] Loaded ${contacts.length} contacts`)
-      } else {
-        logger.error('❌ [CONTACTS-PAGE] Failed to load contacts:',
-          contactsResult.status === 'rejected' ? contactsResult.reason : 'No data')
-      }
+    // Process contacts result
+    if (contactsResult.status === 'fulfilled' && contactsResult.value.success && contactsResult.value.data) {
+      contacts = contactsResult.value.data
+      logger.info(`✅ [CONTACTS-PAGE] Loaded ${contacts.length} contacts`)
+    } else {
+      logger.error('❌ [CONTACTS-PAGE] Failed to load contacts:',
+        contactsResult.status === 'rejected' ? contactsResult.reason : 'No data')
+    }
 
-      // Process invitations result
-      if (invitationsResult.status === 'fulfilled' && !invitationsResult.value.error) {
-        pendingInvitations = invitationsResult.value.data || []
-        logger.info(`✅ [CONTACTS-PAGE] Loaded ${pendingInvitations.length} invitations`)
-      } else {
-        const errorDetail = invitationsResult.status === 'rejected'
-          ? invitationsResult.reason
-          : invitationsResult.value.error
+    // Process invitations result
+    if (invitationsResult.status === 'fulfilled' && !invitationsResult.value.error) {
+      pendingInvitations = invitationsResult.value.data || []
+      logger.info(`✅ [CONTACTS-PAGE] Loaded ${pendingInvitations.length} invitations`)
+    } else {
+      const errorDetail = invitationsResult.status === 'rejected'
+        ? invitationsResult.reason
+        : invitationsResult.value.error
 
-        logger.error('❌ [CONTACTS-PAGE] Failed to load invitations:', {
-          status: invitationsResult.status,
-          error: errorDetail,
-          message: errorDetail?.message || String(errorDetail),
-          code: errorDetail?.code,
-          details: errorDetail?.details
-        })
-      }
+      logger.error('❌ [CONTACTS-PAGE] Failed to load invitations:', {
+        status: invitationsResult.status,
+        error: errorDetail,
+        message: errorDetail?.message || String(errorDetail),
+        code: errorDetail?.code,
+        details: errorDetail?.details
+      })
     }
 
     // ✅ Build invitation status map
@@ -105,8 +102,8 @@ export default async function ContactsPage() {
         initialInvitations={pendingInvitations}
         initialContactsInvitationStatus={contactsInvitationStatus}
         userTeam={{
-          id: teamId || '',
-          name: team?.name
+          id: team.id,
+          name: team.name
         }}
         user={{
           id: user.id,

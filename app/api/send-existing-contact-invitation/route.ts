@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerUserService, getServerSession } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { Database } from '@/lib/database.types'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { sendContactInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,30 +15,32 @@ const supabaseAdmin = createClient<Database>(
 
 export async function POST(request: Request) {
   try {
-    // ============================================================================
-    // ÉTAPE 1: AUTH VERIFICATION
-    // ============================================================================
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
+    // ✅ AUTH: 16 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    const userService = await createServerUserService()
-    const currentUserResult = await userService.getByAuthUserId(session.user.id)
-    if (!currentUserResult.success || !currentUserResult.data) {
-      return NextResponse.json({ error: 'Profil non trouvé' }, { status: 404 })
-    }
-    const currentUser = currentUserResult.data
+    const { userProfile: currentUser } = authResult.data
 
     logger.info({ currentUser: currentUser.id }, '📧 [SEND-EXISTING-CONTACT-INVITATION] Starting process')
 
     // ============================================================================
     // ÉTAPE 2: GET CONTACT
     // ============================================================================
-    const { contactId } = await request.json()
-    if (!contactId) {
-      return NextResponse.json({ error: 'contactId requis' }, { status: 400 })
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(sendContactInvitationSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [SEND-EXISTING-CONTACT-INVITATION] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { contactId, teamId } = validatedData
 
     const { data: contact, error: contactError } = await supabaseAdmin
       .from('users')
@@ -116,8 +120,9 @@ export async function POST(request: Request) {
       }
 
       authUserId = inviteLink.user.id
-      invitationUrl = inviteLink.properties.action_link
       hashedToken = inviteLink.properties.hashed_token
+      // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+      invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
 
       logger.info({ authUserId }, '✅ New auth user created')
 
@@ -146,8 +151,9 @@ export async function POST(request: Request) {
         )
       }
 
-      invitationUrl = magicLink.properties.action_link
       hashedToken = magicLink.properties.hashed_token
+      // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+      invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
 
       logger.info({}, '✅ Magic link generated for existing auth user')
     }

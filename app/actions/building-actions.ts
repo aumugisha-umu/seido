@@ -28,7 +28,7 @@ export async function createCompleteProperty(
     logger.info('🏢 [SERVER-ACTION] Creating complete property:', {
       buildingName: data.building.name,
       lotsCount: data.lots.length,
-      contactsCount: data.contacts.length,
+      buildingContactsCount: data.buildingContacts?.length || 0,
       teamId: data.building.team_id
     })
 

@@ -1,38 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { quoteRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { reason } = await request.json()
+    // ✅ AUTH: 29 lignes → 3 lignes! (uniformisation createServerSupabaseClient → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, userProfile: userData } = authResult.data
+
+    const body = await request.json()
     const { id } = await params
 
-    if (!reason || reason.trim().length === 0) {
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(quoteRejectSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [QUOTE-REJECT] Validation failed')
       return NextResponse.json({
-        error: 'Un motif de rejet est requis'
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
 
-    // Vérifier l'authentification
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
-
-    // Récupérer l'ID utilisateur depuis la table users
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single()
-
-    if (userError || !userData) {
-      logger.error({ user: userError }, '❌ [API-REJECT] User not found in users table:')
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 401 })
-    }
+    const validatedData = validation.data
+    const { reason } = validatedData
 
     // Récupérer le devis par ID seulement
     const { data: quote, error: quoteError } = await supabase

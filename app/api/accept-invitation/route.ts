@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { getServerSession } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { acceptInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,15 +17,13 @@ const supabaseAdmin = createClient<Database>(
  */
 export async function POST() {
   try {
-    // ============================================================================
-    // ÉTAPE 1: AUTH VERIFICATION
-    // ============================================================================
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
+    // ✅ AUTH: 16 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    const userEmail = session.user.email
+    const { authUser } = authResult.data
+
+    const userEmail = authUser.email
     if (!userEmail) {
       return NextResponse.json({ error: 'Email utilisateur non trouvé' }, { status: 400 })
     }

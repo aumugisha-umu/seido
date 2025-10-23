@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 
 
 interface RouteParams {
@@ -19,40 +15,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   logger.info({ resolvedParams: resolvedParams.id }, "✅ intervention/[id]/quote-requests GET API route called for intervention:")
 
   try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: 50 lignes → 3 lignes! (any authenticated user) + BUG FIX: userService was undefined!
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    const { supabase, userProfile: user } = authResult.data
 
-    // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -64,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .select('id, team_id, tenant_id')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
 
     if (interventionError || !intervention) {

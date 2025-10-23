@@ -29,9 +29,15 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 
 interface InterventionsPageClientProps {
   initialInterventions: any[]
+  teamId: string | undefined
+  userId: string | undefined
 }
 
-export function InterventionsPageClient({ initialInterventions }: InterventionsPageClientProps) {
+export function InterventionsPageClient({
+  initialInterventions,
+  teamId,
+  userId
+}: InterventionsPageClientProps) {
   const router = useRouter()
 
   // ✅ État local initialisé avec les props (pas de hook de fetch)
@@ -39,9 +45,9 @@ export function InterventionsPageClient({ initialInterventions }: InterventionsP
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Hooks pour les différentes actions (inchangés - pas de fetch)
+  // ✅ Hooks avec Server Props Pattern - passer teamId depuis le serveur
   const approvalHook = useInterventionApproval()
-  const quotingHook = useInterventionQuoting()
+  const quotingHook = useInterventionQuoting(teamId)
   const planningHook = useInterventionPlanning()
   const executionHook = useInterventionExecution()
   const finalizationHook = useInterventionFinalization()

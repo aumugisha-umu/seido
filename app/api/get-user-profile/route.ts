@@ -1,32 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerUserService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 export async function POST(request: NextRequest) {
   try {
-    const { authUserId } = await request.json()
+    // ✅ AUTH: FAILLE SÉCURITÉ CRITIQUE CORRIGÉE! (route acceptait authUserId sans authentification)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    if (!authUserId) {
-      return NextResponse.json(
-        { success: false, error: 'Auth user ID is required' },
-        { status: 400 }
-      )
-    }
-
-    logger.info({ user: authUserId }, '🔍 [GET-USER-PROFILE] Looking up user profile for auth_user_id:')
-
-    // Récupérer le profil utilisateur par auth_user_id
-    const userService = await createServerUserService()
-    const userResult = await userService.getByAuthUserId(authUserId)
-
-    if (!userResult.success || !userResult.data) {
-      logger.info({ user: authUserId }, '❌ [GET-USER-PROFILE] No user profile found for auth_user_id:')
-      return NextResponse.json(
-        { success: false, error: 'User profile not found' },
-        { status: 404 }
-      )
-    }
-
-    const userProfile = userResult.data
+    const { userProfile } = authResult.data
 
     logger.info({
       id: userProfile.id,
@@ -44,8 +26,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error({ error: error }, '❌ [GET-USER-PROFILE] Error:')
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to get user profile',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

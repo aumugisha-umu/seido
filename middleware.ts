@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { logger, logError } from '@/lib/logger'
-import { getUserProfileForMiddleware, getDashboardPath } from '@/lib/auth-dal'
 import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
+import { getRateLimiterForRoute, getClientIdentifier } from '@/lib/rate-limit'
 
 /**
  * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
@@ -24,9 +23,58 @@ import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
  * - Vérification signaux de coordination avant auth check
  * - Respect du loading state AuthProvider
  * - Éviter race conditions sur redirections
+ *
+ * 🚦 RATE LIMITING (22 oct. 2025)
+ * - Protection contre brute force et DoS attacks
+ * - Rate limits différenciés par type de route
+ * - Upstash Redis (production) + fallback in-memory (dev)
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // 🚦 RATE LIMITING: Appliquer sur toutes les routes API
+  if (pathname.startsWith('/api/')) {
+    try {
+      const ratelimiter = getRateLimiterForRoute(pathname)
+      const identifier = getClientIdentifier(request)
+
+      const { success, limit, remaining, reset } = await ratelimiter.limit(identifier)
+
+      // Ajouter les headers de rate limit dans tous les cas
+      const headers = new Headers()
+      headers.set('X-RateLimit-Limit', limit.toString())
+      headers.set('X-RateLimit-Remaining', remaining.toString())
+      headers.set('X-RateLimit-Reset', new Date(reset).toISOString())
+
+      if (!success) {
+        console.warn(`[RATE-LIMIT] ⚠️  Limit exceeded for ${pathname} (${identifier})`)
+        return new NextResponse(
+          JSON.stringify({
+            error: 'Too Many Requests',
+            message: 'Rate limit exceeded. Please try again later.',
+            retryAfter: new Date(reset).toISOString()
+          }),
+          {
+            status: 429,
+            headers: {
+              ...Object.fromEntries(headers),
+              'Content-Type': 'application/json',
+              'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString()
+            }
+          }
+        )
+      }
+
+      // Si rate limit OK, continuer avec les headers
+      // Note: Les headers seront ajoutés à la response finale
+      request.headers.set('x-ratelimit-limit', limit.toString())
+      request.headers.set('x-ratelimit-remaining', remaining.toString())
+      request.headers.set('x-ratelimit-reset', new Date(reset).toISOString())
+    } catch (error) {
+      console.error('[RATE-LIMIT] ❌ Error checking rate limit:', error)
+      // En cas d'erreur, laisser passer la requête (fail-open pour éviter de bloquer le service)
+    }
+  }
 
   // Routes publiques (accessibles sans authentification)
   const publicRoutes = [
@@ -100,7 +148,6 @@ export async function middleware(request: NextRequest) {
 
       if (error || !user) {
         console.log('🚫 [MIDDLEWARE] Authentication failed:', error?.message || 'No user')
-        // Marquer que le middleware a vérifié
         response.cookies.set('middleware-check', 'true', { maxAge: 5 })
         return NextResponse.redirect(new URL('/auth/login?reason=session_expired', request.url))
       }
@@ -113,58 +160,10 @@ export async function middleware(request: NextRequest) {
 
       console.log('✅ [MIDDLEWARE] User authenticated:', user.id)
 
-      // 🛡️ PHASE 2.5: VÉRIFICATION PROFIL + RÔLE MULTI-COUCHES
-      const userProfile = await getUserProfileForMiddleware(user.id)
-
-      // 🛡️ CHECK 1: Profil existe dans la table users
-      if (!userProfile) {
-        console.log('⚠️ [MIDDLEWARE] Auth user exists but no profile in DB:', user.email)
-        return NextResponse.redirect(new URL('/auth/login?reason=no_profile', request.url))
-      }
-
-      // 🛡️ CHECK 2: Compte actif
-      if (userProfile.is_active === false) {
-        console.log('⚠️ [MIDDLEWARE] User account is deactivated:', userProfile.email)
-        return NextResponse.redirect(new URL('/auth/unauthorized?reason=account_inactive', request.url))
-      }
-
-      // 🛡️ CHECK 3: Password configuré (onboarding terminé)
-      if (userProfile.password_set === false && pathname !== '/auth/set-password') {
-        console.log('📝 [MIDDLEWARE] Password not set, redirecting to onboarding:', userProfile.email)
-        return NextResponse.redirect(new URL('/auth/set-password', request.url))
-      }
-
-      // 🛡️ CHECK 4: Rôle correspond à la section accédée
-      const roleFromPath = pathname.split('/')[1] // admin, gestionnaire, etc.
-      if (roleFromPath && ['admin', 'gestionnaire', 'locataire', 'prestataire'].includes(roleFromPath)) {
-        if (userProfile.role !== roleFromPath) {
-          console.log(`⚠️ [MIDDLEWARE] Role mismatch: ${userProfile.role} trying to access ${roleFromPath}`)
-          const correctDashboard = getDashboardPath(userProfile.role)
-          return NextResponse.redirect(new URL(correctDashboard, request.url))
-        }
-        console.log(`✅ [MIDDLEWARE] Role check passed: ${userProfile.role} accessing ${roleFromPath}`)
-      }
-
-      // 🛡️ CHECK 5: Utilisateur a une équipe assignée
-      console.log('🔍 [MIDDLEWARE] Checking team membership...')
-
-      const { data: userTeams, error: teamError } = await supabase
-        .from('team_members')
-        .select('team_id, role')
-        .eq('user_id', userProfile.id)
-        .limit(1)
-
-      if (teamError) {
-        console.error('❌ [MIDDLEWARE] Team query error:', teamError)
-        return NextResponse.redirect(new URL('/auth/unauthorized?reason=team_query_error', request.url))
-      }
-
-      if (!userTeams || userTeams.length === 0) {
-        console.log('⚠️ [MIDDLEWARE] User has no team:', userProfile.email)
-        return NextResponse.redirect(new URL('/auth/unauthorized?reason=no_team', request.url))
-      }
-
-      console.log(`✅ [MIDDLEWARE] User belongs to team: ${userTeams[0].team_id}`)
+      // ✅ PATTERN NEXT.JS 15 + SUPABASE OFFICIEL
+      // Middleware = Token refresh + Basic gatekeeper ONLY
+      // Detailed checks (profile, role, team) = Delegated to pages via getServerAuthContext()
+      // Benefits: Lighter middleware, React.cache() deduplication in pages
 
       // ✅ PHASE 2.1: Marquer que le middleware check a réussi
       response.cookies.set('middleware-check', 'true', { maxAge: 5 })

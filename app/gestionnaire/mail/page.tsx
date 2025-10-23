@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from '@/lib/server-context'
 import { EmailPreviewClient } from "./email-preview-client"
 import { renderEmail } from "@/emails/utils/render"
 import SignupConfirmationEmail from "@/emails/templates/auth/signup-confirmation"
@@ -14,8 +14,8 @@ import InvitationEmail from "@/emails/templates/auth/invitation"
  * Route: /gestionnaire/mail
  */
 export default async function EmailPreviewPage() {
-  // ✅ Vérifier que l'utilisateur est bien gestionnaire
-  const { user, profile } = await requireRole(['gestionnaire'])
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  const { user, profile } = await getServerAuthContext('gestionnaire')
 
   // Données de démo basées sur l'utilisateur connecté
   const userEmail = user.email || 'test@seido.pm'

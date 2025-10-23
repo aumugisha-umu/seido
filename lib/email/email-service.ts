@@ -221,7 +221,7 @@ export const emailService = {
 
     return sendEmailWithRetry({
       to,
-      subject: `${props.inviterName} vous invite à rejoindre ${props.teamName} sur SEIDO`,
+      subject: `${props.inviterName} vous invite à rejoindre son équipe sur SEIDO`,
       html,
       text,
       tags: [

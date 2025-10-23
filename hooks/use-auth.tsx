@@ -200,7 +200,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       clearTimeout(loadingTimeout)
-      subscription.unsubscribe()
+      // ✅ Vérifier que subscription existe avant d'appeler unsubscribe
+      if (subscription?.unsubscribe) {
+        subscription.unsubscribe()
+      }
       // 🎯 PHASE 2.1: Nettoyer les signaux au démontage
       setCoordinationCookiesClient(clearCoordinationCookies())
     }
@@ -340,6 +343,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshUser = async () => {
+    // ✅ CRITIQUE: Forcer refresh de la session Supabase avant de charger le profil
+    // Cela garantit que getCurrentUser() verra la session la plus récente
+    try {
+      logger.info('🔄 [AUTH-PROVIDER] Forcing session refresh before loading user...')
+      const supabase = createClient()
+
+      // Force Supabase à relire les cookies et mettre à jour localStorage
+      const { data: { session }, error } = await supabase.auth.getSession()
+
+      if (error) {
+        logger.error('❌ [AUTH-PROVIDER] Error refreshing session:', error)
+      } else if (session) {
+        logger.info('✅ [AUTH-PROVIDER] Session refreshed successfully:', session.user.email)
+      } else {
+        logger.info('ℹ️ [AUTH-PROVIDER] No session found during refresh')
+      }
+    } catch (error) {
+      logger.error('❌ [AUTH-PROVIDER] Exception during session refresh:', error)
+    }
+
+    // Maintenant charger le profil utilisateur
     await getCurrentUser()
   }
 

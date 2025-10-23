@@ -1,53 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { Database } from "@/lib/database.types"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 /**
  * GET /api/contact-invitation-status
  * Récupère le statut d'invitation d'un contact spécifique
  */
 export async function GET(request: NextRequest) {
   try {
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH + ROLE CHECK: 38 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
-    // Récupérer l'utilisateur depuis la base pour vérifier le rôle
-    const { data: dbUser, error: userError } = await supabase
-      .from("users")
-      .select("id, role")
-      .eq("auth_user_id", authUser.id)
-      .single()
-
-    if (userError || !dbUser || dbUser.role !== "gestionnaire") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
-    }
+    const { supabase, userProfile: dbUser } = authResult.data
 
     // Récupération du paramètre contactId
     const { searchParams } = new URL(request.url)

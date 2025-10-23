@@ -220,13 +220,6 @@ export {
   createInterventionRepository,
   createServerInterventionRepository,
   createServerActionInterventionRepository
-} from './repositories/intervention-repository'
-
-// Legacy intervention repository (to be deprecated)
-export {
-  InterventionRepository as LegacyInterventionRepository,
-  createInterventionRepository as createLegacyInterventionRepository,
-  createServerInterventionRepository as createServerLegacyInterventionRepository
 } from './repositories/intervention.repository'
 
 // Enhanced Intervention Service with full Phase 3 workflow
@@ -357,6 +350,16 @@ export {
   createServerTenantService,
   type TenantData
 } from './domain/tenant.service'
+
+// Property Document Service (Phase 2)
+export {
+  createPropertyDocumentService
+} from './domain/property-document.service'
+
+// Storage Service (Phase 2)
+export {
+  createStorageService
+} from './domain/storage.service'
 
 // Assignment Utilities
 export {

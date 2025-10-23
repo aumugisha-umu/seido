@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { Database } from "@/lib/database.types"
 import { emailService } from "@/lib/email/email-service"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { changePasswordSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 /**
  * POST /api/change-password
  * Permet à un utilisateur authentifié de changer son mot de passe
@@ -11,57 +11,31 @@ import { logger, logError } from '@/lib/logger'
  */
 export async function POST(request: NextRequest) {
   try {
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: 29 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
+    const { supabase, authUser } = authResult.data
 
     // Récupérer les données du body
     const body = await request.json()
-    const { currentPassword, newPassword } = body
 
-    // Validation des champs requis
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json({ 
-        error: "Le mot de passe actuel et le nouveau mot de passe sont requis" 
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(changePasswordSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CHANGE-PASSWORD] Validation failed')
+      return NextResponse.json({
+        error: "Données invalides",
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
 
-    // Validation de la complexité du nouveau mot de passe
-    if (newPassword.length < 8) {
-      return NextResponse.json({ 
-        error: "Le nouveau mot de passe doit contenir au moins 8 caractères" 
-      }, { status: 400 })
-    }
+    const { currentPassword, newPassword } = validation.data
 
     // Vérifier que le nouveau mot de passe est différent de l'actuel
     if (currentPassword === newPassword) {
-      return NextResponse.json({ 
-        error: "Le nouveau mot de passe doit être différent du mot de passe actuel" 
+      return NextResponse.json({
+        error: "Le nouveau mot de passe doit être différent du mot de passe actuel"
       }, { status: 400 })
     }
 

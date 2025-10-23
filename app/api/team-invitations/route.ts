@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+
 // Client admin pour les opérations privilégiées
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,6 +17,11 @@ const supabaseAdmin = createClient(
 
 export async function GET(request: NextRequest) {
   try {
+    // ✅ SECURITY FIX: Cette route n'avait AUCUNE vérification d'auth!
+    // N'importe qui pouvait appeler cette API sans être connecté
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
     const { searchParams } = new URL(request.url)
     const teamId = searchParams.get('teamId')
 

@@ -3,9 +3,9 @@
  * Server Component that loads intervention data and renders client components
  */
 
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { getInterventionAction } from '@/app/actions/intervention-actions'
-import { createServerSupabaseClient } from '@/lib/services'
+import { getServerAuthContext } from '@/lib/server-context'
 import { InterventionDetailClient } from './components/intervention-detail-client'
 import type { Database } from '@/lib/database.types'
 
@@ -17,24 +17,9 @@ export default async function InterventionDetailPage({ params }: PageProps) {
   const resolvedParams = await params
   const { id } = resolvedParams
 
-  // Auth check
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Get user role
-  const { data: userData } = await supabase
-    .from('users')
-    .select('role')
-    .eq('auth_user_id', user.id)
-    .single()
-
-  if (!userData || !['gestionnaire', 'admin'].includes(userData.role)) {
-    redirect('/')
-  }
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  // Remplace ~18 lignes d'auth manuelle (getUser + role check)
+  const { supabase } = await getServerAuthContext('gestionnaire')
 
   // Load intervention data
   const result = await getInterventionAction(id)

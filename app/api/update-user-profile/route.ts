@@ -1,34 +1,33 @@
-import { getServerSession } from '@/lib/services'
-import { createServerUserService } from '@/lib/services'
 import { NextResponse } from 'next/server'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createServerUserService } from '@/lib/services'
+import { updatePasswordSetSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 export async function PATCH(request: Request) {
   try {
-    // Vérifier l'authentification
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
+    // ✅ AUTH: getServerSession pattern → getApiAuthContext (26 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Initialiser le service utilisateur
+    const { userProfile: currentUserProfile } = authResult.data
     const userService = await createServerUserService()
 
-    // Récupérer le profil utilisateur pour avoir le bon ID
-    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
-    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
-      return NextResponse.json(
-        { error: 'Profil utilisateur non trouvé' },
-        { status: 404 }
-      )
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(updatePasswordSetSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [UPDATE-USER-PROFILE] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
 
-    const currentUserProfile = currentUserProfileResult.data
-
-    const body = await request.json()
-    const { password_set } = body
+    const validatedData = validation.data
+    const { password_set } = validatedData
 
     logger.info({ user: currentUserProfile.email, passwordSetTo: password_set }, '🔐 [UPDATE-USER-PROFILE] Updating password_set for user')
 

@@ -443,37 +443,47 @@ export class LotService {
       }
     }
 
-    // Verify all lots exist and check for reference conflicts
-    const lotsToMove = []
-    for (const lotId of lotIds) {
-      const lot = await this.repository.findById(lotId)
-      if (!lot.success || !lot.data) {
-        return {
-          success: false as const,
-          error: {
-            code: 'NOT_FOUND',
-            message: `Lot with ID ${lotId} not found`
-          }
+    // ✅ PERFORMANCE FIX (Oct 23, 2025 - Issue #1): Batch query instead of N+1
+    // Fetch all lots in a single query (was N queries)
+    const lotsResult = await this.repository.findByIds(lotIds)
+    if (!lotsResult.success) {
+      return lotsResult
+    }
+
+    // Verify all requested lots were found
+    const foundLotIds = new Set(lotsResult.data.map(l => l.id))
+    const missingLotIds = lotIds.filter(id => !foundLotIds.has(id))
+
+    if (missingLotIds.length > 0) {
+      return {
+        success: false as const,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Lots not found: ${missingLotIds.join(', ')}`
         }
       }
+    }
 
-      // Check if reference would conflict in target building
+    // Check for reference conflicts (still N queries, but unavoidable without batch API)
+    // TODO: Could be optimized further with a batch referenceExists check
+    const lotsToMove = []
+    for (const lot of lotsResult.data) {
       const referenceCheck = await this.repository.referenceExists(
-        lot.data.reference,
+        lot.reference,
         targetBuildingId
       )
       if (!referenceCheck.success) return referenceCheck
 
       if (referenceCheck.exists) {
         throw new ConflictException(
-          `Lot reference "${lot.data.reference}" already exists in the target building`,
+          `Lot reference "${lot.reference}" already exists in the target building`,
           'lots',
           'reference',
-          lot.data.reference
+          lot.reference
         )
       }
 
-      lotsToMove.push(lot.data)
+      lotsToMove.push(lot)
     }
 
     return this.repository.updateBuildingBulk(lotIds, targetBuildingId)

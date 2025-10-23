@@ -47,7 +47,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
 
   const validatePassword = (_password: string) => {
     const requirements = {
-      length: password.length >= 8,
+      length: _password.length >= 8,
       uppercase: /[A-Z]/.test(_password),
       lowercase: /[a-z]/.test(_password),
       number: /\d/.test(_password),
@@ -295,7 +295,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
 
   const isEmailValid = (_email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
+    return emailRegex.test(_email)
   }
 
   const handleClose = () => {

@@ -5,6 +5,7 @@ import {
   createServerInterventionService,
   createServerLotContactRepository
 } from '@/lib/services'
+import { getServerAuthContext } from '@/lib/server-context'
 import LotDetailsClient from './lot-details-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -60,6 +61,10 @@ export default async function LotDetailsPage({
 }) {
   const startTime = Date.now()
   const { id } = await params
+
+  // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  await getServerAuthContext('gestionnaire')
 
   logger.info('🏠 [LOT-PAGE-SERVER] Loading lot details', {
     lotId: id,

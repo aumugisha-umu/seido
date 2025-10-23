@@ -20,8 +20,8 @@ import type {
   ServiceOptions
 } from '../core/service-types'
 import {
-  ValidationError,
-  PermissionError,
+  ValidationException,
+  PermissionException,
   NotFoundException,
   handleError
 } from '../core/error-handler'
@@ -45,15 +45,15 @@ export class PropertyDocumentService {
     try {
       // Permission check: only gestionnaires and admins can upload
       if (options?.userRole && !['gestionnaire', 'admin'].includes(options.userRole)) {
-        throw new PermissionError('Only managers and admins can upload documents')
+        throw new PermissionException('Only managers and admins can upload documents')
       }
 
       // Validate mutually exclusive building_id / lot_id
       if (!data.building_id && !data.lot_id) {
-        throw new ValidationError('Either building_id or lot_id must be provided')
+        throw new ValidationException('Either building_id or lot_id must be provided')
       }
       if (data.building_id && data.lot_id) {
-        throw new ValidationError('Cannot provide both building_id and lot_id')
+        throw new ValidationException('Cannot provide both building_id and lot_id')
       }
 
       // Prepare insert data
@@ -225,7 +225,7 @@ export class PropertyDocumentService {
           !docResult.data ||
           docResult.data.uploaded_by !== options.userId
         ) {
-          throw new PermissionError('Only managers, admins, or uploader can update documents')
+          throw new PermissionException('Only managers, admins, or uploader can update documents')
         }
       }
 
@@ -274,7 +274,7 @@ export class PropertyDocumentService {
     try {
       // Permission check
       if (options?.userRole && !['gestionnaire', 'admin'].includes(options.userRole)) {
-        throw new PermissionError('Only managers and admins can delete documents')
+        throw new PermissionException('Only managers and admins can delete documents')
       }
 
       // Check if document exists
@@ -315,7 +315,7 @@ export class PropertyDocumentService {
     try {
       // Permission check
       if (options?.userRole && !['gestionnaire', 'admin'].includes(options.userRole)) {
-        throw new PermissionError('Only managers and admins can archive documents')
+        throw new PermissionException('Only managers and admins can archive documents')
       }
 
       const result = await this.repository.archive(id)
@@ -349,7 +349,7 @@ export class PropertyDocumentService {
     try {
       // Permission check
       if (options?.userRole && !['gestionnaire', 'admin'].includes(options.userRole)) {
-        throw new PermissionError('Only managers and admins can unarchive documents')
+        throw new PermissionException('Only managers and admins can unarchive documents')
       }
 
       const result = await this.repository.unarchive(id)
@@ -385,7 +385,7 @@ export class PropertyDocumentService {
     try {
       // Permission check
       if (options?.userRole && !['gestionnaire', 'admin'].includes(options.userRole)) {
-        throw new PermissionError('Only managers and admins can change document visibility')
+        throw new PermissionException('Only managers and admins can change document visibility')
       }
 
       const result = await this.repository.updateVisibility(id, visibilityLevel)

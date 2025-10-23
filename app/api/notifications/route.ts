@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient, getServerSession } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { notificationActionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    
-      // Paramètres de filtrage
+
+    // Paramètres de filtrage
     const userId = searchParams.get('user_id')
     const teamId = searchParams.get('team_id')
     const scope = searchParams.get('scope') // 'personal' | 'team' | null (all)
@@ -13,16 +15,12 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
-    
-    // Vérifier l'authentification
-    const session = await getServerSession()
-    if (!session) {
-      logger.info({}, '❌ [NOTIFICATIONS-API] Unauthorized request')
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+
+    // ✅ AUTH: getServerSession + createServerSupabaseClient + userService → getApiAuthContext (44 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase: supabaseGet, authUser, userProfile: dbUserGet } = authResult.data
 
     logger.info({
       userId,
@@ -32,27 +30,11 @@ export async function GET(request: NextRequest) {
       type,
       limit,
       offset,
-      sessionUserId: session.user.id
+      sessionUserId: authUser.id
     }, '🔍 [NOTIFICATIONS-API] Request params:')
 
-    const supabaseGet = await createServerSupabaseClient()
-
-    // ✅ CONVERSION AUTH ID → DATABASE ID
-    // Récupérer l'ID utilisateur de la table users à partir de l'ID Supabase Auth
-    const { createServerUserService } = await import('@/lib/services')
-    const userService = createServerUserService()
-    const dbUserGet = await userService.findByAuthUserId(session.user.id)
-    
-    if (!dbUserGet) {
-      logger.info({ user: session.user.id }, '❌ [NOTIFICATIONS-API] User not found in database for auth ID:')
-      return NextResponse.json(
-        { error: 'User not found in database' },
-        { status: 404 }
-      )
-    }
-    
     logger.info({
-      authId: session.user.id,
+      authId: authUser.id,
       dbUserId: dbUserGet.id
     }, '🔄 [NOTIFICATIONS-API] Auth ID converted:')
 
@@ -157,29 +139,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
-    // Vérifier l'authentification
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
 
-    const supabasePost = await createServerSupabaseClient()
+    // ✅ AUTH: getServerSession + createServerSupabaseClient + userService → getApiAuthContext (22 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // ✅ CONVERSION AUTH ID → DATABASE ID
-    const { createServerUserService } = await import('@/lib/services')
-    const userService = createServerUserService()
-    const dbUserPost = await userService.findByAuthUserId(session.user.id)
-    
-    if (!dbUserPost) {
-      return NextResponse.json(
-        { error: 'User not found in database' },
-        { status: 404 }
-      )
-    }
+    const { supabase: supabasePost, userProfile: dbUserPost } = authResult.data
 
     const {
       user_id,
@@ -246,18 +211,28 @@ export async function PATCH(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const body = await request.json()
-    
+
     const notificationId = searchParams.get('id')
-    const action = body.action // 'mark_read', 'mark_unread', 'archive', etc.
-    
-    // Vérifier l'authentification
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+
+    // ✅ ZOD VALIDATION (for body only, ID comes from query params)
+    const validation = validateRequest(notificationActionSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [NOTIFICATIONS-PATCH] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const action = validatedData.action // 'mark_read', 'mark_unread', 'archive', etc.
+
+    // ✅ AUTH: getServerSession + createServerSupabaseClient + userService → getApiAuthContext (22 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase: supabasePatch, userProfile: dbUserPatch } = authResult.data
 
     if (!notificationId) {
       return NextResponse.json(
@@ -286,20 +261,6 @@ export async function PATCH(request: NextRequest) {
           { error: 'Invalid action. Supported actions: mark_read, mark_unread, archive, unarchive' },
           { status: 400 }
         )
-    }
-
-    const supabasePatch = await createServerSupabaseClient()
-
-    // ✅ CONVERSION AUTH ID → DATABASE ID
-    const { createServerUserService } = await import('@/lib/services')
-    const userService = createServerUserService()
-    const dbUserPatch = await userService.findByAuthUserId(session.user.id)
-    
-    if (!dbUserPatch) {
-      return NextResponse.json(
-        { error: 'User not found in database' },
-        { status: 404 }
-      )
     }
 
     // Pour les notifications d'équipe, vérifier que l'utilisateur fait partie de l'équipe

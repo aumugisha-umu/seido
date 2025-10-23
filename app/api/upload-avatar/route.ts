@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { Database } from "@/lib/database.types"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { uploadAvatarSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 /**
  * POST /api/upload-avatar
  * Permet à un utilisateur authentifié d'uploader sa photo de profil
@@ -10,76 +10,43 @@ import { logger, logError } from '@/lib/logger'
  */
 export async function POST(request: NextRequest) {
   try {
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: createServerClient pattern → getApiAuthContext (27 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
+    const { supabase, authUser, userProfile: dbUser } = authResult.data
 
     // Récupérer le fichier depuis FormData
     const formData = await request.formData()
     const file = formData.get('avatar') as File
-    
+
     if (!file) {
-      return NextResponse.json({ 
-        error: "Aucun fichier fourni" 
+      return NextResponse.json({
+        error: "Aucun fichier fourni"
       }, { status: 400 })
     }
 
-    // Validation du fichier
-    const maxSize = 5 * 1024 * 1024 // 5MB
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    
-    if (file.size > maxSize) {
-      return NextResponse.json({ 
-        error: "Le fichier est trop volumineux (maximum 5MB)" 
+    // Construire l'objet pour validation Zod
+    const requestData = {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    }
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(uploadAvatarSchema, requestData)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [UPLOAD-AVATAR] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
-    
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: "Type de fichier non supporté (JPG, PNG, WebP uniquement)" 
-      }, { status: 400 })
-    }
+
+    const validatedData = validation.data
 
     logger.info({ user: authUser.email }, "📸 [UPLOAD-AVATAR] Processing upload for user:")
-
-    // Récupérer l'utilisateur dans notre base de données
-    const { data: dbUser, error: userError } = await supabase
-      .from("users")
-      .select("id, avatar_url")
-      .eq("auth_user_id", authUser.id)
-      .single()
-
-    if (userError || !dbUser) {
-      logger.error({ user: userError }, "❌ [UPLOAD-AVATAR] User not found in database:")
-      return NextResponse.json({ 
-        error: "Utilisateur non trouvé dans la base de données" 
-      }, { status: 404 })
-    }
 
     // Supprimer l'ancien avatar si il existe
     if (dbUser.avatar_url) {
@@ -162,47 +129,11 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE() {
   try {
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: createServerClient pattern → getApiAuthContext (27 lignes → 3 lignes)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
-    // Récupérer l'utilisateur dans notre base de données
-    const { data: dbUser, error: userError } = await supabase
-      .from("users")
-      .select("id, avatar_url")
-      .eq("auth_user_id", authUser.id)
-      .single()
-
-    if (userError || !dbUser) {
-      return NextResponse.json({ 
-        error: "Utilisateur non trouvé" 
-      }, { status: 404 })
-    }
+    const { supabase, userProfile: dbUser } = authResult.data
 
     // Supprimer le fichier du storage si il existe
     if (dbUser.avatar_url) {

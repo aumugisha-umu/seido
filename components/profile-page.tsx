@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
+import type { AuthUser } from "@/lib/auth-service"
 import { ChangePasswordModal, ChangeEmailModal } from "@/components/ui/security-modals"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -29,10 +30,13 @@ import {
 interface ProfilePageProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   dashboardPath: string
+  initialUser?: AuthUser  // ✅ Accepter les données initiales du serveur
 }
 
-export default function ProfilePage({ role, dashboardPath }: ProfilePageProps) {
-  const { user, updateProfile } = useAuth()
+export default function ProfilePage({ role, dashboardPath, initialUser }: ProfilePageProps) {
+  const { user: contextUser, updateProfile } = useAuth()
+  // ✅ Utiliser initialUser en priorité (chargé côté serveur), fallback sur contextUser
+  const user = initialUser || contextUser
   const { toast } = useToast()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)

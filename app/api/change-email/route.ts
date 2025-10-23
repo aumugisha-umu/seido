@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { Database } from "@/lib/database.types"
 import { createServerUserService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { changeEmailSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 /**
  * POST /api/change-email
  * Permet à un utilisateur authentifié de changer son email
@@ -12,61 +12,34 @@ import { logger, logError } from '@/lib/logger'
  */
 export async function POST(request: NextRequest) {
   try {
+    // ✅ AUTH: 42 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
+    const { supabase, authUser } = authResult.data
+
     // Initialize services
     const userService = await createServerUserService()
 
-    // Initialiser le client Supabase
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignorer les erreurs de cookies dans les API routes
-            }
-          },
-        },
-      }
-    )
-
-    // Vérification de l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
     // Récupérer les données du body
     const body = await request.json()
-    const { currentPassword, newEmail } = body
 
-    // Validation des champs requis
-    if (!currentPassword || !newEmail) {
-      return NextResponse.json({ 
-        error: "Le mot de passe actuel et le nouvel email sont requis" 
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(changeEmailSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CHANGE-EMAIL] Validation failed')
+      return NextResponse.json({
+        error: "Données invalides",
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
 
-    // Validation du format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(newEmail)) {
-      return NextResponse.json({ 
-        error: "Le format de l'email n'est pas valide" 
-      }, { status: 400 })
-    }
+    const { password: currentPassword, newEmail } = validation.data
 
     // Vérifier que le nouvel email est différent de l'actuel
     if (authUser.email === newEmail) {
-      return NextResponse.json({ 
-        error: "Le nouvel email doit être différent de l'email actuel" 
+      return NextResponse.json({
+        error: "Le nouvel email doit être différent de l'email actuel"
       }, { status: 400 })
     }
 

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from '@/lib/server-context'
 import {
   createServerUserService,
   createServerInterventionService,
@@ -15,15 +15,15 @@ import { logger, logError } from '@/lib/logger'
  * 🔐 DASHBOARD ADMIN - SERVER COMPONENT (Migration Server Components)
  *
  * Multi-layer security implementation:
- * 1. Route level: requireRole() vérification
+ * 1. Route level: getServerAuthContext() centralized auth
  * 2. Data layer: DAL avec authentification
  * 3. UI level: Masquage conditionnel
  * 4. Server actions: Validation dans actions
  */
 
 export default async function AdminDashboard() {
-  // ✅ LAYER 1: Route Level Security - Vérification rôle obligatoire
-  const { user, profile } = await requireRole(['admin'])
+  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+  const { user, profile } = await getServerAuthContext('admin')
 
   // Initialize services
   const userService = await createServerUserService()

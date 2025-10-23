@@ -35,9 +35,16 @@ interface SuccessModal {
   interventionTitle: string
 }
 
-export const useInterventionQuoting = () => {
+/**
+ * Hook pour gérer les demandes de devis d'intervention
+ * @param teamIdProp - Team ID passé depuis le serveur (Server Props Pattern)
+ */
+export const useInterventionQuoting = (teamIdProp?: string) => {
   const router = useRouter()
   const { user } = useAuth()
+
+  // ✅ Server Props Pattern: utiliser teamIdProp en priorité, fallback sur user?.team_id
+  const teamId = teamIdProp || user?.team_id
 
   // État des modals
   const [quoteRequestModal, setQuoteRequestModal] = useState<QuoteRequestModal>({
@@ -74,15 +81,15 @@ export const useInterventionQuoting = () => {
   // Récupérer les prestataires disponibles
   useEffect(() => {
     const fetchProviders = async () => {
-      if (!user?.team_id) {
-        logger.warn('🚨 [PROVIDERS] No team_id available, user:', user)
+      if (!teamId) {
+        logger.warn('🚨 [PROVIDERS] No team_id available (teamIdProp:', teamIdProp, ', user?.team_id:', user?.team_id, ')')
         return
       }
 
-      logger.info('🔍 [PROVIDERS] Fetching providers for team:', user.team_id)
+      logger.info('🔍 [PROVIDERS] Fetching providers for team:', teamId)
       setProvidersLoading(true)
       try {
-        const url = `/api/team-contacts?teamId=${user.team_id}&type=prestataire`
+        const url = `/api/team-contacts?teamId=${teamId}&type=prestataire`
         logger.info('🌐 [PROVIDERS] API URL:', url)
         
         const response = await fetch(url)
@@ -104,11 +111,11 @@ export const useInterventionQuoting = () => {
     }
 
     fetchProviders()
-  }, [user?.team_id])
+  }, [teamId, teamIdProp, user?.team_id]) // ✅ Dépendances mises à jour
 
   // Récupérer les prestataires éligibles pour une intervention
   const fetchEligibleProviders = async (_interventionId: string) => {
-    if (!user?.team_id) {
+    if (!teamId) {
       logger.warn('🚨 [ELIGIBLE-PROVIDERS] No team_id available')
       return
     }

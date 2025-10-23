@@ -303,6 +303,30 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
   }
 
   /**
+   * Find multiple users by IDs in a single query (batch operation)
+   * ✅ PERFORMANCE FIX (Oct 23, 2025 - Issue #1): Prevents N+1 query pattern
+   *
+   * @param userIds Array of user IDs to fetch
+   * @returns Array of users (may be less than input if some IDs don't exist)
+   */
+  async findByIds(userIds: string[]) {
+    if (!userIds.length) {
+      return { success: true as const, data: [] }
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .in('id', userIds)
+
+    if (error) {
+      return { success: false as const, error: handleError(error) }
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
    * Bulk update users' team
    */
   async updateTeamBulk(userIds: string[], teamId: string | null) {

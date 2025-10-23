@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
-// TODO: Initialize services for new architecture
-// Example: const userService = await createServerUserService()
-// Remember to make your function async if it isn't already
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { userAvailabilitySchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 
 export async function POST(
@@ -16,40 +13,12 @@ export async function POST(
   logger.info({ user: resolvedParams.id }, "📅 POST user-availability API called for intervention:")
 
   try {
-    // Initialize Supabase client
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: 45 lignes → 3 lignes! (any authenticated user) + BUG FIX: userService was undefined!
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Get current user
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    const { supabase, userProfile: user } = authResult.data
 
-    // Get user data from database
-    const user = await userService.findByAuthUserId(authUser.id)
     if (!user) {
       return NextResponse.json({
         success: false,
@@ -59,14 +28,26 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
-    const { availabilities } = body // Array of { date, startTime, endTime }
 
-    if (!availabilities || !Array.isArray(availabilities)) {
+    // Transform old format to schema format
+    const availabilities = body.availabilities || []
+    const transformedSlots = availabilities.map((avail: any) => ({
+      start: avail.date && avail.startTime ? `${avail.date}T${avail.startTime}:00.000Z` : '',
+      end: avail.date && avail.endTime ? `${avail.date}T${avail.endTime}:00.000Z` : ''
+    }))
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(userAvailabilitySchema, { slots: transformedSlots })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [USER-AVAILABILITY] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'Format de disponibilités invalide'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
 
     const interventionId = resolvedParams.id
 

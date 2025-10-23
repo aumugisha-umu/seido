@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, Search, User, MapPin, FileText, Building2, Check } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
+import PropertySelector from "@/components/property-selector"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
@@ -98,9 +99,8 @@ export default function NewLotPage() {
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { data: managerData, loading: buildingsLoading, forceRefetch: refetchManagerData } = useManagerStats()
+  const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
   const [currentStep, setCurrentStep] = useState(1)
-  const [buildingSearchQuery, setBuildingSearchQuery] = useState("")
   
   // États pour la gestion des gestionnaires de lot
   const [isLotManagerModalOpen, setIsLotManagerModalOpen] = useState(false)
@@ -386,13 +386,6 @@ export default function NewLotPage() {
   if (isMounted && (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam))) {
     return <TeamCheckModal onTeamResolved={() => {}} />
   }
-
-  // Get buildings from manager data
-  const buildings = managerData?.buildings || []
-  const filteredBuildings = buildings.filter(building => 
-    building.name.toLowerCase().includes(buildingSearchQuery.toLowerCase()) ||
-    building.address.toLowerCase().includes(buildingSearchQuery.toLowerCase())
-  )
 
   // Générer référence par défaut basée sur la catégorie du lot
   const generateDefaultReference = () => {
@@ -760,159 +753,25 @@ export default function NewLotPage() {
       </RadioGroup>
 
       {lotData.buildingAssociation === "existing" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Building2 className="h-5 w-5" />
-              <span>Sélectionner un immeuble</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input 
-                placeholder="Rechercher un immeuble..." 
-                className="pl-10" 
-                value={buildingSearchQuery}
-                onChange={(e) => setBuildingSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="mt-4">
-              {buildingsLoading ? (
-                <div className="text-center py-8 text-gray-500">Chargement des immeubles...</div>
-              ) : filteredBuildings.length === 0 ? (
-                buildingSearchQuery ? (
-                  <div className="text-center py-8 text-gray-500">Aucun immeuble trouvé pour "{buildingSearchQuery}"</div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>Vous n'avez pas encore créé d'immeuble</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4" 
-                      onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
-                    >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Créer un immeuble
-                    </Button>
-                  </div>
-                )
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-1">
-                  {filteredBuildings.map((building) => {
-                    const isSelected = lotData.selectedBuilding === building.id;
-                    const occupiedLots = building.lots?.filter((lot: {status: string}) => lot.status === 'occupied').length || 0;
-                    
-                    return (
-                      <div
-                        key={building.id}
-                        className={`group relative p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 focus:outline-none min-h-[140px] ${
-                          isSelected 
-                            ? "bg-sky-50 border-sky-500 shadow-sm focus:border-sky-600" 
-                            : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-                        }`}
-                        onClick={() => setLotData(prev => ({ 
-                          ...prev, 
-                          selectedBuilding: building.id === prev.selectedBuilding ? undefined : building.id
-                        }))}
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setLotData(prev => ({ 
-                              ...prev, 
-                              selectedBuilding: building.id === prev.selectedBuilding ? undefined : building.id
-                            }));
-                          }
-                        }}
-                        role="button"
-                        aria-pressed={isSelected}
-                        aria-label={`Sélectionner l'immeuble ${building.name}`}
-                      >
-                        {/* En-tête avec icône et sélecteur */}
-                        <div className="flex items-start justify-between mb-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                            isSelected 
-                              ? "bg-sky-100" 
-                              : "bg-slate-100 group-hover:bg-slate-200"
-                          }`}>
-                            <Building2 className={`h-4 w-4 ${
-                              isSelected ? "text-sky-600" : "text-slate-600"
-                            }`} />
-                          </div>
-                          
-                          {/* Indicateur de sélection */}
-                          <div className="flex-shrink-0">
-                            {isSelected ? (
-                              <div className="w-5 h-5 bg-sky-600 rounded-full flex items-center justify-center shadow-sm">
-                                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                              </div>
-                            ) : (
-                              <div className="w-5 h-5 border-2 border-slate-300 rounded-full group-hover:border-slate-400 transition-colors"></div>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Informations de l'immeuble */}
-                        <div className="space-y-2">
-                          <h4 className={`font-semibold text-sm line-clamp-1 ${
-                            isSelected ? "text-sky-900" : "text-slate-900"
-                          }`} title={building.name}>
-                            {building.name}
-                          </h4>
-                          <p className={`text-xs line-clamp-2 leading-relaxed ${
-                            isSelected ? "text-sky-700" : "text-slate-600"
-                          }`} title={building.address}>
-                            {building.address}
-                          </p>
-                          
-                          {/* Stats de l'immeuble */}
-                          <div className="flex items-center justify-between pt-2">
-                            <div className="flex items-center space-x-1">
-                              <div className={`w-3 h-3 rounded flex items-center justify-center ${
-                                isSelected ? "bg-sky-200" : "bg-slate-200"
-                              }`}>
-                                <Home className={`h-2 w-2 ${
-                                  isSelected ? "text-sky-600" : "text-slate-500"
-                                }`} />
-                              </div>
-                              <span className={`text-xs font-medium ${
-                                isSelected ? "text-sky-700" : "text-slate-600"
-                              }`}>
-                                {building.lots?.length || 0}
-                              </span>
-                            </div>
-                            
-                            {occupiedLots > 0 && (
-                              <div className="flex items-center space-x-1">
-                                <div className={`w-3 h-3 rounded flex items-center justify-center ${
-                                  isSelected ? "bg-emerald-200" : "bg-emerald-100"
-                                }`}>
-                                  <Users className={`h-2 w-2 ${
-                                    isSelected ? "text-emerald-600" : "text-emerald-500"
-                                  }`} />
-                                </div>
-                                <span className={`text-xs font-medium ${
-                                  isSelected ? "text-sky-700" : "text-slate-600"
-                                }`}>
-                                  {occupiedLots}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Indicateur visuel de sélection */}
-                        {isSelected && (
-                          <div className="absolute -inset-px bg-gradient-to-r from-sky-600 to-sky-500 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none -z-10"></div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
+            <Building2 className="h-5 w-5 text-sky-600" />
+            <span>Sélectionner un immeuble</span>
+          </h3>
+
+          <PropertySelector
+            mode="select"
+            onBuildingSelect={(buildingId) => {
+              setLotData(prev => ({
+                ...prev,
+                selectedBuilding: buildingId || undefined
+              }))
+            }}
+            selectedBuildingId={lotData.selectedBuilding}
+            showActions={false}
+            hideLotsSelect={true}
+          />
+        </div>
       )}
 
       {lotData.buildingAssociation === "new" && (
@@ -1233,18 +1092,21 @@ export default function NewLotPage() {
           </div>
         )}
 
-        <ContactSelector
-          ref={contactSelectorRef}
-          teamId={userTeam?.id || ""}
-          displayMode="full"
-          title="Assignation des contacts"
-          description="Assignez des contacts à vos lots (optionnel)"
-          selectedContacts={lotData.assignedContacts}
-          onContactSelected={handleContactSelected}
-          onContactRemoved={handleContactRemoved}
-          onContactCreated={handleContactCreated}
-          allowedContactTypes={["tenant", "provider", "syndic", "insurance", "other"]}
-        />
+        <div className="border border-gray-200 rounded-lg p-2">
+          <ContactSelector
+            ref={contactSelectorRef}
+            teamId={userTeam?.id || ""}
+            displayMode="compact"
+            title="Contacts assignés"
+            description="Spécifiques à ce lot"
+            selectedContacts={lotData.assignedContacts}
+            onContactSelected={handleContactSelected}
+            onContactRemoved={handleContactRemoved}
+            onContactCreated={handleContactCreated}
+            allowedContactTypes={["tenant", "provider", "owner", "other"]}
+            hideTitle={false}
+          />
+        </div>
       </div>
     )
   }
@@ -1304,7 +1166,7 @@ export default function NewLotPage() {
                       <span className="text-xs font-medium text-slate-700">Immeuble sélectionné</span>
                     </div>
                     <p className="text-sm font-medium text-slate-900 pl-5">
-                      {buildings.find(b => b.id === lotData.selectedBuilding)?.name || "Non trouvé"}
+                      {managerData?.buildings?.find((b: any) => b.id === lotData.selectedBuilding)?.name || "Non trouvé"}
                     </p>
                   </div>
                   
@@ -1315,7 +1177,7 @@ export default function NewLotPage() {
                     </div>
                     <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
                       <p className="text-sm font-medium text-slate-900 leading-relaxed">
-                        {buildings.find(b => b.id === lotData.selectedBuilding)?.address || "Adresse non trouvée"}
+                        {managerData?.buildings?.find((b: any) => b.id === lotData.selectedBuilding)?.address || "Adresse non trouvée"}
                       </p>
                     </div>
                   </div>

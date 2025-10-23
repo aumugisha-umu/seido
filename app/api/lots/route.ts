@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotInsert } from '@/lib/services/core/service-types'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * GET /api/lots
@@ -12,50 +11,11 @@ import type { LotInsert } from '@/lib/services/core/service-types'
  */
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH: 45 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
-
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role, team_id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     // Parser query params
     const { searchParams } = new URL(request.url)
@@ -115,82 +75,40 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
+    // ✅ AUTH + ROLE CHECK: 51 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
-
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role, team_id')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
-
-    // Vérifier les permissions
-    if (!['gestionnaire', 'admin'].includes(userProfile.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Permission refusée : seuls les gestionnaires et admins peuvent créer des lots'
-      }, { status: 403 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     // Parser le body
-    const body: LotInsert = await request.json()
+    const body = await request.json()
 
-    logger.info({
-      reference: body.reference,
-      buildingId: body.building_id,
-      userId: userProfile.id
-    }, '🏠 [LOTS-API] POST request - Creating lot')
-
-    // Valider les champs requis
-    if (!body.reference || !body.building_id || !body.team_id) {
+    // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
+    const validation = validateRequest(createLotSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [LOTS-API] Validation failed')
       return NextResponse.json({
         success: false,
-        error: 'Champs requis manquants : reference, building_id, team_id'
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
       }, { status: 400 })
     }
+
+    const validatedData = validation.data
+
+    logger.info({
+      reference: validatedData.reference,
+      buildingId: validatedData.building_id,
+      userId: userProfile.id
+    }, '🏠 [LOTS-API] POST request - Creating lot')
 
     // Initialiser le service
     const lotService = await createLotService()
 
     // Créer le lot
     const result = await lotService.create({
-      ...body,
+      ...validatedData,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })

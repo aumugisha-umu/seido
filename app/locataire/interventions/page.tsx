@@ -1,7 +1,7 @@
 // Server Component - loads interventions server-side
 import { notFound } from 'next/navigation'
 import { createServerInterventionService } from '@/lib/services'
-import { createServerSupabaseClient } from '@/lib/services'
+import { getServerAuthContext } from '@/lib/server-context'
 import InterventionsClient from './interventions-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -75,42 +75,19 @@ export default async function LocataireInterventionsPage() {
   })
 
   try {
-    // Get current user from server session
-    const supabase = await createServerSupabaseClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      logger.error('❌ [TENANT-INTERVENTIONS-PAGE-SERVER] User not authenticated', {
-        error: userError
-      })
-      notFound()
-    }
-
-    // Verify user is a tenant
-    const { data: userData, error: roleError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (roleError || !userData || userData.role !== 'locataire') {
-      logger.error('❌ [TENANT-INTERVENTIONS-PAGE-SERVER] User is not a tenant', {
-        userId: user.id,
-        role: userData?.role,
-        error: roleError
-      })
-      notFound()
-    }
+    // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+    // Remplace ~25 lignes d'auth manuelle (getUser + role check)
+    const { profile } = await getServerAuthContext('locataire')
 
     logger.info('✅ [TENANT-INTERVENTIONS-PAGE-SERVER] User authenticated as tenant', {
-      userId: user.id,
+      userId: profile.id,
       elapsed: `${Date.now() - startTime}ms`
     })
 
     // Load tenant interventions
-    logger.info('📍 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading interventions...', { userId: user.id })
+    logger.info('📍 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading interventions...', { userId: profile.id })
     const interventionService = await createServerInterventionService()
-    const result = await interventionService.getByTenant(user.id)
+    const result = await interventionService.getByTenant(profile.id)
 
     const interventions = result.success ? (result.data || []) : []
 
@@ -120,7 +97,7 @@ export default async function LocataireInterventionsPage() {
     })
 
     logger.info('🎉 [TENANT-INTERVENTIONS-PAGE-SERVER] All data loaded successfully', {
-      userId: user.id,
+      userId: profile.id,
       totalElapsed: `${Date.now() - startTime}ms`
     })
 

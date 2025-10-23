@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { markInvitationAcceptedSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 // Créer un client Supabase avec les permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
@@ -21,6 +24,11 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
+    // ✅ SECURITY FIX: Cette route n'avait AUCUNE vérification d'auth!
+    // N'importe qui pouvait marquer des invitations comme acceptées
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
+
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Service non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },
@@ -29,14 +37,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, invitationCode } = body
 
-    if (!email && !invitationCode) {
-      return NextResponse.json(
-        { error: 'Email ou code d\'invitation manquant' },
-        { status: 400 }
-      )
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(markInvitationAcceptedSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [MARK-INVITATION-ACCEPTED] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
     }
+
+    const validatedData = validation.data
+    const { email, invitationCode } = validatedData
 
     logger.info({ email, hasCode: !!invitationCode }, '📧 [MARK-INVITATION-API] Processing invitation acceptance:')
 

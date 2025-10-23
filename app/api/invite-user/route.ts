@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
-import { createServerUserService, createServerTeamService } from '@/lib/services'
-import { createActivityLogger } from '@/lib/activity-logger'
-import { getServerSession } from '@/lib/services'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { inviteUserSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseServiceRoleKey) {
@@ -26,29 +26,11 @@ const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
 
 export async function POST(request: Request) {
   try {
-    // Vérifier l'authentification et récupérer le profil utilisateur
-    const session = await getServerSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
+    // ✅ AUTH: 22 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Initialize services
-    const userService = await createServerUserService()
-    const teamService = await createServerTeamService()
-
-    // Récupérer le profil utilisateur pour avoir le bon ID
-    const currentUserProfileResult = await userService.getByAuthUserId(session.user.id)
-    if (!currentUserProfileResult.success || !currentUserProfileResult.data) {
-      return NextResponse.json(
-        { error: 'Profil utilisateur non trouvé' },
-        { status: 404 }
-      )
-    }
-
-    const currentUserProfile = currentUserProfileResult.data
+    const { userProfile: currentUserProfile } = authResult.data
 
     // Vérifier si le service d'invitation est disponible
     if (!supabaseAdmin) {
@@ -59,6 +41,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(inviteUserSchema, body)
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [INVITE-USER] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const validatedData = validation.data
     const {
       email,
       firstName,
@@ -70,7 +65,7 @@ export async function POST(request: Request) {
       notes, // ✅ AJOUT: Notes sur le contact
       speciality, // ✅ AJOUT: Spécialité pour les prestataires
       shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
-    } = body
+    } = validatedData
 
     logger.info({
       email,
@@ -263,9 +258,11 @@ export async function POST(request: Request) {
           throw new Error('Failed to generate invitation link: ' + inviteError?.message)
         }
 
-        // ✅ Récupérer l'auth_user_id créé automatiquement par generateLink
+        // ✅ Récupérer l'auth_user_id et le hashed_token
         authUserId = inviteLink.user.id
-        const invitationUrl = inviteLink.properties.action_link
+        const hashedToken = inviteLink.properties.hashed_token
+        // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
+        const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
         logger.info({ user: authUserId }, '✅ [STEP-3-INVITE-1] Auth user created + invite link generated:')
 
         // SOUS-ÉTAPE 2: Lier l'auth au profil (utiliser Service Role pour bypasser RLS)
@@ -298,7 +295,7 @@ export async function POST(request: Request) {
             provider_category: finalProviderCategory,
             team_id: teamId,
             invited_by: currentUserProfile.id,
-            invitation_token: inviteLink.properties.hashed_token,  // ✅ Token Supabase complet (VARCHAR 255)
+            invitation_token: hashedToken,  // ✅ Token Supabase complet (VARCHAR 255)
             user_id: userProfile.id,
             status: 'pending',
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),

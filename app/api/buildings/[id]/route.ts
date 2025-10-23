@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createBuildingService } from '@/lib/services/domain/building.service'
 import type { UpdateBuildingDTO } from '@/lib/services/core/service-types'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { updateBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
  * GET /api/buildings/[id]
@@ -16,50 +15,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH: 42 lignes → 3 lignes! (centralisé dans getApiAuthContext)
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     logger.info({ buildingId: id, userId: userProfile.id }, '🏢 [BUILDINGS-API] GET by ID request')
 
@@ -103,73 +64,40 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH + ROLE CHECK: 51 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
-
-    // Vérifier les permissions
-    if (!['gestionnaire', 'admin'].includes(userProfile.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Permission refusée : seuls les gestionnaires et admins peuvent modifier des bâtiments'
-      }, { status: 403 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     // Parser le body
-    const body: UpdateBuildingDTO = await request.json()
+    const body = await request.json()
+
+    // ✅ ZOD VALIDATION
+    const validation = validateRequest(updateBuildingSchema, { ...body, id })
+    if (!validation.success) {
+      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [BUILDINGS-API] Validation failed')
+      return NextResponse.json({
+        success: false,
+        error: 'Données invalides',
+        details: formatZodErrors(validation.errors)
+      }, { status: 400 })
+    }
+
+    const { id: _id, ...validatedData } = validation.data
 
     logger.info({
       buildingId: id,
       userId: userProfile.id,
-      updates: Object.keys(body)
+      updates: Object.keys(validatedData)
     }, '🏢 [BUILDINGS-API] PUT request - Updating building')
 
     // Initialiser le service
     const buildingService = createBuildingService(supabase)
 
     // Mettre à jour le bâtiment
-    const result = await buildingService.update(id, body)
+    const result = await buildingService.update(id, validatedData as UpdateBuildingDTO)
 
     if (!result.success) {
       logger.error({ buildingId: id, error: result.error }, '❌ [BUILDINGS-API] Error updating building')
@@ -207,58 +135,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const cookieStore = await cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore cookie setting errors in API routes
-            }
-          },
-        },
-      }
-    )
 
-    // Vérifier l'authentification
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    if (authError || !authUser) {
-      return NextResponse.json({
-        success: false,
-        error: 'Non autorisé'
-      }, { status: 401 })
-    }
+    // ✅ AUTH + ROLE CHECK: 51 lignes → 3 lignes! (gestionnaire required, admin bypass inclus)
+    const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
+    if (!authResult.success) return authResult.error
 
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_user_id', authUser.id)
-      .single()
-
-    if (!userProfile) {
-      return NextResponse.json({
-        success: false,
-        error: 'Profil utilisateur introuvable'
-      }, { status: 404 })
-    }
-
-    // Vérifier les permissions
-    if (!['gestionnaire', 'admin'].includes(userProfile.role)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Permission refusée : seuls les gestionnaires et admins peuvent supprimer des bâtiments'
-      }, { status: 403 })
-    }
+    const { supabase, userProfile } = authResult.data
 
     logger.info({
       buildingId: id,

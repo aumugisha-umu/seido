@@ -49,15 +49,12 @@ export async function POST(request: NextRequest) {
         hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
         allEnvKeys: Object.keys(process.env, '❌ [RESET-PASSWORD-API] Available env vars:').filter(key => key.includes('SUPABASE'))
       })
+      // ✅ FIX (Oct 23, 2025 - Issue #5): Remove sensitive debugInfo
+      // Never expose: hasServiceRoleKey, env variable names, etc.
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Service de réinitialisation non configuré - SUPABASE_SERVICE_ROLE_KEY manquant',
-          debugInfo: {
-            hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-            hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-            availableSupabaseEnvs: Object.keys(process.env).filter(key => key.includes('SUPABASE'))
-          }
+          error: 'Service de réinitialisation temporairement indisponible'
         },
         { status: 503 }
       )
@@ -104,16 +101,13 @@ export async function POST(request: NextRequest) {
         status: listError.status,
         name: listError.name
       }, '❌ [RESET-PASSWORD-API] Error listing users:')
+      // ✅ FIX (Oct 23, 2025 - Issue #5): Remove sensitive debugInfo
+      // Log full error server-side, return generic message to client
+      logger.error({ listError }, '❌ [RESET-PASSWORD-API] Database error')
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Erreur lors de la vérification de l\'utilisateur',
-          debugInfo: {
-            listError: listError.message,
-            errorStatus: listError.status,
-            hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-            serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length
-          }
+          error: 'Erreur lors de la vérification de l\'utilisateur'
         },
         { status: 500 }
       )
@@ -133,17 +127,15 @@ export async function POST(request: NextRequest) {
       logger.info({
         users: authUsers.users.map(u => ({ email: u.email, id: u.id, confirmed: u.email_confirmed_at }))
       }, '🔧 [RESET-PASSWORD-API] Available users in system')
+      // ✅ FIX (Oct 23, 2025 - Issue #5): Remove email enumeration vulnerability
+      // Never expose: list of valid emails, user count, etc.
+      logger.info({ searchedEmail: email }, '⚠️ [RESET-PASSWORD-API] User not found')
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Aucun compte n\'est associé à cette adresse email',
-          debugInfo: {
-            searchedEmail: email.toLowerCase(),
-            totalUsers: authUsers.users.length,
-            availableEmails: authUsers.users.map(u => u.email).filter(Boolean)
-          }
+          error: 'Si ce compte existe, un email de réinitialisation a été envoyé'
         },
-        { status: 404 }
+        { status: 200 }  // ✅ Return 200 to prevent email enumeration
       )
     }
 

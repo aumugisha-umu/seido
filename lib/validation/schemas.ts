@@ -439,12 +439,29 @@ export const uploadPropertyDocumentSchema = z.object({
 
 /**
  * POST /api/upload-intervention-document
+ *
+ * ✅ SECURITY FIX (Oct 23, 2025 - Issue #11): Strict MIME type whitelist
+ * Only allows safe document and image formats to prevent malicious file uploads
  */
 export const uploadInterventionDocumentSchema = z.object({
   interventionId: uuidSchema,
   fileName: z.string().min(1).max(255).trim(),
   fileSize: z.number().int().positive().max(100 * 1024 * 1024), // max 100MB
-  fileType: z.string().min(1).max(100).trim(),
+  fileType: z.enum([
+    // ✅ Documents (safe formats only)
+    'application/pdf',
+    'application/msword',  // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  // .docx
+    'application/vnd.ms-excel',  // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  // .xlsx
+    // ✅ Images
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+  ], {
+    errorMap: () => ({ message: 'Format de fichier invalide. Seuls PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF sont autorisés' })
+  }),
   description: z.string().max(2000).trim().optional(),
 })
 

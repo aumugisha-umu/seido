@@ -46,9 +46,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_interventions_team_status
   WHERE deleted_at IS NULL;
 
 COMMENT ON INDEX idx_interventions_team_status IS
-  'Composite index for dashboard queries filtering by team_id AND status. ' ||
-  'Covers the most frequent query pattern in gestionnaire dashboards. ' ||
-  'Created: Oct 23, 2025 (Issue #2 - Performance Optimization)';
+  'Composite index for dashboard queries filtering by team_id AND status. Covers the most frequent query pattern in gestionnaire dashboards. Created: Oct 23, 2025 (Issue #2 - Performance Optimization)';
 
 -- ============================================================================
 -- 2. INTERVENTION_ASSIGNMENTS: User + Role Composite Index
@@ -76,9 +74,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_intervention_assignments_user_role
   ON intervention_assignments(user_id, role);
 
 COMMENT ON INDEX idx_intervention_assignments_user_role IS
-  'Composite index for permission checks requiring both user_id AND role. ' ||
-  'Optimizes RLS policies and assignment validation queries. ' ||
-  'Created: Oct 23, 2025 (Issue #2 - Performance Optimization)';
+  'Composite index for permission checks requiring both user_id AND role. Optimizes RLS policies and assignment validation queries. Created: Oct 23, 2025 (Issue #2 - Performance Optimization)';
 
 -- ============================================================================
 -- 3. LOT_CONTACTS: Enhanced Covering Index
@@ -107,10 +103,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lot_contacts_covering
   INCLUDE (role);
 
 COMMENT ON INDEX idx_lot_contacts_covering IS
-  'Covering index for lot contact queries. INCLUDE clause allows index-only scans ' ||
-  'without heap access when querying for lot_id + user_id + role. ' ||
-  'Replaces idx_lot_contacts_lot_user with enhanced version. ' ||
-  'Created: Oct 23, 2025 (Issue #2 - Performance Optimization)';
+  'Covering index for lot contact queries. INCLUDE clause allows index-only scans without heap access when querying for lot_id + user_id + role. Replaces idx_lot_contacts_lot_user with enhanced version. Created: Oct 23, 2025 (Issue #2 - Performance Optimization)';
 
 -- ============================================================================
 -- VERIFICATION QUERIES (For testing post-migration)

@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
+import { useToast } from "@/hooks/use-toast"
 import ContactFormModal from "@/components/contact-form-modal"  // Encore utilise pour la creation de gestionnaire
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -127,6 +128,7 @@ export default function NewImmeubleePage({
 }: NewImmeublePageProps) {
   const router = useRouter()
   const { handleSuccess } = useCreationSuccess()
+  const { toast } = useToast()
   const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
 
   // TOUS LES HOOKS useState DOIVENT ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
@@ -619,13 +621,23 @@ export default function NewImmeubleePage({
         category: lot.category,
       }))
 
-      // Preparer les donnees des contacts si ils existent
-      const contactsData = contacts.map((contact) => ({
-        name: contact.name,
-        email: contact.email,
-        speciality: contact.type === 'provider' ? 'autre' : undefined,
-        team_id: userTeam!.id,
-      }))
+      // ✅ Preparer les building_contacts (contacts de l'immeuble)
+      const contactsData = [
+        // Contacts de l'immeuble (provider, syndic, notary, insurance, other)
+        ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
+          contactArray.map(contact => ({
+            id: contact.id,
+            type: contactType,
+            isPrimary: false
+          }))
+        ),
+        // Gestionnaires de l'immeuble (toujours inclus)
+        ...buildingManagers.map((manager, index) => ({
+          id: manager.user.id,
+          type: 'gestionnaire',
+          isPrimary: index === 0 // Premier gestionnaire = principal
+        }))
+      ]
 
       // Preparer les assignations de contacts aux lots
       const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
@@ -663,7 +675,7 @@ export default function NewImmeubleePage({
       const result = await createCompleteProperty({
         building: immeubleData,
         lots: lotsData,
-        contacts: contactsData,
+        buildingContacts: contactsData, // ✨ Contacts de l'immeuble
         lotContactAssignments: lotContactAssignmentsData,
       })
 
@@ -676,10 +688,21 @@ export default function NewImmeubleePage({
         throw new Error(errorMessage)
       }
 
-      // Gerer le succes avec la nouvelle strategie
+      // ✅ Afficher le toast de succès AVANT la redirection (Oct 23, 2025)
+      // Permet à l'utilisateur de voir la confirmation sur la page de création
+      toast({
+        title: "✅ Immeuble créé avec succès",
+        description: `L'immeuble "${result.data.building.name}" avec ${result.data.lots.length} lot(s) a été créé et assigné à votre équipe.`,
+        variant: "success",
+      })
+
+      // Attendre 2 secondes pour que l'utilisateur voie le toast
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Puis rediriger vers la liste des biens avec refresh des données
       await handleSuccess({
-        successTitle: "Immeuble créé avec succès",
-        successDescription: `L'immeuble "${result.data.building.name}" avec ${result.data.lots.length} lot(s) a été créé et assigné à votre équipe.`,
+        successTitle: "", // Toast déjà affiché ci-dessus
+        successDescription: "",
         redirectPath: "/gestionnaire/biens",
         refreshData: refetchManagerData,
       })

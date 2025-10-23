@@ -94,11 +94,10 @@ export interface CreateCompletePropertyData {
     charges_amount?: number
     category: string
   }>
-  contacts: Array<{
-    name: string
-    email: string
-    speciality?: string
-    team_id: string
+  buildingContacts?: Array<{
+    id: string
+    type: string
+    isPrimary: boolean
   }>
   lotContactAssignments: Array<{
     lotId: string // Temporary lot ID from frontend
@@ -592,6 +591,42 @@ export class CompositeService {
       building = buildingResult.data
       buildingOperation.entityId = building.id
       buildingOperation.status = 'completed'
+
+      // Step 1.5: Create building_contacts
+      if (data.buildingContacts && data.buildingContacts.length > 0) {
+        for (const buildingContact of data.buildingContacts) {
+          const buildingContactOperation: CompositeOperation = {
+            id: `building-contact-${Date.now()}-${Math.random()}`,
+            type: 'create',
+            service: 'contact',
+            entity: 'building_contact',
+            data: {
+              building_id: building.id,
+              user_id: buildingContact.id,
+              is_primary: buildingContact.isPrimary
+            },
+            status: 'pending',
+            timestamp: new Date().toISOString()
+          }
+          operations.push(buildingContactOperation)
+
+          // Direct Supabase insert into building_contacts junction table
+          const { error: insertError } = await this.buildingService['repository']['supabase']
+            .from('building_contacts')
+            .insert({
+              building_id: building.id,
+              user_id: buildingContact.id,
+              is_primary: buildingContact.isPrimary
+            })
+
+          if (insertError) {
+            buildingContactOperation.status = 'failed'
+            throw new Error(`Building contact assignment failed for user ${buildingContact.id}: ${insertError.message}`)
+          }
+
+          buildingContactOperation.status = 'completed'
+        }
+      }
 
       // Step 2: Create lots
       for (let i = 0; i < data.lots.length; i++) {

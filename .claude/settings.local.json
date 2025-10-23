@@ -33,7 +33,8 @@
       "Bash(if [ -f \"$file\" ])",
       "Bash(then)",
       "Bash(echo:*)",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

@@ -37,6 +37,25 @@ export class ContactInvitationService {
   constructor(private contactService: ContactService) {}
 
   /**
+   * Sanitize phone number for API validation
+   * Removes spaces, dashes, dots and converts empty strings to null
+   * ✅ FIX (Oct 23, 2025): Phone validation mismatch between form and API
+   * - Form accepts: "06 12 34 56 78", "06-12-34-56-78"
+   * - API requires: "0612345678" or "+33612345678"
+   */
+  private sanitizePhone(phone?: string): string | null {
+    if (!phone || phone.trim() === '') {
+      return null
+    }
+
+    // Remove all spaces, dashes, dots but keep + for international format
+    const sanitized = phone.replace(/[\s.\-]/g, '')
+
+    // Return null if result is empty after sanitization
+    return sanitized.trim() === '' ? null : sanitized
+  }
+
+  /**
    * Create a contact and optionally invite them to the application
    */
   async createContactWithOptionalInvite(contactData: ContactInvitationData): Promise<ServiceResult<{
@@ -46,6 +65,10 @@ export class ContactInvitationService {
   }>> {
     try {
       logger.info('🚀 [CONTACT-INVITATION-SERVICE] Starting with data:', contactData)
+
+      // ✅ FIX (Oct 23, 2025): Sanitize phone number to match Zod validation
+      const sanitizedPhone = this.sanitizePhone(contactData.phone)
+      logger.info(`📞 [CONTACT-INVITATION-SERVICE] Phone sanitized: "${contactData.phone}" → "${sanitizedPhone}"`)
 
       if (contactData.inviteToApp) {
         // Use the invite-user API for full user creation
@@ -61,7 +84,7 @@ export class ContactInvitationService {
             role: this.mapFrontendTypeToUserRole(contactData.type).role,
             providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
             teamId: contactData.teamId,
-            phone: contactData.phone,
+            phone: sanitizedPhone,
             notes: contactData.notes,
             speciality: contactData.speciality,
             shouldInviteToApp: contactData.inviteToApp
@@ -103,7 +126,7 @@ export class ContactInvitationService {
             role: this.mapFrontendTypeToUserRole(contactData.type).role,
             providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
             teamId: contactData.teamId,
-            phone: contactData.phone,
+            phone: sanitizedPhone,
             notes: contactData.notes,
             speciality: contactData.speciality,
             shouldInviteToApp: false // ✅ Skip the Supabase auth invitation

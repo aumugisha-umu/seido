@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit } from "lucide-react"
+import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X } from "lucide-react"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useBuildings } from "@/hooks/use-buildings"
 import type { Building as BuildingType, Lot as LotType } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
@@ -28,6 +29,7 @@ interface PropertySelectorProps {
   selectedBuildingId?: string
   selectedLotId?: string
   showActions?: boolean
+  hideLotsSelect?: boolean  // ✅ Masquer les boutons Select des lots (utile pour création de lot)
   initialData?: BuildingsData  // ✅ Optional server data
 }
 
@@ -35,10 +37,101 @@ interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initial
   buildings: Building[]
   individualLots: Lot[]
   loading: boolean
+  hideLotsSelect?: boolean
 }
 
 // ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
 // When initialData is provided (server-side rendering), we skip the useBuildings hook entirely
+
+/**
+ * 🏷️ Helper: Traduire les catégories de lots en français
+ */
+const getLotCategoryLabel = (category: string): string => {
+  const labels: Record<string, string> = {
+    'appartement': 'Appartement',
+    'collocation': 'Collocation',
+    'maison': 'Maison',
+    'garage': 'Garage',
+    'local_commercial': 'Local commercial',
+    'parking': 'Parking',
+    'autre': 'Autre'
+  }
+  return labels[category] || category
+}
+
+/**
+ * 📧 ContactsBadge - Badge affichant tous les contacts d'un lot avec tooltip détaillé
+ */
+interface LotContact {
+  is_primary?: boolean
+  user?: {
+    id: string
+    name: string
+    email: string
+    role: string
+    provider_category?: string
+  }
+}
+
+interface ContactsBadgeProps {
+  lotContacts?: LotContact[]
+}
+
+function ContactsBadge({ lotContacts }: ContactsBadgeProps) {
+  if (!lotContacts || lotContacts.length === 0) return null
+
+  // Grouper les contacts par rôle
+  const contactsByRole = {
+    locataire: lotContacts.filter(c => c.user?.role === 'locataire'),
+    gestionnaire: lotContacts.filter(c => c.user?.role === 'gestionnaire'),
+    prestataire: lotContacts.filter(c => c.user?.role === 'prestataire'),
+    proprietaire: lotContacts.filter(c => c.user?.role === 'proprietaire'),
+    autre: lotContacts.filter(c => !['locataire', 'gestionnaire', 'prestataire', 'proprietaire'].includes(c.user?.role || ''))
+  }
+
+  const roleLabels: Record<string, { label: string; icon: any; color: string }> = {
+    locataire: { label: 'Locataires', icon: Users, color: 'text-blue-700' },
+    gestionnaire: { label: 'Gestionnaires', icon: Users, color: 'text-purple-700' },
+    prestataire: { label: 'Prestataires', icon: Wrench, color: 'text-green-700' },
+    proprietaire: { label: 'Propriétaires', icon: Home, color: 'text-orange-700' },
+    autre: { label: 'Autres', icon: UserCircle, color: 'text-gray-700' }
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs cursor-help hover:bg-blue-100 transition-colors">
+          <Users className="w-3 h-3 text-blue-600" />
+          <span className="text-blue-700 font-medium">{lotContacts.length}</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs bg-white border-slate-200 text-slate-900">
+        <div className="space-y-2">
+          {Object.entries(contactsByRole).map(([role, contacts]) => {
+            if (contacts.length === 0) return null
+            const roleInfo = roleLabels[role]
+            const Icon = roleInfo.icon
+            return (
+              <div key={role} className="space-y-1">
+                <div className={`flex items-center gap-1.5 font-semibold text-xs ${roleInfo.color}`}>
+                  <Icon className="w-3 h-3" />
+                  <span>{roleInfo.label} ({contacts.length})</span>
+                </div>
+                <div className="space-y-0.5 pl-4">
+                  {contacts.map((contact, idx) => (
+                    <p key={contact.user?.id || idx} className="text-xs text-slate-700">
+                      • {contact.user?.name || contact.user?.email || 'Contact sans nom'}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 /**
  * Internal component that renders the property selector UI
@@ -51,6 +144,7 @@ function PropertySelectorView({
   selectedBuildingId,
   selectedLotId,
   showActions: _showActions = true,
+  hideLotsSelect = false,
   buildings,
   individualLots,
   loading
@@ -228,7 +322,7 @@ function PropertySelectorView({
                                 }
                               }}
                             >
-                              {isSelected ? "Selected" : "Select"}
+                              {isSelected ? "Sélectionné" : "Sélectionner"}
                             </Button>
                           ) : (
                             <>
@@ -237,7 +331,7 @@ function PropertySelectorView({
                                 size="sm"
                                 className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)}
-                                title="Edit building"
+                                title="Modifier l'immeuble"
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>
@@ -248,7 +342,7 @@ function PropertySelectorView({
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
                               >
                                 <Eye className="h-3 w-3 mr-1" />
-                                Details
+                                Détails
                               </Button>
                             </>
                           )}
@@ -270,8 +364,13 @@ function PropertySelectorView({
                               <Users className="h-3 w-3 text-emerald-600" />
                             </div>
                             <span className="text-sm font-medium text-slate-900">{occupiedLots}</span>
-                            <span className="text-xs text-slate-600 hidden sm:inline">occupied</span>
+                            <span className="text-xs text-slate-600 hidden sm:inline">occupé(s)</span>
                           </div>
+
+                          {/* Badge contacts de l'immeuble */}
+                          {building.building_contacts && building.building_contacts.length > 0 && (
+                            <ContactsBadge lotContacts={building.building_contacts} />
+                          )}
 
                           {totalInterventions > 0 && (
                             <div className="flex items-center space-x-1.5">
@@ -294,7 +393,7 @@ function PropertySelectorView({
                               <ChevronDown className="h-3 w-3" />
                             </div>
                             <span className="ml-1 hidden sm:inline">
-                              {isExpanded ? "Collapse" : "Lots"}
+                              {isExpanded ? "Réduire" : "Lots"}
                             </span>
                           </Button>
                         )}
@@ -318,22 +417,13 @@ function PropertySelectorView({
                                       variant={lot.status === "occupied" ? "default" : "secondary"}
                                       className="text-xs h-4 px-1.5"
                                     >
-                                      {lot.status === "occupied" ? "Occupied" : "Vacant"}
+                                      {lot.status === "occupied" ? "Occupé" : "Libre"}
                                     </Badge>
                                     
-                                    {(() => {
-                                      const lotTenantCount = lot.lot_tenants?.length || (lot.tenant ? 1 : 0)
-                                      if (lotTenantCount === 0) return null
-                                      
-                                      return (
-                                        <div className="relative group">
-                                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs cursor-help hover:bg-blue-100 transition-colors">
-                                            <Users className="w-2.5 h-2.5 text-blue-600" />
-                                            <span className="text-blue-700 font-medium text-xs">{lotTenantCount}</span>
-                                          </div>
-                                        </div>
-                                      )
-                                    })()}
+                                    {/* Badge des contacts avec tooltip */}
+                                    {lot.lot_contacts && lot.lot_contacts.length > 0 && (
+                                      <ContactsBadge lotContacts={lot.lot_contacts} />
+                                    )}
                                   </div>
                                   
                                   <div className="flex items-center gap-1">
@@ -344,7 +434,7 @@ function PropertySelectorView({
                                           size="sm"
                                           className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
-                                          title="Edit lot"
+                                          title="Modifier le lot"
                                         >
                                           <Edit className="h-3 w-3" />
                                         </Button>
@@ -353,14 +443,14 @@ function PropertySelectorView({
                                           size="sm"
                                           className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                          title="View lot details"
+                                          title="Voir les détails du lot"
                                         >
                                           <Eye className="h-3 w-3" />
                                         </Button>
                                       </>
                                     )}
-                                    
-                                    {mode === "select" && (
+
+                                    {mode === "select" && !hideLotsSelect && (
                                       <Button
                                         variant={isLotSelected ? "default" : "outline"}
                                         size="sm"
@@ -371,7 +461,7 @@ function PropertySelectorView({
                                           }
                                         }}
                                       >
-                                        {isLotSelected ? "OK" : "Select"}
+                                        {isLotSelected ? "OK" : "Sélectionner"}
                                       </Button>
                                     )}
                                   </div>
@@ -388,7 +478,7 @@ function PropertySelectorView({
                                 onClick={() => toggleBuildingExpansion(buildingIdStr)}
                                 className="h-7 px-3 text-xs text-slate-500 hover:text-slate-900 border border-dashed border-slate-300 w-full"
                               >
-                                +{(building.lots || []).length - 2} more lots
+                                +{(building.lots || []).length - 2} lots de plus
                               </Button>
                             </div>
                           )}
@@ -410,23 +500,65 @@ function PropertySelectorView({
                                   >
                                     <div className="flex items-start justify-between min-w-0">
                                       <div className="space-y-1 min-w-0 flex-1 mr-2">
+                                        {/* Ligne 1: Référence • Catégorie • Badge icône occupation */}
                                         <div className="flex items-center space-x-2">
+                                          {/* Référence */}
                                           <div className="font-medium text-xs text-slate-900">{lot.reference}</div>
+
+                                          {/* Séparateur */}
+                                          <span className="text-slate-400 text-xs">•</span>
+
+                                          {/* Catégorie */}
+                                          <span className="text-xs text-slate-600">{getLotCategoryLabel(lot.category)}</span>
+
+                                          {/* Séparateur */}
+                                          <span className="text-slate-400 text-xs">•</span>
+
+                                          {/* Badge icône occupation (vert/rouge) */}
                                           <Badge
-                                            variant={lot.status === "occupied" ? "default" : "secondary"}
-                                            className="text-xs h-3 px-1.5"
+                                            variant="outline"
+                                            className={`h-5 w-5 p-0.5 flex items-center justify-center rounded-full ${
+                                              lot.status === "occupied"
+                                                ? "bg-green-50 border-green-300 text-green-700"
+                                                : "bg-red-50 border-red-300 text-red-700"
+                                            }`}
+                                            title={lot.status === "occupied" ? "Occupé" : "Libre"}
                                           >
-                                            {lot.status === "occupied" ? "Occupied" : "Vacant"}
+                                            {lot.status === "occupied" ? (
+                                              <Check className="h-3 w-3" />
+                                            ) : (
+                                              <X className="h-3 w-3" />
+                                            )}
                                           </Badge>
                                         </div>
-                                        
-                                        <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0">
-                                          <span>Floor {lot.floor}</span>
+
+                                        {/* Ligne 2: Détails (Étage, Porte, Contacts, Interventions) */}
+                                        <div className="text-xs text-slate-600 flex items-center space-x-3 min-w-0 flex-wrap">
+                                          <span>Étage {lot.floor ?? 0}</span>
+
+                                          {lot.apartment_number && (
+                                            <>
+                                              <span className="text-slate-400">•</span>
+                                              <span>Porte {lot.apartment_number}</span>
+                                            </>
+                                          )}
+
+                                          {/* Badge des contacts avec tooltip */}
+                                          {lot.lot_contacts && lot.lot_contacts.length > 0 && (
+                                            <>
+                                              <span className="text-slate-400">•</span>
+                                              <ContactsBadge lotContacts={lot.lot_contacts} />
+                                            </>
+                                          )}
+
                                           {(lot.interventions || 0) > 0 && (
-                                            <div className="flex items-center text-amber-700">
-                                              <Zap className="h-3 w-3 mr-1" />
-                                              <span>{lot.interventions}</span>
-                                            </div>
+                                            <>
+                                              <span className="text-slate-400">•</span>
+                                              <div className="flex items-center text-amber-700">
+                                                <Zap className="h-3 w-3 mr-1" />
+                                                <span>{lot.interventions}</span>
+                                              </div>
+                                            </>
                                           )}
                                         </div>
                                       </div>
@@ -439,7 +571,7 @@ function PropertySelectorView({
                                               size="sm"
                                               className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                               onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
-                                              title="Edit lot"
+                                              title="Modifier le lot"
                                             >
                                               <Edit className="h-3 w-3" />
                                             </Button>
@@ -448,14 +580,14 @@ function PropertySelectorView({
                                               size="sm"
                                               className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                               onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                              title="View lot details"
+                                              title="Voir les détails du lot"
                                             >
                                               <Eye className="h-3 w-3" />
                                             </Button>
                                           </>
                                         )}
 
-                                        {mode === "select" && (
+                                        {mode === "select" && !hideLotsSelect && (
                                           <Button
                                             variant={isLotSelected ? "default" : "outline"}
                                             size="sm"
@@ -466,7 +598,7 @@ function PropertySelectorView({
                                               }
                                             }}
                                           >
-                                            {isLotSelected ? "OK" : "Select"}
+                                            {isLotSelected ? "OK" : "Sélectionner"}
                                           </Button>
                                         )}
                                       </div>
@@ -575,11 +707,11 @@ function PropertySelectorView({
   const filterConfigs = [
     {
       id: "status",
-      label: "Status",
+      label: "Statut",
       options: [
-        { value: "all", label: "All" },
-        { value: "occupied", label: "Occupied" },
-        { value: "vacant", label: "Vacant" }
+        { value: "all", label: "Tous" },
+        { value: "occupied", label: "Occupés" },
+        { value: "vacant", label: "Libres" }
       ],
       defaultValue: "all"
     },
@@ -587,9 +719,9 @@ function PropertySelectorView({
       id: "interventions",
       label: "Interventions",
       options: [
-        { value: "all", label: "All" },
-        { value: "with", label: "With interventions" },
-        { value: "without", label: "Without interventions" }
+        { value: "all", label: "Tous" },
+        { value: "with", label: "Avec interventions" },
+        { value: "without", label: "Sans interventions" }
       ],
       defaultValue: "all"
     }
@@ -599,7 +731,7 @@ function PropertySelectorView({
     <ContentNavigator
       tabs={tabs}
       defaultTab="buildings"
-      searchPlaceholder="Search properties..."
+      searchPlaceholder="Rechercher..."
       filters={filterConfigs}
       onSearch={handleSearch}
       onFilterChange={handleFilterChange}

@@ -266,6 +266,12 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
    * Get teams for a specific user with intelligent caching
    */
   async findUserTeams(userId: string): Promise<{ success: true; data: TeamWithMembers[] }> {
+    // Protection against undefined userId
+    if (!userId) {
+      logger.warn('⚠️ [TEAM-REPOSITORY] getUserTeams called with undefined userId')
+      return { success: true, data: [] }
+    }
+
     // Protection against JWT-only users
     if (userId.startsWith('jwt_')) {
       logger.info('⚠️ [TEAM-REPOSITORY] JWT-only user detected, returning empty teams list')

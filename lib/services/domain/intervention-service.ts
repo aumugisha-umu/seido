@@ -297,7 +297,7 @@ export class InterventionService {
   /**
    * Create new intervention
    */
-  async create(data: InterventionCreateInput, userId: string) {
+  async create(data: InterventionCreateInput, userId: string, options?: { skipInitialSelect?: boolean }) {
     try {
       // Prepare intervention data with proper initial status
       let interventionData: InterventionInsert
@@ -342,12 +342,20 @@ export class InterventionService {
         }
       }
 
-      const result = await this.interventionRepo.create(interventionData)
+      // ✅ Pass skipInitialSelect option to repository
+      const result = await this.interventionRepo.create(interventionData, options)
       if (!result.success || !result.data) {
         return result
       }
 
-      // Auto-create conversation threads
+      // If we skipped SELECT, we only have the ID
+      // Caller must fetch complete intervention later and handle post-creation tasks
+      if (options?.skipInitialSelect) {
+        logger.info({ interventionId: result.data.id }, "✅ Intervention created (ID only, caller will fetch later)")
+        return result  // Contains { id: string }
+      }
+
+      // Auto-create conversation threads (only if we have complete data)
       if (this.conversationRepo) {
         await this.createInitialConversationThreads(result.data.id, data.team_id, userId)
       }
@@ -1092,11 +1100,11 @@ export class InterventionService {
   /**
    * Get interventions for a specific user based on their role
    */
-  async getMyInterventions(userId: string, role: User['role']) {
+  async getMyInterventions(userId: string, role: User['role'], teamId?: string) {
     try {
       switch (role) {
         case 'locataire':
-          return this.interventionRepo.findByTenant(userId)
+          return this.interventionRepo.findByTenant(userId, teamId)
         case 'prestataire':
           // Get interventions where user is assigned as provider
           const { data, error } = await this.interventionRepo.supabase

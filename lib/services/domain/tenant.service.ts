@@ -74,8 +74,8 @@ export class TenantService {
       // Get lots associated with this tenant
       const lots = await this.getTenantLots(actualUserId)
 
-      // Get interventions for this tenant
-      const interventions = await this.getTenantInterventions(actualUserId)
+      // Get interventions for this tenant (filtered by team for multi-tenant isolation)
+      const interventions = await this.getTenantInterventions(actualUserId, user.team_id)
 
       // Get team data if user is part of a team
       let teamData = null
@@ -157,13 +157,13 @@ export class TenantService {
 
   /**
    * Get interventions for a tenant
-   * ✅ CORRECTIF (2025-10-07): Use InterventionService.getByTenant() to get tenant's interventions
+   * ✅ FIX 2025-10-24: Use getMyInterventions with teamId for multi-tenant isolation
    */
-  private async getTenantInterventions(userId: string): Promise<Intervention[]> {
+  private async getTenantInterventions(userId: string, teamId?: string): Promise<Intervention[]> {
     try {
-      logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", userId)
+      logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", { userId, teamId })
 
-      const result = await this.interventionService.getByTenant(userId)
+      const result = await this.interventionService.getMyInterventions(userId, 'locataire', teamId)
       if (result.success && result.data) {
         logger.info("✅ [TENANT-SERVICE] Found tenant interventions:", result.data.length)
         return result.data

@@ -10,6 +10,8 @@ import {
 } from '@/lib/services'
 
 import { LocataireDashboardClient } from "./locataire-dashboard-client"
+import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { InterventionsList } from "@/components/interventions/interventions-list"
 import { logger, logError } from '@/lib/logger'
 /**
  * 🔐 DASHBOARD LOCATAIRE - SERVER COMPONENT (Migration Server Components)
@@ -64,18 +66,23 @@ export default async function LocataireDashboard() {
         urgency_level: i.urgency || 'normale'
       }))
 
-      // Calculate pending actions
-      pendingActions = tenantInterventions.filter(i =>
-        i.status === 'cloturee_par_prestataire' ||
-        i.status === 'demande'
-      ).map(i => ({
-        id: i.id,
-        type: i.status === 'cloturee_par_prestataire' ? 'validation_required' : 'new_request',
-        title: i.title,
-        description: i.description,
-        priority: i.urgency_level || 'medium',
-        href: `/locataire/interventions/${i.id}`
-      }))
+      // Calculate pending actions - format for PendingActionsCard component
+      pendingActions = tenantInterventions
+        .filter(i => ['cloturee_par_prestataire', 'demande', 'planification'].includes(i.status))
+        .map(i => ({
+          id: i.id,
+          type: 'intervention',
+          title: i.title,
+          description: i.description || '',
+          status: i.status,
+          reference: i.reference,
+          priority: i.urgency_level || 'normale',
+          location: {
+            building: tenantData.building?.name,
+            lot: tenantData.reference
+          },
+          actionUrl: `/locataire/interventions/${i.id}`
+        }))
 
       logger.info('✅ [LOCATAIRE-DASHBOARD] Tenant data loaded successfully:', {
         lotId: tenantData.id,
@@ -174,73 +181,36 @@ export default async function LocataireDashboard() {
       </div>
 
       {/* Section 1: Actions en attente */}
-      <section>
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Actions en attente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pendingActions.length > 0 ? (
-              <div className="space-y-3">
-                {pendingActions.map((action) => (
-                  <div key={action.id} className="p-4 border rounded-lg">
-                    <h3 className="font-medium">{action.title}</h3>
-                    <p className="text-sm text-gray-600">{action.description}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-gray-500">Aucune action en attente</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      <PendingActionsCard
+        title="Actions en attente"
+        description="Interventions nécessitant votre attention"
+        actions={pendingActions}
+        userRole="locataire"
+        loading={false}
+        emptyStateTitle="Aucune action en attente"
+        emptyStateDescription="Toutes vos interventions sont à jour"
+      />
 
       {/* Section 3: Interventions */}
       <section>
-        <div className="mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
-            <div className="flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-slate-900" />
-              <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
-            </div>
-          </div>
+        <div className="mb-4 flex items-center gap-2">
+          <Wrench className="w-5 h-5 text-slate-900" />
+          <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            {tenantInterventions.length > 0 ? (
-              <div className="space-y-4">
-                {tenantInterventions.slice(0, 5).map((intervention) => (
-                  <div key={intervention.id} className="p-4 border rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium">{intervention.title}</h3>
-                        <p className="text-sm text-gray-600">{intervention.description}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(intervention.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        intervention.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        intervention.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {intervention.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Wrench className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Aucune intervention</p>
-                <p className="text-sm text-gray-400">Vos demandes apparaîtront ici</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <InterventionsList
+          interventions={tenantInterventions}
+          loading={false}
+          compact={true}
+          maxItems={5}
+          emptyStateConfig={{
+            title: "Aucune intervention",
+            description: "Vos demandes apparaîtront ici",
+            showCreateButton: false
+          }}
+          showStatusActions={true}
+          userContext="locataire"
+        />
       </section>
 
     </div>

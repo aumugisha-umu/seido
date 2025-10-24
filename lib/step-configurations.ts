@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [
@@ -54,6 +54,22 @@ export const interventionSteps: StepConfig[] = [
   },
   {
     icon: Check,
+    label: "Confirmation"
+  }
+]
+
+// Steps pour la création d'intervention par le locataire
+export const tenantInterventionSteps: StepConfig[] = [
+  {
+    icon: Home,
+    label: "Logement"
+  },
+  {
+    icon: FileText,
+    label: "Demande"
+  },
+  {
+    icon: CheckCircle,
     label: "Confirmation"
   }
 ]

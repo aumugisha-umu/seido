@@ -272,8 +272,9 @@ const interventionStatusEnum = z.enum([
 
 /**
  * Intervention urgency enum
+ * Must match database enum: intervention_urgency
  */
-const urgencyEnum = z.enum(['faible', 'moyenne', 'haute', 'urgente'], {
+const urgencyEnum = z.enum(['basse', 'normale', 'haute', 'urgente'], {
   errorMap: () => ({ message: 'Invalid urgency level' })
 })
 

@@ -184,8 +184,9 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    * Get interventions by tenant (user who requested)
    * ✅ FIX 2025-10-15: Query via intervention_assignments instead of tenant_id column
    */
-  async findByTenant(tenantId: string) {
-    const { data, error } = await this.supabase
+  async findByTenant(tenantId: string, teamId?: string) {
+    // Build query with tenant filter
+    let query = this.supabase
       .from('intervention_assignments')
       .select(`
         intervention_id,
@@ -204,7 +205,13 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       `)
       .eq('user_id', tenantId)
       .eq('role', 'locataire')
-      .order('created_at', { ascending: false })
+
+    // ✅ SECURITY: Multi-tenant isolation - filter by team_id
+    if (teamId) {
+      query = query.eq('intervention.team_id', teamId)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       return createErrorResponse(handleError(error, 'intervention:findByTenant'))

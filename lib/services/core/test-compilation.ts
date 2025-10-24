@@ -20,6 +20,7 @@ import type {
   User
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 } from './service-types'
+import { logger } from '@/lib/logger'
 
 // Test that we can create clients
 const browserClient = createBrowserSupabaseClient()

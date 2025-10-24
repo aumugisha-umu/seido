@@ -805,16 +805,16 @@ export default function NouvelleInterventionClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
-        {/* Header */}
-        <StepProgressHeader
-          title="Créer une intervention"
-          backButtonText="Retour aux interventions"
-          onBack={() => router.back()}
-          steps={interventionSteps}
-          currentStep={currentStep}
-        />
+      {/* Header - Sticky au niveau supérieur */}
+      <StepProgressHeader
+        title="Créer une intervention"
+        backButtonText="Retour aux interventions"
+        onBack={() => router.back()}
+        steps={interventionSteps}
+        currentStep={currentStep}
+      />
 
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-3 pt-2">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -1378,10 +1378,11 @@ export default function NouvelleInterventionClient({
               </Card>
             )
           })()}
+      </main>
 
-        {/* Sticky Navigation - Always visible at bottom */}
-        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm shadow-md border border-gray-200 rounded-lg px-6 py-4 mt-2 max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
-          <div className="flex flex-col sm:flex-row justify-between gap-2">
+      {/* Sticky Navigation - Always visible at bottom */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
             {/* Back Button - Show from step 2 onwards */}
             {currentStep > 1 && (
               <Button
@@ -1430,9 +1431,9 @@ export default function NouvelleInterventionClient({
               )}
             </Button>
           </div>
-        </div>
+      </div>
 
-        <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-center">
@@ -1469,7 +1470,6 @@ export default function NouvelleInterventionClient({
             </div>
           </DialogContent>
         </Dialog>
-      </main>
     </div>
   )
 }

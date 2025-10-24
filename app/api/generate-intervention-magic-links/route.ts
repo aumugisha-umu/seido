@@ -109,7 +109,8 @@ export async function POST(request: NextRequest) {
 
         // Check if provider already exists in our system
         let providerId = null
-        const existingProvider = await userService.findByEmail(email)
+        const existingProviderResult = await userService.findByEmail(email)
+        const existingProvider = existingProviderResult?.data ?? null
 
         if (existingProvider) {
           providerId = existingProvider.id

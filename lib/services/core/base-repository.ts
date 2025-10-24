@@ -16,6 +16,7 @@ import {
   NotFoundException
 } from './error-handler'
 import { cache } from '@/lib/cache/cache-manager'
+import { logger } from '@/lib/logger'
 
 /**
  * Base repository class providing common CRUD operations
@@ -75,13 +76,17 @@ export abstract class BaseRepository<
 
   /**
    * Create a new record
-   * 
+   *
    * ✅ FIX: Generate UUID upfront and insert without .select() to avoid RLS issues
    * The implicit SELECT triggered by .select() after INSERT was causing RLS policy
    * violations because auth context wasn't properly established for SECURITY DEFINER functions.
    * By separating INSERT and SELECT operations, we ensure proper auth context for both.
+   *
+   * @param data - The data to insert
+   * @param options - Optional configuration
+   * @param options.skipInitialSelect - If true, returns only the ID without fetching complete record
    */
-  async create(data: TInsert): Promise<RepositoryResponse<TRow>> {
+  async create(data: TInsert, options?: { skipInitialSelect?: boolean }): Promise<RepositoryResponse<TRow>> {
     try {
       // Generate an ID upfront to avoid needing .select() after INSERT
       const newId = crypto.randomUUID()
@@ -94,6 +99,14 @@ export abstract class BaseRepository<
 
       if (insertError) {
         return createErrorResponse(handleError(insertError, `${this.tableName}:create:insert`))
+      }
+
+      // ✅ NEW: If skipInitialSelect, return minimal response with just the ID
+      if (options?.skipInitialSelect) {
+        logger.info({ table: this.tableName, id: newId }, "✅ INSERT successful, skipping SELECT as requested")
+        // Return a partial object with just the ID
+        // The caller can fetch the complete object later
+        return createSuccessResponse({ id: newId } as unknown as TRow)
       }
 
       // Step 2: Separate SELECT query with full auth context established

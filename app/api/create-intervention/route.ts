@@ -96,12 +96,16 @@ export async function POST(request: NextRequest) {
     logger.info({}, "👤 Getting user data...")
     let user
     try {
-      user = await userService.findByAuthUserId(authUser.id)
+      const userResult = await userService.findByAuthUserId(authUser.id)
+      if (userResult?.success === false) {
+        logger.error({ error: userResult.error }, "❌ findByAuthUserId returned error")
+      }
+      user = userResult?.data ?? null
       logger.info({ user: user ? { id: user.id, name: user.name, role: user.role } : null }, "✅ Found user via findByAuthUserId")
     } catch (error) {
       logger.error({ error }, "❌ Error with findByAuthUserId")
     }
-    
+
     if (!user) {
       logger.error({ authUserId: authUser.id }, "❌ No user found for auth_user_id")
       return NextResponse.json({
@@ -112,56 +116,18 @@ export async function POST(request: NextRequest) {
 
     logger.info({ name: user.name, role: user.role }, "✅ User found")
 
-    // Get team ID for the intervention
-    let teamId = null
-
-    if (user.role === 'locataire') {
-      // Get the team associated with this tenant via their lot
-      logger.info({}, "👥 Getting tenant's team...")
-      const tenantData = await tenantService.getTenantData(user.id)
-
-      // ✅ FIX: Try multiple sources for team ID for independent lots
-      if (tenantData?.team_id) {
-        // First priority: direct team assignment on the lot
-        teamId = tenantData.team_id
-        logger.info({ teamId }, "✅ Found team ID from lot")
-      } else if (tenantData?.building_id) {
-        // Second priority: team from building (for lots in buildings)
-        try {
-          const building = await buildingService.getById(tenantData.building_id)
-          if (building?.team_id) {
-            teamId = building.team_id
-            logger.info({ teamId }, "✅ Found team ID from building")
-          }
-        } catch (error) {
-          logger.warn({ error }, "⚠️ Could not get building details for team ID")
-        }
-      } else {
-        // ✅ NEW: Fallback for independent lots - get team from user's team membership
-        logger.info({}, "⚠️ Independent lot detected, checking user's team membership...")
-        try {
-          const userTeams = await teamService.getUserTeams(user.id)
-          if (userTeams.length > 0) {
-            teamId = userTeams[0].id
-            logger.info({ teamId }, "✅ Found team ID from user membership for independent lot")
-          }
-        } catch (error) {
-          logger.warn({ error }, "⚠️ Could not get user teams for independent lot")
-        }
-      }
-    } else {
-      // For other roles, get team from teamService
-      logger.info({}, "👥 Getting user's team...")
-      const userTeams = await teamService.getUserTeams(user.id)
-      if (userTeams.length > 0) {
-        teamId = userTeams[0].id
-        logger.info({ teamId }, "✅ Found team ID")
-      }
-    }
+    // ✅ Get teamId from request body (same pattern as manager)
+    const { teamId } = body
 
     if (!teamId) {
-      logger.warn({}, "⚠️ No team found for user, intervention will be created without team association")
+      logger.error({}, "❌ CRITICAL: No teamId provided in request")
+      return NextResponse.json({
+        success: false,
+        error: 'L\'équipe est requise pour créer une intervention'
+      }, { status: 400 })
     }
+
+    logger.info({ teamId, source: 'request_body' }, "✅ Using teamId from request")
 
     // Map frontend values to database enums
     const mapInterventionType = (frontendType: string): Database['public']['Enums']['intervention_type'] => {
@@ -218,16 +184,81 @@ export async function POST(request: NextRequest) {
       urgency: mapUrgencyLevel(urgency || ''),
       reference: generateReference(),
       lot_id,
-      tenant_id: user.id, // Use the database user ID, not auth ID
+      // ✅ tenant_id REMOVED - tenant relationship via intervention_assignments
       team_id: teamId,
       status: 'demande' as Database['public']['Enums']['intervention_status']
     }
 
-    logger.info({ interventionData }, "📝 Creating intervention with data")
+    logger.info({ interventionData }, "📝 Creating intervention (step 1/3: INSERT only)")
 
-    // Create the intervention
-    const intervention = await interventionService.create(interventionData)
-    logger.info({ interventionId: intervention.id }, "✅ Intervention created")
+    // ✅ STEP 1: Create intervention WITHOUT SELECT (to avoid RLS block before assignment)
+    const result = await interventionService.create(interventionData, user.id, {
+      skipInitialSelect: true  // Don't SELECT immediately, we'll do it after creating assignment
+    })
+
+    if (!result.success || !result.data) {
+      logger.error({ error: result.error }, "❌ Failed to create intervention")
+      return NextResponse.json({
+        success: false,
+        error: result.error?.message || 'Failed to create intervention'
+      }, { status: 500 })
+    }
+
+    const interventionId = result.data.id
+    logger.info({ interventionId }, "✅ Intervention INSERT successful (ID only)")
+
+    // ✅ STEP 2: Create intervention_assignments for tenant IMMEDIATELY (before SELECT)
+    // Now that CHECK constraint is fixed (migration 20251024192745), we can use normal client with RLS
+    try {
+      logger.info({ userId: user.id, interventionId }, "👤 Creating tenant assignment (step 2/3)...")
+
+      const { error: tenantAssignError } = await supabase
+        .from('intervention_assignments')
+        .insert({
+          intervention_id: interventionId,
+          user_id: user.id,
+          role: 'locataire',
+          is_primary: true,
+          assigned_by: user.id,
+          assigned_at: new Date().toISOString()
+        })
+
+      if (tenantAssignError) {
+        logger.error({ error: tenantAssignError }, "❌ Failed to create tenant assignment")
+        // This is critical - without assignment, tenant can't view intervention
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de l\'assignation du locataire à l\'intervention'
+        }, { status: 500 })
+      }
+
+      logger.info({}, "✅ Tenant assignment created successfully")
+    } catch (error) {
+      logger.error({ error }, "❌ Error creating tenant assignment")
+      return NextResponse.json({
+        success: false,
+        error: 'Erreur lors de l\'assignation du locataire'
+      }, { status: 500 })
+    }
+
+    // ✅ STEP 3: NOW fetch complete intervention (RLS will allow it thanks to assignment)
+    logger.info({ interventionId }, "📥 Fetching complete intervention (step 3/3)...")
+
+    const { data: intervention, error: fetchError } = await supabase
+      .from('interventions')
+      .select('*')
+      .eq('id', interventionId)
+      .single()
+
+    if (fetchError || !intervention) {
+      logger.error({ error: fetchError }, "❌ Failed to fetch intervention after assignment")
+      return NextResponse.json({
+        success: false,
+        error: 'Intervention créée mais impossible de la récupérer'
+      }, { status: 500 })
+    }
+
+    logger.info({ interventionId: intervention.id }, "✅ Intervention fetched successfully")
 
     // Log successful intervention creation
     if (teamId) {
@@ -314,6 +345,9 @@ export async function POST(request: NextRequest) {
           logger.warn({ error }, "⚠️ [CREATE-INTERVENTION] Could not update intervention team_id")
         }
       }
+
+      // ✅ NOTE: Tenant assignment already created BEFORE (step 2/3, line 210-241)
+      // This ensures RLS allows SELECT immediately after INSERT
 
       // Create notifications for assigned users and team members
       if (effectiveTeamId) {

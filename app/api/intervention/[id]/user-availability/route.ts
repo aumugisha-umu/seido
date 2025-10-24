@@ -250,7 +250,8 @@ export async function GET(
     }
 
     // Get user data from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+    const user = userResult?.data ?? null
     if (!user) {
       return NextResponse.json({
         success: false,

@@ -139,6 +139,9 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     return { success: true as const, data: enrichedData }
   }
 
+  // ✅ Méthodes custom complexes supprimées
+  // La page utilisera getById() + queries Supabase directes (pattern Lots/Immeubles)
+
   /**
    * Get all interventions with basic relations
    */

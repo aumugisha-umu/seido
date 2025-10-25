@@ -39,6 +39,14 @@ export abstract class BaseRepository<
   }
 
   /**
+   * Get the Supabase client instance
+   * Allows services to make custom queries with the correct client context
+   */
+  public getClient(): SupabaseClient<Database> {
+    return this.supabase
+  }
+
+  /**
    * ⚡ PERFORMANCE: Generic cached query wrapper for list operations
    * Uses CacheManager (L1 LRU + L2 Redis) for optimal performance
    *

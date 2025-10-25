@@ -4,7 +4,43 @@
 **Version analysée :** Branche `preview` (Commit: 9283799)
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 23 octobre 2025 - 21:30 CET (Rate Limiting + Validation Zod 100% + Documentation complète)
+**Dernière mise à jour :** 25 octobre 2025 - 11:00 CET (Fix critique: intervention detail page 404)
+
+---
+
+## 🚨 BUG CRITIQUE CORRIGÉ - 25 octobre 2025 - 11:00 CET
+
+### ❌ Problème: Page détail intervention retournait 404 systématiquement
+
+**Impact:** Toutes les pages `/gestionnaire/interventions/[id]` inaccessibles pour tous les gestionnaires
+
+**Cause racine identifiée par agent seido-debugger:**
+- `InterventionService.getById()` appelait `this.interventionRepo.findWithAssignments(id)`
+- Cette méthode **n'existait plus** dans le repository (supprimée lors du refactoring)
+- L'appel échouait silencieusement, retournant une erreur sans message
+
+**Fichiers impactés:**
+1. `lib/services/domain/intervention-service.ts:162` - Appel à méthode inexistante
+2. `lib/services/domain/conversation-service.ts:707` - Même problème
+
+**Correction appliquée:**
+```typescript
+// ❌ AVANT (buggy)
+const result = await this.interventionRepo.findWithAssignments(id)
+
+// ✅ APRÈS (corrigé)
+const result = await this.interventionRepo.findById(id)
+```
+
+**Tests de validation:**
+- ✅ Build réussi sans erreur
+- ✅ Grep global: 0 occurrence restante de `findWithAssignments`
+- ✅ Pattern aligné avec Lots/Immeubles qui fonctionnent
+
+**Leçons apprises:**
+- ⚠️ Lors de suppression de méthodes, grepper tous les appels dans le codebase
+- ⚠️ Les erreurs silencieuses (méthode undefined) sont difficiles à déboguer
+- ✅ L'agent seido-debugger a été essentiel pour identifier la cause exacte
 
 ---
 

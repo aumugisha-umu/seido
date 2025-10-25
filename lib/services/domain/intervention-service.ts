@@ -152,32 +152,30 @@ export class InterventionService {
    */
 
   /**
-   * Get intervention by ID with permission check
+   * Get intervention by ID
+   * ✅ SIMPLE: RLS policies handle ALL permission checks automatically
+   * Pattern identique à Lots/Immeubles: pas de check custom, RLS uniquement
    */
   async getById(id: string, userId: string) {
     try {
-      // Get intervention with all relations
-      const result = await this.interventionRepo.findWithAssignments(id)
+      // Get intervention with basic data
+      const result = await this.interventionRepo.findById(id)
       if (!result.success || !result.data) {
         return result
       }
 
-      // Check user permissions
-      const hasAccess = await this.checkInterventionAccess(result.data, userId)
-      if (!hasAccess) {
-        throw new PermissionException(
-          'You do not have permission to view this intervention',
-          'interventions',
-          'read',
-          userId
-        )
-      }
+      // ✅ NO CUSTOM PERMISSION CHECK - RLS handles it
+      // If user doesn't have access, Supabase RLS policies would have blocked findById()
+      // This matches the Lots/Immeubles pattern exactly
 
       return result
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:getById'))
     }
   }
+
+  // ✅ Méthode custom complexe supprimée
+  // La page utilisera getById() + queries Supabase directes (pattern Lots/Immeubles)
 
   /**
    * Get all interventions for the authenticated user's team
@@ -386,16 +384,9 @@ export class InterventionService {
         return current
       }
 
-      // Check permissions (skip if no userId - RLS protects at DB level)
-      const hasAccess = await this.checkInterventionModifyAccess(current.data, userId)
-      if (!hasAccess) {
-        throw new PermissionException(
-          'You do not have permission to update this intervention',
-          'interventions',
-          'update',
-          userId ||'unknown'
-        )
-      }
+      // ✅ NO CUSTOM PERMISSION CHECK - RLS handles it
+      // If user doesn't have modify access, Supabase RLS policies will block the update
+      // This matches the Lots/Immeubles pattern exactly
 
       // Update the intervention
       const result = await this.interventionRepo.update(id, data)
@@ -1406,73 +1397,9 @@ export class InterventionService {
     }
   }
 
-  /**
-   * Check if user has access to view intervention
-   */
-  private async checkInterventionAccess(intervention: any, userId: string): Promise<boolean> {
-    if (!this.userService) return true
-
-    const userResult = await this.userService.getById(userId)
-    if (!userResult.success || !userResult.data) {
-      return false
-    }
-
-    const user = userResult.data
-
-    // Admins and managers can see all interventions in their team
-    if (['admin', 'gestionnaire'].includes(user.role)) {
-      return intervention.team_id === user.team_id
-    }
-
-    // Tenants can see their own interventions
-    if (user.role === 'locataire') {
-      const tenants = await this.getInterventionTenants(intervention.id)
-      return tenants.includes(userId)
-    }
-
-    // Providers can see interventions they're assigned to
-    if (user.role === 'prestataire') {
-      const assignments = intervention.intervention_assignments || []
-      return assignments.some((a: any) => a.user_id === userId)
-    }
-
-    return false
-  }
-
-  /**
-   * Check if user has access to modify intervention
-   */
-  private async checkInterventionModifyAccess(intervention: Intervention, userId?: string): Promise<boolean> {
-    // If no userId provided, skip check (RLS protects at DB level)
-    if (!userId || !this.userService) return true
-
-    const userResult = await this.userService.getById(userId)
-    if (!userResult.success || !userResult.data) {
-      return false
-    }
-
-    const user = userResult.data
-
-    // Admins and managers can modify all interventions in their team
-    if (['admin', 'gestionnaire'].includes(user.role)) {
-      return intervention.team_id === user.team_id
-    }
-
-    // Tenants can only modify interventions in 'demande' status that they created
-    if (user.role === 'locataire') {
-      const tenants = await this.getInterventionTenants(intervention.id)
-      return tenants.includes(userId) && intervention.status === 'demande'
-    }
-
-    // Prestataires can modify interventions they are assigned to
-    if (user.role === 'prestataire') {
-      const prestataires = await this.getInterventionPrestataires(intervention.id)
-      return prestataires.includes(userId)
-    }
-
-    // Other roles denied
-    return false
-  }
+  // ✅ SUPPRIMÉ: checkInterventionAccess() et checkInterventionModifyAccess()
+  // Pattern Lots/Immeubles: RLS policies gèrent TOUTES les permissions automatiquement
+  // Pas besoin de checks custom qui dupliquent (et cassent) la logique RLS
 
   /**
    * Create initial conversation threads for intervention

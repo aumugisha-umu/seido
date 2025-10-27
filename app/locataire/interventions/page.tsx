@@ -87,7 +87,7 @@ export default async function LocataireInterventionsPage() {
     // Load tenant interventions
     logger.info('📍 [TENANT-INTERVENTIONS-PAGE-SERVER] Loading interventions...', { userId: profile.id })
     const interventionService = await createServerInterventionService()
-    const result = await interventionService.getByTenant(profile.id)
+    const result = await interventionService.getMyInterventions(profile.id, 'locataire')
 
     const interventions = result.success ? (result.data || []) : []
 

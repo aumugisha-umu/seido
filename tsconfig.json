@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": ["dom", "dom.iterable", "esnext", "webworker"],
+    "types": ["@serwist/next/typings"],
     "allowJs": true,
     "target": "ES6",
     "skipLibCheck": true,
@@ -23,5 +24,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "docs/**/*", "test-results/**/*", "playwright-report/**/*"]
+  "exclude": ["node_modules", "docs/**/*", "test-results/**/*", "playwright-report/**/*", "public/sw*", "public/swe-worker*"]
 }

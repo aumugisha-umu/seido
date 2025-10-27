@@ -18,7 +18,7 @@ import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
-import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
 import { logger, logError } from '@/lib/logger'
 export default function PrestataireDashboard() {
   const { user } = useAuth()
@@ -176,17 +176,30 @@ export default function PrestataireDashboard() {
         id: intervention.id,
         type: 'intervention',
         title: intervention.title,
+        description: intervention.description,
         status: intervention.status,
         reference: intervention.reference,
         priority: intervention.priority,
+        urgency: intervention.urgency,
         location: {
           building: intervention.building?.name,
-          lot: intervention.lot?.reference
+          lot: intervention.lot?.reference,
+          address: intervention.building?.address,
+          city: intervention.building?.city,
+          postal_code: intervention.building?.postal_code
         },
         contact: intervention.tenant ? {
           name: intervention.tenant.name,
-          role: 'Locataire'
+          role: 'Locataire',
+          phone: intervention.tenant.phone,
+          email: intervention.tenant.email
         } : undefined,
+        assigned_contact: intervention.assigned_contact,
+        dates: {
+          created: intervention.created_at,
+          planned: (intervention as any).planned_date,
+          completed: (intervention as any).completed_date
+        },
         actionUrl: `/prestataire/interventions/${intervention.id}`
       }))
   }
@@ -215,13 +228,25 @@ export default function PrestataireDashboard() {
         </div>
 
         {/* Section 1: Actions en attente - Nouveau composant réutilisable */}
-        <section>
-          <PendingActionsCard
-            actions={pendingActions}
-            userRole="prestataire"
-            loading={loading}
-          />
-        </section>
+        {pendingActions.length > 0 && (
+          <section>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <AlertCircle className="w-4 h-4 text-orange-500" />
+                    <span className="font-medium text-foreground">Actions en attente</span>
+                    <span className="text-xs text-slate-600 ml-auto">Interventions nécessitant votre attention</span>
+                  </div>
+                  <PendingActionsCompactHybrid
+                    actions={pendingActions}
+                    userRole="prestataire"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {/* Section 2: Interventions avec ContentNavigator */}
         <section>

@@ -25,7 +25,8 @@ import {
   Mail,
   Star,
   Calendar,
-  Briefcase
+  Briefcase,
+  Home
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -54,6 +55,11 @@ const roleConfig = {
     label: 'Prestataire',
     color: 'bg-purple-100 text-purple-800',
     icon: Briefcase
+  },
+  locataire: {
+    label: 'Locataire',
+    color: 'bg-green-100 text-green-800',
+    icon: Home
   }
 }
 
@@ -67,7 +73,7 @@ export function AssignmentCard({
 
   // Group assignments by role
   const groupedAssignments = assignments.reduce((acc, assignment) => {
-    const role = assignment.role as 'gestionnaire' | 'prestataire'
+    const role = assignment.role as 'gestionnaire' | 'prestataire' | 'locataire'
     if (!acc[role]) acc[role] = []
     acc[role].push(assignment)
     return acc

@@ -18,7 +18,8 @@ import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import { useInterventionExecution } from "@/hooks/use-intervention-execution"
 import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
-import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
+import { AlertCircle } from "lucide-react"
 import { createContactInvitationService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 export default function GestionnaireDashboard() {
@@ -60,20 +61,35 @@ export default function GestionnaireDashboard() {
         id: intervention.id,
         type: 'intervention',
         title: intervention.title,
+        description: intervention.description,
         status: intervention.status,
         reference: intervention.reference,
         priority: intervention.priority,
+        urgency: intervention.urgency,
         location: {
           building: intervention.building?.name,
-          lot: intervention.lot?.reference
+          lot: intervention.lot?.reference,
+          address: intervention.building?.address,
+          city: intervention.building?.city,
+          postal_code: intervention.building?.postal_code
         },
         contact: intervention.tenant ? {
           name: intervention.tenant.name,
-          role: 'Locataire'
+          role: 'Locataire',
+          phone: intervention.tenant.phone,
+          email: intervention.tenant.email
         } : intervention.prestataire ? {
           name: intervention.prestataire.name,
-          role: 'Prestataire'
+          role: 'Prestataire',
+          phone: intervention.prestataire.phone,
+          email: intervention.prestataire.email
         } : undefined,
+        assigned_contact: intervention.assigned_contact,
+        dates: {
+          created: intervention.created_at,
+          planned: intervention.planned_date,
+          completed: intervention.completed_date
+        },
         actionUrl: `/gestionnaire/interventions/${intervention.id}`
       }))
   }
@@ -244,11 +260,23 @@ export default function GestionnaireDashboard() {
       </div>
 
       {/* Section: Actions en attente */}
-      <PendingActionsCard
-        actions={pendingActions}
-        userRole="gestionnaire"
-        loading={statsLoading}
-      />
+      {pendingActions.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                <AlertCircle className="w-4 h-4 text-orange-500" />
+                <span className="font-medium text-foreground">Actions en attente</span>
+                <span className="text-xs text-slate-600 ml-auto">Interventions nécessitant votre attention</span>
+              </div>
+              <PendingActionsCompactHybrid
+                actions={pendingActions}
+                userRole="gestionnaire"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

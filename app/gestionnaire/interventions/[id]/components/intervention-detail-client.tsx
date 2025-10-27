@@ -360,6 +360,8 @@ export function InterventionDetailClient({
           <ChatTab
             interventionId={intervention.id}
             threads={threads}
+            currentUserId={user?.id || ''}
+            userRole={user?.role || 'gestionnaire'}
           />
         </TabsContent>
 

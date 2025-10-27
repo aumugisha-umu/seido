@@ -13,6 +13,7 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import NotificationPopover from "@/components/notification-popover"
+import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
 import { logger, logError } from '@/lib/logger'
 interface NavigationItem {
   href: string
@@ -199,12 +200,12 @@ export default function DashboardHeader({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex items-center justify-between h-16">
             {/* Logo à gauche */}
-            <div className="flex items-center">
+            <div className="flex items-center gap-4">
               <div className="flex items-center">
                 {/* Logo SEIDO - Cliquable vers dashboard */}
                 <div className="flex-shrink-0">
                   <Link href={`/${role}/dashboard`} className="block">
-                    <Image 
+                    <Image
                       src="/images/Logo/Logo_Seido_Color.png"
                       alt="SEIDO"
                       width={140}
@@ -214,6 +215,9 @@ export default function DashboardHeader({
                   </Link>
                 </div>
               </div>
+
+              {/* Bouton installation PWA - visible uniquement si non installé */}
+              <InstallPWAHeaderButton />
             </div>
 
             {/* Navigation desktop - cachée sur mobile et tablet - affichée seulement si navigation existe */}

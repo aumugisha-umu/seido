@@ -389,17 +389,17 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-16 flex-col gap-2"
                   onClick={() => setIsPasswordModalOpen(true)}
                 >
                   <Lock className="h-5 w-5" />
                   <span className="text-sm font-medium">Modifier le mot de passe</span>
                 </Button>
-                
-                <Button 
-                  variant="outline" 
+
+                <Button
+                  variant="outline"
                   className="h-16 flex-col gap-2"
                   onClick={() => setIsEmailModalOpen(true)}
                 >
@@ -411,13 +411,13 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
           </Card>
 
           {/* Modals de sécurité */}
-          <ChangePasswordModal 
-            open={isPasswordModalOpen} 
+          <ChangePasswordModal
+            open={isPasswordModalOpen}
             onOpenChange={setIsPasswordModalOpen}
           />
-          
-          <ChangeEmailModal 
-            open={isEmailModalOpen} 
+
+          <ChangeEmailModal
+            open={isEmailModalOpen}
             onOpenChange={setIsEmailModalOpen}
             currentEmail={user.email}
           />

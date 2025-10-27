@@ -2,6 +2,9 @@ import ProfilePage from "@/components/profile-page"
 import { getServerAuthContext } from '@/lib/server-context'
 import type { AuthUser } from '@/lib/auth-service'
 
+// Force dynamic rendering since this page requires authentication
+export const dynamic = 'force-dynamic'
+
 export default async function GestionnaireProfilePage() {
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
   const { user, profile } = await getServerAuthContext('gestionnaire')

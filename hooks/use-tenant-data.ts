@@ -112,18 +112,66 @@ export const useTenantData = () => {
         // Continue anyway - let the service handle it
       }
 
-      // Fetch all tenant data in parallel avec l'ID résolu
+      // Fetch all tenant data avec l'ID résolu
       const tenantService = createTenantService()
-      const [data, stats, interventions] = await Promise.all([
-        tenantService.getTenantData(resolvedUserId),
-        tenantService.getTenantStats(resolvedUserId),
-        tenantService.getTenantInterventions(resolvedUserId)
-      ])
+      const data = await tenantService.getTenantData(resolvedUserId)
+
+      if (!data) {
+        throw new Error('Failed to fetch tenant data')
+      }
+
+      // Extract tenant lot data (primary lot)
+      const primaryLot = data.lots.find(l => l.is_primary)?.lot || data.lots[0]?.lot
+
+      // Transform data to match hook interfaces
+      const transformedTenantData: TenantData | null = primaryLot ? {
+        id: primaryLot.id,
+        reference: primaryLot.reference,
+        floor: primaryLot.floor,
+        apartment_number: primaryLot.apartment_number,
+        surface_area: primaryLot.surface_area,
+        rooms: primaryLot.rooms,
+        charges_amount: primaryLot.charges_amount,
+        category: primaryLot.category,
+        building: primaryLot.building || null
+      } : null
+
+      // Calculate stats from interventions
+      const now = new Date()
+      const thisMonth = now.getMonth()
+      const thisYear = now.getFullYear()
+
+      const transformedStats: TenantStats = {
+        openRequests: data.interventions.filter((i: any) => i.status === 'demande').length,
+        inProgress: data.interventions.filter((i: any) =>
+          ['en_cours', 'planifiee', 'approuvee'].includes(i.status)
+        ).length,
+        thisMonthInterventions: data.interventions.filter((i: any) => {
+          const createdDate = new Date(i.created_at)
+          return createdDate.getMonth() === thisMonth && createdDate.getFullYear() === thisYear
+        }).length,
+        documentsCount: 0, // TODO: implement document count
+        nextPaymentDate: 0 // TODO: implement payment date
+      }
+
+      // Transform interventions
+      const transformedInterventions: TenantIntervention[] = data.interventions.map((i: any) => ({
+        id: i.id,
+        title: i.title,
+        description: i.description || '',
+        status: i.status,
+        created_at: i.created_at,
+        completed_date: i.completed_date,
+        urgency: i.urgency || 'normale',
+        type: i.intervention_type || i.type || 'autre',
+        lot: i.lot,
+        assigned_contact: i.assigned_contact
+      }))
 
       if (mountedRef.current) {
-        setTenantData(data)
-        setTenantStats(stats)
-        setTenantInterventions(interventions)
+        setTenantData(transformedTenantData)
+        setTenantStats(transformedStats)
+        setTenantInterventions(transformedInterventions)
         lastResolvedIdRef.current = resolvedUserId
       }
     } catch (err) {

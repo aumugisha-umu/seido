@@ -10,7 +10,6 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Send,
-  Paperclip,
   MoreVertical,
   Check,
   CheckCheck,
@@ -37,6 +36,14 @@ import {
 } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 
+// Custom Components
+import { ChatFileAttachment } from './chat-file-attachment'
+import { AddParticipantButton } from './add-participant-button'
+import { MessageAttachments } from './message-attachments'
+
+// Hooks
+import { useChatUpload } from '@/hooks/use-chat-upload'
+
 // Types
 import type { Database } from '@/lib/database.types'
 
@@ -47,16 +54,51 @@ type Message = Database['public']['Tables']['conversation_messages']['Row'] & {
     avatar_url?: string
     role: Database['public']['Enums']['user_role']
   }
+  attachments?: Array<{
+    id: string
+    filename: string
+    original_filename: string
+    mime_type: string
+    file_size: number
+    storage_path: string
+    signedUrl?: string
+    document_type?: string
+  }>
 }
 
 type Thread = Database['public']['Tables']['conversation_threads']['Row']
 type ThreadType = Database['public']['Enums']['conversation_thread_type']
 
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: Database['public']['Enums']['user_role']
+  avatar_url?: string
+}
+
+interface Participant {
+  user_id: string
+  joined_at: string
+  last_read_message_id?: string
+  user?: {
+    id: string
+    name: string
+    first_name?: string
+    last_name?: string
+    email: string
+    role: Database['public']['Enums']['user_role']
+    avatar_url?: string
+  }
+}
+
 interface ChatInterfaceProps {
   threadId: string
   currentUserId: string
   userRole: Database['public']['Enums']['user_role']
-  onSendMessage?: (content: string) => Promise<void>
+  onSendMessage?: (content: string, attachments?: string[]) => Promise<void>
+  teamMembers?: TeamMember[]
+  currentParticipantIds?: string[]
   className?: string
 }
 
@@ -115,6 +157,13 @@ function MessageBubble({
             {message.content}
           </p>
         </div>
+
+        {/* Display attachments if present */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className={`mt-2 max-w-full ${isOwn ? 'self-end' : 'self-start'}`}>
+            <MessageAttachments attachments={message.attachments} />
+          </div>
+        )}
 
         <div className="flex items-center gap-1 px-2">
           <span className="text-xs text-muted-foreground">
@@ -220,11 +269,121 @@ function MessagesLoading() {
   )
 }
 
+// Participants display component
+function ParticipantsDisplay({ participants }: { participants: Participant[] }) {
+  if (participants.length === 0) {
+    return null
+  }
+
+  // Helper to get user initials
+  const getInitials = (participant: Participant) => {
+    const user = participant.user
+    if (!user) return '?'
+
+    if (user.first_name && user.last_name) {
+      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+    }
+
+    if (user.name) {
+      const parts = user.name.split(' ')
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      }
+      return user.name.substring(0, 2).toUpperCase()
+    }
+
+    return user.email.substring(0, 2).toUpperCase()
+  }
+
+  // Helper to get user display name
+  const getDisplayName = (participant: Participant) => {
+    const user = participant.user
+    if (!user) return 'Utilisateur inconnu'
+
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`
+    }
+
+    return user.name || user.email
+  }
+
+  // Helper to get role badge color
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'gestionnaire':
+        return 'bg-blue-100 text-blue-700'
+      case 'locataire':
+        return 'bg-green-100 text-green-700'
+      case 'prestataire':
+        return 'bg-purple-100 text-purple-700'
+      case 'admin':
+        return 'bg-red-100 text-red-700'
+      default:
+        return 'bg-gray-100 text-gray-700'
+    }
+  }
+
+  // Show max 3 avatars, then "+N" for remaining
+  const visibleParticipants = participants.slice(0, 3)
+  const remainingCount = participants.length - 3
+
+  return (
+    <div className="flex items-center gap-2">
+      <Users className="w-4 h-4 text-muted-foreground" />
+      <TooltipProvider>
+        <div className="flex items-center -space-x-2">
+          {visibleParticipants.map((participant) => (
+            <Tooltip key={participant.user_id}>
+              <TooltipTrigger asChild>
+                <Avatar className="w-8 h-8 border-2 border-background cursor-pointer hover:z-10 transition-transform hover:scale-110">
+                  <AvatarImage src={participant.user?.avatar_url} />
+                  <AvatarFallback className={getRoleBadgeColor(participant.user?.role || '')}>
+                    {getInitials(participant)}
+                  </AvatarFallback>
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex flex-col gap-1">
+                  <p className="font-medium">{getDisplayName(participant)}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{participant.user?.role}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+          {remainingCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium cursor-pointer hover:z-10 transition-transform hover:scale-110">
+                  +{remainingCount}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex flex-col gap-1">
+                  {participants.slice(3).map((participant) => (
+                    <p key={participant.user_id} className="text-xs">
+                      {getDisplayName(participant)}
+                    </p>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </TooltipProvider>
+      <span className="text-sm text-muted-foreground">
+        {participants.length} participant{participants.length > 1 ? 's' : ''}
+      </span>
+    </div>
+  )
+}
+
 export function ChatInterface({
   threadId,
   currentUserId,
   userRole,
   onSendMessage,
+  teamMembers = [],
+  currentParticipantIds = [],
   className = ''
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
@@ -232,88 +391,62 @@ export function ChatInterface({
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [thread, setThread] = useState<Thread | null>(null)
+  const [participants, setParticipants] = useState<Participant[]>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Mock data for demo - in real app, load from API
+  // File upload hook
+  const chatUpload = useChatUpload({
+    threadId,
+    onUploadComplete: (documentIds) => {
+      toast.success(`${documentIds.length} fichier(s) uploadé(s)`)
+    },
+    onUploadError: (error) => {
+      toast.error(error)
+    }
+  })
+
+  // Load real data from API
   useEffect(() => {
-    const loadMockData = async () => {
+    const loadData = async () => {
       setIsLoading(true)
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      try {
+        // Import actions dynamically to avoid circular dependencies
+        const { getThreadAction, getMessagesAction, getThreadParticipantsAction } = await import('@/app/actions/conversation-actions')
 
-      // Mock thread
-      setThread({
-        id: threadId,
-        intervention_id: 'mock-intervention',
-        thread_type: 'group',
-        title: 'Discussion intervention #2024-001',
-        team_id: 'mock-team',
-        created_by: 'user-1',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        message_count: 3,
-        last_message_at: new Date().toISOString()
-      })
-
-      // Mock messages
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          thread_id: threadId,
-          user_id: 'user-1',
-          content: 'Bonjour, j\'ai un problème de fuite dans ma salle de bain.',
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-          metadata: null,
-          deleted_at: null,
-          deleted_by: null,
-          user: {
-            id: 'user-1',
-            name: 'Marie Dupont',
-            role: 'locataire',
-            avatar_url: undefined
-          }
-        },
-        {
-          id: '2',
-          thread_id: threadId,
-          user_id: 'user-2',
-          content: 'Bonjour Marie, nous allons envoyer un plombier rapidement. Pouvez-vous nous envoyer une photo ?',
-          created_at: new Date(Date.now() - 1800000).toISOString(),
-          metadata: null,
-          deleted_at: null,
-          deleted_by: null,
-          user: {
-            id: 'user-2',
-            name: 'Jean Martin',
-            role: 'gestionnaire',
-            avatar_url: undefined
-          }
-        },
-        {
-          id: '3',
-          thread_id: threadId,
-          user_id: 'user-1',
-          content: 'Bien sûr, je vous envoie ça tout de suite.',
-          created_at: new Date(Date.now() - 900000).toISOString(),
-          metadata: null,
-          deleted_at: null,
-          deleted_by: null,
-          user: {
-            id: 'user-1',
-            name: 'Marie Dupont',
-            role: 'locataire',
-            avatar_url: undefined
-          }
+        // Load thread details
+        const threadResult = await getThreadAction(threadId)
+        if (threadResult.success && threadResult.data) {
+          setThread(threadResult.data)
+        } else {
+          toast.error(threadResult.error || 'Erreur lors du chargement de la conversation')
         }
-      ]
 
-      setMessages(mockMessages)
-      setIsLoading(false)
+        // Load messages
+        const messagesResult = await getMessagesAction(threadId)
+        if (messagesResult.success && messagesResult.data) {
+          setMessages(messagesResult.data)
+        } else {
+          toast.error(messagesResult.error || 'Erreur lors du chargement des messages')
+        }
+
+        // Load participants
+        const participantsResult = await getThreadParticipantsAction(threadId)
+        if (participantsResult.success && participantsResult.data) {
+          setParticipants(participantsResult.data)
+        } else {
+          console.error('Error loading participants:', participantsResult.error)
+        }
+      } catch (error) {
+        console.error('Error loading chat data:', error)
+        toast.error('Erreur lors du chargement des données')
+      } finally {
+        setIsLoading(false)
+      }
     }
 
-    loadMockData()
+    loadData()
   }, [threadId])
 
   // Auto-scroll to bottom when new messages arrive
@@ -328,44 +461,79 @@ export function ChatInterface({
 
   // Handle sending message
   const handleSend = async () => {
-    if (!newMessage.trim()) return
+    // Require either message content or files
+    if (!newMessage.trim() && chatUpload.files.length === 0) return
 
     const messageContent = newMessage.trim()
     setNewMessage('')
     setIsSending(true)
 
-    // Optimistic update
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      thread_id: threadId,
-      user_id: currentUserId,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      metadata: null,
-      deleted_at: null,
-      deleted_by: null,
-      user: {
-        id: currentUserId,
-        name: 'Vous',
-        role: userRole,
-        avatar_url: undefined
-      }
-    }
-
-    setMessages(prev => [...prev, optimisticMessage])
-
     try {
+      // Upload files first if any
+      let documentIds: string[] = []
+      if (chatUpload.files.length > 0) {
+        toast.info('Upload des fichiers en cours...')
+        documentIds = await chatUpload.uploadFiles()
+        console.log('📎 [CHAT-INTERFACE] documentIds after upload:', documentIds)
+
+        // If no files were successfully uploaded and message is empty, abort
+        if (documentIds.length === 0 && !messageContent) {
+          toast.error('Aucun fichier n\'a pu être uploadé')
+          setIsSending(false)
+          setNewMessage(messageContent)
+          return
+        }
+      }
+
+      // Optimistic update
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        thread_id: threadId,
+        user_id: currentUserId,
+        content: messageContent || '📎 Fichier(s) partagé(s)',
+        created_at: new Date().toISOString(),
+        metadata: documentIds.length > 0 ? { attachments: documentIds } : null,
+        deleted_at: null,
+        deleted_by: null,
+        user: {
+          id: currentUserId,
+          name: 'Vous',
+          role: userRole,
+          avatar_url: undefined
+        }
+      }
+
+      setMessages(prev => [...prev, optimisticMessage])
+
+      // Send message with document IDs
+      console.log('📤 [CHAT-INTERFACE] Calling onSendMessage with:', {
+        content: messageContent || '📎 Fichier(s) partagé(s)',
+        documentIds,
+        documentIdsLength: documentIds.length
+      })
+
       if (onSendMessage) {
-        await onSendMessage(messageContent)
+        await onSendMessage(messageContent || '📎 Fichier(s) partagé(s)', documentIds)
       } else {
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500))
       }
+
+      // Reload messages to display attachments
+      const { getMessagesAction } = await import('@/app/actions/conversation-actions')
+      const messagesResult = await getMessagesAction(threadId)
+      if (messagesResult.success && messagesResult.data) {
+        setMessages(messagesResult.data)
+      }
+
+      // Clear uploaded files after successful send
+      chatUpload.clearFiles()
+
+      toast.success('Message envoyé')
     } catch (error) {
       toast.error('Erreur lors de l\'envoi du message')
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
-      setNewMessage(messageContent) // Restore message
+      // Restore message on error
+      setNewMessage(messageContent)
     } finally {
       setIsSending(false)
       inputRef.current?.focus()
@@ -389,12 +557,23 @@ export function ChatInterface({
     <Card className={`flex flex-col h-[600px] ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">
-            {thread?.title || 'Conversation'}
-          </CardTitle>
+          <div className="flex flex-col gap-2 flex-1">
+            <CardTitle className="text-lg">
+              {thread?.title || 'Conversation'}
+            </CardTitle>
+            {!isLoading && participants.length > 0 && (
+              <ParticipantsDisplay participants={participants} />
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {thread && <ThreadTypeBadge type={thread.thread_type} />}
             {isManagerTransparent && <TransparencyBadge visible={true} />}
+            <AddParticipantButton
+              threadId={threadId}
+              teamMembers={teamMembers}
+              currentParticipantIds={currentParticipantIds}
+              userRole={userRole}
+            />
             <Button variant="ghost" size="icon">
               <MoreVertical className="w-4 h-4" />
             </Button>
@@ -441,26 +620,39 @@ export function ChatInterface({
       <Separator />
 
       <CardContent className="p-4">
+        {/* File preview area */}
+        {chatUpload.files.length > 0 && (
+          <div className="mb-3">
+            <ChatFileAttachment
+              files={chatUpload.files}
+              isUploading={chatUpload.isUploading}
+              onAddFiles={chatUpload.addFiles}
+              onRemoveFile={chatUpload.removeFile}
+            />
+          </div>
+        )}
+
+        {/* Message input */}
         <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={isSending}
-          >
-            <Paperclip className="w-4 h-4" />
-          </Button>
+          <ChatFileAttachment
+            files={[]}
+            isUploading={chatUpload.isUploading}
+            onAddFiles={chatUpload.addFiles}
+            onRemoveFile={chatUpload.removeFile}
+            className="contents"
+          />
           <Input
             ref={inputRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Tapez votre message..."
-            disabled={isSending}
+            disabled={isSending || chatUpload.isUploading}
             className="flex-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim() || isSending}
+            disabled={(!newMessage.trim() && chatUpload.files.length === 0) || isSending || chatUpload.isUploading}
             size="icon"
           >
             <Send className="w-4 h-4" />

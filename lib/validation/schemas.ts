@@ -299,7 +299,7 @@ export const createManagerInterventionSchema = z.object({
   title: z.string().min(1).max(200).trim(),
   description: z.string().min(1).max(5000).trim(),
   type: z.string().min(1).max(100).trim().optional(),
-  urgency: urgencyEnum,
+  urgency: urgencyEnum.optional().default('normale'),
   location: z.string().max(500).trim().optional(),
 
   // Housing selection (must have either building or lot)

@@ -17,16 +17,18 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
   const [error, setError] = useState<string | null>(null)
   const [userTeamId, setUserTeamId] = useState<string | null>(null)
 
-  // Récupérer l'ID de l'équipe de l'utilisateur
+  // Récupérer l'ID de l'équipe de l'utilisateur via API
   const fetchUserTeam = async () => {
     if (!user?.id || teamStatus !== 'verified') return
 
     try {
-      const { createTeamService } = await import('@/lib/services')
-      const teamService = await createTeamService()
-      const teams = await teamService.getUserTeams(user.id)
-      if (teams && teams.length > 0) {
-        setUserTeamId(teams[0].id)
+      const response = await fetch('/api/user-teams')
+      if (!response.ok) {
+        throw new Error('Failed to fetch user teams')
+      }
+      const result = await response.json()
+      if (result.success && result.data && result.data.length > 0) {
+        setUserTeamId(result.data[0].id)
       }
     } catch (error) {
       logger.error('Error fetching user team:', error)

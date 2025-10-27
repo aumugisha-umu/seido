@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { logger, logError } from '@/lib/logger'
+
 export interface Notification {
   id: string
   user_id: string
   team_id: string
   created_by: string
   type: 'intervention' | 'payment' | 'document' | 'system' | 'team_invite' | 'assignment' | 'status_change' | 'reminder'
+  priority: 'low' | 'normal' | 'high' | 'urgent'
   title: string
   message: string
   read: boolean
@@ -44,9 +45,9 @@ interface UseNotificationsReturn {
   error: string | null
   unreadCount: number
   refetch: () => Promise<void>
-  markAsRead: (_id: string) => Promise<void>
+  markAsRead: (id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
-  archive: (_id: string) => Promise<void>
+  archive: (id: string) => Promise<void>
 }
 
 export const useNotifications = (options: UseNotificationsOptions = {}): UseNotificationsReturn => {
@@ -66,7 +67,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   } = options
 
   const fetchNotifications = async () => {
-    logger.info('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
+    console.log('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
       userId: user?.id,
       teamId,
       scope,
@@ -76,7 +77,7 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     })
     
     if (!user?.id || !teamId) {
-      logger.info('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
+      console.log('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
       setLoading(false)
       return
     }
@@ -100,21 +101,21 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       if (type) params.append('type', type)
 
       const url = `/api/notifications?${params}`
-      logger.info('📡 [USE-NOTIFICATIONS] Fetching from:', url)
+      console.log('📡 [USE-NOTIFICATIONS] Fetching from:', url)
       
       const response = await fetch(url)
       
-      logger.info('📡 [USE-NOTIFICATIONS] Response status:', response.status)
+      console.log('📡 [USE-NOTIFICATIONS] Response status:', response.status)
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        logger.info('❌ [USE-NOTIFICATIONS] Error response:', errorData)
+        console.log('❌ [USE-NOTIFICATIONS] Error response:', errorData)
         throw new Error(`Failed to fetch notifications: ${errorData.details || response.statusText}`)
       }
 
       const result = await response.json()
       
-      logger.info('📬 [USE-NOTIFICATIONS] API result:', {
+      console.log('📬 [USE-NOTIFICATIONS] API result:', {
         success: result.success,
         dataLength: result.data?.length || 0,
         data: result.data
@@ -128,15 +129,15 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
-      logger.error('Error fetching notifications:', err)
+      console.error('Error fetching notifications:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const markAsRead = async (_id: string) => {
+  const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications?id=${_id}`, {
+      const response = await fetch(`/api/notifications?id=${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -151,16 +152,16 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       const result = await response.json()
       
       if (result.success) {
-        setNotifications(prev =>
-          prev.map(notif =>
-            notif.id === _id
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === id 
               ? { ...notif, read: true, read_at: new Date().toISOString() }
               : notif
           )
         )
       }
     } catch (err) {
-      logger.error('Error marking notification as read:', err)
+      console.error('Error marking notification as read:', err)
       throw err
     }
   }
@@ -173,14 +174,14 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       const promises = unreadNotifications.map(notif => markAsRead(notif.id))
       await Promise.all(promises)
     } catch (err) {
-      logger.error('Error marking all notifications as read:', err)
+      console.error('Error marking all notifications as read:', err)
       throw err
     }
   }
 
-  const archive = async (_id: string) => {
+  const archive = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications?id=${_id}`, {
+      const response = await fetch(`/api/notifications?id=${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -195,12 +196,12 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       const result = await response.json()
       
       if (result.success) {
-        setNotifications(prev =>
-          prev.filter(notif => notif.id !== _id)
+        setNotifications(prev => 
+          prev.filter(notif => notif.id !== id)
         )
       }
     } catch (err) {
-      logger.error('Error archiving notification:', err)
+      console.error('Error archiving notification:', err)
       throw err
     }
   }

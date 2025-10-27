@@ -2,6 +2,7 @@ import type React from "react"
 import { requireRole } from "@/lib/auth-dal"
 import DashboardHeader from "@/components/dashboard-header"
 import { LocataireLayoutClient } from "./layout-client"
+import { FrillWidget } from "@/components/frill-widget"
 
 /**
  * 🔐 LOCATAIRE LAYOUT - SERVER COMPONENT (Architecture 2025)
@@ -42,6 +43,9 @@ export default async function LocataireLayout({
 
       {/* Client components pour interactivité */}
       <LocataireLayoutClient />
+
+      {/* Widget Frill pour feedback utilisateur */}
+      <FrillWidget />
     </div>
   )
 }

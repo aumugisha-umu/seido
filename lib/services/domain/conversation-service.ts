@@ -704,7 +704,7 @@ export class ConversationService {
    */
   private async checkInterventionAccess(interventionId: string, userId: string): Promise<boolean> {
     try {
-      const intervention = await this.interventionRepo.findWithAssignments(interventionId)
+      const intervention = await this.interventionRepo.findById(interventionId)
       if (!intervention.success || !intervention.data) {
         return false
       }

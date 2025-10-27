@@ -658,13 +658,14 @@ export default function NewLotPage() {
 
 
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Association immeuble</h2>
-        <p className="text-gray-600 mb-6">Comment souhaitez-vous gérer ce lot ?</p>
-      </div>
+    <Card>
+      <CardContent className="p-6 space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Association immeuble</h2>
+          <p className="text-gray-600 mb-6">Comment souhaitez-vous gérer ce lot ?</p>
+        </div>
 
-      <RadioGroup
+        <RadioGroup
         value={lotData.buildingAssociation}
         onValueChange={(value: "existing" | "new" | "independent") =>
           setLotData((prev) => ({ ...prev, buildingAssociation: value }))
@@ -843,15 +844,17 @@ export default function NewLotPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 
   const renderStep2 = () => {
-    // Si lot indépendant, affichage simplifié sans Card wrapper
+    // Si lot indépendant, affichage avec Card
     if (lotData.buildingAssociation === "independent") {
       return (
-        <div className="space-y-6">
-          <BuildingInfoForm
+        <Card>
+          <CardContent className="p-6 space-y-6">
+            <BuildingInfoForm
             buildingInfo={lotData.generalBuildingInfo!}
             setBuildingInfo={(info) => setLotData((prev) => ({ ...prev, generalBuildingInfo: info }))}
             selectedManagerId={selectedManagerId}
@@ -864,14 +867,15 @@ export default function NewLotPage() {
             showAddressSection={true}
             entityType="lot"
             showTitle={true}
-            buildingsCount={buildings.length}
+            buildingsCount={managerData?.buildings?.length || 0}
             categoryCountsByTeam={categoryCountsByTeam}
           />
-        </div>
+          </CardContent>
+        </Card>
       )
     }
 
-    // Affichage standard pour les autres cas
+    // Affichage standard pour les autres cas - déjà dans une Card ligne 881
     return (
       <div className="space-y-6">
 
@@ -1011,7 +1015,8 @@ export default function NewLotPage() {
     const showLotManagerSection = lotData.buildingAssociation === "existing"
 
     return (
-      <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-6">
         {showLotManagerSection && (
           <div className="border border-purple-200 rounded-lg p-4 bg-purple-50/30">
             <div className="flex items-center justify-between mb-4">
@@ -1107,7 +1112,8 @@ export default function NewLotPage() {
             hideTitle={false}
           />
         </div>
-      </div>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -1387,30 +1393,27 @@ export default function NewLotPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <StepProgressHeader
-          title="Ajouter un nouveau lot"
-          backButtonText="Retour aux biens"
-          onBack={() => router.push("/gestionnaire/biens")}
-          steps={lotSteps}
-          currentStep={currentStep}
-        />
-      </div>
+      {/* Header - Sticky au niveau supérieur */}
+      <StepProgressHeader
+        title="Ajouter un nouveau lot"
+        backButtonText="Retour aux biens"
+        onBack={() => router.push("/gestionnaire/biens")}
+        steps={lotSteps}
+        currentStep={currentStep}
+      />
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardContent className="p-8">
-            {currentStep === 1 && renderStep1()}
-            {currentStep === 2 && renderStep2()}
-            {currentStep === 3 && renderStep3()}
-            {currentStep === 4 && renderStep4()}
-          </CardContent>
-        </Card>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
+        {currentStep === 1 && renderStep1()}
+        {currentStep === 2 && renderStep2()}
+        {currentStep === 3 && renderStep3()}
+        {currentStep === 4 && renderStep4()}
 
-        {/* Navigation */}
-        <div className="flex justify-between mt-8">
+      </main>
+
+      {/* Navigation Sticky */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="flex justify-between w-full max-w-6xl mx-auto">
           <Button
             variant="outline"
             onClick={handlePrevious}
@@ -1422,8 +1425,8 @@ export default function NewLotPage() {
           </Button>
 
           {currentStep < 4 ? (
-            <Button 
-              onClick={handleNext} 
+            <Button
+              onClick={handleNext}
               className="flex items-center space-x-2"
               disabled={!canProceedToNextStep()}
             >
@@ -1437,7 +1440,7 @@ export default function NewLotPage() {
             </Button>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Lot Manager Assignment Modal */}
       <Dialog open={isLotManagerModalOpen} onOpenChange={setIsLotManagerModalOpen}>

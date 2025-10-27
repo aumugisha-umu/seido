@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists in our system
-    const existingUser = await userService.findByEmail(email)
+    const existingUserResult = await userService.findByEmail(email)
+    const existingUser = existingUserResult?.data ?? null
     if (existingUser) {
       // Link existing user to magic link
       await supabase

@@ -149,7 +149,11 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
             city,
             postal_code,
             team_id,
-            lots(id)
+            lots(id),
+            building_contacts(
+              is_primary,
+              user:user_id(id, name, email, role, provider_category)
+            )
           `)
           .eq('team_id', teamId)
           .order('name')

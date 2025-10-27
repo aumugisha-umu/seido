@@ -30,14 +30,14 @@ import { useActivityLogs } from "@/hooks/use-activity-logs"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useToast } from "@/hooks/use-toast"
-import { logger, logError } from '@/lib/logger'
-function getNotificationIcon(type: string, priority?: string) {
-  const isUrgent = priority === 'urgent' || priority === 'high'
-  const className = isUrgent ? "h-5 w-5 text-red-500" : "h-5 w-5 text-blue-500"
 
-  switch (_type) {
+
+function getNotificationIcon(type: string) {
+  const className = "h-5 w-5 text-blue-500"
+
+  switch (type) {
     case "intervention":
-      return isUrgent ? <AlertTriangle className={className} /> : <Bell className={className} />
+      return <Bell className={className} />
     case "assignment":
       return <User className={className} />
     case "payment":
@@ -57,7 +57,7 @@ function getNotificationIcon(type: string, priority?: string) {
   }
 }
 
-function formatDate(_dateString: string) {
+function formatDate(dateString: string) {
   const date = new Date(dateString)
   
   // Use a consistent format that doesn't depend on current time for SSR/hydration
@@ -71,9 +71,9 @@ function formatDate(_dateString: string) {
 
 export default function NotificationsPage() {
   const { user } = useAuth()
-  const { teamStatus } = useTeamStatus()
+  const { teamStatus, hasTeam } = useTeamStatus()
   const { toast } = useToast()
-  const [userTeam, setUserTeam] = useState<{ id: string } | null>(null)
+  const [userTeam, setUserTeam] = useState<any>(null)
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
@@ -84,7 +84,7 @@ export default function NotificationsPage() {
     error: teamNotificationsError,
     unreadCount,
     refetch: refetchTeamNotifications,
-    // markAsRead: markTeamNotificationAsRead,
+    markAsRead: markTeamNotificationAsRead,
     markAllAsRead: markAllTeamNotificationsAsRead 
   } = useNotifications({
     teamId: userTeam?.id,
@@ -100,7 +100,7 @@ export default function NotificationsPage() {
     error: personalNotificationsError,
     unreadCount: personalUnreadCount,
     refetch: refetchPersonalNotifications,
-    // markAsRead: markPersonalNotificationAsRead
+    markAsRead: markPersonalNotificationAsRead 
   } = useNotifications({
     teamId: userTeam?.id,
     scope: 'personal', // Mes notifications personnelles
@@ -121,20 +121,20 @@ export default function NotificationsPage() {
     limit: 100
   })
 
-  // Récupérer l'équipe de l'utilisateur
+  // Récupérer l'équipe de l'utilisateur via API
   useEffect(() => {
     const fetchUserTeam = async () => {
       if (!user?.id || teamStatus !== 'verified') return
 
       try {
-        const { createServerTeamService } = await import('@/lib/services')
-        const teamService = createServerTeamService()
-        const teams = await teamService.getUserTeams(user.id)
-        if (teams && teams.length > 0) {
-          setUserTeam(teams[0])
+        const response = await fetch('/api/user-teams')
+        if (!response.ok) throw new Error('Failed to fetch user teams')
+        const result = await response.json()
+        if (result.success && result.data && result.data.length > 0) {
+          setUserTeam(result.data[0])
         }
       } catch (error) {
-        logger.error('Error fetching user team:', error)
+        console.error('Error fetching user team:', error)
       }
     }
 
@@ -178,7 +178,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      logger.error('Error toggling notification read status:', error)
+      console.error('Error toggling notification read status:', error)
       toast({
         title: "❌ Erreur",
         description: "Impossible de modifier le statut de la notification. Veuillez réessayer.",
@@ -210,7 +210,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      logger.error('Error marking all notifications as read:', error)
+      console.error('Error marking all notifications as read:', error)
       
       // Show error toast
       toast({
@@ -257,7 +257,7 @@ export default function NotificationsPage() {
         variant: "success",
       })
     } catch (error) {
-      logger.error('Error archiving notification:', error)
+      console.error('Error archiving notification:', error)
       toast({
         title: "❌ Erreur",
         description: "Impossible d'archiver la notification. Veuillez réessayer.",
@@ -294,9 +294,6 @@ export default function NotificationsPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                 Notifications & Activité
               </h1>
-              <p className="text-sm sm:text-base text-gray-600 hidden sm:block">
-                Gérez vos notifications et suivez l'activité de votre équipe
-              </p>
               <p className="text-sm text-gray-600 sm:hidden">
                 Notifications et activité
               </p>
@@ -328,23 +325,10 @@ export default function NotificationsPage() {
         </div>
 
         {/* Système d'onglets */}
-        <Tabs defaultValue="team" className="space-y-4 sm:space-y-6">
+        <Tabs defaultValue="personal" className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-            <TabsTrigger 
-              value="team" 
-              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="hidden sm:inline truncate">Équipe</span>
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-red-500">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="personal" 
+            <TabsTrigger
+              value="personal"
               className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
@@ -355,9 +339,22 @@ export default function NotificationsPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            
-            <TabsTrigger 
-              value="activity" 
+
+            <TabsTrigger
+              value="team"
+              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            >
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline truncate">Équipe</span>
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-red-500">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="activity"
               className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
@@ -524,7 +521,7 @@ function NotificationsList({
   onMarkAsRead: (notification: Notification) => void
   onArchive: (id: string, title: string) => void
   updatingNotifications: Set<string>
-  emptyStateIcon: React.ComponentType<{ className?: string }>
+  emptyStateIcon: any
   emptyStateTitle: string
   emptyStateDescription: string
 }) {
@@ -592,19 +589,17 @@ function NotificationsList({
 }
 
 // Composant pour les cartes de notification (extrait pour réutilisation)
-function NotificationCard({ 
-  notification, 
+function NotificationCard({
+  notification,
   onMarkAsRead,
   onArchive,
   isUpdating = false
-}: { 
+}: {
   notification: Notification
   onMarkAsRead?: () => void
   onArchive?: () => void
   isUpdating?: boolean
 }) {
-  const isUrgent = notification.priority === 'urgent' || notification.priority === 'high'
-  
   return (
     <Card
       className={`transition-all hover:shadow-md ${!notification.read ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""}`}
@@ -612,7 +607,7 @@ function NotificationCard({
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start gap-2 sm:gap-3">
                   <div className="flex-shrink-0 mt-0.5">
-            {getNotificationIcon(notification.type, notification.priority)}
+            {getNotificationIcon(notification.type)}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -628,11 +623,6 @@ function NotificationCard({
                       <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
                     )}
                   </div>
-                  {isUrgent && (
-                    <Badge variant="destructive" className="text-xs flex-shrink-0 self-start sm:self-center">
-                      {notification.priority === 'urgent' ? 'Urgent' : 'Priorité élevée'}
-                            </Badge>
-                          )}
                         </div>
                 
                 {/* Message */}
@@ -721,7 +711,7 @@ function EmptyNotificationsState({
   title, 
   description 
 }: { 
-  icon: React.ComponentType<{ className?: string }>, 
+  icon: React.ComponentType<any>, 
   title: string, 
   description: string 
 }) {

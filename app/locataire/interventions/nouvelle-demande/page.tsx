@@ -12,6 +12,7 @@ import {
   Upload,
   File,
   Trash2,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -28,6 +29,8 @@ import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { logger, logError } from '@/lib/logger'
 import { getTenantLots } from '../actions'
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { tenantInterventionSteps } from "@/lib/step-configurations"
 
 interface UploadedFile {
   id: string
@@ -65,23 +68,14 @@ export default function NouvelleDemandePage() {
     return allTenantLots.length === 1
   }, [allTenantLots])
 
-  // Steps dynamiques selon le nombre de lots
+  // Steps dynamiques selon le nombre de lots - utiliser la nouvelle configuration
   const steps = useMemo(() => {
-    const baseSteps = [
-      { id: 1, name: "Logement", description: "Choisir le logement", icon: Home },
-      { id: 2, name: "Demande", description: "Décrire le problème", icon: Building2 },
-      { id: 3, name: "Confirmation", description: "Demande envoyée", icon: CheckCircle },
-    ]
-    
-    // Si on doit passer l'étape 1, on ajuste les IDs et supprime l'étape 1
+    // Si on doit passer l'étape 1, on retourne uniquement les étapes 2 et 3
     if (shouldSkipStepOne) {
-      return [
-        { id: 2, name: "Demande", description: "Décrire le problème", icon: Building2 },
-        { id: 3, name: "Confirmation", description: "Demande envoyée", icon: CheckCircle },
-      ]
+      return tenantInterventionSteps.slice(1) // Demande + Confirmation
     }
-    
-    return baseSteps
+
+    return tenantInterventionSteps // Tous les steps (Logement + Demande + Confirmation)
   }, [shouldSkipStepOne])
 
   // Fetch all tenant lots (separate from the main tenantData)
@@ -179,7 +173,7 @@ export default function NouvelleDemandePage() {
     )
   }
 
-  const handleLogementSelect = (_logementId: string) => {
+  const handleLogementSelect = (logementId: string) => {
     setSelectedLogement(logementId)
     setCurrentStep(2)
   }
@@ -213,6 +207,7 @@ export default function NouvelleDemandePage() {
         type: formData.type || null,
         urgency: formData.urgence || 'normale',
         lot_id: selectedLogement, // Use the selected lot ID
+        teamId: user?.team_id  // ✅ Pass teamId from user profile (same pattern as manager)
       }
 
       logger.info("🔧 Creating intervention with data:", interventionData)
@@ -302,7 +297,7 @@ export default function NouvelleDemandePage() {
     event.target.value = ""
   }
 
-  const removeFile = (_fileId: string) => {
+  const removeFile = (fileId: string) => {
     setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId))
   }
 
@@ -314,164 +309,104 @@ export default function NouvelleDemandePage() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  if (currentStep === 1 && !shouldSkipStepOne) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/locataire/dashboard"
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Tableau de bord
-          </Link>
-
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Déclarer un sinistre</h1>
-          <p className="text-gray-600">Choisissez le logement pour lequel vous souhaitez déclarer un sinistre.</p>
-        </div>
-
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  step.id === currentStep
-                    ? "bg-blue-600 text-white"
-                    : step.id < currentStep
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-200 text-gray-600"
-                }`}
-              >
-                <step.icon className="h-5 w-5" />
-              </div>
-              <div className="ml-3 text-sm">
-                <p className="font-medium">{step.name}</p>
-                <p className="text-gray-500">{step.description}</p>
-              </div>
-              {index < steps.length - 1 && <div className="w-16 h-px bg-gray-300 mx-4" />}
-            </div>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-2 mb-4">
-            <Building2 className="h-5 w-5 text-orange-500" />
-            <h2 className="text-lg font-semibold">Déclarer un sinistre</h2>
-          </div>
-          <p className="text-gray-600 mb-6">Choisissez le logement pour lequel vous souhaitez déclarer un sinistre.</p>
-
-          <h3 className="text-center text-lg font-medium mb-6">Choisissez le logement concerné</h3>
-          <p className="text-center text-gray-600 mb-8">
-            Sélectionnez le logement pour lequel vous souhaitez faire une demande d'intervention.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {logements.map((logement) => (
-              <Card key={logement.id} className="border hover:border-blue-300 transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Home className="h-5 w-5 text-gray-600" />
-                      <h3 className="font-semibold">{logement.name}</h3>
-                    </div>
-                  </div>
-
-                  <div className="h-6 mb-2">
-                    {logement.address && (
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Building2 className="h-4 w-4" />
-                        <span>{logement.address}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-2">{logement.surface}</p>
-                  <p className="text-sm text-gray-500 mb-4">{logement.interventions}</p>
-
-                  <Button onClick={() => handleLogementSelect(logement.id)} className="w-full" variant="outline">
-                    Sélectionner
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
+  // Helper pour gérer la navigation
+  const handleNext = () => {
+    if (currentStep === 2) {
+      // Vérifier que le formulaire est valide avant de continuer
+      if (!formData.titre || !formData.description) return
+      setCurrentStep(3)
+    } else {
+      setCurrentStep((prev) => prev + 1)
+    }
   }
 
-  if (currentStep === 2) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          {!shouldSkipStepOne && (
-            <button
-              onClick={() => setCurrentStep(1)}
-              className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Changer de logement
-            </button>
-          )}
+  const handleBack = () => {
+    if (shouldSkipStepOne && currentStep === 2) {
+      // Si on skip l'étape 1 et qu'on est à l'étape 2, retour au dashboard
+      router.push('/locataire/dashboard')
+    } else {
+      setCurrentStep((prev) => prev - 1)
+    }
+  }
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Déclarer un sinistre</h1>
+  // Helper pour savoir si on peut passer à l'étape suivante
+  const canProceedToNextStep = () => {
+    if (currentStep === 1) return selectedLogement !== null
+    if (currentStep === 2) return formData.titre && formData.description
+    if (currentStep === 3) return !isCreating
+    return false
+  }
+
+  // Render helpers pour chaque étape
+  const renderStep1 = () => (
+    <Card>
+      <CardContent className="p-6 space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Choisissez le logement concerné</h2>
           <p className="text-gray-600">
-            Signalez un problème dans votre logement. Votre propriétaire sera automatiquement notifié.
+            Sélectionnez le logement pour lequel vous souhaitez faire une demande d'intervention.
           </p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  step.id === currentStep
-                    ? "bg-blue-600 text-white"
-                    : step.id < currentStep
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-200 text-gray-600"
-                }`}
-              >
-                <step.icon className="h-5 w-5" />
-              </div>
-              <div className="ml-3 text-sm">
-                <p className="font-medium">{step.name}</p>
-                <p className="text-gray-500">{step.description}</p>
-              </div>
-              {index < steps.length - 1 && <div className="w-16 h-px bg-gray-300 mx-4" />}
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {logements.map((logement) => (
+            <Card key={logement.id} className="border hover:border-blue-300 transition-colors">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Home className="h-5 w-5 text-gray-600" />
+                    <h3 className="font-semibold">{logement.name}</h3>
+                  </div>
+                </div>
+
+                <div className="h-6 mb-2">
+                  {logement.address && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                      <Building2 className="h-4 w-4" />
+                      <span>{logement.address}</span>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-sm text-gray-600 mb-2">{logement.surface}</p>
+                <p className="text-sm text-gray-500 mb-4">{logement.interventions}</p>
+
+                <Button onClick={() => handleLogementSelect(logement.id)} className="w-full" variant="outline">
+                  Sélectionner
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  )
 
-        {/* Selected Property Info */}
-        <Card className="mb-6 bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Home className="h-4 w-4 text-blue-600" />
-              <span className="font-medium">{selectedLogementData?.name}</span>
-              {selectedLogementData?.address && (
-                <>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-sm text-gray-600">{selectedLogementData.address}</span>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+  const renderStep2 = () => (
+    <div className="space-y-6">
+      {/* Selected Property Info */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-2">
+            <Home className="h-4 w-4 text-blue-600" />
+            <span className="font-medium">{selectedLogementData?.name}</span>
+            {selectedLogementData?.address && (
+              <>
+                <span className="text-gray-400">•</span>
+                <span className="text-sm text-gray-600">{selectedLogementData.address}</span>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Form */}
-        <div className="space-y-6">
-          <div className="flex items-center space-x-2 mb-6">
+      {/* Form */}
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          <div className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <h2 className="text-lg font-semibold">Détails du sinistre</h2>
           </div>
-
-          <h3 className="text-lg font-medium">Décrire le sinistre</h3>
 
           <div className="space-y-4">
             <div>
@@ -538,7 +473,6 @@ export default function NouvelleDemandePage() {
               />
             </div>
 
-
             <div>
               <Label className="text-sm font-medium text-gray-700">Pièces jointes (optionnel)</Label>
               <p className="text-xs text-gray-500 mt-1">
@@ -591,45 +525,24 @@ export default function NouvelleDemandePage() {
                 )}
               </div>
             </div>
-
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
 
-          {/* Actions */}
-          <div className="flex justify-between pt-6">
-            <Button 
-              variant="outline" 
-              onClick={() => shouldSkipStepOne ? router.push('/locataire/dashboard') : setCurrentStep(1)}
-            >
-              {shouldSkipStepOne ? 'Annuler' : 'Retour'}
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!formData.titre || !formData.description}
-              className="bg-black hover:bg-gray-800"
-            >
-              Continuer vers la confirmation
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (currentStep === 3) {
-    // const dateEnvoi = new Date().toLocaleDateString("fr-FR", { ... }) // unused
-
-    return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
+  const renderStep3 = () => (
+    <Card>
+      <CardContent className="p-6 space-y-6">
+        <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Confirmer la création</h1>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Confirmer la création</h2>
           <p className="text-gray-600">Vérifiez les informations ci-dessous avant de créer l'intervention</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Logement */}
           <Card className="border-l-4 border-l-blue-500">
             <CardContent className="p-4">
@@ -697,12 +610,11 @@ export default function NouvelleDemandePage() {
               )}
             </CardContent>
           </Card>
-
         </div>
 
         {/* Error Message */}
         {creationError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -720,145 +632,124 @@ export default function NouvelleDemandePage() {
             </div>
           </div>
         )}
+      </CardContent>
+    </Card>
+  )
 
-        {/* Actions */}
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={() => setCurrentStep(2)} disabled={isCreating}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Modifier
-          </Button>
-          <Button 
-            onClick={handleConfirmCreation} 
-            disabled={isCreating}
-            className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
-          >
-            {isCreating ? (
-              <>
-                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Création en cours...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Confirmer la création
-              </>
-            )}
-          </Button>
-        </div>
-
-        {showSuccessModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <div className="flex justify-between items-start mb-4">
-                <div></div>
-                <button onClick={() => setShowSuccessModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Intervention créée avec succès !</h3>
-                <p className="text-gray-600 mb-4">Votre demande a été créée et le propriétaire a été notifié.</p>
-              </div>
-
-              <div className="space-y-3">
-                <Button onClick={handleRetourDashboard} variant="outline" className="w-full bg-transparent">
-                  <Home className="h-4 w-4 mr-2" />
-                  Retour au dashboard
-                </Button>
-                <Button onClick={handleVoirDetails} className="w-full bg-blue-600 hover:bg-blue-700">
-                  <Building2 className="h-4 w-4 mr-2" />
-                  Voir les détails de l'intervention
-                </Button>
-              </div>
-
-              {/* <p className="text-center text-sm text-gray-500 mt-4">
-                Redirection automatique vers les détails dans 10 secondes
-              </p> */}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return null
-}
-
-function LoadingSkeleton() {
+  // Structure unifiée pour tous les steps
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header skeleton */}
-      <div className="mb-8">
-        <Skeleton className="h-4 w-40 mb-4" />
-        <Skeleton className="h-8 w-64 mb-2" />
-        <Skeleton className="h-5 w-96" />
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header - Sticky au niveau supérieur */}
+      <StepProgressHeader
+        title="Déclarer un sinistre"
+        backButtonText="Retour au tableau de bord"
+        onBack={() => router.push("/locataire/dashboard")}
+        steps={steps}
+        currentStep={shouldSkipStepOne ? currentStep - 1 : currentStep}
+      />
 
-      {/* Progress steps skeleton */}
-      <div className="flex items-center justify-center mb-8">
-        <div className="flex items-center">
-          <Skeleton className="w-10 h-10 rounded-full" />
-          <div className="ml-3">
-            <Skeleton className="h-4 w-20 mb-1" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-          <Skeleton className="w-16 h-px mx-4" />
-        </div>
-        <div className="flex items-center">
-          <Skeleton className="w-10 h-10 rounded-full" />
-          <div className="ml-3">
-            <Skeleton className="h-4 w-16 mb-1" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-          <Skeleton className="w-16 h-px mx-4" />
-        </div>
-        <div className="flex items-center">
-          <Skeleton className="w-10 h-10 rounded-full" />
-          <div className="ml-3">
-            <Skeleton className="h-4 w-24 mb-1" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-        </div>
-      </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
+        {/* Step 1: Sélection du logement */}
+        {currentStep === 1 && !shouldSkipStepOne && renderStep1()}
 
-      {/* Content skeleton */}
-      <div className="mb-8">
-        <div className="flex items-center space-x-2 mb-4">
-          <Skeleton className="h-5 w-5" />
-          <Skeleton className="h-6 w-32" />
-        </div>
-        <Skeleton className="h-4 w-80 mb-6" />
+        {/* Step 2: Formulaire de demande */}
+        {currentStep === 2 && renderStep2()}
 
-        <Skeleton className="h-6 w-48 mb-6" />
-        <Skeleton className="h-4 w-64 mb-8" />
+        {/* Step 3: Confirmation */}
+        {currentStep === 3 && renderStep3()}
+      </main>
 
-        {/* Logement cards skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <Skeleton className="h-5 w-5" />
-                    <Skeleton className="h-5 w-20" />
-                  </div>
-                </div>
-                <div className="h-6 mb-2">
-                  <Skeleton className="h-4 w-32" />
-                </div>
-                <Skeleton className="h-4 w-40 mb-2" />
-                <Skeleton className="h-4 w-48 mb-4" />
-                <Skeleton className="h-9 w-full" />
-              </CardContent>
-            </Card>
-          ))}
+      {/* Navigation Sticky */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="flex justify-between w-full max-w-6xl mx-auto">
+          {/* Bouton Retour */}
+          {currentStep > 1 && (
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={isCreating}
+              className="w-full sm:w-auto"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {shouldSkipStepOne && currentStep === 2 ? 'Annuler' : 'Retour'}
+            </Button>
+          )}
+
+          {/* Bouton Suivant / Confirmer */}
+          {currentStep < 3 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceedToNextStep()}
+              className="w-full sm:w-auto ml-auto"
+            >
+              {currentStep === 1 ? "Sélectionner ce logement" : "Continuer vers la confirmation"}
+              <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleConfirmCreation}
+              disabled={isCreating}
+              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto ml-auto disabled:opacity-50"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Création en cours...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirmer la création
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header skeleton */}
+      <div className="sticky top-20 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 mb-6">
+        <div className="max-w-7xl mx-auto">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+      </div>
+
+      {/* Content skeleton */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
+        <Card>
+          <CardContent className="p-6 space-y-6">
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i}>
+                  <Skeleton className="h-4 w-32 mb-2" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+
+      {/* Navigation skeleton */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4">
+        <div className="flex justify-between w-full max-w-6xl mx-auto">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Fonction helper pour rafraîchir les données après création
+function refreshData() {
+  // Placeholder - cette fonction pourrait être utilisée pour rafraîchir les données
+  return Promise.resolve()
+}

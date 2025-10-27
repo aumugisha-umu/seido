@@ -49,7 +49,7 @@ export type Database = {
           entity_type: Database["public"]["Enums"]["activity_entity_type"]
           error_message: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           metadata: Json | null
           status: Database["public"]["Enums"]["activity_status"]
           team_id: string
@@ -65,7 +65,7 @@ export type Database = {
           entity_type: Database["public"]["Enums"]["activity_entity_type"]
           error_message?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           status?: Database["public"]["Enums"]["activity_status"]
           team_id: string
@@ -81,7 +81,7 @@ export type Database = {
           entity_type?: Database["public"]["Enums"]["activity_entity_type"]
           error_message?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           status?: Database["public"]["Enums"]["activity_status"]
           team_id?: string
@@ -941,6 +941,7 @@ export type Database = {
           requires_quote: boolean
           scheduled_date: string | null
           scheduling_type: Database["public"]["Enums"]["intervention_scheduling_type"]
+          selected_slot_id: string | null
           specific_location: string | null
           status: Database["public"]["Enums"]["intervention_status"]
           team_id: string
@@ -969,6 +970,7 @@ export type Database = {
           requires_quote?: boolean
           scheduled_date?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
+          selected_slot_id?: string | null
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id: string
@@ -997,6 +999,7 @@ export type Database = {
           requires_quote?: boolean
           scheduled_date?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
+          selected_slot_id?: string | null
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id?: string
@@ -1033,6 +1036,13 @@ export type Database = {
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_selected_slot_id_fkey"
+            columns: ["selected_slot_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_time_slots"
             referencedColumns: ["id"]
           },
           {
@@ -1193,9 +1203,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_personal: boolean
           message: string
           metadata: Json | null
-          priority: Database["public"]["Enums"]["notification_priority"]
           read: boolean | null
           read_at: string | null
           related_entity_id: string | null
@@ -1210,9 +1220,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_personal?: boolean
           message: string
           metadata?: Json | null
-          priority?: Database["public"]["Enums"]["notification_priority"]
           read?: boolean | null
           read_at?: string | null
           related_entity_id?: string | null
@@ -1227,9 +1237,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_personal?: boolean
           message?: string
           metadata?: Json | null
-          priority?: Database["public"]["Enums"]["notification_priority"]
           read?: boolean | null
           read_at?: string | null
           related_entity_id?: string | null
@@ -1783,10 +1793,7 @@ export type Database = {
         Args: { p_intervention_id: string }
         Returns: boolean
       }
-      can_manage_quote: {
-        Args: { p_quote_id: string }
-        Returns: boolean
-      }
+      can_manage_quote: { Args: { p_quote_id: string }; Returns: boolean }
       can_manage_time_slot: {
         Args: { p_intervention_id: string }
         Returns: boolean
@@ -1803,84 +1810,45 @@ export type Database = {
         Args: { p_document_id: string }
         Returns: boolean
       }
-      can_view_building: {
-        Args: { building_uuid: string }
-        Returns: boolean
-      }
-      can_view_conversation: {
-        Args: { p_thread_id: string }
-        Returns: boolean
-      }
+      can_view_building: { Args: { building_uuid: string }; Returns: boolean }
+      can_view_conversation: { Args: { p_thread_id: string }; Returns: boolean }
       can_view_intervention: {
         Args: { p_intervention_id: string }
         Returns: boolean
       }
-      can_view_lot: {
-        Args: { lot_uuid: string }
-        Returns: boolean
-      }
-      can_view_quote: {
-        Args: { p_quote_id: string }
-        Returns: boolean
-      }
-      can_view_report: {
-        Args: { p_report_id: string }
-        Returns: boolean
-      }
+      can_view_lot: { Args: { lot_uuid: string }; Returns: boolean }
+      can_view_quote: { Args: { p_quote_id: string }; Returns: boolean }
+      can_view_report: { Args: { p_report_id: string }; Returns: boolean }
       check_timeslot_can_be_finalized: {
         Args: { slot_id_param: string }
         Returns: boolean
       }
-      expire_old_invitations: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      get_building_team_id: {
-        Args: { building_uuid: string }
-        Returns: string
-      }
-      get_current_user_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      expire_old_invitations: { Args: never; Returns: number }
+      get_building_team_id: { Args: { building_uuid: string }; Returns: string }
+      get_current_user_id: { Args: never; Returns: string }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
       get_intervention_team_id: {
         Args: { p_intervention_id: string }
         Returns: string
       }
-      get_lot_team_id: {
-        Args: { lot_uuid: string }
-        Returns: string
-      }
-      get_user_id_from_auth: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_lot_team_id: { Args: { lot_uuid: string }; Returns: string }
+      get_user_id_from_auth: { Args: never; Returns: string }
       get_user_teams_v2: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           team_id: string
         }[]
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
       is_assigned_to_intervention: {
         Args: { p_intervention_id: string }
         Returns: boolean
       }
-      is_document_owner: {
-        Args: { p_document_id: string }
-        Returns: boolean
-      }
-      is_gestionnaire: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_document_owner: { Args: { p_document_id: string }; Returns: boolean }
+      is_gestionnaire: { Args: never; Returns: boolean }
       is_manager_of_intervention_team: {
         Args: { p_intervention_id: string }
         Returns: boolean
@@ -1889,10 +1857,11 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: boolean
       }
-      is_team_manager: {
-        Args: { check_team_id: string }
+      is_prestataire_of_intervention: {
+        Args: { intervention_id_param: string }
         Returns: boolean
       }
+      is_team_manager: { Args: { check_team_id: string }; Returns: boolean }
       is_team_member: {
         Args: { allowed_roles?: string[]; check_team_id: string }
         Returns: boolean
@@ -1901,10 +1870,7 @@ export type Database = {
         Args: { p_intervention_id: string }
         Returns: boolean
       }
-      is_tenant_of_lot: {
-        Args: { lot_uuid: string }
-        Returns: boolean
-      }
+      is_tenant_of_lot: { Args: { lot_uuid: string }; Returns: boolean }
       is_time_slot_fully_validated: {
         Args: { slot_id: string }
         Returns: boolean
@@ -2009,7 +1975,6 @@ export type Database = {
         | "local_commercial"
         | "parking"
         | "autre"
-      notification_priority: "low" | "normal" | "high" | "urgent"
       notification_type:
         | "intervention"
         | "chat"
@@ -2273,7 +2238,6 @@ export const Constants = {
         "parking",
         "autre",
       ],
-      notification_priority: ["low", "normal", "high", "urgent"],
       notification_type: [
         "intervention",
         "chat",

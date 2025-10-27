@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle, Calendar, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,6 +20,22 @@ import {
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
+
+// Helper function pour formater les dates de manière sécurisée
+const formatInterventionDate = (dateValue: unknown): string => {
+  if (!dateValue) return "Date non spécifiée"
+  try {
+    const date = new Date(dateValue as string)
+    if (isNaN(date.getTime())) return "Date non spécifiée"
+    return date.toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    })
+  } catch {
+    return "Date non spécifiée"
+  }
+}
 
 interface Provider {
   id: string
@@ -147,53 +163,87 @@ export const MultiQuoteRequestModal = ({
       <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-3 pb-6">
           <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demander de devis
+            Demande de devis
           </DialogTitle>
-          <p className="text-slate-600">
-            Sélectionnez un ou plusieurs prestataires et personnalisez les messages si vous le souhaitez.
-          </p>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Résumé de l'intervention */}
-          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Wrench className="h-5 w-5 text-slate-600" />
-                {intervention.title}
-              </h3>
-              <Badge className={`${getPriorityColor(intervention.urgency)} text-xs`}>
-                {getPriorityLabel(intervention.urgency)}
-              </Badge>
-            </div>
+          {/* Résumé de l'intervention - Card améliorée */}
+          <Card className={`border-l-4 ${
+            intervention.urgency === "urgente" ? "border-l-red-500" :
+            intervention.urgency === "haute" ? "border-l-orange-500" :
+            intervention.urgency === "normale" ? "border-l-blue-500" :
+            "border-l-gray-300"
+          } shadow-sm`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-4">
+                <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <Wrench className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="line-clamp-2">{intervention.title}</span>
+                </CardTitle>
+                <Badge className={`${getPriorityColor(intervention.urgency)} text-xs whitespace-nowrap flex-shrink-0`}>
+                  {getPriorityLabel(intervention.urgency)}
+                </Badge>
+              </div>
+            </CardHeader>
 
-            <div className="flex items-center gap-4 text-sm text-slate-600">
-              <div className="flex items-center gap-1.5">
-                {getInterventionLocationIcon(intervention) === "building" ? (
-                  <MapPin className="h-4 w-4" />
-                ) : (
-                  <MapPin className="h-4 w-4" />
-                )}
-                <span>{getInterventionLocationText(intervention)}</span>
+            <CardContent className="space-y-4">
+              {/* Métadonnées en grid 2 colonnes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Localisation */}
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Localisation</p>
+                    <p className="text-sm text-slate-900 mt-0.5 truncate">{getInterventionLocationText(intervention)}</p>
+                  </div>
+                </div>
+
+                {/* Type d'intervention */}
+                <div className="flex items-start gap-2.5">
+                  <Wrench className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Type</p>
+                    <p className={`text-sm mt-0.5 capitalize truncate ${!intervention.type ? "text-slate-400 italic" : "text-slate-900"}`}>
+                      {intervention.type || "Type non spécifié"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Date de création */}
+                <div className="flex items-start gap-2.5">
+                  <Calendar className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Créée le</p>
+                    <p className={`text-sm mt-0.5 ${!intervention.created_at ? "text-slate-400 italic" : "text-slate-900"}`}>
+                      {formatInterventionDate(intervention.created_at)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Priorité */}
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Priorité</p>
+                    <p className="text-sm text-slate-900 mt-0.5 capitalize">{getPriorityLabel(intervention.urgency)}</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <Wrench className="h-4 w-4" />
-                <span className="capitalize">{intervention.type || "Non spécifié"}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span>{new Date(intervention.created_at).toLocaleDateString("fr-FR")}</span>
-              </div>
-            </div>
-
-            {intervention.description && (
-              <p className="text-sm text-slate-700 bg-white rounded px-3 py-2">
-                {intervention.description}
-              </p>
-            )}
-          </div>
+              {/* Description (si présente) */}
+              {intervention.description && (
+                <div className="pt-2 border-t border-slate-100">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Description</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {intervention.description}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Instructions générales */}
           <div className="space-y-3">

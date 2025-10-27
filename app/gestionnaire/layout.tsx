@@ -2,6 +2,7 @@ import type React from "react"
 import { getServerAuthContext } from "@/lib/server-context"
 import DashboardHeader from "@/components/dashboard-header"
 import { GestionnaireLayoutClient } from "./layout-client"
+import { FrillWidget } from "@/components/frill-widget"
 
 /**
  * 🔐 GESTIONNAIRE LAYOUT - SERVER COMPONENT (Architecture Next.js 15)
@@ -44,6 +45,9 @@ export default async function GestionnaireLayout({
 
       {/* Client components pour interactivité */}
       <GestionnaireLayoutClient />
+
+      {/* Widget Frill pour feedback utilisateur */}
+      <FrillWidget />
     </div>
   )
 }

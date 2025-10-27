@@ -266,7 +266,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get current user from database
-    const user = await userService.findByAuthUserId(authUser.id)
+    const userResult = await userService.findByAuthUserId(authUser.id)
+    const user = userResult?.data ?? null
     if (!user) {
       return NextResponse.json({
         success: false,

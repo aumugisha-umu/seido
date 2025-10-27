@@ -42,7 +42,7 @@ function getNotificationIcon(_type: string) {
   }
 }
 
-function formatDate(_dateString: string) {
+function formatDate(dateString: string) {
   const date = new Date(dateString)
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -51,26 +51,6 @@ function formatDate(_dateString: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date)
-}
-
-function getPriorityBadge(_priority: string) {
-  switch (priority) {
-    case "urgent":
-      return (
-        <Badge variant="destructive" className="text-xs">
-          <AlertTriangle className="h-3 w-3 mr-1" />
-          Urgent
-        </Badge>
-      )
-    case "high":
-      return (
-        <Badge className="bg-orange-100 text-orange-800 text-xs">
-          Priorité élevée
-        </Badge>
-      )
-    default:
-      return null
-  }
 }
 
 export default function NotificationsPage() {
@@ -93,7 +73,7 @@ export default function NotificationsPage() {
     refreshInterval: 30000
   })
 
-  const handleMarkAsRead = async (_notificationId: string) => {
+  const handleMarkAsRead = async (notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await markAsRead(notificationId)
@@ -104,7 +84,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleMarkAsUnread = async (_notificationId: string) => {
+  const handleMarkAsUnread = async (notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await markAsUnread(notificationId)
@@ -115,7 +95,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleDelete = async (_notificationId: string) => {
+  const handleDelete = async (notificationId: string) => {
     setActionLoading(notificationId)
     try {
       await deleteNotification(notificationId)
@@ -215,7 +195,6 @@ export default function NotificationsPage() {
                         }`}>
                           {notification.title}
                         </h3>
-                        {getPriorityBadge(notification.priority)}
                         {!notification.read && (
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         )}

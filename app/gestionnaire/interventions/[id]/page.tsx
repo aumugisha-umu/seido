@@ -1,138 +1,175 @@
 /**
  * Gestionnaire Intervention Detail Page
- * Server Component that loads intervention data and renders client components
+ * ✅ RECONSTRUCTED: Pattern EXACT de lots/[id]/page.tsx et immeubles/[id]/page.tsx
+ * ✅ Simple queries Supabase directes (pas de méthodes custom complexes)
+ * ✅ RLS policies Supabase pour permissions (pas de checks custom)
+ * ✅ Logging structuré à chaque étape
  */
 
 import { notFound } from 'next/navigation'
-import { getInterventionAction } from '@/app/actions/intervention-actions'
 import { getServerAuthContext } from '@/lib/server-context'
+import { createServerInterventionService } from '@/lib/services'
 import { InterventionDetailClient } from './components/intervention-detail-client'
-import type { Database } from '@/lib/database.types'
+import { logger } from '@/lib/logger'
 
 type PageProps = {
   params: Promise<{ id: string }>
 }
 
 export default async function InterventionDetailPage({ params }: PageProps) {
-  const resolvedParams = await params
-  const { id } = resolvedParams
+  const startTime = Date.now()
+  const { id } = await params
 
-  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  // Remplace ~18 lignes d'auth manuelle (getUser + role check)
+  // ✅ AUTH centralisée (comme Lots/Immeubles)
   const { supabase } = await getServerAuthContext('gestionnaire')
 
-  // Load intervention data
-  const result = await getInterventionAction(id)
+  logger.info('🔧 [INTERVENTION-PAGE] Loading intervention', {
+    interventionId: id,
+    timestamp: new Date().toISOString()
+  })
 
-  if (!result.success || !result.data) {
+  try {
+    // ✅ Service standard (pas de méthode custom)
+    const interventionService = await createServerInterventionService()
+
+    // Step 1: Load intervention de base
+    logger.info('📍 [INTERVENTION-PAGE] Step 1: Loading intervention')
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) throw new Error('Not authenticated')
+
+    const interventionResult = await interventionService.getById(id, authUser.id)
+
+    if (!interventionResult.success || !interventionResult.data) {
+      logger.error('❌ [INTERVENTION-PAGE] Intervention not found', {
+        interventionId: id,
+        error: interventionResult.error,
+        elapsed: `${Date.now() - startTime}ms`
+      })
+      notFound()
+    }
+
+    const intervention = interventionResult.data
+    logger.info('✅ [INTERVENTION-PAGE] Step 1 complete', {
+      interventionId: intervention.id,
+      status: intervention.status,
+      teamId: intervention.team_id,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Step 2: Load relations EN PARALLÈLE (pattern Lots/Immeubles)
+    logger.info('📍 [INTERVENTION-PAGE] Step 2: Loading relations')
+    const [
+      { data: building },
+      { data: lot },
+      { data: assignments },
+      { data: documents },
+      { data: quotes },
+      { data: timeSlots },
+      { data: threads },
+      { data: activityLogs }
+    ] = await Promise.all([
+      // Building
+      intervention.building_id
+        ? supabase.from('buildings').select('*').eq('id', intervention.building_id).single()
+        : Promise.resolve({ data: null }),
+
+      // Lot
+      intervention.lot_id
+        ? supabase.from('lots').select('*').eq('id', intervention.lot_id).single()
+        : Promise.resolve({ data: null }),
+
+      // Assignments
+      supabase
+        .from('intervention_assignments')
+        .select('*, user:users!user_id(*)')
+        .eq('intervention_id', id)
+        .order('assigned_at', { ascending: false }),
+
+      // Documents
+      supabase
+        .from('intervention_documents')
+        .select('*')
+        .eq('intervention_id', id)
+        .is('deleted_at', null)
+        .order('uploaded_at', { ascending: false }),
+
+      // Quotes
+      supabase
+        .from('intervention_quotes')
+        .select('*, provider:users!provider_id(*)')
+        .eq('intervention_id', id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false }),
+
+      // Time slots
+      supabase
+        .from('intervention_time_slots')
+        .select(`
+          *,
+          proposed_by_user:users!proposed_by(*),
+          responses:time_slot_responses(*, user:users(*))
+        `)
+        .eq('intervention_id', id)
+        .order('slot_date', { ascending: true }),
+
+      // Threads
+      supabase
+        .from('conversation_threads')
+        .select('*')
+        .eq('intervention_id', id)
+        .order('created_at', { ascending: true }),
+
+      // Activity logs
+      supabase
+        .from('activity_logs')
+        .select('*, user:users!user_id(*)')
+        .eq('entity_type', 'intervention')
+        .eq('entity_id', id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+    ])
+
+    logger.info('✅ [INTERVENTION-PAGE] Step 2 complete', {
+      hasBuilding: !!building,
+      hasLot: !!lot,
+      assignmentsCount: assignments?.length || 0,
+      documentsCount: documents?.length || 0,
+      quotesCount: quotes?.length || 0,
+      timeSlotsCount: timeSlots?.length || 0,
+      threadsCount: threads?.length || 0,
+      logsCount: activityLogs?.length || 0,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    logger.info('🎉 [INTERVENTION-PAGE] All data loaded successfully', {
+      interventionId: id,
+      totalElapsed: `${Date.now() - startTime}ms`
+    })
+
+    // ✅ Pass to Client Component
+    return (
+      <InterventionDetailClient
+        intervention={{
+          ...intervention,
+          building: building || undefined,
+          lot: lot || undefined
+        }}
+        assignments={assignments || []}
+        documents={documents || []}
+        quotes={quotes || []}
+        timeSlots={timeSlots || []}
+        threads={threads || []}
+        activityLogs={activityLogs || []}
+      />
+    )
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error('❌ [INTERVENTION-PAGE] Failed to load intervention', {
+      interventionId: id,
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      elapsed: `${Date.now() - startTime}ms`
+    })
     notFound()
   }
-
-  // Load additional related data in parallel
-  const [
-    { data: building },
-    { data: lot },
-    { data: assignments },
-    { data: documents },
-    { data: quotes },
-    { data: timeSlots },
-    { data: threads },
-    { data: activityLogs }
-  ] = await Promise.all([
-    // Building data
-    result.data.building_id
-      ? supabase.from('buildings').select('*').eq('id', result.data.building_id).single()
-      : Promise.resolve({ data: null }),
-
-    // Lot data
-    result.data.lot_id
-      ? supabase.from('lots').select('*').eq('id', result.data.lot_id).single()
-      : Promise.resolve({ data: null }),
-
-    // Assignments with user details (includes tenants)
-    supabase
-      .from('intervention_assignments')
-      .select('*, user:users!user_id(*)')
-      .eq('intervention_id', id)
-      .order('assigned_at', { ascending: false }),
-
-    // Documents
-    supabase
-      .from('intervention_documents')
-      .select('*')
-      .eq('intervention_id', id)
-      .is('deleted_at', null)
-      .order('uploaded_at', { ascending: false }),
-
-    // Quotes
-    supabase
-      .from('intervention_quotes')
-      .select('*, provider:users!provider_id(*)')
-      .eq('intervention_id', id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-
-    // Time slots with responses
-    supabase
-      .from('intervention_time_slots')
-      .select(`
-        *,
-        proposed_by_user:users!proposed_by(*),
-        responses:time_slot_responses(
-          *,
-          user:users(*)
-        )
-      `)
-      .eq('intervention_id', id)
-      .order('slot_date', { ascending: true }),
-
-    // Conversation threads
-    supabase
-      .from('conversation_threads')
-      .select('*')
-      .eq('intervention_id', id)
-      .order('created_at', { ascending: true }),
-
-    // Activity logs
-    supabase
-      .from('activity_logs')
-      .select('*, user:users!user_id(*)')
-      .eq('entity_type', 'intervention')
-      .eq('entity_id', id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-  ])
-
-  // Extract tenant from assignments (tenants are now linked via intervention_assignments)
-  const tenant = assignments?.find(a => a.role === 'locataire')?.user || null
-
-  // Get creator from first assignment (usually gestionnaire or locataire)
-  const firstAssignment = assignments && assignments.length > 0
-    ? assignments.sort((a, b) => new Date(a.assigned_at).getTime() - new Date(b.assigned_at).getTime())[0]
-    : null
-
-  const creatorName = firstAssignment?.user?.name ||
-                      firstAssignment?.user?.email?.split('@')[0] ||
-                      'Utilisateur'
-
-  // Construct full intervention object
-  const fullIntervention = {
-    ...result.data,
-    building: building || undefined,
-    lot: lot || undefined,
-    tenant: tenant || undefined,
-    creator_name: creatorName
-  }
-
-  return (
-    <InterventionDetailClient
-      intervention={fullIntervention}
-      assignments={assignments || []}
-      documents={documents || []}
-      quotes={quotes || []}
-      timeSlots={timeSlots || []}
-      threads={threads || []}
-      activityLogs={activityLogs || []}
-    />
-  )
 }

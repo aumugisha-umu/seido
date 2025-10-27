@@ -39,7 +39,7 @@ export default function LocataireDashboard() {
   // 🎯 FIX: Afficher skeleton si pas encore monté OU si loading
   if (!mounted || loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="space-y-8">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
           <div className="bg-white rounded-lg p-6 shadow mb-8">
@@ -65,7 +65,7 @@ export default function LocataireDashboard() {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="space-y-8">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
@@ -81,7 +81,7 @@ export default function LocataireDashboard() {
 
   if (!tenantData) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="space-y-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -211,7 +211,7 @@ export default function LocataireDashboard() {
   const floor = tenantData.floor !== undefined ? `Étage ${tenantData.floor}` : ''
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="space-y-6">
       {/* Header avec informations du logement */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">

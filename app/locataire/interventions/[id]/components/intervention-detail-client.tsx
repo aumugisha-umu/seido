@@ -146,7 +146,7 @@ export function LocataireInterventionDetailClient({
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-6 space-y-6">
+    <div className="container max-w-6xl mx-auto space-y-6">
       {/* Intervention Detail Header with Action Panel */}
       <InterventionDetailHeader
         intervention={{

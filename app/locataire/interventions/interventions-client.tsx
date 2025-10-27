@@ -140,9 +140,9 @@ export default function InterventionsClient({ interventions }: InterventionsClie
   const pendingActions = convertToPendingActions()
 
   return (
-    <div className="py-2">
+    <div>
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Demandes</h1>
           <p className="text-gray-600">Suivez vos demandes d'intervention pour votre logement</p>

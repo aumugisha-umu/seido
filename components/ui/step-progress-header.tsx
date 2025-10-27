@@ -38,7 +38,7 @@ export const StepProgressHeader = ({
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
 
   return (
-    <div className="sticky top-20 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 space-y-2">
+    <div className="sticky top-16 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 mb-6 -mx-4 sm:-mx-6 lg:-mx-8 space-y-2">
         {/* Single Line Header: Title (left) + Step Info (center) + Back Button (right) */}
         <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
           {/* Left: Page Title */}

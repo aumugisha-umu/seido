@@ -184,13 +184,13 @@ export function InterventionActionPanelHeader({
           actions.push(
             {
               key: 'request_quotes',
-              label: 'Demander des devis',
+              label: 'Demander un devis',
               icon: FileText,
               description: 'Solliciter des devis auprès de prestataires'
             },
             {
               key: 'start_planning',
-              label: 'Organiser la planification',
+              label: 'Planifier',
               icon: Calendar,
               description: 'Commencer le processus de planification'
             }
@@ -571,17 +571,14 @@ export function InterventionActionPanelHeader({
           return
 
         case 'start_planning':
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=planning`
-          return
-
         case 'propose_slots':
           // Ouvrir la modale de programmation si callback fourni
           if (onProposeSlots) {
             onProposeSlots()
             return
           }
-          // Fallback vers onglet time-slots
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          // Fallback vers onglet execution
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=execution`
           return
 
         case 'confirm_availabilities':
@@ -1002,7 +999,7 @@ export function InterventionActionPanelHeader({
         additionalNotes={quoting.formData.additionalNotes}
         individualMessages={quoting.formData.individualMessages}
         onProviderToggle={quoting.toggleProvider}
-        onNotesChange={(_additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
+        onNotesChange={(additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
         onIndividualMessageChange={quoting.updateIndividualMessage}
         onSubmit={quoting.submitQuoteRequest}
         isLoading={quoting.isLoading}

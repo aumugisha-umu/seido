@@ -287,8 +287,17 @@ export function ExecutionTab({
                   variant={actionStyles.variant}
                   className={`gap-2 ${actionStyles.className}`}
                 >
-                  <Edit className="w-4 h-4" />
-                  Modifier la planification
+                  {timeSlots.length > 0 ? (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      Modifier la planification
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4" />
+                      Planifier
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -320,20 +329,9 @@ export function ExecutionTab({
                 <p className="text-lg font-medium text-muted-foreground mb-2">
                   Aucun créneau proposé
                 </p>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-muted-foreground">
                   Les créneaux horaires proposés apparaîtront ici
                 </p>
-                {canProposeSlots && onOpenProgrammingModal && (
-                  <Button
-                    onClick={onOpenProgrammingModal}
-                    variant={actionStyles.variant}
-                    size="sm"
-                    className={actionStyles.className}
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Modifier la planification
-                  </Button>
-                )}
               </div>
             ) : (
               <div className="space-y-4">

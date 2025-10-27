@@ -2,6 +2,7 @@ import type React from "react"
 import { requireRole } from "@/lib/auth-dal"
 import DashboardHeader from "@/components/dashboard-header"
 import { PrestataireLayoutClient } from "./layout-client"
+import { FrillWidget } from "@/components/frill-widget"
 
 /**
  * 🔐 PRESTATAIRE LAYOUT - SERVER COMPONENT (Architecture 2025)
@@ -42,6 +43,9 @@ export default async function PrestataireLayout({
 
       {/* Client components pour interactivité */}
       <PrestataireLayoutClient />
+
+      {/* Widget Frill pour feedback utilisateur */}
+      <FrillWidget />
     </div>
   )
 }

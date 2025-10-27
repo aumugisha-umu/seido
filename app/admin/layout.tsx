@@ -2,6 +2,7 @@ import type React from "react"
 import { requireRole } from "@/lib/auth-dal"
 import DashboardHeader from "@/components/dashboard-header"
 import { AdminLayoutClient } from "./layout-client"
+import { FrillWidget } from "@/components/frill-widget"
 
 /**
  * 🔐 ADMIN LAYOUT - SERVER COMPONENT (Architecture 2025)
@@ -42,6 +43,9 @@ export default async function AdminLayout({
 
       {/* Client components pour interactivité */}
       <AdminLayoutClient />
+
+      {/* Widget Frill pour feedback utilisateur */}
+      <FrillWidget />
     </div>
   )
 }

@@ -61,13 +61,13 @@ export const ACTION_STYLES = {
     'validate_work',        // Locataire/Gestionnaire validates completed work
     'finalize',             // Gestionnaire finalizes intervention
     'confirm_slot',         // Locataire confirms a time slot
-    'request_quotes'        // Gestionnaire requests quotes from providers
+    'request_quotes',       // Gestionnaire requests quotes from providers
+    'start_planning'        // Gestionnaire starts planning process (same level as request_quotes)
   ],
 
   // === TONAL (Secondary) ===
   // Important secondary actions, less prominent than primary but still significant
   tonal: [
-    'start_planning',       // Gestionnaire starts planning process
     'add_availabilities',   // Prestataire/Locataire adds availability slots
     'reschedule',           // Any role reschedules intervention
     'modify_schedule',      // Locataire modifies schedule

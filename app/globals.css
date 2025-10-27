@@ -21,6 +21,16 @@
     display: none;
   }
 
+  /* Hide scrollbar completely (all browsers) */
+  .scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
   /* Custom thin scrollbar for desktop */
   .scrollbar-thin {
     scrollbar-width: thin;

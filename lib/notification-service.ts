@@ -1,96 +1,25 @@
-import { createServerSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
+import { createBrowserSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
-import type { Building, Lot, Intervention, Contact, User } from '@/lib/services/core/service-types'
-import { logger, logError } from '@/lib/logger'
+
+// Initialize Supabase client for browser
+const supabase = createBrowserSupabaseClient()
+
 type NotificationType = Database['public']['Enums']['notification_type']
-type NotificationPriority = Database['public']['Enums']['notification_priority']
-
-// Type for notification metadata
-type NotificationMetadata = Record<string, string | number | boolean | null | undefined>
-
-// Type for team member with user relationship
-interface TeamMemberWithUser {
-  user_id: string
-  user: {
-    id: string
-    name?: string
-    role?: string
-  } | null
-}
-
-// Type for building/lot contact with user relationship
-interface ContactWithUser {
-  user_id: string
-  is_primary: boolean | null
-  user: {
-    id: string
-    role?: string
-    provider_category?: string
-  } | null
-}
-
-// Type for lot with building relationship
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface LotWithBuilding {
-  id: string
-  reference?: string
-  building_id?: string
-  building?: {
-    id: string
-    name?: string
-  } | null
-}
-
-// Type for intervention contact
-interface InterventionContact {
-  user_id: string
-  role: string
-  user: {
-    id: string
-    name?: string
-    role?: string
-  } | null
-}
-
-// Type for lot contact
-interface LotContact {
-  user_id: string
-  is_primary: boolean | null
-  user: {
-    id: string
-    role?: string
-  } | null
-}
-
-// Type for intervention with relationships
-/* interface InterventionWithRelations extends Intervention {
-  lot?: LotWithBuilding | null
-  tenant_id?: string
-  team_id: string
-  title: string
-} */
 
 interface CreateNotificationParams {
   userId: string
   teamId: string
   createdBy?: string
   type: NotificationType
-  priority?: NotificationPriority
   title: string
   message: string
   isPersonal?: boolean
-  metadata?: NotificationMetadata
+  metadata?: Record<string, any>
   relatedEntityType?: string
   relatedEntityId?: string
 }
 
 class NotificationService {
-  private supabase: ServerSupabaseClient
-
-  constructor(supabase: ServerSupabaseClient) {
-    this.supabase = supabase
-  }
-
   /**
    * Créer une notification pour un utilisateur
    */
@@ -99,7 +28,6 @@ class NotificationService {
     teamId,
     createdBy,
     type,
-    priority = 'normal',
     title,
     message,
     isPersonal = false,
@@ -108,14 +36,13 @@ class NotificationService {
     relatedEntityId
   }: CreateNotificationParams) {
     try {
-      logger.info('📬 [NOTIFICATION-SERVICE] Creating notification:', {
+      console.log('📬 [NOTIFICATION-SERVICE] Creating notification:', {
         userId,
         teamId,
         createdBy,
         type,
         title,
-        isPersonal,
-        priority
+        isPersonal
       })
 
       const notificationData = {
@@ -123,7 +50,6 @@ class NotificationService {
         team_id: teamId,
         created_by: createdBy,
         type,
-        priority,
         title,
         message,
         is_personal: isPersonal,
@@ -132,20 +58,20 @@ class NotificationService {
         related_entity_id: relatedEntityId
       }
 
-      logger.info('📬 [NOTIFICATION-SERVICE] Inserting notification data:', notificationData)
+      console.log('📬 [NOTIFICATION-SERVICE] Inserting notification data:', notificationData)
 
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('notifications')
         .insert(notificationData)
         .select('*')
         .single()
 
       if (error) {
-        logger.error('❌ [NOTIFICATION-SERVICE] Error creating notification:', error)
+        console.error('❌ [NOTIFICATION-SERVICE] Error creating notification:', error)
         return null
       }
 
-      logger.info('✅ [NOTIFICATION-SERVICE] Notification created successfully:', {
+      console.log('✅ [NOTIFICATION-SERVICE] Notification created successfully:', {
         id: data.id,
         user_id: data.user_id,
         team_id: data.team_id,
@@ -154,7 +80,7 @@ class NotificationService {
       })
       return data
     } catch (error) {
-      logger.error('❌ Exception creating notification:', error)
+      console.error('❌ Exception creating notification:', error)
       return null
     }
   }
@@ -166,7 +92,6 @@ class NotificationService {
     teamId,
     createdBy,
     type,
-    priority = 'normal',
     title,
     message,
     metadata = {},
@@ -177,21 +102,21 @@ class NotificationService {
     excludeUsers?: string[]
   }) {
     try {
-      logger.info('📬 Creating team notification for team:', teamId)
+      console.log('📬 Creating team notification for team:', teamId)
 
       // Récupérer tous les membres de l'équipe
-      const { data: teamMembers, error: membersError } = await this.supabase
+      const { data: teamMembers, error: membersError } = await supabase
         .from('team_members')
         .select('user_id')
         .eq('team_id', teamId)
 
       if (membersError) {
-        logger.error('❌ Error fetching team members:', membersError)
+        console.error('❌ Error fetching team members:', membersError)
         return []
       }
 
       if (!teamMembers || teamMembers.length === 0) {
-        logger.info('⚠️ No team members found for team:', teamId)
+        console.log('⚠️ No team members found for team:', teamId)
         return []
       }
 
@@ -206,7 +131,6 @@ class NotificationService {
         team_id: teamId,
         created_by: createdBy,
         type,
-        priority,
         title,
         message,
         metadata,
@@ -214,20 +138,20 @@ class NotificationService {
         related_entity_id: relatedEntityId
       }))
 
-      const { data, error } = await this.supabase
+      const { data, error } = await supabase
         .from('notifications')
         .insert(notifications)
         .select('*')
 
       if (error) {
-        logger.error('❌ Error creating team notifications:', error)
+        console.error('❌ Error creating team notifications:', error)
         return []
       }
 
-      logger.info('✅ Created team notifications:', data.length)
+      console.log('✅ Created team notifications:', data.length)
       return data
     } catch (error) {
-      logger.error('❌ Exception creating team notifications:', error)
+      console.error('❌ Exception creating team notifications:', error)
       return []
     }
   }
@@ -243,8 +167,7 @@ class NotificationService {
     assignedTo,
     managerId,
     lotId,
-    lotReference,
-    urgency = 'normal'
+    lotReference
   }: {
     interventionId: string
     interventionTitle: string
@@ -254,7 +177,6 @@ class NotificationService {
     managerId?: string
     lotId?: string
     lotReference?: string
-    urgency?: NotificationPriority
   }) {
     try {
       // Récupérer les informations du lot et de l'immeuble pour identifier les responsables
@@ -263,7 +185,7 @@ class NotificationService {
       
       if (lotId) {
         // Récupérer le lot avec son immeuble parent
-        const { data: lotData } = await this.supabase
+        const { data: lotData } = await supabase
           .from('lots')
           .select(`
             id,
@@ -283,7 +205,7 @@ class NotificationService {
       }
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -293,7 +215,7 @@ class NotificationService {
 
       if (!teamMembers) return []
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== createdBy
       )
 
@@ -329,13 +251,12 @@ class NotificationService {
             teamId,
             createdBy,
             type: 'intervention',
-            priority: urgency === 'normal' ? 'high' : urgency,
             title: 'Nouvelle intervention sous votre responsabilité',
             message: `Une nouvelle intervention "${interventionTitle}"${lotReference ? ` pour ${lotReference}` : ''} vous concerne directement`,
-            metadata: { 
-              intervention_id: interventionId, 
-              lot_reference: lotReference,
-              isPersonal: true
+            isPersonal: true,
+            metadata: {
+              intervention_id: interventionId,
+              lot_reference: lotReference
             },
             relatedEntityType: 'intervention',
             relatedEntityId: interventionId
@@ -348,13 +269,12 @@ class NotificationService {
             teamId,
             createdBy,
             type: 'intervention',
-            priority: 'normal',
             title: 'Nouvelle intervention créée',
             message: `Une nouvelle intervention "${interventionTitle}"${lotReference ? ` pour ${lotReference}` : ''} a été créée`,
-            metadata: { 
-              intervention_id: interventionId, 
-              lot_reference: lotReference,
-              isPersonal: false
+            isPersonal: false,
+            metadata: {
+              intervention_id: interventionId,
+              lot_reference: lotReference
             },
             relatedEntityType: 'intervention',
             relatedEntityId: interventionId
@@ -370,12 +290,12 @@ class NotificationService {
         assignedTo && assignedTo !== createdBy ? 'assignee' : null
       ].filter(Boolean).join(', ')
 
-      logger.info(`📬 Intervention creation notifications sent to ${allManagers.length} gestionnaires`)
-      logger.info(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
-      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      console.log(`📬 Intervention creation notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
       return notifications
     } catch (error) {
-      logger.error('❌ Failed to notify intervention created:', error)
+      console.error('❌ Failed to notify intervention created:', error)
       return []
     }
   }
@@ -434,7 +354,7 @@ class NotificationService {
       
       if (lotId) {
         // Récupérer le lot avec son immeuble parent
-        const { data: lotData } = await this.supabase
+        const { data: lotData } = await supabase
           .from('lots')
           .select(`
             id,
@@ -454,7 +374,7 @@ class NotificationService {
       }
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -464,7 +384,7 @@ class NotificationService {
 
       if (!teamMembers) return []
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== changedBy
       )
 
@@ -503,15 +423,14 @@ class NotificationService {
             teamId,
             createdBy: changedBy,
             type: 'status_change',
-            priority: newStatus === 'approuvee' ? 'high' : 'normal',
             title: 'Statut d\'intervention sous votre responsabilité modifié',
             message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} qui vous concerne est passée de "${oldLabel}" à "${newLabel}"`,
-            metadata: { 
-              intervention_id: interventionId, 
-              old_status: oldStatus, 
+            isPersonal: true,
+            metadata: {
+              intervention_id: interventionId,
+              old_status: oldStatus,
               new_status: newStatus,
-              lot_reference: lotReference,
-              isPersonal: true
+              lot_reference: lotReference
             },
             relatedEntityType: 'intervention',
             relatedEntityId: interventionId
@@ -524,15 +443,14 @@ class NotificationService {
             teamId,
             createdBy: changedBy,
             type: 'status_change',
-            priority: 'normal',
             title: 'Statut d\'intervention modifié',
             message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} est passée de "${oldLabel}" à "${newLabel}"`,
-            metadata: { 
-              intervention_id: interventionId, 
-              old_status: oldStatus, 
+            isPersonal: false,
+            metadata: {
+              intervention_id: interventionId,
+              old_status: oldStatus,
               new_status: newStatus,
-              lot_reference: lotReference,
-              isPersonal: false
+              lot_reference: lotReference
             },
             relatedEntityType: 'intervention',
             relatedEntityId: interventionId
@@ -548,12 +466,12 @@ class NotificationService {
         assignedTo && assignedTo !== changedBy ? 'assignee' : null
       ].filter(Boolean).join(', ')
 
-      logger.info(`📬 Intervention status change notifications sent to ${allManagers.length} gestionnaires`)
-      logger.info(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
-      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      console.log(`📬 Intervention status change notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications (${logDetails})`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
       return notifications
     } catch (error) {
-      logger.error('❌ Failed to notify intervention status change:', error)
+      console.error('❌ Failed to notify intervention status change:', error)
       return []
     }
   }
@@ -587,7 +505,6 @@ class NotificationService {
         teamId,
         createdBy: uploadedBy,
         type: 'document',
-        priority: 'normal',
         title: 'Nouveau document disponible',
         message: `Le document "${documentName}" a été ajouté`,
         metadata: { 
@@ -626,7 +543,6 @@ class NotificationService {
       teamId,
       createdBy: invitedBy,
       type: 'team_invite',
-      priority: 'high',
       title: 'Invitation à rejoindre une équipe',
       message: `Vous avez été invité(e) à rejoindre l'équipe "${teamName}" en tant que ${role}`,
       metadata: { team_name: teamName, role },
@@ -652,7 +568,6 @@ class NotificationService {
     return this.createTeamNotification({
       teamId,
       type: 'system',
-      priority: 'normal',
       title,
       message,
       metadata: { scheduled_for: scheduledFor }
@@ -686,7 +601,6 @@ class NotificationService {
       teamId,
       createdBy,
       type: 'reminder',
-      priority: 'normal',
       title,
       message,
       metadata: { reminder_date: reminderDate },
@@ -698,14 +612,14 @@ class NotificationService {
   /**
    * Notifier la création d'un immeuble
    */
-  async notifyBuildingCreated(building: Building, createdBy: string) {
+  async notifyBuildingCreated(building: any, createdBy: string) {
     try {
       if (!building.team_id || !createdBy) return
 
-      logger.info('📬 Notifying building created:', { buildingId: building.id, teamId: building.team_id })
+      console.log('📬 Notifying building created:', { buildingId: building.id, teamId: building.team_id })
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -716,12 +630,12 @@ class NotificationService {
       if (!teamMembers) return
 
       // Filtrer les gestionnaires (exclure celui qui a fait l'action)
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== createdBy
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
-      const { data: buildingContacts } = await this.supabase
+      const { data: buildingContacts } = await supabase
         .from('building_contacts')
         .select(`
           user_id, 
@@ -732,7 +646,7 @@ class NotificationService {
         .is('end_date', null) // Only active assignments
 
       const directManagers = new Set<string>()
-      (buildingContacts as ContactWithUser[])?.forEach(contact => {
+      buildingContacts?.forEach(contact => {
         if (contact.is_primary && contact.user_id !== createdBy && contact.user?.role === 'gestionnaire') {
           directManagers.add(contact.user_id)
         }
@@ -749,7 +663,6 @@ class NotificationService {
             teamId: building.team_id,
             createdBy,
             type: 'system',
-            priority: 'high',
             title: 'Vous avez été assigné(e) comme responsable d\'un immeuble',
             message: `Vous avez été désigné(e) comme gestionnaire responsable de l'immeuble "${building.name}"`,
             metadata: {
@@ -768,7 +681,6 @@ class NotificationService {
             teamId: building.team_id,
             createdBy,
             type: 'system',
-            priority: 'normal',
             title: 'Nouvel immeuble créé',
             message: `Un nouvel immeuble "${building.name}" a été ajouté`,
             metadata: {
@@ -785,21 +697,21 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
+      console.log(`📬 Building creation notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
-      logger.error('❌ Failed to notify building created:', error)
+      console.error('❌ Failed to notify building created:', error)
     }
   }
 
   /**
    * Notifier la modification d'un immeuble
    */
-  async notifyBuildingUpdated(building: Building, updatedBy: string, changes: Partial<Building>) {
+  async notifyBuildingUpdated(building: any, updatedBy: string, changes: any) {
     try {
-      if (!building.team_id || !_updatedBy) return
+      if (!building.team_id || !updatedBy) return
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -809,12 +721,12 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
-        member.user?.role === 'gestionnaire' && member.user_id !== _updatedBy
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
-      const { data: buildingContacts } = await this.supabase
+      const { data: buildingContacts } = await supabase
         .from('building_contacts')
         .select(`
           user_id, 
@@ -825,7 +737,7 @@ class NotificationService {
         .is('end_date', null) // Only active assignments
 
       const directManagers = new Set<string>()
-      (buildingContacts as ContactWithUser[])?.forEach(contact => {
+      buildingContacts?.forEach(contact => {
         if (contact.is_primary && contact.user_id !== updatedBy && contact.user?.role === 'gestionnaire') {
           directManagers.add(contact.user_id)
         }
@@ -840,9 +752,8 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: building.team_id,
-            createdBy: _updatedBy,
+            createdBy: updatedBy,
             type: 'system',
-            priority: 'normal',
             title: 'Immeuble dont vous êtes responsable modifié',
             message: `L'immeuble "${building.name}" dont vous êtes le gestionnaire responsable a été modifié`,
             metadata: {
@@ -859,9 +770,8 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: building.team_id,
-            createdBy: _updatedBy,
+            createdBy: updatedBy,
             type: 'system',
-            priority: 'normal',
             title: 'Immeuble modifié',
             message: `L'immeuble "${building.name}" a été modifié`,
             metadata: {
@@ -878,20 +788,20 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
+      console.log(`📬 Building update notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
-      logger.error('❌ Failed to notify building updated:', error)
+      console.error('❌ Failed to notify building updated:', error)
     }
   }
 
   /**
    * Notifier la suppression d'un immeuble
    */
-  async notifyBuildingDeleted(building: Building, deletedBy: string) {
+  async notifyBuildingDeleted(building: any, deletedBy: string) {
     try {
       if (!building.team_id || !deletedBy) return
 
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -901,12 +811,12 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
       )
 
       // Identifier les gestionnaires directement responsables via building_contacts
-      const { data: buildingContacts } = await this.supabase
+      const { data: buildingContacts } = await supabase
         .from('building_contacts')
         .select(`
           user_id, 
@@ -917,7 +827,7 @@ class NotificationService {
         .is('end_date', null) // Only active assignments
 
       const directManagers = new Set<string>()
-      (buildingContacts as ContactWithUser[])?.forEach(contact => {
+      buildingContacts?.forEach(contact => {
         if (contact.is_primary && contact.user_id !== deletedBy && contact.user?.role === 'gestionnaire') {
           directManagers.add(contact.user_id)
         }
@@ -934,7 +844,6 @@ class NotificationService {
             teamId: building.team_id,
             createdBy: deletedBy,
             type: 'system',
-            priority: 'high',
             title: 'Immeuble dont vous étiez responsable supprimé',
             message: `L'immeuble "${building.name}" dont vous étiez le gestionnaire responsable a été supprimé`,
             metadata: {
@@ -952,7 +861,6 @@ class NotificationService {
             teamId: building.team_id,
             createdBy: deletedBy,
             type: 'system',
-            priority: 'high',
             title: 'Immeuble supprimé',
             message: `L'immeuble "${building.name}" a été supprimé`,
             metadata: {
@@ -968,20 +876,20 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
+      console.log(`📬 Building deletion notifications sent to ${allManagers.length} gestionnaires (${directManagers.size} personal, ${allManagers.length - directManagers.size} team)`)
     } catch (error) {
-      logger.error('❌ Failed to notify building deleted:', error)
+      console.error('❌ Failed to notify building deleted:', error)
     }
   }
 
   /**
    * Notifier la création d'un lot
    */
-  async notifyLotCreated(lot: Lot, building: Building | null, createdBy: string) {
+  async notifyLotCreated(lot: any, building: any, createdBy: string) {
     try {
       if (!lot.team_id || !createdBy) return
 
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -991,7 +899,7 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== createdBy
       )
 
@@ -999,7 +907,8 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const { data: lotContacts } = await this.supabase
+      const lotManagerIds = await this.getLotManagers(lot.id)
+      const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`
           user_id, 
@@ -1011,8 +920,8 @@ class NotificationService {
 
       const lotPrimaryManagers = new Set<string>()
       const lotAdditionalManagers = new Set<string>()
-
-      (lotContacts as LotContact[])?.forEach(contact => {
+      
+      lotContacts?.forEach(contact => {
         if (contact.user?.role === 'gestionnaire' && contact.user_id !== createdBy) {
           directResponsibles.add(contact.user_id)
           if (contact.is_primary) {
@@ -1026,7 +935,7 @@ class NotificationService {
       // 2. Gestionnaires de l'immeuble parent (building_contacts)
       const buildingPrimaryManagers = new Set<string>()
       if (building?.id) {
-        const { data: buildingContacts } = await this.supabase
+        const { data: buildingContacts } = await supabase
           .from('building_contacts')
           .select(`
             user_id, 
@@ -1036,7 +945,7 @@ class NotificationService {
           .eq('building_id', building.id)
           .is('end_date', null) // Only active assignments
 
-        (buildingContacts as ContactWithUser[])?.forEach(contact => {
+        buildingContacts?.forEach(contact => {
           if (contact.is_primary && contact.user_id !== createdBy && contact.user?.role === 'gestionnaire') {
             directResponsibles.add(contact.user_id)
             buildingPrimaryManagers.add(contact.user_id)
@@ -1074,7 +983,6 @@ class NotificationService {
             teamId: lot.team_id,
             createdBy,
             type: 'system',
-            priority: 'normal',
             title,
             message,
             metadata: {
@@ -1095,7 +1003,6 @@ class NotificationService {
             teamId: lot.team_id,
             createdBy,
             type: 'system',
-            priority: 'normal',
             title: 'Nouveau lot créé',
             message: `Un nouveau lot "${lot.reference}" a été ajouté à l'immeuble "${building?.name || 'N/A'}"`,
             metadata: {
@@ -1113,25 +1020,25 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Lot creation notifications sent to ${allManagers.length} gestionnaires`)
-      logger.info(`📬   - ${directResponsibles.size} personal notifications`)
-      logger.info(`📬     • ${lotPrimaryManagers.size} lot principal`)
-      logger.info(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
-      logger.info(`📬     • ${buildingPrimaryManagers.size} building manager`)
-      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      console.log(`📬 Lot creation notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications`)
+      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
-      logger.error('❌ Failed to notify lot created:', error)
+      console.error('❌ Failed to notify lot created:', error)
     }
   }
 
   /**
    * Notifier la modification d'un lot
    */
-  async notifyLotUpdated(lot: Lot, building: Building | null, updatedBy: string, changes: Partial<Lot>) {
+  async notifyLotUpdated(lot: any, building: any, updatedBy: string, changes: any) {
     try {
-      if (!lot.team_id || !_updatedBy) return
+      if (!lot.team_id || !updatedBy) return
 
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1141,15 +1048,16 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
-        member.user?.role === 'gestionnaire' && member.user_id !== _updatedBy
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
       )
 
       // Identifier TOUS les gestionnaires directement responsables
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const { data: lotContacts } = await this.supabase
+      const lotManagerIds = await this.getLotManagers(lot.id)
+      const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`
           user_id, 
@@ -1161,9 +1069,9 @@ class NotificationService {
 
       const lotPrimaryManagers = new Set<string>()
       const lotAdditionalManagers = new Set<string>()
-
-      (lotContacts as LotContact[])?.forEach(contact => {
-        if (contact.user?.role === 'gestionnaire' && contact.user_id !== _updatedBy) {
+      
+      lotContacts?.forEach(contact => {
+        if (contact.user?.role === 'gestionnaire' && contact.user_id !== updatedBy) {
           directResponsibles.add(contact.user_id)
           if (contact.is_primary) {
             lotPrimaryManagers.add(contact.user_id)
@@ -1176,7 +1084,7 @@ class NotificationService {
       // 2. Gestionnaires de l'immeuble parent (building_contacts)
       const buildingPrimaryManagers = new Set<string>()
       if (building?.id) {
-        const { data: buildingContacts } = await this.supabase
+        const { data: buildingContacts } = await supabase
           .from('building_contacts')
           .select(`
             user_id, 
@@ -1186,7 +1094,7 @@ class NotificationService {
           .eq('building_id', building.id)
           .is('end_date', null) // Only active assignments
 
-        (buildingContacts as ContactWithUser[])?.forEach(contact => {
+        buildingContacts?.forEach(contact => {
           if (contact.is_primary && contact.user_id !== updatedBy && contact.user?.role === 'gestionnaire') {
             directResponsibles.add(contact.user_id)
             buildingPrimaryManagers.add(contact.user_id)
@@ -1222,9 +1130,8 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: lot.team_id,
-            createdBy: _updatedBy,
+            createdBy: updatedBy,
             type: 'system',
-            priority: 'normal',
             title,
             message,
             metadata: {
@@ -1243,9 +1150,8 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: lot.team_id,
-            createdBy: _updatedBy,
+            createdBy: updatedBy,
             type: 'system',
-            priority: 'normal',
             title: 'Lot modifié',
             message: `Le lot "${lot.reference}" a été modifié`,
             metadata: {
@@ -1263,25 +1169,25 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Lot update notifications sent to ${allManagers.length} gestionnaires`)
-      logger.info(`📬   - ${directResponsibles.size} personal notifications`)
-      logger.info(`📬     • ${lotPrimaryManagers.size} lot principal`)
-      logger.info(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
-      logger.info(`📬     • ${buildingPrimaryManagers.size} building manager`)
-      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      console.log(`📬 Lot update notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications`)
+      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
-      logger.error('❌ Failed to notify lot updated:', error)
+      console.error('❌ Failed to notify lot updated:', error)
     }
   }
 
   /**
    * Notifier la suppression d'un lot
    */
-  async notifyLotDeleted(lot: Lot, building: Building | null, deletedBy: string) {
+  async notifyLotDeleted(lot: any, building: any, deletedBy: string) {
     try {
       if (!lot.team_id || !deletedBy) return
 
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1291,7 +1197,7 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
       )
 
@@ -1299,7 +1205,8 @@ class NotificationService {
       const directResponsibles = new Set<string>()
       
       // 1. Gestionnaires du lot (lot_contacts) - principaux et additionnels
-      const { data: lotContacts } = await this.supabase
+      const lotManagerIds = await this.getLotManagers(lot.id)
+      const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`
           user_id, 
@@ -1311,8 +1218,8 @@ class NotificationService {
 
       const lotPrimaryManagers = new Set<string>()
       const lotAdditionalManagers = new Set<string>()
-
-      (lotContacts as LotContact[])?.forEach(contact => {
+      
+      lotContacts?.forEach(contact => {
         if (contact.user?.role === 'gestionnaire' && contact.user_id !== deletedBy) {
           directResponsibles.add(contact.user_id)
           if (contact.is_primary) {
@@ -1326,7 +1233,7 @@ class NotificationService {
       // 2. Gestionnaires de l'immeuble parent (building_contacts)
       const buildingPrimaryManagers = new Set<string>()
       if (building?.id) {
-        const { data: buildingContacts } = await this.supabase
+        const { data: buildingContacts } = await supabase
           .from('building_contacts')
           .select(`
             user_id, 
@@ -1336,7 +1243,7 @@ class NotificationService {
           .eq('building_id', building.id)
           .is('end_date', null) // Only active assignments
 
-        (buildingContacts as ContactWithUser[])?.forEach(contact => {
+        buildingContacts?.forEach(contact => {
           if (contact.is_primary && contact.user_id !== deletedBy && contact.user?.role === 'gestionnaire') {
             directResponsibles.add(contact.user_id)
             buildingPrimaryManagers.add(contact.user_id)
@@ -1374,7 +1281,6 @@ class NotificationService {
             teamId: lot.team_id,
             createdBy: deletedBy,
             type: 'system',
-            priority: 'high',
             title,
             message,
             metadata: {
@@ -1393,7 +1299,6 @@ class NotificationService {
             teamId: lot.team_id,
             createdBy: deletedBy,
             type: 'system',
-            priority: 'high',
             title: 'Lot supprimé',
             message: `Le lot "${lot.reference}" a été supprimé de l'immeuble "${building?.name || 'N/A'}"`,
             metadata: {
@@ -1409,26 +1314,26 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Lot deletion notifications sent to ${allManagers.length} gestionnaires`)
-      logger.info(`📬   - ${directResponsibles.size} personal notifications`)
-      logger.info(`📬     • ${lotPrimaryManagers.size} lot principal`)
-      logger.info(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
-      logger.info(`📬     • ${buildingPrimaryManagers.size} building manager`)
-      logger.info(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
+      console.log(`📬 Lot deletion notifications sent to ${allManagers.length} gestionnaires`)
+      console.log(`📬   - ${directResponsibles.size} personal notifications`)
+      console.log(`📬     • ${lotPrimaryManagers.size} lot principal`)
+      console.log(`📬     • ${lotAdditionalManagers.size} lot additionnels`)
+      console.log(`📬     • ${buildingPrimaryManagers.size} building manager`)
+      console.log(`📬   - ${allManagers.length - directResponsibles.size} team notifications`)
     } catch (error) {
-      logger.error('❌ Failed to notify lot deleted:', error)
+      console.error('❌ Failed to notify lot deleted:', error)
     }
   }
 
   /**
    * Notifier la création d'un contact
    */
-  async notifyContactCreated(contact: Contact, createdBy: string) {
+  async notifyContactCreated(contact: any, createdBy: string) {
     try {
       if (!contact.team_id || !createdBy) return
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1438,7 +1343,7 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== createdBy
       )
 
@@ -1456,7 +1361,6 @@ class NotificationService {
             teamId: contact.team_id,
             createdBy,
             type: 'system',
-            priority: 'normal',
             title: 'Nouveau contact lié à vos biens',
             message: `Un nouveau contact "${contact.first_name} ${contact.last_name}" a été ajouté et est lié à des biens dont vous êtes responsable`,
             metadata: {
@@ -1475,7 +1379,6 @@ class NotificationService {
             teamId: contact.team_id,
             createdBy,
             type: 'system',
-            priority: 'normal',
             title: 'Nouveau contact ajouté',
             message: `Un nouveau contact "${contact.first_name} ${contact.last_name}" a été ajouté`,
             metadata: {
@@ -1492,9 +1395,9 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Contact creation notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+      console.log(`📬 Contact creation notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
-      logger.error('❌ Failed to notify contact created:', error)
+      console.error('❌ Failed to notify contact created:', error)
     }
   }
 
@@ -1503,7 +1406,7 @@ class NotificationService {
    */
   private async getLotManagers(lotId: string): Promise<string[]> {
     try {
-      const { data: lotContacts } = await this.supabase
+      const { data: lotContacts } = await supabase
         .from('lot_contacts')
         .select(`
           user:user_id(
@@ -1516,14 +1419,13 @@ class NotificationService {
         .is('end_date', null) // Only active assignments
 
       // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
-      type LotContactWithUser = { user: { id: string; role?: string; provider_category?: string } | null }
-      const managers = (lotContacts as LotContactWithUser[])?.filter(lc =>
+      const managers = lotContacts?.filter(lc => 
         lc.user?.role === 'gestionnaire'
-      ).map(lc => lc.user!.id) || []
+      ).map(lc => lc.user.id) || []
 
       return managers
     } catch (error) {
-      logger.error('Error getting lot managers:', error)
+      console.error('Error getting lot managers:', error)
       return []
     }
   }
@@ -1533,7 +1435,7 @@ class NotificationService {
    */
   private async getBuildingManagers(buildingId: string): Promise<string[]> {
     try {
-      const { data: buildingContacts } = await this.supabase
+      const { data: buildingContacts } = await supabase
         .from('building_contacts')
         .select(`
           user:user_id(
@@ -1546,14 +1448,13 @@ class NotificationService {
         .is('end_date', null) // Only active assignments
 
       // Filtrer pour récupérer seulement les gestionnaires (rôle en français)
-      type BuildingContactWithUser = { user: { id: string; role?: string; provider_category?: string } | null }
-      const managers = (buildingContacts as BuildingContactWithUser[])?.filter(bc =>
+      const managers = buildingContacts?.filter(bc => 
         bc.user?.role === 'gestionnaire'
-      ).map(bc => bc.user!.id) || []
+      ).map(bc => bc.user.id) || []
 
       return managers
     } catch (error) {
-      logger.error('Error getting building managers:', error)
+      console.error('Error getting building managers:', error)
       return []
     }
   }
@@ -1566,7 +1467,7 @@ class NotificationService {
 
     try {
       // Vérifier les liens avec les immeubles via building_contacts
-      const { data: buildingLinks } = await this.supabase
+      const { data: buildingLinks } = await supabase
         .from('building_contacts')
         .select(`
           building:buildings(id, name),
@@ -1579,7 +1480,7 @@ class NotificationService {
         const buildingIds = buildingLinks.map(link => link.building_id)
         
         if (buildingIds.length > 0) {
-          const { data: buildingManagers } = await this.supabase
+          const { data: buildingManagers } = await supabase
             .from('building_contacts')
             .select(`
               user_id,
@@ -1592,7 +1493,7 @@ class NotificationService {
             .eq('is_primary', true)
             .is('end_date', null)
 
-          (buildingManagers as Array<{ user_id: string }>)?.forEach(manager => {
+          buildingManagers?.forEach(manager => {
             if (manager.user_id !== excludeUserId) {
               directResponsibles.add(manager.user_id)
             }
@@ -1601,7 +1502,7 @@ class NotificationService {
       }
 
       // Vérifier les liens avec les lots via lot_contacts
-      const { data: lotLinks } = await this.supabase
+      const { data: lotLinks } = await supabase
         .from('lot_contacts')
         .select(`
           lot:lots(
@@ -1617,14 +1518,14 @@ class NotificationService {
       if (lotLinks) {
         // Pour chaque lot lié, récupérer les gestionnaires principaux de son bâtiment
         const uniqueBuildingIds = new Set<string>()
-        (lotLinks as Array<{ lot?: { building_id?: string } | null }>).forEach(link => {
+        lotLinks.forEach(link => {
           if (link.lot?.building_id) {
             uniqueBuildingIds.add(link.lot.building_id)
           }
         })
         
         if (uniqueBuildingIds.size > 0) {
-          const { data: lotBuildingManagers } = await this.supabase
+          const { data: lotBuildingManagers } = await supabase
             .from('building_contacts')
             .select(`
               user_id,
@@ -1637,7 +1538,7 @@ class NotificationService {
             .eq('is_primary', true)
             .is('end_date', null)
 
-          (lotBuildingManagers as Array<{ user_id: string }>)?.forEach(manager => {
+          lotBuildingManagers?.forEach(manager => {
             if (manager.user_id !== excludeUserId) {
               directResponsibles.add(manager.user_id)
             }
@@ -1645,8 +1546,8 @@ class NotificationService {
         }
       }
 
-      // Vérifier les liens avec les interventions viaintervention_assignments
-      const { data: interventionLinks } = await this.supabase
+      // Vérifier les liens avec les interventions via intervention_contacts
+      const { data: interventionLinks } = await supabase
         .from('intervention_contacts')
         .select(`
           intervention:interventions(
@@ -1664,14 +1565,14 @@ class NotificationService {
       if (interventionLinks) {
         // Pour chaque intervention liée, récupérer les gestionnaires principaux de son bâtiment
         const interventionBuildingIds = new Set<string>()
-        (interventionLinks as Array<{ intervention?: { lot?: { building_id?: string } | null } | null }>).forEach(link => {
+        interventionLinks.forEach(link => {
           if (link.intervention?.lot?.building_id) {
             interventionBuildingIds.add(link.intervention.lot.building_id)
           }
         })
         
         if (interventionBuildingIds.size > 0) {
-          const { data: interventionBuildingManagers } = await this.supabase
+          const { data: interventionBuildingManagers } = await supabase
             .from('building_contacts')
             .select(`
               user_id,
@@ -1684,7 +1585,7 @@ class NotificationService {
             .eq('is_primary', true)
             .is('end_date', null)
 
-          (interventionBuildingManagers as Array<{ user_id: string }>)?.forEach(manager => {
+          interventionBuildingManagers?.forEach(manager => {
             if (manager.user_id !== excludeUserId) {
               directResponsibles.add(manager.user_id)
             }
@@ -1692,7 +1593,7 @@ class NotificationService {
         }
       }
     } catch (error) {
-      logger.error('Error getting contact direct responsibles:', error)
+      console.error('Error getting contact direct responsibles:', error)
     }
 
     return directResponsibles
@@ -1701,11 +1602,11 @@ class NotificationService {
   /**
    * Notifier la modification d'un contact
    */
-  async notifyContactUpdated(contact: Contact, updatedBy: string, changes: Partial<Contact>) {
+  async notifyContactUpdated(contact: any, updatedBy: string, changes: any) {
     try {
-      if (!contact.team_id || !_updatedBy) return
+      if (!contact.team_id || !updatedBy) return
 
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1715,12 +1616,12 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
-        member.user?.role === 'gestionnaire' && member.user_id !== _updatedBy
+      const allManagers = teamMembers.filter(member => 
+        member.user?.role === 'gestionnaire' && member.user_id !== updatedBy
       )
 
       // Identifier les gestionnaires directement responsables
-      const directResponsibles = await this.getContactDirectResponsibles(contact.id, _updatedBy)
+      const directResponsibles = await this.getContactDirectResponsibles(contact.id, updatedBy)
 
       // Créer les notifications selon la logique de responsabilité
       const notificationPromises = allManagers.map(async (manager) => {
@@ -1731,9 +1632,8 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: contact.team_id,
-            createdBy: _updatedBy,
+            createdBy: updatedBy,
             type: 'system',
-            priority: 'normal',
             title: 'Contact lié à vos biens modifié',
             message: `Le contact "${contact.first_name} ${contact.last_name}" lié à vos biens a été modifié`,
             metadata: {
@@ -1750,9 +1650,8 @@ class NotificationService {
           return this.createNotification({
             userId: manager.user_id,
             teamId: contact.team_id,
-            createdBy: _updatedBy,
+            createdBy: updatedBy,
             type: 'system',
-            priority: 'normal',
             title: 'Contact modifié',
             message: `Le contact "${contact.first_name} ${contact.last_name}" a été modifié`,
             metadata: {
@@ -1769,20 +1668,20 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Contact update notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+      console.log(`📬 Contact update notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
-      logger.error('❌ Failed to notify contact updated:', error)
+      console.error('❌ Failed to notify contact updated:', error)
     }
   }
 
   /**
    * Notifier la suppression d'un contact
    */
-  async notifyContactDeleted(contact: Contact, deletedBy: string) {
+  async notifyContactDeleted(contact: any, deletedBy: string) {
     try {
       if (!contact.team_id || !deletedBy) return
 
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1792,7 +1691,7 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== deletedBy
       )
 
@@ -1810,7 +1709,6 @@ class NotificationService {
             teamId: contact.team_id,
             createdBy: deletedBy,
             type: 'system',
-            priority: 'high',
             title: 'Contact lié à vos biens supprimé',
             message: `Le contact "${contact.first_name} ${contact.last_name}" lié à vos biens a été supprimé`,
             metadata: {
@@ -1828,7 +1726,6 @@ class NotificationService {
             teamId: contact.team_id,
             createdBy: deletedBy,
             type: 'system',
-            priority: 'high',
             title: 'Contact supprimé',
             message: `Le contact "${contact.first_name} ${contact.last_name}" a été supprimé`,
             metadata: {
@@ -1844,23 +1741,23 @@ class NotificationService {
 
       await Promise.all(notificationPromises)
 
-      logger.info(`📬 Contact deletion notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
+      console.log(`📬 Contact deletion notifications sent to ${allManagers.length} gestionnaires (${directResponsibles.size} personal, ${allManagers.length - directResponsibles.size} team)`)
     } catch (error) {
-      logger.error('❌ Failed to notify contact deleted:', error)
+      console.error('❌ Failed to notify contact deleted:', error)
     }
   }
 
   /**
    * Notifier le changement de statut d'une intervention
    */
-  async notifyInterventionStatusChanged(intervention: Intervention, statusFrom: string, statusTo: string, changedBy: string, reason?: string) {
+  async notifyInterventionStatusChanged(intervention: any, statusFrom: string, statusTo: string, changedBy: string, reason?: string) {
     try {
       if (!intervention.team_id || !changedBy) return
 
-      // Récupérer les gestionnaires directement liés viaintervention_assignments
+      // Récupérer les gestionnaires directement liés via intervention_contacts
       let directManagerIds: string[] = []
       
-      const { data: interventionContacts } = await this.supabase
+      const { data: interventionContacts } = await supabase
         .from('intervention_contacts')
         .select(`
           user:user_id(id, role)
@@ -1880,7 +1777,7 @@ class NotificationService {
       }
 
       // Récupérer tous les gestionnaires de l'équipe
-      const { data: teamMembers } = await this.supabase
+      const { data: teamMembers } = await supabase
         .from('team_members')
         .select(`
           user_id,
@@ -1890,7 +1787,7 @@ class NotificationService {
 
       if (!teamMembers) return
 
-      const allManagers = (teamMembers as TeamMemberWithUser[]).filter(member =>
+      const allManagers = teamMembers.filter(member => 
         member.user?.role === 'gestionnaire' && member.user_id !== changedBy
       )
 
@@ -1899,7 +1796,7 @@ class NotificationService {
 
       // Notification pour le locataire (toujours personnelle)
       if (intervention.tenant_id && intervention.tenant_id !== changedBy) {
-        let tenantTitle: string, tenantMessage: string, priority: "low" | "normal" | "high" | "urgent"
+        let tenantTitle: string, tenantMessage: string
 
         switch (statusTo) {
           case 'approuvee':
@@ -1979,7 +1876,6 @@ class NotificationService {
             teamId: intervention.team_id,
             createdBy: changedBy,
             type: 'intervention',
-            priority: 'normal',
             title: personalTitle,
             message: `L'intervention "${intervention.title}" a été ${actionLabel}.${reason ? ` Motif: ${reason}` : ''}`,
             isPersonal: true,
@@ -2000,7 +1896,6 @@ class NotificationService {
             teamId: intervention.team_id,
             createdBy: changedBy,
             type: 'intervention',
-            priority: 'normal',
             title: teamTitle,
             message: `L'intervention "${intervention.title}" a été ${actionLabel} par votre équipe.`,
             isPersonal: false,
@@ -2020,29 +1915,29 @@ class NotificationService {
       await Promise.all(notificationPromises)
 
       // Notifications pour les prestataires assignés (simplifiées pour éviter les erreurs de schema)
-      const providerCount = 0
+      let providerCount = 0
       try {
         // TODO: Implémenter les notifications prestataires quand le schema sera corrigé
-        logger.info("📧 Provider notifications skipped (schema issues)")
+        console.log("📧 Provider notifications skipped (schema issues)")
       } catch (error) {
-        logger.warn("⚠️ Error getting provider contacts:", error)
+        console.warn("⚠️ Error getting provider contacts:", error)
       }
 
       const directCount = directResponsibles.size
       const teamCount = allManagers.length - directCount
       const tenantCount = intervention.tenant_id && intervention.tenant_id !== changedBy ? 1 : 0
       
-      logger.info(`📬 Intervention status change notifications sent: ${directCount} personal managers, ${teamCount} team managers, ${tenantCount} tenant, ${providerCount} providers`)
+      console.log(`📬 Intervention status change notifications sent: ${directCount} personal managers, ${teamCount} team managers, ${tenantCount} tenant, ${providerCount} providers`)
 
     } catch (error) {
-      logger.error('❌ Failed to notify intervention status changed:', error)
+      console.error('❌ Failed to notify intervention status changed:', error)
     }
   }
 
   /**
    * Notifier la demande de devis à un prestataire
    */
-  async notifyQuoteRequest(intervention: Intervention, provider: User, requestedBy: string, deadline?: string, notes?: string) {
+  async notifyQuoteRequest(intervention: any, provider: any, requestedBy: string, deadline?: string, notes?: string) {
     try {
       if (!intervention.team_id || !provider.id || !requestedBy) return
 
@@ -2052,7 +1947,6 @@ class NotificationService {
         teamId: intervention.team_id,
         createdBy: requestedBy,
         type: 'intervention',
-        priority: 'high',
         title: 'Nouvelle demande de devis',
         message: `Vous avez reçu une demande de devis pour l'intervention "${intervention.title}".${deadline ? ` Date limite: ${new Date(deadline).toLocaleDateString('fr-FR')}` : ''}`,
         isPersonal: true,
@@ -2067,10 +1961,10 @@ class NotificationService {
         relatedEntityId: intervention.id
       })
 
-      logger.info(`📬 Quote request notification sent to provider ${provider.name} (${provider.id})`)
+      console.log(`📬 Quote request notification sent to provider ${provider.name} (${provider.id})`)
 
     } catch (error) {
-      logger.error('❌ Failed to notify quote request:', error)
+      console.error('❌ Failed to notify quote request:', error)
     }
   }
 
@@ -2097,7 +1991,7 @@ class NotificationService {
     try {
       if (!teamId) return
 
-      logger.info('📬 Notifying availability response:', {
+      console.log('📬 Notifying availability response:', {
         interventionId,
         responseType,
         tenantName,
@@ -2105,7 +1999,7 @@ class NotificationService {
       })
 
       // Récupérer les gestionnaires et prestataires assignés à l'intervention
-      const { data: interventionContacts } = await this.supabase
+      const { data: interventionContacts } = await supabase
         .from('intervention_contacts')
         .select(`
           user_id,
@@ -2115,17 +2009,16 @@ class NotificationService {
         .eq('intervention_id', interventionId)
 
       if (!interventionContacts || interventionContacts.length === 0) {
-        logger.warn('No contacts found for intervention:', interventionId)
+        console.warn('No contacts found for intervention:', interventionId)
         return
       }
 
       // Séparer gestionnaires et prestataires
-      const managers = (interventionContacts as InterventionContact[]).filter(ic => ic.role === 'gestionnaire')
-      const providers = (interventionContacts as InterventionContact[]).filter(ic => ic.role === 'prestataire')
+      const managers = interventionContacts.filter(ic => ic.role === 'gestionnaire')
+      const providers = interventionContacts.filter(ic => ic.role === 'prestataire')
 
       // Préparer les titres et messages selon le type de réponse
       let managerTitle: string, managerMessage: string, providerTitle: string, providerMessage: string
-      let priority: 'normal' | 'high' | 'urgent' = 'normal'
 
       switch (responseType) {
         case 'accept':
@@ -2208,35 +2101,127 @@ class NotificationService {
       // Envoyer toutes les notifications
       await Promise.all([...managerPromises, ...providerPromises])
 
-      logger.info(`📬 Availability response notifications sent: ${managers.length} managers, ${providers.length} providers`)
+      console.log(`📬 Availability response notifications sent: ${managers.length} managers, ${providers.length} providers`)
 
     } catch (error) {
-      logger.error('❌ Failed to notify availability response:', error)
+      console.error('❌ Failed to notify availability response:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Marquer une notification comme lue
+   */
+  async markAsRead(notificationId: string): Promise<void> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Marking notification as read:', notificationId)
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          read: true,
+          read_at: new Date().toISOString()
+        })
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error marking notification as read:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Notification marked as read successfully')
+    } catch (error) {
+      console.error('❌ Exception marking notification as read:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Marquer une notification comme non lue
+   */
+  async markAsUnread(notificationId: string): Promise<void> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Marking notification as unread:', notificationId)
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          read: false,
+          read_at: null
+        })
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error marking notification as unread:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Notification marked as unread successfully')
+    } catch (error) {
+      console.error('❌ Exception marking notification as unread:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Archiver une notification
+   */
+  async archiveNotification(notificationId: string): Promise<void> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Archiving notification:', notificationId)
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({
+          archived: true
+        })
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error archiving notification:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Notification archived successfully')
+    } catch (error) {
+      console.error('❌ Exception archiving notification:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Récupérer les notifications récentes d'un utilisateur
+   */
+  async getRecentNotifications(userId: string, teamId: string, limit: number = 10): Promise<any[]> {
+    try {
+      console.log('📬 [NOTIFICATION-SERVICE] Fetching recent notifications:', { userId, teamId, limit })
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select(`
+          *,
+          created_by_user:users!notifications_created_by_fkey(id, name, email),
+          team:teams(id, name)
+        `)
+        .eq('user_id', userId)
+        .eq('team_id', teamId)
+        .eq('archived', false)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) {
+        console.error('❌ [NOTIFICATION-SERVICE] Error fetching recent notifications:', error)
+        throw error
+      }
+
+      console.log('✅ [NOTIFICATION-SERVICE] Recent notifications fetched:', data?.length || 0)
+      return data || []
+    } catch (error) {
+      console.error('❌ Exception fetching recent notifications:', error)
       throw error
     }
   }
 }
 
-// Factory function for creating service instances (RECOMMENDED)
-export const createNotificationService = async () => {
-  const supabase = await createServerSupabaseClient()
-  return new NotificationService(supabase)
-}
-
-// Legacy singleton for backward compatibility
-// @deprecated Use createNotificationService() for proper server context
-// This uses a browser client as fallback - only for legacy code
-let _legacyInstance: NotificationService | null = null
-
-export const notificationService = new Proxy({} as NotificationService, {
-  get(_target, prop) {
-    // Lazy initialization on first access
-    if (!_legacyInstance) {
-      // Import dynamically to avoid circular dependencies
-      const { createBrowserSupabaseClient } = require('./services')
-      const supabase = createBrowserSupabaseClient()
-      _legacyInstance = new NotificationService(supabase)
-    }
-    return (_legacyInstance as any)[prop]
-  }
-})
+// Instance singleton
+export const notificationService = new NotificationService()

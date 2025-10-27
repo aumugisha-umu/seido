@@ -145,42 +145,55 @@ export function OverviewTab({
     }
   }
 
+  // Statuts où l'attribution de prestataires/gestionnaires fait sens
+  const shouldShowAssignments = [
+    'demande_de_devis',
+    'planification',
+    'planifiee',
+    'en_cours',
+    'cloturee_par_prestataire',
+    'cloturee_par_locataire',
+    'cloturee_par_gestionnaire'
+  ].includes(intervention.status)
+
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Main content */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className={`grid grid-cols-1 gap-6 ${shouldShowAssignments ? 'lg:grid-cols-3' : ''}`}>
+        {/* Main content - full width when no assignments, 2/3 when assignments shown */}
+        <div className={`space-y-6 ${shouldShowAssignments ? 'lg:col-span-2' : ''}`}>
           {/* Intervention details */}
           <InterventionOverviewCard intervention={intervention} />
         </div>
 
-        {/* Right column - Assignments */}
-        <div className="space-y-6">
-          {/* Assignments */}
-          <AssignmentCard
-            assignments={assignments}
-            canManage={true}
-            onAssign={handleOpenAssignDialog}
-            onRemove={handleRemoveAssignment}
-          />
+        {/* Right column - Assignments and alerts (only when assignments are relevant) */}
+        {shouldShowAssignments && (
+          <div className="space-y-6">
+            {/* Assignments - only show after quote request or planning phase */}
+            <AssignmentCard
+              assignments={assignments}
+              canManage={true}
+              onAssign={handleOpenAssignDialog}
+              onRemove={handleRemoveAssignment}
+            />
 
-          {/* Alerts or important notes */}
-          {intervention.urgency === 'urgente' && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2 text-orange-800">
-                  <AlertCircle className="w-5 h-5" />
-                  Intervention urgente
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-orange-700">
-                  Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {/* Alerts or important notes */}
+            {intervention.urgency === 'urgente' && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                    <AlertCircle className="w-5 h-5" />
+                    Intervention urgente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-orange-700">
+                    Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Assign User Dialog */}

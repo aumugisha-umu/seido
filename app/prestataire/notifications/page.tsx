@@ -14,6 +14,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { getServerAuthContext } from "@/lib/server-context"
+import { logger } from "@/lib/logger"
 
 interface Notification {
   id: string
@@ -27,39 +29,6 @@ interface Notification {
   property?: string
   time?: string
 }
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "intervention",
-    title: "Nouvelle intervention assignée",
-    message: "Une nouvelle intervention de plomberie vous a été assignée - Bâtiment Résidence des Pins, Apt 12B",
-    date: "2024-01-15",
-    time: "08:15",
-    read: false,
-    urgent: true,
-    property: "Résidence des Pins - Apt 12B",
-  },
-  {
-    id: "2",
-    type: "intervention",
-    title: "Changement d'horaire",
-    message: "L'intervention prévue aujourd'hui à 14h est reportée à 16h à la demande du locataire",
-    date: "2024-01-15",
-    time: "12:30",
-    read: false,
-    urgent: true,
-  },
-  {
-    id: "3",
-    type: "payment",
-    title: "Paiement effectué",
-    message: "Votre facture #FAC-2024-001 de 150€ a été réglée",
-    date: "2024-01-14",
-    time: "09:45",
-    read: true,
-  },
-]
 
 function getNotificationIcon(_type: string) {
   switch (_type) {
@@ -76,8 +45,8 @@ function getNotificationIcon(_type: string) {
   }
 }
 
-function formatDate(dateString: string, time?: string) {
-  const date = new Date(dateString + "T" + (time || "00:00"))
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",
@@ -87,8 +56,37 @@ function formatDate(dateString: string, time?: string) {
   }).format(date)
 }
 
-export default function NotificationsPage() {
-  const unreadCount = mockNotifications.filter((n) => !n.read).length
+export default async function NotificationsPage() {
+  // ✅ CRITICAL FIX: Add authentication (was missing - security issue!)
+  const { profile, supabase } = await getServerAuthContext('prestataire')
+
+  logger.info('🔔 [PRESTATAIRE-NOTIFICATIONS] Loading notifications', {
+    userId: profile.id,
+    role: profile.role
+  })
+
+  // Load real notifications from database
+  const { data: notifications, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) {
+    logger.error('❌ [PRESTATAIRE-NOTIFICATIONS] Error loading notifications', {
+      error: error.message
+    })
+  }
+
+  // Fallback to empty array if no notifications or error
+  const displayNotifications = notifications || []
+  const unreadCount = displayNotifications.filter((n) => !n.is_read).length
+
+  logger.info('✅ [PRESTATAIRE-NOTIFICATIONS] Notifications loaded', {
+    total: displayNotifications.length,
+    unread: unreadCount
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,11 +112,11 @@ export default function NotificationsPage() {
 
         {/* Notifications List */}
         <div className="space-y-3">
-          {mockNotifications.map((notification) => (
+          {displayNotifications.map((notification) => (
             <Card
               key={notification.id}
               className={`transition-all hover:shadow-md ${
-                !notification.read ? "ring-2 ring-blue-100 bg-blue-50/50" : "bg-white"
+                !notification.is_read ? "ring-2 ring-blue-100 bg-blue-50/50" : "bg-white"
               }`}
             >
               <CardContent className="p-6">
@@ -131,17 +129,11 @@ export default function NotificationsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-2">
                         <h3 className={`text-sm font-medium ${
-                          !notification.read ? "text-gray-900" : "text-gray-700"
+                          !notification.is_read ? "text-gray-900" : "text-gray-700"
                         }`}>
                           {notification.title}
                         </h3>
-                        {notification.urgent && (
-                          <Badge variant="destructive" className="text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Urgent
-                          </Badge>
-                        )}
-                        {!notification.read && (
+                        {!notification.is_read && (
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         )}
                       </div>
@@ -154,13 +146,13 @@ export default function NotificationsPage() {
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {formatDate(notification.date, notification.time)}
+                            {formatDate(notification.created_at)}
                           </span>
                         </div>
-                        {notification.property && (
+                        {notification.metadata?.property && (
                           <div className="flex items-center space-x-1">
                             <Building className="h-3 w-3" />
-                            <span>{notification.property}</span>
+                            <span>{notification.metadata.property}</span>
                           </div>
                         )}
                       </div>
@@ -169,7 +161,7 @@ export default function NotificationsPage() {
                   
                   <div className="flex items-center space-x-2 ml-4">
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      {notification.read ? (
+                      {notification.is_read ? (
                         <EyeOff className="h-4 w-4" />
                       ) : (
                         <Eye className="h-4 w-4" />
@@ -185,7 +177,7 @@ export default function NotificationsPage() {
           ))}
         </div>
 
-        {mockNotifications.length === 0 && (
+        {displayNotifications.length === 0 && (
           <div className="text-center py-12">
             <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune notification</h3>

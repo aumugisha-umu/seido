@@ -14,6 +14,7 @@ import AuthLogo from "@/components/ui/auth-logo"
 import { useAuth } from "@/hooks/use-auth"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
+import { PWAInstallPromptModal } from '@/components/pwa/pwa-install-prompt-modal'
 interface PasswordCriteria {
   minLength: boolean
   hasUppercase: boolean
@@ -36,6 +37,7 @@ export default function SetPasswordPage() {
     hasLowercase: false,
     hasNumber: false
   })
+  const [showPWAPrompt, setShowPWAPrompt] = useState(false)
   // ✅ CRITIQUE: Initialisation SYNCHRONE de isWaitingForSession
   // Détecte verified=true immédiatement, avant tout useEffect
   const [isWaitingForSession, setIsWaitingForSession] = useState(() => {
@@ -198,8 +200,28 @@ export default function SetPasswordPage() {
     setCriteria(newCriteria)
   }, [_password])
 
+  // 📱 PWA: Déclencher automatiquement le prompt après succès
+  useEffect(() => {
+    if (isCompleted) {
+      const timer = setTimeout(() => {
+        logger.info('📱 [SET-PASSWORD] Triggering PWA prompt after password setup success')
+        setShowPWAPrompt(true)
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [isCompleted])
+
   const isPasswordValid = () => {
     return Object.values(criteria).every(criterion => criterion)
+  }
+
+  const handlePWAInstallSuccess = (notificationsEnabled: boolean) => {
+    logger.info('✅ [SET-PASSWORD] PWA installed successfully', { notificationsEnabled })
+  }
+
+  const handlePWADismiss = () => {
+    logger.info('❌ [SET-PASSWORD] PWA prompt dismissed by user')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,6 +356,7 @@ export default function SetPasswordPage() {
   // Si le mot de passe a été défini avec succès
   if (isCompleted) {
     return (
+      <>
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <Card className="border-slate-200 shadow-lg">
@@ -375,6 +398,15 @@ export default function SetPasswordPage() {
           </Card>
         </div>
       </div>
+
+      {/* 📱 PWA Installation Prompt - Triggered automatically after 2s */}
+      <PWAInstallPromptModal
+        isOpen={showPWAPrompt}
+        onClose={() => setShowPWAPrompt(false)}
+        onInstallSuccess={handlePWAInstallSuccess}
+        onDismiss={handlePWADismiss}
+      />
+      </>
     )
   }
 

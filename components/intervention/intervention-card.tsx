@@ -19,7 +19,6 @@ import {
   Trash2,
   Check,
   X,
-  Play,
   CheckCircle,
   Calendar,
   Clock,
@@ -36,7 +35,6 @@ import {
   Euro,
   UserCheck,
   AlertTriangle,
-  Pause,
   TrendingUp,
 } from "lucide-react"
 
@@ -174,13 +172,6 @@ export function InterventionCard({
             }
           )
         }
-        if (userContext === 'locataire') {
-          actions.push({
-            label: "Modifier les disponibilités",
-            icon: Calendar,
-            onClick: () => handleAction('edit_availabilities'),
-          })
-        }
         break
 
       case 'approuvee':
@@ -244,10 +235,25 @@ export function InterventionCard({
       case 'planifiee':
         if (userContext === 'prestataire') {
           actions.push({
-            label: "Démarrer l'intervention",
-            icon: Play,
-            onClick: () => handleAction('start_work'),
+            label: "Marquer comme terminé",
+            icon: CheckCircle,
+            onClick: () => handleAction('complete_work'),
           })
+        }
+        if (userContext === 'locataire') {
+          actions.push(
+            {
+              label: "Modifier le créneau",
+              icon: Calendar,
+              onClick: () => handleAction('modify_schedule'),
+            },
+            {
+              label: "Rejeter la planification",
+              icon: X,
+              onClick: () => handleAction('reject_schedule'),
+              className: "text-red-600 hover:text-red-800",
+            }
+          )
         }
         if (userContext === 'gestionnaire') {
           actions.push({
@@ -268,9 +274,9 @@ export function InterventionCard({
         }
         if (userContext === 'gestionnaire') {
           actions.push({
-            label: "Suspendre",
-            icon: Pause,
-            onClick: () => handleAction('pause_work'),
+            label: "Marquer comme terminé",
+            icon: CheckCircle,
+            onClick: () => handleAction('complete_work'),
           })
         }
         break
@@ -291,6 +297,13 @@ export function InterventionCard({
               className: "text-red-600 hover:text-red-800",
             }
           )
+        }
+        if (userContext === 'gestionnaire') {
+          actions.push({
+            label: "Finaliser",
+            icon: UserCheck,
+            onClick: () => handleAction('finalize'),
+          })
         }
         break
 
@@ -369,6 +382,15 @@ export function InterventionCard({
         break
       case 'finalize':
         actionHooks?.finalizationHook?.handleFinalizeModal?.(intervention)
+        break
+      case 'modify_schedule':
+        router.push(`${getInterventionUrl(intervention.id)}?action=modify-schedule`)
+        break
+      case 'reject_schedule':
+        router.push(`${getInterventionUrl(intervention.id)}?tab=planning`)
+        break
+      case 'reschedule':
+        router.push(`${getInterventionUrl(intervention.id)}?tab=planning`)
         break
       case 'edit':
         router.push(`${getInterventionUrl(intervention.id)}/modifier`)
@@ -449,8 +471,9 @@ export function InterventionCard({
           {availableActions.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700">
+                <Button variant="ghost" size="sm" className="h-8 w-8 sm:w-auto sm:px-3 p-0 text-slate-500 hover:text-slate-700">
                   <MoreVertical className="h-3 w-3" />
+                  <span className="hidden sm:inline ml-1">Action</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -530,8 +553,9 @@ export function InterventionCard({
                 {availableActions.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 sm:w-auto sm:px-3 p-0 text-slate-500 hover:text-slate-700">
                         <MoreVertical className="h-3 w-3" />
+                        <span className="hidden sm:inline ml-1">Action</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

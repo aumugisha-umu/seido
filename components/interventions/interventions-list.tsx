@@ -39,6 +39,7 @@ interface InterventionsListProps {
   className?: string
   actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
+  horizontal?: boolean
 }
 
 export function InterventionsList({
@@ -51,7 +52,8 @@ export function InterventionsList({
   contactContext,
   className = "",
   actionHooks,
-  userContext = 'gestionnaire'
+  userContext = 'gestionnaire',
+  horizontal = false
 }: InterventionsListProps) {
   const router = useRouter()
 
@@ -143,6 +145,35 @@ export function InterventionsList({
   }
 
   if (loading) {
+    if (horizontal) {
+      return (
+        <div className={`flex gap-4 overflow-x-auto pb-4 ${className}`}>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="min-w-[350px] lg:min-w-[400px] flex-shrink-0 border rounded-lg p-4 lg:p-5 animate-pulse">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="w-10 h-10 bg-slate-200 rounded-lg"></div>
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                  <div className="w-16 h-8 bg-slate-200 rounded"></div>
+                </div>
+                <div className="flex space-x-2">
+                  <div className="h-6 bg-slate-200 rounded w-20"></div>
+                  <div className="h-6 bg-slate-200 rounded w-16"></div>
+                </div>
+                <div className="h-3 bg-slate-200 rounded w-full"></div>
+                <div className="h-3 bg-slate-200 rounded w-2/3"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
     return (
       <div className={`grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6 ${className}`}>
         {[...Array(6)].map((_, i) => (
@@ -201,6 +232,28 @@ export function InterventionsList({
     )
   }
 
+  // Horizontal scroll layout
+  if (horizontal) {
+    return (
+      <div className={`flex gap-4 overflow-x-auto pb-4 ${className}`}>
+        {displayedInterventions.map((intervention) => (
+          <div key={intervention.id} className="min-w-[350px] lg:min-w-[400px] flex-shrink-0">
+            <InterventionCard
+              intervention={intervention}
+              userContext={userContext}
+              compact={false}
+              showStatusActions={showStatusActions}
+              contactContext={contactContext}
+              actionHooks={actionHooks}
+              onActionComplete={handleActionComplete}
+            />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Default grid layout
   return (
     <div className={`grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6 ${className}`}>
       {displayedInterventions.map((intervention) => (

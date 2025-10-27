@@ -1,9 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
-import { Building2, Home, Users, Wrench, Plus } from "lucide-react"
-import Link from "next/link"
 import { getServerAuthContext } from "@/lib/server-context"
 import {
   createServerActionUserService,
@@ -13,8 +7,9 @@ import {
   createServerActionStatsService
 } from "@/lib/services"
 import { DashboardClient } from "./dashboard-client"
+import { StatsCompactV2 } from "./stats-compact-v2"
+import { InterventionsSectionWithModals } from "./interventions-section-with-modals"
 import { logger as baseLogger } from '@/lib/logger'
-import { InterventionsList } from "@/components/interventions/interventions-list"
 import type { InterventionWithRelations } from "@/lib/services"
 
 // Relax logger typing locally to avoid strict method signature constraints for rich logs in this server component
@@ -224,110 +219,18 @@ export default async function DashboardGestionnaire() {
           </div>
         </div>
 
-        {/* Portfolio Overview */}
+        {/* Portfolio Overview - Compact V2 */}
         <div className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Immeubles</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.buildingsCount}</div>
-                <p className="text-xs text-muted-foreground">Propriétés gérées</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Lots</CardTitle>
-                <Home className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.lotsCount}</div>
-                <p className="text-xs text-muted-foreground">Logements totaux</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Occupés</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.occupiedLotsCount}/{stats.lotsCount}</div>
-                <div className="flex items-center space-x-2">
-                  <Progress value={stats.occupancyRate} className="flex-1" />
-                  <span className="text-sm font-medium text-gray-600">{stats.occupancyRate}%</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Contacts</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{contactStats.totalContacts}</div>
-                <div className="space-y-1">
-                  <p className="text-sm text-green-600">
-                    {contactStats.totalActiveAccounts} comptes actifs
-                  </p>
-                  {contactStats.invitationsPending > 0 && (
-                    <p className="text-sm text-orange-600">
-                      {contactStats.invitationsPending} invitations en attente
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {Object.entries(contactStats.contactsByType)
-                      .filter(([_, typeStats]) => typeStats.total > 0)
-                      .slice(0, 3)
-                      .map(([type, typeStats]) => (
-                        <Badge key={type} variant="secondary" className="text-xs">
-                          {type}: {typeStats.total}
-                        </Badge>
-                      ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <StatsCompactV2 stats={stats} contactStats={contactStats} />
         </div>
 
-        {/* Interventions */}
+        {/* Interventions avec tabs (En cours / Terminées) */}
         <div className="mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Wrench className="h-5 w-5" />
-                  <span>Interventions</span>
-                  <span className="text-sm text-gray-600 font-normal">({stats.interventionsCount} au total)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
-                    <Link href="/gestionnaire/interventions/nouvelle-intervention">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Ajouter une intervention
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/gestionnaire/interventions">Voir toutes →</Link>
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InterventionsList
-                interventions={recentInterventions as any}
-                loading={false}
-                compact={true}
-                showStatusActions={false}
-                userContext={'gestionnaire'}
-              />
-            </CardContent>
-          </Card>
+          <InterventionsSectionWithModals
+            interventions={allInterventions}
+            totalCount={stats.interventionsCount}
+            teamId={team.id}
+          />
         </div>
       </div>
     </div>

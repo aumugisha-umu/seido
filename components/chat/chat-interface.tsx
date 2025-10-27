@@ -37,6 +37,12 @@ import {
 } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 
+// Custom Components
+import { ChatFileAttachment } from './chat-file-attachment'
+
+// Hooks
+import { useChatUpload } from '@/hooks/use-chat-upload'
+
 // Types
 import type { Database } from '@/lib/database.types'
 
@@ -235,6 +241,17 @@ export function ChatInterface({
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // File upload hook
+  const chatUpload = useChatUpload({
+    threadId,
+    onUploadComplete: (documentIds) => {
+      toast.success(`${documentIds.length} fichier(s) uploadé(s)`)
+    },
+    onUploadError: (error) => {
+      toast.error(error)
+    }
+  })
+
   // Mock data for demo - in real app, load from API
   useEffect(() => {
     const loadMockData = async () => {
@@ -328,44 +345,65 @@ export function ChatInterface({
 
   // Handle sending message
   const handleSend = async () => {
-    if (!newMessage.trim()) return
+    // Require either message content or files
+    if (!newMessage.trim() && chatUpload.files.length === 0) return
 
     const messageContent = newMessage.trim()
     setNewMessage('')
     setIsSending(true)
 
-    // Optimistic update
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      thread_id: threadId,
-      user_id: currentUserId,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      metadata: null,
-      deleted_at: null,
-      deleted_by: null,
-      user: {
-        id: currentUserId,
-        name: 'Vous',
-        role: userRole,
-        avatar_url: undefined
-      }
-    }
-
-    setMessages(prev => [...prev, optimisticMessage])
-
     try {
+      // Upload files first if any
+      let documentIds: string[] = []
+      if (chatUpload.files.length > 0) {
+        toast.info('Upload des fichiers en cours...')
+        documentIds = await chatUpload.uploadFiles()
+
+        // If no files were successfully uploaded and message is empty, abort
+        if (documentIds.length === 0 && !messageContent) {
+          toast.error('Aucun fichier n\'a pu être uploadé')
+          setIsSending(false)
+          setNewMessage(messageContent)
+          return
+        }
+      }
+
+      // Optimistic update
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        thread_id: threadId,
+        user_id: currentUserId,
+        content: messageContent || '📎 Fichier(s) partagé(s)',
+        created_at: new Date().toISOString(),
+        metadata: documentIds.length > 0 ? { attachments: documentIds } : null,
+        deleted_at: null,
+        deleted_by: null,
+        user: {
+          id: currentUserId,
+          name: 'Vous',
+          role: userRole,
+          avatar_url: undefined
+        }
+      }
+
+      setMessages(prev => [...prev, optimisticMessage])
+
+      // Send message with document IDs
       if (onSendMessage) {
-        await onSendMessage(messageContent)
+        await onSendMessage(messageContent || '📎 Fichier(s) partagé(s)')
       } else {
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500))
       }
+
+      // Clear uploaded files after successful send
+      chatUpload.clearFiles()
+
+      toast.success('Message envoyé')
     } catch (error) {
       toast.error('Erreur lors de l\'envoi du message')
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
-      setNewMessage(messageContent) // Restore message
+      // Restore message on error
+      setNewMessage(messageContent)
     } finally {
       setIsSending(false)
       inputRef.current?.focus()
@@ -441,26 +479,39 @@ export function ChatInterface({
       <Separator />
 
       <CardContent className="p-4">
+        {/* File preview area */}
+        {chatUpload.files.length > 0 && (
+          <div className="mb-3">
+            <ChatFileAttachment
+              files={chatUpload.files}
+              isUploading={chatUpload.isUploading}
+              onAddFiles={chatUpload.addFiles}
+              onRemoveFile={chatUpload.removeFile}
+            />
+          </div>
+        )}
+
+        {/* Message input */}
         <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={isSending}
-          >
-            <Paperclip className="w-4 h-4" />
-          </Button>
+          <ChatFileAttachment
+            files={[]}
+            isUploading={chatUpload.isUploading}
+            onAddFiles={chatUpload.addFiles}
+            onRemoveFile={chatUpload.removeFile}
+            className="contents"
+          />
           <Input
             ref={inputRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Tapez votre message..."
-            disabled={isSending}
+            disabled={isSending || chatUpload.isUploading}
             className="flex-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim() || isSending}
+            disabled={(!newMessage.trim() && chatUpload.files.length === 0) || isSending || chatUpload.isUploading}
             size="icon"
           >
             <Send className="w-4 h-4" />

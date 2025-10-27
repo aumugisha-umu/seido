@@ -365,6 +365,7 @@ export async function deleteMessageAction(messageId: string): Promise<ActionResu
 
 /**
  * Add participant to thread
+ * Enhanced version with team verification and provider thread auto-creation
  */
 export async function addParticipantAction(
   threadId: string,
@@ -372,9 +373,14 @@ export async function addParticipantAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
-    if (!user) {
+    const currentUser = await getAuthenticatedUser()
+    if (!currentUser) {
       return { success: false, error: 'Authentication required' }
+    }
+
+    // Only gestionnaires can add participants
+    if (currentUser.role !== 'gestionnaire') {
+      return { success: false, error: 'Only managers can add participants to conversations' }
     }
 
     // Validate input
@@ -385,36 +391,131 @@ export async function addParticipantAction(
       return { success: false, error: 'Invalid user ID' }
     }
 
-    logger.info('👤 [SERVER-ACTION] Adding participant:', {
-      threadId,
-      participantId: userId,
-      addedBy: user.id
-    })
+    const supabase = await createServerActionSupabaseClient()
 
-    // Create service and execute
-    const conversationService = await createServerActionConversationService()
-    const result = await conversationService.addParticipant(threadId, userId, user.id)
+    // Get thread with intervention details
+    const { data: thread, error: threadError } = await supabase
+      .from('conversation_threads')
+      .select(`
+        id,
+        intervention_id,
+        team_id,
+        thread_type,
+        intervention:intervention_id(
+          id,
+          team_id
+        )
+      `)
+      .eq('id', threadId)
+      .single()
 
-    if (result.success) {
-      // Get thread to find intervention ID for revalidation
-      const supabase = await createServerActionSupabaseClient()
-      const { data: thread } = await supabase
-        .from('conversation_threads')
-        .select('intervention_id')
-        .eq('id', threadId)
-        .single()
-
-      if (thread?.intervention_id) {
-        // Revalidate intervention chat pages
-        revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
-      }
-
-      return { success: true, data: undefined }
+    if (threadError || !thread) {
+      return { success: false, error: 'Thread not found' }
     }
 
-    return { success: false, error: result.error || 'Failed to add participant' }
+    // Verify current user is team manager
+    const { data: membership } = await supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', thread.team_id)
+      .eq('user_id', currentUser.id)
+      .single()
+
+    if (!membership) {
+      return { success: false, error: 'You are not a member of this team' }
+    }
+
+    // Get user to add and verify they're in the same team
+    const { data: userToAdd, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('id', userId)
+      .single()
+
+    if (userError || !userToAdd) {
+      return { success: false, error: 'User not found' }
+    }
+
+    // Verify user is member of the same team
+    const { data: userMembership } = await supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', thread.team_id)
+      .eq('user_id', userId)
+      .single()
+
+    if (!userMembership) {
+      return { success: false, error: 'User is not a member of this team' }
+    }
+
+    logger.info('👤 [SERVER-ACTION] Adding participant:', {
+      threadId,
+      threadType: thread.thread_type,
+      participantId: userId,
+      participantRole: userToAdd.role,
+      addedBy: currentUser.id
+    })
+
+    // Add participant to the thread
+    const conversationService = await createServerActionConversationService()
+    const result = await conversationService.addParticipant(threadId, userId, currentUser.id)
+
+    if (!result.success) {
+      return { success: false, error: result.error || 'Failed to add participant' }
+    }
+
+    // If adding a prestataire to 'group' thread, create/ensure provider_to_managers thread exists
+    if (userToAdd.role === 'prestataire' && thread.thread_type === 'group') {
+      logger.info('🔧 [SERVER-ACTION] Creating provider_to_managers thread for prestataire')
+
+      // Check if provider_to_managers thread already exists for this provider
+      const { data: existingProviderThread } = await supabase
+        .from('conversation_threads')
+        .select('id')
+        .eq('intervention_id', thread.intervention_id)
+        .eq('thread_type', 'provider_to_managers')
+        .single()
+
+      if (!existingProviderThread) {
+        // Create the provider_to_managers thread
+        const createThreadResult = await conversationService.createThread(
+          thread.intervention_id,
+          'provider_to_managers',
+          currentUser.id
+        )
+
+        if (createThreadResult.success && createThreadResult.data) {
+          // Add the provider as participant to the new thread
+          await conversationService.addParticipant(
+            createThreadResult.data.id,
+            userId,
+            currentUser.id
+          )
+
+          logger.info('✅ [SERVER-ACTION] Created provider_to_managers thread', {
+            threadId: createThreadResult.data.id,
+            providerId: userId
+          })
+        }
+      } else {
+        // Thread exists, just ensure provider is participant
+        await conversationService.addParticipant(
+          existingProviderThread.id,
+          userId,
+          currentUser.id
+        )
+        logger.info('✅ [SERVER-ACTION] Added provider to existing provider_to_managers thread')
+      }
+    }
+
+    // Revalidate intervention chat pages
+    if (thread.intervention_id) {
+      revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
+      revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
+      revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
+    }
+
+    return { success: true, data: undefined }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error adding participant:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }

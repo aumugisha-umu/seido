@@ -297,7 +297,7 @@ export class ConversationService {
 
       // Handle attachments if provided
       if (attachments && attachments.length > 0) {
-        await this.linkMessageAttachments(result.data.id, attachments)
+        await this.linkDocumentsToMessage(result.data.id, attachments)
       }
 
       // Send notifications to other participants
@@ -961,25 +961,49 @@ export class ConversationService {
   }
 
   /**
-   * Link message attachments to intervention documents
+   * Link intervention documents to a chat message
+   * Updates the message_id field in intervention_documents table
    */
-  private async linkMessageAttachments(messageId: string, attachmentIds: string[]) {
+  private async linkDocumentsToMessage(messageId: string, documentIds: string[]) {
     try {
-      // Create links in intervention_documents table
-      const links = attachmentIds.map(attachmentId => ({
-        message_id: messageId,
-        document_id: attachmentId
-      }))
+      // Get the thread to find the intervention
+      const { data: message } = await this.conversationRepo.supabase
+        .from('conversation_messages')
+        .select('thread_id')
+        .eq('id', messageId)
+        .single()
 
+      if (!message) {
+        logger.error('Message not found for document linking', { messageId })
+        return
+      }
+
+      const { data: thread } = await this.conversationRepo.supabase
+        .from('conversation_threads')
+        .select('intervention_id')
+        .eq('id', message.thread_id)
+        .single()
+
+      if (!thread) {
+        logger.error('Thread not found for document linking', { threadId: message.thread_id })
+        return
+      }
+
+      // Update the documents to link them to this message
+      // Only update documents that belong to this intervention (security check)
       const { error } = await this.conversationRepo.supabase
-        .from('message_attachments')
-        .insert(links)
+        .from('intervention_documents')
+        .update({ message_id: messageId })
+        .in('id', documentIds)
+        .eq('intervention_id', thread.intervention_id)
 
       if (error) {
-        logger.error('Failed to link message attachments', error)
+        logger.error('Failed to link documents to message', error)
+      } else {
+        logger.info(`Successfully linked ${documentIds.length} documents to message ${messageId}`)
       }
     } catch (error) {
-      logger.error('Error linking message attachments', error)
+      logger.error('Error linking documents to message', error)
     }
   }
 

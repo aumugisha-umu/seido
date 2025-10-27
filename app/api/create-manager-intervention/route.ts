@@ -28,14 +28,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     logger.info({ body }, "📝 Request body")
 
+    // Log specific fields that often cause validation issues
+    logger.info({
+      selectedManagerIds: body.selectedManagerIds,
+      selectedProviderIds: body.selectedProviderIds,
+      selectedBuildingId: body.selectedBuildingId,
+      selectedLotId: body.selectedLotId,
+      urgency: body.urgency,
+      schedulingType: body.schedulingType,
+      fixedDateTime: body.fixedDateTime,
+      timeSlots: body.timeSlots
+    }, "🔍 Key validation fields")
+
     // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée
     const validation = validateRequest(createManagerInterventionSchema, body)
     if (!validation.success) {
-      logger.warn({ errors: formatZodErrors(validation.errors) }, '⚠️ [CREATE-MANAGER-INTERVENTION] Validation failed')
+      const formattedErrors = formatZodErrors(validation.errors)
+      logger.error({
+        errors: formattedErrors,
+        rawErrors: validation.errors
+      }, '❌ [CREATE-MANAGER-INTERVENTION] Validation failed')
       return NextResponse.json({
         success: false,
         error: 'Données invalides',
-        details: formatZodErrors(validation.errors)
+        details: formattedErrors
       }, { status: 400 })
     }
 

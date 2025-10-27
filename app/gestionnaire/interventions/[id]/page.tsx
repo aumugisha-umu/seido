@@ -112,12 +112,42 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         .eq('intervention_id', id)
         .order('slot_date', { ascending: true }),
 
-      // Threads
-      supabase
-        .from('conversation_threads')
-        .select('*')
-        .eq('intervention_id', id)
-        .order('created_at', { ascending: true }),
+      // Threads with last message
+      (async () => {
+        const { data: threads } = await supabase
+          .from('conversation_threads')
+          .select('*')
+          .eq('intervention_id', id)
+          .order('created_at', { ascending: true })
+
+        if (!threads || threads.length === 0) return { data: [] }
+
+        // Fetch last messages for all threads in one query
+        const threadIds = threads.map(t => t.id)
+        const { data: allMessages } = await supabase
+          .from('conversation_messages')
+          .select('id, thread_id, content, created_at, user:user_id(name)')
+          .in('thread_id', threadIds)
+          .order('created_at', { ascending: false })
+
+        // Group by thread_id, keeping only the most recent message per thread
+        const lastMessageByThread: Record<string, any> = {}
+        if (allMessages) {
+          for (const msg of allMessages) {
+            if (!lastMessageByThread[msg.thread_id]) {
+              lastMessageByThread[msg.thread_id] = msg
+            }
+          }
+        }
+
+        // Enrich threads with last_message
+        return {
+          data: threads.map(t => ({
+            ...t,
+            last_message: lastMessageByThread[t.id] ? [lastMessageByThread[t.id]] : []
+          }))
+        }
+      })(),
 
       // Activity logs
       supabase

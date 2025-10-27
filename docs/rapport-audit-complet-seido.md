@@ -4,7 +4,309 @@
 **Version analysée :** Branche `preview`
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 27 octobre 2025 - 06:00 CET (Fix système notifications + Test panel PWA)
+**Dernière mise à jour :** 27 octobre 2025 - 13:30 CET (Fix upload fichiers + simplification UI locataire)
+
+---
+
+## ✅ CORRECTIONS APPLIQUÉES - 27 octobre 2025 - 13:30 CET
+
+### 🔧 Fix : Upload de fichiers et liaison aux messages de conversation
+
+**Contexte :** Les fichiers uploadés dans les conversations apparaissaient dans l'onglet Documents mais **n'étaient pas liés aux messages** (`message_id = NULL` dans `intervention_documents`). Les pièces jointes ne s'affichaient pas dans le fil de conversation.
+
+#### 🔍 Diagnostic :
+
+**Erreur critique :** `TypeError: this.supabase.sql is not a function`
+- **Fichier :** `lib/services/repositories/conversation-repository.ts:356`
+- **Code problématique :** `message_count: this.supabase.sql`message_count + 1``
+- **Cause :** Syntaxe SQL raw invalide pour @supabase/supabase-js
+
+**Conséquences :**
+- ❌ Tous les envois de messages échouaient silencieusement
+- ❌ Les documents uploadés n'étaient jamais liés aux messages
+- ❌ Aucun message ne s'affichait dans les conversations
+
+#### ✅ Solution appliquée :
+
+**1. Fix conversation-repository.ts (lignes 351-368)**
+```typescript
+// Avant (❌ INVALIDE)
+message_count: this.supabase.sql`message_count + 1`,
+
+// Après (✅ CORRECT)
+const { data: currentThread } = await this.supabase
+  .from('conversation_threads')
+  .select('message_count')
+  .eq('id', input.thread_id)
+  .single()
+
+const newCount = (currentThread?.message_count || 0) + 1
+
+await this.supabase
+  .from('conversation_threads')
+  .update({ message_count: newCount })
+  .eq('id', input.thread_id)
+```
+
+**2. Propagation des attachments (4 fichiers modifiés)**
+- `components/chat/chat-interface.tsx` : Passe `documentIds` à `onSendMessage()`
+- `components/interventions/intervention-chat-tab.tsx` : Accepte et transmet `attachments`
+- `app/actions/conversation-actions.ts` : Validation Zod avec `z.array(z.string().uuid())`
+- `lib/services/domain/conversation-service.ts` : Appel `linkDocumentsToMessage()`
+
+**3. Debug logging complet**
+Ajout de logs à chaque étape pour tracer le flux :
+- Upload → ChatInterface → InterventionChatTab → sendMessageAction → conversationService → linkDocumentsToMessage
+
+#### 📊 Résultats :
+
+✅ **Fonctionnalités restaurées :**
+- Upload de fichiers dans conversations
+- Liaison automatique `message_id` ↔ `intervention_documents`
+- Affichage des pièces jointes dans le fil de discussion
+- Téléchargement via signed URLs
+
+✅ **Test validation :** "parfait ça fonctionne" (utilisateur Arthur Umugisha)
+
+---
+
+### 🎨 UX : Suppression de la card "Informations" redondante (vue locataire)
+
+**Contexte :** Dans l'onglet "Vue d'ensemble" des interventions (role locataire), deux cards affichaient les mêmes informations.
+
+#### 🔍 Diagnostic :
+
+**Duplication UI détectée :**
+1. **Header** (haut de page) : Référence, urgence, localisation
+2. **Card principale** (gauche) : Type, description, demandeur, dates
+3. **Card "Informations"** (droite) : ❌ **Répète** référence, type, urgence, logement
+
+#### ✅ Solution appliquée :
+
+**Fichier :** `app/locataire/interventions/[id]/components/intervention-detail-client.tsx`
+- **Lignes supprimées :** 254-286 (card "Informations" complète)
+- **Résultat :** Sidebar ne contient plus que la card "Progression" (timeline unique et utile)
+
+#### 📊 Bénéfices :
+
+✅ **Simplification UI :**
+- Élimination de redondance d'informations
+- Interface plus claire et épurée
+- Conservation des données pertinentes (timeline de progression)
+
+---
+
+## ✅ CORRECTIONS APPLIQUÉES - 27 octobre 2025 - 11:00 CET
+
+### 🔧 Fix : Participants manquants dans les threads de conversation
+
+**Contexte :** Après la création d'interventions, les threads de conversation étaient créés automatiquement, mais **aucun participant n'était ajouté** aux threads. Les locataires et prestataires ne voyaient pas les conversations car ils n'étaient pas dans la table `conversation_participants`.
+
+#### 🔍 Diagnostic :
+
+**Triggers existants :** ❌ Incomplet
+- `interventions_create_conversations` : Crée les threads `'group'` et `'tenant_to_managers'`
+- `assignments_create_provider_conversation` : Crée le thread `'provider_to_managers'`
+- **Mais AUCUN trigger ne peuple la table `conversation_participants`**
+
+**Résultat :**
+- ✅ Threads créés en DB
+- ❌ Table `conversation_participants` vide
+- ❌ Locataires/prestataires ne peuvent pas voir/accéder aux conversations
+
+#### ✅ Solution appliquée :
+
+**Migration :** `20251027102000_add_auto_participants_to_threads.sql`
+
+**Nouveau trigger :** `assignments_add_to_conversations`
+- Déclenché AFTER INSERT sur `intervention_assignments`
+- Ajoute automatiquement les participants aux threads appropriés
+
+**Logique implémentée :**
+
+```sql
+WHEN role = 'locataire':
+  → Insert into 'tenant_to_managers' thread
+  → Insert into 'group' thread
+
+WHEN role = 'prestataire':
+  → Insert into 'provider_to_managers' thread
+  → Insert into 'group' thread
+
+WHEN role = 'gestionnaire':
+  → Aucune action (accès via RLS transparence d'équipe)
+```
+
+**Architecture :**
+- **Participants EXPLICITES** : Locataires et prestataires dans `conversation_participants`
+- **Participants IMPLICITES** : Gestionnaires accèdent via RLS `can_view_conversation()`
+- **Idempotence** : `ON CONFLICT DO NOTHING` évite les doublons
+
+#### 📊 Résultat :
+
+Désormais, lors de la création d'une intervention :
+- ✅ Thread "Locataire a Gestionnaires" contient **le locataire + accès gestionnaires**
+- ✅ Thread "Prestataire a Gestionnaires" contient **le prestataire + accès gestionnaires**
+- ✅ Thread "Discussion générale" contient **tous les participants**
+- ✅ Les participants voient et peuvent écrire dans leurs threads
+
+**Statut :** ✅ Migration appliquée en production
+
+---
+
+### 🐛 Fix : Affichage des locataires dans les attributions d'intervention
+
+**Contexte :** Lors de la création d'une intervention par le gestionnaire pour un lot avec locataire, la section "Attributions" n'affichait pas les locataires même s'ils étaient bien assignés en base de données.
+
+#### 🔍 Diagnostic :
+
+**Backend (API) :** ✅ Fonctionnel
+- `app/api/create-manager-intervention/route.ts:513-562` récupère correctement les locataires du lot via `lot_contacts`
+- Crée bien les assignations dans `intervention_assignments` avec `role = 'locataire'`
+
+**Frontend (Interface) :** ❌ Problème identifié
+- `components/interventions/assignment-card.tsx` n'avait pas de configuration pour afficher le rôle `'locataire'`
+- Lignes 46-58 : `roleConfig` contenait seulement `gestionnaire` et `prestataire`
+- Ligne 149 : `if (!config) return null` → les locataires étaient filtrés et ignorés
+
+#### ✅ Solution appliquée :
+
+**Fichier modifié :** `components/interventions/assignment-card.tsx`
+
+1. **Ajout de l'icône `Home`** dans les imports Lucide React
+2. **Ajout de la configuration `locataire`** dans `roleConfig` :
+   ```typescript
+   locataire: {
+     label: 'Locataire',
+     color: 'bg-green-100 text-green-800',
+     icon: Home
+   }
+   ```
+3. **Mise à jour du type TypeScript** pour inclure `'locataire'` dans les rôles acceptés
+
+#### 📊 Résultat :
+
+Désormais, la section "Attributions" affiche correctement :
+- ✅ **Gestionnaires** : N (badge bleu, icône Users)
+- ✅ **Prestataires** : N (badge violet, icône Briefcase)
+- ✅ **Locataires** : N (badge vert, icône Home)
+
+**Build :** ✅ Compilé avec succès (126 routes)
+
+---
+
+### 🛠️ Fix Phase 3 : Erreurs critiques création d'intervention + Interface chat
+
+**Contexte :** Après déploiement de Phase 3 (interventions + chat), 3 erreurs critiques bloquaient la création d'interventions.
+
+#### 🐛 Problèmes identifiés :
+
+1. **Erreur DB : Column "priority" does not exist (42703)**
+   - **Cause :** Migration `20251026220000` a supprimé colonne `priority` de la table `notifications`
+   - **Impact :** Trigger `notify_intervention_assignment()` tentait d'insérer dans colonne supprimée
+   - **Symptôme :** Erreur PostgreSQL lors de création d'assignations
+
+2. **Erreur 403 : Forbidden lors création de threads de conversation**
+   - **Cause :** Policy RLS `threads_insert` utilisait `auth.uid()` au lieu de `get_current_user_id()`
+   - **Impact :** Mapping incorrect entre `auth_user_id` (Supabase Auth) et `users.id` (table users)
+   - **Symptôme :** Impossible de créer threads de conversation pour interventions
+
+3. **Erreur 400 : Bad Request sur création d'assignations**
+   - **Cause :** Policies RLS inconsistantes avec mapping auth
+   - **Impact :** Échec création d'assignations d'intervention
+   - **Symptôme :** Workflows d'intervention bloqués
+
+#### ✅ Solution déployée :
+
+**Migration : `20251027093000_fix_phase3_triggers_and_policies.sql`**
+
+1. **Fix Trigger `notify_intervention_assignment()`**
+   ```sql
+   -- AVANT (buggy)
+   INSERT INTO notifications (priority, ...) VALUES ('normal', ...)
+
+   -- APRÈS (corrigé)
+   INSERT INTO notifications (is_personal, ...) VALUES (true, ...)
+   ```
+   - Remplace `priority` (enum supprimé) par `is_personal` (boolean)
+   - Notifications d'assignation = toujours personnelles (`true`)
+
+2. **Fix RLS Policy `threads_insert`**
+   ```sql
+   -- AVANT (buggy)
+   CREATE POLICY threads_insert ON conversation_threads
+   WITH CHECK (created_by = auth.uid())
+
+   -- APRÈS (corrigé)
+   CREATE POLICY threads_insert ON conversation_threads
+   WITH CHECK (created_by = get_current_user_id())
+   ```
+   - Utilise helper `get_current_user_id()` pour mapping correct
+   - Garantit comparaison `users.id` avec `users.id`
+
+3. **Vérification cohérence policies messages et assignations**
+   - Toutes les policies utilisent maintenant `get_current_user_id()`
+   - Cohérence architecture auth sur toute la Phase 3
+
+**Statut :** ✅ Migration appliquée en production, build réussi
+
+---
+
+### 🎨 Feature : Affichage participants dans header du chat
+
+**Contexte :** Amélioration UX pour identifier clairement qui participe à chaque conversation.
+
+#### ✅ Implémentation :
+
+1. **Nouvelle action serveur : `getThreadParticipantsAction()`**
+   - Fichier : `app/actions/conversation-actions.ts:242-307`
+   - Récupère participants avec détails utilisateur (nom, avatar, rôle)
+   - Vérifie accès via RLS helper `can_view_conversation()`
+   - Join sur table `users` pour infos complètes
+
+2. **Composant `ParticipantsDisplay`**
+   - Fichier : `components/chat/chat-interface.tsx:269-375`
+   - Affiche avatars colorés par rôle (gestionnaire=bleu, locataire=vert, prestataire=violet)
+   - Max 3 avatars visibles + badge "+N" pour le reste
+   - Tooltip avec nom complet + rôle au survol
+   - Compteur total participants
+
+3. **Intégration dans header du chat**
+   - Lignes : `components/chat/chat-interface.tsx:543-549`
+   - Affichage sous le titre de la conversation
+   - Chargement automatique au mount du composant
+   - Icône `Users` + avatars + texte "N participant(s)"
+
+#### 🎨 Design :
+```
+┌─────────────────────────────────────────────────┐
+│ Locataire a Gestionnaires - INT-251027-EJK2    │
+│ 👥 [Avatar1] [Avatar2] [Avatar3] [+2]           │
+│     3 participants                               │
+└─────────────────────────────────────────────────┘
+```
+
+**Statut :** ✅ Feature déployée, build réussi (126 routes compilées)
+
+---
+
+### 📊 Tests & Validation :
+
+**Build :**
+- ✅ Compilation TypeScript sans erreur
+- ✅ 126 routes générées (85 static, 41 dynamic)
+- ✅ Bundle size stable (~103kB shared JS)
+
+**Tests manuels requis :**
+1. Créer intervention (gestionnaire + locataire)
+2. Vérifier création de threads sans erreur 403
+3. Vérifier notifications d'assignation créées
+4. Vérifier affichage participants dans header chat
+
+**Fichiers modifiés :**
+- `supabase/migrations/20251027093000_fix_phase3_triggers_and_policies.sql` (nouveau)
+- `app/actions/conversation-actions.ts` (ajout action)
+- `components/chat/chat-interface.tsx` (ajout composant + intégration)
 
 ---
 

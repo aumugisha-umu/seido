@@ -373,6 +373,8 @@ export function PrestataireInterventionDetailClient({
               <ChatTab
                 interventionId={intervention.id}
                 threads={threads}
+                currentUserId={currentUser.id}
+                userRole="prestataire"
               />
             </TabsContent>
 

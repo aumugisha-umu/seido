@@ -639,6 +639,20 @@ export default function NouvelleInterventionClient({
   }
 
   const handleNext = () => {
+    const validation = validateCurrentStep()
+
+    if (!validation.valid) {
+      // Afficher les erreurs avec toast
+      validation.errors.forEach(error => {
+        toast({
+          title: "Validation échouée",
+          description: error,
+          variant: "destructive"
+        })
+      })
+      return
+    }
+
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1)
     }
@@ -648,6 +662,41 @@ export default function NouvelleInterventionClient({
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
+  }
+
+  // Validate current step before proceeding
+  const validateCurrentStep = (): { valid: boolean; errors: string[] } => {
+    const errors: string[] = []
+
+    switch (currentStep) {
+      case 1: // Logement
+        if (!selectedLogement) {
+          errors.push("Veuillez sélectionner un logement")
+        }
+        break
+
+      case 2: // Détails intervention
+        if (!formData.title?.trim()) {
+          errors.push("Le titre est requis")
+        }
+        if (!formData.description?.trim()) {
+          errors.push("La description est requise")
+        }
+        // urgency et type sont optionnels selon le schéma (urgency a un défaut)
+        break
+
+      case 3: // Contacts
+        if (selectedManagerIds.length === 0) {
+          errors.push("Au moins un gestionnaire doit être assigné")
+        }
+        break
+
+      case 4: // Planification (pas de champs requis)
+        // Les champs de cette étape sont optionnels
+        break
+    }
+
+    return { valid: errors.length === 0, errors }
   }
 
   const handleSubmit = () => {
@@ -709,20 +758,27 @@ export default function NouvelleInterventionClient({
         description: formData.description,
         type: formData.type,
         urgency: formData.urgency,
-        
+
         // Housing selection
         selectedLogement,
         selectedBuildingId: normalizedSelectedBuildingId,
         selectedLotId: normalizedSelectedLotId,
-        
+
         // Contact assignments
         selectedManagerIds,
         selectedProviderIds,
-        
-        // Scheduling
+
+        // Scheduling - Convert to ISO 8601 strings for Zod validation
         schedulingType,
-        fixedDateTime,
-        timeSlots,
+        fixedDateTime: schedulingType === 'fixed' && fixedDateTime.date && fixedDateTime.time
+          ? new Date(`${fixedDateTime.date}T${fixedDateTime.time}:00`).toISOString()
+          : null,
+        timeSlots: schedulingType === 'slots'
+          ? timeSlots.map(slot => ({
+              start: new Date(`${slot.date}T${slot.startTime}:00`).toISOString(),
+              end: new Date(`${slot.date}T${slot.endTime}:00`).toISOString()
+            }))
+          : [],
         
         // Messages
         messageType,
@@ -768,6 +824,9 @@ export default function NouvelleInterventionClient({
 
       if (!response.ok) {
         logger.error("❌ API Error response:", result)
+        if (result.details) {
+          logger.error("📋 Validation details:", result.details)
+        }
         throw new Error(result.error || 'Erreur lors de la création de l\'intervention')
       }
 
@@ -1406,10 +1465,10 @@ export default function NouvelleInterventionClient({
                 }
               }}
               disabled={
-                (currentStep === 1 && !selectedLogement) ||
-                (currentStep === 2 && (!formData.title || !formData.description)) ||
-                (currentStep === 3 && selectedManagerIds.length === 0) ||
-                isCreating
+                (() => {
+                  const validation = validateCurrentStep()
+                  return !validation.valid || isCreating
+                })()
               }
               className={`w-full sm:w-auto ml-auto ${
                 currentStep === 4 ? 'bg-green-600 hover:bg-green-700' : ''

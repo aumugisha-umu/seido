@@ -10,17 +10,17 @@ import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { StatusTimeline } from '@/components/interventions/status-timeline'
-import { ChatInterface } from '@/components/chat/chat-interface'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DocumentsTab } from '@/app/gestionnaire/interventions/[id]/components/documents-tab'
 import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
-import { Activity, MessageSquare, FileText, Calendar } from 'lucide-react'
+import { Activity, FileText, Calendar } from 'lucide-react'
 
 // Intervention components
 import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+import { ChatTab } from './chat-tab'
 
 // Modals
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
@@ -249,77 +249,17 @@ export function LocataireInterventionDetailClient({
                   />
                 </CardContent>
               </Card>
-
-              {/* Quick info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Informations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Référence</span>
-                    <span className="font-medium">{intervention.reference}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Type</span>
-                    <span className="font-medium capitalize">
-                      {intervention.type.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Urgence</span>
-                    <span className="font-medium capitalize">{intervention.urgency}</span>
-                  </div>
-                  {intervention.building && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Immeuble</span>
-                      <span className="font-medium">{intervention.building.name}</span>
-                    </div>
-                  )}
-                  {intervention.lot && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Logement</span>
-                      <span className="font-medium">{intervention.lot.reference}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="chat" className="space-y-6">
-          {threads.length > 0 ? (
-            <div className="space-y-6">
-              {threads.map((thread) => (
-                <Card key={thread.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5" />
-                      {thread.thread_type === 'group'
-                        ? 'Discussion générale'
-                        : 'Discussion avec les gestionnaires'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ChatInterface
-                      threadId={thread.id}
-                      threadType={thread.thread_type}
-                    />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">
-                  Aucune conversation active
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <ChatTab
+            interventionId={intervention.id}
+            threads={threads}
+            currentUserId={currentUser.id}
+            userRole="locataire"
+          />
         </TabsContent>
 
         <TabsContent value="execution" className="space-y-6">

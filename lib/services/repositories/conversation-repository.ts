@@ -150,12 +150,7 @@ export class ConversationRepository {
         .from('conversation_threads')
         .select(`
           *,
-          participants:conversation_participants(count),
-          last_message:conversation_messages(
-            content,
-            created_at,
-            user:user_id(name)
-          )
+          participants:conversation_participants(count)
         `)
         .eq('intervention_id', interventionId)
         .order('last_message_at', { ascending: false })
@@ -256,12 +251,21 @@ export class ConversationRepository {
         return createErrorResponse(handleError(countError, 'conversation:findMessagesByThread:count'))
       }
 
-      // Get messages with user info
+      // Get messages with user info and attachments
       const { data, error } = await this.supabase
         .from('conversation_messages')
         .select(`
           *,
-          user:user_id(id, name, email, avatar_url)
+          user:user_id(id, name, email, avatar_url, role),
+          attachments:intervention_documents!message_id(
+            id,
+            filename,
+            original_filename,
+            mime_type,
+            file_size,
+            storage_path,
+            document_type
+          )
         `)
         .eq('thread_id', threadId)
         .is('deleted_at', null)
@@ -340,11 +344,20 @@ export class ConversationRepository {
       }
 
       // Update thread's last_message_at and message_count
+      // First, get current message_count
+      const { data: currentThread } = await this.supabase
+        .from('conversation_threads')
+        .select('message_count')
+        .eq('id', input.thread_id)
+        .single()
+
+      const newCount = (currentThread?.message_count || 0) + 1
+
       const { error: updateError } = await this.supabase
         .from('conversation_threads')
         .update({
           last_message_at: new Date().toISOString(),
-          message_count: this.supabase.sql`message_count + 1`,
+          message_count: newCount,
           updated_at: new Date().toISOString()
         })
         .eq('id', input.thread_id)

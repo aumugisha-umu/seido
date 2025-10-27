@@ -54,7 +54,7 @@ const CreateThreadSchema = z.object({
 const SendMessageSchema = z.object({
   threadId: z.string().uuid(),
   content: z.string().min(1).max(5000),
-  attachments: z.array(z.string()).optional()
+  attachments: z.array(z.string().uuid()).optional().default([])
 })
 
 const PaginationSchema = z.object({
@@ -180,6 +180,133 @@ export async function createThreadAction(
 }
 
 /**
+ * Get a single thread by ID
+ */
+export async function getThreadAction(
+  threadId: string
+): Promise<ActionResult<ThreadWithDetails>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate thread ID
+    if (!z.string().uuid().safeParse(threadId).success) {
+      return { success: false, error: 'Invalid thread ID' }
+    }
+
+    logger.info('🧵 [SERVER-ACTION] Getting thread:', {
+      threadId,
+      userId: user.id
+    })
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get thread with basic details
+    const { data: thread, error: threadError } = await supabase
+      .from('conversation_threads')
+      .select('*')
+      .eq('id', threadId)
+      .single()
+
+    if (threadError || !thread) {
+      return { success: false, error: 'Thread not found' }
+    }
+
+    // Verify user has access to this thread (via RLS helper function)
+    const { data: hasAccess, error: accessError } = await supabase.rpc('can_view_conversation', {
+      p_thread_id: threadId
+    })
+
+    if (accessError || !hasAccess) {
+      logger.warn('⚠️ [SERVER-ACTION] Access denied to thread:', {
+        threadId,
+        userId: user.id,
+        error: accessError?.message
+      })
+      return { success: false, error: 'Access denied to this conversation' }
+    }
+
+    return { success: true, data: thread as ThreadWithDetails }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error fetching thread:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
+  }
+}
+
+/**
+ * Get participants of a thread with user details
+ */
+export async function getThreadParticipantsAction(
+  threadId: string
+): Promise<ActionResult<ParticipantWithUser[]>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate input
+    if (!z.string().uuid().safeParse(threadId).success) {
+      return { success: false, error: 'Invalid thread ID' }
+    }
+
+    logger.info('👥 [SERVER-ACTION] Getting thread participants:', {
+      threadId,
+      userId: user.id
+    })
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Verify user has access to this thread
+    const { data: hasAccess, error: accessError } = await supabase.rpc('can_view_conversation', {
+      p_thread_id: threadId
+    })
+
+    if (accessError || !hasAccess) {
+      logger.warn('⚠️ [SERVER-ACTION] Access denied to thread participants:', {
+        threadId,
+        userId: user.id
+      })
+      return { success: false, error: 'Access denied to this conversation' }
+    }
+
+    // Get participants with user details
+    const { data: participants, error: participantsError } = await supabase
+      .from('conversation_participants')
+      .select(`
+        user_id,
+        joined_at,
+        last_read_message_id,
+        user:users!conversation_participants_user_id_fkey (
+          id,
+          name,
+          first_name,
+          last_name,
+          email,
+          role,
+          avatar_url
+        )
+      `)
+      .eq('thread_id', threadId)
+      .order('joined_at', { ascending: true })
+
+    if (participantsError) {
+      logger.error('❌ [SERVER-ACTION] Error fetching participants:', participantsError)
+      return { success: false, error: 'Failed to fetch participants' }
+    }
+
+    return { success: true, data: participants as ParticipantWithUser[] }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error fetching thread participants:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
+  }
+}
+
+/**
  * MESSAGES
  */
 
@@ -241,6 +368,20 @@ export async function sendMessageAction(
   content: string,
   attachments?: string[]
 ): Promise<ActionResult<ConversationMessage>> {
+  // Log BEFORE try-catch to ensure it always appears
+  console.log('🚀 [CONVERSATION-ACTION] ENTRY POINT - sendMessageAction called')
+  console.log('📥 [CONVERSATION-ACTION] Raw arguments received:', {
+    threadId,
+    threadIdType: typeof threadId,
+    content,
+    contentType: typeof content,
+    contentLength: content?.length,
+    attachments,
+    attachmentsType: typeof attachments,
+    attachmentsIsArray: Array.isArray(attachments),
+    attachmentsLength: attachments?.length
+  })
+
   try {
     // Auth check
     const user = await getAuthenticatedUser()
@@ -249,7 +390,21 @@ export async function sendMessageAction(
     }
 
     // Validate input
+    console.log('🔧 [CONVERSATION-ACTION] sendMessageAction received:', {
+      threadId,
+      content,
+      attachments,
+      attachmentsLength: attachments?.length
+    })
+
     const validated = SendMessageSchema.parse({ threadId, content, attachments })
+
+    console.log('✅ [CONVERSATION-ACTION] After validation:', {
+      threadId: validated.threadId,
+      contentLength: validated.content.length,
+      attachments: validated.attachments,
+      attachmentsLength: validated.attachments?.length
+    })
 
     logger.info('✉️ [SERVER-ACTION] Sending message:', {
       threadId: validated.threadId,
@@ -260,6 +415,14 @@ export async function sendMessageAction(
 
     // Create service and execute
     const conversationService = await createServerActionConversationService()
+
+    console.log('📡 [CONVERSATION-ACTION] Calling conversationService.sendMessage with:', {
+      threadId: validated.threadId,
+      userId: user.id,
+      attachments: validated.attachments,
+      attachmentsLength: validated.attachments?.length
+    })
+
     const result = await conversationService.sendMessage(
       validated.threadId,
       validated.content,

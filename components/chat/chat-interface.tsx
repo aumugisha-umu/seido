@@ -39,6 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 // Custom Components
 import { ChatFileAttachment } from './chat-file-attachment'
+import { AddParticipantButton } from './add-participant-button'
 
 // Hooks
 import { useChatUpload } from '@/hooks/use-chat-upload'
@@ -58,11 +59,21 @@ type Message = Database['public']['Tables']['conversation_messages']['Row'] & {
 type Thread = Database['public']['Tables']['conversation_threads']['Row']
 type ThreadType = Database['public']['Enums']['conversation_thread_type']
 
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: Database['public']['Enums']['user_role']
+  avatar_url?: string
+}
+
 interface ChatInterfaceProps {
   threadId: string
   currentUserId: string
   userRole: Database['public']['Enums']['user_role']
   onSendMessage?: (content: string) => Promise<void>
+  teamMembers?: TeamMember[]
+  currentParticipantIds?: string[]
   className?: string
 }
 
@@ -231,6 +242,8 @@ export function ChatInterface({
   currentUserId,
   userRole,
   onSendMessage,
+  teamMembers = [],
+  currentParticipantIds = [],
   className = ''
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
@@ -433,6 +446,12 @@ export function ChatInterface({
           <div className="flex items-center gap-2">
             {thread && <ThreadTypeBadge type={thread.thread_type} />}
             {isManagerTransparent && <TransparencyBadge visible={true} />}
+            <AddParticipantButton
+              threadId={threadId}
+              teamMembers={teamMembers}
+              currentParticipantIds={currentParticipantIds}
+              userRole={userRole}
+            />
             <Button variant="ghost" size="icon">
               <MoreVertical className="w-4 h-4" />
             </Button>

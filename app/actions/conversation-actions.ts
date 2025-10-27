@@ -658,6 +658,123 @@ export async function getUnreadCountAction(): Promise<ActionResult<number>> {
 }
 
 /**
+ * Add provider to group thread when intervention status changes to planning
+ * This is called when intervention transitions to 'planification' or 'planifiee'
+ */
+export async function addProviderToGroupThreadAction(
+  interventionId: string
+): Promise<ActionResult<void>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate intervention ID
+    if (!z.string().uuid().safeParse(interventionId).success) {
+      return { success: false, error: 'Invalid intervention ID' }
+    }
+
+    const supabase = await createServerActionSupabaseClient()
+
+    logger.info('🔄 [SERVER-ACTION] Adding provider to group thread:', {
+      interventionId,
+      triggeredBy: user.id
+    })
+
+    // Get intervention with provider assignment
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select(`
+        id,
+        team_id,
+        status,
+        assignments:intervention_assignments!inner(
+          user_id,
+          role,
+          user:user_id(id, role)
+        )
+      `)
+      .eq('id', interventionId)
+      .eq('assignments.role', 'prestataire')
+      .single()
+
+    if (interventionError || !intervention) {
+      return { success: false, error: 'Intervention or provider assignment not found' }
+    }
+
+    // Verify intervention is in planning status
+    if (!['planification', 'planifiee'].includes(intervention.status)) {
+      return {
+        success: false,
+        error: 'Intervention must be in planning status to add provider to group'
+      }
+    }
+
+    // Get the group thread
+    const { data: groupThread, error: threadError } = await supabase
+      .from('conversation_threads')
+      .select('id')
+      .eq('intervention_id', interventionId)
+      .eq('thread_type', 'group')
+      .single()
+
+    if (threadError || !groupThread) {
+      return { success: false, error: 'Group conversation not found' }
+    }
+
+    // Get provider user ID (first prestataire in assignments)
+    const providerAssignment = intervention.assignments?.[0]
+    if (!providerAssignment) {
+      return { success: false, error: 'No provider assigned' }
+    }
+
+    const providerId = providerAssignment.user_id
+
+    // Check if provider is already a participant
+    const { data: existingParticipant } = await supabase
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('thread_id', groupThread.id)
+      .eq('user_id', providerId)
+      .single()
+
+    if (existingParticipant) {
+      logger.info('ℹ️ [SERVER-ACTION] Provider already in group thread')
+      return { success: true, data: undefined }
+    }
+
+    // Add provider to group thread
+    const conversationService = await createServerActionConversationService()
+    const result = await conversationService.addParticipant(
+      groupThread.id,
+      providerId,
+      user.id
+    )
+
+    if (!result.success) {
+      return { success: false, error: result.error || 'Failed to add provider to group' }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Provider added to group thread')
+
+    // Revalidate chat pages
+    revalidatePath(`/gestionnaire/interventions/${interventionId}/chat`)
+    revalidatePath(`/locataire/interventions/${interventionId}/chat`)
+    revalidatePath(`/prestataire/interventions/${interventionId}/chat`)
+
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error adding provider to group thread:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
  * TEAM TRANSPARENCY
  */
 

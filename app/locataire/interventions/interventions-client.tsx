@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { InterventionsList } from "@/components/interventions/interventions-list"
 import ContentNavigator from "@/components/content-navigator"
-import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
+import { Card, CardContent } from "@/components/ui/card"
+import { AlertCircle } from "lucide-react"
 import { logger } from '@/lib/logger'
 
 // Intervention type based on what the service returns
@@ -129,9 +131,29 @@ export default function InterventionsClient({ interventions }: InterventionsClie
         status: intervention.status,
         reference: intervention.reference,
         priority: intervention.urgency,
+        urgency: intervention.urgency,
         location: {
           building: intervention.building?.name,
-          lot: intervention.lot?.reference
+          lot: intervention.lot?.reference,
+          address: intervention.building?.address,
+          city: intervention.building?.city,
+          postal_code: intervention.building?.postal_code
+        },
+        contact: intervention.intervention_assignments?.find((a: any) => a.role === 'gestionnaire')?.user ? {
+          name: intervention.intervention_assignments.find((a: any) => a.role === 'gestionnaire')?.user?.name || '',
+          role: 'Gestionnaire',
+          phone: undefined,
+          email: undefined
+        } : undefined,
+        assigned_contact: intervention.intervention_assignments?.find((a: any) => a.role === 'prestataire')?.user ? {
+          name: intervention.intervention_assignments.find((a: any) => a.role === 'prestataire')?.user?.name || '',
+          phone: undefined,
+          email: undefined
+        } : undefined,
+        dates: {
+          created: intervention.created_at,
+          planned: undefined,
+          completed: undefined
         },
         actionUrl: `/locataire/interventions/${intervention.id}`
       }))
@@ -157,13 +179,25 @@ export default function InterventionsClient({ interventions }: InterventionsClie
 
       <div className="space-y-6">
         {/* Section 1: Actions en attente */}
-        <section>
-          <PendingActionsCard
-            actions={pendingActions}
-            userRole="locataire"
-            loading={false}
-          />
-        </section>
+        {pendingActions.length > 0 && (
+          <section>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <AlertCircle className="w-4 h-4 text-orange-500" />
+                    <span className="font-medium text-foreground">Actions en attente</span>
+                    <span className="text-xs text-slate-600 ml-auto">Interventions nécessitant votre attention</span>
+                  </div>
+                  <PendingActionsCompactHybrid
+                    actions={pendingActions}
+                    userRole="locataire"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {/* Section 2: Interventions avec tabs */}
         <section>

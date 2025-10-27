@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Wrench, Clock, Archive, Home, Plus, AlertCircle } from "lucide-react"
+import { Wrench, Clock, Archive, AlertCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
@@ -12,7 +11,8 @@ import { useTenantData } from "@/hooks/use-tenant-data"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
-import { PendingActionsCard } from "@/components/shared/pending-actions-card"
+import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
+import TenantHeaderV1 from "@/components/ui-proposals/tenant-header-v1"
 import { logger } from '@/lib/logger'
 
 export default function LocataireDashboard() {
@@ -191,9 +191,25 @@ export default function LocataireDashboard() {
         status: intervention.status,
         reference: intervention.reference,
         priority: intervention.priority,
+        urgency: intervention.urgency,
         location: {
           building: intervention.building?.name,
-          lot: intervention.lot?.reference
+          lot: intervention.lot?.reference,
+          address: intervention.building?.address,
+          city: intervention.building?.city,
+          postal_code: intervention.building?.postal_code
+        },
+        contact: intervention.assigned_contact ? {
+          name: intervention.assigned_contact.name,
+          role: 'Gestionnaire',
+          phone: intervention.assigned_contact.phone,
+          email: intervention.assigned_contact.email
+        } : undefined,
+        assigned_contact: intervention.assigned_contact,
+        dates: {
+          created: intervention.created_at,
+          planned: (intervention as any).planned_date,
+          completed: (intervention as any).completed_date
         },
         actionUrl: `/locataire/interventions/${intervention.id}`
       }))
@@ -201,77 +217,46 @@ export default function LocataireDashboard() {
 
   const pendingActions = convertToPendingActions()
 
-  // Construire l'adresse complète
-  const buildingName = tenantData.building?.name || ''
-  const lotReference = tenantData.reference || ''
-  const apartmentNumber = tenantData.apartment_number || ''
-  const street = tenantData.building?.address || ''
-  const postalCode = tenantData.building?.postal_code || ''
-  const city = tenantData.building?.city || ''
-  const floor = tenantData.floor !== undefined ? `Étage ${tenantData.floor}` : ''
+  // Handler pour créer une nouvelle intervention
+  const handleCreateIntervention = () => {
+    logger.info('📝 [LOCATAIRE-DASHBOARD] Creating new intervention...')
+    router.push('/locataire/interventions/nouvelle-demande')
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header avec informations du logement */}
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div className="flex-1">
-            {/* Référence du lot + Nom de l'immeuble */}
-            <div className="flex items-center gap-3 mb-3">
-              <Home className="w-6 h-6 text-blue-600 flex-shrink-0" />
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  {lotReference}
-                  {buildingName && <span className="text-slate-600 font-normal"> • {buildingName}</span>}
-                </h1>
-              </div>
-            </div>
-
-            {/* Adresse complète */}
-            <div className="space-y-1 text-slate-600">
-              {street && (
-                <p className="text-base">
-                  {street}
-                  {(floor || apartmentNumber) && (
-                    <span className="text-slate-500">
-                      {floor && `, ${floor}`}
-                      {apartmentNumber && `, Porte ${apartmentNumber}`}
-                    </span>
-                  )}
-                </p>
-              )}
-              {(postalCode || city) && (
-                <p className="text-base">
-                  {postalCode} {city}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Bouton créer demande */}
-          <div className="flex justify-center lg:justify-end">
-            <Button
-              className="px-6 py-3 text-base font-semibold"
-              onClick={() => {
-                logger.info('📝 [LOCATAIRE-DASHBOARD] Creating new intervention...')
-                router.push('/locataire/interventions/nouvelle-demande')
-              }}
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Nouvelle demande
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* Header avec informations du logement - Version 1 Ultra-Compact */}
+      <TenantHeaderV1
+        lotReference={tenantData.reference || ''}
+        buildingName={tenantData.building?.name}
+        street={tenantData.building?.address}
+        floor={tenantData.floor}
+        apartmentNumber={tenantData.apartment_number}
+        postalCode={tenantData.building?.postal_code}
+        city={tenantData.building?.city}
+        onCreateIntervention={handleCreateIntervention}
+      />
 
       {/* Section 1: Actions en attente */}
-      <section>
-        <PendingActionsCard
-          actions={pendingActions}
-          userRole="locataire"
-          loading={loading}
-        />
-      </section>
+      {pendingActions.length > 0 && (
+        <section>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                  <AlertCircle className="w-4 h-4 text-orange-500" />
+                  <span className="font-medium text-foreground">Actions en attente</span>
+                  <span className="text-xs text-slate-600 ml-auto">Interventions nécessitant votre attention</span>
+                </div>
+                <PendingActionsCompactHybrid
+                  actions={pendingActions}
+                  userRole="locataire"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Section 2: Interventions avec ContentNavigator */}
       <section>

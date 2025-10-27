@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-const INPUT_IMAGE = path.join(process.cwd(), 'public', 'images', 'Logo', 'Picto_Seido_Color.png')
+const INPUT_IMAGE = path.join(process.cwd(), 'public', 'icons', 'icon-192x192 white bg.jpg')
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'icons')
 
 const ICON_SIZES = [72, 96, 128, 144, 152, 192, 384, 512]

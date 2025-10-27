@@ -7,7 +7,7 @@ export function PWARegister() {
     if (
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
-      process.env.NODE_ENV === 'production'
+      process.env.NODE_ENV !== 'test' // ✅ Actif en dev + production (exclu tests uniquement)
     ) {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })

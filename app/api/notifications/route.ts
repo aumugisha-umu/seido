@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { notificationActionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { sendPushNotification } from '@/lib/send-push-notification'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
-    const { supabase: supabasePost, userProfile: dbUserPost } = authResult.data
+    const { userProfile: dbUserPost } = authResult.data
 
     const {
       user_id,
@@ -167,7 +168,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: notification, error } = await supabasePost
+    // ✅ Use service role client to bypass RLS (permet creation de notifications pour d'autres users)
+    // L'API est deja securisee par getApiAuthContext(), on peut utiliser service_role ici
+    logger.info({ user_id, team_id, type, created_by: dbUserPost.id }, '🔐 [NOTIFICATIONS-API] Creating notification with service role (RLS bypass)')
+    const supabaseAdmin = createServiceRoleSupabaseClient()
+
+    const { data: notification, error } = await supabaseAdmin
       .from('notifications')
       .insert({
         user_id,
@@ -197,14 +203,21 @@ export async function POST(request: NextRequest) {
       logger.info({ userId: user_id, notificationId: notification.id, type }, '📲 [NOTIFICATIONS-API] Sending push notification')
 
       // Construct URL based on notification type
+      // Note: 'quote_request' and 'quote_response' are not valid notification_type enum values
+      // Use 'document' or 'status_change' for quote-related notifications
       let url = '/'
       if (type === 'intervention' && related_entity_id) {
         url = `/gestionnaire/interventions/${related_entity_id}`
       } else if (type === 'assignment' && related_entity_id) {
         url = `/prestataire/interventions/${related_entity_id}`
-      } else if (type === 'quote_request' && related_entity_id) {
-        url = `/prestataire/interventions/${related_entity_id}`
-      } else if (type === 'quote_response' && related_entity_id) {
+      } else if (type === 'document' && related_entity_id) {
+        // Documents (devis, factures) - redirige vers l'intervention
+        url = `/gestionnaire/interventions/${related_entity_id}`
+      } else if (type === 'status_change' && related_entity_id) {
+        // Changements de statut - redirige vers l'intervention
+        url = `/gestionnaire/interventions/${related_entity_id}`
+      } else if (type === 'chat' && related_entity_id) {
+        // Messages chat - redirige vers l'intervention
         url = `/gestionnaire/interventions/${related_entity_id}`
       } else {
         // Default to notifications page

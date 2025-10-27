@@ -4,7 +4,7 @@ const withSerwist = require('@serwist/next').default({
   swDest: 'public/sw.js',
   cacheOnNavigation: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === 'development',
+  disable: false, // ⚠️ Activé en dev pour tester la PWA sur localhost
   register: false
 })
 

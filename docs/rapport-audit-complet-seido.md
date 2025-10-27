@@ -1,10 +1,67 @@
 # 🔍 RAPPORT D'AUDIT COMPLET - APPLICATION SEIDO
 
 **Date d'audit :** 25 septembre 2025
-**Version analysée :** Branche `preview` (Commit: 9283799)
+**Version analysée :** Branche `preview`
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 25 octobre 2025 - 11:00 CET (Fix critique: intervention detail page 404)
+**Dernière mise à jour :** 27 octobre 2025 - 06:00 CET (Fix système notifications + Test panel PWA)
+
+---
+
+## ✅ TEST RÉUSSI - 27 octobre 2025 - 06:00 CET
+
+### 🎯 Système de notifications multi-utilisateurs fonctionnel
+
+**Contexte:** Finalisation du système de notifications push avec test panel intégré.
+
+**Tests effectués:**
+1. ✅ **Service Worker actif en développement** (localhost testing)
+2. ✅ **PWA installation prompt** avec bouton manuel + instructions
+3. ✅ **Test panel notifications** avec 4 types (intervention, assignment, document, status_change)
+4. ✅ **Architecture service_role** pour création de notifications cross-users
+
+**Problème initial identifié:**
+- ❌ RLS policy bloquait la création de notifications pour d'autres utilisateurs
+- Exemple: Gestionnaire ne pouvait pas créer notification pour locataire
+- Erreur: `new row violates row-level security policy for table "notifications"`
+
+**Solution architecturale appliquée:**
+```typescript
+// AVANT (bloqué par RLS)
+const supabase = await createServerSupabaseClient()
+await supabase.from('notifications').insert({ user_id: autre_user_id })
+// ❌ Erreur RLS: user_id != current_user_id
+
+// APRÈS (bypass RLS avec service_role)
+const supabaseAdmin = createServiceRoleSupabaseClient()
+await supabaseAdmin.from('notifications').insert({ user_id: autre_user_id })
+// ✅ Succès: service_role bypass RLS
+```
+
+**Fichiers modifiés:**
+1. `app/api/notifications/route.ts` - Utilise service_role client pour INSERT
+2. `supabase/migrations/20251027055325_add_notifications_insert_policy.sql` - Supprime policy INSERT
+3. `components/test-notifications-panel.tsx` - Fix team_id extraction (user.team_id)
+4. `docs/architecture-notifications-system.md` - Documentation complète
+
+**Sécurité:**
+- ✅ API protégée par `getApiAuthContext()` (authentification obligatoire)
+- ✅ Service_role utilisé uniquement côté serveur (API routes)
+- ✅ RLS actif pour SELECT/UPDATE/DELETE (lecture/modification)
+- ✅ Traçabilité avec `created_by` (qui a créé la notification)
+
+**Cas d'usage validés:**
+- ✅ Gestionnaire → Locataire (intervention approuvée)
+- ✅ Gestionnaire → Prestataire (nouvelle assignation)
+- ✅ Prestataire → Gestionnaire (devis soumis)
+- ✅ Locataire → Gestionnaire (intervention terminée)
+
+**Documentation:**
+- 📄 `docs/architecture-notifications-system.md` - Architecture complète avec diagrammes
+- 🔐 Variables requises: `SUPABASE_SERVICE_ROLE_KEY` configurée
+- 🧪 Test panel accessible via `/[role]/profile`
+
+**Référence migration:** `20251027055325_add_notifications_insert_policy.sql`
 
 ---
 

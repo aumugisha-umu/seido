@@ -28,6 +28,8 @@ import {
   Bell,
 } from "lucide-react"
 import { PushNotificationToggle } from "@/components/push-notification-toggle"
+import { TestNotificationsPanel } from "@/components/test-notifications-panel"
+import { InstallPWAButton } from "@/components/install-pwa-button"
 
 interface ProfilePageProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
@@ -427,6 +429,12 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
               <PushNotificationToggle userId={user.id} />
             </CardContent>
           </Card>
+
+          {/* Test notifications push */}
+          <TestNotificationsPanel />
+
+          {/* Installation PWA */}
+          <InstallPWAButton />
 
           {/* Modals de sécurité */}
           <ChangePasswordModal

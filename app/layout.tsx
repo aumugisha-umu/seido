@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
@@ -17,18 +17,10 @@ export const metadata: Metadata = {
   title: "SEIDO - Gestion Immobilière",
   description: "Plateforme de gestion immobilière multi-rôles pour propriétaires, gestionnaires, locataires et prestataires",
   generator: "v0.app",
-  manifest: '/manifest.json',
-  themeColor: '#1e40af',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'SEIDO'
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false
   },
   icons: {
     icon: [
@@ -40,6 +32,15 @@ export const metadata: Metadata = {
       { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }
     ]
   }
+}
+
+// ✅ Next.js 15 API - viewport séparé de metadata
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#1e40af'
 }
 
 export default function RootLayout({

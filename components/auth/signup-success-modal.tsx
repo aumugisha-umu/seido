@@ -140,7 +140,7 @@ export const SignupSuccessModal = ({
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent
         className="max-w-2xl"
         showCloseButton={false}
@@ -215,6 +215,6 @@ export const SignupSuccessModal = ({
       onInstallSuccess={handlePWAInstallSuccess}
       onDismiss={handlePWADismiss}
     />
-  </>
+    </>
   )
 }

@@ -25,11 +25,7 @@ import {
   Building2,
   Home,
   Wrench,
-  Bell,
 } from "lucide-react"
-import { PushNotificationToggle } from "@/components/push-notification-toggle"
-import { TestNotificationsPanel } from "@/components/test-notifications-panel"
-import { InstallPWAButton } from "@/components/install-pwa-button"
 
 interface ProfilePageProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
@@ -413,28 +409,6 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
               </div>
             </CardContent>
           </Card>
-
-          {/* Notifications push */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Préférences de notifications
-              </CardTitle>
-              <CardDescription>
-                Activez les notifications push pour recevoir des alertes en temps réel sur cet appareil.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PushNotificationToggle userId={user.id} />
-            </CardContent>
-          </Card>
-
-          {/* Test notifications push */}
-          <TestNotificationsPanel />
-
-          {/* Installation PWA */}
-          <InstallPWAButton />
 
           {/* Modals de sécurité */}
           <ChangePasswordModal

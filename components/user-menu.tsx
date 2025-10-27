@@ -47,6 +47,10 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
     router.push(`/${role}/profile`)
   }
 
+  const handleSettings = () => {
+    router.push(`/${role}/parametres`)
+  }
+
   const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
@@ -92,7 +96,7 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
           <span>Mon profil</span>
         </DropdownMenuItem>
         
-        <DropdownMenuItem className="cursor-pointer">
+        <DropdownMenuItem onClick={handleSettings} className="cursor-pointer">
           <Settings className="mr-2 h-4 w-4" />
           <span>Paramètres</span>
         </DropdownMenuItem>

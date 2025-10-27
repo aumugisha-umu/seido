@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { notificationActionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { sendPushNotification } from '@/lib/send-push-notification'
 
 export async function GET(request: NextRequest) {
   try {
@@ -189,6 +190,37 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create notification' },
         { status: 500 }
       )
+    }
+
+    // ✨ Send push notification if personal notification
+    if (is_personal && notification) {
+      logger.info({ userId: user_id, notificationId: notification.id, type }, '📲 [NOTIFICATIONS-API] Sending push notification')
+
+      // Construct URL based on notification type
+      let url = '/'
+      if (type === 'intervention' && related_entity_id) {
+        url = `/gestionnaire/interventions/${related_entity_id}`
+      } else if (type === 'assignment' && related_entity_id) {
+        url = `/prestataire/interventions/${related_entity_id}`
+      } else if (type === 'quote_request' && related_entity_id) {
+        url = `/prestataire/interventions/${related_entity_id}`
+      } else if (type === 'quote_response' && related_entity_id) {
+        url = `/gestionnaire/interventions/${related_entity_id}`
+      } else {
+        // Default to notifications page
+        url = '/notifications'
+      }
+
+      // Fire and forget - don't await to avoid blocking response
+      sendPushNotification(user_id, {
+        title,
+        message,
+        url,
+        notificationId: notification.id,
+        type
+      }).catch((error) => {
+        logger.error({ error, userId: user_id, notificationId: notification.id }, '❌ [NOTIFICATIONS-API] Push notification failed')
+      })
     }
 
     return NextResponse.json({

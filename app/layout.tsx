@@ -10,12 +10,36 @@ import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
 import LoggerInitializer from "@/components/logger-initializer"
+import { PWARegister } from "@/components/pwa-register"
 import "./globals.css"
 
 export const metadata: Metadata = {
   title: "SEIDO - Gestion Immobilière",
-  description: "Plateforme de gestion immobilière multi-rôles pour propriétaires, locataires et prestataires",
+  description: "Plateforme de gestion immobilière multi-rôles pour propriétaires, gestionnaires, locataires et prestataires",
   generator: "v0.app",
+  manifest: '/manifest.json',
+  themeColor: '#1e40af',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'SEIDO'
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/icons/icon-152x152.png', sizes: '152x152', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }
+    ]
+  }
 }
 
 export default function RootLayout({
@@ -25,10 +49,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body 
+      <body
         className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
         suppressHydrationWarning={true}
       >
+        <PWARegister />
         <LoggerInitializer />
         <EnvironmentLogger />
         <AuthProvider>

@@ -14,6 +14,7 @@ import { InterventionsList } from "@/components/interventions/interventions-list
 import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
 import TenantHeaderV1 from "@/components/ui-proposals/tenant-header-v1"
 import { logger } from '@/lib/logger'
+import { PWADashboardPrompt } from '@/components/pwa/pwa-dashboard-prompt'
 
 export default function LocataireDashboard() {
   const { user } = useAuth()
@@ -225,6 +226,9 @@ export default function LocataireDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
+      <PWADashboardPrompt />
+
       {/* Header avec informations du logement - Version 1 Ultra-Compact */}
       <TenantHeaderV1
         lotReference={tenantData.reference || ''}

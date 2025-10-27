@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'SEIDO - Gestion Immobilière',
     short_name: 'SEIDO',
     description: 'Plateforme de gestion immobilière multi-rôles pour propriétaires, gestionnaires, locataires et prestataires',
-    start_url: '/',
+    start_url: '/auth/login',
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#1e40af',

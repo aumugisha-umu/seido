@@ -20,6 +20,7 @@ import { InterventionCancellationProvider } from "@/contexts/intervention-cancel
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
 import { logger, logError } from '@/lib/logger'
+import { PWADashboardPrompt } from '@/components/pwa/pwa-dashboard-prompt'
 export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
@@ -208,6 +209,9 @@ export default function PrestataireDashboard() {
 
   return (
     <InterventionCancellationProvider>
+      {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
+      <PWADashboardPrompt />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Page Header - Simple et centré */}
         <div className="text-center lg:text-left mb-8">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { CheckCircle, Building2, Users, Wrench, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +13,8 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { PWAInstallPromptModal } from '@/components/pwa/pwa-install-prompt-modal'
+import { logger } from '@/lib/logger'
 
 interface SignupSuccessModalProps {
   isOpen: boolean
@@ -37,6 +40,19 @@ export const SignupSuccessModal = ({
   onContinue
 }: SignupSuccessModalProps) => {
   const router = useRouter()
+  const [showPWAPrompt, setShowPWAPrompt] = useState(false)
+
+  // 📱 PWA: Déclencher automatiquement le prompt après 2 secondes
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        logger.info('📱 [SIGNUP-SUCCESS] Triggering PWA prompt after 2 seconds')
+        setShowPWAPrompt(true)
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen])
 
   const handleContinue = () => {
     if (onContinue) {
@@ -44,6 +60,14 @@ export const SignupSuccessModal = ({
     } else {
       router.push(dashboardPath)
     }
+  }
+
+  const handlePWAInstallSuccess = (notificationsEnabled: boolean) => {
+    logger.info('✅ [SIGNUP-SUCCESS] PWA installed successfully', { notificationsEnabled })
+  }
+
+  const handlePWADismiss = () => {
+    logger.info('❌ [SIGNUP-SUCCESS] PWA prompt dismissed by user')
   }
 
   // Prochaines étapes selon le rôle
@@ -115,7 +139,8 @@ export const SignupSuccessModal = ({
   const nextSteps = getNextSteps()
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <>
+      <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent
         className="max-w-2xl"
         showCloseButton={false}
@@ -182,5 +207,14 @@ export const SignupSuccessModal = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* 📱 PWA Installation Prompt - Triggered automatically after 2s */}
+    <PWAInstallPromptModal
+      isOpen={showPWAPrompt}
+      onClose={() => setShowPWAPrompt(false)}
+      onInstallSuccess={handlePWAInstallSuccess}
+      onDismiss={handlePWADismiss}
+    />
+    </>
   )
 }

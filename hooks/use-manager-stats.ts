@@ -102,7 +102,7 @@ export function useManagerStats() {
 
       const statsService = createStatsService()
       const result = await statsService.getManagerStats(userId)
-      
+
       if (mountedRef.current) {
         setData(result)
         lastUserIdRef.current = userId
@@ -123,15 +123,19 @@ export function useManagerStats() {
 
   // ✅ OPTIMISÉ: Effect avec debouncing réduit et intégration cache
   useEffect(() => {
+    logger.info("🔍 [MANAGER-STATS] useEffect triggered, user.id:", user?.id)
     if (!user?.id) {
+      logger.info("🔍 [MANAGER-STATS] No user ID, setting loading=false")
       setLoading(false)
       setData(null)
       setError(null)
       return
     }
 
+    logger.info("🔍 [MANAGER-STATS] Scheduling fetchStats for user:", user.id)
     // ✅ OPTIMISATION: Débounce réduit pour une navigation plus réactive
     const timeoutId = setTimeout(() => {
+      logger.info("🔍 [MANAGER-STATS] Calling fetchStats now")
       fetchStats(user.id, false) // Utilisation normale du cache
     }, 100) // Réduit de 300ms à 100ms pour plus de réactivité
 

@@ -13,6 +13,7 @@ import { Building2, Home, UserPlus, Plus, ChevronDown, Wrench } from 'lucide-rea
 import { ContactFormModal } from '@/components/contact-form-modal'
 import { createContactInvitationService } from '@/lib/services'
 import { logger } from '@/lib/logger'
+import { PWADashboardPrompt } from '@/components/pwa/pwa-dashboard-prompt'
 interface DashboardClientProps {
   teamId: string
 }
@@ -84,6 +85,9 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
 
   return (
     <>
+      {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
+      <PWADashboardPrompt />
+
       {/* Actions rapides */}
       <div className="flex items-center gap-2">
         {/* Menu mobile compact */}

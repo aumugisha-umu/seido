@@ -40,6 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 // Custom Components
 import { ChatFileAttachment } from './chat-file-attachment'
 import { AddParticipantButton } from './add-participant-button'
+import { MessageAttachments } from './message-attachments'
 
 // Hooks
 import { useChatUpload } from '@/hooks/use-chat-upload'
@@ -131,6 +132,19 @@ function MessageBubble({
           <p className="text-sm whitespace-pre-wrap break-words">
             {message.content}
           </p>
+
+          {/* Display attachments if present */}
+          {message.metadata && typeof message.metadata === 'object' && 'attachments' in message.metadata && Array.isArray(message.metadata.attachments) && message.metadata.attachments.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-current/20">
+              <Badge
+                variant={isOwn ? "secondary" : "default"}
+                className="text-xs gap-1"
+              >
+                <Paperclip className="w-3 h-3" />
+                {message.metadata.attachments.length} fichier{message.metadata.attachments.length > 1 ? 's' : ''}
+              </Badge>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 px-2">

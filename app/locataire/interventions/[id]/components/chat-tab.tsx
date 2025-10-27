@@ -1,14 +1,14 @@
 'use client'
 
 /**
- * Chat Tab Component for Prestataire
- * Manages conversation threads for providers
+ * Chat Tab Component for Locataire
+ * Manages conversation threads for tenants
  */
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MessageSquare, Users, Briefcase } from 'lucide-react'
+import { MessageSquare, Users, Shield } from 'lucide-react'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { sendMessageAction } from '@/app/actions/conversation-actions'
 import { toast } from 'sonner'
@@ -30,11 +30,11 @@ const threadConfig = {
     icon: Users,
     color: 'bg-blue-100 text-blue-800'
   },
-  'provider_to_managers': {
-    label: 'Prestataire ↔ Gestionnaires',
+  'tenant_to_managers': {
+    label: 'Locataire ↔ Gestionnaires',
     description: 'Conversation privée avec les gestionnaires',
-    icon: Briefcase,
-    color: 'bg-purple-100 text-purple-800'
+    icon: Shield,
+    color: 'bg-green-100 text-green-800'
   }
 }
 
@@ -63,7 +63,7 @@ export function ChatTab({ interventionId, threads, currentUserId, userRole }: Ch
             Aucune conversation
           </p>
           <p className="text-sm text-muted-foreground text-center max-w-md">
-            Les conversations seront disponibles une fois l'intervention planifiée.
+            Les conversations seront disponibles une fois votre demande validée.
           </p>
         </CardContent>
       </Card>

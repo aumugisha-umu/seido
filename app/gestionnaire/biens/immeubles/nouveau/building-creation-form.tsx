@@ -613,6 +613,7 @@ export default function NewImmeubleePage({
         rooms: undefined, // Peut etre ajoute plus tard
         charges_amount: undefined, // Charges amount removed
         category: lot.category,
+        description: lot.description?.trim() || undefined,
       }))
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)

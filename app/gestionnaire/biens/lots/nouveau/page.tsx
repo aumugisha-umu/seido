@@ -678,6 +678,7 @@ export default function NewLotPage() {
               floor: parseInt(String(lot.floor)) || 0,
               apartment_number: lot.doorNumber || null,
               category: lot.category,
+              description: lot.description || null,
               team_id: userTeam.id,
             }
 
@@ -774,11 +775,11 @@ export default function NewLotPage() {
       logger.info("🚀 Creating lot with data:", lotData)
       
       const lotDataToCreate = {
-        reference: lotData.buildingAssociation === "independent" 
+        reference: lotData.buildingAssociation === "independent"
           ? (lotData.generalBuildingInfo?.name || `Lot ${Date.now()}`)
           : (lotData.reference || `Lot ${Date.now()}`),
-        building_id: (lotData.buildingAssociation === "existing" && lotData.selectedBuilding) 
-          ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as {id: string})?.id) 
+        building_id: (lotData.buildingAssociation === "existing" && lotData.selectedBuilding)
+          ? (typeof lotData.selectedBuilding === 'string' ? lotData.selectedBuilding : (lotData.selectedBuilding as {id: string})?.id)
           : null,
         floor: lotData.buildingAssociation === "independent"
           ? (lotData.generalBuildingInfo?.floor ? parseInt(String(lotData.generalBuildingInfo.floor)) : 0)
@@ -789,6 +790,9 @@ export default function NewLotPage() {
         category: lotData.buildingAssociation === "independent"
           ? (lotData.generalBuildingInfo?.category || lotData.category)
           : lotData.category,
+        description: lotData.buildingAssociation === "independent"
+          ? (lotData.generalBuildingInfo?.description || null)
+          : (lotData.description || null),
         team_id: userTeam.id,
         // Note: surface_area et rooms supprimés - colonnes inexistantes dans la DB
       }

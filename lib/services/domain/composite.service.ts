@@ -93,6 +93,7 @@ export interface CreateCompletePropertyData {
     rooms?: number
     charges_amount?: number
     category: string
+    description?: string
   }>
   buildingContacts?: Array<{
     id: string

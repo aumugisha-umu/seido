@@ -77,9 +77,9 @@ export default async function LotDetailsPage({
     const interventionService = await createServerInterventionService()
     const lotContactRepository = await createServerLotContactRepository()
 
-    // Load lot data
-    logger.info('📍 [LOT-PAGE-SERVER] Step 1: Loading lot...', { lotId: id })
-    const lotResult = await lotService.getById(id)
+    // Load lot data WITH relations (building, etc.)
+    logger.info('📍 [LOT-PAGE-SERVER] Step 1: Loading lot with relations...', { lotId: id })
+    const lotResult = await lotService.getByIdWithRelations(id)
 
     if (!lotResult.success || !lotResult.data) {
       logger.error('❌ [LOT-PAGE-SERVER] Lot not found', {

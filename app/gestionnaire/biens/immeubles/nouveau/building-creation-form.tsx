@@ -398,16 +398,10 @@ export default function NewImmeubleePage({
   const duplicateLot = (_id: string) => {
     const lotToDuplicate = lots.find((lot) => lot.id === _id)
     if (lotToDuplicate) {
-      // Generer la reference basee sur la categorie du lot duplique
-      const category = lotToDuplicate.category || "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + lots.filter(lot => lot.category === category).length + 1
-
       const newLot: Lot = {
         ...lotToDuplicate,
         id: `lot${Date.now()}`,
-        reference: `${categoryConfig.label} ${nextNumber}`,
+        reference: `${lotToDuplicate.reference} (copie)`,
       }
       // Ajouter le lot duplique en haut de la liste
       setLots([newLot, ...lots])
@@ -619,6 +613,7 @@ export default function NewImmeubleePage({
         rooms: undefined, // Peut etre ajoute plus tard
         charges_amount: undefined, // Charges amount removed
         category: lot.category,
+        description: lot.description?.trim() || undefined,
       }))
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)

@@ -103,8 +103,12 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem 
-          onClick={handleLogout} 
+        <DropdownMenuItem
+          onSelect={(event) => {
+            // Empêcher la fermeture automatique du dropdown pendant la déconnexion
+            event.preventDefault()
+            handleLogout()
+          }}
           className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
         >
           <LogOut className="mr-2 h-4 w-4" />

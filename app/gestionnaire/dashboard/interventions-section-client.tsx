@@ -1,6 +1,6 @@
 "use client"
 
-import { Wrench, Clock, Archive, Plus } from "lucide-react"
+import { Wrench, Clock, Archive, Plus, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
@@ -10,7 +10,6 @@ import { logger } from '@/lib/logger'
 
 interface InterventionsSectionClientProps {
   interventions: any[]
-  totalCount: number
   actionHooks?: {
     approvalHook?: any
     quotingHook?: any
@@ -20,7 +19,7 @@ interface InterventionsSectionClientProps {
   }
 }
 
-export function InterventionsSectionClient({ interventions, totalCount, actionHooks }: InterventionsSectionClientProps) {
+export function InterventionsSectionClient({ interventions, actionHooks }: InterventionsSectionClientProps) {
   // Transform interventions to format expected by InterventionsList
   const transformedInterventions = interventions.map((intervention) => ({
     ...intervention,
@@ -68,7 +67,7 @@ export function InterventionsSectionClient({ interventions, totalCount, actionHo
             ? "Les interventions actives apparaîtront ici"
             : "Les interventions terminées apparaîtront ici",
           showCreateButton: tabId === "en_cours",
-          createButtonText: "Créer une intervention",
+          createButtonText: "Ajouter une intervention",
           createButtonAction: () => window.location.href = '/gestionnaire/interventions/nouvelle-intervention'
         }}
         showStatusActions={true}
@@ -101,28 +100,29 @@ export function InterventionsSectionClient({ interventions, totalCount, actionHo
       {/* ContentNavigator avec header personnalisé via wrapper */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
         {/* Header avec titre et boutons */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-          <div className="flex items-center space-x-2">
-            <Wrench className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              Interventions ({totalCount} au total)
-            </h2>
-          </div>
+        <div className="flex items-center justify-between gap-3 px-3 py-2 sm:px-6 sm:py-3">
           <div className="flex items-center gap-2">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Link href="/gestionnaire/interventions/nouvelle-intervention">
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter une intervention
+            <Wrench className="h-5 w-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Interventions</h2>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3">
+              <Link href="/gestionnaire/interventions/nouvelle-intervention" className="flex items-center">
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Ajouter une intervention</span>
               </Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/gestionnaire/interventions">Voir toutes →</Link>
+            <Button asChild variant="outline" size="sm" className="flex-shrink-0 h-8 px-3">
+              <Link href="/gestionnaire/interventions" className="flex items-center">
+                <ArrowRight className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline text-xs">Voir toutes</span>
+              </Link>
             </Button>
           </div>
         </div>
 
         {/* ContentNavigator (retire sa propre Card via className) */}
-        <div className="px-6 pb-6">
+        <div className="px-3 pb-3 sm:px-6 sm:pb-4">
           <ContentNavigator
             tabs={interventionsTabsConfig}
             defaultTab="en_cours"

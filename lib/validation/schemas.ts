@@ -235,7 +235,7 @@ export const createContactSchema = z.object({
   role: z.enum(['gestionnaire', 'locataire', 'prestataire'], {
     errorMap: () => ({ message: 'Invalid contact role' })
   }),
-  provider_category: z.enum(['syndic', 'notaire', 'assurance', 'proprietaire', 'prestataire', 'autre']).optional().nullable(),
+  provider_category: z.enum(['proprietaire', 'prestataire', 'autre']).optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
   team_id: uuidSchema,
   is_active: z.boolean().optional().default(true),
@@ -312,10 +312,14 @@ export const createManagerInterventionSchema = z.object({
 
   // Scheduling
   schedulingType: z.enum(['none', 'fixed', 'flexible']).optional(),
-  fixedDateTime: dateStringSchema.optional().nullable(),
+  fixedDateTime: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+    time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
+  }).optional().nullable(),
   timeSlots: z.array(z.object({
-    start: dateStringSchema,
-    end: dateStringSchema,
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Start time must be HH:MM'),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/, 'End time must be HH:MM'),
   })).optional(),
 
   // Options

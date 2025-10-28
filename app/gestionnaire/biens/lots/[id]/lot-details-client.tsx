@@ -17,6 +17,20 @@ import { logger } from '@/lib/logger'
 import { deleteLotAction } from './actions'
 import type { Lot } from '@/lib/services'
 
+// Helper function to get French label for lot category
+function getCategoryLabel(category: string): string {
+  const categoryLabels: Record<string, string> = {
+    'appartement': 'Appartement',
+    'collocation': 'Collocation',
+    'maison': 'Maison',
+    'garage': 'Garage',
+    'local_commercial': 'Local commercial',
+    'parking': 'Parking',
+    'autre': 'Autre'
+  }
+  return categoryLabels[category] || category
+}
+
 interface LotContact {
   id: string
   user_id: string
@@ -197,7 +211,7 @@ export default function LotDetailsClient({
   const handleCustomAction = (actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
-        router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
+        router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)
         break
       default:
         logger.info("Action not implemented:", actionKey)
@@ -300,7 +314,7 @@ export default function LotDetailsClient({
       {/* Tab Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-6">
             {/* Lot Information */}
             <Card>
               <CardHeader>
@@ -311,24 +325,61 @@ export default function LotDetailsClient({
                   <span className="text-gray-600">Référence</span>
                   <span className="font-medium">{lot.reference}</span>
                 </div>
+                {/* Category */}
+                {lot.category && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Catégorie</span>
+                    <span className="font-medium">{getCategoryLabel(lot.category)}</span>
+                  </div>
+                )}
+
+                {/* Parent Building */}
+                {lot.building && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Immeuble</span>
+                    <span className="font-medium">{lot.building.name}</span>
+                  </div>
+                )}
+
+                {/* Complete Address */}
+                {(() => {
+                  let address = ""
+                  if (lot.building) {
+                    // Lot in building: use building address
+                    address = [lot.building.address, lot.building.city].filter(Boolean).join(", ")
+                  } else if (lot.street || lot.city) {
+                    // Independent lot: use lot address
+                    address = [lot.street, lot.postal_code, lot.city].filter(Boolean).join(", ")
+                  }
+                  return address && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Adresse</span>
+                      <span className="font-medium text-sm text-right">{address}</span>
+                    </div>
+                  )
+                })()}
+
                 {lot.apartment_number && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Numéro d'appartement</span>
+                    <span className="text-gray-600">Numéro de porte</span>
                     <span className="font-medium">{lot.apartment_number}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Surface</span>
-                  <span className="font-medium">{lot.surface_area ? `${lot.surface_area} m²` : "Non défini"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Nombre de pièces</span>
-                  <span className="font-medium">{lot.rooms ?? "Non défini"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Étage</span>
-                  <span className="font-medium">{lot.floor ?? "Non défini"}</span>
-                </div>
+
+                {lot.floor !== null && lot.floor !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Étage</span>
+                    <span className="font-medium">{lot.floor}</span>
+                  </div>
+                )}
+
+                {/* Description */}
+                {lot.description && (
+                  <div className="flex flex-col gap-2 pt-2 border-t">
+                    <span className="text-gray-600">Description</span>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{lot.description}</p>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Statut d'occupation</span>
                   <span className="font-medium">
@@ -410,38 +461,6 @@ export default function LotDetailsClient({
                 </CardContent>
               </Card>
             )}
-
-            {/* Interventions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Interventions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total</span>
-                  <span className="font-medium">{interventionStats.total}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">En attente</span>
-                  <span className="font-medium text-orange-600">{interventionStats.pending}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">En cours</span>
-                  <span className="font-medium text-blue-600">{interventionStats.inProgress}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Terminées</span>
-                  <span className="font-medium text-green-600">{interventionStats.completed}</span>
-                </div>
-                <Button
-                  className="w-full mt-4"
-                  onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer une intervention
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         )}
 
@@ -492,7 +511,7 @@ export default function LotDetailsClient({
                 <Wrench className="h-5 w-5 mr-2 text-gray-400" />
                 Interventions ({interventionStats.total})
               </h2>
-              <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}>
+              <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Créer une intervention
               </Button>
@@ -586,7 +605,7 @@ export default function LotDetailsClient({
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
                 <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour ce lot.</p>
-                <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}>
+                <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
                 </Button>

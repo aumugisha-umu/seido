@@ -636,12 +636,25 @@ export default function NouvelleDemandePage() {
     </Card>
   )
 
+  // Calculer le subtitle pour afficher le bien sélectionné (à partir de l'étape 2)
+  const getHeaderSubtitle = () => {
+    if (currentStep < 2 || !selectedLogement) return undefined
+
+    const selectedLot = logements.find(lot => lot.id === selectedLogement)
+    if (selectedLot) {
+      return `📍 ${selectedLot.name}`
+    }
+
+    return undefined
+  }
+
   // Structure unifiée pour tous les steps
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Déclarer un sinistre"
+        subtitle={getHeaderSubtitle()}
         backButtonText="Retour au tableau de bord"
         onBack={() => router.push("/locataire/dashboard")}
         steps={steps}

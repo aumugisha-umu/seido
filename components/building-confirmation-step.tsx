@@ -366,7 +366,7 @@ export function BuildingConfirmationStep({
       {lots.length > 0 && (
         <>
           <div className="flex items-center gap-2 px-1">
-            <h3 className="text-sm font-semibold text-gray-900">Lots configures</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Lots</h3>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
               {lots.length}
             </Badge>

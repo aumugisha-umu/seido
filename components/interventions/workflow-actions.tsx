@@ -100,7 +100,7 @@ const WORKFLOW_ACTIONS = {
   startWork: {
     icon: Play,
     label: 'Démarrer les travaux',
-    color: 'bg-indigo-500',
+    color: 'bg-blue-600',
     nextStatus: 'en_cours' as InterventionStatus
   },
   completeWork: {

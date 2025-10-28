@@ -158,7 +158,7 @@ Améliorer l'UX de l'étape 2 (configuration des lots) pour résoudre les probl�
   <Card className="bg-gradient-to-r from-blue-50">
     <CardContent>
       <Button>Ajouter un lot</Button>
-      <Stats>{lots.length} lots configurés</Stats>
+      <Stats>{lots.length} lots </Stats>
     </CardContent>
   </Card>
 

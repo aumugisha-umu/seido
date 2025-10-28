@@ -19,6 +19,7 @@ import { sendMessageAction } from '@/app/actions/conversation-actions'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 import { truncateMessage, formatRelativeTime } from '@/lib/utils/chat-helpers'
+import { getConversationShortLabel } from '@/lib/utils/conversation-display'
 
 type Thread = Database['public']['Tables']['conversation_threads']['Row'] & {
   unread_count?: number  // Added by conversation service
@@ -257,7 +258,7 @@ export function InterventionChatTab({
                         {/* Header: Titre + Timestamp */}
                         <div className="flex items-baseline justify-between gap-2">
                           <p className="text-sm font-medium truncate">
-                            {threadConfig?.label || thread.title || 'Conversation'}
+                            {getConversationShortLabel(thread.thread_type, userRole)}
                           </p>
                           {thread.last_message?.[0] && (
                             <span className="text-xs text-muted-foreground flex-shrink-0">

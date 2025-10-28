@@ -131,10 +131,10 @@ export const InterventionDetailHeader = ({
           icon: Clock 
         }
       case "en cours":
-        return { 
-          color: "bg-indigo-100 text-indigo-800 border-indigo-200", 
-          dot: "bg-indigo-500",
-          icon: Play 
+        return {
+          color: "bg-blue-100 text-blue-800 border-blue-200",
+          dot: "bg-blue-600",
+          icon: Play
         }
       case "cloturée par prestataire":
       case "terminé":

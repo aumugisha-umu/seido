@@ -113,8 +113,8 @@ export const ContactDetailHeader = ({
         }
       case "notaire":
         return {
-          color: "bg-indigo-100 text-indigo-800 border-indigo-200",
-          dot: "bg-indigo-500",
+          color: "bg-blue-100 text-blue-800 border-blue-200",
+          dot: "bg-blue-600",
           label: "Notaire",
         }
       case "assurance":

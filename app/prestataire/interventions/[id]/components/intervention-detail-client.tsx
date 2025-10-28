@@ -72,7 +72,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   'demande_de_devis': { label: 'Devis demandé', color: 'bg-yellow-100 text-yellow-800' },
   'planification': { label: 'Planification', color: 'bg-blue-100 text-blue-800' },
   'planifiee': { label: 'Planifiée', color: 'bg-blue-100 text-blue-800' },
-  'en_cours': { label: 'En cours', color: 'bg-indigo-100 text-indigo-800' },
+  'en_cours': { label: 'En cours', color: 'bg-blue-100 text-blue-800' },
   'cloturee_par_prestataire': { label: 'Terminée (prestataire)', color: 'bg-purple-100 text-purple-800' },
   'cloturee_par_locataire': { label: 'Validée (locataire)', color: 'bg-purple-100 text-purple-800' },
   'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-gray-100 text-gray-800' },

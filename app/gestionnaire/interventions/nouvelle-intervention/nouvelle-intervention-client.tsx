@@ -108,7 +108,7 @@ export default function NouvelleInterventionClient({
   const [formData, setFormData] = useState({
     title: "",
     type: "",
-    urgency: "",
+    urgency: "normale", // ✅ Valeur par défaut requise
     description: "",
     availabilities: [] as Array<{ date: string; startTime: string; endTime: string }>,
   })
@@ -402,6 +402,35 @@ export default function NouvelleInterventionClient({
     }
   }, [])
 
+  // ✅ NEW: Pré-remplissage depuis lot/immeuble (gestionnaire)
+  useEffect(() => {
+    if (!services) {
+      logger.info("⏳ Services not ready, cannot pre-fill lot/building")
+      return
+    }
+
+    if (isPreFilled) return // Prevent re-execution if already pre-filled
+
+    const lotId = searchParams.get("lotId")
+    const buildingId = searchParams.get("buildingId")
+
+    if (lotId) {
+      // Pré-remplir avec un lot spécifique
+      logger.info("🏠 [PRE-FILL] Pre-filling with lot:", lotId)
+      loadSpecificLot(lotId) // Cette fonction passe déjà à l'étape 2
+      setIsPreFilled(true)
+    } else if (buildingId) {
+      // Pré-remplir avec un immeuble spécifique
+      logger.info("🏢 [PRE-FILL] Pre-filling with building:", buildingId)
+      handleBuildingSelect(buildingId).then(() => {
+        // Passer à l'étape 2 après avoir chargé l'immeuble
+        setCurrentStep(2)
+        logger.info("✅ [PRE-FILL] Building selected, moved to step 2")
+      })
+      setIsPreFilled(true)
+    }
+  }, [services, searchParams, isPreFilled])
+
   const getRelatedContacts = () => {
     return [...managers, ...providers]
   }
@@ -480,37 +509,51 @@ export default function NouvelleInterventionClient({
     })
   }
 
-  const handleContactCreated = (_newContact: unknown) => {
+  const handleContactCreated = (newContact: unknown) => {
+    // Vérification de sécurité
+    if (!newContact || typeof newContact !== 'object') {
+      logger.error("❌ Contact invalide reçu:", newContact)
+      return
+    }
+
     // Ajouter le nouveau contact à la liste appropriée (nouvelle architecture)
-    logger.info("🆕 Contact créé:", { id: newContact.id, name: newContact.name, role: newContact.role, provider_category: newContact.provider_category })
+    logger.info("🆕 Contact créé:", { id: (newContact as any).id, name: (newContact as any).name, role: (newContact as any).role, provider_category: (newContact as any).provider_category })
     const assignmentType = determineAssignmentType(newContact)
     logger.info("🔍 AssignmentType déterminé:", assignmentType)
     
+    const contact = newContact as any // Cast pour accéder aux propriétés
+
     if (assignmentType === 'manager') {
       const managerData = {
-        id: newContact.id,
-        name: newContact.name,
+        id: contact.id,
+        name: contact.name,
         role: "Gestionnaire",
-        email: newContact.email,
-        phone: newContact.phone,
-        isCurrentUser: newContact.email === user?.email,
+        email: contact.email,
+        phone: contact.phone,
+        isCurrentUser: contact.email === user?.email,
         type: "gestionnaire",
       }
       logger.info("➕ Ajout du gestionnaire à la liste:", managerData.name)
       setManagers((prev) => [...prev, managerData])
+      // ✅ Auto-sélectionner le gestionnaire créé
+      setSelectedManagerIds((prev) => [...prev, String(contact.id)])
+      logger.info("✅ Gestionnaire auto-sélectionné:", contact.id)
     } else if (assignmentType === 'provider') {
       const providerData = {
-        id: newContact.id,
-        name: newContact.name,
+        id: contact.id,
+        name: contact.name,
         role: "Prestataire",
-        email: newContact.email,
-        phone: newContact.phone,
-        speciality: newContact.speciality,
+        email: contact.email,
+        phone: contact.phone,
+        speciality: contact.speciality,
         isCurrentUser: false,
         type: "prestataire",
       }
       logger.info("➕ Ajout du prestataire à la liste:", providerData.name)
       setProviders((prev) => [...prev, providerData])
+      // ✅ Auto-sélectionner le prestataire créé
+      setSelectedProviderIds((prev) => [...prev, String(contact.id)])
+      logger.info("✅ Prestataire auto-sélectionné:", contact.id)
     } else {
       logger.info("⚠️ Contact créé mais pas ajouté aux listes (assignmentType non géré):", assignmentType)
     }
@@ -682,7 +725,10 @@ export default function NouvelleInterventionClient({
         if (!formData.description?.trim()) {
           errors.push("La description est requise")
         }
-        // urgency et type sont optionnels selon le schéma (urgency a un défaut)
+        if (!formData.urgency?.trim()) {
+          errors.push("L'urgence est requise")
+        }
+        // type est optionnel selon le schéma
         break
 
       case 3: // Contacts
@@ -752,11 +798,23 @@ export default function NouvelleInterventionClient({
       const normalizedSelectedBuildingId = normalizeIdValue(selectedBuildingId)
       const normalizedSelectedLotId = normalizeIdValue(selectedLotId)
 
+      // 🔍 DEBUG: Log scheduling state before building payload
+      console.log('🔍 [CLIENT-DEBUG] Scheduling state before submission:', {
+        schedulingType,
+        fixedDateTime,
+        fixedDateTimeDate: fixedDateTime.date,
+        fixedDateTimeTime: fixedDateTime.time,
+        fixedDateTimeHasDate: !!fixedDateTime.date,
+        fixedDateTimeHasTime: !!fixedDateTime.time,
+        timeSlots,
+        timeSlotsLength: timeSlots.length
+      })
+
       const interventionData = {
         // Basic intervention data
         title: formData.title,
         description: formData.description,
-        type: formData.type,
+        type: formData.type || undefined, // ✅ undefined si vide (optionnel)
         urgency: formData.urgency,
 
         // Housing selection
@@ -768,15 +826,16 @@ export default function NouvelleInterventionClient({
         selectedManagerIds,
         selectedProviderIds,
 
-        // Scheduling - Convert to ISO 8601 strings for Zod validation
-        schedulingType,
+        // Scheduling - Map client types to API types and send raw format
+        schedulingType: schedulingType === 'slots' ? 'flexible' : schedulingType === 'flexible' ? 'none' : schedulingType,
         fixedDateTime: schedulingType === 'fixed' && fixedDateTime.date && fixedDateTime.time
-          ? new Date(`${fixedDateTime.date}T${fixedDateTime.time}:00`).toISOString()
+          ? { date: fixedDateTime.date, time: fixedDateTime.time }
           : null,
         timeSlots: schedulingType === 'slots'
           ? timeSlots.map(slot => ({
-              start: new Date(`${slot.date}T${slot.startTime}:00`).toISOString(),
-              end: new Date(`${slot.date}T${slot.endTime}:00`).toISOString()
+              date: slot.date,
+              startTime: slot.startTime,
+              endTime: slot.endTime
             }))
           : [],
         
@@ -796,7 +855,7 @@ export default function NouvelleInterventionClient({
         })),
         
         // Team context
-        teamId: currentUserTeam?.id
+        teamId: currentUserTeam?.id || initialBuildingsData.teamId
       }
 
       logger.info("📝 Sending intervention data:", interventionData)
@@ -808,6 +867,12 @@ export default function NouvelleInterventionClient({
         providerIds: selectedProviderIds,
         providerIdTypes: selectedProviderIds.map(id => typeof id),
         expectsQuote
+      })
+      logger.info("🔍 [CLIENT-DEBUG] Scheduling payload being sent:", {
+        schedulingType: interventionData.schedulingType,
+        fixedDateTime: interventionData.fixedDateTime,
+        timeSlots: interventionData.timeSlots,
+        timeSlotsLength: interventionData.timeSlots?.length
       })
 
       // Call the API
@@ -862,11 +927,25 @@ export default function NouvelleInterventionClient({
     router.push(path)
   }
 
+  // Calculer le subtitle pour afficher le bien sélectionné (à partir de l'étape 2)
+  const getHeaderSubtitle = () => {
+    if (currentStep < 2 || !selectedLogement) return undefined
+
+    if (selectedLogement.type === "lot") {
+      return `📍 ${selectedLogement.name || "Lot sélectionné"}`
+    } else if (selectedLogement.type === "building") {
+      return `🏢 ${selectedLogement.name || "Immeuble sélectionné"}`
+    }
+
+    return undefined
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Créer une intervention"
+        subtitle={getHeaderSubtitle()}
         backButtonText="Retour aux interventions"
         onBack={() => router.back()}
         steps={interventionSteps}
@@ -939,7 +1018,9 @@ export default function NouvelleInterventionClient({
                       </div>
 
                       <div className="min-w-0">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Urgence</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Urgence <span className="text-red-500">*</span>
+                        </label>
                         <Select
                           value={formData.urgency}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, urgency: value }))}
@@ -1048,7 +1129,11 @@ export default function NouvelleInterventionClient({
               onIndividualMessageChange={(contactId, message) => {
                 setIndividualMessages(prev => ({...prev, [contactId]: message}))
               }}
-              teamId={currentUserTeam?.id || ""}
+              teamId={(() => {
+                const finalTeamId = currentUserTeam?.id || initialBuildingsData.teamId || ""
+                logger.info(`🔍 [INTERVENTION-CLIENT] Passing teamId to ContactSelector: "${finalTeamId}" (currentUserTeam: ${currentUserTeam?.id}, initialData: ${initialBuildingsData.teamId})`)
+                return finalTeamId
+              })()}
               isLoading={loading}
             />
           </Card>
@@ -1312,11 +1397,11 @@ export default function NouvelleInterventionClient({
 
                     {/* Instructions */}
                     {(globalMessage || Object.keys(individualMessages).length > 0) && (
-                      <Card className="border-l-4 border-l-indigo-500">
+                      <Card className="border-l-4 border-l-blue-600">
                         <CardContent className="p-6">
                           <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                              <MessageSquare className="h-5 w-5 text-indigo-600" />
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <MessageSquare className="h-5 w-5 text-blue-600" />
                             </div>
                             <div>
                               <h3 className="font-semibold text-gray-900">Instructions</h3>
@@ -1327,10 +1412,10 @@ export default function NouvelleInterventionClient({
                             {messageType === "global" && globalMessage && (
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                  <MessageSquare className="h-4 w-4 text-blue-600" />
                                   <span className="font-medium">Message global:</span>
                                 </div>
-                                <div className="bg-white p-3 rounded border-l-4 border-l-indigo-500">
+                                <div className="bg-white p-3 rounded border-l-4 border-l-blue-600">
                                   <p className="text-gray-900">{globalMessage}</p>
                                   <p className="text-xs text-gray-500 mt-2">
                                     Ce message sera visible par tous les assignés (non visible par le locataire)
@@ -1341,7 +1426,7 @@ export default function NouvelleInterventionClient({
                             {messageType === "individual" && Object.keys(individualMessages).length > 0 && (
                               <div className="space-y-3">
                                 <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                  <MessageSquare className="h-4 w-4 text-blue-600" />
                                   <span className="font-medium">Messages individuels:</span>
                                 </div>
                                 <div className="space-y-2">
@@ -1352,7 +1437,7 @@ export default function NouvelleInterventionClient({
                                     return message ? (
                                       <div
                                         key={contactId}
-                                        className="bg-white p-3 rounded border-l-4 border-l-indigo-500"
+                                        className="bg-white p-3 rounded border-l-4 border-l-blue-600"
                                       >
                                         <div className="flex items-center space-x-2 mb-2">
                                           <span className="font-medium text-gray-900">{contact?.name}:</span>
@@ -1379,10 +1464,10 @@ export default function NouvelleInterventionClient({
                             {getSelectedContacts().length === 1 && globalMessage && (
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                  <MessageSquare className="h-4 w-4 text-blue-600" />
                                   <span className="font-medium">Instructions:</span>
                                 </div>
-                                <div className="bg-white p-3 rounded border-l-4 border-l-indigo-500">
+                                <div className="bg-white p-3 rounded border-l-4 border-l-blue-600">
                                   <p className="text-gray-900">{globalMessage}</p>
                                   <p className="text-xs text-gray-500 mt-2">
                                     Ces instructions ne seront pas vues par le locataire

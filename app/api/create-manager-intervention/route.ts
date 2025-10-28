@@ -84,6 +84,16 @@ export async function POST(request: NextRequest) {
       expectsQuote,
     } = validation.data
 
+    // 🔍 DEBUG: Log validated scheduling data
+    logger.info({
+      schedulingType,
+      fixedDateTime,
+      fixedDateTimeKeys: fixedDateTime ? Object.keys(fixedDateTime) : null,
+      fixedDateTimeValues: fixedDateTime,
+      timeSlots,
+      timeSlotsLength: timeSlots?.length
+    }, "🔍 [DEBUG] Validated scheduling data after Zod")
+
     // Fields not in schema validation (passed through from body)
     const {
       managerAvailabilities,
@@ -561,10 +571,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Handle scheduling slots if provided
-    if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
+    // Handle scheduling slots if provided (flexible = multiple slots)
+    if (schedulingType === 'flexible' && timeSlots && timeSlots.length > 0) {
       logger.info({ count: timeSlots.length }, "📅 Creating time slots")
-      
+
       const timeSlotsToInsert = timeSlots
         .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
         .map((slot: { date: string; startTime: string; endTime: string }) => ({
@@ -585,6 +595,47 @@ export async function POST(request: NextRequest) {
         } else {
           logger.info({ count: timeSlotsToInsert.length }, "✅ Time slots created")
         }
+      }
+    }
+
+    // Handle fixed date/time (create single slot)
+    logger.info({
+      schedulingType,
+      typeCheck: schedulingType === 'fixed',
+      fixedDateTime,
+      hasDate: !!fixedDateTime?.date,
+      hasTime: !!fixedDateTime?.time,
+      conditionResult: schedulingType === 'fixed' && !!fixedDateTime?.date && !!fixedDateTime?.time
+    }, "🔍 [DEBUG] Checking fixed slot creation condition")
+
+    if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
+      // Calculate end_time as start_time + 1 hour (to satisfy valid_time_range constraint)
+      const [hours, minutes] = fixedDateTime.time.split(':').map(Number)
+      const endHour = (hours + 1) % 24 // Wrap around midnight
+      const end_time = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+
+      logger.info({
+        date: fixedDateTime.date,
+        start_time: fixedDateTime.time,
+        end_time,
+        duration: '1 hour'
+      }, "📅 Creating fixed slot with 1-hour default duration")
+
+      const { error: fixedSlotError } = await supabase
+        .from('intervention_time_slots')
+        .insert({
+          intervention_id: intervention.id,
+          slot_date: fixedDateTime.date,
+          start_time: fixedDateTime.time,
+          end_time: end_time, // ✅ 1 hour after start_time
+          is_selected: true, // Pre-selected because it's fixed
+          proposed_by: user.id, // ✅ Set creator as proposer (uses public.users.id, not auth.users.id)
+        })
+
+      if (fixedSlotError) {
+        logger.error({ error: fixedSlotError }, "⚠️ Error creating fixed slot")
+      } else {
+        logger.info("✅ Fixed slot created")
       }
     }
 
@@ -686,8 +737,7 @@ export async function POST(request: NextRequest) {
     if (location) managerCommentParts.push(`Localisation: ${location}`)
     if (expectsQuote) managerCommentParts.push('Devis requis')
     if (globalMessage) managerCommentParts.push(`Instructions: ${globalMessage}`)
-    if (schedulingType === 'flexible') managerCommentParts.push('Horaire flexible')
-    if (schedulingType === 'slots') managerCommentParts.push(`${timeSlots?.length || 0} créneaux proposés`)
+    if (schedulingType === 'flexible') managerCommentParts.push(`${timeSlots?.length || 0} créneaux proposés`)
 
     // Update intervention with additional metadata if needed
     if (managerCommentParts.length > 0) {

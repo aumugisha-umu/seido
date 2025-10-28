@@ -345,7 +345,11 @@ export function ExecutionTab({
                         const isNonCancellable = slot.status === 'selected' || slot.status === 'cancelled'
                         const canCancel = !isNonCancellable
                         const isProposer = currentUserId && slot.proposed_by === currentUserId
-                        const canSelect = canSelectSlot && !isProposer && slot.status !== 'selected' && slot.status !== 'cancelled'
+                        // Fallback: If proposed_by is NULL but slot is selected, check if user is a manager on this intervention
+                        const isFixedSlotCreator = !slot.proposed_by && slot.is_selected &&
+                          intervention.assignments?.some((a: any) => a.user_id === currentUserId && a.role === 'gestionnaire')
+                        const isCreator = isProposer || isFixedSlotCreator
+                        const canSelect = canSelectSlot && !isCreator && slot.status !== 'selected' && slot.status !== 'cancelled'
 
                         return (
                           <div
@@ -520,8 +524,8 @@ export function ExecutionTab({
                                     responsesCount: slot.responses?.length || 0
                                   })
 
-                                  // If user is the proposer: show Modifier + Annuler
-                                  if (isProposer) {
+                                  // If user is the proposer/creator: show Modifier + Annuler
+                                  if (isCreator) {
                                     return (
                                       <div className="flex gap-2 ml-auto">
                                         {slot.status !== 'cancelled' && onOpenProgrammingModal && (

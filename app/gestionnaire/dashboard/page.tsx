@@ -200,16 +200,13 @@ export default async function DashboardGestionnaire() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200"></header>
-
       {/* Main Content */}
-      <div className="py-2">
+      <div className="py-2 px-2 sm:px-4">
         {/* Welcome Message and Quick Actions */}
-        <div className="mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
-              <h1 className="font-bold text-gray-900 mb-[] mt-[] text-3xl">
+              <h1 className="font-bold text-gray-900 mb-[] mt-[] text-2xl sm:text-3xl">
                 Tableau de bord
               </h1>
             </div>
@@ -220,12 +217,12 @@ export default async function DashboardGestionnaire() {
         </div>
 
         {/* Portfolio Overview - Compact V2 */}
-        <div className="mb-8">
+        <div className="mb-4 sm:mb-6">
           <StatsCompactV2 stats={stats} contactStats={contactStats} />
         </div>
 
         {/* Interventions avec tabs (En cours / Terminées) */}
-        <div className="mb-8">
+        <div className="mb-4 sm:mb-6">
           <InterventionsSectionWithModals
             interventions={allInterventions}
             totalCount={stats.interventionsCount}

@@ -46,12 +46,14 @@ export function useCreationSuccess() {
         }
       }
       
-      // 4. Toast après le refresh
-      toast({
-        title: successTitle,
-        description: successDescription,
-        variant: "success",
-      })
+      // 4. Toast après le refresh (seulement si un titre est fourni)
+      if (successTitle) {
+        toast({
+          title: successTitle,
+          description: successDescription,
+          variant: "success",
+        })
+      }
       
       // 5. Hard refresh fallback si nécessaire
       if (!softRefreshSuccess && hardRefreshFallback) {

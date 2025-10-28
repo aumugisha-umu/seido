@@ -7,7 +7,7 @@
 
 import * as React from 'react'
 import { Section, Text, Img } from '@react-email/components'
-import { getLogoBase64 } from '@/emails/utils/assets'
+import { getLogoWebPBase64, getLogoBase64 } from '@/emails/utils/assets'
 
 interface EmailHeaderProps {
   /** Sujet de l'email (affiché sous le logo) */
@@ -15,33 +15,51 @@ interface EmailHeaderProps {
 }
 
 export const EmailHeader = ({ subject }: EmailHeaderProps) => {
-  // Logo encodé en base64 pour garantir l'affichage dans tous les clients email
-  const logoUrl = getLogoBase64()
+  // Logo WebP encodé en base64 (10KB, optimisé pour emails)
+  const logoUrl = getLogoWebPBase64()
+  // Fallback PNG si WebP non supporté (21KB)
+  const logoPngUrl = getLogoBase64()
 
   return (
     <Section
       className="bg-primary rounded-t-lg px-8 py-6"
       style={{ backgroundColor: '#5b8def', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}
     >
-      {/* Layout 2 lignes : Logo centré en haut, Titre centré en dessous */}
+      {/* Layout 2 lignes : Logo + Fallback centré en haut, Titre centré en dessous */}
       <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
-        {/* Ligne 1 : Logo centré */}
+        {/* Ligne 1 : Logo WebP avec fallback texte visible */}
         <tr>
           <td style={{ textAlign: 'center' }}>
+            {/* Logo WebP optimisé (10KB) */}
             <Img
               src={logoUrl}
               alt="SEIDO"
               width="200"
+              height="50"
+              border={0}
               style={{
                 display: 'block',
                 maxHeight: '50px',
                 height: 'auto',
                 width: 'auto',
-                maxWidth: '100%',
-                margin: '0 auto',
-                objectFit: 'contain'
+                maxWidth: '200px',
+                margin: '0 auto'
               }}
             />
+            {/* Fallback texte visible si image bloquée/non chargée */}
+            <Text
+              style={{
+                color: '#ffffff',
+                fontSize: '28px',
+                fontWeight: 'bold',
+                margin: '8px 0 0 0',
+                lineHeight: 1,
+                textAlign: 'center',
+                display: 'block'
+              }}
+            >
+              SEIDO
+            </Text>
           </td>
         </tr>
 

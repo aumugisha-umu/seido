@@ -13,6 +13,7 @@ import LotCard from "@/components/lot-card"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
+import { BuildingContactsTab } from "@/components/building-contacts-tab"
 import { logger } from '@/lib/logger'
 import { deleteBuildingAction } from './actions'
 import type { Building, Lot } from '@/lib/services'
@@ -38,6 +39,9 @@ export default function BuildingDetailsClient({
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Contacts count state
+  const [totalContacts, setTotalContacts] = useState<number>(0)
 
   // Switch to lots tab if lot param is present
   useEffect(() => {
@@ -115,7 +119,7 @@ export default function BuildingDetailsClient({
   const handleCustomAction = (actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
-        router.push(`/gestionnaire/interventions/nouvelle?buildingId=${building.id}`)
+        router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
         break
       case "add-lot":
         router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
@@ -180,8 +184,9 @@ export default function BuildingDetailsClient({
 
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
-    { id: "lots", label: "Lots", icon: Users, count: stats.totalLots },
+    { id: "lots", label: "Lots", icon: Home, count: stats.totalLots },
     { id: "interventions", label: "Interventions", icon: Wrench, count: stats.totalInterventions },
+    { id: "contacts", label: "Contacts", icon: Users, count: totalContacts },
     { id: "documents", label: "Documents", icon: FileText, count: null },
   ]
 
@@ -222,7 +227,7 @@ export default function BuildingDetailsClient({
       {/* Tabs Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-100">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-100">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
@@ -391,7 +396,7 @@ export default function BuildingDetailsClient({
                     <Wrench className="h-5 w-5 mr-2 text-gray-400" />
                     Interventions ({interventions.length})
                   </h2>
-                  <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
+                  <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Créer une intervention
                   </Button>
@@ -478,7 +483,7 @@ export default function BuildingDetailsClient({
                     <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
                     <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour cet immeuble.</p>
-                    <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle')}>
+                    <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Créer la première intervention
                     </Button>
@@ -522,6 +527,21 @@ export default function BuildingDetailsClient({
                   </div>
                 )}
               </div>
+            </TabsContent>
+
+            {/* Contacts Tab */}
+            <TabsContent value="contacts" className="mt-0">
+              <BuildingContactsTab
+                buildingId={building.id}
+                buildingName={building.name}
+                teamId={building.team_id}
+                lots={lots}
+                onContactsUpdate={() => {
+                  logger.info("Contacts updated - refreshing...")
+                  router.refresh()
+                }}
+                onContactsCountUpdate={(count) => setTotalContacts(count)}
+              />
             </TabsContent>
 
             {/* Documents Tab */}

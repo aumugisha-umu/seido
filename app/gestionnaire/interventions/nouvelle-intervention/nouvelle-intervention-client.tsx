@@ -402,6 +402,35 @@ export default function NouvelleInterventionClient({
     }
   }, [])
 
+  // ✅ NEW: Pré-remplissage depuis lot/immeuble (gestionnaire)
+  useEffect(() => {
+    if (!services) {
+      logger.info("⏳ Services not ready, cannot pre-fill lot/building")
+      return
+    }
+
+    if (isPreFilled) return // Prevent re-execution if already pre-filled
+
+    const lotId = searchParams.get("lotId")
+    const buildingId = searchParams.get("buildingId")
+
+    if (lotId) {
+      // Pré-remplir avec un lot spécifique
+      logger.info("🏠 [PRE-FILL] Pre-filling with lot:", lotId)
+      loadSpecificLot(lotId) // Cette fonction passe déjà à l'étape 2
+      setIsPreFilled(true)
+    } else if (buildingId) {
+      // Pré-remplir avec un immeuble spécifique
+      logger.info("🏢 [PRE-FILL] Pre-filling with building:", buildingId)
+      handleBuildingSelect(buildingId).then(() => {
+        // Passer à l'étape 2 après avoir chargé l'immeuble
+        setCurrentStep(2)
+        logger.info("✅ [PRE-FILL] Building selected, moved to step 2")
+      })
+      setIsPreFilled(true)
+    }
+  }, [services, searchParams, isPreFilled])
+
   const getRelatedContacts = () => {
     return [...managers, ...providers]
   }
@@ -862,11 +891,25 @@ export default function NouvelleInterventionClient({
     router.push(path)
   }
 
+  // Calculer le subtitle pour afficher le bien sélectionné (à partir de l'étape 2)
+  const getHeaderSubtitle = () => {
+    if (currentStep < 2 || !selectedLogement) return undefined
+
+    if (selectedLogement.type === "lot") {
+      return `📍 ${selectedLogement.name || "Lot sélectionné"}`
+    } else if (selectedLogement.type === "building") {
+      return `🏢 ${selectedLogement.name || "Immeuble sélectionné"}`
+    }
+
+    return undefined
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Créer une intervention"
+        subtitle={getHeaderSubtitle()}
         backButtonText="Retour aux interventions"
         onBack={() => router.back()}
         steps={interventionSteps}

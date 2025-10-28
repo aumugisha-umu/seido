@@ -197,7 +197,7 @@ export default function LotDetailsClient({
   const handleCustomAction = (actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
-        router.push(`/gestionnaire/interventions/nouvelle?lotId=${lot.id}`)
+        router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)
         break
       default:
         logger.info("Action not implemented:", actionKey)
@@ -435,7 +435,7 @@ export default function LotDetailsClient({
                 </div>
                 <Button
                   className="w-full mt-4"
-                  onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}
+                  onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Créer une intervention
@@ -492,7 +492,7 @@ export default function LotDetailsClient({
                 <Wrench className="h-5 w-5 mr-2 text-gray-400" />
                 Interventions ({interventionStats.total})
               </h2>
-              <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}>
+              <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Créer une intervention
               </Button>
@@ -586,7 +586,7 @@ export default function LotDetailsClient({
                 <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
                 <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour ce lot.</p>
-                <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle`)}>
+                <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer la première intervention
                 </Button>

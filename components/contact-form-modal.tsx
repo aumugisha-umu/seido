@@ -44,13 +44,10 @@ interface FormErrors {
 
 // Types de contacts utilisant les clés frontend (cohérente avec ContactSelector)
 const contactTypes = [
-  { value: "tenant", label: "Locataire" },
   { value: "manager", label: "Gestionnaire" },
-  { value: "provider", label: "Prestataire" },
-  { value: "syndic", label: "Syndic" },
-  { value: "notary", label: "Notaire" },
-  { value: "insurance", label: "Assurance" },
   { value: "owner", label: "Propriétaire" },
+  { value: "tenant", label: "Locataire" },
+  { value: "provider", label: "Prestataire" },
   { value: "other", label: "Autre" },
 ]
 
@@ -67,20 +64,14 @@ const specialityTypes = [
 
 const getContactTitle = (type: string) => {
   switch (type) {
-    case "tenant":
-      return { title: "Créer un locataire", subtitle: "Personne qui occupe le logement" }
-    case "owner":
-      return { title: "Créer un propriétaire", subtitle: "Personne qui possède le bien immobilier" }
-    case "provider":
-      return { title: "Créer un prestataire", subtitle: "Entreprise ou artisan pour les interventions" }
-    case "syndic":
-      return { title: "Créer un syndic", subtitle: "Gestionnaire de la copropriété" }
-    case "notary":
-      return { title: "Créer un notaire", subtitle: "Professionnel du droit immobilier" }
-    case "insurance":
-      return { title: "Créer une assurance", subtitle: "Compagnie d'assurance du bien" }
     case "manager":
       return { title: "Créer un gestionnaire", subtitle: "Responsable de la gestion des biens" }
+    case "owner":
+      return { title: "Créer un propriétaire", subtitle: "Personne qui possède le bien immobilier" }
+    case "tenant":
+      return { title: "Créer un locataire", subtitle: "Personne qui occupe le logement" }
+    case "provider":
+      return { title: "Créer un prestataire", subtitle: "Entreprise ou artisan pour les interventions" }
     default:
       return { title: "Créer un contact", subtitle: "Ajouter un contact pour votre bien" }
   }
@@ -422,7 +413,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
                 Type de contact <span className="text-red-500">*</span>
               </Label>
               <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -441,11 +432,11 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
                 <Label htmlFor="speciality" className="text-sm font-medium text-gray-700">
                   Spécialité
                 </Label>
-                <Select 
-                  value={formData.speciality || ""} 
+                <Select
+                  value={formData.speciality || ""}
                   onValueChange={(value) => handleInputChange('speciality', value)}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue placeholder="Sélectionner une spécialité" />
                   </SelectTrigger>
                   <SelectContent>

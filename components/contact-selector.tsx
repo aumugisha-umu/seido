@@ -31,12 +31,10 @@ const contactInvitationService = createContactInvitationService()
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
+  { key: "manager", label: "Gestionnaire", icon: Users, color: "text-purple-600" },
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
   { key: "owner", label: "Propriétaire", icon: Home, color: "text-amber-600" },
-  { key: "syndic", label: "Syndic", icon: Shield, color: "text-purple-600" },
-  { key: "notary", label: "Notaire", icon: FileCheck, color: "text-orange-600" },
-  { key: "insurance", label: "Assurance", icon: Car, color: "text-red-600" },
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 
@@ -76,6 +74,8 @@ interface ContactSelectorProps {
   className?: string
   // Si true, ne pas afficher le titre
   hideTitle?: boolean
+  // Si true, masquer complètement l'UI et ne garder que le modal
+  hideUI?: boolean
   // NOUVEAU : Contexte pour identifier le lot (optionnel)
   lotId?: string
 }
@@ -98,6 +98,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   onContactCreated,
   className = "",
   hideTitle = false,
+  hideUI = false,
   lotId  // NOUVEAU : contexte pour identifier le lot
 }, ref) => {
   // États pour le modal de sélection
@@ -287,11 +288,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       const mappedProviderCategory = (() => {
         switch(contact.provider_category) {
           case 'prestataire': return 'service'
-          case 'assurance': return 'insurance'
-          case 'notaire': return 'legal'
           case 'proprietaire': return 'owner'
           case 'autre': return 'other'
-          case 'syndic': return 'syndic'
           default: return contact.provider_category
         }
       })()
@@ -466,19 +464,17 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   return (
     <>
-      {displayMode === "compact" ? renderCompactMode() : renderFullMode()}
+      {!hideUI && (displayMode === "compact" ? renderCompactMode() : renderFullMode())}
 
       {/* Contact Selection Modal */}
       <Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
+              {selectedContactType === 'manager' && <Users className="w-5 h-5" />}
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
               {selectedContactType === 'owner' && <Home className="w-5 h-5" />}
-              {selectedContactType === 'syndic' && <Shield className="w-5 h-5" />}
-              {selectedContactType === 'notary' && <FileCheck className="w-5 h-5" />}
-              {selectedContactType === 'insurance' && <Car className="w-5 h-5" />}
               {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
               Sélectionner un {getSelectedContactTypeInfo().label.toLowerCase()}
               {getSelectedContactsByType(selectedContactType).length > 0 && (
@@ -488,12 +484,10 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               )}
             </DialogTitle>
             <DialogDescription>
+              {selectedContactType === 'manager' && 'Gestionnaire de l\'immeuble ou du lot'}
               {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
               {selectedContactType === 'provider' && 'Prestataire pour les interventions'}
               {selectedContactType === 'owner' && 'Propriétaire du bien immobilier'}
-              {selectedContactType === 'syndic' && 'Syndic de copropriété'}
-              {selectedContactType === 'notary' && 'Notaire pour les actes'}
-              {selectedContactType === 'insurance' && 'Compagnie d\'assurance'}
               {selectedContactType === 'other' && 'Autre type de contact'}
             </DialogDescription>
           </DialogHeader>
@@ -598,12 +592,10 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                 ) : (
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      {selectedContactType === 'manager' && <Users className="w-8 h-8 text-purple-600" />}
                       {selectedContactType === 'tenant' && <User className="w-8 h-8 text-blue-600" />}
                       {selectedContactType === 'provider' && <Briefcase className="w-8 h-8 text-green-600" />}
                       {selectedContactType === 'owner' && <Home className="w-8 h-8 text-amber-600" />}
-                      {selectedContactType === 'syndic' && <Shield className="w-8 h-8 text-purple-600" />}
-                      {selectedContactType === 'notary' && <FileCheck className="w-8 h-8 text-orange-600" />}
-                      {selectedContactType === 'insurance' && <Car className="w-8 h-8 text-red-600" />}
                       {selectedContactType === 'other' && <MoreHorizontal className="w-8 h-8 text-gray-600" />}
                     </div>
                     <h3 className="font-medium text-gray-900 mb-2">

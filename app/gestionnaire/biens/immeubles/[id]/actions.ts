@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerActionBuildingService } from '@/lib/services'
+import { createServerActionBuildingService, createServerActionSupabaseClient } from '@/lib/services'
 import { revalidatePath } from 'next/cache'
 import type { BuildingUpdate, RepositoryResponse } from '@/lib/services'
 import { logger } from '@/lib/logger'
@@ -101,6 +101,200 @@ export async function deleteBuildingAction(
         code: 'INTERNAL_ERROR',
         message: 'Une erreur inattendue s\'est produite lors de la suppression de l\'immeuble'
       }
+    }
+  }
+}
+
+/**
+ * Server Action pour assigner un contact à un immeuble
+ *
+ * @param buildingId - ID de l'immeuble
+ * @param userId - ID de l'utilisateur (contact) à assigner
+ * @param isPrimary - Si ce contact est le contact principal (default: false)
+ * @returns Promise<{ success: boolean; data?: any; error?: string }>
+ */
+export async function assignContactToBuildingAction(
+  buildingId: string,
+  userId: string,
+  isPrimary = false
+) {
+  try {
+    logger.info(`👥 [ASSIGN-CONTACT-TO-BUILDING] Assigning contact ${userId} to building ${buildingId} (isPrimary: ${isPrimary})`)
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Vérifier si le contact n'est pas déjà assigné
+    const { data: existing } = await supabase
+      .from('building_contacts')
+      .select('id')
+      .eq('building_id', buildingId)
+      .eq('user_id', userId)
+      .single()
+
+    if (existing) {
+      logger.warn(`⚠️ [ASSIGN-CONTACT-TO-BUILDING] Contact already assigned to building`)
+      return {
+        success: false,
+        error: 'Ce contact est déjà assigné à cet immeuble'
+      }
+    }
+
+    // Insérer le nouveau contact
+    const { data, error } = await supabase
+      .from('building_contacts')
+      .insert({
+        building_id: buildingId,
+        user_id: userId,
+        is_primary: isPrimary,
+        role: null,
+        notes: null
+      })
+      .select(`
+        id,
+        user_id,
+        building_id,
+        is_primary,
+        user:user_id(
+          id,
+          name,
+          email,
+          phone,
+          role,
+          provider_category
+        )
+      `)
+      .single()
+
+    if (error) {
+      logger.error(`❌ [ASSIGN-CONTACT-TO-BUILDING] Failed to assign contact:`, error)
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de l\'assignation du contact'
+      }
+    }
+
+    logger.info(`✅ [ASSIGN-CONTACT-TO-BUILDING] Contact assigned successfully:`, data.id)
+
+    // Revalidate pages
+    revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
+    revalidatePath('/gestionnaire/biens')
+
+    return { success: true, data }
+
+  } catch (error) {
+    logger.error(`❌ [ASSIGN-CONTACT-TO-BUILDING] Exception:`, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue'
+    }
+  }
+}
+
+/**
+ * Server Action pour retirer un contact d'un immeuble
+ *
+ * @param buildingContactId - ID de la relation building_contacts à supprimer
+ * @returns Promise<{ success: boolean; error?: string }>
+ */
+export async function removeContactFromBuildingAction(
+  buildingContactId: string
+) {
+  try {
+    logger.info(`🗑️ [REMOVE-CONTACT-FROM-BUILDING] Removing building contact ${buildingContactId}`)
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get building_id before deleting for revalidation
+    const { data: contactData } = await supabase
+      .from('building_contacts')
+      .select('building_id')
+      .eq('id', buildingContactId)
+      .single()
+
+    const { error } = await supabase
+      .from('building_contacts')
+      .delete()
+      .eq('id', buildingContactId)
+
+    if (error) {
+      logger.error(`❌ [REMOVE-CONTACT-FROM-BUILDING] Failed to remove contact:`, error)
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de la suppression du contact'
+      }
+    }
+
+    logger.info(`✅ [REMOVE-CONTACT-FROM-BUILDING] Contact removed successfully`)
+
+    // Revalidate pages
+    if (contactData?.building_id) {
+      revalidatePath(`/gestionnaire/biens/immeubles/${contactData.building_id}`)
+    }
+    revalidatePath('/gestionnaire/biens')
+
+    return { success: true }
+
+  } catch (error) {
+    logger.error(`❌ [REMOVE-CONTACT-FROM-BUILDING] Exception:`, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue'
+    }
+  }
+}
+
+/**
+ * Server Action pour retirer un contact d'un lot
+ *
+ * @param lotContactId - ID de la relation lot_contacts à supprimer
+ * @returns Promise<{ success: boolean; error?: string }>
+ */
+export async function removeContactFromLotAction(
+  lotContactId: string
+) {
+  try {
+    logger.info(`🗑️ [REMOVE-CONTACT-FROM-LOT] Removing lot contact ${lotContactId}`)
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get lot_id and building_id before deleting for revalidation
+    const { data: lotData } = await supabase
+      .from('lot_contacts')
+      .select('lot_id, lots(building_id)')
+      .eq('id', lotContactId)
+      .single()
+
+    const { error } = await supabase
+      .from('lot_contacts')
+      .delete()
+      .eq('id', lotContactId)
+
+    if (error) {
+      logger.error(`❌ [REMOVE-CONTACT-FROM-LOT] Failed to remove lot contact:`, error)
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de la suppression du contact'
+      }
+    }
+
+    logger.info(`✅ [REMOVE-CONTACT-FROM-LOT] Lot contact removed successfully`)
+
+    // Revalidate pages
+    if (lotData) {
+      revalidatePath(`/gestionnaire/biens/lots/${lotData.lot_id}`)
+      if ((lotData.lots as any)?.building_id) {
+        revalidatePath(`/gestionnaire/biens/immeubles/${(lotData.lots as any).building_id}`)
+      }
+    }
+    revalidatePath('/gestionnaire/biens')
+
+    return { success: true }
+
+  } catch (error) {
+    logger.error(`❌ [REMOVE-CONTACT-FROM-LOT] Exception:`, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue'
     }
   }
 }

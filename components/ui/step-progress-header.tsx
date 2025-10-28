@@ -11,6 +11,7 @@ export interface StepConfig {
 
 interface StepProgressHeaderProps {
   title: string
+  subtitle?: string
   backButtonText?: string
   onBack: () => void
   steps: StepConfig[]
@@ -29,6 +30,7 @@ interface StepProgressHeaderProps {
  */
 export const StepProgressHeader = ({
   title,
+  subtitle,
   backButtonText = "Retour",
   onBack,
   steps,
@@ -42,9 +44,16 @@ export const StepProgressHeader = ({
         {/* Single Line Header: Title (left) + Step Info (center) + Back Button (right) */}
         <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
           {/* Left: Page Title */}
-          <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex-shrink-0">
-            {title}
-          </h1>
+          <div className="flex-shrink-0">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="text-sm text-gray-600 mt-0.5">
+                {subtitle}
+              </p>
+            )}
+          </div>
 
           {/* Center: Current Step Info */}
           <div className="flex-1 text-center">

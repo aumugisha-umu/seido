@@ -39,6 +39,7 @@ function encodeImageToBase64(imagePath: string): string {
     const ext = path.extname(imagePath).toLowerCase()
     const mimeType = ext === '.png' ? 'image/png' :
                      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+                     ext === '.webp' ? 'image/webp' :
                      ext === '.svg' ? 'image/svg+xml' :
                      'image/png' // Fallback
 
@@ -108,6 +109,36 @@ export function getPictoBase64(): string {
   }
 
   return base64Picto
+}
+
+/**
+ * Récupère le logo SEIDO blanc en WebP encodé en base64 (version optimisée 10KB)
+ *
+ * @returns Data URL du logo SEIDO blanc WebP (data:image/webp;base64,...)
+ *
+ * @example
+ * ```tsx
+ * const logoUrl = getLogoWebPBase64()
+ * <Img src={logoUrl} alt="SEIDO" width="100" height="32" />
+ * ```
+ */
+export function getLogoWebPBase64(): string {
+  const cacheKey = 'logo-white-webp'
+
+  // Vérifier le cache
+  if (imageCache.has(cacheKey)) {
+    return imageCache.get(cacheKey)!
+  }
+
+  // Encoder l'image WebP (10KB vs 21KB PNG)
+  const base64Logo = encodeImageToBase64('images/Logo/Logo_Seido_White_1.webp')
+
+  // Mettre en cache
+  if (base64Logo) {
+    imageCache.set(cacheKey, base64Logo)
+  }
+
+  return base64Logo
 }
 
 /**

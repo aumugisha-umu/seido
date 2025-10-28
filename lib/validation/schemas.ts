@@ -235,7 +235,7 @@ export const createContactSchema = z.object({
   role: z.enum(['gestionnaire', 'locataire', 'prestataire'], {
     errorMap: () => ({ message: 'Invalid contact role' })
   }),
-  provider_category: z.enum(['syndic', 'notaire', 'assurance', 'proprietaire', 'prestataire', 'autre']).optional().nullable(),
+  provider_category: z.enum(['proprietaire', 'prestataire', 'autre']).optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
   team_id: uuidSchema,
   is_active: z.boolean().optional().default(true),

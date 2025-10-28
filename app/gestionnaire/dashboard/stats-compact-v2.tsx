@@ -30,8 +30,8 @@ export function StatsCompactV2({ stats, contactStats }: StatsProps) {
   return (
     <Card className="shadow-sm">
       <CardContent className="p-2 sm:p-3">
-        {/* Responsive: 2x2 grid dès 320px (ultra-compact) */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        {/* Responsive: 2x2 grid mobile/tablet, 1x4 grid desktop */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
           {/* Stat 1 - Immeubles */}
           <div className="flex gap-2">
             <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">

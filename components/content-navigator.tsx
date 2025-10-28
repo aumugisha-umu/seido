@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Search, Filter, ChevronDown } from "lucide-react"
 
 interface TabConfig {
@@ -47,6 +48,7 @@ export default function ContentNavigator({
   filterValues = {},
 }: ContentNavigatorProps) {
   const [showFilters, setShowFilters] = useState(false)
+  const [showSearchPopover, setShowSearchPopover] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
 
@@ -85,64 +87,77 @@ export default function ContentNavigator({
 
   return (
     <Card className={className}>
-      <CardContent className="pt-6 space-y-4">
+      <CardContent className="pt-0 space-y-2">
         {/* Navigation Controls */}
-        <div className="space-y-4">
-          {/* Mobile Layout - Stacked */}
-          <div className="block md:hidden space-y-3">
-            {/* Mobile Tab Dropdown */}
-            <div className="w-full">
-              <Select value={activeTab} onValueChange={handleTabChange}>
-                <SelectTrigger className="w-full h-10 bg-slate-50 border-slate-200">
-                  <SelectValue>
-                    <div className="flex items-center">
-                      {activeTabData && (
-                        <>
-                          <activeTabData.icon className="h-4 w-4 mr-2" />
-                          <span className="mr-2">{activeTabData.label}</span>
-                          {activeTabData.count !== undefined && (
-                            <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                              {activeTabData.count}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {tabs.map((tab) => {
-                    const IconComponent = tab.icon
-                    return (
-                      <SelectItem key={tab.id} value={tab.id}>
-                        <div className="flex items-center w-full">
-                          <IconComponent className="h-4 w-4 mr-2" />
-                          <span className="mr-2">{tab.label}</span>
-                          {tab.count !== undefined && (
-                            <Badge variant="secondary" className="ml-auto text-xs bg-slate-200 text-slate-700">
-                              {tab.count}
-                            </Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Mobile Search & Filters Row */}
+        <div className="space-y-2">
+          {/* Mobile Layout - Single Row */}
+          <div className="block md:hidden">
+            {/* Mobile: Selector + Search + Filters on same line */}
             <div className="flex gap-2">
-              {/* Search Bar - Takes most space */}
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <Input 
-                  placeholder={searchPlaceholder}
-                  className="pl-10 h-10"
-                  value={searchValue}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                />
+              {/* Mobile Tab Dropdown - Flex to fit content */}
+              <div className="flex-1 min-w-0">
+                <Select value={activeTab} onValueChange={handleTabChange}>
+                  <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
+                    <SelectValue>
+                      <div className="flex items-center">
+                        {activeTabData && (
+                          <>
+                            <activeTabData.icon className="h-4 w-4 mr-2" />
+                            <span className="mr-2">{activeTabData.label}</span>
+                            {activeTabData.count !== undefined && (
+                              <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
+                                {activeTabData.count}
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tabs.map((tab) => {
+                      const IconComponent = tab.icon
+                      return (
+                        <SelectItem key={tab.id} value={tab.id}>
+                          <div className="flex items-center w-full">
+                            <IconComponent className="h-4 w-4 mr-2" />
+                            <span className="mr-2">{tab.label}</span>
+                            {tab.count !== undefined && (
+                              <Badge variant="secondary" className="ml-auto text-xs bg-slate-200 text-slate-700">
+                                {tab.count}
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
+              {/* Search Icon with Popover */}
+              <Popover open={showSearchPopover} onOpenChange={setShowSearchPopover}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-3" align="start">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                    <Input
+                      placeholder={searchPlaceholder}
+                      className="pl-10 h-10"
+                      value={searchValue}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Filters Button - Compact */}
               {filters.length > 0 && (
@@ -365,7 +380,7 @@ export default function ContentNavigator({
         </div>
 
         {/* Tab Content */}
-        <div className="mt-6">
+        <div className="mt-2">
           {activeTabData?.content}
         </div>
       </CardContent>

@@ -92,7 +92,7 @@ export function InterventionsList({
         title: "Aucune intervention",
         description: "Les interventions apparaîtront ici",
         showCreateButton: false,
-        createButtonText: "Créer une intervention",
+        createButtonText: "Ajouter une intervention",
         createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
       }
 
@@ -108,7 +108,7 @@ export function InterventionsList({
             {config.description}
           </p>
           {config.showCreateButton && (
-            <Button onClick={config.createButtonAction} size="sm">
+            <Button onClick={config.createButtonAction} size="sm" className="bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4 mr-2" />
               {config.createButtonText}
             </Button>
@@ -207,7 +207,7 @@ export function InterventionsList({
       title: "Aucune intervention",
       description: "Les interventions apparaîtront ici",
       showCreateButton: false,
-      createButtonText: "Créer une intervention",
+      createButtonText: "Ajouter une intervention",
       createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
     }
 
@@ -223,7 +223,7 @@ export function InterventionsList({
           {config.description}
         </p>
         {config.showCreateButton && (
-          <Button onClick={config.createButtonAction}>
+          <Button onClick={config.createButtonAction} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
             {config.createButtonText}
           </Button>

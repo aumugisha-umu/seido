@@ -1312,11 +1312,11 @@ export default function NouvelleInterventionClient({
 
                     {/* Instructions */}
                     {(globalMessage || Object.keys(individualMessages).length > 0) && (
-                      <Card className="border-l-4 border-l-indigo-500">
+                      <Card className="border-l-4 border-l-blue-600">
                         <CardContent className="p-6">
                           <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                              <MessageSquare className="h-5 w-5 text-indigo-600" />
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <MessageSquare className="h-5 w-5 text-blue-600" />
                             </div>
                             <div>
                               <h3 className="font-semibold text-gray-900">Instructions</h3>
@@ -1327,10 +1327,10 @@ export default function NouvelleInterventionClient({
                             {messageType === "global" && globalMessage && (
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                  <MessageSquare className="h-4 w-4 text-blue-600" />
                                   <span className="font-medium">Message global:</span>
                                 </div>
-                                <div className="bg-white p-3 rounded border-l-4 border-l-indigo-500">
+                                <div className="bg-white p-3 rounded border-l-4 border-l-blue-600">
                                   <p className="text-gray-900">{globalMessage}</p>
                                   <p className="text-xs text-gray-500 mt-2">
                                     Ce message sera visible par tous les assignés (non visible par le locataire)
@@ -1341,7 +1341,7 @@ export default function NouvelleInterventionClient({
                             {messageType === "individual" && Object.keys(individualMessages).length > 0 && (
                               <div className="space-y-3">
                                 <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                  <MessageSquare className="h-4 w-4 text-blue-600" />
                                   <span className="font-medium">Messages individuels:</span>
                                 </div>
                                 <div className="space-y-2">
@@ -1352,7 +1352,7 @@ export default function NouvelleInterventionClient({
                                     return message ? (
                                       <div
                                         key={contactId}
-                                        className="bg-white p-3 rounded border-l-4 border-l-indigo-500"
+                                        className="bg-white p-3 rounded border-l-4 border-l-blue-600"
                                       >
                                         <div className="flex items-center space-x-2 mb-2">
                                           <span className="font-medium text-gray-900">{contact?.name}:</span>
@@ -1379,10 +1379,10 @@ export default function NouvelleInterventionClient({
                             {getSelectedContacts().length === 1 && globalMessage && (
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                  <MessageSquare className="h-4 w-4 text-blue-600" />
                                   <span className="font-medium">Instructions:</span>
                                 </div>
-                                <div className="bg-white p-3 rounded border-l-4 border-l-indigo-500">
+                                <div className="bg-white p-3 rounded border-l-4 border-l-blue-600">
                                   <p className="text-gray-900">{globalMessage}</p>
                                   <p className="text-xs text-gray-500 mt-2">
                                     Ces instructions ne seront pas vues par le locataire

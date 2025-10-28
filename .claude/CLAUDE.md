@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
+Never do any build after small changes if the user didn't ask you to. The only situations you are allowed to run build command without asking is after if you've avec made mode than 100 lines of code change and you wand to make sure you didn't break anything, or after a long series of edits without testing
+
 ## 🚨 IMPORTANT: Official Documentation First
 
 **Before making ANY modification:**

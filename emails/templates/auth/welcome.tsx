@@ -66,7 +66,7 @@ export const WelcomeEmail = ({
         </EmailButton>
 
         {/* Prochaines étapes */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg mb-6 mt-8">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg mb-6 mt-8">
           <Text className="text-gray-900 font-semibold text-base mb-3 mt-0">
             🚀 Prochaines étapes
           </Text>

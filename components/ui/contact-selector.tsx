@@ -96,6 +96,7 @@ interface ContactSelectorProps {
   placeholder: string
   isLoading?: boolean
   teamId: string
+  disableTypeSelection?: boolean
 }
 
 const ContactSelector = ({
@@ -108,13 +109,21 @@ const ContactSelector = ({
   contactType,
   placeholder,
   isLoading = false,
-  teamId
+  teamId,
+  disableTypeSelection = false
 }: ContactSelectorProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Log teamId pour debugging
+  logger.info(`🔍 [CONTACT-SELECTOR] Initialized with teamId: "${teamId}" (type: ${typeof teamId})`)
+
   const handleSelectChange = (value: string) => {
     if (value === "create-new") {
+      if (!teamId) {
+        logger.error("❌ [CONTACT-SELECTOR] Cannot open modal: teamId is undefined")
+        return
+      }
       setIsModalOpen(true)
     } else {
       onContactSelect(value)
@@ -161,22 +170,40 @@ const ContactSelector = ({
         teamId: teamId
       })
 
-      logger.info("✅ Contact créé avec succès:", result.contact)
-      
+      logger.info("✅ Contact créé avec succès:", result.data)
+
+      // Vérifier que le contact a bien été créé avant de notifier
+      if (!result.data?.contact) {
+        logger.error("❌ Contact créé mais aucune donnée retournée:", result)
+        return
+      }
+
       setIsModalOpen(false)
-      
+
       // Notifier le parent
-      onContactCreated(result.contact)
-      
+      onContactCreated(result.data.contact)
+
       // Afficher un message si une invitation a été envoyée
-      if (result.invitation?.success) {
+      if (result.data?.invitation?.success) {
         logger.info("📧 Invitation envoyée avec succès à:", contactData.email)
-      } else if (result.invitation?.error) {
-        logger.warn("⚠️ Contact créé mais invitation échouée:", result.invitation.error)
+      } else if (result.data?.invitation?.error) {
+        logger.warn("⚠️ Contact créé mais invitation échouée:", result.data.invitation.error)
       }
       
     } catch (error) {
       logger.error("❌ Erreur lors de la création du contact:", error)
+    }
+  }
+
+  // Mapper les types français (contactType) vers anglais (ContactFormModal)
+  const mapContactTypeToEnglish = (): string => {
+    switch (contactType) {
+      case 'gestionnaire':
+        return 'manager'
+      case 'prestataire':
+        return 'provider'
+      default:
+        return contactType
     }
   }
 
@@ -289,7 +316,9 @@ const ContactSelector = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleContactCreated}
-        defaultType={contactType}
+        defaultType={mapContactTypeToEnglish()}
+        teamId={teamId}
+        disableTypeSelection={disableTypeSelection}
       />
     </>
   )

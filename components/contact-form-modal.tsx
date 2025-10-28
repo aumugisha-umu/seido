@@ -19,6 +19,7 @@ interface ContactFormModalProps {
   onSubmit: (contactData: ContactFormData) => Promise<void>
   defaultType?: string
   teamId: string // ✅ AJOUT: ID de l'équipe pour validation multi-équipes
+  disableTypeSelection?: boolean // ✅ AJOUT: Désactiver le dropdown type (ex: forcer "Prestataire" dans création intervention)
   onSuccess?: () => Promise<void> | void // Fonction optionnelle appelée après création réussie
 }
 
@@ -77,7 +78,7 @@ const getContactTitle = (type: string) => {
   }
 }
 
-const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", teamId, onSuccess }: ContactFormModalProps) => {
+const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", teamId, disableTypeSelection = false, onSuccess }: ContactFormModalProps) => {
   const supabase = createBrowserSupabaseClient()
   const { toast } = useToast()
   
@@ -412,7 +413,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
               <Label htmlFor="type" className="text-sm font-medium text-gray-700">
                 Type de contact <span className="text-red-500">*</span>
               </Label>
-              <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
+              <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)} disabled={disableTypeSelection}>
                 <SelectTrigger className="w-full bg-white">
                   <SelectValue />
                 </SelectTrigger>

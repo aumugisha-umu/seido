@@ -195,6 +195,7 @@ export function AssignmentSectionV2({
                     placeholder="Sélectionner des prestataires (optionnel)"
                     isLoading={isLoading}
                     teamId={teamId}
+                    disableTypeSelection={true}
                   />
                 </div>
               </div>

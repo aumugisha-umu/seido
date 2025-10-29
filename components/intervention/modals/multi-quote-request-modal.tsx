@@ -134,7 +134,7 @@ export const MultiQuoteRequestModal = ({
         'peinture': ['prestataire', 'autre'],
         'menage': ['prestataire', 'autre'],
         'jardinage': ['prestataire', 'autre'],
-        'autre': ['prestataire', 'autre', 'syndic', 'assurance', 'notaire', 'proprietaire'] // Très inclusif pour "autre"
+        'autre': ['prestataire', 'autre'] // Inclut tous les types de prestataires
       }
 
       const relevantCategories = typeMapping[intervention.type] || ['prestataire', 'autre']

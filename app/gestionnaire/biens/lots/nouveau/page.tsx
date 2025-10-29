@@ -86,9 +86,7 @@ interface LotData {
   assignedContacts: {
     tenant: { id: string; name: string; email: string; type: string }[]
     provider: { id: string; name: string; email: string; type: string }[]
-    syndic: { id: string; name: string; email: string; type: string }[]
-    notary: { id: string; name: string; email: string; type: string }[]
-    insurance: { id: string; name: string; email: string; type: string }[]
+    owner: { id: string; name: string; email: string; type: string }[]
     other: { id: string; name: string; email: string; type: string }[]
   }
   
@@ -1830,17 +1828,13 @@ export default function NewLotPage() {
                           <div className={`w-2 h-2 rounded-full ${
                             type === 'tenant' ? 'bg-blue-500' :
                             type === 'provider' ? 'bg-green-500' :
-                            type === 'syndic' ? 'bg-purple-500' :
-                            type === 'notary' ? 'bg-orange-500' :
-                            type === 'insurance' ? 'bg-red-500' : 'bg-slate-500'
+                            type === 'owner' ? 'bg-amber-500' : 'bg-slate-500'
                           }`}></div>
                           <span className="text-sm font-medium text-slate-900">
                             {contacts.length} {
                               type === 'tenant' ? 'locataire' :
                               type === 'provider' ? 'prestataire' :
-                              type === 'syndic' ? 'syndic' :
-                              type === 'notary' ? 'notaire' :
-                              type === 'insurance' ? 'assurance' : 'autre'
+                              type === 'owner' ? 'propriétaire' : 'autre'
                             }{contacts.length > 1 ? 's' : ''}
                           </span>
                           <span className="text-xs text-slate-600">

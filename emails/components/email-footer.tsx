@@ -17,7 +17,7 @@ export const EmailFooter = () => {
         SEIDO Application
       </Text>
       <Text className="text-gray-500 text-xs leading-tight mb-2 m-0">
-        123 Rue de l'Innovation, 1000 Bruxelles, Belgique
+      Umumentum(SRL) - Rue de Grand-Bigard 14,1082 Berchem-Sainte-Agathe, Belgique.
       </Text>
 
       {/* Liens utiles */}

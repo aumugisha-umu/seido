@@ -36,7 +36,10 @@
       "Bash(fi)",
       "Bash(awk:*)",
       "Bash(npx supabase:*)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

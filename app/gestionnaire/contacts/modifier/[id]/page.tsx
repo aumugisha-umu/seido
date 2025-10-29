@@ -44,16 +44,13 @@ interface ContactData {
 const userRoles = [
   { value: "locataire", label: "Locataire", color: "bg-blue-100 text-blue-800" },
   { value: "gestionnaire", label: "Gestionnaire", color: "bg-purple-100 text-purple-800" },
+  { value: "proprietaire", label: "Propriétaire", color: "bg-amber-100 text-amber-800" },
   { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" }
 ]
 
 // ✅ Catégories de prestataires (pour role = 'prestataire')
 const providerCategories = [
-  { value: "prestataire", label: "Service général" },
-  { value: "syndic", label: "Syndic" },
-  { value: "notaire", label: "Notaire" },
-  { value: "assurance", label: "Assurance" },
-  { value: "proprietaire", label: "Propriétaire" },
+  { value: "prestataire", label: "Prestataire" },
   { value: "autre", label: "Autre" }
 ]
 

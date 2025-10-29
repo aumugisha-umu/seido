@@ -83,14 +83,14 @@ export const QuoteRequestModal = ({
 
       // Correspondances type intervention -> catégorie prestataire (plus inclusives)
       const typeMapping: Record<string, string[]> = {
-        'plomberie': ['prestataire', 'autre'], // Inclut prestataires génériques
+        'plomberie': ['prestataire', 'autre'],
         'electricite': ['prestataire', 'autre'],
         'chauffage': ['prestataire', 'autre'],
         'serrurerie': ['prestataire', 'autre'],
         'peinture': ['prestataire', 'autre'],
         'menage': ['prestataire', 'autre'],
         'jardinage': ['prestataire', 'autre'],
-        'autre': ['prestataire', 'autre', 'syndic', 'assurance', 'notaire', 'proprietaire'] // Très inclusif pour "autre"
+        'autre': ['prestataire', 'autre']
       }
 
       const relevantCategories = typeMapping[intervention.type] || ['prestataire', 'autre']

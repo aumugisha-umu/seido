@@ -369,13 +369,9 @@ export class ContactInvitationService {
       'gestionnaire': { role: 'gestionnaire' },
       'provider': { role: 'prestataire', provider_category: 'prestataire' },
       'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
-      'syndic': { role: 'prestataire', provider_category: 'syndic' },
-      'insurance': { role: 'prestataire', provider_category: 'assurance' },
-      'assurance': { role: 'prestataire', provider_category: 'assurance' },
-      'notary': { role: 'prestataire', provider_category: 'notaire' },
-      'notaire': { role: 'prestataire', provider_category: 'notaire' },
-      'owner': { role: 'prestataire', provider_category: 'proprietaire' },
-      'proprietaire': { role: 'prestataire', provider_category: 'proprietaire' }
+      'owner': { role: 'proprietaire' },
+      'proprietaire': { role: 'proprietaire' },
+      'autre': { role: 'prestataire', provider_category: 'autre' }
     }
 
     return mapping[_type.toLowerCase()] || { role: 'locataire' }

@@ -44,12 +44,12 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
 
     // Validate role if present
     if ('role' in data && data.role) {
-      validateEnum(data.role, ['admin', 'gestionnaire', 'locataire', 'prestataire'], 'role')
+      validateEnum(data.role, ['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire'], 'role')
     }
 
     // Validate provider_category if present
     if ('provider_category' in data && data.provider_category) {
-      validateEnum(data.provider_category, ['prestataire', 'assurance', 'notaire', 'syndic', 'proprietaire', 'autre'], 'provider_category')
+      validateEnum(data.provider_category, ['prestataire', 'autre'], 'provider_category')
     }
   }
 

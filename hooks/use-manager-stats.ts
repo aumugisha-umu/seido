@@ -207,11 +207,8 @@ export interface ContactStats {
   contactsByType: {
     gestionnaire: { total: number; active: number }
     locataire: { total: number; active: number }
-    prestataire: { total: number; active: number }
-    syndic: { total: number; active: number }
-    notaire: { total: number; active: number }
-    assurance: { total: number; active: number }
     proprietaire: { total: number; active: number }
+    prestataire: { total: number; active: number }
     autre: { total: number; active: number }
   }
   totalActiveAccounts: number
@@ -237,14 +234,11 @@ export function useContactStats() {
         setContactStats({
           totalContacts: 0,
           contactsByType: {
-            locataire: 0,
-            gestionnaire: 0,
-            prestataire: 0,
-            syndic: 0,
-            notaire: 0,
-            assurance: 0,
-            proprietaire: 0,
-            autre: 0
+            gestionnaire: { total: 0, active: 0 },
+            locataire: { total: 0, active: 0 },
+            proprietaire: { total: 0, active: 0 },
+            prestataire: { total: 0, active: 0 },
+            autre: { total: 0, active: 0 }
           },
           totalActiveAccounts: 0,
           invitationsPending: 0

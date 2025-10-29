@@ -5,6 +5,8 @@
  * avec retry automatique et logging centralisé
  */
 
+import fs from 'fs'
+import path from 'path'
 import { resend, EMAIL_CONFIG, emailLogger, isResendConfigured } from './resend-client'
 import type {
   SignupConfirmationEmailProps,
@@ -40,6 +42,30 @@ async function sendEmailWithRetry(options: SendEmailOptions): Promise<EmailSendR
 
   let lastError: unknown
 
+  // Préparer le logo en pièce jointe (CID)
+  const logoPath = path.join(process.cwd(), 'public', 'images', 'Logo', 'Logo_Seido_White.png')
+  let logoAttachment = undefined
+
+  // Lire le logo si disponible (graceful degradation si fichier absent)
+  try {
+    if (fs.existsSync(logoPath)) {
+      // Lire le fichier en tant que Buffer pour Resend
+      // Note: Resend n'accepte pas les 'path' locaux, seulement URLs http/https ou Buffer
+      const logoBuffer = fs.readFileSync(logoPath)
+
+      logoAttachment = {
+        filename: 'logo.png',
+        content: logoBuffer, // Buffer au lieu de path local
+        contentId: 'logo@seido', // Content-ID pour référence dans l'HTML (SDK Node.js utilise camelCase)
+        contentType: 'image/png', // Type MIME pour le logo (camelCase pour SDK Node.js)
+      }
+    } else {
+      console.warn('[EMAIL-SERVICE] Logo file not found:', logoPath)
+    }
+  } catch (error) {
+    console.error('[EMAIL-SERVICE] Error loading logo for email:', error)
+  }
+
   for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
     try {
       const { data, error } = await resend.emails.send({
@@ -49,6 +75,8 @@ async function sendEmailWithRetry(options: SendEmailOptions): Promise<EmailSendR
         html: options.html,
         text: options.text,
         tags: options.tags,
+        // Attacher le logo avec CID (Content-ID) pour affichage inline
+        attachments: logoAttachment ? [logoAttachment] : undefined,
       })
 
       if (error) {

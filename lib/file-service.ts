@@ -4,6 +4,7 @@ import { logger, logError } from '@/lib/logger'
 export interface FileUploadMetadata {
   interventionId: string
   uploadedBy: string // user_id from database (not auth.user.id)
+  teamId: string // team_id for RLS policies
   documentType?: string
   description?: string
 }
@@ -71,6 +72,7 @@ export const fileService = {
       // Create database record
       const documentData: Database['public']['Tables']['intervention_documents']['Insert'] = {
         intervention_id: metadata.interventionId,
+        team_id: metadata.teamId,
         filename: uniqueFileName,
         original_filename: file.name,
         file_size: file.size,

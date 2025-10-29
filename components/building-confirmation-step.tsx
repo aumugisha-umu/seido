@@ -121,7 +121,7 @@ function ContactTypeBadges({
             <TooltipTrigger asChild>
               <Badge
                 variant="secondary"
-                className={`text-[10px] px-1.5 py-0 cursor-help ${type.bgColor} ${type.textColor} ${type.borderColor} border flex-shrink-0`}
+                className={`text-xs px-1.5 py-0 cursor-help ${type.bgColor} ${type.textColor} ${type.borderColor} border flex-shrink-0`}
               >
                 <Icon className="w-3 h-3 mr-0.5" />
                 {type.contacts.length}
@@ -254,7 +254,7 @@ export function BuildingConfirmationStep({
               <span className="font-medium text-blue-900 text-xs">
                 Gestionnaires de l'immeuble
               </span>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0">
                 {buildingManagers.length}
               </Badge>
             </div>
@@ -272,17 +272,17 @@ export function BuildingConfirmationStep({
                     </div>
                     <div>
                       <div className="font-medium text-xs">{manager.user.name}</div>
-                      <div className="text-[10px] text-gray-500">{manager.user.email}</div>
+                      <div className="text-xs text-gray-500">{manager.user.email}</div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-2 bg-gray-50 rounded text-[10px] text-gray-600 text-center">
+                <div className="p-2 bg-gray-50 rounded text-xs text-gray-600 text-center">
                   Aucun gestionnaire
                 </div>
               )}
 
-              <p className="text-[10px] text-gray-600 pt-1">
+              <p className="text-xs text-gray-600 pt-1">
                 Recevront les notifications de l'immeuble et de tous les lots
               </p>
             </div>
@@ -310,7 +310,7 @@ export function BuildingConfirmationStep({
                       <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-green-50 rounded border border-green-200 ml-4">
                         <div>
                           <div className="font-medium text-xs">{contact.name}</div>
-                          <div className="text-[10px] text-gray-500">{contact.email}</div>
+                          <div className="text-xs text-gray-500">{contact.email}</div>
                         </div>
                       </div>
                     ))}
@@ -328,7 +328,7 @@ export function BuildingConfirmationStep({
                       <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-orange-50 rounded border border-orange-200 ml-4">
                         <div>
                           <div className="font-medium text-xs">{contact.name}</div>
-                          <div className="text-[10px] text-gray-500">{contact.email}</div>
+                          <div className="text-xs text-gray-500">{contact.email}</div>
                         </div>
                       </div>
                     ))}
@@ -346,14 +346,14 @@ export function BuildingConfirmationStep({
                       <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-gray-50 rounded border border-gray-200 ml-4">
                         <div>
                           <div className="font-medium text-xs">{contact.name}</div>
-                          <div className="text-[10px] text-gray-500">{contact.email}</div>
+                          <div className="text-xs text-gray-500">{contact.email}</div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <p className="text-[10px] text-gray-600">
+                <p className="text-xs text-gray-600">
                   Disponibles pour tous les lots
                 </p>
               </div>
@@ -367,7 +367,7 @@ export function BuildingConfirmationStep({
         <>
           <div className="flex items-center gap-2 px-1">
             <h3 className="text-sm font-semibold text-gray-900">Lots</h3>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">
               {lots.length}
             </Badge>
           </div>
@@ -394,7 +394,7 @@ export function BuildingConfirmationStep({
                           <h3 className="font-medium text-sm truncate">{lot.reference}</h3>
                           <Badge
                             variant="outline"
-                            className={`${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color} text-[10px] px-1.5 py-0 flex-shrink-0`}
+                            className={`${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color} text-xs px-1.5 py-0 flex-shrink-0`}
                           >
                             {categoryConfig.label}
                           </Badge>
@@ -429,7 +429,7 @@ export function BuildingConfirmationStep({
                           <span className="font-medium text-purple-900 text-xs">
                             Responsables specifiques
                           </span>
-                          <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0">
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs px-1.5 py-0">
                             {lotManagers.length}
                           </Badge>
                         </div>
@@ -445,7 +445,7 @@ export function BuildingConfirmationStep({
                               </div>
                               <div>
                                 <div className="font-medium text-xs">{manager.user.name}</div>
-                                <div className="text-[10px] text-gray-500">{manager.user.email}</div>
+                                <div className="text-xs text-gray-500">{manager.user.email}</div>
                               </div>
                             </div>
                           ))}
@@ -475,7 +475,7 @@ export function BuildingConfirmationStep({
                                 <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-blue-50 rounded border border-blue-200 ml-4">
                                   <div>
                                     <div className="font-medium text-xs">{contact.name}</div>
-                                    <div className="text-[10px] text-gray-500">{contact.email}</div>
+                                    <div className="text-xs text-gray-500">{contact.email}</div>
                                   </div>
                                 </div>
                               ))}
@@ -493,7 +493,7 @@ export function BuildingConfirmationStep({
                                 <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-green-50 rounded border border-green-200 ml-4">
                                   <div>
                                     <div className="font-medium text-xs">{contact.name}</div>
-                                    <div className="text-[10px] text-gray-500">{contact.email}</div>
+                                    <div className="text-xs text-gray-500">{contact.email}</div>
                                   </div>
                                 </div>
                               ))}
@@ -511,7 +511,7 @@ export function BuildingConfirmationStep({
                                 <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-orange-50 rounded border border-orange-200 ml-4">
                                   <div>
                                     <div className="font-medium text-xs">{contact.name}</div>
-                                    <div className="text-[10px] text-gray-500">{contact.email}</div>
+                                    <div className="text-xs text-gray-500">{contact.email}</div>
                                   </div>
                                 </div>
                               ))}
@@ -529,7 +529,7 @@ export function BuildingConfirmationStep({
                                 <div key={contact.id} className="flex items-center gap-2 p-1.5 bg-gray-50 rounded border border-gray-200 ml-4">
                                   <div>
                                     <div className="font-medium text-xs">{contact.name}</div>
-                                    <div className="text-[10px] text-gray-500">{contact.email}</div>
+                                    <div className="text-xs text-gray-500">{contact.email}</div>
                                   </div>
                                 </div>
                               ))}

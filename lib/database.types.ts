@@ -1397,6 +1397,44 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          id: string
+          keys: Json
+          updated_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          keys: Json
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          keys?: Json
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           id: string
@@ -1734,6 +1772,48 @@ export type Database = {
       }
     }
     Views: {
+      activity_logs_with_user: {
+        Row: {
+          action_type:
+            | Database["public"]["Enums"]["activity_action_type"]
+            | null
+          created_at: string | null
+          description: string | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type:
+            | Database["public"]["Enums"]["activity_entity_type"]
+            | null
+          error_message: string | null
+          id: string | null
+          ip_address: unknown
+          metadata: Json | null
+          status: Database["public"]["Enums"]["activity_status"] | null
+          team_id: string | null
+          user_agent: string | null
+          user_avatar_url: string | null
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+          user_role: Database["public"]["Enums"]["user_role"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lots_with_contacts: {
         Row: {
           active_contacts_total: number | null
@@ -1835,6 +1915,10 @@ export type Database = {
         Returns: string
       }
       get_lot_team_id: { Args: { lot_uuid: string }; Returns: string }
+      get_team_id_from_storage_path: {
+        Args: { storage_path: string }
+        Returns: string
+      }
       get_user_id_from_auth: { Args: never; Returns: string }
       get_user_teams_v2: {
         Args: never
@@ -1998,22 +2082,26 @@ export type Database = {
         | "manuel_utilisation"
         | "photo_generale"
         | "autre"
-      provider_category:
-        | "prestataire"
-        | "assurance"
-        | "notaire"
-        | "syndic"
-        | "proprietaire"
-        | "autre"
+      provider_category: "prestataire" | "autre"
       response_type: "accepted" | "rejected" | "pending"
-      team_member_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
+      team_member_role:
+        | "admin"
+        | "gestionnaire"
+        | "locataire"
+        | "prestataire"
+        | "proprietaire"
       time_slot_status:
         | "requested"
         | "pending"
         | "selected"
         | "rejected"
         | "cancelled"
-      user_role: "admin" | "gestionnaire" | "locataire" | "prestataire"
+      user_role:
+        | "admin"
+        | "gestionnaire"
+        | "locataire"
+        | "prestataire"
+        | "proprietaire"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2263,16 +2351,15 @@ export const Constants = {
         "photo_generale",
         "autre",
       ],
-      provider_category: [
-        "prestataire",
-        "assurance",
-        "notaire",
-        "syndic",
-        "proprietaire",
-        "autre",
-      ],
+      provider_category: ["prestataire", "autre"],
       response_type: ["accepted", "rejected", "pending"],
-      team_member_role: ["admin", "gestionnaire", "locataire", "prestataire"],
+      team_member_role: [
+        "admin",
+        "gestionnaire",
+        "locataire",
+        "prestataire",
+        "proprietaire",
+      ],
       time_slot_status: [
         "requested",
         "pending",
@@ -2280,7 +2367,13 @@ export const Constants = {
         "rejected",
         "cancelled",
       ],
-      user_role: ["admin", "gestionnaire", "locataire", "prestataire"],
+      user_role: [
+        "admin",
+        "gestionnaire",
+        "locataire",
+        "prestataire",
+        "proprietaire",
+      ],
     },
   },
 } as const

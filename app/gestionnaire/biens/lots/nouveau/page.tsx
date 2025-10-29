@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import ContactFormModal from "@/components/contact-form-modal"
@@ -86,9 +86,7 @@ interface LotData {
   assignedContacts: {
     tenant: { id: string; name: string; email: string; type: string }[]
     provider: { id: string; name: string; email: string; type: string }[]
-    syndic: { id: string; name: string; email: string; type: string }[]
-    notary: { id: string; name: string; email: string; type: string }[]
-    insurance: { id: string; name: string; email: string; type: string }[]
+    owner: { id: string; name: string; email: string; type: string }[]
     other: { id: string; name: string; email: string; type: string }[]
   }
   
@@ -114,6 +112,7 @@ export default function NewLotPage() {
   const [teamManagers, setTeamManagers] = useState<TeamManager[]>([])
   const [userTeam, setUserTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>({})
   const [teams, setTeams] = useState<Team[]>([])
   const [error, setError] = useState<string>("")
@@ -644,15 +643,17 @@ export default function NewLotPage() {
   }
 
   const handleFinish = async () => {
-    if (!user?.id) {
-      logger.error("❌ User not found")
-      toast({
-        title: "Erreur d'authentification",
-        description: "Utilisateur non connecté. Veuillez vous reconnecter.",
-        variant: "destructive",
-      })
-      return
-    }
+    setIsSubmitting(true)
+    try {
+      if (!user?.id) {
+        logger.error("❌ User not found")
+        toast({
+          title: "Erreur d'authentification",
+          description: "Utilisateur non connecté. Veuillez vous reconnecter.",
+          variant: "destructive",
+        })
+        return
+      }
 
     if (!userTeam?.id) {
       logger.error("❌ User team not found. User ID:", user.id, "TeamStatus:", teamStatus, "Teams:", teams)
@@ -892,6 +893,9 @@ export default function NewLotPage() {
         description: "Une erreur est survenue lors de la création du lot. Veuillez réessayer.",
         variant: "destructive",
       })
+    }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -1830,17 +1834,13 @@ export default function NewLotPage() {
                           <div className={`w-2 h-2 rounded-full ${
                             type === 'tenant' ? 'bg-blue-500' :
                             type === 'provider' ? 'bg-green-500' :
-                            type === 'syndic' ? 'bg-purple-500' :
-                            type === 'notary' ? 'bg-orange-500' :
-                            type === 'insurance' ? 'bg-red-500' : 'bg-slate-500'
+                            type === 'owner' ? 'bg-amber-500' : 'bg-slate-500'
                           }`}></div>
                           <span className="text-sm font-medium text-slate-900">
                             {contacts.length} {
                               type === 'tenant' ? 'locataire' :
                               type === 'provider' ? 'prestataire' :
-                              type === 'syndic' ? 'syndic' :
-                              type === 'notary' ? 'notaire' :
-                              type === 'insurance' ? 'assurance' : 'autre'
+                              type === 'owner' ? 'propriétaire' : 'autre'
                             }{contacts.length > 1 ? 's' : ''}
                           </span>
                           <span className="text-xs text-slate-600">
@@ -1928,9 +1928,22 @@ export default function NewLotPage() {
               <ArrowRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleFinish} className="flex items-center space-x-2">
-              <span>Créer le lot</span>
-              <Check className="h-4 w-4" />
+            <Button
+              onClick={handleFinish}
+              className="flex items-center space-x-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Création en cours...</span>
+                </>
+              ) : (
+                <>
+                  <span>Créer le lot</span>
+                  <Check className="h-4 w-4" />
+                </>
+              )}
             </Button>
           )}
         </div>

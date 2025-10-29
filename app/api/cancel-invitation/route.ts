@@ -19,19 +19,63 @@ const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Datab
 
 export async function POST(request: Request) {
   try {
-    // ✅ AUTH: 40 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    // ============================================================================
+    // STEP 0: Authentication & Context
+    // ============================================================================
+    logger.info({}, '🚀 [STEP-0] Starting cancel invitation API...')
+
     const authResult = await getApiAuthContext()
+
+    logger.info({
+      success: authResult.success,
+      hasData: !!authResult.data
+    }, '🔍 [STEP-0] Auth context retrieved')
+
     if (!authResult.success) return authResult.error
 
-    const { userProfile: currentUserProfile, authUser: session } = authResult.data
+    const { userProfile, authUser } = authResult.data
+
+    logger.info({
+      hasUserProfile: !!userProfile,
+      hasAuthUser: !!authUser,
+      userId: userProfile?.id,
+      userEmail: userProfile?.email,
+      userRole: userProfile?.role
+    }, '🔍 [STEP-0] Destructuring auth data')
+
+    // Defensive check: ensure userProfile exists
+    if (!userProfile) {
+      logger.error({
+        authUserId: authUser?.id,
+        dataKeys: Object.keys(authResult.data || {})
+      }, '❌ [STEP-0] User profile missing from auth context')
+      return NextResponse.json(
+        { error: 'Profil utilisateur introuvable' },
+        { status: 404 }
+      )
+    }
+
+    const currentUserProfile = userProfile
+    const session = authUser
+
+    logger.info({
+      currentUserId: currentUserProfile.id,
+      currentUserRole: currentUserProfile.role
+    }, '✅ [STEP-0] Authentication successful')
 
     // Vérifier si le service est disponible
     if (!supabaseAdmin) {
+      logger.error({
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL
+      }, '❌ [STEP-0] Supabase admin client not initialized')
       return NextResponse.json(
         { error: 'Service non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },
         { status: 503 }
       )
     }
+
+    logger.info({}, '✅ [STEP-0] Supabase admin client available')
 
     const body = await request.json()
 
@@ -81,7 +125,7 @@ export async function POST(request: Request) {
       invited_by_type: typeof invitationCheck.invited_by,
       current_user: currentUserProfile.id,
       current_user_type: typeof currentUserProfile.id,
-      auth_user_id: session.user.id,
+      auth_user_id: session.id,  // Fixed: session IS authUser (has id directly, not session.user.id)
       ids_match: invitationCheck.invited_by === currentUserProfile.id
     }, '✅ [CANCEL-INVITATION-API] Found invitation:')
 
@@ -97,34 +141,15 @@ export async function POST(request: Request) {
       )
     }
 
-    // ÉTAPE 3: Vérifier les permissions (que l'utilisateur courant est bien l'inviteur)
-    if (invitationCheck.invited_by !== currentUserProfile.id) {
-      // ✅ DEBUG AVANCÉ - Récupérer les détails de l'inviteur original
-      const { data: originalInviter, error: inviterError } = await supabaseAdmin
-        .from('users')
-        .select('id, email, name, auth_user_id')
-        .eq('id', invitationCheck.invited_by)
-        .single()
-
-      logger.error({
-        invitation_invited_by: invitationCheck.invited_by,
-        current_user_id: currentUserProfile.id,
-        auth_user_id: session.user.id,
-        current_user_details: {
-          id: currentUserProfile.id,
-          email: currentUserProfile.email,
-          name: currentUserProfile.name,
-          auth_user_id: currentUserProfile.auth_user_id
-        },
-        original_inviter_details: originalInviter || 'FAILED_TO_FETCH',
-        inviter_error: inviterError || 'NO_ERROR'
-      }, '❌ [CANCEL-INVITATION-API] Permission denied - detailed comparison:')
-
-      return NextResponse.json(
-        { error: 'Permission refusée: vous ne pouvez annuler que vos propres invitations' },
-        { status: 403 }
-      )
-    }
+    // ÉTAPE 3: Vérifier les permissions
+    // Note: Permissions are now enforced by RLS policy (user_invitations_delete)
+    // Any gestionnaire or team admin in the team can cancel invitations
+    // No need for application-level permission check here
+    logger.info({
+      invitationTeamId: invitationCheck.team_id,
+      currentUserId: currentUserProfile.id,
+      currentUserRole: currentUserProfile.role
+    }, '✅ [STEP-3] Permissions will be checked by RLS policy')
 
     // Si on arrive ici, l'invitation peut être annulée
     const invitation = invitationCheck
@@ -171,14 +196,22 @@ export async function POST(request: Request) {
       .from('user_invitations')
       .delete()
       .eq('id', invitationId)
-      .eq('invited_by', currentUserProfile.id)
+      // Removed .eq('invited_by', currentUserProfile.id) to allow any gestionnaire to cancel team invitations
       .select()
       .single()
 
     if (deleteError) {
-      logger.error({ deleteError: deleteError }, '❌ [STEP-5] Failed to delete invitation:')
+      logger.error({
+        deleteError,
+        errorCode: deleteError.code,
+        errorDetails: deleteError.details,
+        errorHint: deleteError.hint,
+        invitationId,
+        userId: currentUserProfile.id,
+        userRole: currentUserProfile.role
+      }, '❌ [STEP-5] Failed to delete invitation')
       return NextResponse.json(
-        { error: 'Erreur lors de la suppression de l\'invitation: ' + deleteError.message },
+        { error: `Erreur lors de la suppression: ${deleteError.message || deleteError.code || 'Erreur inconnue'}` },
         { status: 500 }
       )
     }
@@ -210,7 +243,28 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    logger.error({ error: error }, '❌ [CANCEL-INVITATION-API] Unexpected error:')
+    // Enhanced error serialization for better debugging
+    const errorDetails = error instanceof Error
+      ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        }
+      : {
+          type: typeof error,
+          value: String(error),
+          stringified: JSON.stringify(error, null, 2)
+        }
+
+    logger.error({
+      errorDetails,
+      errorConstructor: error?.constructor?.name,
+      isError: error instanceof Error
+    }, '❌ [CANCEL-INVITATION-API] Unexpected error')
+
+    // Additional console.error for debugging (includes full error object)
+    console.error('[CANCEL-INVITATION-API] Full error:', error)
+
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

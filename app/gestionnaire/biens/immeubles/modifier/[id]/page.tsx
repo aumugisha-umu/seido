@@ -1,350 +1,127 @@
-"use client"
+import { redirect } from "next/navigation"
+import { getServerAuthContext } from "@/lib/server-context"
+import { createServerBuildingService, createServerTeamService } from "@/lib/services"
+import EditBuildingClient from "./edit-building-client"
+import { transformBuildingForEdit } from "@/lib/utils/building-transform"
+import { logger } from "@/lib/logger"
 
-import { useState, useEffect, use } from "react"
-import type { User, Team, Building } from "@/lib/services/core/service-types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, Save, X } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
-import { useTeamStatus } from "@/hooks/use-team-status"
-
-
-
-import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle } from "lucide-react"
-import { BuildingInfoForm } from "@/components/building-info-form"
-import { logger, logError } from '@/lib/logger'
-interface BuildingInfo {
-  name: string
-  address: string
-  postalCode: string
-  city: string
-  country: string
-  description: string
+interface PageProps {
+  params: Promise<{ id: string }>
 }
 
-export default function EditBuildingPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
-  const resolvedParams = use(params)
-  const { user } = useAuth()
-  const { teamStatus } = useTeamStatus()
+export default async function EditBuildingPage({ params }: PageProps) {
+  const resolvedParams = await params
 
-  // States
-  const [building, setBuilding] = useState<Building | null>(null)
-  const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>({
-    name: "",
-    address: "",
-    postalCode: "",
-    city: "",
-    country: "Belgique",
-    description: "",
-  })
-  const [teamManagers, setTeamManagers] = useState<User[]>([])
-  const [userTeam, setUserTeam] = useState<Team | null>(null)
-  
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  // ✅ Centralized auth + team fetching
+  const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
 
-  // Load building data and populate form
-  useEffect(() => {
-    if (resolvedParams.id && user?.id) {
-      loadBuildingData()
-    }
-  }, [resolvedParams.id, user?.id])
+  if (!user || !profile || !team) {
+    redirect('/login')
+  }
 
-  // Load team managers
-  useEffect(() => {
-    const loadUserTeamAndManagers = async () => {
-      if (!user?.id || teamStatus !== 'verified') {
-        return
-      }
+  // Initialize services
+  const buildingService = await createServerBuildingService()
+  const teamService = await createServerTeamService()
 
-      try {
-        // 1. Récupérer les équipes de l'utilisateur
-        const teamsResult = await teamService.getUserTeams(user.id)
-        const userTeams = teamsResult?.data || []
+  try {
+    // STEP 1: Log start of loading process
+    logger.info(`[EDIT-BUILDING] Loading building ${resolvedParams.id} for team ${team.id}`)
 
-        if (userTeams.length === 0) {
-          logger.warn('No teams found for user')
-          return
-        }
+    const buildingResult = await buildingService.getByIdWithRelations(resolvedParams.id)
 
-        // 2. Prendre la première équipe
-        const primaryTeam = userTeams[0]
-        setUserTeam(primaryTeam)
+    // STEP 2: Log query result
+    logger.info(`[EDIT-BUILDING] Query result:`, {
+      success: buildingResult.success,
+      hasData: !!buildingResult.data,
+      error: buildingResult.success ? null : buildingResult.error
+    })
 
-        // 3. Récupérer les membres de cette équipe
-        let teamMembers = []
-        try {
-          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
-          teamMembers = membersResult?.data || []
-          setTeamManagers(teamMembers)
-        } catch (membersError) {
-          logger.error("Error loading team members:", membersError)
-          setTeamManagers([])
-        }
-        
-      } catch (error) {
-        logger.error('Error loading team and managers:', error)
-        setTeamManagers([])
-      }
-    }
-
-    loadUserTeamAndManagers()
-  }, [user?.id, teamStatus])
-
-  const loadBuildingData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const buildingData = await buildingService.getById(resolvedParams.id)
-      logger.info("🏢 Building loaded for edit:", buildingData)
-      
-      setBuilding(buildingData)
-      
-      // Populate form with existing data
-      setBuildingInfo({
-        name: buildingData.name || "",
-        address: buildingData.address || "",
-        postalCode: buildingData.postal_code || "",
-        city: buildingData.city || "",
-        country: buildingData.country || "Belgique",
-        description: buildingData.description || "",
+    // STEP 3: Check query success with detailed error
+    if (!buildingResult.success || !buildingResult.data) {
+      logger.error(`[EDIT-BUILDING] Building not found or query failed`, {
+        buildingId: resolvedParams.id,
+        success: buildingResult.success,
+        error: buildingResult.error
       })
-      
-      // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
-      // setSelectedManagerId(buildingData.gestionnaire_id || "")
-
-    } catch (error) {
-      logger.error("❌ Error loading building data:", error)
-      setError("Erreur lors du chargement des données de l'immeuble")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSave = async () => {
-    if (!user?.id) {
-      setError("Vous devez être connecté pour modifier l'immeuble")
-      return
+      redirect('/gestionnaire/biens')
     }
 
-    if (!buildingInfo.name.trim()) {
-      setError("Le nom de l'immeuble est requis")
-      return
+    const building = buildingResult.data
+
+    // STEP 4: Log building data structure
+    logger.info(`[EDIT-BUILDING] Building loaded:`, {
+      buildingId: building.id,
+      buildingName: building.name,
+      buildingTeamId: building.team_id,
+      userTeamId: team.id,
+      lotsCount: building.lots?.length || 0,
+      buildingContactsCount: building.building_contacts?.length || 0
+    })
+
+    // STEP 5: Verify team ownership with detailed error
+    if (building.team_id !== team.id) {
+      logger.error(`[EDIT-BUILDING] Team mismatch - building does not belong to user's team`, {
+        buildingId: resolvedParams.id,
+        buildingTeamId: building.team_id,
+        userTeamId: team.id,
+        buildingName: building.name
+      })
+      redirect('/gestionnaire/biens')
     }
 
-    if (!buildingInfo.address.trim()) {
-      setError("L'adresse de l'immeuble est requise")
-      return
+    // STEP 6: Log before transformation
+    logger.info(`[EDIT-BUILDING] Team verification passed, transforming data...`)
+
+    const transformedData = transformBuildingForEdit(building)
+
+    // STEP 7: Log transformation success
+    logger.info(`[EDIT-BUILDING] Data transformation complete:`, {
+      lotsCount: transformedData.lots.length,
+      buildingManagersCount: transformedData.buildingManagers.length,
+      buildingContactsCount: Object.values(transformedData.buildingContacts).flat().length
+    })
+
+    // STEP 8: Load team members
+    logger.info(`[EDIT-BUILDING] Loading team members for team ${team.id}`)
+    const teamMembersResult = await teamService.getTeamMembers(team.id)
+    const teamMembers = teamMembersResult?.data || []
+    logger.info(`[EDIT-BUILDING] Loaded ${teamMembers.length} team members`)
+
+    // Prepare user profile for client component
+    const userProfile = {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name || profile.email,
+      role: profile.role || 'gestionnaire'
     }
 
-    // TODO: Migrer vers le nouveau système de building_contacts
-    // if (!selectedManagerId) {
-    //   setError("Veuillez sélectionner un responsable")
-    //   return
-    // }
+    logger.info(`[EDIT-BUILDING] Successfully prepared all data, rendering client component`)
 
-    try {
-      setSaving(true)
-      setError(null)
-      setSuccess(null)
-
-      const updateData = {
-        name: buildingInfo.name.trim(),
-        address: buildingInfo.address.trim(),
-        city: buildingInfo.city.trim() || "Non spécifié",
-        country: buildingInfo.country.trim() || "Belgique",
-        postal_code: buildingInfo.postalCode.trim() || "",
-        description: buildingInfo.description.trim(),
-        // TODO: Migrer vers le nouveau système de building_contacts (Phase 2: use gestionnaire_id)
-        // gestionnaire_id: selectedManagerId,
-      }
-
-      await buildingService.update(resolvedParams.id, updateData)
-      
-      setSuccess("Immeuble modifié avec succès!")
-      
-      // Redirect after success
-      setTimeout(() => {
-        router.push(`/gestionnaire/biens/immeubles/${resolvedParams.id}`)
-      }, 2000)
-
-    } catch (error) {
-      logger.error("❌ Error updating building:", error)
-      setError("Erreur lors de la modification de l'immeuble")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleCancel = () => {
-    router.push(`/gestionnaire/biens/immeubles/${resolvedParams.id}`)
-  }
-
-  // Loading state
-  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button variant="ghost" className="flex items-center space-x-2">
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-          </div>
-        </header>
-
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="space-y-6">
-            <Skeleton className="h-8 w-64" />
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-48" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i}>
-                    <Skeleton className="h-4 w-32 mb-2" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
+      <EditBuildingClient
+        buildingId={resolvedParams.id}
+        userProfile={userProfile}
+        userTeam={team}
+        initialBuilding={transformedData}
+        initialTeamManagers={teamMembers}
+      />
     )
+  } catch (error) {
+    // STEP 9: Detailed error logging
+    logger.error(`[EDIT-BUILDING] Unexpected error loading building for edit`)
+    logger.error(`[EDIT-BUILDING] Building ID: ${resolvedParams.id}`)
+    logger.error(`[EDIT-BUILDING] Team ID: ${team.id}`)
+
+    if (error instanceof Error) {
+      logger.error(`[EDIT-BUILDING] Error name: ${error.name}`)
+      logger.error(`[EDIT-BUILDING] Error message: ${error.message}`)
+      logger.error(`[EDIT-BUILDING] Error stack:`)
+      logger.error(error.stack)
+    } else {
+      logger.error(`[EDIT-BUILDING] Non-Error object thrown:`)
+      logger.error(error)
+    }
+
+    redirect('/gestionnaire/biens')
   }
-
-  // Error state
-  if (error && !building) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button
-              variant="ghost"
-              onClick={handleCancel}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-          </div>
-        </header>
-
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </main>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={handleCancel}
-              className="flex items-center space-x-2"
-              disabled={saving}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                disabled={saving}
-                className="flex items-center space-x-2"
-              >
-                <X className="h-4 w-4" />
-                <span>Annuler</span>
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center space-x-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    <span>Enregistrement...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    <span>Enregistrer</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Page Title */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Modifier l'immeuble
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Modifiez les informations de l'immeuble "{building?.name}"
-        </p>
-      </div>
-
-      {/* Form */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        {/* Success/Error Alerts */}
-        {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{success}</AlertDescription>
-          </Alert>
-        )}
-        
-        {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Informations de l'immeuble</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* TODO: Migrer vers le nouveau système de building_contacts */}
-            <BuildingInfoForm
-              buildingInfo={buildingInfo}
-              setBuildingInfo={setBuildingInfo}
-              teamManagers={[]}
-              userTeam={null}
-              isLoading={teamManagers.length === 0 && userTeam === null}
-              showManagerSection={true}
-              showAddressSection={true}
-              entityType="immeuble"
-              showTitle={false}
-            />
-          </CardContent>
-        </Card>
-      </main>
-    </div>
-  )
 }
-

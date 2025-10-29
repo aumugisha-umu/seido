@@ -487,8 +487,12 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(error, `${this.tableName}:update`))
       }
 
-      // Clear cache
-      this.clearCache(`${this.tableName}:${id}`)
+      // ✅ FIX #3: Clear cache - including all variations (base, with-relations, summary, etc.)
+      await Promise.all([
+        this.clearCache(`${this.tableName}:${id}`),
+        this.clearCache(`${this.tableName}:${id}:full-relations`),
+        this.clearCache(`${this.tableName}:${id}:with-relations`)
+      ])
       this.clearTableCache()
 
       return createSuccessResponse(result as unknown as TRow)
@@ -520,7 +524,7 @@ export abstract class BaseRepository<
       }
 
       // Clear cache
-      this.clearCache(`${this.tableName}:${_id}`)
+      await this.clearCache(`${this.tableName}:${_id}`)
       this.clearTableCache()
 
       return createSuccessResponse(true)
@@ -605,8 +609,15 @@ export abstract class BaseRepository<
     return entry.data
   }
 
-  protected clearCache(_key: string): void {
+  protected async clearCache(_key: string): Promise<void> {
+    // Clear local Map cache
     this.cache.delete(_key)
+
+    // ✅ FIX: Also invalidate CacheManager (L1 LRU + L2 Redis)
+    // This ensures getCachedOrFetch() won't return stale data
+    await cache.invalidate(_key).catch(err => {
+      console.warn(`⚠️ [BaseRepository] Failed to invalidate CacheManager for ${_key}:`, err)
+    })
   }
 
   protected clearTableCache(): void {

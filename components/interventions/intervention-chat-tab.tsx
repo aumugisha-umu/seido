@@ -35,6 +35,8 @@ type ThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
 export interface InterventionChatTabProps {
   interventionId: string
   threads: Thread[]
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
   currentUserId: string
   userRole: UserRole
 }
@@ -164,6 +166,8 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
 export function InterventionChatTab({
   interventionId,
   threads,
+  initialMessagesByThread,
+  initialParticipantsByThread,
   currentUserId,
   userRole
 }: InterventionChatTabProps) {
@@ -307,6 +311,8 @@ export function InterventionChatTab({
             threadId={activeThread.id}
             currentUserId={currentUserId}
             userRole={userRole}
+            initialMessages={initialMessagesByThread}
+            initialParticipants={initialParticipantsByThread}
             onSendMessage={handleSendMessage}
           />
         ) : (

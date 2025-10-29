@@ -98,11 +98,11 @@ export async function POST(request: Request) {
           'gestionnaire': { role: 'gestionnaire', provider_category: null },
           'locataire': { role: 'locataire', provider_category: null },
           'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
-          // Prestataires spécialisés → tous deviennent 'prestataire' avec category spécifique
-          'syndic': { role: 'prestataire', provider_category: 'syndic' },
-          'notaire': { role: 'prestataire', provider_category: 'notaire' },
-          'assurance': { role: 'prestataire', provider_category: 'assurance' },
-          'proprietaire': { role: 'prestataire', provider_category: 'proprietaire' }, // ✅ Sans accent (comme dans l'enum BDD)
+          'proprietaire': { role: 'proprietaire', provider_category: null }, // Proprietaire est maintenant un rôle distinct
+          // Anciennes catégories spécialisées → mappées vers 'autre'
+          'syndic': { role: 'prestataire', provider_category: 'autre' },
+          'notaire': { role: 'prestataire', provider_category: 'autre' },
+          'assurance': { role: 'prestataire', provider_category: 'autre' },
           'autre': { role: 'prestataire', provider_category: 'autre' }
         }
 

@@ -45,7 +45,7 @@ export const StepProgressHeader = ({
         <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
           {/* Left: Page Title */}
           <div className="flex-shrink-0">
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               {title}
             </h1>
             {subtitle && (
@@ -57,10 +57,10 @@ export const StepProgressHeader = ({
 
           {/* Center: Current Step Info */}
           <div className="flex-1 text-center">
-            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
               Étape {currentStep} sur {steps.length}
             </p>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 whitespace-nowrap">
               {currentStepData.label}
             </h2>
           </div>
@@ -148,7 +148,7 @@ export const StepProgressHeader = ({
                   }`}>
                     <step.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  <p className={`text-[10px] sm:text-xs font-medium text-center max-w-[70px] sm:max-w-[120px] ${
+                  <p className={`text-xs sm:text-sm font-medium text-center max-w-[70px] sm:max-w-[120px] ${
                     isCurrent ? "text-gray-900" : isComplete ? "text-gray-700" : "text-gray-400"
                   }`}>
                     {step.label}

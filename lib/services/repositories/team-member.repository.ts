@@ -244,8 +244,10 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       if (error) throw error
 
       // Invalider les caches
-      this.clearCache(`user_teams_${insert.user_id}`)
-      this.clearCache(`team_members_${insert.team_id}`)
+      await Promise.all([
+        this.clearCache(`user_teams_${insert.user_id}`),
+        this.clearCache(`team_members_${insert.team_id}`)
+      ])
 
       return { success: true, data }
     } catch (error) {
@@ -267,9 +269,11 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       if (error) throw error
 
       // Invalider les caches
-      this.clearCache(`team_member_${userId}_${teamId}`)
-      this.clearCache(`user_teams_${userId}`)
-      this.clearCache(`team_members_${teamId}`)
+      await Promise.all([
+        this.clearCache(`team_member_${userId}_${teamId}`),
+        this.clearCache(`user_teams_${userId}`),
+        this.clearCache(`team_members_${teamId}`)
+      ])
 
       return { success: true, data: undefined }
     } catch (error) {
@@ -293,9 +297,11 @@ export class TeamMemberRepository extends BaseRepository<TeamMember> {
       if (error) throw error
 
       // Invalider les caches
-      this.clearCache(`team_member_${userId}_${teamId}`)
-      this.clearCache(`user_teams_${userId}`)
-      this.clearCache(`team_members_${teamId}`)
+      await Promise.all([
+        this.clearCache(`team_member_${userId}_${teamId}`),
+        this.clearCache(`user_teams_${userId}`),
+        this.clearCache(`team_members_${teamId}`)
+      ])
 
       return { success: true, data }
     } catch (error) {

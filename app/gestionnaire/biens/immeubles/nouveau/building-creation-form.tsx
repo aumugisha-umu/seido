@@ -87,9 +87,7 @@ interface Contact {
 const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
-  { key: "syndic", label: "Syndic", icon: Shield, color: "text-purple-600" },
-  { key: "notary", label: "Notaire", icon: FileCheck, color: "text-orange-600" },
-  { key: "insurance", label: "Assurance", icon: Car, color: "text-red-600" },
+  { key: "owner", label: "Propriétaire", icon: Shield, color: "text-amber-600" },
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 
@@ -147,9 +145,7 @@ export default function NewImmeubleePage({
   const [buildingContacts, setBuildingContacts] = useState<{[contactType: string]: Contact[]}>({
     tenant: [],
     provider: [],
-    syndic: [],
-    notary: [],
-    insurance: [],
+    owner: [],
     other: [],
   })
   const [buildingManagers, setBuildingManagers] = useState<User[]>([]) // gestionnaires de l'immeuble

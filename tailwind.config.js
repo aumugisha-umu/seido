@@ -17,6 +17,22 @@ module.exports = {
       },
     },
     extend: {
+      fontSize: {
+        // Material Design 3 Typography Scale
+        // https://m3.material.io/styles/typography/type-scale-tokens
+        'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '400' }],
+        'headline-md': ['28px', { lineHeight: '36px', fontWeight: '400' }],
+        'headline-sm': ['24px', { lineHeight: '32px', fontWeight: '400' }],
+        'title-lg': ['22px', { lineHeight: '28px', fontWeight: '500' }],
+        'title-md': ['16px', { lineHeight: '24px', fontWeight: '500' }],
+        'title-sm': ['14px', { lineHeight: '20px', fontWeight: '500' }],
+        'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+        'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', fontWeight: '400' }],
+        'label-lg': ['14px', { lineHeight: '20px', fontWeight: '500' }],
+        'label-md': ['12px', { lineHeight: '16px', fontWeight: '500' }],
+        'label-sm': ['11px', { lineHeight: '16px', fontWeight: '500' }],
+      },
       colors: {
         border: "oklch(var(--border))",
         input: "oklch(var(--input))",

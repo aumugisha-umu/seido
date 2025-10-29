@@ -16,19 +16,16 @@ import {
   CheckCircle,
   Plus,
   X,
-  Upload,
-  FileText,
-  Trash2,
   Users,
   User,
   Wrench,
   UserCheck,
   Eye,
   AlertTriangle,
-  Paperclip,
   Calendar,
   Clock,
   MessageSquare,
+  Paperclip,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -38,20 +35,15 @@ import { useSearchParams } from "next/navigation"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
-
-
-
-
-
 import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
-
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
-import { FileUploader } from "@/components/ui/file-uploader"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
+import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
+import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
 
 // Types for server-loaded data
 interface Building {
@@ -112,7 +104,14 @@ export default function NouvelleInterventionClient({
     description: "",
     availabilities: [] as Array<{ date: string; startTime: string; endTime: string }>,
   })
-  const [files, setFiles] = useState<File[]>([])
+
+  // File upload hook (replaces files state)
+  const fileUpload = useInterventionUpload({
+    documentType: 'intervention_photo',
+    onUploadError: (error) => {
+      toast({ title: "Erreur", description: error, variant: "destructive" })
+    }
+  })
 
   const [schedulingType, setSchedulingType] = useState<"fixed" | "slots" | "flexible">("flexible")
   const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "" })
@@ -749,7 +748,7 @@ export default function NouvelleInterventionClient({
     logger.info("Intervention créée:", {
       selectedLogement,
       formData,
-      files,
+      files: fileUpload.files,
       selectedContacts: getSelectedContacts(),
       schedulingType,
       fixedDateTime,
@@ -763,11 +762,7 @@ export default function NouvelleInterventionClient({
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || [])
-    setFiles((prev) => [...prev, ...selectedFiles])
-  }
-
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+    fileUpload.addFiles(selectedFiles)
   }
 
   const formatFileSize = (bytes: number) => {
@@ -826,8 +821,8 @@ export default function NouvelleInterventionClient({
         selectedManagerIds,
         selectedProviderIds,
 
-        // Scheduling - Map client types to API types and send raw format
-        schedulingType: schedulingType === 'slots' ? 'flexible' : schedulingType === 'flexible' ? 'none' : schedulingType,
+        // Scheduling - Send scheduling type directly (valid values: 'fixed', 'flexible', 'slots')
+        schedulingType: schedulingType,
         fixedDateTime: schedulingType === 'fixed' && fixedDateTime.date && fixedDateTime.time
           ? { date: fixedDateTime.date, time: fixedDateTime.time }
           : null,
@@ -846,14 +841,7 @@ export default function NouvelleInterventionClient({
         
         // Options
         expectsQuote,
-        
-        // Files (for now, we'll pass file names/metadata, actual upload to be implemented)
-        files: files.map(file => ({
-          name: file.name,
-          size: file.size,
-          type: file.type
-        })),
-        
+
         // Team context
         teamId: currentUserTeam?.id || initialBuildingsData.teamId
       }
@@ -875,13 +863,33 @@ export default function NouvelleInterventionClient({
         timeSlotsLength: interventionData.timeSlots?.length
       })
 
+      // ✅ Create FormData to handle files properly
+      const formDataToSend = new FormData()
+
+      // Add intervention data as JSON
+      formDataToSend.append('interventionData', JSON.stringify(interventionData))
+
+      // Add files with metadata
+      fileUpload.files.forEach((fileWithPreview, index) => {
+        formDataToSend.append(`file_${index}`, fileWithPreview.file)
+        // Send metadata including document type
+        formDataToSend.append(`file_${index}_metadata`, JSON.stringify({
+          id: fileWithPreview.id,
+          name: fileWithPreview.file.name,
+          size: fileWithPreview.file.size,
+          type: fileWithPreview.file.type,
+          documentType: fileWithPreview.documentType
+        }))
+      })
+      formDataToSend.append('fileCount', fileUpload.files.length.toString())
+
+      logger.info(`📎 Sending intervention with ${fileUpload.files.length} files`)
+
       // Call the API
       const response = await fetch('/api/create-manager-intervention', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(interventionData),
+        // ✅ Don't set Content-Type - browser sets it with boundary for multipart/form-data
+        body: formDataToSend,
       })
 
       logger.info("📡 API Response status:", response.status)
@@ -1040,9 +1048,9 @@ export default function NouvelleInterventionClient({
                     </div>
                   </div>
 
-                  {/* Description (70%) + File Uploader (30%) */}
-                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
-                    {/* Description - Prend la majorité de l'espace */}
+                  {/* Description pleine largeur + File Uploader en dessous */}
+                  <div className="space-y-4">
+                    {/* Description - Pleine largeur */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Description détaillée *</label>
                       <Textarea
@@ -1053,14 +1061,18 @@ export default function NouvelleInterventionClient({
                       />
                     </div>
 
-                    {/* File Uploader - Compact sur la droite */}
-                    <FileUploader
-                      files={files}
-                      onFilesChange={setFiles}
-                      accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                      maxSize={10}
-                      label="Fichiers joints (optionnel)"
-                    />
+                    {/* File Uploader - En dessous */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</p>
+                      <InterventionFileAttachment
+                        files={fileUpload.files}
+                        onAddFiles={fileUpload.addFiles}
+                        onRemoveFile={fileUpload.removeFile}
+                        onUpdateFileType={fileUpload.updateFileDocumentType}
+                        isUploading={fileUpload.isUploading}
+                        maxFiles={10}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1146,7 +1158,7 @@ export default function NouvelleInterventionClient({
             const problemType = formData.type
             const urgency = formData.urgency
             const description = formData.description
-            const uploadedFiles = files
+            const uploadedFiles = fileUpload.files
 
             return (
               <Card>
@@ -1251,15 +1263,26 @@ export default function NouvelleInterventionClient({
                             <div>
                               <span className="text-sm font-medium text-gray-700">Fichiers joints:</span>
                               <div className="flex flex-wrap gap-2 mt-1">
-                                {uploadedFiles.map((file, index) => (
-                                  <span
-                                    key={index}
-                                    className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
-                                  >
-                                    <Paperclip className="h-3 w-3 mr-1" />
-                                    {file.name}
-                                  </span>
-                                ))}
+                                {uploadedFiles.map((fileWithPreview) => {
+                                  const documentTypeLabel = DOCUMENT_TYPES.find(
+                                    type => type.value === fileWithPreview.documentType
+                                  )?.label || fileWithPreview.documentType
+
+                                  return (
+                                    <div
+                                      key={fileWithPreview.id}
+                                      className="inline-flex flex-col px-3 py-2 bg-blue-100 text-blue-800 text-xs rounded"
+                                    >
+                                      <span className="flex items-center font-medium">
+                                        <Paperclip className="h-3 w-3 mr-1" />
+                                        {fileWithPreview.file.name}
+                                      </span>
+                                      <span className="text-blue-600 text-[10px] mt-0.5 ml-4">
+                                        {documentTypeLabel}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             </div>
                           )}

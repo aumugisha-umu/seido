@@ -71,6 +71,7 @@ interface BuildingInfoFormProps {
   defaultReference?: string
   buildingsCount?: number // Nombre d'immeubles de l'équipe
   categoryCountsByTeam?: Record<string, number> // Nombre de lots par catégorie dans l'équipe
+  buildingId?: string // ID de l'immeuble en mode édition (pour exclure de la vérification d'unicité)
 }
 
 export const BuildingInfoForm = ({
@@ -86,6 +87,7 @@ export const BuildingInfoForm = ({
   entityType = "immeuble",
   showTitle = false,
   categoryCountsByTeam = {},
+  buildingId,
 }: BuildingInfoFormProps) => {
   const { user } = useAuth()
 
@@ -110,7 +112,7 @@ export const BuildingInfoForm = ({
     const timeout = setTimeout(async () => {
       try {
         const buildingService = createBuildingService()
-        const res = await buildingService.nameExists(name, teamId)
+        const res = await buildingService.nameExists(name, teamId, buildingId)
         if (cancelled) return
         const exists = !!res?.success && !!res.data
         setIsDuplicateName(exists)
@@ -134,7 +136,7 @@ export const BuildingInfoForm = ({
       clearTimeout(timeout)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildingInfo.name, userTeam?.id])
+  }, [buildingInfo.name, userTeam?.id, buildingId])
 
 
   return (

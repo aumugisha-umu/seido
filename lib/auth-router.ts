@@ -28,7 +28,7 @@ export const ROLE_ROUTES = {
   admin: {
     dashboard: '/admin',
     default: '/admin',
-    allowed: ['/admin', '/gestionnaire', '/prestataire', '/locataire'] // Admin peut tout voir
+    allowed: ['/admin', '/gestionnaire', '/prestataire', '/proprietaire', '/locataire'] // Admin peut tout voir
   },
   gestionnaire: {
     dashboard: '/gestionnaire',
@@ -39,6 +39,11 @@ export const ROLE_ROUTES = {
     dashboard: '/prestataire',
     default: '/prestataire/dashboard',
     allowed: ['/prestataire']
+  },
+  proprietaire: {
+    dashboard: '/proprietaire',
+    default: '/proprietaire/dashboard',
+    allowed: ['/proprietaire']
   },
   locataire: {
     dashboard: '/locataire',

@@ -59,7 +59,7 @@ export function PropertyStepWrapper({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-xl">
                 {currentStepConfig?.icon && (
                   <currentStepConfig.icon className="w-5 h-5" />
                 )}

@@ -7,7 +7,6 @@
 
 import * as React from 'react'
 import { Section, Text, Img } from '@react-email/components'
-import { getLogoWebPBase64, getLogoBase64 } from '@/emails/utils/assets'
 
 interface EmailHeaderProps {
   /** Sujet de l'email (affiché sous le logo) */
@@ -15,10 +14,10 @@ interface EmailHeaderProps {
 }
 
 export const EmailHeader = ({ subject }: EmailHeaderProps) => {
-  // Logo WebP encodé en base64 (10KB, optimisé pour emails)
-  const logoUrl = getLogoWebPBase64()
-  // Fallback PNG si WebP non supporté (21KB)
-  const logoPngUrl = getLogoBase64()
+  // Logo attaché via CID (Content-ID)
+  // Le logo est envoyé comme pièce jointe avec l'email (voir email-service.ts)
+  // Référence: cid:logo@seido correspond à l'attachment avec cid='logo@seido'
+  const logoSrc = 'cid:logo@seido'
 
   return (
     <Section
@@ -27,39 +26,29 @@ export const EmailHeader = ({ subject }: EmailHeaderProps) => {
     >
       {/* Layout 2 lignes : Logo + Fallback centré en haut, Titre centré en dessous */}
       <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
-        {/* Ligne 1 : Logo WebP avec fallback texte visible */}
+        {/* Ligne 1 : Logo avec fallback texte */}
         <tr>
           <td style={{ textAlign: 'center' }}>
-            {/* Logo WebP optimisé (10KB) */}
+            {/*
+              Logo attaché via CID (Content-ID attachment)
+              - Approche recommandée par Resend pour les emails transactionnels
+              - Compatible tous clients email (Gmail, Outlook, Apple Mail, etc.)
+              - Le fichier logo.png est attaché à l'email avec cid='logo@seido'
+              - Fonctionne en dev et prod sans configuration URL
+            */}
             <Img
-              src={logoUrl}
+              src={logoSrc}
               alt="SEIDO"
-              width="200"
-              height="50"
+              width="150"
               border={0}
               style={{
                 display: 'block',
-                maxHeight: '50px',
                 height: 'auto',
                 width: 'auto',
-                maxWidth: '200px',
+                maxWidth: '150px',
                 margin: '0 auto'
               }}
             />
-            {/* Fallback texte visible si image bloquée/non chargée */}
-            <Text
-              style={{
-                color: '#ffffff',
-                fontSize: '28px',
-                fontWeight: 'bold',
-                margin: '8px 0 0 0',
-                lineHeight: 1,
-                textAlign: 'center',
-                display: 'block'
-              }}
-            >
-              SEIDO
-            </Text>
           </td>
         </tr>
 

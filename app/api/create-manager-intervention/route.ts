@@ -24,8 +24,38 @@ export async function POST(request: NextRequest) {
 
     logger.info({ userId: authUser.id }, "✅ Authenticated user")
 
-    // Parse the request body
-    const body = await request.json()
+    // Parse the request body - support both FormData (with files) and JSON (backward compatibility)
+    let body: Record<string, unknown>
+    const files: File[] = []
+    const fileMetadata: Record<string, unknown>[] = []
+    const contentType = request.headers.get('content-type')
+
+    if (contentType?.includes('multipart/form-data')) {
+      logger.info({}, "📦 Parsing FormData request")
+      const formData = await request.formData()
+      const interventionDataString = formData.get('interventionData') as string
+      body = JSON.parse(interventionDataString)
+
+      const fileCount = parseInt(formData.get('fileCount') as string || '0')
+      for (let i = 0; i < fileCount; i++) {
+        const file = formData.get(`file_${i}`) as File
+        const metadataString = formData.get(`file_${i}_metadata`) as string
+
+        if (file) {
+          files.push(file)
+          if (metadataString) {
+            fileMetadata.push(JSON.parse(metadataString))
+          } else {
+            fileMetadata.push({})
+          }
+        }
+      }
+      logger.info({ fileCount: files.length }, "📎 Files extracted from FormData")
+    } else {
+      logger.info({}, "📝 Parsing JSON request")
+      body = await request.json()
+    }
+
     logger.info({ body }, "📝 Request body")
 
     // Log specific fields that often cause validation issues
@@ -98,7 +128,6 @@ export async function POST(request: NextRequest) {
     const {
       managerAvailabilities,
       individualMessages,
-      files,
       teamId
     } = body
 
@@ -714,19 +743,51 @@ export async function POST(request: NextRequest) {
     // Handle file uploads if provided
     if (files && files.length > 0) {
       logger.info({ count: files.length }, "📎 Processing file uploads")
-      
+
       try {
-        // Store file information for later processing
-        // Note: Actual file upload will be handled by separate API calls from the frontend
-        // This is because FormData with files needs special handling in Next.js
-        logger.info({}, "📝 Files will be uploaded separately via upload API")
-        logger.info({ files: files.map((f: { name: string; size: number; type: string }) => ({ name: f.name, size: f.size, type: f.type })) }, "Files to upload")
-        
-        // We'll return the file information so the frontend can handle the uploads
-        // The frontend will call /api/upload-intervention-document for each file
-        
+        const { fileService } = await import('@/lib/file-service')
+        let uploadedCount = 0
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          const metadata = fileMetadata[i] || {}
+
+          try {
+            // Validate file
+            const validation = fileService.validateFile(file)
+            if (!validation.isValid) {
+              logger.error({ fileName: file.name, error: validation.error }, "❌ File validation failed")
+              continue
+            }
+
+            // Get document type from metadata or use default
+            const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
+
+            // Upload to Supabase Storage and create database record
+            await fileService.uploadInterventionDocument(supabase, file, {
+              interventionId: intervention.id,
+              uploadedBy: user.id,
+              teamId: intervention.team_id,
+              documentType: documentType as Database['public']['Enums']['intervention_document_type'],
+              description: `Fichier uploadé lors de la création: ${file.name}`
+            })
+
+            uploadedCount++
+            logger.info({ fileName: file.name }, "✅ File uploaded successfully")
+          } catch (fileError) {
+            logger.error({ fileName: file.name, error: fileError }, "❌ Error uploading file")
+            // Continue with other files even if one fails
+          }
+        }
+
+        // Update intervention has_attachments flag if any files were uploaded
+        if (uploadedCount > 0) {
+          await interventionService.update(intervention.id, { has_attachments: true })
+          logger.info({ uploadedCount }, "✅ Files uploaded successfully")
+        }
+
       } catch (error) {
-        logger.error({ error }, "❌ Error handling file information")
+        logger.error({ error }, "❌ Error handling file uploads")
         // Don't fail the entire intervention creation for file handling errors
       }
     }

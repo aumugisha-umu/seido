@@ -8,6 +8,7 @@ import { BuildingService, createBuildingService, createServerBuildingService, cr
 import { LotService, createLotService, createServerLotService, createServerActionLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService, createServerActionContactService } from './contact.service'
 import { TeamService, createTeamService, createServerTeamService, createServerActionTeamService } from './team.service'
+import { cache } from '@/lib/cache/cache-manager'
 import type {
   User,
   Building,
@@ -770,6 +771,272 @@ export class CompositeService {
         operations,
         rollbackOperations,
         rollbackErrors: rollbackErrors.length > 0 ? rollbackErrors : undefined
+      }
+    }
+  }
+
+  /**
+   * Update complete property with differential updates for lots and contacts
+   * Handles new lots, updated lots, deleted lots, and contact reassignments
+   */
+  async updateCompleteProperty(data: {
+    buildingId: string
+    building: Partial<Building>
+    lots: {
+      new: Partial<Lot>[]
+      updated: Array<Partial<Lot> & { id: string }>
+      deleted: string[]
+    }
+    buildingContacts?: Array<{ id: string; type: string; isPrimary: boolean }>
+    lotContactAssignments?: Array<{
+      lotId: string
+      assignments: Array<{
+        contactId: string
+        contactType: string
+        isPrimary: boolean
+        isLotPrincipal?: boolean
+      }>
+    }>
+  }): Promise<CompositeOperationResult<{
+    building: Building
+    lots: Lot[]
+  }>> {
+    const operations: CompositeOperation[] = []
+    let building: Building | null = null
+    const lots: Lot[] = []
+
+    try {
+      // Step 1: Update building
+      const buildingOperation: CompositeOperation = {
+        id: `building-update-${Date.now()}`,
+        type: 'update',
+        service: 'building',
+        entity: 'building',
+        entityId: data.buildingId,
+        data: data.building,
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      }
+      operations.push(buildingOperation)
+
+      const buildingResult = await this.buildingService.update(data.buildingId, data.building)
+      if (!buildingResult.success) {
+        buildingOperation.status = 'failed'
+        const errorMsg = buildingResult.error?.message || String(buildingResult.error)
+        throw new Error('Building update failed: ' + errorMsg)
+      }
+
+      building = buildingResult.data
+      buildingOperation.status = 'completed'
+
+      // Step 2: Update building_contacts (OPTIMIZED: Bulk insert)
+      if (data.buildingContacts && data.buildingContacts.length > 0) {
+        // Delete all existing building_contacts
+        await this.buildingService['repository']['supabase']
+          .from('building_contacts')
+          .delete()
+          .eq('building_id', data.buildingId)
+
+        // Prepare all building contacts for bulk insert
+        const buildingContactsToInsert = data.buildingContacts.map(contact => ({
+          building_id: data.buildingId,
+          user_id: contact.id,
+          is_primary: contact.isPrimary
+        }))
+
+        // Single bulk insert instead of loop
+        const { error: insertError } = await this.buildingService['repository']['supabase']
+          .from('building_contacts')
+          .insert(buildingContactsToInsert)
+
+        if (insertError) {
+          throw new Error(`Building contacts assignment failed: ${insertError.message}`)
+        }
+
+        // Track operation
+        operations.push({
+          id: `building-contacts-bulk-${Date.now()}`,
+          type: 'create',
+          service: 'contact',
+          entity: 'building_contact',
+          data: buildingContactsToInsert,
+          status: 'completed',
+          timestamp: new Date().toISOString()
+        })
+      }
+
+      // Step 3: Delete removed lots (OPTIMIZED: Parallel execution)
+      if (data.lots.deleted.length > 0) {
+        const deletePromises = data.lots.deleted.map(async (deletedLotId) => {
+          const deleteOperation: CompositeOperation = {
+            id: `lot-delete-${Date.now()}-${deletedLotId}`,
+            type: 'delete',
+            service: 'lot',
+            entity: 'lot',
+            entityId: deletedLotId,
+            status: 'pending',
+            timestamp: new Date().toISOString()
+          }
+          operations.push(deleteOperation)
+
+          const deleteResult = await this.lotService.delete(deletedLotId)
+          if (!deleteResult.success) {
+            deleteOperation.status = 'failed'
+            const errorMsg = deleteResult.error?.message || String(deleteResult.error)
+            throw new Error(`Lot deletion failed for ${deletedLotId}: ` + errorMsg)
+          }
+
+          deleteOperation.status = 'completed'
+        })
+
+        await Promise.all(deletePromises)
+      }
+
+      // Step 4: Update existing lots (OPTIMIZED: Parallel execution)
+      if (data.lots.updated.length > 0) {
+        const updatePromises = data.lots.updated.map(async (lotData) => {
+          const updateOperation: CompositeOperation = {
+            id: `lot-update-${Date.now()}-${lotData.id}`,
+            type: 'update',
+            service: 'lot',
+            entity: 'lot',
+            entityId: lotData.id,
+            data: lotData,
+            status: 'pending',
+            timestamp: new Date().toISOString()
+          }
+          operations.push(updateOperation)
+
+          const lotResult = await this.lotService.update(lotData.id, lotData)
+          if (!lotResult.success) {
+            updateOperation.status = 'failed'
+            const errorMsg = lotResult.error?.message || String(lotResult.error)
+            throw new Error(`Lot update failed for ${lotData.id}: ` + errorMsg)
+          }
+
+          lots.push(lotResult.data)
+          updateOperation.status = 'completed'
+          return lotResult.data
+        })
+
+        await Promise.all(updatePromises)
+      }
+
+      // Step 5: Create new lots (OPTIMIZED: Parallel execution)
+      if (data.lots.new.length > 0) {
+        const createPromises = data.lots.new.map(async (lotData) => {
+          const createOperation: CompositeOperation = {
+            id: `lot-create-${Date.now()}-${Math.random()}`,
+            type: 'create',
+            service: 'lot',
+            entity: 'lot',
+            data: {
+              ...lotData,
+              building_id: data.buildingId,
+              team_id: building.team_id
+            },
+            status: 'pending',
+            timestamp: new Date().toISOString()
+          }
+          operations.push(createOperation)
+
+          const lotResult = await this.lotService.create({
+            ...lotData,
+            building_id: data.buildingId,
+            team_id: building.team_id
+          })
+
+          if (!lotResult.success) {
+            createOperation.status = 'failed'
+            const errorMsg = lotResult.error?.message || String(lotResult.error)
+            throw new Error(`Lot creation failed: ` + errorMsg)
+          }
+
+          lots.push(lotResult.data)
+          createOperation.entityId = lotResult.data.id
+          createOperation.status = 'completed'
+          return lotResult.data
+        })
+
+        await Promise.all(createPromises)
+      }
+
+      // Step 6: Update lot contact assignments (OPTIMIZED: Parallel + Bulk)
+      if (data.lotContactAssignments && data.lotContactAssignments.length > 0) {
+        // Process all lots in parallel
+        const lotContactPromises = data.lotContactAssignments.map(async (assignment) => {
+          // Delete existing lot_contacts for this lot
+          await this.buildingService['repository']['supabase']
+            .from('lot_contacts')
+            .delete()
+            .eq('lot_id', assignment.lotId)
+
+          // Prepare all contacts for bulk insert
+          if (assignment.assignments.length > 0) {
+            const contactsToInsert = assignment.assignments.map(contactAssignment => ({
+              lot_id: assignment.lotId,
+              user_id: contactAssignment.contactId,
+              is_primary: contactAssignment.isLotPrincipal || contactAssignment.isPrimary || false
+            }))
+
+            // Single bulk insert for all contacts of this lot
+            const { error: insertError } = await this.buildingService['repository']['supabase']
+              .from('lot_contacts')
+              .insert(contactsToInsert)
+
+            if (insertError) {
+              throw new Error(`Contact assignment failed for lot ${assignment.lotId}: ` + insertError.message)
+            }
+
+            // Track operation
+            operations.push({
+              id: `lot-contacts-bulk-${assignment.lotId}-${Date.now()}`,
+              type: 'create',
+              service: 'contact',
+              entity: 'lot_contact',
+              data: contactsToInsert,
+              status: 'completed',
+              timestamp: new Date().toISOString()
+            })
+          }
+        })
+
+        await Promise.all(lotContactPromises)
+      }
+
+      // ✅ FIX #2: Invalidate CacheManager (L1+L2) to ensure fresh data on next fetch
+      // This is critical because lots were modified, so building's full-relations cache is stale
+      // Must use cache.invalidate() instead of clearCache() because getCachedOrFetch() uses CacheManager
+      await cache.invalidate(`buildings:${data.buildingId}:full-relations`)
+      await cache.invalidate(`buildings:${data.buildingId}`)
+
+      // Also invalidate team-level cache for building lists
+      if (building.team_id) {
+        await this.buildingService['repository'].invalidateTeamCache(building.team_id)
+      }
+
+      // Load all lots for the building to return complete data
+      const allLotsResult = await this.buildingService.getById(data.buildingId)
+      const allLots = allLotsResult?.lots || lots
+
+      return {
+        success: true,
+        data: {
+          building,
+          lots: allLots
+        },
+        operations
+      }
+
+    } catch (error) {
+      return {
+        success: false,
+        data: {
+          building: building || {} as Building,
+          lots
+        },
+        error: error instanceof Error ? error.message : String(error),
+        operations
       }
     }
   }

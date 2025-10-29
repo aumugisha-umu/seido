@@ -10,7 +10,7 @@
 export interface AssignmentUser {
   id: string
   role: string
-  provider_category?: 'service' | 'insurance' | 'legal' | 'syndic' | 'owner' | 'other' | 'prestataire' | 'assurance' | 'notaire' | 'proprietaire' | 'autre' | null
+  provider_category?: 'prestataire' | 'autre' | null
   speciality?: string
 }
 
@@ -21,15 +21,11 @@ export const determineAssignmentType = (user: AssignmentUser): string => {
   // Support both French (DB) and English (interface) roles
   if (user.role === 'tenant' || user.role === 'locataire') return 'tenant'
   if (user.role === 'manager' || user.role === 'gestionnaire' || user.role === 'admin') return 'manager'
+  if (user.role === 'owner' || user.role === 'proprietaire') return 'owner'
 
   if (user.role === 'provider' || user.role === 'prestataire') {
-    // Support both French (DB) and English (interface) categories
-    const category = user.provider_category
-    if (category === 'syndic') return 'syndic'
-    if (category === 'legal' || category === 'notaire') return 'notary'
-    if (category === 'insurance' || category === 'assurance') return 'insurance'
-    if (category === 'owner' || category === 'proprietaire') return 'owner'
-    return 'provider' // Default for providers
+    // Provider category simplified to 'prestataire' or 'autre'
+    return 'provider'
   }
 
   return 'other'
@@ -61,9 +57,6 @@ export const getAssignmentTypeDisplayName = (_assignmentType: string): string =>
     'tenant': 'Locataire',
     'manager': 'Gestionnaire',
     'provider': 'Prestataire',
-    'syndic': 'Syndic',
-    'notary': 'Notaire',
-    'insurance': 'Assureur',
     'owner': 'Propriétaire',
     'other': 'Autre'
   }
@@ -90,7 +83,7 @@ export const canAssignToContext = (user: AssignmentUser, context: 'building' | '
  * Get available assignment types for a context
  */
 export const getAvailableAssignmentTypes = (context: 'building' | 'lot'): string[] => {
-  const baseTypes = ['manager', 'provider', 'syndic', 'notary', 'insurance', 'owner']
+  const baseTypes = ['manager', 'provider', 'owner']
 
   if (context === 'lot') {
     return [...baseTypes, 'tenant']
@@ -109,15 +102,11 @@ export const mapFrontendToDbRole = (_frontendRole: string): { role: string; prov
     'manager': { role: 'gestionnaire' },
     'gestionnaire': { role: 'gestionnaire' },
     'admin': { role: 'admin' },
-    'provider': { role: 'prestataire', provider_category: 'service' },
-    'prestataire': { role: 'prestataire', provider_category: 'service' },
-    'syndic': { role: 'prestataire', provider_category: 'syndic' },
-    'insurance': { role: 'prestataire', provider_category: 'insurance' },
-    'assurance': { role: 'prestataire', provider_category: 'assurance' },
-    'notary': { role: 'prestataire', provider_category: 'legal' },
-    'notaire': { role: 'prestataire', provider_category: 'notaire' },
-    'owner': { role: 'gestionnaire' },
-    'proprietaire': { role: 'gestionnaire' }
+    'provider': { role: 'prestataire', provider_category: 'prestataire' },
+    'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
+    'owner': { role: 'proprietaire' },
+    'proprietaire': { role: 'proprietaire' },
+    'autre': { role: 'prestataire', provider_category: 'autre' }
   }
 
   return mapping[_frontendRole.toLowerCase()] || { role: 'locataire' }
@@ -128,14 +117,7 @@ export const mapFrontendToDbRole = (_frontendRole: string): { role: string; prov
  */
 export const getProviderCategories = (): Array<{ value: string; label: string }> => {
   return [
-    { value: 'service', label: 'Service' },
     { value: 'prestataire', label: 'Prestataire' },
-    { value: 'syndic', label: 'Syndic' },
-    { value: 'insurance', label: 'Assurance' },
-    { value: 'assurance', label: 'Assureur' },
-    { value: 'legal', label: 'Juridique' },
-    { value: 'notaire', label: 'Notaire' },
-    { value: 'proprietaire', label: 'Propriétaire' },
     { value: 'autre', label: 'Autre' }
   ]
 }

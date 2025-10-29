@@ -99,6 +99,8 @@ interface ChatInterfaceProps {
   threadId: string
   currentUserId: string
   userRole: Database['public']['Enums']['user_role']
+  initialMessages?: Record<string, Message[]>
+  initialParticipants?: Record<string, Participant[]>
   onSendMessage?: (content: string, attachments?: string[]) => Promise<void>
   teamMembers?: TeamMember[]
   currentParticipantIds?: string[]
@@ -384,17 +386,20 @@ export function ChatInterface({
   threadId,
   currentUserId,
   userRole,
+  initialMessages,
+  initialParticipants,
   onSendMessage,
   teamMembers = [],
   currentParticipantIds = [],
   className = ''
 }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>([])
+  // Initialize with server-fetched data (Phase 2 optimization)
+  const [messages, setMessages] = useState<Message[]>(initialMessages?.[threadId] || [])
+  const [participants, setParticipants] = useState<Participant[]>(initialParticipants?.[threadId] || [])
   const [newMessage, setNewMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!initialMessages?.[threadId] || !initialParticipants?.[threadId])
   const [isSending, setIsSending] = useState(false)
   const [thread, setThread] = useState<Thread | null>(null)
-  const [participants, setParticipants] = useState<Participant[]>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -409,33 +414,57 @@ export function ChatInterface({
     }
   })
 
-  // Load real data from API
+  // Load real data from API (Phase 2: Skip if server-fetched data available)
   useEffect(() => {
     const loadData = async () => {
+      // ✅ Phase 2 optimization: Skip fetch if initial data provided
+      if (initialMessages?.[threadId] && initialParticipants?.[threadId]) {
+        // Update state with server-fetched data for this thread
+        setMessages(initialMessages[threadId])
+        setParticipants(initialParticipants[threadId])
+        setIsLoading(false)
+        // Still need to fetch thread details for metadata
+        try {
+          const { getThreadAction } = await import('@/app/actions/conversation-actions')
+          const threadResult = await getThreadAction(threadId)
+          if (threadResult.success && threadResult.data) {
+            setThread(threadResult.data)
+          }
+        } catch (error) {
+          console.error('Error loading thread details:', error)
+        }
+        return
+      }
+
+      // Fallback: Fetch from API if no initial data
       setIsLoading(true)
 
       try {
         // Import actions dynamically to avoid circular dependencies
         const { getThreadAction, getMessagesAction, getThreadParticipantsAction } = await import('@/app/actions/conversation-actions')
 
-        // Load thread details
-        const threadResult = await getThreadAction(threadId)
+        // Load thread details, messages, and participants in parallel (3x faster)
+        const [threadResult, messagesResult, participantsResult] = await Promise.all([
+          getThreadAction(threadId),
+          getMessagesAction(threadId),
+          getThreadParticipantsAction(threadId)
+        ])
+
+        // Handle thread result
         if (threadResult.success && threadResult.data) {
           setThread(threadResult.data)
         } else {
           toast.error(threadResult.error || 'Erreur lors du chargement de la conversation')
         }
 
-        // Load messages
-        const messagesResult = await getMessagesAction(threadId)
+        // Handle messages result
         if (messagesResult.success && messagesResult.data) {
           setMessages(messagesResult.data)
         } else {
           toast.error(messagesResult.error || 'Erreur lors du chargement des messages')
         }
 
-        // Load participants
-        const participantsResult = await getThreadParticipantsAction(threadId)
+        // Handle participants result
         if (participantsResult.success && participantsResult.data) {
           setParticipants(participantsResult.data)
         } else {
@@ -450,7 +479,7 @@ export function ChatInterface({
     }
 
     loadData()
-  }, [threadId])
+  }, [threadId, initialMessages, initialParticipants])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

@@ -246,8 +246,8 @@ export function BuildingContactsTab({
     buildingContacts.forEach(bc => {
       const contact = toContact(bc.user)
       const type = bc.user.role === 'gestionnaire' ? 'manager' :
-                   bc.user.role === 'prestataire' ? 'provider' :
-                   bc.user.provider_category === 'owner' ? 'owner' : 'other'
+                   bc.user.role === 'proprietaire' ? 'owner' :
+                   bc.user.role === 'prestataire' ? 'provider' : 'other'
 
       if (!formattedContacts[type]) formattedContacts[type] = []
       formattedContacts[type].push(contact)
@@ -270,7 +270,7 @@ export function BuildingContactsTab({
         const type = lc.user.role === 'gestionnaire' ? 'manager' :
                      lc.user.role === 'locataire' ? 'tenant' :
                      lc.user.role === 'prestataire' ? 'provider' :
-                     lc.user.role === 'owner' ? 'owner' : 'other'
+                     lc.user.role === 'proprietaire' ? 'owner' : 'other'
 
         if (!formattedContacts[type]) formattedContacts[type] = []
         formattedContacts[type].push(contact)
@@ -389,12 +389,11 @@ export function BuildingContactsTab({
   // Group building contacts by role
   const groupedBuildingContacts = {
     gestionnaires: buildingContacts.filter(c => c.user.role === 'gestionnaire'),
-    proprietaires: buildingContacts.filter(c => c.user.role === 'owner' || c.user.provider_category === 'owner'),
-    syndics: buildingContacts.filter(c => c.user.provider_category === 'syndic'),
-    prestataires: buildingContacts.filter(c => c.user.role === 'prestataire' && c.user.provider_category !== 'syndic'),
+    proprietaires: buildingContacts.filter(c => c.user.role === 'proprietaire'),
+    prestataires: buildingContacts.filter(c => c.user.role === 'prestataire'),
     autres: buildingContacts.filter(c =>
       c.user.role !== 'gestionnaire' &&
-      c.user.role !== 'owner' &&
+      c.user.role !== 'proprietaire' &&
       c.user.role !== 'prestataire' &&
       !c.user.provider_category
     )
@@ -405,11 +404,11 @@ export function BuildingContactsTab({
     return {
       locataires: lotContacts.filter(c => c.user.role === 'locataire'),
       prestataires: lotContacts.filter(c => c.user.role === 'prestataire'),
-      proprietaires: lotContacts.filter(c => c.user.role === 'owner'),
+      proprietaires: lotContacts.filter(c => c.user.role === 'proprietaire'),
       autres: lotContacts.filter(c =>
         c.user.role !== 'locataire' &&
         c.user.role !== 'prestataire' &&
-        c.user.role !== 'owner'
+        c.user.role !== 'proprietaire'
       )
     }
   }
@@ -422,14 +421,11 @@ export function BuildingContactsTab({
     if (role === 'locataire') {
       return { label: 'Locataire', className: 'bg-blue-100 text-blue-700 border-blue-200' }
     }
-    if (role === 'prestataire') {
-      if (providerCategory === 'syndic') {
-        return { label: 'Syndic', className: 'bg-orange-100 text-orange-700 border-orange-200' }
-      }
-      return { label: 'Prestataire', className: 'bg-green-100 text-green-700 border-green-200' }
-    }
-    if (role === 'owner' || providerCategory === 'owner') {
+    if (role === 'proprietaire') {
       return { label: 'Propriétaire', className: 'bg-amber-100 text-amber-700 border-amber-200' }
+    }
+    if (role === 'prestataire') {
+      return { label: 'Prestataire', className: 'bg-green-100 text-green-700 border-green-200' }
     }
     return { label: 'Autre', className: 'bg-gray-100 text-gray-700 border-gray-200' }
   }

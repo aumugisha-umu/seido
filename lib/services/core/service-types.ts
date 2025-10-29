@@ -12,7 +12,7 @@ export interface User {
   first_name?: string | null
   last_name?: string | null
   display_name?: string | null
-  role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  role: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire'
   provider_category?: string | null
   speciality?: string | null
   phone?: string | null
@@ -34,7 +34,7 @@ export interface UserInsert {
   first_name?: string | null
   last_name?: string | null
   display_name?: string | null
-  role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  role: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire'
   provider_category?: string | null
   speciality?: string | null
   phone?: string | null

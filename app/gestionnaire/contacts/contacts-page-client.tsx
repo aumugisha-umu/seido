@@ -465,9 +465,6 @@ export function ContactsPageClient({
       'owner': 'Propriétaire',
       'provider': 'Prestataire',
       'manager': 'Gestionnaire',
-      'syndic': 'Syndic',
-      'notary': 'Notaire',
-      'insurance': 'Assurance',
       'other': 'Autre'
     }
     return types[assignmentType as keyof typeof types] || 'Non défini'
@@ -481,9 +478,6 @@ export function ContactsPageClient({
       'owner': 'bg-emerald-100 text-emerald-800',
       'provider': 'bg-green-100 text-green-800',
       'manager': 'bg-purple-100 text-purple-800',
-      'syndic': 'bg-orange-100 text-orange-800',
-      'notary': 'bg-gray-100 text-gray-800',
-      'insurance': 'bg-red-100 text-red-800',
       'other': 'bg-gray-100 text-gray-600'
     }
     return styles[assignmentType as keyof typeof styles] || 'bg-gray-100 text-gray-600'
@@ -875,6 +869,7 @@ export function ContactsPageClient({
                 { value: "all", label: "Tous les rôles" },
                 { value: "gestionnaire", label: "Gestionnaire" },
                 { value: "locataire", label: "Locataire" },
+                { value: "proprietaire", label: "Propriétaire" },
                 { value: "prestataire", label: "Prestataire" }
               ],
               defaultValue: "all"
@@ -884,11 +879,7 @@ export function ContactsPageClient({
               label: "Catégorie",
               options: [
                 { value: "all", label: "Toutes les catégories" },
-                { value: "prestataire", label: "Prestataire général" },
-                { value: "syndic", label: "Syndic" },
-                { value: "notaire", label: "Notaire" },
-                { value: "assurance", label: "Assurance" },
-                { value: "proprietaire", label: "Propriétaire" },
+                { value: "prestataire", label: "Prestataire" },
                 { value: "autre", label: "Autre" }
               ],
               defaultValue: "all"

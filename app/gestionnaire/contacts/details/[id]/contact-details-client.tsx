@@ -54,15 +54,12 @@ interface ContactDetailsClientProps {
 const userRoles = [
   { value: "locataire", label: "Locataire", color: "bg-blue-100 text-blue-800" },
   { value: "gestionnaire", label: "Gestionnaire", color: "bg-purple-100 text-purple-800" },
+  { value: "proprietaire", label: "Propriétaire", color: "bg-amber-100 text-amber-800" },
   { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" }
 ]
 
 const providerCategories = [
-  { value: "prestataire", label: "Service général" },
-  { value: "syndic", label: "Syndic" },
-  { value: "notaire", label: "Notaire" },
-  { value: "assurance", label: "Assurance" },
-  { value: "proprietaire", label: "Propriétaire" },
+  { value: "prestataire", label: "Prestataire" },
   { value: "autre", label: "Autre" }
 ]
 
@@ -255,19 +252,25 @@ export function ContactDetailsClient({
   }
 
   const handleCancelInvitation = async () => {
-    if (!contact?.id) return
+    // Verify invitationId exists before proceeding
+    if (!invitationId) {
+      logger.error("❌ No invitation ID available")
+      toast({
+        title: "❌ Erreur",
+        description: "ID d'invitation introuvable",
+        variant: "destructive"
+      })
+      return
+    }
 
     try {
       setInvitationLoading(true)
-      logger.info("🔄 Cancelling invitation for contact:", contact.id)
+      logger.info("🔄 Cancelling invitation:", invitationId)
 
-      const response = await fetch("/api/revoke-invitation", {
+      const response = await fetch("/api/cancel-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contactId: contact.id,
-          teamId: contact.team_id || currentUser.team_id
-        }),
+        body: JSON.stringify({ invitationId }),
       })
 
       if (response.ok) {

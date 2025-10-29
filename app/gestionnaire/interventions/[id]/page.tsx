@@ -65,7 +65,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: documents },
       { data: quotes },
       { data: timeSlots },
-      { data: threads },
+      { data: threads, allMessages: threadMessages, allParticipants: threadParticipants },
       { data: activityLogs }
     ] = await Promise.all([
       // Building
@@ -112,7 +112,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         .eq('intervention_id', id)
         .order('slot_date', { ascending: true }),
 
-      // Threads with last message
+      // Threads with last message + pre-fetch all messages and participants (Phase 2 optimization)
       (async () => {
         const { data: threads } = await supabase
           .from('conversation_threads')
@@ -122,18 +122,43 @@ export default async function InterventionDetailPage({ params }: PageProps) {
 
         if (!threads || threads.length === 0) return { data: [] }
 
-        // Fetch last messages for all threads in one query
         const threadIds = threads.map(t => t.id)
-        const { data: allMessages } = await supabase
-          .from('conversation_messages')
-          .select('id, thread_id, content, created_at, user:user_id(name)')
-          .in('thread_id', threadIds)
-          .order('created_at', { ascending: false })
+
+        // Fetch last messages, all messages, and participants in parallel
+        const [lastMsgsData, allMsgsData, participantsData] = await Promise.all([
+          // Last messages for thread list
+          supabase
+            .from('conversation_messages')
+            .select('id, thread_id, content, created_at, user:user_id(name)')
+            .in('thread_id', threadIds)
+            .order('created_at', { ascending: false }),
+
+          // ALL messages with attachments for chat interface (Phase 2)
+          supabase
+            .from('conversation_messages')
+            .select(`
+              *,
+              user:user_id(id, name, email, avatar_url, role),
+              attachments:intervention_documents!message_id(
+                id, filename, original_filename, mime_type,
+                file_size, storage_path, document_type
+              )
+            `)
+            .in('thread_id', threadIds)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: true }),
+
+          // ALL participants for chat interface (Phase 2)
+          supabase
+            .from('conversation_participants')
+            .select('*, user:users!user_id(*)')
+            .in('thread_id', threadIds)
+        ])
 
         // Group by thread_id, keeping only the most recent message per thread
         const lastMessageByThread: Record<string, any> = {}
-        if (allMessages) {
-          for (const msg of allMessages) {
+        if (lastMsgsData.data) {
+          for (const msg of lastMsgsData.data) {
             if (!lastMessageByThread[msg.thread_id]) {
               lastMessageByThread[msg.thread_id] = msg
             }
@@ -145,7 +170,9 @@ export default async function InterventionDetailPage({ params }: PageProps) {
           data: threads.map(t => ({
             ...t,
             last_message: lastMessageByThread[t.id] ? [lastMessageByThread[t.id]] : []
-          }))
+          })),
+          allMessages: allMsgsData.data || [],
+          allParticipants: participantsData.data || []
         }
       })(),
 
@@ -176,6 +203,38 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       totalElapsed: `${Date.now() - startTime}ms`
     })
 
+    // ✅ Group messages and participants by thread_id (Phase 2 optimization)
+    const messagesByThread: Record<string, any[]> = {}
+    const participantsByThread: Record<string, any[]> = {}
+
+    // Initialize empty arrays for ALL threads (even if no messages/participants yet)
+    // This prevents client-side loading state for empty threads
+    if (threads) {
+      for (const thread of threads) {
+        messagesByThread[thread.id] = []
+        participantsByThread[thread.id] = []
+      }
+    }
+
+    // Populate with actual data
+    if (threadMessages) {
+      for (const msg of threadMessages) {
+        if (!messagesByThread[msg.thread_id]) {
+          messagesByThread[msg.thread_id] = []
+        }
+        messagesByThread[msg.thread_id].push(msg)
+      }
+    }
+
+    if (threadParticipants) {
+      for (const participant of threadParticipants) {
+        if (!participantsByThread[participant.thread_id]) {
+          participantsByThread[participant.thread_id] = []
+        }
+        participantsByThread[participant.thread_id].push(participant)
+      }
+    }
+
     // ✅ Pass to Client Component
     return (
       <InterventionDetailClient
@@ -189,6 +248,8 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         quotes={quotes || []}
         timeSlots={timeSlots || []}
         threads={threads || []}
+        initialMessagesByThread={messagesByThread}
+        initialParticipantsByThread={participantsByThread}
         activityLogs={activityLogs || []}
       />
     )

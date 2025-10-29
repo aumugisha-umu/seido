@@ -1,420 +1,125 @@
-"use client"
+/**
+ * Lot Edit Page - Server Component
+ * Loads lot data and renders client wizard component
+ * Following the building edit pattern with getServerAuthContext()
+ */
 
-import { useState, useEffect, use } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, Save, X } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
-import { useTeamStatus } from "@/hooks/use-team-status"
-import { createTeamService, createLotService } from "@/lib/services"
+import { redirect } from 'next/navigation'
+import { getServerAuthContext } from '@/lib/server-context'
+import { createServerLotService, createServerTeamService } from '@/lib/services'
+import { transformLotForEdit } from '@/lib/utils/lot-transform'
+import LotEditClient from './lot-edit-client'
+import { logger } from '@/lib/logger'
 
-import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle } from "lucide-react"
-import { BuildingInfoForm } from "@/components/building-info-form"
-import { LotCategory } from "@/lib/lot-types"
-import { logger, logError } from '@/lib/logger'
-interface LotInfo {
-  name: string
-  address: string
-  postalCode: string
-  city: string
-  country: string
-  constructionYear: string
-  floors: string
-  description: string
-  floor?: string
-  doorNumber?: string
-  category?: LotCategory
+interface PageProps {
+  params: Promise<{ id: string }>
 }
 
-export default function EditLotPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
-  const resolvedParams = use(params)
-  const { user } = useAuth()
-  const { teamStatus, hasTeam } = useTeamStatus()
+export default async function EditLotPage({ params }: PageProps) {
+  const resolvedParams = await params
 
-  // States
-  const [lot, setLot] = useState<any>(null)
-  const [lotInfo, setLotInfo] = useState<LotInfo>({
-    name: "",
-    address: "",
-    postalCode: "",
-    city: "",
-    country: "Belgique",
-    constructionYear: "",
-    floors: "",
-    description: "",
-    floor: "",
-    doorNumber: "",
-    category: "appartement",
+  logger.info('🏠 [LOT-EDIT-PAGE] Starting lot edit page load', {
+    lotId: resolvedParams.id,
+    timestamp: new Date().toISOString()
   })
-  // const [selectedManagerId, setSelectedManagerId] = useState<string>("")
-  const [teamManagers, setTeamManagers] = useState<unknown[]>([])
-  const [userTeam, setUserTeam] = useState<any>(null)
-  
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
-  // Services
-  const [services, setServices] = useState<{
-    team: ReturnType<typeof createTeamService> | null
-    lot: ReturnType<typeof createLotService> | null
-  } | null>(null)
+  // ✅ STEP 1: Get authenticated context
+  logger.info('🔐 [LOT-EDIT-PAGE] Step 1: Getting server auth context...')
+  const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
 
-  // Initialize services
-  useEffect(() => {
-    if (!user?.id) {
-      logger.info("❌ [SERVICE-INIT] No user, skipping service creation")
-      return
-    }
-    if (services) {
-      logger.info("✅ [SERVICE-INIT] Services already initialized")
-      return
-    }
+  logger.info('✅ [LOT-EDIT-PAGE] Auth context obtained:', {
+    userId: user.id,
+    userEmail: user.email,
+    profileId: profile.id,
+    teamId: team.id,
+    teamName: team.name
+  })
 
-    logger.info("🔧 [SERVICE-INIT] User ready, creating services now...")
-    setServices({
-      team: createTeamService(),
-      lot: createLotService()
+  // ✅ STEP 2: Initialize services
+  logger.info('🔧 [LOT-EDIT-PAGE] Step 2: Initializing services...')
+  const lotService = await createServerLotService()
+  const teamService = await createServerTeamService()
+
+  logger.info('✅ [LOT-EDIT-PAGE] Services initialized')
+
+  // ✅ STEP 3: Load lot with relations
+  logger.info('📥 [LOT-EDIT-PAGE] Step 3: Loading lot with relations...')
+  const lotResult = await lotService.getByIdWithRelations(resolvedParams.id)
+
+  if (!lotResult.success || !lotResult.data) {
+    logger.error('❌ [LOT-EDIT-PAGE] Failed to load lot:', {
+      lotId: resolvedParams.id,
+      error: lotResult.error,
+      success: lotResult.success
     })
-    logger.info("✅ [SERVICE-INIT] Services created successfully")
-  }, [user?.id, services])
-
-  // Load lot data and populate form
-  useEffect(() => {
-    if (resolvedParams.id && user?.id && services) {
-      loadLotData()
-    }
-  }, [resolvedParams.id, user?.id, services])
-
-  // Load team managers
-  useEffect(() => {
-    const loadUserTeamAndManagers = async () => {
-      if (!user?.id || teamStatus !== 'verified') {
-        return
-      }
-
-      if (!services) {
-        logger.info("⏳ Services not ready, skipping team load")
-        return
-      }
-
-      try {
-        // 1. Récupérer les équipes de l'utilisateur
-        const teamsResult = await services.team.getUserTeams(user.id)
-        const userTeams = teamsResult?.data || []
-
-        if (userTeams.length === 0) {
-          logger.warn('No teams found for user')
-          return
-        }
-
-        // 2. Prendre la première équipe
-        const primaryTeam = userTeams[0]
-        setUserTeam(primaryTeam)
-
-        // 3. Récupérer les membres de cette équipe
-        let teamMembers = []
-        try {
-          const membersResult = await services.team.getTeamMembers(primaryTeam.id)
-          teamMembers = membersResult?.data || []
-          setTeamManagers(teamMembers)
-        } catch (membersError) {
-          logger.error("Error loading team members:", membersError)
-          setTeamManagers([])
-        }
-
-      } catch (error) {
-        logger.error('Error loading team and managers:', error)
-        setTeamManagers([])
-      }
-    }
-
-    loadUserTeamAndManagers()
-  }, [user?.id, teamStatus, services])
-
-  const loadLotData = async () => {
-    if (!services) {
-      setError("Services en cours de chargement. Veuillez patienter.")
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-
-      const lotData = await services.lot.getById(resolvedParams.id)
-      logger.info("🏠 Lot loaded for edit:", lotData)
-      
-      setLot(lotData)
-      
-      // Populate form with existing data
-      setLotInfo({
-        name: lotData.reference || "",
-        address: lotData.building?.address || "",
-        postalCode: lotData.building?.postal_code || "",
-        city: lotData.building?.city || "",
-        country: lotData.building?.country || "Belgique",
-        constructionYear: lotData.building?.construction_year?.toString() || "",
-        floors: lotData.building?.floors?.toString() || "",
-        description: lotData.description || "",
-        floor: lotData.floor?.toString() || "",
-        doorNumber: lotData.apartment_number || "",
-        category: (lotData.category as LotCategory) || "appartement",
-      })
-      
-      // TODO: Migrer vers le nouveau système de lot_contacts
-      // setSelectedManagerId(lotData.manager_id || "")
-
-    } catch (error) {
-      logger.error("❌ Error loading lot data:", error)
-      setError("Erreur lors du chargement des données du lot")
-    } finally {
-      setLoading(false)
-    }
+    redirect('/gestionnaire/biens/lots')
   }
 
-  const handleSave = async () => {
-    if (!user?.id) {
-      setError("Vous devez être connecté pour modifier le lot")
-      return
-    }
+  const lot = lotResult.data
 
-    if (!lotInfo.name.trim()) {
-      setError("La référence du lot est requise")
-      return
-    }
+  logger.info('✅ [LOT-EDIT-PAGE] Lot loaded successfully:', {
+    lotId: lot.id,
+    reference: lot.reference,
+    teamId: lot.team_id,
+    buildingId: lot.building_id,
+    contactsCount: lot.lot_contacts?.length || 0
+  })
 
-    // TODO: Migrer vers le nouveau système de lot_contacts
-    // if (!selectedManagerId) {
-    //   setError("Veuillez sélectionner un responsable")
-    //   return
-    // }
-
-    if (!services) {
-      setError("Services en cours de chargement. Veuillez patienter.")
-      return
-    }
-
-    try {
-      setSaving(true)
-      setError(null)
-      setSuccess(null)
-
-      const updateData = {
-        reference: lotInfo.name.trim(),
-        floor: lotInfo.floor ? parseInt(lotInfo.floor) : 0,
-        apartment_number: lotInfo.doorNumber?.trim() || undefined,
-        category: lotInfo.category,
-        description: lotInfo.description.trim(),
-        // TODO: Migrer vers le nouveau système de lot_contacts
-        // manager_id: selectedManagerId,
-      }
-
-      await services.lot.update(resolvedParams.id, updateData)
-      
-      setSuccess("Lot modifié avec succès!")
-      
-      // Redirect after success
-      setTimeout(() => {
-        router.push(`/gestionnaire/biens/lots/${resolvedParams.id}`)
-      }, 2000)
-
-    } catch (error) {
-      logger.error("❌ Error updating lot:", error)
-      setError("Erreur lors de la modification du lot")
-    } finally {
-      setSaving(false)
-    }
+  // ✅ STEP 4: Verify lot belongs to user's team
+  if (lot.team_id !== team.id) {
+    logger.error('❌ [LOT-EDIT-PAGE] Lot does not belong to user team:', {
+      lotTeamId: lot.team_id,
+      userTeamId: team.id
+    })
+    redirect('/gestionnaire/biens/lots')
   }
 
-  const handleCancel = () => {
-    router.push(`/gestionnaire/biens/lots/${resolvedParams.id}`)
+  // ✅ STEP 5: Transform lot data for component
+  logger.info('🔄 [LOT-EDIT-PAGE] Step 4: Transforming lot data...')
+  const transformedData = transformLotForEdit(lot)
+
+  logger.info('✅ [LOT-EDIT-PAGE] Data transformed:', {
+    lotReference: transformedData.lotInfo.reference,
+    hasBuilding: !!transformedData.building,
+    buildingName: transformedData.building?.name,
+    contactsCount: Object.values(transformedData.contacts).flat().length,
+    managersCount: transformedData.managers.length
+  })
+
+  // ✅ STEP 6: Load team managers for selection
+  logger.info('👥 [LOT-EDIT-PAGE] Step 5: Loading team managers...')
+  const teamMembersResult = await teamService.getTeamMembers(team.id)
+
+  if (!teamMembersResult.success) {
+    logger.warn('⚠️ [LOT-EDIT-PAGE] Failed to load team members:', teamMembersResult.error)
   }
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button variant="ghost" className="flex items-center space-x-2">
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-          </div>
-        </header>
+  const teamMembers = teamMembersResult.success && teamMembersResult.data
+    ? teamMembersResult.data
+    : []
 
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="space-y-6">
-            <Skeleton className="h-8 w-64" />
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-48" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i}>
-                    <Skeleton className="h-4 w-32 mb-2" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
-    )
+  logger.info('✅ [LOT-EDIT-PAGE] Team managers loaded:', {
+    managersCount: teamMembers.length
+  })
+
+  // ✅ STEP 7: Prepare user profile for client
+  const userProfile = {
+    id: profile.id,
+    name: profile.name || user.email,
+    email: user.email,
+    role: profile.role || 'gestionnaire'
   }
 
-  // Error state
-  if (error && !lot) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button
-              variant="ghost"
-              onClick={handleCancel}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-          </div>
-        </header>
+  logger.info('✅ [LOT-EDIT-PAGE] Rendering client component...')
 
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </main>
-      </div>
-    )
-  }
-
+  // ✅ STEP 8: Render client wizard component
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={handleCancel}
-              className="flex items-center space-x-2"
-              disabled={saving}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                disabled={saving}
-                className="flex items-center space-x-2"
-              >
-                <X className="h-4 w-4" />
-                <span>Annuler</span>
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center space-x-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    <span>Enregistrement...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    <span>Enregistrer</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Page Title */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Modifier le lot
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Modifiez les informations du lot "{lot?.reference}"
-        </p>
-        {lot?.building && (
-          <p className="text-sm text-gray-500">
-            Appartient à l'immeuble "{lot.building.name}"
-          </p>
-        )}
-      </div>
-
-      {/* Form */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        {/* Success/Error Alerts */}
-        {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{success}</AlertDescription>
-          </Alert>
-        )}
-        
-        {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Informations du lot</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* TODO: Migrer vers le nouveau système de lot_contacts */}
-            <BuildingInfoForm
-              buildingInfo={lotInfo}
-              setBuildingInfo={setLotInfo}
-              selectedManagerId=""
-              setSelectedManagerId={() => {}}
-              teamManagers={[]}
-              userTeam={null}
-              isLoading={teamManagers.length === 0 && userTeam === null}
-              showManagerSection={true}
-              showAddressSection={false} // Les lots héritent de l'adresse du bâtiment
-              entityType="lot"
-              showTitle={false}
-            />
-
-            {/* Building information display */}
-            {lot?.building && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Informations de l'immeuble</h4>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p><strong>Nom :</strong> {lot.building.name}</p>
-                  <p><strong>Adresse :</strong> {lot.building.address}</p>
-                  <p><strong>Ville :</strong> {lot.building.city}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Les informations d'adresse sont héritées de l'immeuble parent.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+    <LotEditClient
+      lotId={resolvedParams.id}
+      userProfile={userProfile}
+      userTeam={team}
+      initialLot={transformedData}
+      initialTeamManagers={teamMembers}
+    />
   )
 }

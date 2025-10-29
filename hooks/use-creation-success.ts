@@ -33,20 +33,24 @@ export function useCreationSuccess() {
     // 2. Après redirection, gérer le refresh et le toast
     setTimeout(async () => {
       let softRefreshSuccess = false
-      
-      // 3. Tentative de soft refresh
-      if (refreshData) {
-        try {
-          logger.info("🔄 Attempting soft refresh...")
+
+      // 3. Tentative de soft refresh avec router.refresh() FIRST
+      try {
+        logger.info("🔄 Attempting Next.js router refresh...")
+        router.refresh() // Force Server Component re-fetch
+        softRefreshSuccess = true
+        logger.info("✅ Router refresh triggered")
+
+        // 4. Optionally call additional refreshData if provided
+        if (refreshData) {
+          logger.info("🔄 Calling additional refreshData...")
           await refreshData()
-          softRefreshSuccess = true
-          logger.info("✅ Soft refresh successful")
-        } catch (error) {
-          logger.warn("⚠️ Soft refresh failed:", error)
         }
+      } catch (error) {
+        logger.warn("⚠️ Soft refresh failed:", error)
       }
-      
-      // 4. Toast après le refresh (seulement si un titre est fourni)
+
+      // 5. Toast après le refresh (seulement si un titre est fourni)
       if (successTitle) {
         toast({
           title: successTitle,
@@ -54,8 +58,8 @@ export function useCreationSuccess() {
           variant: "success",
         })
       }
-      
-      // 5. Hard refresh fallback si nécessaire
+
+      // 6. Hard refresh fallback si nécessaire
       if (!softRefreshSuccess && hardRefreshFallback) {
         logger.info(`🔄 Scheduling hard refresh in ${hardRefreshDelay}ms...`)
         setTimeout(() => {

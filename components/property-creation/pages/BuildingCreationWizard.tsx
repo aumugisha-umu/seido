@@ -119,8 +119,8 @@ function LotsConfiguration() {
     return (
       <div className="text-center py-12">
         <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot configuré</h3>
-        <p className="text-gray-500 mb-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun lot configuré</h3>
+        <p className="text-base text-gray-600 mb-6">
           Commencez par ajouter votre premier lot. Vous pourrez ensuite le dupliquer pour gagner du temps.
         </p>
         <Button onClick={actions.addLot} className="bg-blue-600 hover:bg-blue-700">
@@ -199,7 +199,7 @@ function LotCard({
               {totalLots - index}
             </div>
             <div className="flex items-center gap-3">
-              <h3 className="font-medium">{lot.reference}</h3>
+              <h3 className="text-base font-medium text-gray-900">{lot.reference}</h3>
               <Badge className={cn(categoryConfig.bgColor, categoryConfig.color)} variant="outline">
                 {categoryConfig.label}
               </Badge>

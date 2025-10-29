@@ -228,9 +228,15 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
         logger.warn('⚠️ [ContactSelector] Contact created but no contact payload returned. Proceeding with form data fallback')
       }
 
+      // Validation critique : l'ID du contact doit exister
+      if (!responseContact?.id) {
+        logger.error('❌ [ContactSelector] Contact creation failed - no ID returned:', result)
+        throw new Error('La création du contact a échoué. Aucun ID reçu du serveur.')
+      }
+
       // Créer le contact pour l'état local (fallbacks si certaines infos manquent)
       const newContact: Contact = {
-        id: responseContact?.id || '',
+        id: responseContact.id,
         name: responseContact?.name || `${contactData.firstName} ${contactData.lastName}`.trim(),
         email: responseContact?.email || contactData.email,
         type: selectedContactType,

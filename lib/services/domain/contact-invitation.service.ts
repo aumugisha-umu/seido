@@ -25,7 +25,7 @@ export interface ContactInvitationData {
  * Role mapping result
  */
 interface RoleMappingResult {
-  role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire' | 'proprietaire'
   provider_category?: string
 }
 

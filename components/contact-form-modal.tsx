@@ -66,12 +66,16 @@ const specialityTypes = [
 const getContactTitle = (type: string) => {
   switch (type) {
     case "manager":
+    case "gestionnaire":
       return { title: "Créer un gestionnaire", subtitle: "Responsable de la gestion des biens" }
     case "owner":
+    case "proprietaire":
       return { title: "Créer un propriétaire", subtitle: "Personne qui possède le bien immobilier" }
     case "tenant":
+    case "locataire":
       return { title: "Créer un locataire", subtitle: "Personne qui occupe le logement" }
     case "provider":
+    case "prestataire":
       return { title: "Créer un prestataire", subtitle: "Entreprise ou artisan pour les interventions" }
     default:
       return { title: "Créer un contact", subtitle: "Ajouter un contact pour votre bien" }
@@ -84,7 +88,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
   
   // Types de contacts qui doivent avoir la checkbox cochée par défaut
   const shouldInviteByDefault = (type: string) => {
-    return ['manager', 'tenant', 'owner', 'provider'].includes(type)
+    return ['manager', 'gestionnaire', 'tenant', 'locataire', 'owner', 'proprietaire', 'provider', 'prestataire'].includes(type)
   }
 
   const [formData, setFormData] = useState<ContactFormData>({

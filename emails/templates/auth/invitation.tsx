@@ -39,6 +39,10 @@ export const InvitationEmail = ({
       title: 'Locataire',
       description: 'Vous pourrez soumettre des demandes d\'intervention pour votre logement et suivre leur progression.',
     },
+    proprietaire: {
+      title: 'Propriétaire',
+      description: 'Vous pourrez consulter vos biens et suivre les interventions associées.',
+    },
   }
 
   const roleInfo = roleDescriptions[role]

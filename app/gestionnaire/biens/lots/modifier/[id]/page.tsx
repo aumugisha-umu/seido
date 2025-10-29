@@ -7,8 +7,7 @@ import { ArrowLeft, Save, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-
-
+import { createTeamService, createLotService } from "@/lib/services"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -60,12 +59,37 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // Services
+  const [services, setServices] = useState<{
+    team: ReturnType<typeof createTeamService> | null
+    lot: ReturnType<typeof createLotService> | null
+  } | null>(null)
+
+  // Initialize services
+  useEffect(() => {
+    if (!user?.id) {
+      logger.info("❌ [SERVICE-INIT] No user, skipping service creation")
+      return
+    }
+    if (services) {
+      logger.info("✅ [SERVICE-INIT] Services already initialized")
+      return
+    }
+
+    logger.info("🔧 [SERVICE-INIT] User ready, creating services now...")
+    setServices({
+      team: createTeamService(),
+      lot: createLotService()
+    })
+    logger.info("✅ [SERVICE-INIT] Services created successfully")
+  }, [user?.id, services])
+
   // Load lot data and populate form
   useEffect(() => {
-    if (resolvedParams.id && user?.id) {
+    if (resolvedParams.id && user?.id && services) {
       loadLotData()
     }
-  }, [resolvedParams.id, user?.id])
+  }, [resolvedParams.id, user?.id, services])
 
   // Load team managers
   useEffect(() => {
@@ -74,9 +98,14 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
         return
       }
 
+      if (!services) {
+        logger.info("⏳ Services not ready, skipping team load")
+        return
+      }
+
       try {
         // 1. Récupérer les équipes de l'utilisateur
-        const teamsResult = await teamService.getUserTeams(user.id)
+        const teamsResult = await services.team.getUserTeams(user.id)
         const userTeams = teamsResult?.data || []
 
         if (userTeams.length === 0) {
@@ -91,14 +120,14 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
         // 3. Récupérer les membres de cette équipe
         let teamMembers = []
         try {
-          const membersResult = await teamService.getTeamMembers(primaryTeam.id)
+          const membersResult = await services.team.getTeamMembers(primaryTeam.id)
           teamMembers = membersResult?.data || []
           setTeamManagers(teamMembers)
         } catch (membersError) {
           logger.error("Error loading team members:", membersError)
           setTeamManagers([])
         }
-        
+
       } catch (error) {
         logger.error('Error loading team and managers:', error)
         setTeamManagers([])
@@ -106,14 +135,19 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
     }
 
     loadUserTeamAndManagers()
-  }, [user?.id, teamStatus])
+  }, [user?.id, teamStatus, services])
 
   const loadLotData = async () => {
+    if (!services) {
+      setError("Services en cours de chargement. Veuillez patienter.")
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
 
-      const lotData = await lotService.getById(resolvedParams.id)
+      const lotData = await services.lot.getById(resolvedParams.id)
       logger.info("🏠 Lot loaded for edit:", lotData)
       
       setLot(lotData)
@@ -161,6 +195,11 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
     //   return
     // }
 
+    if (!services) {
+      setError("Services en cours de chargement. Veuillez patienter.")
+      return
+    }
+
     try {
       setSaving(true)
       setError(null)
@@ -176,7 +215,7 @@ export default function EditLotPage({ params }: { params: Promise<{ id: string }
         // manager_id: selectedManagerId,
       }
 
-      await lotService.update(resolvedParams.id, updateData)
+      await services.lot.update(resolvedParams.id, updateData)
       
       setSuccess("Lot modifié avec succès!")
       

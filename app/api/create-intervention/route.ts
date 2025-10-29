@@ -515,11 +515,15 @@ export async function POST(request: NextRequest) {
               continue
             }
 
+            // Get document type from metadata or use default
+            const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
+
             // Upload file to storage and create database record
             const uploadResult = await fileService.uploadInterventionDocument(supabase, file, {
               interventionId: intervention.id,
-              uploadedBy: user.id, // Use database user ID
-              documentType: 'intervention_photo', // Could be made dynamic based on file type
+              uploadedBy: user.id,
+              teamId: intervention.team_id,
+              documentType: documentType as Database['public']['Enums']['intervention_document_type'],
               description: `File uploaded during intervention creation: ${file.name}`
             })
 

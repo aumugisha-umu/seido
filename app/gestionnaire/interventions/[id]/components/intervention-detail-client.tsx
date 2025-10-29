@@ -65,6 +65,8 @@ interface InterventionDetailClientProps {
   quotes: Quote[]
   timeSlots: TimeSlot[]
   threads: Thread[]
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
   activityLogs: ActivityLog[]
 }
 
@@ -75,6 +77,8 @@ export function InterventionDetailClient({
   quotes,
   timeSlots,
   threads,
+  initialMessagesByThread,
+  initialParticipantsByThread,
   activityLogs
 }: InterventionDetailClientProps) {
   const router = useRouter()
@@ -141,7 +145,9 @@ export function InterventionDetailClient({
 
     // Determine planning mode based on existing time slots
     if (timeSlots.length === 0) {
-      // No slots yet - open with default mode
+      // No slots + status "planification" = "organize" (flexible) mode was selected
+      // Pre-select "organize" option for edit mode
+      planning.setProgrammingOption('organize')
       planning.openProgrammingModal(interventionAction)
     } else if (timeSlots.length === 1) {
       // Single slot - likely "direct" mode
@@ -360,6 +366,8 @@ export function InterventionDetailClient({
           <ChatTab
             interventionId={intervention.id}
             threads={threads}
+            initialMessagesByThread={initialMessagesByThread}
+            initialParticipantsByThread={initialParticipantsByThread}
             currentUserId={user?.id || ''}
             userRole={user?.role || 'gestionnaire'}
           />

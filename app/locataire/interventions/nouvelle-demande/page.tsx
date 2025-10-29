@@ -8,10 +8,6 @@ import {
   Building2,
   CheckCircle,
   AlertTriangle,
-  X,
-  Upload,
-  File,
-  Trash2,
   Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -31,19 +27,15 @@ import { logger, logError } from '@/lib/logger'
 import { getTenantLots } from '../actions'
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { tenantInterventionSteps } from "@/lib/step-configurations"
-
-interface UploadedFile {
-  id: string
-  name: string
-  size: number
-  type: string
-  file: File // Store the actual File object for upload
-}
+import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
+import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
+import { useToast } from "@/hooks/use-toast"
 
 export default function NouvelleDemandePage() {
   const router = useRouter()
   const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
+  const { toast } = useToast()
 
   // ALL useState hooks must be declared before any conditional returns
   const [allTenantLots, setAllTenantLots] = useState<{ id: string; apartment_number?: string; reference: string; building?: { id: string; name: string; address: string; postal_code: string; city: string }; surface_area?: number }[]>([])
@@ -58,10 +50,16 @@ export default function NouvelleDemandePage() {
     urgence: "",
     description: "",
   })
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const [createdInterventionId, setCreatedInterventionId] = useState<string | null>(null)
   const [creationError, setCreationError] = useState<string | null>(null)
+
+  // File upload hook (replaces uploadedFiles state)
+  const fileUpload = useInterventionUpload({
+    onUploadError: (error) => {
+      toast({ title: "Erreur", description: error, variant: "destructive" })
+    }
+  })
 
   // Détermine si on doit afficher l'étape de sélection du logement
   const shouldSkipStepOne = useMemo(() => {
@@ -219,21 +217,22 @@ export default function NouvelleDemandePage() {
       formDataToSend.append('interventionData', JSON.stringify(interventionData))
 
       // Add files
-      uploadedFiles.forEach((uploadedFile, index) => {
-        formDataToSend.append(`file_${index}`, uploadedFile.file)
+      fileUpload.files.forEach((fileWithPreview, index) => {
+        formDataToSend.append(`file_${index}`, fileWithPreview.file)
         // Also send metadata for each file
         formDataToSend.append(`file_${index}_metadata`, JSON.stringify({
-          id: uploadedFile.id,
-          name: uploadedFile.name,
-          size: uploadedFile.size,
-          type: uploadedFile.type
+          id: fileWithPreview.id,
+          name: fileWithPreview.file.name,
+          size: fileWithPreview.file.size,
+          type: fileWithPreview.file.type,
+          documentType: fileWithPreview.documentType
         }))
       })
 
       // Add file count for easier processing on backend
-      formDataToSend.append('fileCount', uploadedFiles.length.toString())
+      formDataToSend.append('fileCount', fileUpload.files.length.toString())
 
-      logger.info(`🔧 Sending intervention with ${uploadedFiles.length} files`)
+      logger.info(`🔧 Sending intervention with ${fileUpload.files.length} files`)
 
       // Call the API to create the intervention
       const response = await fetch('/api/create-intervention', {
@@ -281,33 +280,6 @@ export default function NouvelleDemandePage() {
   }
 
   const selectedLogementData = logements.find((l) => l.id === selectedLogement)
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (files) {
-      const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
-        id: generateId('file'),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        file: file, // Store the actual File object
-      }))
-      setUploadedFiles((prev) => [...prev, ...newFiles])
-    }
-    event.target.value = ""
-  }
-
-  const removeFile = (fileId: string) => {
-    setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId))
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-  }
 
   // Helper pour gérer la navigation
   const handleNext = () => {
@@ -480,49 +452,14 @@ export default function NouvelleDemandePage() {
               </p>
 
               <div className="mt-2">
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium text-blue-600">Cliquez pour télécharger</span> ou glissez-déposez
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF jusqu'à 10MB</p>
-                  </div>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                </label>
-
-                {/* Uploaded files list */}
-                {uploadedFiles.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700">Fichiers ajoutés ({uploadedFiles.length})</h4>
-                    {uploadedFiles.map((file) => (
-                      <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                        <div className="flex items-center space-x-3">
-                          <File className="h-4 w-4 text-gray-500" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(file.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <InterventionFileAttachment
+                  files={fileUpload.files}
+                  onAddFiles={fileUpload.addFiles}
+                  onRemoveFile={fileUpload.removeFile}
+                  onUpdateFileType={fileUpload.updateFileDocumentType}
+                  isUploading={fileUpload.isUploading}
+                  maxFiles={10}
+                />
               </div>
             </div>
           </div>
@@ -595,16 +532,30 @@ export default function NouvelleDemandePage() {
                 <h3 className="font-semibold text-gray-900">Description</h3>
               </div>
               <p className="text-sm text-gray-700">{formData.description}</p>
-              {uploadedFiles.length > 0 && (
+              {fileUpload.files.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Fichiers joints ({uploadedFiles.length})</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Fichiers joints ({fileUpload.files.length})</p>
                   <div className="flex flex-wrap gap-2">
-                    {uploadedFiles.map((file) => (
-                      <span key={file.id} className="inline-flex items-center px-2 py-1 bg-gray-100 text-xs rounded">
-                        <File className="h-3 w-3 mr-1" />
-                        {file.name}
-                      </span>
-                    ))}
+                    {fileUpload.files.map((fileWithPreview) => {
+                      const documentTypeLabel = DOCUMENT_TYPES.find(
+                        type => type.value === fileWithPreview.documentType
+                      )?.label || fileWithPreview.documentType
+
+                      return (
+                        <div
+                          key={fileWithPreview.id}
+                          className="inline-flex flex-col px-3 py-2 bg-purple-100 text-purple-800 text-xs rounded"
+                        >
+                          <span className="flex items-center font-medium">
+                            <File className="h-3 w-3 mr-1" />
+                            {fileWithPreview.file.name}
+                          </span>
+                          <span className="text-purple-600 text-[10px] mt-0.5 ml-4">
+                            {documentTypeLabel}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}

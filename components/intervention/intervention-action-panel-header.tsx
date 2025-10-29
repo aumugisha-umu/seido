@@ -151,6 +151,33 @@ export function InterventionActionPanelHeader({
     return filteredAvailabilities
   }
 
+  /**
+   * Determines if "Action en attente" badge should show for gestionnaire
+   * Badge shows ONLY for specific statuses where immediate action is required
+   */
+  const shouldShowActionBadge = (
+    status: string,
+    userRole: string,
+    quotes?: Array<{ status: string }>
+  ): boolean => {
+    if (userRole !== 'gestionnaire') return false
+
+    switch (status) {
+      case 'demande':
+      case 'approuvee':
+      case 'cloturee_par_prestataire':
+      case 'cloturee_par_locataire':
+        return true
+
+      case 'demande_de_devis':
+        // Only show badge if there are quotes waiting for manager approval
+        return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false
+
+      default:
+        return false
+    }
+  }
+
   // Définir les actions disponibles selon le statut et le rôle
   const getAvailableActions = (): ActionConfig[] => {
     const actions: ActionConfig[] = []
@@ -308,12 +335,13 @@ export function InterventionActionPanelHeader({
 
       case 'planification':
         if (userRole === 'gestionnaire') {
-          const hasTimeSlots = timeSlots && timeSlots.length > 0
+          // Always show "Modifier" since planning was already initiated
+          // (either with slots or flexible/organize mode)
           actions.push({
             key: 'propose_slots',
-            label: hasTimeSlots ? 'Modifier la planification' : 'Planifier',
-            icon: hasTimeSlots ? Edit : Clock,
-            description: hasTimeSlots ? 'Modifier la planification existante' : 'Planifier l\'intervention'
+            label: 'Modifier la planification',
+            icon: Edit,
+            description: 'Modifier la planification existante'
           })
         }
         if (userRole === 'locataire') {
@@ -813,7 +841,7 @@ export function InterventionActionPanelHeader({
     <>
       {/* Actions principales en boutons */}
       <div className="flex flex-col items-end space-y-2">
-        {availableActions.length > 0 && (
+        {shouldShowActionBadge(intervention.status, userRole, intervention.quotes) && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200">
             <AlertCircle className="w-4 h-4 text-amber-700" />
             <span className="text-sm text-amber-900 font-semibold">

@@ -38,8 +38,8 @@ export default async function GestionnaireLayout({
         userEmail={user.email || ''}
       />
 
-      {/* Contenu principal - Material Design: padding géré par les pages */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Contenu principal - Padding global responsive */}
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 sm:px-6 lg:px-10 py-6">
         {children}
       </main>
 

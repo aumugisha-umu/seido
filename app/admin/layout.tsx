@@ -36,8 +36,8 @@ export default async function AdminLayout({
         userEmail={user.email || ''}
       />
 
-      {/* Contenu principal */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Contenu principal - Padding global responsive */}
+      <main className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-6">
         {children}
       </main>
 

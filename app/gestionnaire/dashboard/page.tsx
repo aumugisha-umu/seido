@@ -237,10 +237,10 @@ export default async function DashboardGestionnaire() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Main Content - Material Design: padding 40px optimisé viewport */}
+      {/* Main Content - Padding géré par le layout */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Section fixe: Header + Stats - Material Design avec padding 40px */}
-        <div className="flex-shrink-0 pt-10 px-10 max-w-7xl mx-auto w-full">
+        {/* Section fixe: Header + Stats */}
+        <div className="flex-shrink-0 max-w-7xl mx-auto w-full">
           {/* Welcome Message and Quick Actions - Material Design spacing */}
           <div className="mb-6">
             <DashboardHeaderWithBadge
@@ -257,8 +257,8 @@ export default async function DashboardGestionnaire() {
           </div>
         </div>
 
-        {/* Section scrollable: Interventions - Prend l'espace restant avec padding 40px */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-10 pb-10 max-w-7xl mx-auto w-full">
+        {/* Section scrollable: Interventions - Prend l'espace restant */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden max-w-7xl mx-auto w-full">
           <InterventionsSectionWithModals
             interventions={allInterventions}
             totalCount={stats.interventionsCount}

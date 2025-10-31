@@ -30,7 +30,7 @@ export default async function GestionnaireLayout({
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <DashboardHeader
         role="gestionnaire"
         userName={userName}
@@ -38,8 +38,8 @@ export default async function GestionnaireLayout({
         userEmail={user.email || ''}
       />
 
-      {/* Contenu principal */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Contenu principal - Material Design: padding géré par les pages */}
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {children}
       </main>
 

@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut } from "lucide-react"
+import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut, Loader2 } from "lucide-react"
 import Image from "next/image"
 import UserMenu from "./user-menu"
 import { useAuth } from "@/hooks/use-auth"
@@ -80,6 +80,7 @@ export default function DashboardHeader({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false)
   const [userTeamId, setUserTeamId] = useState<string | undefined>(undefined)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user, signOut } = useAuth()
@@ -161,7 +162,15 @@ export default function DashboardHeader({
   }
 
   const handleLogout = async () => {
+    // Éviter les clics multiples
+    if (isLoggingOut) {
+      logger.info('👤 [DASHBOARD-HEADER] Logout already in progress, ignoring click')
+      return
+    }
+
     try {
+      setIsLoggingOut(true)
+      setIsMobileMenuOpen(false) // Fermer le menu mobile immédiatement
       logger.info('👤 [DASHBOARD-HEADER] Logout button clicked')
       await signOut()
       logger.info('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
@@ -169,6 +178,8 @@ export default function DashboardHeader({
     } catch (error) {
       logger.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
       window.location.href = "/auth/login"
+    } finally {
+      // Ne pas réinitialiser isLoggingOut car on redirige
     }
   }
 
@@ -405,14 +416,16 @@ export default function DashboardHeader({
 
                     {/* Bouton logout */}
                     <button
-                      onClick={() => {
-                        handleLogout()
-                        setIsMobileMenuOpen(false)
-                      }}
-                      className="p-3 rounded-lg transition-all duration-200 text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 flex-shrink-0"
-                      aria-label="Se déconnecter"
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="p-3 rounded-lg transition-all duration-200 text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={isLoggingOut ? "Déconnexion en cours..." : "Se déconnecter"}
                     >
-                      <LogOut className="h-6 w-6" />
+                      {isLoggingOut ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      ) : (
+                        <LogOut className="h-6 w-6" />
+                      )}
                     </button>
                   </div>
                 </div>

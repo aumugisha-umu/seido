@@ -107,7 +107,22 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
 
   // Sync defaultType from parent when modal opens or defaultType changes
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      // Réinitialiser le formulaire seulement quand le modal se ferme
+      setFormData({
+        type: defaultType,
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        speciality: "",
+        notes: "",
+        inviteToApp: shouldInviteByDefault(defaultType),
+      })
+      setErrors({})
+      return
+    }
+    // Quand le modal s'ouvre, seulement mettre à jour le type sans réinitialiser les autres champs
     setFormData(prev => ({
       ...prev,
       type: defaultType,
@@ -391,6 +406,18 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
     }
   }
 
+  // Fonction pour synchroniser la valeur depuis l'input DOM lors du blur
+  const handleBlur = (field: keyof ContactFormData, e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const domValue = e.target.value
+    // Synchroniser la valeur du DOM avec l'état React si elle diffère
+    setFormData(prev => {
+      if (prev[field] !== domValue) {
+        return { ...prev, [field]: domValue }
+      }
+      return prev
+    })
+  }
+
   const { title, subtitle } = getContactTitle(formData.type)
 
   return (
@@ -463,10 +490,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
               </Label>
               <Input
                 id="firstName"
+                name="firstName"
                 type="text"
                 placeholder="Jean"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
+                onBlur={(e) => handleBlur('firstName', e)}
                 required
                 className={`w-full ${errors.firstName ? 'border-red-500 focus:border-red-500' : ''}`}
               />
@@ -483,10 +512,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
               </Label>
               <Input
                 id="lastName"
+                name="lastName"
                 type="text"
                 placeholder="Dupont"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
+                onBlur={(e) => handleBlur('lastName', e)}
                 required
                 className={`w-full ${errors.lastName ? 'border-red-500 focus:border-red-500' : ''}`}
               />
@@ -505,10 +536,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
             </Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="email@example.com"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
+              onBlur={(e) => handleBlur('email', e)}
               required
               className={`w-full ${errors.email ? 'border-red-500 focus:border-red-500' : ''}`}
             />
@@ -526,10 +559,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
             </Label>
             <Input
               id="phone"
+              name="phone"
               type="tel"
               placeholder="06 12 34 56 78"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
+              onBlur={(e) => handleBlur('phone', e)}
               className={`w-full ${errors.phone ? 'border-red-500 focus:border-red-500' : ''}`}
             />
             {errors.phone && (

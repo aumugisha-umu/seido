@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Wrench, Clock, AlertCircle, Archive } from "lucide-react"
+import { Wrench, Clock, AlertTriangle, Archive } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
@@ -21,11 +21,13 @@ import { InterventionCancellationManager } from "@/components/intervention/inter
 import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
 import { logger, logError } from '@/lib/logger'
 import { PWADashboardPrompt } from '@/components/pwa/pwa-dashboard-prompt'
+import { hasAnyAlertAction, filterPendingActions } from '@/lib/intervention-alert-utils'
 export default function PrestataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { interventions, loading, error } = usePrestataireData(user?.id || '')
+  const [interventionsActiveTab, setInterventionsActiveTab] = useState<string | undefined>(undefined)
 
   // 🎯 FIX: Pattern "mounted" pour éviter l'erreur d'hydration React
   // Le composant "use client" est pré-rendu côté serveur dans Next.js 15/React 19
@@ -90,7 +92,7 @@ export default function PrestataireDashboard() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">Erreur de chargement</h3>
               <p className="text-slate-500 mb-4">{error}</p>
             </div>
@@ -100,14 +102,21 @@ export default function PrestataireDashboard() {
     )
   }
 
+  // Function to get interventions with pending actions
+  const getPendingActionsInterventions = () => {
+    return filterPendingActions(interventions, 'prestataire')
+  }
+
   // Filter function for interventions based on tab (pour prestataires)
-  // ⚠️ IMPORTANT: Utiliser les statuts FRONTEND mappés par le hook usePrestataireData
+  // ✅ Utiliser les statuts DB originaux (maintenant le hook garde les statuts DB dans .status)
   const getFilteredInterventions = (tabId: string) => {
-    if (tabId === "en_cours") {
+    if (tabId === "actions_en_attente") {
+      // Actions en attente : interventions nécessitant une action du prestataire
+      return getPendingActionsInterventions()
+    } else if (tabId === "en_cours") {
       // En cours : interventions assignées au prestataire nécessitant une action
       return interventions.filter((i) => [
-        "demande_de_devis",          // Demandes de devis (nouvellement ajouté)
-        "devis-a-fournir",           // Devis à fournir (mappé depuis demande_de_devis)
+        "demande_de_devis",          // Demandes de devis
         "planification",             // Phase de planification des dates
         "planifiee",                 // Dates planifiées, prêt à exécuter
         "en_cours"                   // Intervention en cours d'exécution
@@ -115,7 +124,9 @@ export default function PrestataireDashboard() {
     } else if (tabId === "cloturees") {
       // Clôturées : interventions terminées ou annulées
       return interventions.filter((i) => [
-        "terminee",                  // Toutes les interventions terminées (mappé depuis cloturee_par_*)
+        "cloturee_par_prestataire",  // Clôturée par le prestataire
+        "cloturee_par_locataire",    // Clôturée par le locataire
+        "cloturee_par_gestionnaire", // Clôturée par le gestionnaire
         "annulee"                    // Annulée
       ].includes(i.status))
     }
@@ -131,8 +142,12 @@ export default function PrestataireDashboard() {
         interventions={filteredInterventions}
         loading={loading}
         emptyStateConfig={{
-          title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention clôturée",
-          description: tabId === "en_cours"
+          title: tabId === "actions_en_attente" ? "Aucune action en attente"
+                : tabId === "en_cours" ? "Aucune intervention en cours" 
+                : "Aucune intervention clôturée",
+          description: tabId === "actions_en_attente"
+            ? "Toutes vos interventions sont à jour"
+            : tabId === "en_cours"
             ? "Les interventions qui vous sont assignées apparaîtront ici"
             : "Vos interventions terminées apparaîtront ici",
           showCreateButton: false
@@ -145,8 +160,18 @@ export default function PrestataireDashboard() {
   }
 
 
-  // Tabs configuration pour les prestataires
+  // Get pending actions count for conditional tab display
+  const pendingActionsCount = loading ? 0 : getPendingActionsInterventions().length
+
+  // Tabs configuration pour les prestataires (conditionally include "Actions en attente" tab first if there are pending actions)
   const interventionsTabsConfig = [
+    ...(pendingActionsCount > 0 ? [{
+      id: "actions_en_attente",
+      label: "En attente",
+      icon: AlertTriangle,
+      count: pendingActionsCount,
+      content: renderInterventionsList("actions_en_attente")
+    }] : []),
     {
       id: "en_cours",
       label: "En cours",
@@ -165,14 +190,7 @@ export default function PrestataireDashboard() {
 
   // Convertir les interventions en format PendingAction pour le composant
   const convertToPendingActions = () => {
-    return interventions
-      .filter((intervention) => [
-        "devis-a-fournir",
-        "demande_de_devis",
-        "planification",
-        "planifiee",
-        "en_cours"
-      ].includes(intervention.status))
+    return filterPendingActions(interventions, 'prestataire')
       .map((intervention) => ({
         id: intervention.id,
         type: 'intervention',
@@ -212,9 +230,9 @@ export default function PrestataireDashboard() {
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col h-full min-h-0">
         {/* Page Header - Simple et centré */}
-        <div className="text-center lg:text-left mb-8">
+        <div className="flex-shrink-0 text-center lg:text-left mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user?.first_name} 👋</h1>
@@ -231,21 +249,26 @@ export default function PrestataireDashboard() {
           </div>
         </div>
 
-        {/* Section 1: Actions en attente - Nouveau composant réutilisable */}
-        {pendingActions.length > 0 && (
-          <section>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <AlertCircle className="w-4 h-4 text-orange-500" />
-                    <span className="font-medium text-foreground">Actions en attente</span>
-                    <span className="text-xs text-slate-600 ml-auto">Interventions nécessitant votre attention</span>
+         {/* Section 1: Actions en attente - Nouveau composant réutilisable */}
+         {pendingActions.length > 0 && (
+           <section className="flex-shrink-0 mb-8">
+             <Card className={`py-0 gap-0 ${hasAnyAlertAction(pendingActions, 'prestataire') ? 'border-orange-300 bg-orange-50/50' : ''}`}>
+              <CardContent className="pt-2 pb-2">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-medium text-foreground">Actions en attente</span>
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                      {pendingActions.length}
+                    </Badge>
                   </div>
-                  <PendingActionsCompactHybrid
-                    actions={pendingActions}
-                    userRole="prestataire"
-                  />
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={() => setInterventionsActiveTab("actions_en_attente")}
+                  >
+                    Voir
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -253,20 +276,29 @@ export default function PrestataireDashboard() {
         )}
 
         {/* Section 2: Interventions avec ContentNavigator */}
-        <section>
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Wrench className="w-5 h-5 text-slate-900" />
-              <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
+        <section className="flex-1 flex flex-col min-h-0">
+          {/* ContentNavigator avec header personnalisé via wrapper - Material Design compact */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Header avec titre uniquement - Material Design: padding 8dp */}
+            <div className="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 flex-shrink-0 border-b border-gray-100">
+              <div className="flex items-center gap-1.5">
+                <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-600" />
+                <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Mes interventions</h2>
+              </div>
+            </div>
+
+            {/* ContentNavigator (retire sa propre Card via className) - Material Design: padding 8dp */}
+            <div className="flex-1 flex flex-col min-h-0 px-2 pb-1.5 sm:px-3 sm:pb-2">
+              <ContentNavigator
+                tabs={interventionsTabsConfig}
+                defaultTab={pendingActionsCount > 0 ? "actions_en_attente" : "en_cours"}
+                activeTab={interventionsActiveTab}
+                searchPlaceholder="Rechercher par titre, description, ou référence..."
+                onSearch={(value) => logger.info("Recherche:", value)}
+                className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
+              />
             </div>
           </div>
-
-          <ContentNavigator
-            tabs={interventionsTabsConfig}
-            defaultTab="en_cours"
-            searchPlaceholder="Rechercher par titre, description, ou référence..."
-            onSearch={(value) => logger.info("Recherche:", value)}
-          />
         </section>
       </div>
 

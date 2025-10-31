@@ -1,14 +1,16 @@
 "use client"
 
-import { Wrench, Clock, Archive, Plus, ArrowRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Wrench, Clock, Archive, Plus, ArrowRight, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
 import { InterventionsList } from "@/components/interventions/interventions-list"
 import ContentNavigator from "@/components/content-navigator"
 import { logger } from '@/lib/logger'
+import { filterPendingActions } from '@/lib/intervention-alert-utils'
 
-interface InterventionsSectionClientProps {
+export interface InterventionsSectionClientProps {
   interventions: any[]
   actionHooks?: {
     approvalHook?: any
@@ -17,9 +19,38 @@ interface InterventionsSectionClientProps {
     executionHook?: any
     finalizationHook?: any
   }
+  onActiveTabChange?: (tabId: string) => void
+  initialActiveTab?: string
 }
 
-export function InterventionsSectionClient({ interventions, actionHooks }: InterventionsSectionClientProps) {
+export function InterventionsSectionClient({ interventions, actionHooks, onActiveTabChange, initialActiveTab }: InterventionsSectionClientProps) {
+  const [interventionsActiveTab, setInterventionsActiveTab] = useState<string | undefined>(initialActiveTab)
+  
+  // Update active tab when initialActiveTab changes
+  useEffect(() => {
+    if (initialActiveTab !== undefined) {
+      setInterventionsActiveTab(initialActiveTab)
+    }
+  }, [initialActiveTab])
+  
+  // Handle tab change and notify parent if callback provided
+  const handleTabChange = (tabId: string) => {
+    setInterventionsActiveTab(tabId)
+    onActiveTabChange?.(tabId)
+  }
+  
+  // Expose handleTabChange for external calls (e.g., from badge in header)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__handleInterventionsTabChange = handleTabChange
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).__handleInterventionsTabChange
+      }
+    }
+  }, [handleTabChange])
+  
   // Transform interventions to format expected by InterventionsList
   const transformedInterventions = interventions.map((intervention) => ({
     ...intervention,
@@ -28,9 +59,17 @@ export function InterventionsSectionClient({ interventions, actionHooks }: Inter
     type: intervention.intervention_type || 'autre'
   }))
 
+  // Function to get interventions with pending actions
+  const getPendingActionsInterventions = () => {
+    return filterPendingActions(transformedInterventions, 'gestionnaire')
+  }
+
   // Filter function for interventions based on tab
   const getFilteredInterventions = (tabId: string) => {
-    if (tabId === "en_cours") {
+    if (tabId === "actions_en_attente") {
+      // Actions en attente : interventions nécessitant une action du gestionnaire
+      return getPendingActionsInterventions()
+    } else if (tabId === "en_cours") {
       // En cours : interventions actives nécessitant une action ou en traitement
       return transformedInterventions.filter((i) => [
         "demande",
@@ -62,8 +101,12 @@ export function InterventionsSectionClient({ interventions, actionHooks }: Inter
         loading={false}
         horizontal={true}
         emptyStateConfig={{
-          title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention terminée",
-          description: tabId === "en_cours"
+          title: tabId === "actions_en_attente" ? "Aucune action en attente"
+                : tabId === "en_cours" ? "Aucune intervention en cours" 
+                : "Aucune intervention terminée",
+          description: tabId === "actions_en_attente"
+            ? "Toutes vos interventions sont à jour"
+            : tabId === "en_cours"
             ? "Les interventions actives apparaîtront ici"
             : "Les interventions terminées apparaîtront ici",
           showCreateButton: tabId === "en_cours",
@@ -77,8 +120,18 @@ export function InterventionsSectionClient({ interventions, actionHooks }: Inter
     )
   }
 
-  // Tabs configuration
+  // Get pending actions count for conditional tab display
+  const pendingActionsCount = getPendingActionsInterventions().length
+
+  // Tabs configuration (conditionally include "Actions en attente" tab first if there are pending actions)
   const interventionsTabsConfig = [
+    ...(pendingActionsCount > 0 ? [{
+      id: "actions_en_attente",
+      label: "En attente",
+      icon: AlertTriangle,
+      count: pendingActionsCount,
+      content: renderInterventionsList("actions_en_attente")
+    }] : []),
     {
       id: "en_cours",
       label: "En cours",
@@ -96,40 +149,41 @@ export function InterventionsSectionClient({ interventions, actionHooks }: Inter
   ]
 
   return (
-    <div>
-      {/* ContentNavigator avec header personnalisé via wrapper */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        {/* Header avec titre et boutons */}
-        <div className="flex items-center justify-between gap-3 px-3 py-2 sm:px-6 sm:py-3">
-          <div className="flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Interventions</h2>
+    <div className="flex-1 flex flex-col min-h-0 mb-2">
+      {/* ContentNavigator avec header personnalisé via wrapper - Material Design compact */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Header avec titre et boutons - Material Design: padding 8dp */}
+        <div className="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 flex-shrink-0 border-b border-gray-100">
+          <div className="flex items-center gap-1.5">
+            <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-600" />
+            <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Interventions</h2>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3">
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white h-6 sm:h-7 px-1.5 sm:px-2 text-xs">
               <Link href="/gestionnaire/interventions/nouvelle-intervention" className="flex items-center">
-                <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Ajouter une intervention</span>
+                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Ajouter</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="flex-shrink-0 h-8 px-3">
+            <Button asChild variant="outline" size="sm" className="flex-shrink-0 h-6 sm:h-7 px-1.5 sm:px-2">
               <Link href="/gestionnaire/interventions" className="flex items-center">
-                <ArrowRight className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline text-xs">Voir toutes</span>
+                <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-0.5" />
+                <span className="hidden sm:inline text-xs">Toutes</span>
               </Link>
             </Button>
           </div>
         </div>
 
-        {/* ContentNavigator (retire sa propre Card via className) */}
-        <div className="px-3 pb-3 sm:px-6 sm:pb-4">
-          <ContentNavigator
-            tabs={interventionsTabsConfig}
-            defaultTab="en_cours"
-            searchPlaceholder="Rechercher par titre, description, ou référence..."
-            onSearch={(value) => logger.info("Recherche:", value)}
-            className="shadow-none border-0 bg-transparent"
-          />
+        {/* ContentNavigator (retire sa propre Card via className) - Material Design: padding 8dp */}
+        <div className="flex-1 flex flex-col min-h-0 px-2 pb-1.5 sm:px-3 sm:pb-2">
+            <ContentNavigator
+              tabs={interventionsTabsConfig}
+              defaultTab={pendingActionsCount > 0 ? "actions_en_attente" : "en_cours"}
+              activeTab={interventionsActiveTab}
+              searchPlaceholder="Rechercher par titre, description, ou référence..."
+              onSearch={(value) => logger.info("Recherche:", value)}
+              className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
+            />
         </div>
       </div>
     </div>

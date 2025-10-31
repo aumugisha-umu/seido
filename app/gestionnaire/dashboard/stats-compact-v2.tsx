@@ -20,73 +20,77 @@ interface StatsProps {
 }
 
 /**
- * VERSION 2 - HORIZONTAL COMPACT
- * Objectif: -50% hauteur via layout horizontal unique
- * - Toutes les stats dans une seule Card
- * - Disposition horizontale avec séparateurs
- * - Format optimisé pour desktop/tablet
+ * VERSION 2 - HORIZONTAL COMPACT - 4 CARTES INDIVIDUELLES
+ * Objectif: -50% hauteur via cartes séparées ultra-compactes
+ * - 4 cartes individuelles avec padding minimal
+ * - Disposition responsive : 2 colonnes sur mobile, 4 sur desktop
+ * - Espacement adaptatif : 20px (mobile) → 40px (desktop)
+ * - Format optimisé pour densité maximale
  */
 export function StatsCompactV2({ stats, contactStats }: StatsProps) {
   return (
-    <Card className="shadow-sm">
-      <CardContent className="p-2 sm:p-3">
-        {/* Responsive: 2x2 grid mobile/tablet, 1x4 grid desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-          {/* Stat 1 - Immeubles */}
-          <div className="flex gap-2">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
-              <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-10">
+      {/* Stat 1 - Immeubles */}
+      <Card className="shadow-sm border-gray-200 py-4 gap-0">
+        <CardContent className="px-4 py-0 flex items-center justify-center">
+          <div className="flex gap-2 items-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+              <Building2 className="h-5 w-5 text-blue-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-lg sm:text-xl font-bold leading-none">{stats.buildingsCount}</div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Immeubles</p>
+            <div>
+              <div className="text-lg font-semibold leading-tight">{stats.buildingsCount}</div>
+              <p className="text-xs text-muted-foreground leading-tight">Immeubles</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Stat 2 - Lots */}
-          <div className="flex gap-2">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-green-50">
-              <Home className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+      {/* Stat 2 - Lots */}
+      <Card className="shadow-sm border-gray-200 py-4 gap-0">
+        <CardContent className="px-4 py-0 flex items-center justify-center">
+          <div className="flex gap-2 items-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50">
+              <Home className="h-5 w-5 text-green-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-lg sm:text-xl font-bold leading-none">{stats.lotsCount}</div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Lots totaux</p>
+            <div>
+              <div className="text-lg font-semibold leading-tight">{stats.lotsCount}</div>
+              <p className="text-xs text-muted-foreground leading-tight">Lots totaux</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Stat 3 - Occupés */}
-          <div className="flex gap-2">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+      {/* Stat 3 - Occupation */}
+      <Card className="shadow-sm border-gray-200 py-4 gap-0">
+        <CardContent className="px-4 py-0 flex items-center justify-center">
+          <div className="flex gap-2 items-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50">
+              <Users className="h-5 w-5 text-purple-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-lg sm:text-xl font-bold leading-none">{stats.occupiedLotsCount}/{stats.lotsCount}</div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Occupation</p>
+            <div>
+              <div className="text-lg font-semibold leading-tight">{stats.occupiedLotsCount}/{stats.lotsCount}</div>
+              <p className="text-xs text-muted-foreground leading-tight">Occupation</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Stat 4 - Contacts */}
-          <div className="flex items-start gap-2">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-orange-50">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+      {/* Stat 4 - Contacts */}
+      <Card className="shadow-sm border-gray-200 py-4 gap-0">
+        <CardContent className="px-4 py-0 flex items-center justify-center">
+          <div className="flex gap-2 items-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
+              <Users className="h-5 w-5 text-orange-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-lg sm:text-xl font-bold leading-none">{contactStats.totalContacts}</div>
-              <div className="flex items-center gap-2 mt-0.5 sm:mt-1 flex-wrap">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Contacts</p>
-                <p className="hidden sm:inline text-[10px] text-green-600">
-                  {contactStats.totalActiveAccounts} actifs
-                </p>
-                {contactStats.invitationsPending > 0 && (
-                  <p className="hidden sm:inline text-[10px] text-orange-600">
-                    {contactStats.invitationsPending} en attente
-                  </p>
-                )}
-              </div>
+            <div>
+              <div className="text-lg font-semibold leading-tight">{contactStats.totalContacts}</div>
+              <p className="text-xs text-muted-foreground leading-tight">Contacts</p>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
+
+

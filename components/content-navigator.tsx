@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -27,6 +27,7 @@ interface FilterConfig {
 interface ContentNavigatorProps {
   tabs: TabConfig[]
   defaultTab?: string
+  activeTab?: string
   searchPlaceholder?: string
   filters?: FilterConfig[]
   onSearch?: (_value: string) => void
@@ -39,6 +40,7 @@ interface ContentNavigatorProps {
 export default function ContentNavigator({
   tabs,
   defaultTab,
+  activeTab: controlledActiveTab,
   searchPlaceholder = "Rechercher...",
   filters = [],
   onSearch,
@@ -50,7 +52,19 @@ export default function ContentNavigator({
   const [showFilters, setShowFilters] = useState(false)
   const [showSearchPopover, setShowSearchPopover] = useState(false)
   const [searchValue, setSearchValue] = useState("")
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
+  const [internalActiveTab, setInternalActiveTab] = useState(defaultTab || tabs[0]?.id)
+
+  // Use controlled activeTab if provided, otherwise use internal state
+  const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveTab
+
+  // Update internal activeTab when defaultTab or controlledActiveTab changes
+  useEffect(() => {
+    if (controlledActiveTab !== undefined && tabs.some(tab => tab.id === controlledActiveTab)) {
+      setInternalActiveTab(controlledActiveTab)
+    } else if (defaultTab && tabs.some(tab => tab.id === defaultTab)) {
+      setInternalActiveTab(defaultTab)
+    }
+  }, [defaultTab, controlledActiveTab, tabs])
 
   const handleSearchChange = (_value: string) => {
     setSearchValue(_value)
@@ -62,7 +76,10 @@ export default function ContentNavigator({
   }
 
   const handleTabChange = (_tabId: string) => {
-    setActiveTab(_tabId)
+    if (controlledActiveTab === undefined) {
+      setInternalActiveTab(_tabId)
+    }
+    // If controlledActiveTab is provided, parent controls it, so we don't update state
   }
 
   const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0]
@@ -85,30 +102,45 @@ export default function ContentNavigator({
     })
   }
 
+  // Détecter si c'est un usage compact (dashboard) via className
+  const isCompact = className.includes('flex-1') || className.includes('min-h-0')
+  
   return (
-    <Card className={className}>
-      <CardContent className="pt-0 space-y-2">
+    <Card className={`${className} ${isCompact ? 'flex flex-col min-h-0' : ''}`}>
+      <CardContent className={`pt-0 ${isCompact ? 'space-y-1 flex-1 flex flex-col min-h-0' : 'space-y-2'}`}>
         {/* Navigation Controls */}
-        <div className="space-y-2">
+        <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2'}`}>
           {/* Mobile Layout - Single Row */}
           <div className="block md:hidden">
             {/* Mobile: Selector + Search + Filters on same line */}
-            <div className="flex gap-2">
-              {/* Mobile Tab Dropdown - Flex to fit content */}
-              <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center">
+              {/* Mobile Tab Dropdown - Auto width to fit content */}
+              <div className="flex-shrink-0">
                 <Select value={activeTab} onValueChange={handleTabChange}>
-                  <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
+                  <SelectTrigger className={`${isCompact ? 'h-8' : 'h-10'} bg-slate-50 border-slate-200`}>
                     <SelectValue>
                       <div className="flex items-center">
                         {activeTabData && (
                           <>
-                            <activeTabData.icon className="h-4 w-4 mr-2" />
-                            <span className="mr-2">{activeTabData.label}</span>
-                            {activeTabData.count !== undefined && (
-                              <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                                {activeTabData.count}
-                              </Badge>
-                            )}
+                            {(() => {
+                              const isAlertTab = activeTabData.id === "actions_en_attente"
+                              const IconComponent = activeTabData.icon
+                              return (
+                                <>
+                                  <IconComponent className={`h-4 w-4 mr-2 ${isAlertTab ? 'text-orange-600' : ''}`} />
+                                  <span className={`mr-2 ${isAlertTab ? 'text-orange-700' : ''}`}>{activeTabData.label}</span>
+                                  {activeTabData.count !== undefined && (
+                                    <Badge variant="secondary" className={`text-xs ${
+                                      isAlertTab 
+                                        ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                                        : 'bg-slate-200 text-slate-700'
+                                    }`}>
+                                      {activeTabData.count}
+                                    </Badge>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </>
                         )}
                       </div>
@@ -117,13 +149,18 @@ export default function ContentNavigator({
                   <SelectContent>
                     {tabs.map((tab) => {
                       const IconComponent = tab.icon
+                      const isAlertTab = tab.id === "actions_en_attente"
                       return (
                         <SelectItem key={tab.id} value={tab.id}>
                           <div className="flex items-center w-full">
-                            <IconComponent className="h-4 w-4 mr-2" />
-                            <span className="mr-2">{tab.label}</span>
+                            <IconComponent className={`h-4 w-4 mr-2 ${isAlertTab ? 'text-orange-600' : ''}`} />
+                            <span className={`mr-2 ${isAlertTab ? 'text-orange-700' : ''}`}>{tab.label}</span>
                             {tab.count !== undefined && (
-                              <Badge variant="secondary" className="ml-auto text-xs bg-slate-200 text-slate-700">
+                              <Badge variant="secondary" className={`ml-auto text-xs ${
+                                isAlertTab 
+                                  ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                                  : 'bg-slate-200 text-slate-700'
+                              }`}>
                                 {tab.count}
                               </Badge>
                             )}
@@ -140,7 +177,7 @@ export default function ContentNavigator({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                    className={`${isCompact ? 'h-8' : 'h-10'} px-3 text-slate-600 hover:text-slate-900 border-slate-200`}
                   >
                     <Search className="h-4 w-4" />
                   </Button>
@@ -166,7 +203,7 @@ export default function ContentNavigator({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowFilters(!showFilters)}
-                    className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                    className={`${isCompact ? 'h-8' : 'h-10'} px-3 text-slate-600 hover:text-slate-900 border-slate-200`}
                   >
                     <Filter className="h-4 w-4" />
                     <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
@@ -245,13 +282,14 @@ export default function ContentNavigator({
           </div>
 
           {/* Tablet & Desktop Layout - Single Row */}
-          <div className="hidden md:flex md:items-center gap-4">
+          <div className={`hidden md:flex md:items-center ${isCompact ? 'gap-2' : 'gap-4'}`}>
             {/* Tablet & Desktop Tabs - Responsive Width */}
             <div className="flex-shrink-0">
-              <div className={`inline-flex h-10 bg-slate-100 rounded-md p-1 overflow-x-auto`}>
+              <div className={`inline-flex ${isCompact ? 'h-8' : 'h-10'} bg-slate-100 rounded-md p-1 overflow-x-auto`}>
                 {tabs.map((tab) => {
                   const IconComponent = tab.icon
                   const isActive = activeTab === tab.id
+                  const isAlertTab = tab.id === "actions_en_attente"
                   return (
                     <button
                       key={tab.id}
@@ -259,18 +297,29 @@ export default function ContentNavigator({
                       className={`
                         inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50
                         ${isActive 
-                          ? 'bg-white text-sky-600 shadow-sm' 
-                          : 'text-slate-600 hover:bg-slate-200/60'
+                          ? isAlertTab
+                            ? 'bg-orange-50 text-orange-700 shadow-sm border border-orange-200'
+                            : 'bg-white text-sky-600 shadow-sm' 
+                          : isAlertTab
+                            ? 'text-orange-600 hover:bg-orange-50'
+                            : 'text-slate-600 hover:bg-slate-200/60'
                         }
                       `}
                     >
-                      <IconComponent className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                      <IconComponent className={`h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 ${isActive 
+                        ? isAlertTab ? 'text-orange-700' : 'text-sky-600'
+                        : isAlertTab ? 'text-orange-600' : 'text-slate-600'
+                      }`} />
                       {tab.label}
                       {tab.count !== undefined && (
                         <Badge variant="secondary" className={`ml-1 md:ml-2 text-xs ${
                           isActive 
-                            ? 'bg-sky-100 text-sky-800' 
-                            : 'bg-slate-200 text-slate-700'
+                            ? isAlertTab
+                              ? 'bg-orange-100 text-orange-800 border-orange-200'
+                              : 'bg-sky-100 text-sky-800' 
+                            : isAlertTab
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : 'bg-slate-200 text-slate-700'
                         }`}>
                           {tab.count}
                         </Badge>
@@ -380,8 +429,14 @@ export default function ContentNavigator({
         </div>
 
         {/* Tab Content */}
-        <div className="mt-2">
-          {activeTabData?.content}
+        <div className={`${isCompact ? 'mt-3 flex-1 flex flex-col min-h-0 overflow-hidden' : 'mt-2'}`}>
+          {isCompact ? (
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {activeTabData?.content}
+            </div>
+          ) : (
+            activeTabData?.content
+          )}
         </div>
       </CardContent>
     </Card>

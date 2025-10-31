@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Wrench, Clock, Archive, AlertCircle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Wrench, Clock, Archive, AlertTriangle, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
@@ -11,16 +13,17 @@ import { useTenantData } from "@/hooks/use-tenant-data"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
-import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
 import TenantHeaderV1 from "@/components/ui-proposals/tenant-header-v1"
 import { logger } from '@/lib/logger'
 import { PWADashboardPrompt } from '@/components/pwa/pwa-dashboard-prompt'
+import { hasAnyAlertAction, filterPendingActions } from '@/lib/intervention-alert-utils'
 
 export default function LocataireDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { tenantData, tenantInterventions, loading, error } = useTenantData()
+  const [interventionsActiveTab, setInterventionsActiveTab] = useState<string | undefined>(undefined)
 
   // 🎯 FIX: Pattern "mounted" pour éviter l'erreur d'hydration React
   const [mounted, setMounted] = useState(false)
@@ -70,7 +73,7 @@ export default function LocataireDashboard() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">Erreur de chargement</h3>
               <p className="text-slate-500 mb-4">{error}</p>
             </div>
@@ -95,24 +98,34 @@ export default function LocataireDashboard() {
   }
 
   // Transform TenantIntervention[] to format expected by InterventionsList
-  const transformedInterventions = tenantInterventions.map((intervention) => ({
-    id: intervention.id,
-    title: intervention.title,
-    description: intervention.description || '',
-    status: intervention.status,
-    created_at: intervention.created_at,
-    urgency: intervention.urgency || 'normale',
-    type: intervention.type || 'autre',
-    reference: `INT-${intervention.id.slice(0, 8)}`,
-    priority: intervention.urgency || 'normale',
-    lot: intervention.lot,
-    building: intervention.lot?.building,
-    assigned_contact: intervention.assigned_contact
-  }))
+  const transformedInterventions = tenantInterventions.map((intervention) => {
+    const reference = intervention.reference ?? `INT-${intervention.id.slice(0, 8)}`
+
+    return {
+      ...intervention,
+      description: intervention.description || '',
+      created_at: intervention.created_at,
+      urgency: intervention.urgency || 'normale',
+      type: intervention.type || 'autre',
+      reference,
+      priority: intervention.urgency || 'normale',
+      lot: intervention.lot,
+      building: intervention.lot?.building,
+      assigned_contact: intervention.assigned_contact
+    }
+  })
+
+  // Function to get interventions with pending actions
+  const getPendingActionsInterventions = () => {
+    return filterPendingActions(transformedInterventions, 'locataire')
+  }
 
   // Filter function for interventions based on tab
   const getFilteredInterventions = (tabId: string) => {
-    if (tabId === "en_cours") {
+    if (tabId === "actions_en_attente") {
+      // Actions en attente : interventions nécessitant une action du locataire
+      return getPendingActionsInterventions()
+    } else if (tabId === "en_cours") {
       // En cours : interventions actives nécessitant une action ou en traitement
       return transformedInterventions.filter((i) => [
         "demande",
@@ -143,8 +156,12 @@ export default function LocataireDashboard() {
         interventions={filteredInterventions}
         loading={loading}
         emptyStateConfig={{
-          title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention terminée",
-          description: tabId === "en_cours"
+          title: tabId === "actions_en_attente" ? "Aucune action en attente" 
+                : tabId === "en_cours" ? "Aucune intervention en cours" 
+                : "Aucune intervention terminée",
+          description: tabId === "actions_en_attente" 
+            ? "Toutes vos interventions sont à jour"
+            : tabId === "en_cours"
             ? "Vos demandes d'intervention apparaîtront ici"
             : "Vos interventions terminées apparaîtront ici",
           showCreateButton: false
@@ -155,8 +172,18 @@ export default function LocataireDashboard() {
     )
   }
 
-  // Tabs configuration
+  // Get pending actions count for conditional tab display
+  const pendingActionsCount = loading ? 0 : getPendingActionsInterventions().length
+
+  // Tabs configuration (conditionally include "Actions en attente" tab first if there are pending actions)
   const interventionsTabsConfig = [
+    ...(pendingActionsCount > 0 ? [{
+      id: "actions_en_attente",
+      label: "En attente",
+      icon: AlertTriangle,
+      count: pendingActionsCount,
+      content: renderInterventionsList("actions_en_attente")
+    }] : []),
     {
       id: "en_cours",
       label: "En cours",
@@ -175,15 +202,7 @@ export default function LocataireDashboard() {
 
   // Convertir les interventions en format PendingAction
   const convertToPendingActions = () => {
-    return transformedInterventions
-      .filter((intervention) => [
-        "demande",
-        "approuvee",
-        "demande_de_devis",
-        "planification",
-        "planifiee",
-        "en_cours"
-      ].includes(intervention.status))
+    return filterPendingActions(transformedInterventions, 'locataire')
       .map((intervention) => ({
         id: intervention.id,
         type: 'intervention',
@@ -225,58 +244,58 @@ export default function LocataireDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full min-h-0">
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
       {/* Header avec informations du logement - Version 1 Ultra-Compact */}
-      <TenantHeaderV1
-        lotReference={tenantData.reference || ''}
-        buildingName={tenantData.building?.name}
-        street={tenantData.building?.address}
-        floor={tenantData.floor}
-        apartmentNumber={tenantData.apartment_number}
-        postalCode={tenantData.building?.postal_code}
-        city={tenantData.building?.city}
-        onCreateIntervention={handleCreateIntervention}
-      />
-
-      {/* Section 1: Actions en attente */}
-      {pendingActions.length > 0 && (
-        <section>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <AlertCircle className="w-4 h-4 text-orange-500" />
-                  <span className="font-medium text-foreground">Actions en attente</span>
-                  <span className="text-xs text-slate-600 ml-auto">Interventions nécessitant votre attention</span>
-                </div>
-                <PendingActionsCompactHybrid
-                  actions={pendingActions}
-                  userRole="locataire"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
+      <div className="flex-shrink-0 mb-6">
+        <TenantHeaderV1
+          lotReference={tenantData.reference || ''}
+          buildingName={tenantData.building?.name}
+          street={tenantData.building?.address}
+          floor={tenantData.floor}
+          apartmentNumber={tenantData.apartment_number}
+          postalCode={tenantData.building?.postal_code}
+          city={tenantData.building?.city}
+          pendingActionsCount={pendingActions.length}
+          onPendingActionsClick={() => setInterventionsActiveTab("actions_en_attente")}
+        />
+      </div>
 
       {/* Section 2: Interventions avec ContentNavigator */}
-      <section>
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Wrench className="w-5 h-5 text-slate-900" />
-            <h2 className="text-xl font-semibold text-slate-900">Mes interventions</h2>
+      <section className="flex-1 flex flex-col min-h-0">
+        {/* ContentNavigator avec header personnalisé via wrapper - Material Design compact */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Header avec titre et bouton - Material Design: padding 8dp */}
+          <div className="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 flex-shrink-0 border-b border-gray-100">
+            <div className="flex items-center gap-1.5">
+              <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-600" />
+              <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Mes interventions</h2>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white h-6 sm:h-7 px-1.5 sm:px-2 text-xs"
+                onClick={() => router.push("/locataire/interventions/nouvelle-demande")}
+              >
+                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Créer une demande</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* ContentNavigator (retire sa propre Card via className) - Material Design: padding 8dp */}
+          <div className="flex-1 flex flex-col min-h-0 px-2 pb-1.5 sm:px-3 sm:pb-2">
+            <ContentNavigator
+              tabs={interventionsTabsConfig}
+              defaultTab={pendingActionsCount > 0 ? "actions_en_attente" : "en_cours"}
+              activeTab={interventionsActiveTab}
+              searchPlaceholder="Rechercher par titre, description, ou référence..."
+              onSearch={(value) => logger.info("Recherche:", value)}
+              className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
+            />
           </div>
         </div>
-
-        <ContentNavigator
-          tabs={interventionsTabsConfig}
-          defaultTab="en_cours"
-          searchPlaceholder="Rechercher par titre, description, ou référence..."
-          onSearch={(value) => logger.info("Recherche:", value)}
-        />
       </section>
     </div>
   )

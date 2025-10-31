@@ -27,7 +27,7 @@ export default async function PrestataireLayout({
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* Header centralisé avec toutes les améliorations */}
       <DashboardHeader
         role="prestataire"
@@ -37,7 +37,7 @@ export default async function PrestataireLayout({
       />
 
       {/* Contenu principal */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 flex flex-col min-h-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
 

@@ -88,8 +88,8 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
-      {/* Actions rapides */}
-      <div className="flex items-center gap-2">
+      {/* Actions rapides - Material Design compact */}
+      <div className="flex items-center gap-1.5">
         {/* Menu mobile compact */}
         <div className="sm:hidden w-full">
           <DropdownMenu>
@@ -97,11 +97,11 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full flex items-center justify-center gap-2 bg-transparent min-h-[44px]"
+                className="w-full flex items-center justify-center gap-1.5 bg-transparent h-8 text-xs"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
                 <span>Ajouter</span>
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[200px]">
@@ -125,45 +125,49 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
           </DropdownMenu>
         </div>
 
-        {/* Boutons séparés desktop */}
-        <div className="hidden sm:flex items-center gap-2">
+        {/* Boutons séparés desktop - Material Design compact */}
+        <div className="hidden sm:flex items-center gap-1.5">
           <Button
             size="sm"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
             onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
           >
-            <Plus className="h-4 w-4" />
-            <span>Ajouter une intervention</span>
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden lg:inline">Ajouter une intervention</span>
+            <span className="lg:hidden">Intervention</span>
           </Button>
 
           <Button
             size="sm"
             variant="outline"
-            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-1.5 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
             onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
           >
-            <Plus className="h-4 w-4" />
-            <span>Ajouter un immeuble</span>
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden lg:inline">Ajouter un immeuble</span>
+            <span className="lg:hidden">Immeuble</span>
           </Button>
 
           <Button
             size="sm"
             variant="outline"
-            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-1.5 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
             onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
           >
-            <Plus className="h-4 w-4" />
-            <span>Ajouter un lot</span>
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden lg:inline">Ajouter un lot</span>
+            <span className="lg:hidden">Lot</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-1.5 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
             onClick={() => setIsContactModalOpen(true)}
           >
-            <Plus className="h-4 w-4" />
-            <span>Ajouter un contact</span>
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden lg:inline">Ajouter un contact</span>
+            <span className="lg:hidden">Contact</span>
           </Button>
         </div>
       </div>

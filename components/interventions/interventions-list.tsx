@@ -235,18 +235,20 @@ export function InterventionsList({
   // Horizontal scroll layout
   if (horizontal) {
     return (
-      <div className={`flex gap-4 overflow-x-auto pb-4 ${className}`}>
+      <div className={`flex gap-3 overflow-x-auto overflow-y-hidden pb-2 ${className}`}>
         {displayedInterventions.map((intervention) => (
-          <div key={intervention.id} className="min-w-[350px] lg:min-w-[400px] flex-shrink-0">
-            <InterventionCard
-              intervention={intervention}
-              userContext={userContext}
-              compact={false}
-              showStatusActions={showStatusActions}
-              contactContext={contactContext}
-              actionHooks={actionHooks}
-              onActionComplete={handleActionComplete}
-            />
+          <div key={intervention.id} className="min-w-[320px] max-w-[320px] lg:min-w-[360px] lg:max-w-[360px] flex-shrink-0">
+            <div>
+              <InterventionCard
+                intervention={intervention}
+                userContext={userContext}
+                compact={false}
+                showStatusActions={showStatusActions}
+                contactContext={contactContext}
+                actionHooks={actionHooks}
+                onActionComplete={handleActionComplete}
+              />
+            </div>
           </div>
         ))}
       </div>

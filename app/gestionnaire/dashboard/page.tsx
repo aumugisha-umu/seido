@@ -9,7 +9,9 @@ import {
 import { DashboardClient } from "./dashboard-client"
 import { StatsCompactV2 } from "./stats-compact-v2"
 import { InterventionsSectionWithModals } from "./interventions-section-with-modals"
+import { DashboardHeaderWithBadge } from "./dashboard-header-with-badge"
 import { logger as baseLogger } from '@/lib/logger'
+import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import type { InterventionWithRelations } from "@/lib/services"
 
 // Relax logger typing locally to avoid strict method signature constraints for rich logs in this server component
@@ -50,6 +52,7 @@ export default async function DashboardGestionnaire() {
 
   let recentInterventions: InterventionWithRelations[] = []
   let allInterventions: InterventionWithRelations[] = []
+  let pendingActionsCount = 0
 
   try {
     dashLogger.info('🔧 [DASHBOARD] Starting service initialization...')
@@ -102,7 +105,32 @@ export default async function DashboardGestionnaire() {
         dashLogger.error('❌ [DASHBOARD] Error loading interventions:',
           interventionsResult.status === 'rejected' ? interventionsResult.reason : 'No data')
       }
-      allInterventions = interventions
+
+      // ⚡ ENRICHISSEMENT: Ajouter quotes et slots aux interventions pour le badge interactif
+      dashLogger.info('🔄 [DASHBOARD] Enriching interventions with quotes and slots...')
+      const interventionsWithDetails = await Promise.all(
+        interventions.map(async (intervention) => {
+          const [{ data: quotes }, { data: timeSlots }] = await Promise.all([
+            supabase
+              .from('intervention_quotes')
+              .select('id, status, provider_id, submitted_by, amount')
+              .eq('intervention_id', intervention.id)
+              .is('deleted_at', null),
+            supabase
+              .from('intervention_time_slots')
+              .select('id, slot_date, start_time, status, proposed_by')
+              .eq('intervention_id', intervention.id)
+          ])
+          return { 
+            ...intervention, 
+            quotes: quotes || [], 
+            timeSlots: timeSlots || [] 
+          } as any
+        })
+      )
+      dashLogger.info('✅ [DASHBOARD] Interventions enriched with quotes and slots')
+      
+      allInterventions = interventionsWithDetails
 
     // ⚡ OPTIMISATION: Charger TOUS les lots (building + indépendants) en 1 seule requête team-scoped
     dashLogger.info('🏠 [DASHBOARD] Loading ALL lots (including independent) for team:', team.id)
@@ -169,6 +197,15 @@ export default async function DashboardGestionnaire() {
     allInterventions = (allInterventions || [])
       .sort((a, b) => (new Date(b.created_at ?? '').getTime() || 0) - (new Date(a.created_at ?? '').getTime() || 0))
     recentInterventions = (allInterventions || []).slice(0, 3)
+    
+    // Calculer le count des actions en attente pour le badge header
+    const transformedInterventions = allInterventions.map((intervention: any) => ({
+      ...intervention,
+      reference: intervention.reference || `INT-${intervention.id.slice(0, 8)}`,
+      urgency: intervention.urgency || intervention.priority || 'normale',
+      type: intervention.intervention_type || 'autre'
+    }))
+    pendingActionsCount = filterPendingActions(transformedInterventions, 'gestionnaire').length
   } catch (error) {
     // Capturer toutes les propriétés de l'erreur pour diagnostic complet
     const errorDetails = {
@@ -199,30 +236,29 @@ export default async function DashboardGestionnaire() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Main Content */}
-      <div className="py-2 px-2 sm:px-4">
-        {/* Welcome Message and Quick Actions */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div>
-              <h1 className="font-bold text-gray-900 mb-[] mt-[] text-2xl sm:text-3xl">
-                Tableau de bord
-              </h1>
-            </div>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Main Content - Material Design: padding 40px optimisé viewport */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Section fixe: Header + Stats - Material Design avec padding 40px */}
+        <div className="flex-shrink-0 pt-10 px-10 max-w-7xl mx-auto w-full">
+          {/* Welcome Message and Quick Actions - Material Design spacing */}
+          <div className="mb-6">
+            <DashboardHeaderWithBadge
+              pendingActionsCount={pendingActionsCount}
+            >
+              {/* Actions rapides - Composant client sécurisé */}
+              <DashboardClient teamId={team.id} />
+            </DashboardHeaderWithBadge>
+          </div>
 
-            {/* Actions rapides - Composant client sécurisé */}
-            <DashboardClient teamId={team.id} />
+          {/* Portfolio Overview - Compact V2 - Material Design spacing */}
+          <div className="mb-6">
+            <StatsCompactV2 stats={stats} contactStats={contactStats} />
           </div>
         </div>
 
-        {/* Portfolio Overview - Compact V2 */}
-        <div className="mb-4 sm:mb-6">
-          <StatsCompactV2 stats={stats} contactStats={contactStats} />
-        </div>
-
-        {/* Interventions avec tabs (En cours / Terminées) */}
-        <div className="mb-4 sm:mb-6">
+        {/* Section scrollable: Interventions - Prend l'espace restant avec padding 40px */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-10 pb-10 max-w-7xl mx-auto w-full">
           <InterventionsSectionWithModals
             interventions={allInterventions}
             totalCount={stats.interventionsCount}

@@ -168,7 +168,25 @@ export const BuildingInfoForm = ({
               onNameChange(newName)
             } else {
               // Sinon, utiliser le comportement par défaut (lots ou immeubles sans contrôle)
-              setBuildingInfo({ ...buildingInfo, name: newName })
+              setBuildingInfo(prev => ({ ...prev, name: newName }))
+            }
+          }}
+          onBlur={(e) => {
+            const domValue = e.target.value
+            const newName = domValue
+            // Si onNameChange est fourni (immeuble avec contrôle auto-fill), l'utiliser
+            if (onNameChange && entityType === "immeuble") {
+              if (buildingInfo.name !== newName) {
+                onNameChange(newName)
+              }
+            } else {
+              // Sinon, utiliser le comportement par défaut (lots ou immeubles sans contrôle)
+              setBuildingInfo(prev => {
+                if (prev.name !== newName) {
+                  return { ...prev, name: newName }
+                }
+                return prev
+              })
             }
           }}
           className={`mt-1 h-10 sm:h-11 ${isDuplicateName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
@@ -197,10 +215,21 @@ export const BuildingInfoForm = ({
             </Label>
             <Input
               id="address"
+              name="address"
               placeholder="Rue de la Paix 123"
               value={buildingInfo.address}
-              onChange={(e) => setBuildingInfo({ ...buildingInfo, address: e.target.value })}
+              onChange={(e) => setBuildingInfo(prev => ({ ...prev, address: e.target.value }))}
+              onBlur={(e) => {
+                const domValue = e.target.value
+                setBuildingInfo(prev => {
+                  if (prev.address !== domValue) {
+                    return { ...prev, address: domValue }
+                  }
+                  return prev
+                })
+              }}
               className="mt-1 h-10 sm:h-11"
+              required
             />
           </div>
 
@@ -212,10 +241,21 @@ export const BuildingInfoForm = ({
               </Label>
               <Input
                 id="postalCode"
+                name="postalCode"
                 placeholder="1000"
                 value={buildingInfo.postalCode}
-                onChange={(e) => setBuildingInfo({ ...buildingInfo, postalCode: e.target.value })}
+                onChange={(e) => setBuildingInfo(prev => ({ ...prev, postalCode: e.target.value }))}
+                onBlur={(e) => {
+                  const domValue = e.target.value
+                  setBuildingInfo(prev => {
+                    if (prev.postalCode !== domValue) {
+                      return { ...prev, postalCode: domValue }
+                    }
+                    return prev
+                  })
+                }}
                 className="mt-1 h-10 sm:h-11"
+                required
               />
             </div>
             <div>
@@ -225,10 +265,21 @@ export const BuildingInfoForm = ({
               </Label>
               <Input
                 id="city"
+                name="city"
                 placeholder="Bruxelles"
                 value={buildingInfo.city}
-                onChange={(e) => setBuildingInfo({ ...buildingInfo, city: e.target.value })}
+                onChange={(e) => setBuildingInfo(prev => ({ ...prev, city: e.target.value }))}
+                onBlur={(e) => {
+                  const domValue = e.target.value
+                  setBuildingInfo(prev => {
+                    if (prev.city !== domValue) {
+                      return { ...prev, city: domValue }
+                    }
+                    return prev
+                  })
+                }}
                 className="mt-1 h-10 sm:h-11"
+                required
               />
             </div>
             <div className="sm:col-span-2 lg:col-span-1">
@@ -238,7 +289,7 @@ export const BuildingInfoForm = ({
               </Label>
               <Select 
                 value={buildingInfo.country} 
-                onValueChange={(value) => setBuildingInfo({ ...buildingInfo, country: value })}
+                onValueChange={(value) => setBuildingInfo(prev => ({ ...prev, country: value }))}
               >
                 <SelectTrigger className="w-full h-10 sm:h-11">
                   <SelectValue placeholder="Sélectionnez un pays" />
@@ -297,7 +348,7 @@ export const BuildingInfoForm = ({
                 id="floor"
                 placeholder="0"
                 value={buildingInfo.floor || ""}
-                onChange={(e) => setBuildingInfo({ ...buildingInfo, floor: e.target.value })}
+                onChange={(e) => setBuildingInfo(prev => ({ ...prev, floor: e.target.value }))}
                 className="mt-1 h-10 sm:h-11"
               />
             </div>
@@ -310,7 +361,7 @@ export const BuildingInfoForm = ({
                 id="doorNumber"
                 placeholder="A, 101, etc."
                 value={buildingInfo.doorNumber || ""}
-                onChange={(e) => setBuildingInfo({ ...buildingInfo, doorNumber: e.target.value })}
+                onChange={(e) => setBuildingInfo(prev => ({ ...prev, doorNumber: e.target.value }))}
                 className="mt-1 h-10 sm:h-11"
               />
             </div>
@@ -327,7 +378,7 @@ export const BuildingInfoForm = ({
           id="description"
           placeholder={`Ajoutez des informations supplémentaires sur votre ${entityType}...`}
           value={buildingInfo.description}
-          onChange={(e) => setBuildingInfo({ ...buildingInfo, description: e.target.value })}
+          onChange={(e) => setBuildingInfo(prev => ({ ...prev, description: e.target.value }))}
           className="mt-1 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base"
         />
         <p className="text-xs text-gray-500 mt-1">

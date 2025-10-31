@@ -169,6 +169,21 @@ export interface Intervention {
   // Legacy field names (for backward compatibility in business logic)
   priority?: 'low' | 'medium' | 'high' | 'urgent'  // Maps to urgency
   category?: string  // Maps to type
+  // ✅ Enriched data for interactive badge (loaded separately)
+  quotes?: Array<{
+    id: string
+    status: string
+    provider_id?: string
+    submitted_by?: string
+    amount?: number
+  }>
+  timeSlots?: Array<{
+    id: string
+    slot_date: string
+    start_time: string
+    status?: string
+    proposed_by?: string
+  }>
 }
 
 export interface InterventionInsert {

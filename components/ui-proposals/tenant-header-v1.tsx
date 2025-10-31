@@ -17,8 +17,8 @@
  */
 
 import React from 'react'
-import { Home, MapPin, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Home, MapPin } from 'lucide-react'
+import { PendingActionsBadge } from '@/components/pending-actions-badge'
 
 interface TenantHeaderV1Props {
   lotReference: string
@@ -28,7 +28,8 @@ interface TenantHeaderV1Props {
   apartmentNumber?: string
   postalCode?: string
   city?: string
-  onCreateIntervention: () => void
+  pendingActionsCount?: number
+  onPendingActionsClick?: () => void
 }
 
 const TenantHeaderV1 = ({
@@ -39,7 +40,8 @@ const TenantHeaderV1 = ({
   apartmentNumber,
   postalCode,
   city,
-  onCreateIntervention
+  pendingActionsCount = 0,
+  onPendingActionsClick
 }: TenantHeaderV1Props) => {
   // Construction de l'adresse complète (inline)
   const buildAddressString = () => {
@@ -101,16 +103,15 @@ const TenantHeaderV1 = ({
           </div>
         </div>
 
-        {/* CTA Button - Position naturelle d'action (droite) */}
-        <Button
-          onClick={onCreateIntervention}
-          size="default"
-          className="flex-shrink-0 font-semibold"
-          aria-label="Créer une nouvelle demande d'intervention"
-        >
-          <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
-          Nouvelle demande
-        </Button>
+        {/* Badge Actions en attente - Position naturelle d'action (droite) */}
+        {pendingActionsCount > 0 && onPendingActionsClick && (
+          <PendingActionsBadge
+            count={pendingActionsCount}
+            onClick={onPendingActionsClick}
+            userRole="locataire"
+            isAlert={true}
+          />
+        )}
       </div>
     </div>
   )

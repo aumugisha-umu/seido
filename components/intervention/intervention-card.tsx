@@ -157,6 +157,34 @@ export function InterventionCard({
     }
   }
 
+  // Get intervention type label in French
+  const getTypeLabel = (_type: string) => {
+    const labels: Record<string, string> = {
+      plomberie: "Plomberie",
+      electricite: "Électricité",
+      chauffage: "Chauffage",
+      serrurerie: "Serrurerie",
+      peinture: "Peinture",
+      maintenance: "Maintenance",
+      autre: "Autre"
+    }
+    return labels[_type?.toLowerCase()] || "Autre"
+  }
+
+  // Get badge color for intervention type/category
+  const getTypeBadgeColor = (_type: string) => {
+    const colors: Record<string, string> = {
+      plomberie: "bg-blue-100 text-blue-800 border-blue-200",
+      electricite: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      chauffage: "bg-red-100 text-red-800 border-red-200",
+      serrurerie: "bg-gray-100 text-gray-800 border-gray-200",
+      peinture: "bg-purple-100 text-purple-800 border-purple-200",
+      maintenance: "bg-orange-100 text-orange-800 border-orange-200",
+      autre: "bg-slate-100 text-slate-800 border-slate-200"
+    }
+    return colors[_type?.toLowerCase()] || "bg-slate-100 text-slate-800 border-slate-200"
+  }
+
   // Get available actions based on status and user role
   const getAvailableActions = () => {
     const actions = []
@@ -653,13 +681,19 @@ export function InterventionCard({
               </div>
             )}
 
-            {/* Status & Priority Badges - Material Design spacing */}
+            {/* Category, Priority & Status Badges - Ordre: Catégorie → Urgence → Status */}
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className={`${getStatusColor(intervention.status)} text-xs px-2.5 py-1`}>
-                {getStatusLabel(intervention.status)}
+              {/* Catégorie */}
+              <Badge className={`${getTypeBadgeColor(intervention.type || 'autre')} text-xs px-2.5 py-1 border`}>
+                {getTypeLabel(intervention.type || 'autre')}
               </Badge>
+              {/* Urgence */}
               <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-2.5 py-1`}>
                 {getPriorityLabel(intervention.urgency || 'normale')}
+              </Badge>
+              {/* Status */}
+              <Badge className={`${getStatusColor(intervention.status)} text-xs px-2.5 py-1`}>
+                {getStatusLabel(intervention.status)}
               </Badge>
             </div>
 

@@ -3,7 +3,7 @@
 import { Plus, Wrench, Clock, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { InterventionsList } from "@/components/interventions/interventions-list"
+import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
 import ContentNavigator from "@/components/content-navigator"
 import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
 import { Card, CardContent } from "@/components/ui/card"
@@ -76,8 +76,9 @@ export default function InterventionsClient({ interventions }: InterventionsClie
     const filteredInterventions = getFilteredInterventions(tabId)
 
     return (
-      <InterventionsList
+      <InterventionsViewContainer
         interventions={filteredInterventions}
+        userContext="locataire"
         loading={false}
         emptyStateConfig={{
           title: tabId === "en_cours" ? "Aucune intervention en cours" : "Aucune intervention terminée",
@@ -89,7 +90,6 @@ export default function InterventionsClient({ interventions }: InterventionsClie
           createButtonAction: () => window.location.href = '/locataire/interventions/nouvelle-demande'
         }}
         showStatusActions={true}
-        userContext="locataire"
       />
     )
   }

@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 
 import ContentNavigator from "@/components/content-navigator"
-import { InterventionsList } from "@/components/interventions/interventions-list"
+import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
 import type { InterventionWithRelations } from "@/lib/services"
 
 interface EmptyStateConfig {
@@ -122,10 +122,10 @@ export function InterventionsNavigator({
   // Function to render interventions list
   const renderInterventionsList = (tabId: string) => {
     const filteredData = getFilteredInterventions(tabId)
-    
+
     const defaultEmptyConfig = {
       title: tabId === "toutes" ? "Aucune intervention" : "Aucune intervention dans cette catégorie",
-      description: tabId === "toutes" 
+      description: tabId === "toutes"
         ? "Les interventions apparaîtront ici"
         : "Les interventions de ce statut apparaîtront ici",
       showCreateButton: false,
@@ -134,14 +134,12 @@ export function InterventionsNavigator({
     }
 
     return (
-      <InterventionsList
+      <InterventionsViewContainer
         interventions={filteredData}
+        userContext={userContext}
         loading={loading}
         emptyStateConfig={emptyStateConfig || defaultEmptyConfig}
         showStatusActions={showStatusActions}
-        contactContext={contactContext}
-        actionHooks={actionHooks}
-        userContext={userContext}
       />
     )
   }

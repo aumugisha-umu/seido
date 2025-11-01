@@ -50,7 +50,8 @@
       "Bash(taskkill:*)",
       "Bash(del update-claude-md.ps1 2)",
       "Bash(del fix-calendar-view.ps1 2)",
-      "Bash(del fix-page-client.ps1 2)"
+      "Bash(del fix-page-client.ps1 2)",
+      "Bash(del debug-file.ps1 fix-*.ps1 replace-*.ps1 update-claude-md.ps1 componentsinterventionsinterventions-calendar-view.tsx.bak 2)"
     ],
     "deny": [],
     "ask": []

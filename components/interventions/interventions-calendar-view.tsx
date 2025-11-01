@@ -224,9 +224,8 @@ export function InterventionsCalendarView({
       const HOUR_HEIGHT = 48
       const BUSINESS_HOUR_START = 8
       setTimeout(() => {
-        const viewport = weekScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement
-        if (viewport) {
-          viewport.scrollTo({
+        if (weekScrollAreaRef.current) {
+          weekScrollAreaRef.current.scrollTo({
             top: BUSINESS_HOUR_START * HOUR_HEIGHT,
             behavior: 'smooth'
           })
@@ -625,7 +624,7 @@ export function InterventionsCalendarView({
           </div>
         )}
 
-        {/* WEEK VIEW - Structure avec Table et ScrollArea */}
+        {/* WEEK VIEW - Structure avec Table et scroll natif */}
         {calendarMode === 'week' && (
           <div className="flex flex-col flex-1 min-h-0">
             {/* Headers Row - Fixed */}
@@ -659,64 +658,62 @@ export function InterventionsCalendarView({
               })}
             </div>
 
-            {/* Scrollable Table */}
-            <div ref={weekScrollAreaRef} className="flex-1 min-h-0">
-              <ScrollArea className="h-full">
-                <Table>
-                  <TableBody>
-                    {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
-                      <TableRow key={hour} className="hover:bg-transparent border-0">
-                        {/* Colonne heures */}
-                        <TableCell className="w-20 h-12 p-0 border-r-2 border-slate-300 bg-slate-50">
-                          <div className="h-12 flex items-start justify-end pr-2 pt-1 border-b border-slate-100">
-                            <span className="text-xs text-slate-500 font-medium">
-                              {hour.toString().padStart(2, '0')}h
-                            </span>
+            {/* Scrollable Table - Native Overflow */}
+            <div ref={weekScrollAreaRef} className="flex-1 overflow-y-auto">
+              <Table>
+                <TableBody>
+                  {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                    <TableRow key={hour} className="hover:bg-transparent border-0">
+                      {/* Colonne heures */}
+                      <TableCell className="w-20 h-12 p-0 border-r-2 border-slate-300 bg-slate-50">
+                        <div className="h-12 flex items-start justify-end pr-2 pt-1 border-b border-slate-100">
+                          <span className="text-xs text-slate-500 font-medium">
+                            {hour.toString().padStart(2, '0')}h
+                          </span>
+                        </div>
+                      </TableCell>
+
+                    {/* 7 colonnes jours */}
+                    {weekDays.map((day, dayIndex) => {
+                      const dateStr = day.toISOString().split('T')[0]
+                      const dayInterventions = interventionsByDay[dateStr] || []
+                      const hourInterventions = dayInterventions.filter((int) => {
+                        const dateValue = int[dateField as keyof InterventionWithRelations] as string | undefined
+                        if (!dateValue) return false
+                        const intDate = new Date(dateValue)
+                        return intDate.getHours() === hour
+                      })
+
+                      return (
+                        <TableCell
+                          key={dayIndex}
+                          className="h-12 p-0 border-r-2 border-slate-300 last:border-r-0 relative"
+                        >
+                          <div
+                            className="h-12 border-b border-slate-100 hover:bg-blue-50/30 cursor-pointer transition-colors"
+                            onClick={() => handleDayClick(day)}
+                          >
+                            {/* Affichage des interventions pour cette heure si nécessaire */}
+                            {hourInterventions.length > 0 && (
+                              <div className="absolute inset-x-0 top-0 p-1">
+                                {hourInterventions.map((intervention) => (
+                                  <div
+                                    key={intervention.id}
+                                    className="text-xs bg-blue-100 text-blue-900 rounded px-1 py-0.5 mb-1 truncate"
+                                  >
+                                    {intervention.title}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
-
-                      {/* 7 colonnes jours */}
-                      {weekDays.map((day, dayIndex) => {
-                        const dateStr = day.toISOString().split('T')[0]
-                        const dayInterventions = interventionsByDay[dateStr] || []
-                        const hourInterventions = dayInterventions.filter((int) => {
-                          const dateValue = int[dateField as keyof InterventionWithRelations] as string | undefined
-                          if (!dateValue) return false
-                          const intDate = new Date(dateValue)
-                          return intDate.getHours() === hour
-                        })
-
-                        return (
-                          <TableCell
-                            key={dayIndex}
-                            className="h-12 p-0 border-r-2 border-slate-300 last:border-r-0 relative"
-                          >
-                            <div
-                              className="h-12 border-b border-slate-100 hover:bg-blue-50/30 cursor-pointer transition-colors"
-                              onClick={() => handleDayClick(day)}
-                            >
-                              {/* Affichage des interventions pour cette heure si nécessaire */}
-                              {hourInterventions.length > 0 && (
-                                <div className="absolute inset-x-0 top-0 p-1">
-                                  {hourInterventions.map((intervention) => (
-                                    <div
-                                      key={intervention.id}
-                                      className="text-xs bg-blue-100 text-blue-900 rounded px-1 py-0.5 mb-1 truncate"
-                                    >
-                                      {intervention.title}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        )
-                      })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                      )
+                    })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}

@@ -30,6 +30,7 @@ Never do any build after small changes if the user didn't ask you to. The only s
 **Notes spéciales** :
 - Port 3000 occupé ? Fermer processus + clean cache + relancer
 - Tests : toujours référencer `tests-new/` et maintenir structure
+- **⚠️ IMPORTANT après un build** : S'assurer que tous les processus Node sont terminés avant de relancer le serveur de développement
 
 ```bash
 # Development
@@ -52,6 +53,54 @@ npm run supabase:types   # Generate TS types
 npm run supabase:push    # Push schema
 npm run supabase:migrate # New migration
 ```
+
+### ⚙️ Workflow après Build
+
+**Après avoir exécuté `npm run build`, TOUJOURS :**
+
+1. **Vérifier si des processus Node.js sont actifs** :
+   ```bash
+   # Windows
+   tasklist | findstr node.exe
+
+   # Linux/Mac
+   ps aux | grep node
+   ```
+
+2. **Si des processus Node.js tournent, les fermer EXPLICITEMENT** :
+   ```bash
+   # Windows
+   taskkill /F /IM node.exe
+
+   # Linux/Mac
+   pkill -9 node
+   ```
+
+3. **Vérifier qu'aucun processus n'occupe le port 3000** :
+   ```bash
+   # Windows
+   netstat -ano | findstr :3000
+
+   # Linux/Mac
+   lsof -i :3000
+   ```
+
+4. **Nettoyer le cache Next.js (optionnel mais recommandé)** :
+   ```bash
+   rm -rf .next
+   ```
+
+5. **Relancer le serveur de développement** :
+   ```bash
+   npm run dev
+   ```
+
+**Pourquoi c'est important ?**
+- Les processus Node.js peuvent rester actifs en arrière-plan après un build
+- Cela peut causer des conflits de port (EADDRINUSE)
+- Des fichiers .next corrompus peuvent persister et causer des erreurs d'hydratation
+- Un nouveau serveur propre garantit que les changements sont bien appliqués
+- ⚠️ **NE JAMAIS lancer npm run dev si des processus Node tournent déjà**
 
 ## Architecture Snapshot
 

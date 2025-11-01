@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { ChevronLeft, ChevronRight, Eye, Building2, MapPin, CalendarDays, CalendarRange } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, Building2, MapPin, CalendarDays, CalendarRange, AlertCircle } from 'lucide-react'
 import type { InterventionWithRelations } from '@/lib/services'
 import {
   generateCalendarDates,
@@ -111,6 +111,40 @@ export function InterventionsCalendarView({
   }, [weekStart])
 
   /**
+   * 📅 Week view: Scroll container ref for auto-scroll to business hours
+   */
+  const weekTimelineRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * 📅 Week view: Filter scheduled vs unscheduled interventions
+   */
+  const { scheduledInterventions, unscheduledCount } = useMemo(() => {
+    const scheduled = interventions.filter((i) => {
+      const dateValue = i[dateField as keyof InterventionWithRelations]
+      return dateValue && dateValue !== null
+    })
+    const unscheduled = interventions.length - scheduled.length
+    return { scheduledInterventions: scheduled, unscheduledCount: unscheduled }
+  }, [interventions, dateField])
+
+  /**
+   * 📅 Week view: Auto-scroll to business hours on mount and mode change
+   */
+  useEffect(() => {
+    if (calendarMode === 'week' && weekTimelineRef.current) {
+      // Scroll to 8am (8 hours * 48px per hour = 384px)
+      const HOUR_HEIGHT = 48
+      const BUSINESS_HOUR_START = 8
+      setTimeout(() => {
+        weekTimelineRef.current?.scrollTo({
+          top: BUSINESS_HOUR_START * HOUR_HEIGHT,
+          behavior: 'smooth'
+        })
+      }, 100)
+    }
+  }, [calendarMode])
+
+  /**
    * 🎯 Get interventions for selected date
    */
   const selectedDateStr = selectedDate.toISOString().split('T')[0]
@@ -120,16 +154,45 @@ export function InterventionsCalendarView({
   )
 
   /**
-   * 🎯 Week view: Get interventions grouped by day
+   * 🎯 Week view: Get SCHEDULED interventions grouped by day with time positioning
    */
   const interventionsByDay = useMemo(() => {
-    const grouped: Record<string, InterventionWithRelations[]> = {}
+    const grouped: Record<string, Array<InterventionWithRelations & { topPosition: number; height: number }>> = {}
+
     weekDays.forEach((day) => {
       const dateStr = day.toISOString().split('T')[0]
-      grouped[dateStr] = getInterventionsOnDate(interventions, dateStr, dateField)
+      const dayInterventions = getInterventionsOnDate(scheduledInterventions, dateStr, dateField)
+
+      // Calculate position and height for each intervention
+      grouped[dateStr] = dayInterventions.map((intervention) => {
+        const dateValue = intervention[dateField as keyof InterventionWithRelations] as string | undefined
+        const interventionDate = dateValue ? new Date(dateValue) : null
+
+        let hour = 0
+        let minute = 0
+
+        if (interventionDate) {
+          hour = interventionDate.getHours()
+          minute = interventionDate.getMinutes()
+        }
+
+        const HOUR_HEIGHT = 48 // pixels per hour
+        const topPosition = (hour + minute / 60) * HOUR_HEIGHT
+
+        // Default height: 1 hour (48px)
+        // TODO: Use actual duration if available
+        const height = HOUR_HEIGHT
+
+        return {
+          ...intervention,
+          topPosition,
+          height
+        }
+      })
     })
+
     return grouped
-  }, [weekDays, interventions, dateField])
+  }, [weekDays, scheduledInterventions, dateField])
 
   /**
    * 🔗 Get intervention URL
@@ -239,7 +302,7 @@ export function InterventionsCalendarView({
 
   if (loading) {
     return (
-      <div className="flex gap-4 h-[600px]">
+      <div className="flex gap-4 h-[400px]">
         <div className="flex-1 animate-pulse bg-gray-200 rounded-lg" />
         <div className="w-[350px] animate-pulse bg-gray-200 rounded-lg" />
       </div>
@@ -328,7 +391,7 @@ export function InterventionsCalendarView({
               {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day) => (
                 <div
                   key={day}
-                  className="text-center text-xs font-medium text-slate-500 py-2"
+                  className="text-center text-xs font-medium text-slate-500 py-1"
                 >
                   {day}
                 </div>
@@ -346,7 +409,7 @@ export function InterventionsCalendarView({
                   <div
                     key={dateInfo.date}
                     className={`
-                      relative h-14 p-1 border border-slate-200 rounded cursor-pointer
+                      relative h-12 p-1 border border-slate-200 rounded cursor-pointer
                       transition-colors
                       ${dateInfo.isCurrentMonth ? 'bg-white' : 'bg-slate-50'}
                       ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''}
@@ -406,123 +469,162 @@ export function InterventionsCalendarView({
           </>
         )}
 
-        {/* WEEK VIEW - V3 Design (7-column timeline) */}
+        {/* WEEK VIEW - Google Calendar-style 24h Timeline */}
         {calendarMode === 'week' && (
-          <div className="overflow-x-auto -mx-4 -mb-4">
-            <div className="min-w-[900px]">
-              {/* Day headers */}
-              <div className="grid grid-cols-7 border-b border-slate-200">
-                {weekDays.map((day) => {
-                  const dateStr = day.toISOString().split('T')[0]
-                  const isToday = dateStr === today.toISOString().split('T')[0]
-                  const count = interventionsByDay[dateStr]?.length || 0
+          <>
+            {/* Unscheduled Interventions Counter */}
+            {unscheduledCount > 0 && (
+              <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-orange-700">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span className="font-medium">
+                    {unscheduledCount} intervention{unscheduledCount > 1 ? 's' : ''} à planifier
+                  </span>
+                </div>
+              </div>
+            )}
 
-                  return (
-                    <div
-                      key={dateStr}
-                      className={`p-3 border-r border-slate-200 last:border-r-0 ${
-                        isToday ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <div className="text-center">
-                        <div className="text-xs font-medium text-slate-600">
-                          {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
-                        </div>
+            {/* Timeline Container */}
+            <div className="overflow-x-auto -mx-4">
+              <div className="min-w-[800px]">
+                {/* Day Headers */}
+                <div className="flex border-b border-slate-200">
+                  {/* Empty corner for time labels */}
+                  <div className="w-16 flex-shrink-0 border-r border-slate-200" />
+
+                  {/* Day columns headers */}
+                  <div className="flex-1 grid grid-cols-7">
+                    {weekDays.map((day) => {
+                      const dateStr = day.toISOString().split('T')[0]
+                      const isToday = dateStr === today.toISOString().split('T')[0]
+                      const count = interventionsByDay[dateStr]?.length || 0
+
+                      return (
                         <div
-                          className={`text-2xl font-bold mt-1 ${
-                            isToday ? 'text-blue-600' : 'text-slate-900'
+                          key={dateStr}
+                          className={`p-2 border-r border-slate-200 last:border-r-0 ${
+                            isToday ? 'bg-blue-50' : ''
                           }`}
                         >
-                          {day.getDate()}
-                        </div>
-                        {count > 0 && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            {count} intervention{count > 1 ? 's' : ''}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Day columns with interventions */}
-              <div className="grid grid-cols-7" style={{ minHeight: '500px' }}>
-                {weekDays.map((day) => {
-                  const dateStr = day.toISOString().split('T')[0]
-                  const isToday = dateStr === today.toISOString().split('T')[0]
-                  const dayInterventions = interventionsByDay[dateStr] || []
-
-                  return (
-                    <div
-                      key={dateStr}
-                      className={`border-r border-slate-200 last:border-r-0 ${
-                        isToday ? 'bg-blue-50/30' : ''
-                      }`}
-                    >
-                      <ScrollArea className="h-[500px] p-2">
-                        <div className="space-y-2">
-                          {dayInterventions.length === 0 ? (
-                            <div className="text-center text-xs text-slate-400 py-4">
-                              Aucune intervention
+                          <div className="text-center">
+                            <div className="text-xs font-medium text-slate-600">
+                              {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
                             </div>
-                          ) : (
-                            dayInterventions.map((intervention) => (
+                            <div
+                              className={`text-lg font-bold ${
+                                isToday ? 'text-blue-600' : 'text-slate-900'
+                              }`}
+                            >
+                              {day.getDate()}
+                            </div>
+                            {count > 0 && (
+                              <div className="text-[10px] text-slate-500">
+                                {count} intervention{count > 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Timeline Grid (24 hours) */}
+                <div
+                  ref={weekTimelineRef}
+                  className="flex max-h-[500px] overflow-y-auto"
+                >
+                  {/* Time Labels Column */}
+                  <div className="w-16 flex-shrink-0 border-r border-slate-200 bg-slate-50">
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <div
+                        key={hour}
+                        className="h-12 border-b border-slate-100 flex items-start justify-end pr-2 pt-1"
+                      >
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          {hour.toString().padStart(2, '0')}h
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day Columns with Interventions */}
+                  <div className="flex-1 grid grid-cols-7 relative">
+                    {weekDays.map((day) => {
+                      const dateStr = day.toISOString().split('T')[0]
+                      const isToday = dateStr === today.toISOString().split('T')[0]
+                      const dayInterventions = interventionsByDay[dateStr] || []
+
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`border-r border-slate-200 last:border-r-0 relative ${
+                            isToday ? 'bg-blue-50/20' : ''
+                          }`}
+                        >
+                          {/* Hour grid lines */}
+                          {Array.from({ length: 24 }, (_, hour) => (
+                            <div
+                              key={hour}
+                              className="h-12 border-b border-slate-100"
+                            />
+                          ))}
+
+                          {/* Interventions positioned absolutely */}
+                          {dayInterventions.map((intervention) => {
+                            const urgencyColor = getUrgencyColorClass(intervention.urgency || 'normale')
+
+                            return (
                               <div
                                 key={intervention.id}
-                                className="p-2 border border-slate-200 rounded bg-white hover:shadow-sm transition-shadow cursor-pointer"
+                                className={`absolute left-0.5 right-0.5 ${urgencyColor.replace('hover:', '')} rounded px-1 py-0.5 cursor-pointer hover:shadow-md transition-shadow overflow-hidden`}
+                                style={{
+                                  top: `${intervention.topPosition}px`,
+                                  height: `${intervention.height}px`
+                                }}
                                 onClick={() => {
                                   setSelectedDate(day)
                                   router.push(getInterventionUrl(intervention.id))
                                 }}
+                                title={intervention.title}
                               >
-                                {/* Title */}
-                                <h4 className="font-medium text-xs text-slate-900 mb-1.5 line-clamp-2 leading-tight">
+                                <div className="text-[10px] font-medium text-white leading-tight line-clamp-2">
                                   {intervention.title}
-                                </h4>
-
-                                {/* Badges */}
-                                <div className="flex flex-col gap-1">
-                                  {/* Status Badge */}
-                                  <Badge
-                                    className={`${getStatusColor(intervention.status)} text-[10px] px-1.5 py-0 w-fit`}
-                                  >
-                                    {getStatusLabel(intervention.status)}
-                                  </Badge>
-
-                                  {/* Urgency Badge */}
-                                  <Badge
-                                    className={`${getPriorityColor(intervention.urgency || 'normale')} text-[10px] px-1.5 py-0 w-fit`}
-                                  >
-                                    {getPriorityLabel(intervention.urgency || 'normale')}
-                                  </Badge>
                                 </div>
-
-                                {/* View button */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="w-full h-6 text-[10px] mt-2 hover:bg-slate-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setSelectedDate(day)
-                                    router.push(getInterventionUrl(intervention.id))
-                                  }}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  Voir
-                                </Button>
                               </div>
-                            ))
-                          )}
+                            )
+                          })}
                         </div>
-                      </ScrollArea>
-                    </div>
-                  )
-                })}
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Legend (identical to month view) */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="font-medium text-slate-700">Légende :</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-slate-600">Urgent</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-orange-500" />
+                  <span className="text-slate-600">Haute</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-slate-600">Normale</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-gray-400" />
+                  <span className="text-slate-600">Faible</span>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

@@ -40,9 +40,6 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
                 Mon Patrimoine
               </h1>
-              <p className="text-base text-slate-600">
-                Gérez vos immeubles et lots individuels
-              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button

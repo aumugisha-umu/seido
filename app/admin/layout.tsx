@@ -37,7 +37,7 @@ export default async function AdminLayout({
       />
 
       {/* Contenu principal - Padding global responsive */}
-      <main className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-6">
+      <main className="layout-container">
         {children}
       </main>
 

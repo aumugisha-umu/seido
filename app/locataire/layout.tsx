@@ -37,7 +37,7 @@ export default async function LocataireLayout({
       />
 
       {/* Contenu principal - Padding global responsive */}
-      <main className="flex-1 flex flex-col min-h-0 max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-6">
+      <main className="flex-1 flex flex-col min-h-0 layout-container">
         {children}
       </main>
 

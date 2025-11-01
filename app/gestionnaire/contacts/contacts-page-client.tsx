@@ -484,11 +484,9 @@ export function ContactsPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Page Header */}
-        <div className="mb-6 lg:mb-8">
+    <>
+      {/* Page Header */}
+      <div className="mb-6 lg:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
@@ -944,7 +942,6 @@ export function ContactsPageClient({
           }}
           filterValues={filters}
         />
-      </main>
 
       {/* Contact Form Modal */}
       <ContactFormModal
@@ -955,6 +952,6 @@ export function ContactsPageClient({
         defaultType="tenant"
         teamId={userTeam.id} // ✅ AJOUT: Passer teamId pour validation multi-équipes
       />
-    </div>
+    </>
   )
 }

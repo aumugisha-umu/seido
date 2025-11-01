@@ -39,7 +39,7 @@ export default async function GestionnaireLayout({
       />
 
       {/* Contenu principal - Padding global responsive */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 sm:px-6 lg:px-10 py-6">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden layout-padding">
         {children}
       </main>
 

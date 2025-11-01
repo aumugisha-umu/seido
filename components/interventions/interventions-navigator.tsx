@@ -10,6 +10,8 @@ import {
 
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
+import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
+import { useViewMode } from "@/hooks/use-view-mode"
 import type { InterventionWithRelations } from "@/lib/services"
 
 interface EmptyStateConfig {
@@ -62,6 +64,12 @@ export function InterventionsNavigator({
   const [filters, setFilters] = useState({
     type: "all",
     urgency: "all-urgency"
+  })
+
+  // View mode state (cards, list, calendar)
+  const { viewMode, setViewMode, mounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
   })
 
   // Filter function for interventions based on tab (NOUVEAU WORKFLOW)
@@ -133,6 +141,17 @@ export function InterventionsNavigator({
       createButtonAction: () => {}
     }
 
+    // Don't render until mounted (prevent hydration mismatch)
+    if (!mounted) {
+      return (
+        <div className="animate-pulse space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+          ))}
+        </div>
+      )
+    }
+
     return (
       <InterventionsViewContainer
         interventions={filteredData}
@@ -140,6 +159,9 @@ export function InterventionsNavigator({
         loading={loading}
         emptyStateConfig={emptyStateConfig || defaultEmptyConfig}
         showStatusActions={showStatusActions}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
       />
     )
   }
@@ -231,6 +253,14 @@ export function InterventionsNavigator({
     setSearchTerm("")
   }
 
+  // View switcher to pass as right controls
+  const viewSwitcher = mounted ? (
+    <ViewModeSwitcherV1
+      value={viewMode}
+      onChange={setViewMode}
+    />
+  ) : null
+
   return (
     <div className={className}>
       <ContentNavigator
@@ -242,6 +272,7 @@ export function InterventionsNavigator({
         onFilterChange={handleFilterChange}
         onResetFilters={handleResetFilters}
         filterValues={filters}
+        rightControls={viewSwitcher}
       />
     </div>
   )

@@ -625,7 +625,7 @@ export default function NouvelleDemandePage() {
       </main>
 
       {/* Navigation Sticky */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 -mx-4 sm:-mx-6 lg:-mx-8">
+      <div className="sticky-footer">
         <div className="flex justify-between w-full max-w-6xl mx-auto">
           {/* Bouton Retour */}
           {currentStep > 1 && (

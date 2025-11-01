@@ -76,6 +76,11 @@ export interface InterventionsViewContainerProps {
 
   /** Optional CSS classes for container */
   className?: string
+
+  /** External view mode control (lifted state) */
+  viewMode?: 'cards' | 'list' | 'calendar'
+  setViewMode?: (mode: 'cards' | 'list' | 'calendar') => void
+  hideViewSwitcher?: boolean
 }
 
 export function InterventionsViewContainer({
@@ -86,15 +91,22 @@ export function InterventionsViewContainer({
   showStatusActions = true,
   calendarDateField = 'scheduled_date',
   syncViewModeWithUrl = false,
-  className
+  className,
+  viewMode: externalViewMode,
+  setViewMode: externalSetViewMode,
+  hideViewSwitcher = false
 }: InterventionsViewContainerProps) {
   const { user } = useAuth()
 
-  // View mode state management
-  const { viewMode, setViewMode, isMobile, mounted } = useViewMode({
+  // View mode state management - use external if provided, otherwise internal
+  const internalViewMode = useViewMode({
     defaultMode: 'cards',
     syncWithUrl: syncViewModeWithUrl
   })
+
+  const viewMode = externalViewMode !== undefined ? externalViewMode : internalViewMode.viewMode
+  const setViewMode = externalSetViewMode || internalViewMode.setViewMode
+  const mounted = internalViewMode.mounted
 
   // Prevent hydration mismatch
   if (!mounted) {
@@ -180,10 +192,12 @@ export function InterventionsViewContainer({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* View Switcher - Positioned for toolbar placement */}
-      <div className="flex items-center justify-end">
-        {renderViewSwitcher()}
-      </div>
+      {/* View Switcher - Only show if not hidden */}
+      {!hideViewSwitcher && (
+        <div className="flex items-center justify-end">
+          {renderViewSwitcher()}
+        </div>
+      )}
 
       {/* Current View */}
       <div className="min-h-[400px]">

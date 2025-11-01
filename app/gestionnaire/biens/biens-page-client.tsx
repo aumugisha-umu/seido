@@ -32,10 +32,9 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   }, [initialBuildings, initialLots, teamId])
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Page Header */}
-        <div className="mb-6 lg:mb-8">
+    <>
+      {/* Page Header */}
+      <div className="mb-6 lg:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
@@ -72,7 +71,6 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           // Pass server data via a custom prop (we'll modify PropertySelector to support this)
           initialData={buildingsData}
         />
-      </main>
-    </div>
+    </>
   )
 }

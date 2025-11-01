@@ -674,7 +674,7 @@ export default function EditBuildingClient({
       )}
 
       {/* Sticky Navigation */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6 -mx-4 sm:-mx-6 lg:-mx-8">
+      <div className="sticky-footer mt-6">
         <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
           {currentStep > 1 && (
             <Button

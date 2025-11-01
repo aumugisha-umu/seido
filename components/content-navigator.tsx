@@ -35,6 +35,7 @@ interface ContentNavigatorProps {
   onResetFilters?: () => void
   className?: string
   filterValues?: { [key: string]: string }
+  rightControls?: React.ReactNode
 }
 
 export default function ContentNavigator({
@@ -48,6 +49,7 @@ export default function ContentNavigator({
   onResetFilters,
   className = "",
   filterValues = {},
+  rightControls,
 }: ContentNavigatorProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [showSearchPopover, setShowSearchPopover] = useState(false)
@@ -106,7 +108,7 @@ export default function ContentNavigator({
   const isCompact = className.includes('flex-1') || className.includes('min-h-0')
   
   return (
-    <Card className={`${className} ${isCompact ? 'flex flex-col min-h-0' : ''}`}>
+    <Card className={`h-full flex flex-col ${className} ${isCompact ? 'min-h-0' : ''}`}>
       <CardContent className={`pt-0 ${isCompact ? 'space-y-1 flex-1 flex flex-col min-h-0' : 'space-y-2'}`}>
         {/* Navigation Controls */}
         <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2'}`}>
@@ -330,29 +332,17 @@ export default function ContentNavigator({
               </div>
             </div>
 
-            {/* Desktop Search Bar - Takes all available space */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input 
-                placeholder={searchPlaceholder}
-                className="pl-10 h-10"
-                value={searchValue}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-
-            {/* Desktop Filters Button - Fixed to the right */}
+            {/* Desktop Filters Button - Icon only, before search */}
             {filters.length > 0 && (
               <div className="relative flex-shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowFilters(!showFilters)}
-                  className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                  className="h-10 w-10 p-0 text-slate-600 hover:text-slate-900 border-slate-200"
+                  title="Filtres"
                 >
-                  <Filter className="h-4 w-4 mr-2" />
-                  <span>Filtres</span>
-                  <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+                  <Filter className="h-4 w-4" />
                 </Button>
 
                 {/* Filters Dropdown Panel - Desktop */}
@@ -422,6 +412,24 @@ export default function ContentNavigator({
                     </div>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Desktop Search Bar - Takes all available space */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Input
+                placeholder={searchPlaceholder}
+                className="pl-10 h-10"
+                value={searchValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </div>
+
+            {/* Right Controls (e.g., view switcher) */}
+            {rightControls && (
+              <div className="flex-shrink-0">
+                {rightControls}
               </div>
             )}
           </div>

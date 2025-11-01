@@ -346,7 +346,7 @@ export function InterventionsCalendarView({
                   <div
                     key={dateInfo.date}
                     className={`
-                      relative aspect-square p-1 border border-slate-200 rounded cursor-pointer
+                      relative h-14 p-1 border border-slate-200 rounded cursor-pointer
                       transition-colors
                       ${dateInfo.isCurrentMonth ? 'bg-white' : 'bg-slate-50'}
                       ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''}

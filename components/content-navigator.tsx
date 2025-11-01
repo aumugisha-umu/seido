@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -108,8 +108,8 @@ export default function ContentNavigator({
   const isCompact = className.includes('flex-1') || className.includes('min-h-0')
   
   return (
-    <Card className={`h-full flex flex-col ${className} ${isCompact ? 'min-h-0' : ''}`}>
-      <CardContent className={`pt-0 ${isCompact ? 'space-y-1 flex-1 flex flex-col min-h-0' : 'space-y-2'}`}>
+    <Card className={`flex-1 min-h-0 flex flex-col ${className} ${isCompact ? '' : ''}`}>
+      <CardContent className={`pt-0 ${isCompact ? 'space-y-1 flex-1 flex flex-col min-h-0' : 'space-y-2 flex-1 flex flex-col min-h-0'}`}>
         {/* Navigation Controls */}
         <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2'}`}>
           {/* Mobile Layout - Single Row */}
@@ -437,14 +437,8 @@ export default function ContentNavigator({
         </div>
 
         {/* Tab Content */}
-        <div className={`${isCompact ? 'mt-3 flex-1 flex flex-col min-h-0 overflow-hidden' : 'mt-2'}`}>
-          {isCompact ? (
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {activeTabData?.content}
-            </div>
-          ) : (
-            activeTabData?.content
-          )}
+        <div className="mt-2 flex-1 flex flex-col min-h-0 overflow-hidden">
+          {activeTabData?.content}
         </div>
       </CardContent>
     </Card>

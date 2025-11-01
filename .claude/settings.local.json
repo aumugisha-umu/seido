@@ -39,7 +39,18 @@
       "WebFetch(domain:www.npmjs.com)",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(ping:*)",
+      "Bash(nul)",
+      "Bash(tasklist:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File temp-edit.ps1:*)",
+      "Bash(del temp-edit.ps1)",
+      "Bash(powershell:*)",
+      "Bash(del replace-week-grid.ps1 debug-file.ps1 replace-by-line.ps1 2)",
+      "Bash(taskkill:*)",
+      "Bash(del update-claude-md.ps1 2)",
+      "Bash(del fix-calendar-view.ps1 2)",
+      "Bash(del fix-page-client.ps1 2)"
     ],
     "deny": [],
     "ask": []

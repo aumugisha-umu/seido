@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code when working with this repository.
 
@@ -371,6 +371,71 @@ npm test -- --coverage                 # Coverage
 // → Use correct column name from latest migration
 ```
 
+
+### ðŸ”§ Troubleshooting Protocol
+
+**When you encounter a non-trivial error that you can't resolve after 2-3 attempts, ALWAYS:**
+
+1. **Consult the Troubleshooting Checklist**:
+   - ðŸ“– **Read** [docs/troubleshooting-checklist.md](../docs/troubleshooting-checklist.md)
+   - ðŸ” **Find** the relevant section (DB, Auth, RLS, Build, etc.)
+   - âœ… **Follow** the diagnostic checklist step by step
+   - ðŸ“ **Apply** the documented solution
+
+2. **Non-trivial errors include**:
+   - âœ… File editing failures (VSCode auto-save conflicts)
+   - âœ… Database schema mismatches (column not found, enum invalid)
+   - âœ… Authentication loops or missing permissions
+   - âœ… RLS policies blocking legitimate access
+   - âœ… Build errors with TypeScript types
+   - âœ… Hydration mismatches in React
+   - âœ… Performance issues (>3s load time)
+   - âœ… Flaky E2E tests
+   - âŒ NOT for: Basic typos, syntax errors, missing imports
+
+3. **When to UPDATE the checklist**:
+   - âœ… You discover a NEW bug pattern (not already documented)
+   - âœ… Same bug occurred 2+ times in different contexts
+   - âœ… Solution required >10 minutes to find
+   - âœ… Root cause was non-obvious (architectural, config, etc.)
+   - âŒ NOT for: One-off bugs, user-specific issues
+
+4. **How to UPDATE the checklist**:
+   ```markdown
+   ## [Next Number]ï¸âƒ£ [Category Name]
+
+   ### SymptÃ´me
+   [Exact error message or behavior]
+
+   ### Checklist de Diagnostic
+   - [ ] **[Diagnostic question]** ?
+     â†’ [Action to take]
+
+   ### Solutions par Cas
+   #### Cas 1: [Specific case]
+   **Cause**: [Root cause]
+   **Solution**: [Code or steps]
+   ```
+
+5. **Quick Reference - Common Issues**:
+   - **File editing fails** â†’ Section 1 (PowerShell workaround)
+   - **Column not found** â†’ Section 2 (DB schema)
+   - **User not authenticated** â†’ Section 3 (Server auth)
+   - **Permission denied** â†’ Section 4 (RLS policies)
+   - **Build errors** â†’ Section 5 (TypeScript/cache)
+   - **Route 404** â†’ Section 6 (Routing)
+   - **Page slow** â†’ Section 7 (Performance)
+   - **Test timeout** â†’ Section 8 (E2E tests)
+
+**Workflow Example**:
+```
+1. Error: "File has been unexpectedly modified"
+2. Consult checklist Section 1 (File Editing)
+3. Follow diagnostic: File >700 lines? âœ…
+4. Apply solution: PowerShell by line numbers
+5. Success â†’ Continue work
+6. If NEW pattern â†’ Update checklist Section 1
+```
 ### 🎯 Architecture Decisions
 1. **Prefer NEW architecture** (Repository Pattern + Services)
 2. **Repository Pattern** for data access (not direct Supabase calls)

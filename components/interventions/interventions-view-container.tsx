@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useViewMode } from '@/hooks/use-view-mode'
 import { useAuth } from '@/hooks/use-auth'
@@ -191,16 +191,16 @@ export function InterventionsViewContainer({
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`flex flex-col flex-1 min-h-0 ${className}`}>
       {/* View Switcher - Only show if not hidden */}
       {!hideViewSwitcher && (
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end flex-shrink-0 mb-4">
           {renderViewSwitcher()}
         </div>
       )}
 
       {/* Current View */}
-      <div className="min-h-[400px]">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {renderCurrentView()}
       </div>
     </div>

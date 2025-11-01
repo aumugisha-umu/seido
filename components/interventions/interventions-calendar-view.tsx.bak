@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import {
   ChevronLeft,
   ChevronRight,
@@ -162,7 +161,7 @@ export function InterventionsCalendarView({
   const today = new Date()
 
   // View mode state (month or week)
-  const [calendarMode, setCalendarMode] = useState<CalendarViewMode>('week')
+  const [calendarMode, setCalendarMode] = useState<CalendarViewMode>('month')
 
   // Month view state
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
@@ -199,9 +198,16 @@ export function InterventionsCalendarView({
   }, [weekStart])
 
   /**
-   * 📅 Week view: Scroll container ref for auto-scroll
+   * 📅 Week view: Scroll container refs for auto-scroll and synchronization
    */
-  const weekScrollAreaRef = useRef<HTMLDivElement>(null)
+  const weekTimelineRef = useRef<HTMLDivElement>(null)
+  const weekContainerRef = useRef<HTMLDivElement>(null)
+  const dayColumnRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  /**
+   * 📅 Week view: Horizontal scroll indicator state
+   */
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false)
 
   /**
    * 📅 Week view: Filter scheduled vs unscheduled interventions
@@ -219,22 +225,50 @@ export function InterventionsCalendarView({
    * 📅 Week view: Auto-scroll to business hours on mount and mode change
    */
   useEffect(() => {
-    if (calendarMode === 'week' && weekScrollAreaRef.current) {
+    if (calendarMode === 'week' && weekTimelineRef.current) {
       // Scroll to 8am (8 hours * 48px per hour = 384px)
       const HOUR_HEIGHT = 48
       const BUSINESS_HOUR_START = 8
       setTimeout(() => {
-        const viewport = weekScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement
-        if (viewport) {
-          viewport.scrollTo({
-            top: BUSINESS_HOUR_START * HOUR_HEIGHT,
-            behavior: 'smooth'
-          })
-        }
+        weekTimelineRef.current?.scrollTo({
+          top: BUSINESS_HOUR_START * HOUR_HEIGHT,
+          behavior: 'smooth'
+        })
+        // Also sync all day columns
+        dayColumnRefs.current.forEach((col) => {
+          if (col) {
+            col.scrollTop = BUSINESS_HOUR_START * HOUR_HEIGHT
+          }
+        })
       }, 100)
     }
   }, [calendarMode, weekStart])
 
+  /**
+   * 📅 Week view: Detect horizontal scroll for fade effect indicator
+   */
+  useEffect(() => {
+    const container = weekContainerRef.current
+    if (!container || calendarMode !== 'week') return
+
+    const handleScroll = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = container
+      // Show indicator if there's more content to scroll (with 10px threshold)
+      setShowScrollIndicator(scrollLeft + clientWidth < scrollWidth - 10)
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    // Initial check
+    handleScroll()
+
+    // Re-check on window resize
+    window.addEventListener('resize', handleScroll)
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+    }
+  }, [calendarMode])
 
   /**
    * 🎯 Get interventions for selected date
@@ -335,6 +369,24 @@ export function InterventionsCalendarView({
     })
   }
 
+  /**
+   * 📜 Week view: Synchronize vertical scroll between all columns
+   */
+  const handleColumnScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop
+
+    // Synchronize all day columns
+    dayColumnRefs.current.forEach((col) => {
+      if (col && col !== e.currentTarget) {
+        col.scrollTop = scrollTop
+      }
+    })
+
+    // Synchronize time labels column
+    if (weekTimelineRef.current) {
+      weekTimelineRef.current.scrollTop = scrollTop
+    }
+  }
 
   /**
    * 🎯 Week view: Handle day click (focus in side panel)
@@ -460,13 +512,12 @@ export function InterventionsCalendarView({
   }
 
   return (
-    <div className={`flex gap-4 flex-1 min-h-0 ${className}`}>
+    <div className={`flex gap-4 ${className}`}>
       {/* LEFT PANEL - Calendar (Month or Week) */}
-      <div className="flex-1 border border-slate-200 rounded-lg bg-white flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 border border-slate-200 rounded-lg bg-white p-3">
         {/* Calendar Header with Mode Toggle */}
-        <div className="p-3 flex-shrink-0 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
             <h3 className="text-lg font-semibold text-slate-900">
               {calendarMode === 'month'
                 ? `${getMonthName(currentMonth)} ${currentYear}`
@@ -532,14 +583,10 @@ export function InterventionsCalendarView({
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          </div>
         </div>
 
-        {/* Calendar Content */}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {/* MONTH VIEW */}
         {calendarMode === 'month' && (
-          <div className="p-3">
           <>
             <div className="grid grid-cols-7 gap-1">
               {/* Week day headers */}
@@ -622,16 +669,15 @@ export function InterventionsCalendarView({
               </div>
             </div>
           </>
-          </div>
         )}
 
-        {/* WEEK VIEW - Structure avec Table et ScrollArea */}
+        {/* WEEK VIEW - Reconstruction Grid (Étape par étape) */}
         {calendarMode === 'week' && (
-          <div className="flex flex-col flex-1 min-h-0">
-            {/* Headers Row - Fixed */}
-            <div className="flex gap-1 flex-shrink-0 p-3 border-b border-slate-200">
+          <div className="space-y-2">
+            {/* ÉTAPE 2: Headers - Grid 8 colonnes (Heures + 7 jours) */}
+            <div className="grid grid-cols-8 gap-1">
               {/* Coin heures */}
-              <div className="w-20 h-16 bg-slate-100 rounded flex items-center justify-center flex-shrink-0">
+              <div className="h-16 bg-slate-100 rounded flex items-center justify-center">
                 <span className="text-xs font-medium text-slate-500">Heures</span>
               </div>
 
@@ -644,7 +690,7 @@ export function InterventionsCalendarView({
                 return (
                   <div
                     key={index}
-                    className={`flex-1 h-16 border rounded p-2 flex flex-col items-center justify-center ${
+                    className={`h-16 border rounded p-2 flex flex-col items-center justify-center ${
                       isToday
                         ? 'bg-blue-50 border-blue-300'
                         : 'bg-white border-slate-200'
@@ -659,74 +705,23 @@ export function InterventionsCalendarView({
               })}
             </div>
 
-            {/* Scrollable Table */}
-            <div ref={weekScrollAreaRef} className="flex-1 min-h-0">
-              <ScrollArea className="h-full">
-                <Table>
-                  <TableBody>
-                    {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
-                      <TableRow key={hour} className="hover:bg-transparent border-0">
-                        {/* Colonne heures */}
-                        <TableCell className="w-20 h-12 p-0 border-r-2 border-slate-300 bg-slate-50">
-                          <div className="h-12 flex items-start justify-end pr-2 pt-1 border-b border-slate-100">
-                            <span className="text-xs text-slate-500 font-medium">
-                              {hour.toString().padStart(2, '0')}h
-                            </span>
-                          </div>
-                        </TableCell>
-
-                      {/* 7 colonnes jours */}
-                      {weekDays.map((day, dayIndex) => {
-                        const dateStr = day.toISOString().split('T')[0]
-                        const dayInterventions = interventionsByDay[dateStr] || []
-                        const hourInterventions = dayInterventions.filter((int) => {
-                          const dateValue = int[dateField as keyof InterventionWithRelations] as string | undefined
-                          if (!dateValue) return false
-                          const intDate = new Date(dateValue)
-                          return intDate.getHours() === hour
-                        })
-
-                        return (
-                          <TableCell
-                            key={dayIndex}
-                            className="h-12 p-0 border-r-2 border-slate-300 last:border-r-0 relative"
-                          >
-                            <div
-                              className="h-12 border-b border-slate-100 hover:bg-blue-50/30 cursor-pointer transition-colors"
-                              onClick={() => handleDayClick(day)}
-                            >
-                              {/* Affichage des interventions pour cette heure si nécessaire */}
-                              {hourInterventions.length > 0 && (
-                                <div className="absolute inset-x-0 top-0 p-1">
-                                  {hourInterventions.map((intervention) => (
-                                    <div
-                                      key={intervention.id}
-                                      className="text-xs bg-blue-100 text-blue-900 rounded px-1 py-0.5 mb-1 truncate"
-                                    >
-                                      {intervention.title}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        )
-                      })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+            {/* Placeholder pour prochaines étapes */}
+            <div className="p-4 text-center border border-dashed border-slate-300 rounded bg-slate-50">
+              <p className="text-sm text-slate-500">
+                ✅ Étape 2 : Headers créés (Grid 8 cols, gap-1)
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Prochaine étape : Grille heures 8h-17h
+              </p>
             </div>
           </div>
         )}
-        </div>
       </div>
 
       {/* RIGHT PANEL - Interventions for selected date */}
-      <div className="w-[350px] border border-slate-200 rounded-lg bg-white flex flex-col min-h-0">
+      <div className="w-[350px] border border-slate-200 rounded-lg bg-white flex flex-col">
         {/* Panel Header */}
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+        <div className="p-4 border-b border-slate-200 bg-slate-50">
           <h3 className="font-semibold text-sm text-slate-900 mb-1">
             {selectedDate.toLocaleDateString('fr-FR', {
               weekday: 'long',
@@ -744,7 +739,7 @@ export function InterventionsCalendarView({
         </div>
 
         {/* Panel Content */}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1">
           {selectedInterventions.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-500">
               Aucune intervention prévue ce jour

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import {
@@ -262,7 +262,7 @@ export function InterventionsNavigator({
   ) : null
 
   return (
-    <div className={className}>
+    <div className={`${className} flex flex-col h-full min-h-0`}>
       <ContentNavigator
         tabs={interventionsTabsConfig}
         defaultTab="toutes"

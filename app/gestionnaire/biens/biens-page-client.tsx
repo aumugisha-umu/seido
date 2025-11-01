@@ -32,7 +32,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   }, [initialBuildings, initialLots, teamId])
 
   return (
-    <>
+    <div className="layout-padding">
       {/* Page Header */}
       <div className="mb-6 lg:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -68,6 +68,6 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           // Pass server data via a custom prop (we'll modify PropertySelector to support this)
           initialData={buildingsData}
         />
-    </>
+    </div>
   )
 }

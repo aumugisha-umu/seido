@@ -843,15 +843,18 @@ export default function NewImmeubleePage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-2 sm:py-3">
-        {/* Header */}
-        <StepProgressHeader
-          title="Ajouter un immeuble"
-          backButtonText="Retour aux biens"
-          onBack={() => router.push("/gestionnaire/biens")}
-          steps={buildingSteps}
-          currentStep={currentStep}
-        />
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <StepProgressHeader
+        title="Ajouter un immeuble"
+        backButtonText="Retour aux biens"
+        onBack={() => router.push("/gestionnaire/biens")}
+        steps={buildingSteps}
+        currentStep={currentStep}
+      />
+
+      {/* Main content with horizontal padding and bottom space for footer */}
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-20">
 
         {/* Error Alert */}
         {error && (
@@ -943,9 +946,10 @@ export default function NewImmeubleePage({
             assignedManagers={assignedManagers}
           />
         )}
+        </div>
 
-        {/* Sticky Navigation - Always visible at bottom */}
-        <div className="sticky-footer mt-6">
+        {/* Footer Navigation - Always visible at bottom */}
+        <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
           <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
               {/* Back Button - Only show from step 2 onwards */}
               {currentStep > 1 && (

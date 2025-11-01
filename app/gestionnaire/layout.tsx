@@ -38,8 +38,8 @@ export default async function GestionnaireLayout({
         userEmail={user.email || ''}
       />
 
-      {/* Contenu principal - Padding global responsive */}
-      <main className="flex-1 flex flex-col min-h-0 layout-padding">
+      {/* Contenu principal - Each page manages its own padding */}
+      <main className="flex-1 flex flex-col min-h-0">
         {children}
       </main>
 

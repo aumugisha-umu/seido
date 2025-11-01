@@ -236,8 +236,8 @@ export default async function DashboardGestionnaire() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Main Content - Padding géré par le layout */}
+    <div className="h-full flex flex-col overflow-hidden layout-padding">
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Section fixe: Header + Stats */}
         <div className="flex-shrink-0 max-w-7xl mx-auto w-full">

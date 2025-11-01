@@ -1,0 +1,655 @@
+/**
+ * BIG CALENDAR CUSTOM STYLES - SEIDO Design System Adaptation
+ *
+ * Transforms react-big-calendar to match shadcn/ui aesthetics:
+ * - Slate color palette (Tailwind)
+ * - Rounded corners (0.375rem)
+ * - Subtle shadows
+ * - Smooth transitions
+ * - French typography
+ */
+
+/* ========================================
+   CONTAINER & LAYOUT
+   ======================================== */
+
+.rbc-calendar-container {
+  font-family: inherit;
+  background: white;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.rbc-calendar {
+  font-family: inherit;
+  background: white;
+}
+
+/* ========================================
+   SCROLLBAR - Modern Design
+   ======================================== */
+
+/* Week/Day time grid scrollbar */
+.rbc-time-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) rgb(248 250 252); /* slate-300 on slate-50 */
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.rbc-time-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rbc-time-content::-webkit-scrollbar-track {
+  background: rgb(248 250 252); /* slate-50 */
+  border-radius: 4px;
+}
+
+.rbc-time-content::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225); /* slate-300 */
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.rbc-time-content::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184); /* slate-400 */
+}
+
+/* Agenda view scrollbar */
+.rbc-agenda-view {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) rgb(248 250 252);
+}
+
+.rbc-agenda-view::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rbc-agenda-view::-webkit-scrollbar-track {
+  background: rgb(248 250 252);
+  border-radius: 4px;
+}
+
+.rbc-agenda-view::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 4px;
+}
+
+.rbc-agenda-view::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184);
+}
+
+/* ========================================
+   TOOLBAR
+   ======================================== */
+
+.rbc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgb(248 250 252); /* slate-50 */
+  border-bottom: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 0.5rem 0.5rem 0 0;
+  flex-wrap: wrap;
+  gap: 0.5rem; /* Reduced from 0.75rem for compact layout */
+}
+
+.rbc-toolbar-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgb(15 23 42); /* slate-900 */
+  text-transform: capitalize;
+  flex-grow: 0.5; /* Reduced from 1 to allow more compact layout */
+  min-width: fit-content;
+  text-align: center;
+}
+
+.rbc-btn-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.rbc-toolbar button {
+  padding: 0.375rem 0.75rem; /* Reduced from 0.5rem 1rem for compact layout */
+  border-radius: 0.375rem;
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  background: white;
+  color: rgb(71 85 105); /* slate-600 */
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  outline: none;
+}
+
+.rbc-toolbar button:hover {
+  background: rgb(248 250 252); /* slate-50 */
+  border-color: rgb(203 213 225); /* slate-300 */
+  color: rgb(51 65 85); /* slate-700 */
+}
+
+.rbc-toolbar button:focus {
+  outline: 2px solid rgb(59 130 246); /* blue-500 */
+  outline-offset: 2px;
+}
+
+.rbc-toolbar button.rbc-active,
+.rbc-toolbar button:active {
+  background: rgb(59 130 246); /* blue-500 */
+  color: white;
+  border-color: rgb(59 130 246);
+}
+
+.rbc-toolbar button.rbc-active:hover {
+  background: rgb(37 99 235); /* blue-600 */
+  border-color: rgb(37 99 235);
+}
+
+/* ========================================
+   HEADER
+   ======================================== */
+
+.rbc-header {
+  background-color: rgb(248 250 252); /* slate-50 */
+  border-bottom: 2px solid rgb(226 232 240); /* slate-200 */
+  padding: 0.75rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: rgb(100 116 139); /* slate-500 */
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.rbc-header + .rbc-header {
+  border-left: 1px solid rgb(226 232 240);
+}
+
+.rbc-today .rbc-header {
+  background-color: rgb(239 246 255); /* blue-50 */
+  color: rgb(59 130 246); /* blue-500 */
+}
+
+/* ========================================
+   MONTH VIEW
+   ======================================== */
+
+.rbc-month-view {
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: white;
+}
+
+.rbc-month-row {
+  border-color: rgb(226 232 240);
+}
+
+.rbc-day-bg {
+  border-left: 1px solid rgb(226 232 240); /* slate-200 */
+  transition: background-color 0.15s ease;
+}
+
+.rbc-day-bg:hover {
+  background-color: rgb(248 250 252); /* slate-50 */
+}
+
+.rbc-off-range-bg {
+  background-color: rgb(248 250 252); /* slate-50 */
+}
+
+.rbc-today {
+  background-color: rgb(239 246 255); /* blue-50 */
+}
+
+.rbc-date-cell {
+  padding: 0.25rem 0.5rem;
+  text-align: right;
+}
+
+.rbc-date-cell > a {
+  color: rgb(71 85 105); /* slate-600 */
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.rbc-off-range .rbc-date-cell > a {
+  color: rgb(148 163 184); /* slate-400 */
+}
+
+.rbc-today .rbc-date-cell > a {
+  color: rgb(59 130 246); /* blue-500 */
+  font-weight: 700;
+}
+
+/* ========================================
+   WEEK & DAY VIEWS
+   ======================================== */
+
+.rbc-time-view {
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: white;
+}
+
+.rbc-time-header {
+  border-bottom: 2px solid rgb(226 232 240);
+}
+
+.rbc-time-header-content {
+  border-left: 1px solid rgb(226 232 240);
+}
+
+.rbc-time-content {
+  border-top: 1px solid rgb(226 232 240);
+}
+
+.rbc-time-gutter {
+  background: rgb(248 250 252); /* slate-50 */
+  border-right: 2px solid rgb(226 232 240);
+}
+
+.rbc-time-slot {
+  border-top: 1px solid rgb(241 245 249); /* slate-100 */
+  font-size: 0.75rem;
+  color: rgb(100 116 139); /* slate-500 */
+}
+
+.rbc-time-slot.rbc-label {
+  padding-right: 0.5rem;
+  text-align: right;
+}
+
+.rbc-timeslot-group {
+  border-left: 1px solid rgb(226 232 240);
+  min-height: 48px;
+}
+
+.rbc-day-slot {
+  position: relative;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  transition: background-color 0.15s ease;
+}
+
+.rbc-day-slot .rbc-time-slot:hover {
+  background-color: rgb(248 250 252); /* slate-50 */
+}
+
+.rbc-current-time-indicator {
+  background-color: rgb(239 68 68); /* red-500 */
+  height: 2px;
+  z-index: 10;
+}
+
+/* ========================================
+   EVENTS
+   ======================================== */
+
+.rbc-event {
+  border-radius: 0.375rem; /* rounded-md */
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
+  transition: all 0.2s ease;
+  padding: 2px 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.rbc-event:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); /* shadow-md */
+  transform: translateY(-1px);
+  z-index: 20;
+}
+
+.rbc-event:focus {
+  outline: 2px solid rgb(59 130 246); /* blue-500 */
+  outline-offset: 2px;
+}
+
+.rbc-event-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  opacity: 0.9;
+}
+
+.rbc-event-content {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rbc-event.rbc-selected {
+  background-color: rgb(37 99 235) !important; /* blue-600 */
+  color: white !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+}
+
+/* ========================================
+   SELECTION
+   ======================================== */
+
+.rbc-slot-selection {
+  background-color: rgb(219 234 254); /* blue-100 */
+  border: 1px solid rgb(147 197 253); /* blue-300 */
+  border-radius: 0.375rem;
+  z-index: 10;
+}
+
+.rbc-slot-selecting {
+  cursor: crosshair;
+}
+
+/* ========================================
+   POPUP & OVERLAY
+   ======================================== */
+
+.rbc-overlay {
+  background: white;
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05); /* shadow-lg */
+  padding: 0.5rem;
+  z-index: 50;
+}
+
+.rbc-overlay-header {
+  border-bottom: 1px solid rgb(226 232 240);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: rgb(15 23 42); /* slate-900 */
+}
+
+.rbc-show-more {
+  background: rgb(239 246 255); /* blue-50 */
+  color: rgb(59 130 246); /* blue-500 */
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 0.25rem;
+  text-align: center;
+}
+
+.rbc-show-more:hover {
+  background: rgb(219 234 254); /* blue-100 */
+  color: rgb(37 99 235); /* blue-600 */
+}
+
+/* ========================================
+   AGENDA VIEW
+   ======================================== */
+
+.rbc-agenda-view {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: white;
+}
+
+.rbc-agenda-view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rbc-agenda-view table thead > tr > th {
+  background: rgb(248 250 252); /* slate-50 */
+  border-bottom: 2px solid rgb(226 232 240);
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: rgb(71 85 105); /* slate-600 */
+}
+
+.rbc-agenda-view table tbody > tr > td {
+  padding: 0.75rem;
+  border-bottom: 1px solid rgb(226 232 240);
+  font-size: 0.875rem;
+  color: rgb(51 65 85); /* slate-700 */
+}
+
+.rbc-agenda-view table tbody > tr:hover {
+  background: rgb(248 250 252); /* slate-50 */
+}
+
+.rbc-agenda-date-cell,
+.rbc-agenda-time-cell {
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.rbc-agenda-event-cell {
+  width: 100%;
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+/* Desktop/Tablet: Keep toolbar horizontal and compact */
+@media (min-width: 641px) {
+  .rbc-toolbar {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Mobile: Stack toolbar vertically */
+@media (max-width: 640px) {
+  .rbc-toolbar {
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .rbc-toolbar-label {
+    order: -1;
+    width: 100%;
+    text-align: center;
+    font-size: 0.875rem;
+  }
+
+  .rbc-toolbar button {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .rbc-header {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.25rem;
+  }
+
+  .rbc-event {
+    font-size: 0.625rem;
+    padding: 1px 2px;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
+.rbc-calendar:focus {
+  outline: 2px solid rgb(59 130 246); /* blue-500 */
+  outline-offset: 2px;
+}
+
+.rbc-calendar [role="button"] {
+  cursor: pointer;
+}
+
+.rbc-calendar [role="button"]:focus {
+  outline: 2px solid rgb(59 130 246);
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .rbc-event,
+  .rbc-day-bg,
+  .rbc-time-slot,
+  .rbc-show-more,
+  .rbc-toolbar button {
+    transition: none !important;
+  }
+
+  .rbc-event:hover {
+    transform: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .rbc-calendar {
+    border: 2px solid currentColor;
+  }
+
+  .rbc-event {
+    border: 1px solid currentColor;
+  }
+
+  .rbc-toolbar button {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ========================================
+   CUSTOM ADDITIONS FOR SEIDO
+   ======================================== */
+
+/* Intervention type badge in events */
+.rbc-event .intervention-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  background: rgb(0 0 0 / 0.1);
+}
+
+/* Status indicator dot */
+.rbc-event .status-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.25rem;
+}
+
+/* Urgency border accent */
+.rbc-event.urgency-urgente {
+  border-left: 3px solid rgb(239 68 68); /* red-500 */
+}
+
+.rbc-event.urgency-haute {
+  border-left: 3px solid rgb(249 115 22); /* orange-500 */
+}
+
+.rbc-event.urgency-normale {
+  border-left: 3px solid rgb(59 130 246); /* blue-500 */
+}
+
+.rbc-event.urgency-basse {
+  border-left: 3px solid rgb(107 114 128); /* gray-500 */
+}
+
+/* Loading state skeleton */
+.rbc-calendar-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.rbc-calendar-loading::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(241 245 249 / 0.5),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ========================================
+   FIX: Header/Body Alignment (Custom 8px Scrollbar)
+   ======================================== */
+
+/*
+ * Problem: Custom 8px scrollbar causes header/body misalignment
+ * Solution: Add 8px right margin to header when content overflows
+ * Reference: react-big-calendar automatically adds .rbc-overflowing class
+ */
+.rbc-calendar .rbc-time-view .rbc-time-header.rbc-overflowing {
+  margin-right: 10px !important;
+}
+
+/* ========================================
+   FIX: Full 24-Hour Scroll Range (00h-23h59)
+   ======================================== */
+
+/*
+ * Solution: Let react-big-calendar handle scroll internally
+ *
+ * CORRECT Approach:
+ * - Set fixed height on <Calendar> component: height: 'calc(100vh - 280px)'
+ * - Library's default overflow-y: auto + flex layout handles the rest
+ * - 24 hours × 48px = 1152px content > container height → scroll appears
+ *
+ * IMPORTANT - DO NOT override these properties on .rbc-time-content:
+ * ❌ min-height / max-height / height
+ * ❌ overflow-y (already managed by library)
+ * ❌ flex properties
+ *
+ * The library manages scroll via flexbox - overrides break the mechanism.
+ * Verified via official react-big-calendar source (time-grid.scss):
+ * - .rbc-time-content has overflow-y: auto by default
+ * - Uses flex: 1 0 0% for height calculation within constrained parent
+ * - When parent has fixed height, internal scroll works correctly
+ */
+
+/* ========================================
+   FIX: Hide All-Day Events Row
+   ======================================== */
+
+/*
+ * Hide the all-day events row in week and day views
+ *
+ * Why: SEIDO doesn't use all-day events - this row is always empty
+ *
+ * Classes targeted:
+ * - .rbc-allday-cell: Individual day cells in all-day row
+ * - .rbc-allday-events: Container for all-day events
+ * - .rbc-time-view: Scopes rule to week/day views only (not month)
+ *
+ * Official solution: No prop exists to disable this row
+ * Reference: GitHub issues #203, #481, #750
+ */
+.rbc-time-view .rbc-allday-cell {
+  display: none;
+}
+
+.rbc-time-view .rbc-allday-events {
+  display: none;
+}

@@ -949,7 +949,7 @@ export default function NouvelleInterventionClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Créer une intervention"
@@ -960,7 +960,9 @@ export default function NouvelleInterventionClient({
         currentStep={currentStep}
       />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-3 pt-2">
+      {/* Main Content with horizontal padding and bottom space for footer */}
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-20">
+          <main className="max-w-6xl mx-auto pb-3">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -1545,10 +1547,11 @@ export default function NouvelleInterventionClient({
               </Card>
             )
           })()}
-      </main>
+          </main>
+        </div>
 
-      {/* Sticky Navigation - Always visible at bottom */}
-      <div className="sticky-footer">
+        {/* Footer Navigation - Always visible at bottom */}
+        <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
         <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
             {/* Back Button - Show from step 2 onwards */}
             {currentStep > 1 && (

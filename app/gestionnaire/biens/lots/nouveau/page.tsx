@@ -1885,7 +1885,7 @@ export default function NewLotPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Ajouter un nouveau lot"
@@ -1896,17 +1896,18 @@ export default function NewLotPage() {
         currentStep={currentStep}
       />
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
+      {/* Main Content with horizontal padding and bottom space for footer */}
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-20">
+          <main className="max-w-6xl mx-auto pb-8">
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+            {currentStep === 4 && renderStep4()}
+          </main>
+        </div>
 
-      </main>
-
-      {/* Navigation Sticky */}
-      <div className="sticky-footer">
+      {/* Footer Navigation */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
         <div className="flex justify-between w-full max-w-6xl mx-auto">
           <Button
             variant="outline"
@@ -2063,7 +2064,6 @@ export default function NewLotPage() {
         onSubmit={handleGestionnaireCreated}
         defaultType="gestionnaire"
       />
-
     </div>
   )
 }

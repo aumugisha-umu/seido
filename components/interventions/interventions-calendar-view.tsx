@@ -461,7 +461,7 @@ export function InterventionsCalendarView({
   return (
     <div className={`flex gap-4 flex-1 min-h-0 ${className}`}>
       {/* LEFT PANEL - Calendar (Month or Week) */}
-      <div className="flex-1 border border-slate-200 rounded-lg bg-white flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 border border-slate-200 rounded-lg bg-white flex flex-col min-h-0">
         {/* Calendar Header with Mode Toggle */}
         <div className="p-3 flex-shrink-0 border-b border-slate-200">
           <div className="flex items-center justify-between">
@@ -535,7 +535,7 @@ export function InterventionsCalendarView({
         </div>
 
         {/* Calendar Content */}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col">
         {/* MONTH VIEW */}
         {calendarMode === 'month' && (
           <div className="p-3">

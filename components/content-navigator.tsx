@@ -437,7 +437,7 @@ export default function ContentNavigator({
         </div>
 
         {/* Tab Content */}
-        <div className="mt-2 flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="mt-2 flex-1 flex flex-col min-h-0">
           {activeTabData?.content}
         </div>
       </CardContent>

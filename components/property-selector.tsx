@@ -30,6 +30,7 @@ interface PropertySelectorProps {
   selectedLotId?: string
   showActions?: boolean
   hideLotsSelect?: boolean  // ✅ Masquer les boutons Select des lots (utile pour création de lot)
+  showOnlyBuildings?: boolean  // ✅ Masquer complètement les lots indépendants et leurs tabs
   initialData?: BuildingsData  // ✅ Optional server data
 }
 
@@ -38,6 +39,7 @@ interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initial
   individualLots: Lot[]
   loading: boolean
   hideLotsSelect?: boolean
+  showOnlyBuildings?: boolean
 }
 
 // ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
@@ -145,6 +147,7 @@ function PropertySelectorView({
   selectedLotId,
   showActions: _showActions = true,
   hideLotsSelect = false,
+  showOnlyBuildings = false,
   buildings,
   individualLots,
   loading
@@ -687,22 +690,33 @@ function PropertySelectorView({
     </div>
   )
 
-  const tabs = [
-    {
-      id: "buildings",
-      label: "Immeubles",
-      icon: Building2,
-      count: filteredBuildings.length,
-      content: buildingsContent
-    },
-    {
-      id: "individual-lots", 
-      label: "Lots",
-      icon: Home,
-      count: filteredIndividualLots.length,
-      content: individualLotsContent
-    }
-  ]
+  // ✅ Conditionner l'affichage des tabs selon showOnlyBuildings
+  const tabs = showOnlyBuildings
+    ? [
+        {
+          id: "buildings",
+          label: "Immeubles",
+          icon: Building2,
+          count: filteredBuildings.length,
+          content: buildingsContent
+        }
+      ]
+    : [
+        {
+          id: "buildings",
+          label: "Immeubles",
+          icon: Building2,
+          count: filteredBuildings.length,
+          content: buildingsContent
+        },
+        {
+          id: "individual-lots",
+          label: "Lots",
+          icon: Home,
+          count: filteredIndividualLots.length,
+          content: individualLotsContent
+        }
+      ]
 
   const filterConfigs = [
     {

@@ -1104,6 +1104,7 @@ export default function NewLotPage() {
             }}
             selectedBuildingId={lotData.selectedBuilding}
             showActions={false}
+            showOnlyBuildings={true}
             hideLotsSelect={true}
           />
         </div>

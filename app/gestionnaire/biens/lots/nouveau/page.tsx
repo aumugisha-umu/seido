@@ -1897,7 +1897,7 @@ export default function NewLotPage() {
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-20">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-10 pb-20">
           <main className="max-w-6xl mx-auto pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}

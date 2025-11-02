@@ -854,7 +854,7 @@ export default function NewImmeubleePage({
       />
 
       {/* Main content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-20">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-10 pb-20">
 
         {/* Error Alert */}
         {error && (

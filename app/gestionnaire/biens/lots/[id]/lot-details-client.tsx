@@ -228,7 +228,7 @@ export default function LotDetailsClient({
   ]
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="layout-padding min-h-screen bg-slate-50">
       {/* Header */}
       <PropertyDetailHeader
         property={{

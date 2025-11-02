@@ -577,7 +577,7 @@ export default function EditBuildingClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-2 sm:py-3">
+    <div className="layout-padding min-h-screen bg-gray-50 py-2 sm:py-3">
       {/* Header */}
       <StepProgressHeader
         title="Modifier l'immeuble"

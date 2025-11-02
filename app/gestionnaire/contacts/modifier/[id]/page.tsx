@@ -475,8 +475,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   // Early returns for loading and error states
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="layout-padding min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <Skeleton className="h-8 w-64 mb-2" />
             <Skeleton className="h-4 w-96" />
@@ -503,8 +503,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
     
   if (!contact) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="layout-padding min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -517,8 +517,8 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   }
     
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="layout-padding min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">

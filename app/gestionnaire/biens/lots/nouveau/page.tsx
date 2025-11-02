@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast"
 import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction } from "./actions"
 
 
-import { StepProgressHeaderV2 as StepProgressHeader } from "@/components/ui/step-progress-header-v2-tabs"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { lotSteps } from "@/lib/step-configurations"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
@@ -993,7 +993,7 @@ export default function NewLotPage() {
 
   const renderStep1 = () => (
     <Card>
-      <CardContent className="p-6 space-y-6">
+      <CardContent className="py-6 space-y-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Association immeuble</h2>
           <p className="text-gray-600 mb-6">Comment souhaitez-vous gérer ce lot ?</p>
@@ -1188,7 +1188,7 @@ export default function NewLotPage() {
     if (lotData.buildingAssociation === "independent") {
       return (
         <Card>
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="py-6 space-y-6">
             <BuildingInfoForm
             buildingInfo={lotData.generalBuildingInfo!}
             setBuildingInfo={(info) => setLotData((prev) => ({ ...prev, generalBuildingInfo: info }))}
@@ -1235,7 +1235,7 @@ export default function NewLotPage() {
     return (
       <div className="space-y-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="py-6">
             <p className="text-gray-500">Configuration du lot...</p>
           </CardContent>
         </Card>
@@ -1897,8 +1897,8 @@ export default function NewLotPage() {
         currentStep={currentStep}
       />
 
-      {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-10 pb-20">
+      {/* Main Content with uniform padding (responsive) and bottom space for footer */}
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-5 sm:pt-6 lg:pt-10 pb-20">
           <main className="max-w-6xl mx-auto pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}

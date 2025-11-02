@@ -2,7 +2,54 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
-Never do any build after small changes if the user didn't ask you to. The only situations you are allowed to run build command without asking is after if you've avec made mode than 100 lines of code change and you wand to make sure you didn't break anything, or after a long series of edits without testing
+## 🚫 RÈGLE STRICTE: Pas de Build Automatique
+
+**INTERDICTION ABSOLUE de lancer `npm run build` sans demande explicite de l'utilisateur.**
+
+**Pourquoi cette règle existe:**
+- Les builds Next.js sont longs (~30-60 secondes)
+- Ils consomment des ressources système importantes
+- Ils laissent des processus Node.js actifs qui causent des conflits
+- Ils ne sont pas nécessaires pour valider du code TypeScript
+
+**Ce que tu DOIS faire à la place:**
+
+1. **Pour valider TypeScript sur des fichiers spécifiques:**
+   ```bash
+   # ✅ BON - Validation TS ciblée (rapide, ~2-5 secondes)
+   npx tsc --noEmit components/ui/my-component.tsx
+
+   # ❌ MAUVAIS - Build complet (lent, ~30-60 secondes)
+   npm run build
+   ```
+
+2. **Pour valider ESLint:**
+   ```bash
+   # ✅ BON - Lint ciblé
+   npm run lint -- components/ui/my-component.tsx
+
+   # ❌ MAUVAIS - Build complet
+   npm run build
+   ```
+
+3. **Pour tester l'application:**
+   ```bash
+   # ✅ BON - Demander à l'utilisateur de lancer le dev server
+   "Peux-tu lancer `npm run dev` pour tester les composants créés ?"
+
+   # ❌ MAUVAIS - Lancer un build
+   npm run build
+   ```
+
+**EXCEPTIONS (uniquement si l'utilisateur demande explicitement):**
+- L'utilisateur tape "git*" → Tu peux faire un commit avec build si nécessaire
+- L'utilisateur dit explicitement "fais un build" ou "compile l'app"
+- Préparation avant un déploiement en production
+
+**En résumé:**
+- ❌ **JAMAIS** de `npm run build` spontané
+- ✅ **TOUJOURS** utiliser `npx tsc --noEmit [fichier]` pour validation TS
+- ✅ **TOUJOURS** demander confirmation avant un build
 
 ## 🚨 IMPORTANT: Official Documentation First
 

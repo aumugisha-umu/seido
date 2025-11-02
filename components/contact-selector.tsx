@@ -62,6 +62,8 @@ interface ContactSelectorProps {
   allowedContactTypes?: string[]
   // Contacts déjà sélectionnés/assignés (pour affichage)
   selectedContacts?: {[contactType: string]: Contact[]}
+  // NOUVEAU: Contacts assignés aux lots (par lotId puis par contactType)
+  lotContactAssignments?: { [lotId: string]: { [contactType: string]: Contact[] } }
   // Callback quand un contact est sélectionné - AVEC CONTEXTE
   onContactSelected?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Callback quand un contact est retiré - AVEC CONTEXTE
@@ -92,6 +94,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   description = "Assignez des contacts à vos lots (optionnel)",
   allowedContactTypes = contactTypes.map(type => type.key),
   selectedContacts = {},
+  lotContactAssignments = {},
   onContactSelected,
   onContactRemoved,
   onDirectContactRemove,
@@ -271,6 +274,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const cleanContactContext = () => {
     setSelectedContactType("")
     setPrefilledContactType("")
+    setExternalLotId(undefined) // Nettoyer le contexte lot pour éviter les assignations incorrectes
   }
 
   // ✅ Filtrer les contacts depuis le cache SWR selon le type et le terme de recherche
@@ -328,7 +332,27 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Obtenir les contacts sélectionnés pour un type donné (centralisé)
   const getSelectedContactsByType = (_contactType: string): Contact[] => {
-    return selectedContacts[_contactType] || []
+    const contextLotId = externalLotId || lotId
+
+    // Contacts de l'immeuble (toujours inclus)
+    const buildingContactsOfType = selectedContacts[_contactType] || []
+
+    // Si on est dans le contexte d'un lot, ajouter aussi les contacts du lot
+    if (contextLotId && lotContactAssignments[contextLotId]) {
+      const lotContactsOfType = lotContactAssignments[contextLotId][_contactType] || []
+
+      // Merger les deux listes en évitant les doublons (par id)
+      const allContacts = [...buildingContactsOfType]
+      lotContactsOfType.forEach(lotContact => {
+        if (!allContacts.some(c => c.id === lotContact.id)) {
+          allContacts.push(lotContact)
+        }
+      })
+
+      return allContacts
+    }
+
+    return buildingContactsOfType
   }
 
   // Vérifier si un contact est déjà sélectionné pour le type actuel
@@ -473,7 +497,12 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       {!hideUI && (displayMode === "compact" ? renderCompactMode() : renderFullMode())}
 
       {/* Contact Selection Modal */}
-      <Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
+      <Dialog open={isContactModalOpen} onOpenChange={(open) => {
+        setIsContactModalOpen(open)
+        if (!open) {
+          cleanContactContext() // Nettoyer le contexte quand le modal se ferme
+        }
+      }}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

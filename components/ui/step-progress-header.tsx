@@ -1,7 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Check } from "lucide-react"
 import { LucideIcon } from "lucide-react"
 
 export interface StepConfig {
@@ -19,14 +20,20 @@ interface StepProgressHeaderProps {
 }
 
 /**
- * 🎨 V3 - Minimal Progress Header
+ * 🎯 Version 2: "Tab-Style" (~50-70px hauteur)
  *
- * Design Philosophy: Focus sur l'étape actuelle + grande barre stylisée
- * - Grande icône + titre pour l'étape actuelle
- * - Pourcentage géant bien visible
- * - Animation shimmer sur la barre
- * - Marqueurs sur la barre de progression
- * - Design épuré et moderne
+ * UX Concept:
+ * - Navigation style onglets (Material Design / Ant Design)
+ * - Focus sur l'étape active avec indicateur bottom-border
+ * - Étapes complétées condensées, étapes futures en gris
+ * - Affichage contextuel: seul l'actif est visuellement dominant
+ *
+ * Bonnes pratiques appliquées:
+ * - Progressive disclosure: Étapes futures minimisées
+ * - Active state prominence: Bottom border + couleur
+ * - Scan pattern: F-pattern horizontal pour lecture rapide
+ * - Density: Information maximale dans hauteur minimale
+ * - Material Design Tab principles
  */
 export const StepProgressHeader = ({
   title,
@@ -36,144 +43,110 @@ export const StepProgressHeader = ({
   steps,
   currentStep,
 }: StepProgressHeaderProps) => {
-  const currentStepData = steps[currentStep - 1]
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
 
   return (
-    <div className="sticky top-16 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 mb-0 space-y-2">
-        {/* Single Line Header: Title (left) + Step Info (center) + Back Button (right) */}
-        <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
-          {/* Left: Page Title */}
-          <div className="flex-shrink-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+    <div className="sticky top-16 z-40 bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+
+        {/* Single Line Layout: Title + Tabs + Back Button */}
+        <div className="relative flex items-center gap-3 sm:gap-6 py-2.5 border-b border-gray-200">
+
+          {/* Left: Title + Badge */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">
               {title}
             </h1>
-            {subtitle && (
-              <p className="text-sm text-gray-600 mt-0.5">
-                {subtitle}
-              </p>
-            )}
+            <Badge variant="secondary" className="hidden lg:flex flex-shrink-0 text-xs">
+              {currentStep}/{steps.length}
+            </Badge>
           </div>
 
-          {/* Center: Current Step Info */}
-          <div className="flex-1 text-center">
-            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-              Étape {currentStep} sur {steps.length}
-            </p>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 whitespace-nowrap">
-              {currentStepData.label}
-            </h2>
+          {/* Center: Tab Navigation */}
+          <div className="relative flex-1 min-w-0 flex justify-center">
+            <div className="flex items-stretch overflow-x-auto scrollbar-hide gap-1">
+            {steps.map((step, index) => {
+              const stepNumber = index + 1
+              const isComplete = currentStep > stepNumber
+              const isCurrent = currentStep === stepNumber
+              const isPending = currentStep < stepNumber
+              const StepIcon = step.icon
+
+              return (
+                <div
+                  key={index}
+                  className={`
+                    relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2
+                    transition-all duration-300 cursor-default flex-shrink-0
+                    ${isPending && "opacity-50"}
+                  `}
+                >
+                  {/* Icon/Check */}
+                  <div
+                    className={`
+                      flex items-center justify-center rounded-lg transition-all flex-shrink-0
+                      ${isCurrent
+                        ? "w-6 h-6 sm:w-7 sm:h-7 bg-blue-600 text-white shadow-md"
+                        : isComplete
+                          ? "w-5 h-5 sm:w-6 sm:h-6 bg-green-100 text-green-700"
+                          : "w-5 h-5 sm:w-6 sm:h-6 bg-gray-100 text-gray-400"
+                      }
+                    `}
+                  >
+                    {isComplete ? (
+                      <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" strokeWidth={2.5} />
+                    ) : (
+                      <StepIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    )}
+                  </div>
+
+                  {/* Label - Desktop only, single line */}
+                  <span
+                    className={`
+                      hidden md:inline text-xs font-medium whitespace-nowrap
+                      ${isCurrent
+                        ? "text-blue-600"
+                        : isComplete
+                          ? "text-gray-700"
+                          : "text-gray-500"
+                      }
+                    `}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
           </div>
 
           {/* Right: Back Button */}
           <Button
             variant="ghost"
+            size="sm"
             onClick={onBack}
-            className="px-3 py-1.5 hover:bg-gray-100 flex-shrink-0"
+            className="flex-shrink-0 hover:bg-gray-100"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">{backButtonText}</span>
           </Button>
+
+          {/* Progress Bar - at bottom border level */}
+          <div
+            className="absolute bottom-0 left-0 h-0.5 bg-blue-600 transition-all duration-500 ease-out z-10"
+            style={{ width: `${progressPercentage}%` }}
+          />
+
         </div>
-
-        {/* Main Progress Section */}
-        <div className="space-y-2 mt-5 max-w-7xl mx-auto">
-
-        {/* Progress Bar - Compact */}
-        <div className="px-12">
-          <div className="relative">
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 rounded-full transition-all duration-700 ease-out relative"
-                style={{ width: `${progressPercentage}%` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-              </div>
-            </div>
-
-            {/* Step Markers on Progress Bar */}
-            <div className="absolute top-0 left-0 right-0 flex justify-between" style={{ transform: 'translateY(-50%)' }}>
-            {steps.map((_, index) => {
-              const stepNumber = index + 1
-              const stepPosition = (index / (steps.length - 1)) * 100
-              const isComplete = currentStep > stepNumber
-              const isCurrent = currentStep === stepNumber
-
-              return (
-                <div
-                  key={index}
-                  className="absolute"
-                  style={{ left: `${stepPosition}%`, transform: 'translateX(-50%)' }}
-                >
-                  <div className={`w-5 h-5 rounded-full border-3 transition-all duration-300 ${
-                    isCurrent
-                      ? "bg-blue-600 border-white shadow-lg scale-110"
-                      : isComplete
-                        ? "bg-blue-600 border-white"
-                        : "bg-white border-gray-300"
-                  }`} />
-                </div>
-              )
-            })}
-            </div>
-          </div>
-        </div>
-
-        {/* All Steps - Minimal List - Aligned with markers */}
-        <div className="px-12">
-          <div className="relative pt-1.5">
-          {steps.map((step, index) => {
-            const stepNumber = index + 1
-            const stepPosition = (index / (steps.length - 1)) * 100
-            const isComplete = currentStep > stepNumber
-            const isCurrent = currentStep === stepNumber
-
-            return (
-              <div
-                key={index}
-                className="absolute"
-                style={{ left: `${stepPosition}%`, transform: 'translateX(-50%)' }}
-              >
-                <div
-                  className={`flex flex-col items-center transition-all duration-300 ${
-                    isCurrent ? "scale-105" : isComplete ? "scale-100" : "scale-95 opacity-60"
-                  }`}
-                >
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${
-                    isCurrent
-                      ? "bg-blue-100 text-blue-600"
-                      : isComplete
-                        ? "bg-green-100 text-green-600"
-                        : "bg-gray-100 text-gray-400"
-                  }`}>
-                    <step.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </div>
-                  <p className={`text-xs sm:text-sm font-medium text-center max-w-[70px] sm:max-w-[120px] ${
-                    isCurrent ? "text-gray-900" : isComplete ? "text-gray-700" : "text-gray-400"
-                  }`}>
-                    {step.label}
-                  </p>
-                </div>
-              </div>
-            )
-          })}
-          {/* Spacer to maintain height */}
-          <div style={{ height: '65px' }} />
-          </div>
-        </div>
-        </div>
+      </div>
 
       <style jsx>{`
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </div>

@@ -50,13 +50,31 @@ import { BuildingConfirmationStep } from "@/components/building-confirmation-ste
 
 
 
-import { StepProgressHeaderV2 as StepProgressHeader } from "@/components/ui/step-progress-header-v2-tabs"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
-import { BuildingContactsStepV2 } from "@/components/building-contacts-step-v2"
+import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
+
+// Type for team members with user details (from getTeamMembers)
+type TeamManagerWithUser = {
+  id: string
+  team_id: string
+  user_id: string
+  role: string
+  joined_at: string
+  left_at: string | null
+  user: {
+    id: string
+    name: string
+    email: string
+    role: string
+    provider_category: string | null
+  } | null
+}
+
 interface BuildingInfo {
   name: string
   address: string
@@ -113,7 +131,7 @@ interface NewImmeublePageProps {
   }
   userTeam: Team
   allTeams: Team[]
-  initialTeamManagers: User[]
+  initialTeamManagers: TeamManagerWithUser[]
   initialCategoryCounts: Record<string, number>
 }
 
@@ -165,7 +183,7 @@ export default function NewImmeubleePage({
   const [isBuildingManagerModalOpen, setIsBuildingManagerModalOpen] = useState(false)
   
   // Nouveaux etats pour Supabase
-  const [teamManagers, setTeamManagers] = useState<User[]>(initialTeamManagers)
+  const [teamManagers, setTeamManagers] = useState<TeamManagerWithUser[]>(initialTeamManagers)
   const [error, setError] = useState<string>("")
   const [isCreating, setIsCreating] = useState(false)
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>(initialCategoryCounts)
@@ -227,11 +245,11 @@ export default function NewImmeubleePage({
   useEffect(() => {
     if (teamManagers.length > 0 && buildingManagers.length === 0) {
       const currentUserAsMember = teamManagers.find((member) =>
-        member.user.id === userProfile.id
+        member.user?.id === userProfile.id
       )
 
-      if (currentUserAsMember) {
-        setBuildingManagers([currentUserAsMember])
+      if (currentUserAsMember?.user) {
+        setBuildingManagers([currentUserAsMember.user]) // ✅ Stocker seulement User, pas TeamMember
       }
     }
   }, [teamManagers, userProfile.id, buildingManagers.length])
@@ -624,7 +642,7 @@ export default function NewImmeubleePage({
         ),
         // Gestionnaires de l'immeuble (toujours inclus)
         ...buildingManagers.map((manager, index) => ({
-          id: manager.user.id,
+          id: manager.id, // ✅ Utiliser manager.id directement
           type: 'gestionnaire',
           isPrimary: index === 0 // Premier gestionnaire = principal
         }))
@@ -647,7 +665,7 @@ export default function NewImmeubleePage({
         // Ajouter les gestionnaires assignes a ce lot
         const managersForThisLot = assignedManagers[lotId] || []
         const managerAssignments = managersForThisLot.map((manager, index) => ({
-          contactId: manager.user.id, // ✅ CORRECTION : utiliser manager.user.id au lieu de manager.id
+          contactId: manager.id, // ✅ Utiliser manager.id directement
           contactType: 'gestionnaire',
           isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
           isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour lot_contacts.is_primary
@@ -795,16 +813,16 @@ export default function NewImmeubleePage({
     setIsManagerModalOpen(true)
   }
 
-  const addManagerToLot = (lotId: string, manager: User) => {
+  const addManagerToLot = (lotId: string, manager: TeamManagerWithUser) => {
     setAssignedManagers(prev => {
       const currentManagers = prev[lotId] || []
       // Verifier si le gestionnaire n'est pas deja assigne
-      const alreadyAssigned = currentManagers.some(m => m.user.id === manager.user.id)
-      if (alreadyAssigned) return prev
-      
+      const alreadyAssigned = currentManagers.some(m => m.id === manager.user?.id)
+      if (alreadyAssigned || !manager.user) return prev
+
       return {
         ...prev,
-        [lotId]: [...currentManagers, manager]
+        [lotId]: [...currentManagers, manager.user] // ✅ Stocker seulement User, pas TeamMember
       }
     })
     setIsManagerModalOpen(false)
@@ -813,7 +831,7 @@ export default function NewImmeubleePage({
   const removeManagerFromLot = (lotId: string, managerId: string) => {
     setAssignedManagers(prev => ({
       ...prev,
-      [lotId]: (prev[lotId] || []).filter(manager => manager.user.id !== managerId)
+      [lotId]: (prev[lotId] || []).filter(manager => manager.id !== managerId) // ✅ Utiliser manager.id directement
     }))
   }
 
@@ -826,11 +844,11 @@ export default function NewImmeubleePage({
     setIsBuildingManagerModalOpen(true)
   }
 
-  const addBuildingManager = (manager: User) => {
+  const addBuildingManager = (manager: TeamManagerWithUser) => {
     // Vérifier si le gestionnaire n'est pas déjà dans la liste
-    const alreadyExists = buildingManagers.some(m => m.user.id === manager.user.id)
-    if (!alreadyExists) {
-      setBuildingManagers([...buildingManagers, manager])
+    const alreadyExists = buildingManagers.some(m => m.id === manager.user?.id)
+    if (!alreadyExists && manager.user) {
+      setBuildingManagers([...buildingManagers, manager.user]) // ✅ Stocker seulement User, pas TeamMember
     }
     setIsBuildingManagerModalOpen(false)
   }
@@ -839,7 +857,7 @@ export default function NewImmeubleePage({
     // Ne pas permettre de retirer si c'est le dernier gestionnaire
     if (buildingManagers.length <= 1) return
 
-    setBuildingManagers(buildingManagers.filter(m => m.user.id !== managerId))
+    setBuildingManagers(buildingManagers.filter(m => m.id !== managerId)) // ✅ Utiliser m.id directement
   }
 
   return (
@@ -867,7 +885,7 @@ export default function NewImmeubleePage({
         {/* Step 1: Building Information */}
         {currentStep === 1 && (
           <Card className="shadow-sm max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="px-6 py-6 space-y-6">
               <BuildingInfoForm
                 buildingInfo={buildingInfo}
                 setBuildingInfo={setBuildingInfo}
@@ -909,7 +927,7 @@ export default function NewImmeubleePage({
 
         {/* Step 3: Contacts Assignment */}
         {currentStep === 3 && (
-          <BuildingContactsStepV2
+          <BuildingContactsStepV3
             buildingInfo={buildingInfo}
             teamManagers={teamManagers}
             buildingManagers={buildingManagers}
@@ -1017,8 +1035,9 @@ export default function NewImmeubleePage({
                 <div className="max-h-64 overflow-y-auto">
                   <div className="space-y-2">
                     {teamManagers.map((manager) => {
+                      if (!manager.user) return null // Skip if user data is missing
                       const isAlreadyAssigned = Boolean(selectedLotForManager &&
-                        getAssignedManagers(selectedLotForManager).some(m => m.user.id === manager.user.id))
+                        getAssignedManagers(selectedLotForManager).some(m => m.id === manager.user?.id))
 
                       return (
                         <div
@@ -1109,7 +1128,8 @@ export default function NewImmeubleePage({
                 <div className="max-h-64 overflow-y-auto">
                   <div className="space-y-2">
                     {teamManagers.map((manager) => {
-                      const isAlreadyAssigned = buildingManagers.some(m => m.user.id === manager.user.id)
+                      if (!manager.user) return null // Skip if user data is missing
+                      const isAlreadyAssigned = buildingManagers.some(m => m.id === manager.user?.id)
 
                       return (
                         <div
@@ -1181,6 +1201,25 @@ export default function NewImmeubleePage({
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* ContactSelector Modal - Required for contact selection */}
+        <ContactSelector
+          ref={contactSelectorRef}
+          teamId={userTeam.id}
+          displayMode="compact"
+          hideUI={true}
+          selectedContacts={buildingContacts}
+          lotContactAssignments={lotContactAssignments}
+          onContactSelected={handleContactAdd}
+          onContactCreated={handleContactAdd}
+          onContactRemoved={(contactId, contactType, context) => {
+            if (context?.lotId) {
+              removeContactFromLot(context.lotId, contactType, contactId)
+            } else {
+              handleBuildingContactRemove(contactId, contactType)
+            }
+          }}
+        />
     </div>
   )
 }

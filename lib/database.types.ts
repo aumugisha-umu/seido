@@ -2057,7 +2057,6 @@ export type Database = {
         | "maison"
         | "garage"
         | "local_commercial"
-        | "parking"
         | "autre"
       notification_type:
         | "intervention"
@@ -2323,7 +2322,6 @@ export const Constants = {
         "maison",
         "garage",
         "local_commercial",
-        "parking",
         "autre",
       ],
       notification_type: [

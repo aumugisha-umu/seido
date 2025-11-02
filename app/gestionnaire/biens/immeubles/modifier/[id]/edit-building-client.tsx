@@ -29,7 +29,7 @@ import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import { logger } from '@/lib/logger'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
-import { BuildingContactsStepV2 } from "@/components/building-contacts-step-v2"
+import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 import type {
   BuildingInfo,
   ComponentLot,
@@ -635,7 +635,7 @@ export default function EditBuildingClient({
 
       {/* Step 3: Contacts Assignment */}
       {currentStep === 3 && (
-        <BuildingContactsStepV2
+        <BuildingContactsStepV3
           buildingInfo={buildingInfo}
           teamManagers={teamManagers}
           buildingManagers={buildingManagers}

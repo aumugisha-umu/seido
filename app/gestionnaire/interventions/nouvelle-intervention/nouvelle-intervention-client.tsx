@@ -38,7 +38,7 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelector from "@/components/ui/contact-selector"
-import { StepProgressHeaderV2 as StepProgressHeader } from "@/components/ui/step-progress-header-v2-tabs"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"

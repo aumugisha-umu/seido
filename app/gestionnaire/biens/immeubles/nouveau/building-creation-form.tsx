@@ -50,7 +50,7 @@ import { BuildingConfirmationStep } from "@/components/building-confirmation-ste
 
 
 
-import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { StepProgressHeaderV2 as StepProgressHeader } from "@/components/ui/step-progress-header-v2-tabs"
 import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"

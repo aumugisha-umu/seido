@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast"
 import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction } from "./actions"
 
 
-import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { StepProgressHeaderV2 as StepProgressHeader } from "@/components/ui/step-progress-header-v2-tabs"
 import { lotSteps } from "@/lib/step-configurations"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"

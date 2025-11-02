@@ -484,7 +484,7 @@ export function ContactsPageClient({
   }
 
   return (
-    <>
+    <div className="layout-padding">
       {/* Page Header */}
       <div className="mb-6 lg:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -952,6 +952,6 @@ export function ContactsPageClient({
         defaultType="tenant"
         teamId={userTeam.id} // ✅ AJOUT: Passer teamId pour validation multi-équipes
       />
-    </>
+    </div>
   )
 }

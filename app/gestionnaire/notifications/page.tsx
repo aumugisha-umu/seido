@@ -279,7 +279,8 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="layout-padding">
+      <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
@@ -501,6 +502,7 @@ export default function NotificationsPage() {
             />
           </TabsContent>
         </Tabs>
+      </div>
     </div>
   )
 }

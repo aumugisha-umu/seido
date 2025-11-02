@@ -233,7 +233,7 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="layout-padding">
       <div className="max-w-2xl mx-auto">
         {/* Header avec bouton retour */}
         <div className="flex items-center mb-6">

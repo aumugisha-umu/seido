@@ -381,9 +381,6 @@ export const BuildingInfoForm = ({
           onChange={(e) => setBuildingInfo(prev => ({ ...prev, description: e.target.value }))}
           className="mt-1 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base"
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Décrivez votre {entityType} : commodités, particularités, état général...
-        </p>
       </div>
     </div>
   )

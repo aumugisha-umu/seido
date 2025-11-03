@@ -19,8 +19,9 @@ export interface BuildingInfoCardProps {
   city: string
   country: string
   description?: string
-  onAddLot: () => void
+  onAddLot?: () => void
   className?: string
+  readOnly?: boolean
 }
 
 /**
@@ -52,6 +53,7 @@ export function BuildingInfoCard({
   description,
   onAddLot,
   className,
+  readOnly = false,
 }: BuildingInfoCardProps) {
   const fullAddress = `${address}, ${postalCode} ${city}, ${country}`
 
@@ -63,64 +65,88 @@ export function BuildingInfoCard({
       )}
     >
       <CardContent>
-        <div className="flex items-center justify-between gap-4">
-          {/* Left Section: Icon + Info (Inline) */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Icon */}
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Building2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
-            </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left Section: Icon + Info (Inline) */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Icon */}
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Building2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
+              </div>
 
-            {/* Building Info - Single Line */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <h3 className="font-semibold text-sm text-gray-900 truncate">
-                {name}
-              </h3>
-              <span className="text-gray-400 flex-shrink-0" aria-hidden="true">
-                •
-              </span>
-              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              {/* Building Info - Single Line */}
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm text-gray-900 flex-shrink-0">
+                  {name}
+                </h3>
+                <span className="text-gray-400 flex-shrink-0" aria-hidden="true">
+                  •
+                </span>
                 <MapPin
                   className="h-3.5 w-3.5 text-gray-400 flex-shrink-0"
                   aria-hidden="true"
                 />
-                <span className="text-sm text-gray-600 truncate" title={fullAddress}>
+                <span className="text-sm text-gray-600 flex-shrink-0" title={fullAddress}>
                   {fullAddress}
                 </span>
-              </div>
 
-              {/* Description Tooltip */}
-              {description && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 flex items-center justify-center transition-colors flex-shrink-0"
-                        aria-label="Voir la description de l'immeuble"
-                      >
-                        <Info className="h-3 w-3 text-blue-600" aria-hidden="true" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="text-xs">{description}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+                {/* Description - Different display based on mode */}
+                {description && (
+                  <>
+                    {!readOnly ? (
+                      // Edit mode: Tooltip
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 flex items-center justify-center transition-colors flex-shrink-0"
+                              aria-label="Voir la description de l'immeuble"
+                            >
+                              <Info className="h-3 w-3 text-blue-600" aria-hidden="true" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs">
+                            <p className="text-xs">{description}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      // Read-only mode: Inline text on desktop
+                      <>
+                        <span className="text-gray-400 flex-shrink-0 hidden lg:inline" aria-hidden="true">
+                          •
+                        </span>
+                        <span className="text-sm text-gray-600 flex-shrink-0 hidden lg:inline" title={description}>
+                          {description}
+                        </span>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
+
+            {/* Right Section: Action Button - only in edit mode */}
+            {!readOnly && onAddLot && (
+              <Button
+                onClick={onAddLot}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 flex-shrink-0"
+                aria-label="Ajouter un nouveau lot à cet immeuble"
+              >
+                <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Ajouter un lot</span>
+                <span className="sm:hidden">Ajouter</span>
+              </Button>
+            )}
           </div>
 
-          {/* Right Section: Action Button */}
-          <Button
-            onClick={onAddLot}
-            size="sm"
-            className="bg-green-600 hover:bg-green-700 flex-shrink-0"
-            aria-label="Ajouter un nouveau lot à cet immeuble"
-          >
-            <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
-            <span className="hidden sm:inline">Ajouter un lot</span>
-            <span className="sm:hidden">Ajouter</span>
-          </Button>
+          {/* Description below on mobile/tablet in read-only mode */}
+          {readOnly && description && (
+            <div className="ml-[52px] text-sm text-gray-600 leading-relaxed lg:hidden">
+              {description}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

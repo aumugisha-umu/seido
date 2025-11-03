@@ -5,8 +5,8 @@
  * Server-side operations for building management with proper auth context
  */
 
-import { createServerActionCompositeService, createServerActionSupabaseClient } from '@/lib/services'
-import { revalidatePath } from 'next/cache'
+import { createServerActionCompositeService, createServerActionSupabaseClient, createServerActionBuildingService } from '@/lib/services'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { CreateCompletePropertyData, CompositeOperationResult } from '@/lib/services/domain/composite.service'
 import type { Building, Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
@@ -131,7 +131,11 @@ export async function createCompleteProperty(
         lotsCreated: result.data.lots.length
       })
 
-      // Revalidate the buildings page to show the new building
+      // ✅ Revalidate using both tags and paths for guaranteed cache invalidation
+      revalidateTag('buildings')
+      revalidateTag(`buildings-team-${data.building.team_id}`)
+      revalidateTag('lots')
+      revalidateTag(`lots-team-${data.building.team_id}`)
       revalidatePath('/gestionnaire/biens')
       revalidatePath('/gestionnaire/biens/immeubles')
     } else {
@@ -316,7 +320,12 @@ export async function updateCompleteProperty(data: {
         lotsCount: result.data.lots.length
       })
 
-      // Revalidate paths
+      // ✅ Revalidate using both tags and paths for guaranteed cache invalidation
+      revalidateTag('buildings')
+      revalidateTag(`buildings-team-${existingBuilding.team_id}`)
+      revalidateTag(`building-${data.buildingId}`)
+      revalidateTag('lots')
+      revalidateTag(`lots-team-${existingBuilding.team_id}`)
       revalidatePath('/gestionnaire/biens')
       revalidatePath('/gestionnaire/biens/immeubles')
       revalidatePath(`/gestionnaire/biens/immeubles/${data.buildingId}`)
@@ -338,6 +347,76 @@ export async function updateCompleteProperty(data: {
       },
       error: error instanceof Error ? error.message : 'Unknown error occurred',
       operations: []
+    }
+  }
+}
+
+/**
+ * Get building by ID with relations (managers, contacts)
+ *
+ * ✅ Server Action with authenticated Supabase server client
+ * ✅ Returns building with building_contacts for managers and other contacts
+ */
+export async function getBuildingWithRelations(buildingId: string): Promise<{
+  success: boolean
+  building?: Building & {
+    building_contacts?: Array<{
+      user: {
+        id: string
+        name?: string
+        email: string
+        role: string
+        phone?: string
+        speciality?: string
+      }
+    }>
+  }
+  error?: string
+}> {
+  try {
+    logger.info('🏢 [SERVER-ACTION] Getting building with relations:', { buildingId })
+
+    // Create server action building service
+    const buildingService = await createServerActionBuildingService()
+
+    // Get building with relations
+    const result = await buildingService.getByIdWithRelations(buildingId)
+
+    if (!result.success || !result.data) {
+      logger.error('❌ [SERVER-ACTION] Building not found:', { buildingId, error: result.error })
+      return {
+        success: false,
+        error: 'Building not found'
+      }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Building loaded with relations:', {
+      buildingId: result.data.id,
+      buildingName: result.data.name,
+      contactsCount: (result.data as any).building_contacts?.length || 0
+    })
+
+    return {
+      success: true,
+      building: result.data as Building & {
+        building_contacts?: Array<{
+          user: {
+            id: string
+            name?: string
+            email: string
+            role: string
+            phone?: string
+            speciality?: string
+          }
+        }>
+      }
+    }
+
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Unexpected error getting building:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     }
   }
 }

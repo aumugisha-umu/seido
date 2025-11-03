@@ -18,7 +18,8 @@ import {
   Search,
   Loader2,
   Users,
-  Home
+  Home,
+  Building
 } from "lucide-react"
 import ContactFormModal from "@/components/contact-form-modal"
 
@@ -189,7 +190,13 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // Retirer un contact sélectionné
   const handleRemoveSelectedContact = (contactId: string) => {
     const contextLotId = externalLotId || lotId
-    
+
+    // Protection: Ne pas permettre de retirer un contact hérité de l'immeuble
+    if (isContactInheritedFromBuilding(contactId, selectedContactType)) {
+      logger.warn('⚠️ [ContactSelector] Cannot remove inherited contact:', contactId)
+      return
+    }
+
     logger.info('🗑️ [ContactSelector] Contact removed:', contactId, 'type:', selectedContactType, 'lotId:', contextLotId)
     
     // Appeler le callback parent avec contexte
@@ -359,6 +366,28 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const isContactSelected = (contactId: string, contactType: string): boolean => {
     const selectedContactsOfType = getSelectedContactsByType(contactType)
     return selectedContactsOfType.some(contact => contact.id === contactId)
+  }
+
+  // Vérifier si un contact est hérité de l'immeuble (et non spécifique au lot)
+  const isContactInheritedFromBuilding = (contactId: string, contactType: string): boolean => {
+    const contextLotId = externalLotId || lotId
+
+    // Si on n'est pas dans un contexte de lot, il n'y a pas d'héritage
+    if (!contextLotId) {
+      return false
+    }
+
+    // Le contact est hérité s'il est dans selectedContacts (building-level)
+    // mais PAS ajouté spécifiquement au lot
+    const buildingContactsOfType = selectedContacts[contactType] || []
+    const isInBuildingContacts = buildingContactsOfType.some(c => c.id === contactId)
+
+    // Vérifier s'il est aussi dans les contacts du lot (ce qui signifierait qu'il a été ajouté explicitement)
+    const lotContactsOfType = lotContactAssignments[contextLotId]?.[contactType] || []
+    const isInLotContacts = lotContactsOfType.some(c => c.id === contactId)
+
+    // Hérité = dans building MAIS PAS dans lot-specific
+    return isInBuildingContacts && !isInLotContacts
   }
 
   // Rendu en mode compact (pour création d'immeuble)
@@ -579,19 +608,27 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                   <div className="space-y-2">
                     {getFilteredContacts().map((contact) => {
                       const isSelected = isContactSelected(contact.id, selectedContactType)
+                      const isInherited = isContactInheritedFromBuilding(contact.id, selectedContactType)
                       return (
                         <div
                           key={contact.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                            isSelected 
-                              ? 'bg-green-50 border-green-200' 
-                              : 'hover:bg-gray-50'
+                            isInherited
+                              ? 'bg-blue-50/30 border-blue-200/50'
+                              : isSelected
+                                ? 'bg-green-50 border-green-200'
+                                : 'hover:bg-gray-50'
                           }`}
                         >
                           <div className="flex-1">
                             <div className="font-medium flex items-center gap-2">
                               {contact.name}
-                              {isSelected && (
+                              {isInherited ? (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border border-blue-300 text-xs flex items-center gap-1">
+                                  <Building className="w-3 h-3" />
+                                  Hérité de l&apos;immeuble
+                                </Badge>
+                              ) : isSelected && (
                                 <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
                                   Sélectionné
                                 </Badge>
@@ -607,18 +644,22 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               </div>
                             )}
                           </div>
-                          <Button 
-                            onClick={() => isSelected 
+                          <Button
+                            onClick={() => isSelected
                               ? handleRemoveSelectedContact(contact.id)
                               : handleAddExistingContact(contact)
-                            } 
-                            className={isSelected 
-                              ? "bg-red-600 text-white hover:bg-red-700" 
-                              : "bg-blue-600 text-white hover:bg-blue-700"
+                            }
+                            className={
+                              isInherited
+                                ? "bg-blue-300 text-blue-700 cursor-not-allowed"
+                                : isSelected
+                                  ? "bg-red-600 text-white hover:bg-red-700"
+                                  : "bg-blue-600 text-white hover:bg-blue-700"
                             }
                             size="sm"
+                            disabled={isInherited}
                           >
-                            {isSelected ? "Retirer" : "Sélectionner"}
+                            {isInherited ? "Déjà sur l'immeuble" : isSelected ? "Retirer" : "Sélectionner"}
                           </Button>
                         </div>
                       )

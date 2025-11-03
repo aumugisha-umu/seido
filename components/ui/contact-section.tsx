@@ -2,7 +2,6 @@
 
 import React from "react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Users,
   User,
@@ -22,7 +21,7 @@ interface BaseContact {
   email: string
   type?: string
   phone?: string | null
-  speciality?: string | null
+  speciality?: string
 }
 
 /**
@@ -167,10 +166,11 @@ const SECTION_CONFIGS: Record<ContactSectionType, ContactSectionConfig> = {
 interface ContactSectionProps {
   sectionType: ContactSectionType
   contacts: BaseContact[]
-  onAddContact: () => void
-  onRemoveContact: (contactId: string) => void
+  onAddContact?: () => void
+  onRemoveContact?: (contactId: string) => void
 
   // Optional configurations
+  readOnly?: boolean // If true, hide add/remove buttons (for confirmation view)
   minRequired?: number // Minimum required contacts (e.g., 1 for building managers)
   canRemoveContact?: (contact: BaseContact) => boolean // Custom logic for remove button
   customLabel?: string // Override default label
@@ -182,6 +182,7 @@ export function ContactSection({
   contacts,
   onAddContact,
   onRemoveContact,
+  readOnly = false,
   minRequired,
   canRemoveContact,
   customLabel,
@@ -241,21 +242,13 @@ export function ContactSection({
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-medium text-sm truncate">{contact.name}</span>
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs px-1.5 py-0 ${colorScheme.badgeBg} text-white border-0 flex-shrink-0`}
-                      >
-                        {config.label}
-                      </Badge>
-                    </div>
+                    <div className="font-medium text-sm truncate">{contact.name}</div>
                     <div className="text-xs text-gray-500 truncate">{contact.email}</div>
                   </div>
                 </div>
 
-                {/* Remove button - only show if contact can be removed */}
-                {canRemoveThisContact && (
+                {/* Remove button - only show if contact can be removed and not in readOnly mode */}
+                {!readOnly && canRemoveThisContact && onRemoveContact && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -286,21 +279,23 @@ export function ContactSection({
         )}
       </div>
 
-      {/* Add button - always visible at bottom */}
-      <div className="p-2 pt-0 bg-white border-t border-slate-100">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            onAddContact()
-          }}
-          className={`w-full text-xs ${colorScheme.buttonBorder} ${colorScheme.buttonText} ${colorScheme.buttonHover} h-8`}
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          {addButtonLabel}
-        </Button>
-      </div>
+      {/* Add button - only visible if not in readOnly mode */}
+      {!readOnly && onAddContact && (
+        <div className="p-2 pt-0 bg-white border-t border-slate-100">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onAddContact()
+            }}
+            className={`w-full text-xs ${colorScheme.buttonBorder} ${colorScheme.buttonText} ${colorScheme.buttonHover} h-8`}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            {addButtonLabel}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

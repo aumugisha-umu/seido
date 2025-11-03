@@ -5,8 +5,18 @@ import { BuildingInfoCard } from "@/components/ui/building-info-card"
 import { BuildingContactCardV3 } from "@/components/ui/building-contact-card-v3"
 import { LotContactCardV4 } from "@/components/ui/lot-contact-card-v4"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
-import type { User as UserType, Team, Contact } from "@/lib/services/core/service-types"
+import type { User as UserType, Team } from "@/lib/services/core/service-types"
 import { LotCategory } from "@/lib/lot-types"
+
+// Simplified Contact interface matching ContactSelector and child components
+interface Contact {
+  id: string
+  name: string
+  email: string
+  type: string
+  phone?: string
+  speciality?: string
+}
 
 interface BuildingInfo {
   name: string
@@ -69,6 +79,7 @@ interface BuildingContactsStepV3Props {
  * Architecture:
  * - Building contacts: V3 card with horizontal grid on desktop
  * - Lot contacts: V4 card with accordion + colored badges
+ * - Lot layout: Responsive grid (1 col mobile, 2 cols tablet, 3 cols desktop)
  * - All business logic preserved from V2
  */
 export function BuildingContactsStepV3({
@@ -122,45 +133,55 @@ export function BuildingContactsStepV3({
         <div className="space-y-3">
           <div className="flex items-center gap-2 px-1">
             <h3 className="text-sm font-semibold text-gray-700">
-              Contacts spécifiques aux lots 
+              Contacts spécifiques aux lots
             </h3>
           </div>
 
-          {lots.map((lot, index) => {
-            const isExpanded = expandedLots[lot.id] || false
-            const lotNumber = lots.length - index
-            const lotManagers = getAssignedManagers(lot.id)
-            const tenants = getLotContactsByType(lot.id, 'tenant')
-            const lotProviders = getLotContactsByType(lot.id, 'provider')
-            const lotOwners = getLotContactsByType(lot.id, 'owner')
-            const lotOthers = getLotContactsByType(lot.id, 'other')
+          {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {lots.map((lot, index) => {
+              const isExpanded = expandedLots[lot.id] || false
+              const lotNumber = lots.length - index
+              const lotManagers = getAssignedManagers(lot.id)
+              const tenants = getLotContactsByType(lot.id, 'tenant')
+              const lotProviders = getLotContactsByType(lot.id, 'provider')
+              const lotOwners = getLotContactsByType(lot.id, 'owner')
+              const lotOthers = getLotContactsByType(lot.id, 'other')
 
-            return (
-              <LotContactCardV4
-                key={lot.id}
-                lotNumber={lotNumber}
-                lotReference={lot.reference}
-                lotCategory={lot.category}
-                isExpanded={isExpanded}
-                onToggleExpand={() => toggleLotExpansion(lot.id)}
-                lotManagers={lotManagers}
-                onAddLotManager={() => openManagerModal(lot.id)}
-                onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
-                tenants={tenants}
-                providers={lotProviders}
-                owners={lotOwners}
-                others={lotOthers}
-                onAddContact={(contactType) => {
-                  // Open contact selector modal for this lot
-                  contactSelectorRef.current?.openContactModal(contactType, lot.id)
-                }}
-                onRemoveContact={(contactId, contactType) => {
-                  removeContactFromLot(lot.id, contactType, contactId)
-                }}
-                buildingManagersCount={buildingManagers.length}
-              />
-            )
-          })}
+              return (
+                <div
+                  key={lot.id}
+                  className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
+                >
+                  <LotContactCardV4
+                    lotNumber={lotNumber}
+                    lotReference={lot.reference}
+                    lotCategory={lot.category}
+                    isExpanded={isExpanded}
+                    onToggleExpand={() => toggleLotExpansion(lot.id)}
+                    lotManagers={lotManagers}
+                    onAddLotManager={() => openManagerModal(lot.id)}
+                    onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
+                    tenants={tenants}
+                    providers={lotProviders}
+                    owners={lotOwners}
+                    others={lotOthers}
+                    onAddContact={(contactType) => {
+                      // Open contact selector modal for this lot
+                      contactSelectorRef.current?.openContactModal(contactType, lot.id)
+                    }}
+                    onRemoveContact={(contactId, contactType) => {
+                      removeContactFromLot(lot.id, contactType, contactId)
+                    }}
+                    buildingManagers={buildingManagers}
+                    buildingProviders={providers}
+                    buildingOwners={owners}
+                    buildingOthers={others}
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

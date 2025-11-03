@@ -13,7 +13,8 @@ import {
   ChevronUp,
   Wrench,
   Home,
-  UserCircle
+  UserCircle,
+  Building
 } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
@@ -38,17 +39,18 @@ interface Contact {
  * - Layout responsive: 5 colonnes sur desktop, vertical sur mobile
  *
  * Design Principles:
- * - Header ultra-compact: Badge numéro + Nom + Catégorie + Badges colorés
- * - Collapsed: 1 ligne avec tous les badges visibles
+ * - Header ultra-compact: Badge numéro agrandi + Structure verticale (nom + badges)
+ * - Collapsed: 2 lignes - Nom du lot (ligne 1) + Catégorie et badges colorés (ligne 2)
  * - Expanded: Grid 5 colonnes (desktop) avec toutes les sections ouvertes
  * - Hiérarchie visuelle forte avec couleurs distinctes par rôle
  *
  * Key Features:
- * ✅ Badge numéro bleu (#7)
+ * ✅ Badge numéro bleu agrandi (#7) - text-sm, px-3 py-1.5
+ * ✅ Structure verticale: Nom en haut, badges en dessous
  * ✅ Nom du lot avec truncate + tooltip
  * ✅ Badge catégorie (Appartement, Garage, etc.) toujours visible
  * ✅ Badges compteurs COLORÉS avec icônes toujours visibles
- * ✅ Mode collapsed ultra-compact (1 ligne)
+ * ✅ Mode collapsed compact (2 lignes avec séparation visuelle)
  * ✅ Mode expanded: 5 sections toujours ouvertes en grid horizontal (desktop)
  * ✅ Touch targets 44x44px minimum
  * ✅ Accessible: aria-labels, keyboard navigation
@@ -59,17 +61,27 @@ interface LotContactCardV4Props {
   lotReference: string
   lotCategory: LotCategory
   isExpanded: boolean
-  onToggleExpand: () => void
+  onToggleExpand?: () => void
   lotManagers: UserType[]
-  onAddLotManager: () => void
-  onRemoveLotManager: (managerId: string) => void
+  onAddLotManager?: () => void
+  onRemoveLotManager?: (managerId: string) => void
   tenants: Contact[]
   providers: Contact[]
   owners: Contact[]
   others: Contact[]
-  onAddContact: (contactType: 'tenant' | 'provider' | 'owner' | 'other') => void
-  onRemoveContact: (contactId: string, contactType: string) => void
-  buildingManagersCount?: number
+  onAddContact?: (contactType: 'tenant' | 'provider' | 'owner' | 'other') => void
+  onRemoveContact?: (contactId: string, contactType: string) => void
+  // Contacts hérités de l'immeuble (not shown in readOnly mode)
+  buildingManagers?: UserType[]
+  buildingProviders?: Contact[]
+  buildingOwners?: Contact[]
+  buildingOthers?: Contact[]
+  // Read-only mode (for confirmation view)
+  readOnly?: boolean
+  // Lot details (for confirmation view)
+  floor?: string
+  doorNumber?: string
+  description?: string
 }
 
 export function LotContactCardV4({
@@ -87,7 +99,14 @@ export function LotContactCardV4({
   others,
   onAddContact,
   onRemoveContact,
-  buildingManagersCount = 0
+  buildingManagers = [],
+  buildingProviders = [],
+  buildingOwners = [],
+  buildingOthers = [],
+  readOnly = false,
+  floor,
+  doorNumber,
+  description
 }: LotContactCardV4Props) {
   const categoryConfig = getLotCategoryConfig(lotCategory)
 
@@ -100,32 +119,48 @@ export function LotContactCardV4({
       {/* Header - Ultra Compact avec Badges Colorés */}
       <CardHeader className="p-3 pb-2">
         <div className="flex items-center justify-between gap-3 overflow-hidden min-w-0">
-          {/* Left: Badge Number + Reference + Category + Visual Indicators */}
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            {/* Badge Number */}
-            <Badge variant="default" className="px-2.5 py-1 bg-blue-600 text-white text-xs font-medium flex-shrink-0">
+          {/* Left: Badge Number (plus grand) + Reference + Badges (structure verticale) */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Badge Number - Plus grand */}
+            <Badge variant="default" className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold flex-shrink-0">
               #{lotNumber}
             </Badge>
 
-            {/* Reference + Visual Indicators */}
-            <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto">
+            {/* Reference + Badges - Structure verticale */}
+            <div className="flex flex-col gap-1 flex-1 min-w-0">
+              {/* Ligne 1: Nom du lot */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="font-semibold text-base truncate text-slate-900 cursor-default block flex-shrink-0" title={lotReference}>
+                  <span className="font-semibold text-base truncate text-slate-900 cursor-default block" title={lotReference}>
                     {lotReference}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top"><p className="text-xs">{lotReference}</p></TooltipContent>
               </Tooltip>
 
-              {/* Always visible badges */}
-              <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
+              {/* Ligne 2: Étage + Porte + Tous les badges (catégorie + compteurs) */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Étage et Porte - avant le badge catégorie */}
+                {(floor || doorNumber) && (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      {floor && (
+                        <span>Étage {floor}</span>
+                      )}
+                      {floor && doorNumber && <span className="text-gray-400">•</span>}
+                      {doorNumber && (
+                        <span>{doorNumber}</span>
+                      )}
+                    </div>
+                    <span className="text-gray-400">•</span>
+                  </>
+                )}
                 {/* Category Badge */}
                 <Badge variant="outline" className={`text-xs ${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color}`}>
                   {categoryConfig.label}
                 </Badge>
 
-                {/* Visual Indicators - Colored badges with icons from V2 */}
+                {/* Visual Indicators - Colored badges with icons */}
                 {lotManagers.length > 0 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -186,19 +221,28 @@ export function LotContactCardV4({
                   </Tooltip>
                 )}
               </div>
+
+              {/* Ligne 3: Description - juste en dessous des badges */}
+              {description && (
+                <p className="text-sm text-gray-600 leading-relaxed mt-1">
+                  {description}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Right: Toggle Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleExpand}
-            className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex-shrink-0"
-            aria-expanded={isExpanded}
-          >
-            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </Button>
+          {onToggleExpand && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleExpand}
+              className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex-shrink-0"
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </Button>
+          )}
         </div>
       </CardHeader>
 
@@ -216,6 +260,22 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
+                {/* Gestionnaires hérités de l'immeuble - NOT shown in readOnly mode */}
+                {!readOnly && buildingManagers.map((manager) => (
+                  <div key={`building-${manager.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Building className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{manager.name}</div>
+                        <div className="text-xs text-blue-600 truncate">Hérité de l'immeuble</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Gestionnaires spécifiques au lot */}
                 {lotManagers.length > 0 ? (
                   lotManagers.map((manager) => (
                     <div key={manager.id} className="flex items-center justify-between p-2 bg-purple-50/50 rounded border border-purple-100">
@@ -228,23 +288,29 @@ export function LotContactCardV4({
                           <div className="text-xs text-gray-500 truncate">{manager.email}</div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveLotManager(manager.id) }} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0 flex-shrink-0">
-                        <X className="w-4 h-4" />
-                      </Button>
+                      {!readOnly && onRemoveLotManager && (
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveLotManager(manager.id) }} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0 flex-shrink-0">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 px-2 py-1">Aucun gestionnaire spécifique</p>
+                  !readOnly && buildingManagers.length === 0 && (
+                    <p className="text-xs text-gray-500 px-2 py-1">Aucun gestionnaire</p>
+                  )
                 )}
             </div>
 
-            {/* Button always visible at bottom */}
-            <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddLotManager() }} className="w-full text-xs border-purple-300 text-purple-700 hover:bg-purple-50 h-8">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter gestionnaire
-                </Button>
-            </div>
+            {/* Button always visible at bottom - only if not readOnly */}
+            {!readOnly && onAddLotManager && (
+              <div className="p-2 pt-0 bg-white border-t border-slate-100">
+                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddLotManager() }} className="w-full text-xs border-purple-300 text-purple-700 hover:bg-purple-50 h-8">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter gestionnaire
+                  </Button>
+              </div>
+            )}
           </div>
 
           {/* Tenants Section */}
@@ -266,23 +332,29 @@ export function LotContactCardV4({
                           <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(tenant.id, 'tenant') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                      {!readOnly && onRemoveContact && (
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(tenant.id, 'tenant') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 px-2 py-1">Aucun locataire</p>
+                  !readOnly && (
+                    <p className="text-xs text-gray-500 px-2 py-1">Aucun locataire</p>
+                  )
                 )}
             </div>
 
-            {/* Button always visible at bottom */}
-            <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('tenant') }} className="w-full text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-8">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter locataire
-                </Button>
-            </div>
+            {/* Button always visible at bottom - only if not readOnly */}
+            {!readOnly && onAddContact && (
+              <div className="p-2 pt-0 bg-white border-t border-slate-100">
+                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('tenant') }} className="w-full text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-8">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter locataire
+                  </Button>
+              </div>
+            )}
           </div>
 
           {/* Providers Section */}
@@ -294,6 +366,22 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
+                {/* Prestataires hérités de l'immeuble - NOT shown in readOnly mode */}
+                {!readOnly && buildingProviders.map((contact) => (
+                  <div key={`building-${contact.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Building className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{contact.name}</div>
+                        <div className="text-xs text-blue-600 truncate">Hérité de l&apos;immeuble</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Prestataires spécifiques au lot */}
                 {providers.length > 0 ? (
                   providers.map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-2 bg-green-50/50 rounded border border-green-100">
@@ -304,23 +392,29 @@ export function LotContactCardV4({
                           <div className="text-xs text-gray-500 truncate">{contact.email}</div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'provider') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                      {!readOnly && onRemoveContact && (
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'provider') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 px-2 py-1">Aucun prestataire</p>
+                  !readOnly && buildingProviders.length === 0 && (
+                    <p className="text-xs text-gray-500 px-2 py-1">Aucun prestataire</p>
+                  )
                 )}
             </div>
 
-            {/* Button always visible at bottom */}
-            <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('provider') }} className="w-full text-xs border-green-300 text-green-700 hover:bg-green-50 h-8">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter prestataire
-                </Button>
-            </div>
+            {/* Button always visible at bottom - only if not readOnly */}
+            {!readOnly && onAddContact && (
+              <div className="p-2 pt-0 bg-white border-t border-slate-100">
+                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('provider') }} className="w-full text-xs border-green-300 text-green-700 hover:bg-green-50 h-8">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter prestataire
+                  </Button>
+              </div>
+            )}
           </div>
 
           {/* Owners Section */}
@@ -332,6 +426,22 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
+                {/* Propriétaires hérités de l'immeuble - NOT shown in readOnly mode */}
+                {!readOnly && buildingOwners.map((contact) => (
+                  <div key={`building-${contact.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Building className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{contact.name}</div>
+                        <div className="text-xs text-blue-600 truncate">Hérité de l&apos;immeuble</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Propriétaires spécifiques au lot */}
                 {owners.length > 0 ? (
                   owners.map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-2 bg-orange-50/50 rounded border border-orange-100">
@@ -342,23 +452,29 @@ export function LotContactCardV4({
                           <div className="text-xs text-gray-500 truncate">{contact.email}</div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'owner') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                      {!readOnly && onRemoveContact && (
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'owner') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 px-2 py-1">Aucun propriétaire</p>
+                  !readOnly && buildingOwners.length === 0 && (
+                    <p className="text-xs text-gray-500 px-2 py-1">Aucun propriétaire</p>
+                  )
                 )}
             </div>
 
-            {/* Button always visible at bottom */}
-            <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('owner') }} className="w-full text-xs border-orange-300 text-orange-700 hover:bg-orange-50 h-8">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter propriétaire
-                </Button>
-            </div>
+            {/* Button always visible at bottom - only if not readOnly */}
+            {!readOnly && onAddContact && (
+              <div className="p-2 pt-0 bg-white border-t border-slate-100">
+                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('owner') }} className="w-full text-xs border-orange-300 text-orange-700 hover:bg-orange-50 h-8">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter propriétaire
+                  </Button>
+              </div>
+            )}
           </div>
 
           {/* Others Section */}
@@ -370,6 +486,22 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
+                {/* Autres contacts hérités de l'immeuble - NOT shown in readOnly mode */}
+                {!readOnly && buildingOthers.map((contact) => (
+                  <div key={`building-${contact.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Building className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{contact.name}</div>
+                        <div className="text-xs text-blue-600 truncate">Hérité de l&apos;immeuble</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Autres contacts spécifiques au lot */}
                 {others.length > 0 ? (
                   others.map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-2 bg-gray-50/50 rounded border border-gray-100">
@@ -380,23 +512,29 @@ export function LotContactCardV4({
                           <div className="text-xs text-gray-500 truncate">{contact.email}</div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'other') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                      {!readOnly && onRemoveContact && (
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'other') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 px-2 py-1">Aucun autre contact</p>
+                  !readOnly && buildingOthers.length === 0 && (
+                    <p className="text-xs text-gray-500 px-2 py-1">Aucun autre contact</p>
+                  )
                 )}
             </div>
 
-            {/* Button always visible at bottom */}
-            <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('other') }} className="w-full text-xs border-gray-300 text-gray-700 hover:bg-gray-50 h-8">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter contact
-                </Button>
-            </div>
+            {/* Button always visible at bottom - only if not readOnly */}
+            {!readOnly && onAddContact && (
+              <div className="p-2 pt-0 bg-white border-t border-slate-100">
+                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('other') }} className="w-full text-xs border-gray-300 text-gray-700 hover:bg-gray-50 h-8">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter contact
+                  </Button>
+              </div>
+            )}
           </div>
           </div>
         </CardContent>

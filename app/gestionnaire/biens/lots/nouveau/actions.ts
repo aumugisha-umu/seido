@@ -1,8 +1,9 @@
 'use server'
 
-import { createServerActionContactService, createServerActionLotService, createContactInvitationService } from '@/lib/services'
-import type { LotInsert, ContactInvitationData } from '@/lib/services'
+import { createServerActionContactService, createServerActionLotService, createContactInvitationService, createServerActionSupabaseClient, createServerActionBuildingService } from '@/lib/services'
+import type { LotInsert, ContactInvitationData, Building } from '@/lib/services'
 import { logger } from '@/lib/logger'
+import { revalidateTag, revalidatePath } from 'next/cache'
 
 /**
  * Server Action pour assigner un contact à un lot
@@ -66,6 +67,57 @@ export async function createLotAction(lotData: LotInsert) {
     }
 
     logger.info('[SERVER-ACTION] Lot created successfully:', result.data)
+
+    // ✅ Revalidate cache tags and paths after successful creation
+    const createdLot = result.data
+    const teamId = lotData.team_id
+    
+    // Always revalidate lots cache
+    revalidateTag('lots')
+    
+    // Revalidate team-specific cache if team_id is available
+    if (teamId) {
+      revalidateTag(`lots-team-${teamId}`)
+    }
+    
+    // If lot is linked to a building, revalidate building caches
+    const buildingId = createdLot?.building_id || lotData.building_id
+    if (buildingId) {
+      revalidateTag('buildings')
+      revalidateTag(`building-${buildingId}`)
+      
+      // Get building team_id to invalidate team-specific caches
+      try {
+        const supabase = await createServerActionSupabaseClient()
+        const { data: buildingData } = await supabase
+          .from('buildings')
+          .select('team_id')
+          .eq('id', buildingId)
+          .single()
+        
+        if (buildingData?.team_id) {
+          revalidateTag(`buildings-team-${buildingData.team_id}`)
+          // Also revalidate lots cache for the building's team
+          if (buildingData.team_id !== teamId) {
+            revalidateTag(`lots-team-${buildingData.team_id}`)
+          }
+        }
+        revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
+      } catch (error) {
+        logger.warn('[SERVER-ACTION] Could not fetch building data for cache invalidation:', error)
+      }
+    }
+    
+    // Revalidate main patrimoine pages
+    revalidatePath('/gestionnaire/biens')
+    revalidatePath('/gestionnaire/biens/lots')
+    
+    // Revalidate lot detail page if lot ID is available
+    if (createdLot?.id) {
+      revalidatePath(`/gestionnaire/biens/lots/${createdLot.id}`)
+    }
+
+    logger.info('[SERVER-ACTION] Cache invalidated for lot creation')
     return { success: true, data: result.data }
   } catch (error) {
     logger.error('[SERVER-ACTION] Exception in createLotAction:', error)
@@ -108,6 +160,76 @@ export async function createContactWithOptionalInviteAction(contactData: Contact
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Server Action pour récupérer un building avec ses relations (managers, contacts)
+ * Utilise le contexte de requête serveur pour accéder aux cookies (auth session)
+ *
+ * @param buildingId - ID du building
+ */
+export async function getBuildingWithRelations(buildingId: string): Promise<{
+  success: boolean
+  building?: Building & {
+    building_contacts?: Array<{
+      user: {
+        id: string
+        name?: string
+        email: string
+        role: string
+        phone?: string
+        speciality?: string
+      }
+    }>
+  }
+  error?: string
+}> {
+  try {
+    logger.info('🏢 [SERVER-ACTION] Getting building with relations:', { buildingId })
+
+    // Create server action building service
+    const buildingService = await createServerActionBuildingService()
+
+    // Get building with relations
+    const result = await buildingService.getByIdWithRelations(buildingId)
+
+    if (!result.success || !result.data) {
+      logger.error('❌ [SERVER-ACTION] Building not found:', { buildingId, error: result.error })
+      return {
+        success: false,
+        error: 'Building not found'
+      }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Building loaded with relations:', {
+      buildingId: result.data.id,
+      buildingName: result.data.name,
+      contactsCount: (result.data as any).building_contacts?.length || 0
+    })
+
+    return {
+      success: true,
+      building: result.data as Building & {
+        building_contacts?: Array<{
+          user: {
+            id: string
+            name?: string
+            email: string
+            role: string
+            phone?: string
+            speciality?: string
+          }
+        }>
+      }
+    }
+
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Unexpected error getting building:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     }
   }
 }

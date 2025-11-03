@@ -759,40 +759,39 @@ function PropertySelectorView({
  */
 function PropertySelectorWithInitialData(props: PropertySelectorProps & { initialData: BuildingsData }) {
   // DEBUG: Log received data in PropertySelector with detailed lot info
-  console.log('🔍 [PROPERTY-SELECTOR] Received initialData:', {
-    buildingsCount: props.initialData.buildings.length,
-    lotsCount: props.initialData.lots.length,
-    firstLot: props.initialData.lots[0] ? {
-      reference: props.initialData.lots[0].reference,
-      status: props.initialData.lots[0].status,
-      is_occupied: props.initialData.lots[0].is_occupied
-    } : null,
-    buildings: props.initialData.buildings.map(b => ({
-      id: b.id,
-      name: b.name,
-      lotsCount: b.lots?.length || 0,
-      lotsDetail: b.lots?.map(l => ({
-        reference: l.reference,
-        status: l.status,
-        is_occupied: l.is_occupied
-      }))
-    }))
-  })
+  const buildingsArray = Array.isArray(props.initialData.buildings) ? props.initialData.buildings : []
+  const lotsArray = Array.isArray(props.initialData.lots) ? props.initialData.lots : []
+  
+  // Enhanced logging with JSON.stringify for better visibility
+  console.log('🔍 [PROPERTY-SELECTOR] Received initialData')
+  console.log('   buildingsCount:', buildingsArray.length)
+  console.log('   lotsCount:', lotsArray.length)
+  console.log('   teamId:', props.initialData.teamId)
+  console.log('   buildingsIsArray:', Array.isArray(props.initialData.buildings))
+  console.log('   lotsIsArray:', Array.isArray(props.initialData.lots))
+  console.log('   buildings:', buildingsArray)
+  console.log('   lots:', lotsArray)
+  if (buildingsArray.length > 0) {
+    console.log('   First building:', JSON.stringify(buildingsArray[0], null, 2))
+  }
+  if (lotsArray.length > 0) {
+    console.log('   First lot:', JSON.stringify(lotsArray[0], null, 2))
+  }
 
   // DEBUG: Specifically check first building's first lot
-  if (props.initialData.buildings[0]?.lots?.[0]) {
+  if (buildingsArray[0]?.lots?.[0]) {
     console.log('🔍 [PROPERTY-SELECTOR] First building first lot:', {
-      reference: props.initialData.buildings[0].lots[0].reference,
-      status: props.initialData.buildings[0].lots[0].status,
-      is_occupied: props.initialData.buildings[0].lots[0].is_occupied
+      reference: buildingsArray[0].lots[0].reference,
+      status: buildingsArray[0].lots[0].status,
+      is_occupied: buildingsArray[0].lots[0].is_occupied
     })
   }
 
   return (
     <PropertySelectorView
       {...props}
-      buildings={props.initialData.buildings}
-      individualLots={props.initialData.lots}
+      buildings={buildingsArray}
+      individualLots={lotsArray}
       loading={false}
     />
   )

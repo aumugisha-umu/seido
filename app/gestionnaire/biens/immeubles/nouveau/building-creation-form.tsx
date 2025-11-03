@@ -1038,6 +1038,7 @@ export default function NewImmeubleePage({
                       if (!manager.user) return null // Skip if user data is missing
                       const isAlreadyAssigned = Boolean(selectedLotForManager &&
                         getAssignedManagers(selectedLotForManager).some(m => m.id === manager.user?.id))
+                      const isBuildingManager = buildingManagers.some(m => m.id === manager.user?.id)
 
                       return (
                         <div
@@ -1045,12 +1046,20 @@ export default function NewImmeubleePage({
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
                             isAlreadyAssigned
                               ? 'bg-gray-100 border-gray-300 opacity-60'
+                              : isBuildingManager
+                              ? 'bg-blue-50 border-blue-200'
                               : 'hover:bg-purple-50 border-purple-200'
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100">
-                              <User className="w-5 h-5 text-purple-600" />
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              isBuildingManager ? 'bg-blue-100' : 'bg-purple-100'
+                            }`}>
+                              {isBuildingManager ? (
+                                <Building className="w-5 h-5 text-blue-600" />
+                              ) : (
+                                <User className="w-5 h-5 text-purple-600" />
+                              )}
                             </div>
                             <div>
                               <div className="font-medium">{manager.user.name}</div>
@@ -1059,20 +1068,28 @@ export default function NewImmeubleePage({
                                 {manager.user.id === userProfile.id && (
                                   <Badge variant="outline" className="text-xs">Vous</Badge>
                                 )}
+                                {isBuildingManager && (
+                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-300 flex items-center gap-1">
+                                    <Building className="w-3 h-3" />
+                                    Gestionnaire de l'immeuble
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>
                           <Button
                             onClick={() => selectedLotForManager && addManagerToLot(selectedLotForManager, manager)}
-                            disabled={isAlreadyAssigned}
+                            disabled={isAlreadyAssigned || isBuildingManager}
                             className={`${
                               isAlreadyAssigned
                                 ? 'bg-gray-300 text-gray-500'
+                                : isBuildingManager
+                                ? 'bg-blue-300 text-blue-700'
                                 : 'bg-purple-600 text-white hover:bg-purple-700'
                             }`}
                             size="sm"
                           >
-                            {isAlreadyAssigned ? 'Déjà assigné' : 'Assigner'}
+                            {isAlreadyAssigned ? 'Déjà assigné' : isBuildingManager ? 'Déjà sur l\'immeuble' : 'Assigner'}
                           </Button>
                         </div>
                       )

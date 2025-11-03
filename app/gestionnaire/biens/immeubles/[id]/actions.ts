@@ -1,7 +1,7 @@
 'use server'
 
 import { createServerActionBuildingService, createServerActionSupabaseClient } from '@/lib/services'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { BuildingUpdate, RepositoryResponse } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
@@ -30,7 +30,13 @@ export async function updateBuildingAction(
         buildingId
       })
 
-      // Revalidate the building details page and list page
+      // ✅ Revalidate using both tags and paths
+      revalidateTag('buildings')
+      revalidateTag(`building-${buildingId}`)
+      if (result.data?.team_id) {
+        revalidateTag(`buildings-team-${result.data.team_id}`)
+        revalidateTag(`lots-team-${result.data.team_id}`)
+      }
       revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
       revalidatePath('/gestionnaire/biens')
     } else {
@@ -79,7 +85,21 @@ export async function deleteBuildingAction(
         buildingId
       })
 
-      // Revalidate the list page (building detail page will redirect)
+      // ✅ Revalidate using both tags and paths
+      revalidateTag('buildings')
+      revalidateTag(`building-${buildingId}`)
+      // Get team_id from building before deletion if needed
+      const supabase = await createServerActionSupabaseClient()
+      const { data: buildingData } = await supabase
+        .from('buildings')
+        .select('team_id')
+        .eq('id', buildingId)
+        .single()
+      
+      if (buildingData?.team_id) {
+        revalidateTag(`buildings-team-${buildingData.team_id}`)
+        revalidateTag(`lots-team-${buildingData.team_id}`)
+      }
       revalidatePath('/gestionnaire/biens')
     } else {
       logger.error('❌ [DELETE-BUILDING-ACTION] Building deletion failed', {
@@ -175,7 +195,18 @@ export async function assignContactToBuildingAction(
 
     logger.info(`✅ [ASSIGN-CONTACT-TO-BUILDING] Contact assigned successfully:`, data.id)
 
-    // Revalidate pages
+    // ✅ Revalidate using both tags and paths
+    revalidateTag('buildings')
+    revalidateTag(`building-${buildingId}`)
+    const { data: buildingData } = await supabase
+      .from('buildings')
+      .select('team_id')
+      .eq('id', buildingId)
+      .single()
+    
+    if (buildingData?.team_id) {
+      revalidateTag(`buildings-team-${buildingData.team_id}`)
+    }
     revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
     revalidatePath('/gestionnaire/biens')
 
@@ -226,8 +257,19 @@ export async function removeContactFromBuildingAction(
 
     logger.info(`✅ [REMOVE-CONTACT-FROM-BUILDING] Contact removed successfully`)
 
-    // Revalidate pages
+    // ✅ Revalidate using both tags and paths
     if (contactData?.building_id) {
+      revalidateTag('buildings')
+      revalidateTag(`building-${contactData.building_id}`)
+      const { data: buildingData } = await supabase
+        .from('buildings')
+        .select('team_id')
+        .eq('id', contactData.building_id)
+        .single()
+      
+      if (buildingData?.team_id) {
+        revalidateTag(`buildings-team-${buildingData.team_id}`)
+      }
       revalidatePath(`/gestionnaire/biens/immeubles/${contactData.building_id}`)
     }
     revalidatePath('/gestionnaire/biens')
@@ -279,12 +321,26 @@ export async function removeContactFromLotAction(
 
     logger.info(`✅ [REMOVE-CONTACT-FROM-LOT] Lot contact removed successfully`)
 
-    // Revalidate pages
+    // ✅ Revalidate using both tags and paths
     if (lotData) {
-      revalidatePath(`/gestionnaire/biens/lots/${lotData.lot_id}`)
-      if ((lotData.lots as any)?.building_id) {
-        revalidatePath(`/gestionnaire/biens/immeubles/${(lotData.lots as any).building_id}`)
+      revalidateTag('lots')
+      const buildingId = (lotData.lots as any)?.building_id
+      if (buildingId) {
+        revalidateTag('buildings')
+        revalidateTag(`building-${buildingId}`)
+        const { data: buildingData } = await supabase
+          .from('buildings')
+          .select('team_id')
+          .eq('id', buildingId)
+          .single()
+        
+        if (buildingData?.team_id) {
+          revalidateTag(`buildings-team-${buildingData.team_id}`)
+          revalidateTag(`lots-team-${buildingData.team_id}`)
+        }
+        revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
       }
+      revalidatePath(`/gestionnaire/biens/lots/${lotData.lot_id}`)
     }
     revalidatePath('/gestionnaire/biens')
 

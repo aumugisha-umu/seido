@@ -1,7 +1,7 @@
 'use server'
 
-import { createServerActionLotService } from '@/lib/services'
-import { revalidatePath } from 'next/cache'
+import { createServerActionLotService, createServerActionSupabaseClient } from '@/lib/services'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { LotUpdate, RepositoryResponse } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
@@ -30,14 +30,27 @@ export async function updateLotAction(
         lotId
       })
 
-      // Revalidate the lot details page and list pages
+      // ✅ Revalidate using both tags and paths
+      revalidateTag('lots')
+      const buildingId = result.data?.building_id
+      if (buildingId) {
+        revalidateTag('buildings')
+        revalidateTag(`building-${buildingId}`)
+        const supabase = await createServerActionSupabaseClient()
+        const { data: buildingData } = await supabase
+          .from('buildings')
+          .select('team_id')
+          .eq('id', buildingId)
+          .single()
+        
+        if (buildingData?.team_id) {
+          revalidateTag(`buildings-team-${buildingData.team_id}`)
+          revalidateTag(`lots-team-${buildingData.team_id}`)
+        }
+        revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
+      }
       revalidatePath(`/gestionnaire/biens/lots/${lotId}`)
       revalidatePath('/gestionnaire/biens')
-
-      // If lot has a building, revalidate the building page too
-      if (result.data?.building_id) {
-        revalidatePath(`/gestionnaire/biens/immeubles/${result.data.building_id}`)
-      }
     } else {
       logger.error('❌ [UPDATE-LOT-ACTION] Lot update failed', {
         lotId,
@@ -89,13 +102,25 @@ export async function deleteLotAction(
         lotId
       })
 
-      // Revalidate the list page (lot detail page will redirect)
-      revalidatePath('/gestionnaire/biens')
-
-      // If lot had a building, revalidate that building's page
+      // ✅ Revalidate using both tags and paths
+      revalidateTag('lots')
       if (buildingId) {
+        revalidateTag('buildings')
+        revalidateTag(`building-${buildingId}`)
+        const supabase = await createServerActionSupabaseClient()
+        const { data: buildingData } = await supabase
+          .from('buildings')
+          .select('team_id')
+          .eq('id', buildingId)
+          .single()
+        
+        if (buildingData?.team_id) {
+          revalidateTag(`buildings-team-${buildingData.team_id}`)
+          revalidateTag(`lots-team-${buildingData.team_id}`)
+        }
         revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
       }
+      revalidatePath('/gestionnaire/biens')
     } else {
       logger.error('❌ [DELETE-LOT-ACTION] Lot deletion failed', {
         lotId,

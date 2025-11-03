@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -285,8 +285,8 @@ export default function LotEditClient({
   }
 
   return (
-    <div className="layout-padding min-h-screen bg-gray-50 py-2 sm:py-3">
-      {/* Header */}
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header - Sticky at top */}
       <StepProgressHeader
         title="Modifier le lot"
         subtitle={`Lot "${lotInfo.reference}"`}
@@ -296,8 +296,9 @@ export default function LotEditClient({
         currentStep={currentStep}
       />
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-5 sm:pt-6 lg:pt-10 pb-20">
+        <main className="max-w-6xl mx-auto pb-8">
         {/* Success/Error Alerts */}
         {success && (
           <Alert className="mb-6 border-green-200 bg-green-50">
@@ -344,13 +345,6 @@ export default function LotEditClient({
                 </p>
               </div>
             )}
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-end mt-6">
-              <Button onClick={handleNext}>
-                Suivant
-              </Button>
-            </div>
           </div>
         )}
 
@@ -388,16 +382,6 @@ export default function LotEditClient({
               entityType="lot"
               showTitle={false}
             />
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-6">
-              <Button variant="outline" onClick={handlePrevious}>
-                Précédent
-              </Button>
-              <Button onClick={handleNext} disabled={saving}>
-                Suivant
-              </Button>
-            </div>
           </div>
         )}
 
@@ -446,16 +430,6 @@ export default function LotEditClient({
               removeBuildingManager={removeBuildingManager}
               toggleLotExpansion={toggleLotExpansion}
             />
-
-            {/* Navigation Buttons */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-between shadow-lg mt-6">
-              <Button variant="outline" onClick={handlePrevious} disabled={saving}>
-                Précédent
-              </Button>
-              <Button onClick={handleNext} disabled={saving}>
-                Suivant
-              </Button>
-            </div>
           </div>
         )}
 
@@ -488,26 +462,54 @@ export default function LotEditClient({
                 [lotId]: lotManagers.map(m => m.user)
               }}
             />
-
-            {/* Navigation Buttons */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-between shadow-lg mt-6">
-              <Button variant="outline" onClick={handlePrevious} disabled={saving}>
-                Précédent
-              </Button>
-              <Button onClick={handleSave} disabled={saving} className="min-w-[120px]">
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    Enregistrement...
-                  </>
-                ) : (
-                  "Enregistrer"
-                )}
-              </Button>
-            </div>
           </div>
         )}
-      </main>
+        </main>
+      </div>
+
+      {/* Sticky Footer Navigation - Outside all steps */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
+        <div className="flex justify-between w-full max-w-6xl mx-auto">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 1 || saving}
+            className="flex items-center space-x-2 bg-transparent"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Précédent</span>
+          </Button>
+
+          {currentStep < 4 ? (
+            <Button
+              onClick={handleNext}
+              disabled={saving}
+              className="flex items-center space-x-2"
+            >
+              <span>Suivant : {lotSteps[currentStep]?.label || 'Étape suivante'}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 min-w-[140px]"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <span>Enregistrement...</span>
+                </>
+              ) : (
+                <>
+                  <span>Enregistrer</span>
+                  <Check className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

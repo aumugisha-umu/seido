@@ -67,9 +67,6 @@ export function BuildingContactCardV3({
   onAddContact,
   onRemoveContact
 }: BuildingContactCardV3Props) {
-  // Total contact count
-  const totalContacts = buildingManagers.length + providers.length + owners.length + others.length
-
   return (
     <Card className="border-blue-300 shadow-md gap-0 py-0">
       {/* Header - Ultra Compact */}
@@ -106,29 +103,6 @@ export function BuildingContactCardV3({
               <p className="text-xs">{buildingName || buildingAddress}</p>
             </TooltipContent>
           </Tooltip>
-
-          {/* Total Count Badge - Always visible */}
-          {totalContacts > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge
-                  variant="secondary"
-                  className="text-sm bg-slate-100 text-slate-700 font-semibold px-2.5 py-0.5 cursor-help flex-shrink-0"
-                >
-                  {totalContacts}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold">{totalContacts} contacts au total</p>
-                  <p className="text-xs">• {buildingManagers.length} Gestionnaires</p>
-                  <p className="text-xs">• {providers.length} Prestataires</p>
-                  <p className="text-xs">• {owners.length} Propriétaires</p>
-                  <p className="text-xs">• {others.length} Autres</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
         </div>
       </CardHeader>
 

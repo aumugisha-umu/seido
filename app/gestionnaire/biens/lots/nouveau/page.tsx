@@ -17,16 +17,16 @@ import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import PropertySelector from "@/components/property-selector"
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
-import { BuildingContactsStepV2 } from "@/components/building-contacts-step-v2"
+import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { createTeamService, createLotService, createContactInvitationService } from "@/lib/services"
-import type { Team } from "@/lib/services/core/service-types"
+import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { useToast } from "@/hooks/use-toast"
-import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction } from "./actions"
+import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations } from "./actions"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -175,15 +175,21 @@ export default function NewLotPage() {
   const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
   const [lotContactAssignments, setLotContactAssignments] = useState<{
     [lotId: string]: {
-      [contactType: string]: { id: string; name: string; email: string; type: string }[]
+      [contactType: string]: Contact[]
     }
   }>({})
   const [assignedManagersByLot, setAssignedManagersByLot] = useState<{
-    [lotId: string]: { id: string; name: string; email: string; role: string }[]
+    [lotId: string]: UserType[]
   }>({})
+  // Format identique à la création d'immeuble: tenant, provider, owner, other
   const [buildingContacts, setBuildingContacts] = useState<{
-    [type: string]: { id: string; name: string; email: string; type: string }[]
-  }>({})
+    [type: string]: Contact[]
+  }>({
+    tenant: [],
+    provider: [],
+    owner: [],
+    other: [],
+  })
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
   const [services, setServices] = useState<{
@@ -1281,10 +1287,17 @@ export default function NewLotPage() {
   const addLotManager = (manager: TeamManager) => {
     // 🆕 Si on a un lotId actif (mode multi-lots), assigner au lot spécifique
     if (currentLotIdForModal) {
-      setAssignedManagersByLot(prev => ({
-        ...prev,
-        [currentLotIdForModal]: [...(prev[currentLotIdForModal] || []), manager]
-      }))
+      setAssignedManagersByLot(prev => {
+        const existingManagers = prev[currentLotIdForModal] || []
+        // Check if manager is already assigned
+        const alreadyAssigned = existingManagers.some(m => m.id === manager.user.id)
+        if (alreadyAssigned) return prev
+        
+        return {
+          ...prev,
+          [currentLotIdForModal]: [...existingManagers, manager.user]
+        }
+      })
       setCurrentLotIdForModal(null)
       setIsLotManagerModalOpen(false)
       return
@@ -1319,9 +1332,155 @@ export default function NewLotPage() {
     }))
   }
 
-  // 🆕 Helper functions for BuildingContactsStepV2
+  // 🆕 Helper functions for BuildingContactsStepV3
   const [currentLotIdForModal, setCurrentLotIdForModal] = useState<string | null>(null)
   const [buildingManagers, setBuildingManagers] = useState<UserType[]>([])
+  const [isLoadingBuildingData, setIsLoadingBuildingData] = useState(false)
+  // buildingContacts est déjà déclaré plus haut, on l'utilise directement
+
+  // ✅ Load building data when a building is selected (for existing building mode)
+  useEffect(() => {
+    const loadBuildingData = async () => {
+      if (lotData.buildingAssociation !== "existing" || !lotData.selectedBuilding) {
+        // Reset if no building selected - format identique à l'initialisation
+        setBuildingManagers([])
+        setBuildingContacts({
+          tenant: [],
+          provider: [],
+          owner: [],
+          other: [],
+        })
+        return
+      }
+
+      setIsLoadingBuildingData(true)
+      try {
+        const result = await getBuildingWithRelations(lotData.selectedBuilding)
+        if (!result.success || !result.building) {
+          throw new Error(result.error || "Building data not found")
+        }
+
+        const building = result.building
+        
+        // ✅ Extract building managers (type='gestionnaire' in building_contacts)
+        // S'assurer que building_contacts est un tableau
+        const buildingContactsArray = Array.isArray(building.building_contacts) 
+          ? building.building_contacts 
+          : []
+        
+        const rawManagers = buildingContactsArray.filter((bc: any) => {
+          if (!bc || typeof bc !== 'object') return false
+          if (!bc.user || typeof bc.user !== 'object') return false
+          const role = bc.user?.role
+          return role === 'gestionnaire' || role === 'admin'
+        })
+        
+        // ✅ Normalize managers to ensure all required properties exist
+        // S'assurer que rawManagers est un tableau avant d'appeler .map()
+        const safeRawManagers = Array.isArray(rawManagers) ? rawManagers : []
+        const managers: UserType[] = safeRawManagers
+          .map((bc: any) => {
+            // Vérifications défensives supplémentaires
+            if (!bc || typeof bc !== 'object') return null
+            
+            const user = bc.user
+            if (!user || typeof user !== 'object') return null
+            
+            // Valider que l'id existe et n'est pas vide (requis)
+            if (!user.id || typeof user.id !== 'string' || user.id.trim() === '') return null
+            
+            // Ensure all required properties for User type (matching service-types.ts)
+            // Inclure tous les champs requis même avec des valeurs par défaut
+            const normalizedManager: UserType = {
+              id: user.id,
+              auth_user_id: user.auth_user_id || null,
+              email: user.email || '',
+              name: user.name || user.email || 'Sans nom',
+              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire') || 'gestionnaire',
+              phone: user.phone || null,
+              provider_category: user.provider_category || null,
+              speciality: user.speciality || null,
+              is_active: user.is_active !== undefined ? user.is_active : true,
+              password_set: user.password_set !== undefined ? user.password_set : false,
+              // Ces champs ne sont pas disponibles depuis building_contacts mais requis par User
+              // On utilise des valeurs par défaut pour la compatibilité
+              created_at: user.created_at || new Date().toISOString(),
+              updated_at: user.updated_at || new Date().toISOString(),
+            }
+            
+            return normalizedManager
+          })
+          .filter((m): m is UserType => m !== null && m.id && m.id.trim() !== '')
+        
+        setBuildingManagers(managers)
+
+        // ✅ Extract building contacts grouped by type (tenant, provider, owner, other)
+        // Format identique à la création d'immeuble pour compatibilité
+        const contacts: { [type: string]: Contact[] } = {
+          tenant: [],
+          provider: [],
+          owner: [],
+          other: []
+        }
+
+        // Utiliser le tableau sécurisé buildingContactsArray
+        buildingContactsArray.forEach((bc: any) => {
+          // Vérifications défensives
+          if (!bc || typeof bc !== 'object') return
+          if (!bc.user || typeof bc.user !== 'object') return
+          
+          // Valider que l'id existe et n'est pas vide (requis pour Contact)
+          if (!bc.user.id || typeof bc.user.id !== 'string' || bc.user.id.trim() === '') return
+          
+          // Skip gestionnaires (they're in buildingManagers)
+          const role = bc.user.role
+          if (role === 'gestionnaire' || role === 'admin') return
+
+          // Créer le contact avec tous les champs requis
+          const contact: Contact = {
+            id: bc.user.id,
+            name: bc.user.name || bc.user.email || '',
+            email: bc.user.email || '',
+            type: role || 'other',
+            phone: bc.user.phone || undefined,
+            speciality: bc.user.speciality || bc.user.provider_category || undefined
+          }
+
+          // Map by role - format identique à la création d'immeuble
+          if (role === 'locataire') {
+            contacts.tenant.push(contact)
+          } else if (role === 'prestataire') {
+            contacts.provider.push(contact)
+          } else if (role === 'proprietaire') {
+            contacts.owner.push(contact)
+          } else {
+            contacts.other.push(contact)
+          }
+        })
+
+        setBuildingContacts(contacts)
+      } catch (error) {
+        logger.error("❌ [LOT-CREATION] Error loading building data:", error)
+        toast({
+          title: "Erreur de chargement",
+          description: "Impossible de charger les données de l'immeuble. Veuillez réessayer.",
+          variant: "destructive",
+        })
+        // Reset on error - format identique à l'initialisation
+        setBuildingManagers([])
+        setBuildingContacts({
+          tenant: [],
+          provider: [],
+          owner: [],
+          other: [],
+        })
+      } finally {
+        setIsLoadingBuildingData(false)
+      }
+    }
+
+    loadBuildingData()
+  }, [lotData.buildingAssociation, lotData.selectedBuilding, toast])
 
   const getLotContactsByType = (lotId: string, contactType: string): Contact[] => {
     return lotContactAssignments[lotId]?.[contactType] || []
@@ -1339,7 +1498,7 @@ export default function NewLotPage() {
   const removeManagerFromLot = (lotId: string, managerId: string) => {
     setAssignedManagersByLot(prev => ({
       ...prev,
-      [lotId]: (prev[lotId] || []).filter(m => m.user.id !== managerId)
+      [lotId]: (prev[lotId] || []).filter(m => m.id !== managerId)
     }))
   }
 
@@ -1369,12 +1528,19 @@ export default function NewLotPage() {
 
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
     if (context?.lotId) {
+      // Ajouter contact au lot spécifique
       setLotContactAssignments(prev => ({
         ...prev,
         [context.lotId]: {
           ...prev[context.lotId],
           [contactType]: [...(prev[context.lotId]?.[contactType] || []), contact]
         }
+      }))
+    } else {
+      // Ajouter contact à l'immeuble (pour contacts temporaires avant validation)
+      setBuildingContacts(prev => ({
+        ...prev,
+        [contactType]: [...(prev[contactType] || []), contact]
       }))
     }
   }
@@ -1399,7 +1565,7 @@ export default function NewLotPage() {
   }
 
   const renderStep3 = () => {
-    // ✅ Mode "existing building" - Utiliser BuildingContactsStepV2 pour multi-lots
+    // ✅ Mode "existing building" - Utiliser BuildingContactsStepV3 avec BuildingContactCardV3 et LotContactCardV4
     if (lotData.buildingAssociation === "existing") {
       const selectedBuilding = managerData?.buildings?.find(
         b => b.id === lotData.selectedBuilding
@@ -1413,43 +1579,89 @@ export default function NewLotPage() {
         )
       }
 
+      // Show loading state while building data is being fetched
+      if (isLoadingBuildingData) {
+        return (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Chargement des données de l'immeuble...</span>
+          </div>
+        )
+      }
+
+      const safeBuildingManagers = Array.isArray(buildingManagers) ? buildingManagers : []
+      const safeBuildingContacts = buildingContacts && typeof buildingContacts === 'object' 
+        ? {
+            tenant: Array.isArray(buildingContacts.tenant) ? buildingContacts.tenant : [],
+            provider: Array.isArray(buildingContacts.provider) ? buildingContacts.provider : [],
+            owner: Array.isArray(buildingContacts.owner) ? buildingContacts.owner : [],
+            other: Array.isArray(buildingContacts.other) ? buildingContacts.other : [],
+          }
+        : {
+            tenant: [],
+            provider: [],
+            owner: [],
+            other: [],
+          }
+
       return (
-        <BuildingContactsStepV2
-          buildingInfo={{
-            name: selectedBuilding?.name || "Immeuble",
-            address: selectedBuilding?.address || "",
-            postalCode: "",
-            city: "",
-            country: "",
-            description: ""
-          }}
-          teamManagers={teamManagers}
-          buildingManagers={buildingManagers}
-          userProfile={{
-            id: user.id,
-            email: user.email || "",
-            name: user.user_metadata?.name || user.email || "",
-            role: user.user_metadata?.role || "gestionnaire"
-          }}
-          userTeam={userTeam}
-          lots={lots}
-          expandedLots={expandedLots}
-          buildingContacts={buildingContacts}
-          lotContactAssignments={lotContactAssignments}
-          assignedManagers={assignedManagersByLot}
-          contactSelectorRef={contactSelectorRef}
-          handleContactAdd={handleContactAdd}
-          handleBuildingContactRemove={handleBuildingContactRemove}
-          removeContactFromLot={removeContactFromLot}
-          getLotContactsByType={getLotContactsByType}
-          getAllLotContacts={getAllLotContacts}
-          getAssignedManagers={getAssignedManagers}
-          removeManagerFromLot={removeManagerFromLot}
-          openManagerModal={openManagerModal}
-          openBuildingManagerModal={openBuildingManagerModal}
-          removeBuildingManager={removeBuildingManager}
-          toggleLotExpansion={toggleLotExpansion}
-        />
+        <>
+          {/* Hidden ContactSelector for BuildingContactsStepV3 (used via ref) */}
+          <ContactSelector
+            ref={contactSelectorRef}
+            teamId={userTeam?.id || ""}
+            displayMode="compact"
+            hideUI={true}
+            selectedContacts={safeBuildingContacts}
+            lotContactAssignments={lotContactAssignments}
+            onContactSelected={handleContactAdd}
+            onContactRemoved={(contactId: string, contactType: string, context?: { lotId?: string }) => {
+              if (context?.lotId) {
+                removeContactFromLot(context.lotId, contactType, contactId)
+              } else {
+                handleBuildingContactRemove(contactId, contactType)
+              }
+            }}
+            allowedContactTypes={["tenant", "provider", "owner", "other"]}
+          />
+          
+          <BuildingContactsStepV3
+            buildingInfo={{
+              name: selectedBuilding?.name || "Immeuble",
+              address: selectedBuilding?.address || "",
+              postalCode: selectedBuilding?.postal_code || "",
+              city: selectedBuilding?.city || "",
+              country: selectedBuilding?.country || "",
+              description: selectedBuilding?.description || ""
+            }}
+            teamManagers={teamManagers.map(tm => tm.user)} // Convert to UserType[]
+            buildingManagers={safeBuildingManagers}
+            userProfile={{
+              id: user.id,
+              email: user.email || "",
+              name: user.user_metadata?.name || user.email || "",
+              role: user.user_metadata?.role || "gestionnaire"
+            }}
+            userTeam={userTeam}
+            lots={lots}
+            expandedLots={expandedLots}
+            buildingContacts={safeBuildingContacts}
+            lotContactAssignments={lotContactAssignments}
+            assignedManagers={assignedManagersByLot}
+            contactSelectorRef={contactSelectorRef}
+            handleContactAdd={handleContactAdd}
+            handleBuildingContactRemove={handleBuildingContactRemove}
+            removeContactFromLot={removeContactFromLot}
+            getLotContactsByType={getLotContactsByType}
+            getAllLotContacts={getAllLotContacts}
+            getAssignedManagers={getAssignedManagers}
+            removeManagerFromLot={removeManagerFromLot}
+            openManagerModal={openManagerModal}
+            openBuildingManagerModal={openBuildingManagerModal}
+            removeBuildingManager={removeBuildingManager}
+            toggleLotExpansion={toggleLotExpansion}
+          />
+        </>
       )
     }
 

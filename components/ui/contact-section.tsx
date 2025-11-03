@@ -2,6 +2,7 @@
 
 import React from "react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   User,
@@ -21,7 +22,7 @@ interface BaseContact {
   email: string
   type?: string
   phone?: string | null
-  speciality?: string
+  speciality?: string | null
 }
 
 /**
@@ -240,7 +241,15 @@ export function ContactSection({
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{contact.name}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-medium text-sm truncate">{contact.name}</span>
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs px-1.5 py-0 ${colorScheme.badgeBg} text-white border-0 flex-shrink-0`}
+                      >
+                        {config.label}
+                      </Badge>
+                    </div>
                     <div className="text-xs text-gray-500 truncate">{contact.email}</div>
                   </div>
                 </div>

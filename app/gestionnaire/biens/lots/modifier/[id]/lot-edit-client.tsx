@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { BuildingInfoForm } from "@/components/building-info-form"
-import { BuildingContactsStepV2 } from "@/components/building-contacts-step-v2"
+import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
 import type { LotInfo, ContactsByType, BuildingInfo } from "@/lib/utils/lot-transform"
 import type { User } from "@/lib/services/core/service-types"
@@ -404,7 +404,7 @@ export default function LotEditClient({
         {/* Step 3: Contacts and Managers */}
         {currentStep === 3 && (
           <div className="space-y-4">
-            <BuildingContactsStepV2
+            <BuildingContactsStepV3
               buildingInfo={{
                 name: building?.name || "Lot indépendant",
                 address: building?.address || "",

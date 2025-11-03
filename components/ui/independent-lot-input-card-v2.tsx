@@ -190,70 +190,89 @@ export function IndependentLotInputCardV2({
       {/* Expanded Content */}
       {isExpanded && (
         <CardContent className="p-3 pt-0 space-y-3">
-          {/* Segmented Control - Horizontal Scrollable Chips */}
-          <div>
-            <Label className="text-xs font-medium text-slate-700 mb-2 block">
-              Catégorie
-              <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <RadioGroup
-              value={lot.category}
-              onValueChange={(value) => onUpdate("category", value)}
-              className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100"
-              aria-label="Sélectionner une catégorie de lot"
-            >
-              {categories.map((category) => {
-                const Icon = iconComponents[category.icon as keyof typeof iconComponents]
-                const isSelected = lot.category === category.key
+          {/* Grid 2-Column: Reference (left) + Category (right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-3">
+            {/* Reference - Left Column */}
+            <div>
+              <Label
+                htmlFor={`reference-${lot.id}`}
+                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-2"
+              >
+                <Hash className="w-3 h-3" />
+                Référence
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id={`reference-${lot.id}`}
+                value={lot.reference || ""}
+                onChange={(e) => onUpdate("reference", e.target.value)}
+                placeholder="Ex: Appartement 3"
+                className="h-9 text-sm"
+                required
+                aria-required="true"
+              />
+            </div>
 
-                return (
-                  <label
-                    key={category.key}
-                    className="flex-shrink-0 snap-start cursor-pointer"
-                  >
-                    <RadioGroupItem
-                      value={category.key}
-                      className="sr-only"
-                      id={`category-${category.key}-${lot.id}`}
-                    />
-                    <div
-                      className={`
-                        flex items-center gap-1.5 px-3 py-2 rounded-full border-2 transition-all duration-200
-                        ${
-                          isSelected
-                            ? `${category.bgColor} ${category.borderColor} ${category.color} shadow-sm font-medium`
-                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                        }
-                      `}
-                      role="radio"
-                      aria-checked={isSelected}
-                      aria-label={category.label}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault()
-                          onUpdate("category", category.key)
-                        }
-                      }}
+            {/* Category - Right Column */}
+            <div>
+              <Label className="text-xs font-medium text-slate-700 mb-2 block">
+                Catégorie
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <RadioGroup
+                value={lot.category}
+                onValueChange={(value) => onUpdate("category", value)}
+                className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100"
+                aria-label="Sélectionner une catégorie de lot"
+              >
+                {categories.map((category) => {
+                  const Icon = iconComponents[category.icon as keyof typeof iconComponents]
+                  const isSelected = lot.category === category.key
+
+                  return (
+                    <label
+                      key={category.key}
+                      className="flex-shrink-0 snap-start cursor-pointer"
                     >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-xs whitespace-nowrap">
-                        {category.label}
-                      </span>
-                    </div>
-                  </label>
-                )
-              })}
-            </RadioGroup>
+                      <RadioGroupItem
+                        value={category.key}
+                        className="sr-only"
+                        id={`category-${category.key}-${lot.id}`}
+                      />
+                      <div
+                        className={`
+                          flex items-center gap-1.5 px-3 py-2 rounded-full border-2 transition-all duration-200
+                          ${
+                            isSelected
+                              ? `${category.bgColor} ${category.borderColor} ${category.color} shadow-sm font-medium`
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                          }
+                        `}
+                        role="radio"
+                        aria-checked={isSelected}
+                        aria-label={category.label}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            onUpdate("category", category.key)
+                          }
+                        }}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-xs whitespace-nowrap">
+                          {category.label}
+                        </span>
+                      </div>
+                    </label>
+                  )
+                })}
+              </RadioGroup>
+            </div>
           </div>
 
           {/* ADDRESS SECTION - New for Independent Lots */}
-          <div className="bg-blue-50/30 border border-blue-200 rounded-lg p-3 space-y-2">
-            <Label className="text-xs font-medium text-slate-700 flex items-center gap-1.5 mb-2">
-              <MapPin className="w-4 h-4 text-blue-600" />
-              Adresse du lot
-            </Label>
-
+          <div className="space-y-2">
             {/* Street - Full Width */}
             <div>
               <Label
@@ -345,29 +364,8 @@ export function IndependentLotInputCardV2({
           </div>
 
           {/* LOT DETAILS SECTION */}
-          {/* Grid 3-Column: Reference + Floor + Door */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {/* Reference */}
-            <div>
-              <Label
-                htmlFor={`reference-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
-              >
-                <Hash className="w-3 h-3" />
-                Référence
-                <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id={`reference-${lot.id}`}
-                value={lot.reference || ""}
-                onChange={(e) => onUpdate("reference", e.target.value)}
-                placeholder="Ex: Appartement 3"
-                className="h-9 text-sm"
-                required
-                aria-required="true"
-              />
-            </div>
-
+          {/* Grid 2-Column: Floor + Door */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {/* Floor */}
             <div>
               <Label

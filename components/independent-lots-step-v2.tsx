@@ -47,6 +47,21 @@ export function IndependentLotsStepV2({
   onRemoveLot,
   onToggleLotExpansion
 }: IndependentLotsStepV2Props) {
+  // Validation: tous les champs obligatoires doivent être remplis pour permettre d'ajouter un nouveau lot
+  const areAllLotsValid = () => {
+    return lots.every(lot => {
+      const hasReference = lot.reference && lot.reference.trim().length >= 2
+      const hasStreet = lot.street && lot.street.trim().length >= 3
+      const hasPostalCode = lot.postalCode && lot.postalCode.trim().length >= 2
+      const hasCity = lot.city && lot.city.trim().length >= 2
+      const hasCountry = lot.country && lot.country.trim().length > 0
+
+      return hasReference && hasStreet && hasPostalCode && hasCity && hasCountry
+    })
+  }
+
+  const canAddNewLot = areAllLotsValid()
+
   return (
     <div className="space-y-3 @container">
       {/* Header with Add Button */}
@@ -64,6 +79,8 @@ export function IndependentLotsStepV2({
           onClick={onAddLot}
           size="sm"
           className="bg-green-600 hover:bg-green-700"
+          disabled={!canAddNewLot}
+          title={!canAddNewLot ? "Veuillez compléter tous les champs obligatoires des lots existants" : undefined}
         >
           <Plus className="w-4 h-4 mr-1.5" />
           Ajouter un lot

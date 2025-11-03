@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Search, Filter, ChevronDown } from "lucide-react"
 
@@ -106,12 +105,13 @@ export default function ContentNavigator({
 
   // Détecter si c'est un usage compact (dashboard) via className
   const isCompact = className.includes('flex-1') || className.includes('min-h-0')
-  
+
   return (
-    <Card className={`flex-1 min-h-0 flex flex-col ${className} ${isCompact ? '' : ''}`}>
-      <CardContent className={`pt-0 ${isCompact ? 'space-y-1 flex-1 flex flex-col min-h-0' : 'space-y-2 flex-1 flex flex-col min-h-0'}`}>
+    <div className={`flex-1 min-h-0 flex flex-col border border-slate-200 rounded-lg shadow-sm bg-white ${className}`}>
+      {/* Padding container to replace CardContent */}
+      <div className={`${isCompact ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0' : 'p-6 space-y-2 flex-1 flex flex-col min-h-0'}`}>
         {/* Navigation Controls */}
-        <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2'}`}>
+        <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2 flex-shrink-0'}`}>
           {/* Mobile Layout - Single Row */}
           <div className="block md:hidden">
             {/* Mobile: Selector + Search + Filters on same line */}
@@ -440,7 +440,7 @@ export default function ContentNavigator({
         <div className="mt-2 flex-1 flex flex-col min-h-0">
           {activeTabData?.content}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

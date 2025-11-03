@@ -140,9 +140,9 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   }, [handleRefresh])
 
   return (
-    <div className="layout-padding">
+    <div className="layout-padding flex flex-col flex-1 min-h-0">
       {/* Page Header */}
-      <div className="mb-6 lg:mb-8">
+      <div className="mb-6 lg:mb-8 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">

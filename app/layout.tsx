@@ -51,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
+        className={`h-screen font-sans ${GeistSans.variable} ${GeistMono.variable}`}
         suppressHydrationWarning={true}
       >
         <PWARegister />

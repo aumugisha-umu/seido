@@ -193,9 +193,10 @@ export default function NewLotPage() {
   })
 
   // ✅ NEW: Independent lots state (pour mode "independent")
+  const initialLotId = `lot-${Date.now()}`
   const [independentLots, setIndependentLots] = useState<IndependentLot[]>([
     {
-      id: `lot-${Date.now()}`,
+      id: initialLotId,
       reference: "Lot 1",
       category: "appartement",
       street: "",
@@ -207,7 +208,9 @@ export default function NewLotPage() {
       description: ""
     }
   ])
-  const [expandedIndependentLots, setExpandedIndependentLots] = useState<{[key: string]: boolean}>({})
+  const [expandedIndependentLots, setExpandedIndependentLots] = useState<{[key: string]: boolean}>({
+    [initialLotId]: true // ✅ Premier lot ouvert par défaut
+  })
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
   const [services, setServices] = useState<{
@@ -544,6 +547,30 @@ export default function NewLotPage() {
     }
   }, [currentStep, lotData.buildingAssociation, lots])
 
+  // ✅ Assigner automatiquement le gestionnaire au premier lot indépendant initial
+  useEffect(() => {
+    if (!user || !selectedManagerId || teamManagers.length === 0) {
+      return // Attendre que les données soient chargées
+    }
+
+    // Vérifier s'il y a un premier lot indépendant sans gestionnaire
+    if (independentLots.length > 0) {
+      const firstLot = independentLots[0]
+      const hasManager = assignedManagersByLot[firstLot.id]?.length > 0
+
+      if (!hasManager) {
+        const currentUserAsManager = teamManagers.find(m => m.user.id === user.id)
+        if (currentUserAsManager) {
+          setAssignedManagersByLot(prev => ({
+            ...prev,
+            [firstLot.id]: [currentUserAsManager.user]
+          }))
+          logger.info("👤 [INDEPENDENT-LOT] Default manager assigned to initial lot:", currentUserAsManager.user.name)
+        }
+      }
+    }
+  }, [user, selectedManagerId, teamManagers, independentLots, assignedManagersByLot])
+
   // ========================================
   // Fonctions de gestion multi-lots
   // ========================================
@@ -572,6 +599,18 @@ export default function NewLotPage() {
     // Ouvrir seulement le nouveau lot
     setExpandedLots({ [newLot.id]: true })
 
+    // ✅ Assigner automatiquement l'utilisateur actuel comme gestionnaire par défaut
+    if (user && selectedManagerId) {
+      const currentUserAsManager = teamManagers.find(m => m.user.id === user.id)
+      if (currentUserAsManager) {
+        setAssignedManagersByLot(prev => ({
+          ...prev,
+          [newLot.id]: [currentUserAsManager.user]
+        }))
+        logger.info("👤 [MULTI-LOT] Default manager assigned to new lot:", currentUserAsManager.user.name)
+      }
+    }
+
     logger.info("➕ [MULTI-LOT] Lot added:", newLot.reference)
   }
 
@@ -587,6 +626,26 @@ export default function NewLotPage() {
 
     setLots([newLot, ...lots])
     setExpandedLots({ [newLot.id]: true })
+
+    // ✅ Copier les gestionnaires du lot dupliqué
+    const existingManagers = assignedManagersByLot[lotId] || []
+    if (existingManagers.length > 0) {
+      setAssignedManagersByLot(prev => ({
+        ...prev,
+        [newLot.id]: [...existingManagers]
+      }))
+      logger.info("👤 [MULTI-LOT] Managers copied to duplicated lot")
+    }
+
+    // ✅ Copier les contacts du lot dupliqué
+    const existingContacts = lotContactAssignments[lotId]
+    if (existingContacts) {
+      setLotContactAssignments(prev => ({
+        ...prev,
+        [newLot.id]: { ...existingContacts }
+      }))
+      logger.info("📇 [MULTI-LOT] Contacts copied to duplicated lot")
+    }
 
     logger.info("📋 [MULTI-LOT] Lot duplicated:", newLot.reference)
   }
@@ -671,6 +730,18 @@ export default function NewLotPage() {
     // Ouvrir seulement le nouveau lot
     setExpandedIndependentLots({ [newLot.id]: true })
 
+    // ✅ Assigner automatiquement l'utilisateur actuel comme gestionnaire par défaut
+    if (user && selectedManagerId) {
+      const currentUserAsManager = teamManagers.find(m => m.user.id === user.id)
+      if (currentUserAsManager) {
+        setAssignedManagersByLot(prev => ({
+          ...prev,
+          [newLot.id]: [currentUserAsManager.user]
+        }))
+        logger.info("👤 [INDEPENDENT-LOT] Default manager assigned to new lot:", currentUserAsManager.user.name)
+      }
+    }
+
     logger.info("➕ [INDEPENDENT-LOT] Lot added:", newLot.reference)
   }
 
@@ -688,6 +759,26 @@ export default function NewLotPage() {
 
     setIndependentLots([newLot, ...independentLots])
     setExpandedIndependentLots({ [newLot.id]: true })
+
+    // ✅ Copier les gestionnaires du lot dupliqué
+    const existingManagers = assignedManagersByLot[lotId] || []
+    if (existingManagers.length > 0) {
+      setAssignedManagersByLot(prev => ({
+        ...prev,
+        [newLot.id]: [...existingManagers]
+      }))
+      logger.info("👤 [INDEPENDENT-LOT] Managers copied to duplicated lot")
+    }
+
+    // ✅ Copier les contacts du lot dupliqué
+    const existingContacts = lotContactAssignments[lotId]
+    if (existingContacts) {
+      setLotContactAssignments(prev => ({
+        ...prev,
+        [newLot.id]: { ...existingContacts }
+      }))
+      logger.info("📇 [INDEPENDENT-LOT] Contacts copied to duplicated lot")
+    }
 
     logger.info("📋 [INDEPENDENT-LOT] Lot duplicated:", newLot.reference)
   }
@@ -997,13 +1088,13 @@ export default function NewLotPage() {
 
         logger.info(`🚀 Creating ${independentLots.length} independent lots`)
 
-        // Mapping country names to database enum values
+        // Mapping country names to database enum values (lowercase French)
         const countryToDBEnum: Record<string, string> = {
-          "Belgique": "Belgium",
-          "France": "France",
-          "Luxembourg": "Luxembourg",
-          "Pays-Bas": "Netherlands",
-          "Allemagne": "Germany"
+          "Belgique": "belgique",
+          "France": "france",
+          "Luxembourg": "luxembourg",
+          "Pays-Bas": "pays-bas",
+          "Allemagne": "allemagne"
         }
 
         // Créer tous les lots en parallèle
@@ -1332,8 +1423,7 @@ export default function NewLotPage() {
     <Card>
       <CardContent className="py-6 space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Association immeuble</h2>
-          <p className="text-gray-600 mb-6">Comment souhaitez-vous gérer ce lot ?</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Lier à un immeuble</h2>
         </div>
 
         <RadioGroup
@@ -2090,12 +2180,6 @@ export default function NewLotPage() {
 
         {/* Lots Grid - Responsive layout like BuildingContactsStepV3 */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Contacts spécifiques aux lots
-            </h3>
-          </div>
-
           {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {independentLots.map((lot, index) => {
@@ -2203,265 +2287,81 @@ export default function NewLotPage() {
       )
     }
 
-    // Mode "independent" ou "new" - Garder le rendu actuel
+    // Mode "independent" avec multi-lots - Utiliser lot cards en mode preview
+    if (lotData.buildingAssociation === "independent") {
+      return (
+        <div className="space-y-4">
+          {/* Header compact - title and count on same line */}
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <MapPin className="h-4 w-4 text-blue-600" />
+                </div>
+                <h3 className="font-medium text-slate-900">Lots indépendants</h3>
+                <span className="text-sm text-slate-600">
+                  • {independentLots.length} lot{independentLots.length > 1 ? 's' : ''} à créer
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Lot Cards with expand/collapse enabled */}
+          <div className="space-y-3">
+            {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {independentLots.map((lot, index) => {
+                const lotNumber = independentLots.length - index
+                const lotManagers = assignedManagersByLot[lot.id] || []
+                const tenants = lotContactAssignments[lot.id]?.tenant || []
+                const providers = lotContactAssignments[lot.id]?.provider || []
+                const owners = lotContactAssignments[lot.id]?.owner || []
+                const others = lotContactAssignments[lot.id]?.other || []
+                const isExpanded = expandedIndependentLots[lot.id] || false
+
+                return (
+                  <div
+                    key={lot.id}
+                    className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
+                  >
+                    <LotContactCardV4
+                      lotNumber={lotNumber}
+                      lotReference={lot.reference}
+                      lotCategory={lot.category}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleIndependentLotExpansion(lot.id)}
+                      lotManagers={lotManagers}
+                      tenants={tenants}
+                      providers={providers}
+                      owners={owners}
+                      others={others}
+                      // Mode read-only pour confirmation
+                      readOnly={true}
+                      // Display lot details + address
+                      floor={lot.floor}
+                      doorNumber={lot.doorNumber}
+                      description={`${lot.street}, ${lot.postalCode} ${lot.city}${lot.description ? ` - ${lot.description}` : ''}`}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // Mode "new" (création d'immeuble) - Fallback (normalement redirigé)
+    // Ce cas ne devrait pas se produire car on redirige vers /immeubles/nouveau
     return (
-      <div className="space-y-4">
-        {/* Type d'association */}
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Building2 className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-slate-900">Association immeuble</h3>
-                  <p className="text-xs text-slate-600">{getAssociationType()}</p>
-                </div>
-              </div>
-
-              {/* Responsable Badge - Style compact Material Design */}
-              {buildingManager && (
-                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md flex-shrink-0">
-                  <User className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-medium text-xs text-blue-900 truncate">{buildingManager.user.name}</span>
-                    <span className="text-xs text-blue-600">•</span>
-                    <span className="text-xs text-blue-600 whitespace-nowrap">
-                      {lotData.buildingAssociation === "independent" ? "Responsable" : "Responsable"}
-                    </span>
-                    {buildingManager.user.id === user?.id && (
-                      <span className="inline-flex items-center px-1 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-sm border border-blue-300 ml-1">Vous</span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-              {/* Affichage selon le type d'association */}
-              {lotData.buildingAssociation === "existing" && (
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-xs font-medium text-slate-700">Immeuble sélectionné</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-900 pl-5">
-                      {managerData?.buildings?.find((b: any) => b.id === lotData.selectedBuilding)?.name || "Non trouvé"}
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-xs font-medium text-slate-700">Adresse</span>
-                    </div>
-                    <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
-                      <p className="text-sm font-medium text-slate-900 leading-relaxed">
-                        {managerData?.buildings?.find((b: any) => b.id === lotData.selectedBuilding)?.address || "Adresse non trouvée"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {lotData.buildingAssociation === "independent" && lotData.generalBuildingInfo && (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Home className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-xs font-medium text-slate-700">Référence du lot</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-900 pl-5">
-                      {lotData.generalBuildingInfo.name || "Non spécifié"}
-                    </p>
-                  </div>
-
-                  {/* Adresse complète */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-xs font-medium text-slate-700">Adresse complète</span>
-                    </div>
-                    <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
-                      <p className="text-sm font-medium text-slate-900 leading-relaxed">
-                        {[
-                          lotData.generalBuildingInfo.address,
-                          [lotData.generalBuildingInfo.postalCode, lotData.generalBuildingInfo.city].filter(Boolean).join(' '),
-                          lotData.generalBuildingInfo.country
-                        ].filter(Boolean).join(', ') || "Adresse non spécifiée"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  {lotData.generalBuildingInfo.description && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-3.5 h-3.5 text-slate-500" />
-                        <span className="text-xs font-medium text-slate-700">Description</span>
-                      </div>
-                      <div className="pl-5 bg-white rounded-md border border-slate-200 p-3">
-                        <p className="text-sm text-slate-700 leading-relaxed">{lotData.generalBuildingInfo.description}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Détails du lot */}
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-3">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <Home className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-slate-900">Détails du lot</h3>
-                <p className="text-xs text-slate-600">Configuration et caractéristiques</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-lg p-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                <div>
-                  <span className="text-xs font-medium text-slate-700">Référence :</span>
-                  <p className="text-sm text-slate-900">
-                    {lotData.buildingAssociation === "independent" 
-                      ? lotData.generalBuildingInfo?.name || lotData.reference
-                      : lotData.reference
-                    }
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-medium text-slate-700">Catégorie :</span>
-                  <p className="text-sm text-slate-900 capitalize">
-                    {lotData.buildingAssociation === "independent" 
-                      ? (lotData.generalBuildingInfo?.category || lotData.category)
-                      : lotData.category
-                    }
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-medium text-slate-700">Étage :</span>
-                  <p className="text-sm text-slate-900">
-                    {lotData.buildingAssociation === "independent" 
-                      ? (lotData.generalBuildingInfo?.floor || "0")
-                      : (lotData.floor || "0")
-                    }
-                  </p>
-                </div>
-              </div>
-              
-              {(lotData.doorNumber || lotData.generalBuildingInfo?.doorNumber) && (
-                <div className="mt-2">
-                  <span className="text-xs font-medium text-slate-700">Numéro de porte :</span>
-                  <p className="text-sm text-slate-900">
-                    {lotData.buildingAssociation === "independent" 
-                      ? (lotData.generalBuildingInfo?.doorNumber || "Non spécifié")
-                      : (lotData.doorNumber || "Non spécifié")
-                    }
-                  </p>
-                </div>
-              )}
-
-              {(lotData.description || (lotData.buildingAssociation === "independent" && lotData.generalBuildingInfo?.description)) && (
-                <div className="mt-2 pt-2 border-t border-slate-200">
-                  <span className="text-xs font-medium text-slate-700">Description :</span>
-                  <p className="text-xs text-slate-900">
-                    {lotData.buildingAssociation === "independent" 
-                      ? (lotData.generalBuildingInfo?.description || lotData.description)
-                      : lotData.description
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Contacts et gestionnaires */}
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-3">
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Users className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-slate-900">Contacts et gestionnaires</h3>
-                <p className="text-xs text-slate-600">Assignations pour ce lot</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-lg p-3 space-y-3">
-              {/* Gestionnaires spécifiques du lot */}
-              {(lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) && (
-                <div>
-                  <span className="text-xs font-medium text-slate-700 mb-2 block">Responsables spécifiques du lot :</span>
-                  <div className="space-y-1">
-                    {lotData.assignedLotManagers.map((manager, index) => (
-                      <div key={index} className="flex items-center gap-2 bg-white px-2 py-1 rounded border">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                        <span className="text-sm text-slate-900">{manager.name}</span>
-                        <span className="text-xs text-slate-600">({manager.email})</span>
-                        {manager.id === user?.id && (
-                          <Badge variant="outline" className="text-xs">Vous</Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Contacts assignés */}
-              {Object.values(lotData.assignedContacts).some(contactArray => contactArray.length > 0) && (
-                <div>
-                  <span className="text-xs font-medium text-slate-700 mb-2 block">Contacts assignés :</span>
-                  <div className="space-y-1">
-                    {Object.entries(lotData.assignedContacts).map(([type, contacts]) => 
-                      contacts.length > 0 && (
-                        <div key={type} className="flex items-center gap-2 bg-white px-2 py-1 rounded border">
-                          <div className={`w-2 h-2 rounded-full ${
-                            type === 'tenant' ? 'bg-blue-500' :
-                            type === 'provider' ? 'bg-green-500' :
-                            type === 'owner' ? 'bg-amber-500' : 'bg-slate-500'
-                          }`}></div>
-                          <span className="text-sm font-medium text-slate-900">
-                            {contacts.length} {
-                              type === 'tenant' ? 'locataire' :
-                              type === 'provider' ? 'prestataire' :
-                              type === 'owner' ? 'propriétaire' : 'autre'
-                            }{contacts.length > 1 ? 's' : ''}
-                          </span>
-                          <span className="text-xs text-slate-600">
-                            ({contacts.map(c => c.name).join(', ')})
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Message si aucun contact/gestionnaire */}
-              {!lotData.assignedLotManagers?.length && 
-               !Object.values(lotData.assignedContacts).some(contactArray => contactArray.length > 0) && (
-                <div className="text-center py-4">
-                  <p className="text-sm text-slate-500">Aucun contact ou gestionnaire spécifique assigné</p>
-                  <p className="text-xs text-slate-400">Le responsable principal gérera ce lot</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="text-center py-8">
+        <p className="text-red-600">
+          Mode de création d'immeuble - Vous devriez être redirigé vers la page de création d'immeuble
+        </p>
       </div>
     )
   }
+
 
   // Calculer le subtitle pour afficher l'immeuble sélectionné (à partir de l'étape 2)
   const getHeaderSubtitle = () => {

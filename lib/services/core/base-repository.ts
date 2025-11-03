@@ -106,6 +106,14 @@ export abstract class BaseRepository<
         .insert(dataWithId)
 
       if (insertError) {
+        // ✅ DEBUG: Log raw Supabase error before transformation
+        logger.error(`❌ [${this.tableName}:create:insert] RAW Supabase INSERT error:`, {
+          code: insertError.code,
+          message: insertError.message,
+          details: (insertError as any).details,
+          hint: (insertError as any).hint,
+          dataAttempted: dataWithId
+        })
         return createErrorResponse(handleError(insertError, `${this.tableName}:create:insert`))
       }
 

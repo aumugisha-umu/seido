@@ -240,7 +240,7 @@ function PropertySelectorView({
   }, [individualLots, searchTerm, filters])
 
   const buildingsContent = (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {loading ? (
           <>
@@ -625,7 +625,7 @@ function PropertySelectorView({
   )
 
   const individualLotsContent = (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {filteredIndividualLots.length === 0 ? (
           <div className="col-span-full text-center py-12 px-4">

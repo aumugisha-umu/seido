@@ -19,6 +19,9 @@ import PropertySelector from "@/components/property-selector"
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
+import { LotContactCardV4 } from "@/components/ui/lot-contact-card-v4"
+import { IndependentLotsStepV2 } from "@/components/independent-lots-step-v2"
+import type { IndependentLot } from "@/components/ui/independent-lot-input-card-v2"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
@@ -128,9 +131,7 @@ export default function NewLotPage() {
     assignedContacts: {
       tenant: [],
       provider: [],
-      syndic: [],
-      notary: [],
-      insurance: [],
+      owner: [],
       other: [],
     },
     assignedLotManagers: [],
@@ -190,6 +191,23 @@ export default function NewLotPage() {
     owner: [],
     other: [],
   })
+
+  // ✅ NEW: Independent lots state (pour mode "independent")
+  const [independentLots, setIndependentLots] = useState<IndependentLot[]>([
+    {
+      id: `lot-${Date.now()}`,
+      reference: "Lot 1",
+      category: "appartement",
+      street: "",
+      postalCode: "",
+      city: "",
+      country: "Belgique",
+      floor: "",
+      doorNumber: "",
+      description: ""
+    }
+  ])
+  const [expandedIndependentLots, setExpandedIndependentLots] = useState<{[key: string]: boolean}>({})
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
   const [services, setServices] = useState<{
@@ -628,6 +646,177 @@ export default function NewLotPage() {
     }))
   }
 
+  // ========================================
+  // Fonctions de gestion multi-lots INDÉPENDANTS
+  // ========================================
+
+  const addIndependentLot = () => {
+    const nextNumber = independentLots.length + 1
+    const newLot: IndependentLot = {
+      id: `independent-lot-${Date.now()}`,
+      reference: `Lot ${nextNumber}`,
+      category: "appartement",
+      street: "",
+      postalCode: "",
+      city: "",
+      country: "Belgique",
+      floor: "",
+      doorNumber: "",
+      description: ""
+    }
+
+    // Ajouter en haut de liste
+    setIndependentLots([newLot, ...independentLots])
+
+    // Ouvrir seulement le nouveau lot
+    setExpandedIndependentLots({ [newLot.id]: true })
+
+    logger.info("➕ [INDEPENDENT-LOT] Lot added:", newLot.reference)
+  }
+
+  const duplicateIndependentLot = (lotId: string) => {
+    const lotToDuplicate = independentLots.find(lot => lot.id === lotId)
+    if (!lotToDuplicate) return
+
+    const newLot: IndependentLot = {
+      ...lotToDuplicate,
+      id: `independent-lot-${Date.now()}`,
+      reference: `${lotToDuplicate.reference} (copie)`,
+      // Copie l'adresse mais on pourrait auto-incrémenter le numéro de porte
+      doorNumber: lotToDuplicate.doorNumber ? `${lotToDuplicate.doorNumber}-bis` : ""
+    }
+
+    setIndependentLots([newLot, ...independentLots])
+    setExpandedIndependentLots({ [newLot.id]: true })
+
+    logger.info("📋 [INDEPENDENT-LOT] Lot duplicated:", newLot.reference)
+  }
+
+  const removeIndependentLot = (lotId: string) => {
+    if (independentLots.length <= 1) {
+      toast({
+        title: "⚠️ Impossible de supprimer",
+        description: "Au moins un lot est requis",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIndependentLots(independentLots.filter(lot => lot.id !== lotId))
+
+    // Nettoyer les états associés
+    const newExpandedLots = {...expandedIndependentLots}
+    delete newExpandedLots[lotId]
+    setExpandedIndependentLots(newExpandedLots)
+
+    const newContactAssignments = {...lotContactAssignments}
+    delete newContactAssignments[lotId]
+    setLotContactAssignments(newContactAssignments)
+
+    const newManagerAssignments = {...assignedManagersByLot}
+    delete newManagerAssignments[lotId]
+    setAssignedManagersByLot(newManagerAssignments)
+
+    logger.info("🗑️ [INDEPENDENT-LOT] Lot removed:", lotId)
+  }
+
+  const updateIndependentLot = (lotId: string, field: keyof IndependentLot, value: string) => {
+    setIndependentLots(independentLots.map(lot => {
+      if (lot.id === lotId) {
+        const updatedLot = { ...lot, [field]: value }
+
+        // Si la catégorie change, on peut recalculer la référence
+        if (field === 'category') {
+          const categoryConfig = getLotCategoryConfig(value as LotCategory)
+          const existingLotsOfCategory = independentLots.filter(l => l.category === value && l.id !== lotId).length
+          const nextNumber = existingLotsOfCategory + 1
+          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
+        }
+
+        return updatedLot
+      }
+      return lot
+    }))
+  }
+
+  const toggleIndependentLotExpansion = (lotId: string) => {
+    setExpandedIndependentLots(prev => ({
+      ...prev,
+      [lotId]: !prev[lotId]
+    }))
+  }
+
+  // ========================================
+  // Validation pour lots indépendants
+  // ========================================
+
+  const validateIndependentLots = (): { valid: boolean; message?: string } => {
+    if (independentLots.length === 0) {
+      return { valid: false, message: "Au moins un lot est requis" }
+    }
+
+    // Valider chaque lot
+    for (let i = 0; i < independentLots.length; i++) {
+      const lot = independentLots[i]
+      const lotNumber = independentLots.length - i // Pour l'affichage
+
+      // Validation référence
+      if (!lot.reference || lot.reference.trim().length < 2) {
+        return {
+          valid: false,
+          message: `Lot ${lotNumber}: Référence requise (min 2 caractères)`
+        }
+      }
+
+      // Validation adresse - rue
+      if (!lot.street || lot.street.trim().length < 3) {
+        return {
+          valid: false,
+          message: `Lot ${lotNumber} (${lot.reference}): Rue requise (min 3 caractères)`
+        }
+      }
+
+      // Validation adresse - code postal
+      if (!lot.postalCode || lot.postalCode.trim().length < 2) {
+        return {
+          valid: false,
+          message: `Lot ${lotNumber} (${lot.reference}): Code postal requis`
+        }
+      }
+
+      // Validation adresse - ville
+      if (!lot.city || lot.city.trim().length < 2) {
+        return {
+          valid: false,
+          message: `Lot ${lotNumber} (${lot.reference}): Ville requise (min 2 caractères)`
+        }
+      }
+
+      // Validation adresse - pays
+      if (!lot.country) {
+        return {
+          valid: false,
+          message: `Lot ${lotNumber} (${lot.reference}): Pays requis`
+        }
+      }
+    }
+
+    // Vérifier les références en double
+    const references = independentLots.map(l => l.reference.toLowerCase().trim())
+    const duplicates = references.filter((ref, index) => references.indexOf(ref) !== index)
+
+    if (duplicates.length > 0) {
+      // Trouver les lots avec des références en double
+      const duplicateRefs = [...new Set(duplicates)]
+      return {
+        valid: false,
+        message: `Références en double détectées: ${duplicateRefs.join(', ')}`
+      }
+    }
+
+    return { valid: true }
+  }
+
   const handleNext = () => {
     // Si on est à l'étape 1 et qu'on a choisi de créer un nouvel immeuble, rediriger
     if (currentStep === 1 && lotData.buildingAssociation === "new") {
@@ -635,7 +824,21 @@ export default function NewLotPage() {
       router.push("/gestionnaire/biens/immeubles/nouveau")
       return
     }
-    
+
+    // Validation avant de passer à l'étape suivante
+    if (currentStep === 2 && lotData.buildingAssociation === "independent") {
+      const validation = validateIndependentLots()
+      if (!validation.valid) {
+        toast({
+          title: "⚠️ Validation requise",
+          description: validation.message || "Veuillez corriger les erreurs avant de continuer",
+          variant: "destructive"
+        })
+        logger.warn(`⚠️ [VALIDATION] Blocked navigation: ${validation.message}`)
+        return
+      }
+    }
+
     // Sinon, navigation normale
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1)
@@ -777,7 +980,138 @@ export default function NewLotPage() {
       }
     }
 
-    // MODE CLASSIQUE - Création d'un seul lot (independent ou new)
+    // 🆕 MODE MULTI-LOTS INDÉPENDANTS
+    if (lotData.buildingAssociation === "independent" && independentLots.length > 0) {
+      try {
+        // Validation finale avant soumission
+        const validation = validateIndependentLots()
+        if (!validation.valid) {
+          toast({
+            title: "⚠️ Validation échouée",
+            description: validation.message || "Veuillez corriger les erreurs avant de soumettre",
+            variant: "destructive"
+          })
+          logger.error(`❌ [VALIDATION] Submission blocked: ${validation.message}`)
+          return
+        }
+
+        logger.info(`🚀 Creating ${independentLots.length} independent lots`)
+
+        // Mapping country names to database enum values
+        const countryToDBEnum: Record<string, string> = {
+          "Belgique": "Belgium",
+          "France": "France",
+          "Luxembourg": "Luxembourg",
+          "Pays-Bas": "Netherlands",
+          "Allemagne": "Germany"
+        }
+
+        // Créer tous les lots en parallèle
+        const lotCreationPromises = independentLots.map(async (lot) => {
+          try {
+            const lotDataToCreate = {
+              reference: lot.reference,
+              building_id: null, // ✅ NULL = independent lot
+              street: lot.street || null,
+              postal_code: lot.postalCode || null,
+              city: lot.city || null,
+              country: countryToDBEnum[lot.country] || lot.country,
+              floor: lot.floor ? parseInt(lot.floor) : null,
+              apartment_number: lot.doorNumber || null,
+              category: lot.category,
+              description: lot.description || null,
+              team_id: userTeam.id,
+            }
+
+            const result = await createLotAction(lotDataToCreate)
+
+            if (!result.success || !result.data) {
+              logger.error(`❌ Failed to create lot ${lot.reference}:`, result.error)
+              return null
+            }
+
+            return { lot, createdLot: result.data }
+          } catch (error) {
+            logger.error(`❌ Error creating lot ${lot.reference}:`, error)
+            return null
+          }
+        })
+
+        const creationResults = await Promise.all(lotCreationPromises)
+        const successfulCreations = creationResults.filter(result => result !== null) as Array<{lot: IndependentLot, createdLot: any}>
+
+        logger.info(`✅ Created ${successfulCreations.length}/${independentLots.length} independent lots`)
+
+        // Assigner les contacts et managers à chaque lot créé
+        for (const { lot, createdLot } of successfulCreations) {
+          // Assigner les managers spécifiques du lot
+          const lotManagers = assignedManagersByLot[lot.id] || []
+          if (lotManagers.length > 0) {
+            logger.info(`👥 Assigning ${lotManagers.length} managers to lot ${lot.reference}`)
+
+            const managerPromises = lotManagers.map(async (manager, index) => {
+              try {
+                return await assignContactToLotAction(
+                  createdLot.id,
+                  manager.id,
+                  index === 0 // Premier = principal
+                )
+              } catch (error) {
+                logger.error(`❌ Error assigning manager ${manager.name}:`, error)
+                return null
+              }
+            })
+
+            await Promise.all(managerPromises)
+          }
+
+          // Assigner les contacts du lot
+          const lotContacts = lotContactAssignments[lot.id] || {}
+          const totalContacts = Object.values(lotContacts).flat().length
+
+          if (totalContacts > 0) {
+            logger.info(`📞 Assigning ${totalContacts} contacts to lot ${lot.reference}`)
+
+            const contactPromises = Object.entries(lotContacts).flatMap(([contactType, contacts]) =>
+              contacts.map(async (contact: any, index: number) => {
+                try {
+                  return await assignContactToLotAction(
+                    createdLot.id,
+                    contact.id,
+                    index === 0 // Premier de chaque type = principal
+                  )
+                } catch (error) {
+                  logger.error(`❌ Error assigning contact ${contact.name}:`, error)
+                  return null
+                }
+              })
+            )
+
+            await Promise.all(contactPromises)
+          }
+        }
+
+        // Succès - Rediriger vers la page des biens
+        await handleSuccess({
+          successTitle: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`,
+          successDescription: `Les lots ont été créés avec leurs adresses respectives.`,
+          redirectPath: `/gestionnaire/biens`,
+          refreshData: refetchManagerData,
+        })
+
+        return
+      } catch (error) {
+        logger.error("❌ Error in independent multi-lot creation:", error)
+        toast({
+          title: "Erreur lors de la création des lots indépendants",
+          description: "Une erreur est survenue. Veuillez réessayer.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    // MODE CLASSIQUE - Création d'un seul lot (legacy mode, rarely used now)
     try {
       logger.info("🚀 Creating lot with data:", lotData)
       
@@ -977,20 +1311,17 @@ export default function NewLotPage() {
       }
     }
     if (currentStep === 2) {
-      // Si lot indépendant, vérifier les informations générales
+      // Si lot indépendant multi-lots, valider tous les lots
       if (lotData.buildingAssociation === "independent") {
-        const addressValid = lotData.generalBuildingInfo?.address && lotData.generalBuildingInfo.address.trim() !== ""
-        const referenceValid = lotData.generalBuildingInfo?.name && lotData.generalBuildingInfo.name.trim() !== ""
-        
-        // Pour les lots indépendants, vérifier aussi les champs spécifiques aux lots
-        const lotSpecificFieldsValid = Boolean(
-          lotData.generalBuildingInfo?.floor !== undefined
-        )
-        return addressValid && referenceValid && lotSpecificFieldsValid
-      } else {
-        // Pour les lots liés à un immeuble existant ou nouveau, vérifier les détails du lot
-        const lotDetailsValid = lotData.reference && lotData.reference.trim() !== ""
-        return lotDetailsValid
+        const validation = validateIndependentLots()
+        if (!validation.valid && validation.message) {
+          // Stocker le message de validation pour l'afficher si nécessaire
+          logger.warn(`⚠️ [VALIDATION] ${validation.message}`)
+        }
+        return validation.valid
+      } else if (lotData.buildingAssociation === "existing") {
+        // Pour les lots liés à un immeuble existant, vérifier qu'au moins un lot est configuré
+        return lots.length > 0
       }
     }
     return true
@@ -1190,29 +1521,18 @@ export default function NewLotPage() {
   )
 
   const renderStep2 = () => {
-    // Si lot indépendant, affichage avec Card
+    // ✅ Mode "independent" - Utiliser IndependentLotsStepV2 pour multi-lots avec adresses
     if (lotData.buildingAssociation === "independent") {
       return (
-        <Card>
-          <CardContent className="py-6 space-y-6">
-            <BuildingInfoForm
-            buildingInfo={lotData.generalBuildingInfo!}
-            setBuildingInfo={(info) => setLotData((prev) => ({ ...prev, generalBuildingInfo: info }))}
-            selectedManagerId={selectedManagerId}
-            setSelectedManagerId={setSelectedManagerId}
-            teamManagers={teamManagers}
-            userTeam={userTeam}
-            isLoading={isLoading}
-            onCreateManager={openGestionnaireModal}
-            showManagerSection={true}
-            showAddressSection={true}
-            entityType="lot"
-            showTitle={true}
-            buildingsCount={managerData?.buildings?.length || 0}
-            categoryCountsByTeam={categoryCountsByTeam}
-          />
-          </CardContent>
-        </Card>
+        <IndependentLotsStepV2
+          lots={independentLots}
+          expandedLots={expandedIndependentLots}
+          onAddLot={addIndependentLot}
+          onUpdateLot={updateIndependentLot}
+          onDuplicateLot={duplicateIndependentLot}
+          onRemoveLot={removeIndependentLot}
+          onToggleLotExpansion={toggleIndependentLotExpansion}
+        />
       )
     }
 
@@ -1724,109 +2044,110 @@ export default function NewLotPage() {
       )
     }
 
-    // Mode "independent" - Garder le formulaire actuel
-    const showLotManagerSection = lotData.buildingAssociation === "existing"
+    // ✅ Mode "independent" - Multi-lots avec LotContactCardV4
+    if (!user || !userTeam) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-red-600">Erreur: utilisateur ou équipe non trouvé</p>
+        </div>
+      )
+    }
 
     return (
-      <Card>
-        <CardContent className="p-6 space-y-6">
-        {showLotManagerSection && (
-          <div className="border border-purple-200 rounded-lg p-4 bg-purple-50/30">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-600" />
-                <h3 className="font-semibold text-purple-900">Responsable spécifique du lot</h3>
-              </div>
-            </div>
-            
-            <div className="mb-3 p-3 bg-purple-100/50 rounded text-sm text-purple-700">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="w-4 h-4" />
-                <span className="font-medium">Responsable de l'immeuble :</span>
-              </div>
-              {selectedManagerId && teamManagers.length > 0 ? (
-                (() => {
-                  const buildingManager = teamManagers.find(m => m.user.id === selectedManagerId)
-                  return buildingManager ? (
-                    <span>{buildingManager.user.name}</span>
-                  ) : (
-                    <span className="text-gray-500">Non trouvé</span>
-                  )
-                })()
-              ) : (
-                <span className="text-gray-500">Aucun</span>
-              )}
-              <div className="mt-1 text-xs">+ Responsable(s) spécifique(s) ci-dessous</div>
-            </div>
-            
-            <div className="space-y-3">
-              {(lotData.assignedLotManagers || []).map((manager) => (
-                <div
-                  key={manager.id}
-                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-200"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-sm">{manager.name}</div>
-                      <div className="text-xs text-gray-500">{manager.email}</div>
-                      <div className="flex gap-1 mt-1">
-                        {manager.id === user?.id && (
-                          <Badge variant="outline" className="text-xs">Vous</Badge>
-                        )}
-                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
-                          Responsable du lot
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeLotManager(manager.id)}
-                    className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openLotManagerModal}
-                className="w-full text-sm border-purple-300 text-purple-700 hover:bg-purple-50"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter responsable du lot
-              </Button>
-              
-              <p className="text-xs text-gray-600 mt-2">
-                Recevra les notifications spécifiques à ce lot en plus du responsable de l'immeuble
-              </p>
-            </div>
-          </div>
-        )}
+      <div className="space-y-3 @container">
+        {/* Hidden ContactSelector for modal functionality */}
+        <ContactSelector
+          ref={contactSelectorRef}
+          teamId={userTeam?.id || ""}
+          displayMode="compact"
+          hideUI={true}
+          selectedContacts={{
+            tenant: [],
+            provider: [],
+            owner: [],
+            other: []
+          }}
+          lotContactAssignments={lotContactAssignments}
+          onContactSelected={(contact, contactType, context) => {
+            if (context?.lotId) {
+              // Assign to specific lot
+              setLotContactAssignments(prev => ({
+                ...prev,
+                [context.lotId]: {
+                  ...prev[context.lotId],
+                  [contactType]: [...(prev[context.lotId]?.[contactType] || []), contact]
+                }
+              }))
+            }
+          }}
+          onContactRemoved={(contactId: string, contactType: string, context?: { lotId?: string }) => {
+            if (context?.lotId) {
+              removeContactFromLot(context.lotId, contactType, contactId)
+            }
+          }}
+          allowedContactTypes={["tenant", "provider", "owner", "other"]}
+        />
 
-        <div className="border border-gray-200 rounded-lg p-2">
-          <ContactSelector
-            ref={contactSelectorRef}
-            teamId={userTeam?.id || ""}
-            displayMode="compact"
-            title="Contacts assignés"
-            description="Spécifiques à ce lot"
-            selectedContacts={lotData.assignedContacts}
-            onContactSelected={handleContactSelected}
-            onContactRemoved={handleContactRemoved}
-            onContactCreated={handleContactCreated}
-            allowedContactTypes={["tenant", "provider", "owner", "other"]}
-            hideTitle={false}
-          />
+        {/* Lots Grid - Responsive layout like BuildingContactsStepV3 */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Contacts spécifiques aux lots
+            </h3>
+          </div>
+
+          {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {independentLots.map((lot, index) => {
+              const isExpanded = expandedIndependentLots[lot.id] || false
+              const lotNumber = independentLots.length - index
+              const lotManagers = assignedManagersByLot[lot.id] || []
+              const tenants = lotContactAssignments[lot.id]?.tenant || []
+              const providers = lotContactAssignments[lot.id]?.provider || []
+              const owners = lotContactAssignments[lot.id]?.owner || []
+              const others = lotContactAssignments[lot.id]?.other || []
+
+              return (
+                <div
+                  key={lot.id}
+                  className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
+                >
+                  <LotContactCardV4
+                    lotNumber={lotNumber}
+                    lotReference={lot.reference}
+                    lotCategory={lot.category}
+                    isExpanded={isExpanded}
+                    onToggleExpand={() => toggleIndependentLotExpansion(lot.id)}
+                    lotManagers={lotManagers}
+                    onAddLotManager={() => openManagerModal(lot.id)}
+                    onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
+                    tenants={tenants}
+                    providers={providers}
+                    owners={owners}
+                    others={others}
+                    onAddContact={(contactType) => {
+                      // Open contact selector modal for this lot
+                      contactSelectorRef.current?.openContactModal(contactType, lot.id)
+                    }}
+                    onRemoveContact={(contactId, contactType) => {
+                      removeContactFromLot(lot.id, contactType, contactId)
+                    }}
+                    // No building inherited contacts in independent mode
+                    buildingManagers={[]}
+                    buildingProviders={[]}
+                    buildingOwners={[]}
+                    buildingOthers={[]}
+                    // Display lot details + address in header
+                    floor={lot.floor}
+                    doorNumber={lot.doorNumber}
+                    description={`${lot.street}, ${lot.postalCode} ${lot.city}${lot.description ? ` - ${lot.description}` : ''}`}
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
-        </CardContent>
-      </Card>
+      </div>
     )
   }
 

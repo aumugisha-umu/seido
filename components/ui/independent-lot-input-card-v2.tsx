@@ -9,6 +9,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Building,
   Users,
   Home,
@@ -19,7 +26,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Hash
+  Hash,
+  MapPin
 } from "lucide-react"
 import { LotCategory, getAllLotCategories, getLotCategoryConfig } from "@/lib/lot-types"
 
@@ -35,60 +43,49 @@ const iconComponents = {
   MoreHorizontal
 }
 
-interface Lot {
+export interface IndependentLot {
   id: string
   reference: string
   category: LotCategory
+  // Address fields (required for independent lots)
+  street: string
+  postalCode: string
+  city: string
+  country: string
+  // Lot details
   floor: string
   doorNumber: string
   description: string
 }
 
-interface LotInputCardV2Props {
-  lot: Lot
+interface IndependentLotInputCardV2Props {
+  lot: IndependentLot
   lotNumber: number
   isExpanded: boolean
-  onUpdate: (field: keyof Lot, value: string) => void
+  onUpdate: (field: keyof IndependentLot, value: string) => void
   onDuplicate: () => void
   onRemove: () => void
   onToggleExpand: () => void
 }
 
 /**
- * Version 2: Segmented Control (Style iOS/Moderne)
+ * Independent Lot Input Card V2 - Version with Address Fields
+ *
+ * Based on LotInputCardV2 but adapted for independent lots that need their own address.
+ *
+ * Key Additions:
+ * ✅ Address section with MapPin icon and blue background
+ * ✅ Street, Postal Code, City, Country fields
+ * ✅ Clear visual distinction for address section
+ * ✅ All existing lot features preserved (category, floor, door, description)
  *
  * Design Principles:
- * - iOS-inspired segmented control pattern (familiar to mobile users)
- * - Horizontal scrollable chips with snap behavior (mobile-friendly)
- * - Material Design elevation: dp2 (base), dp4 (selected), dp8 (hover)
- * - Visual feedback: Instant category selection with chip highlighting
- * - Space efficiency: Single horizontal row for all 7 categories
- *
- * Key Features:
- * ✅ Segmented control with icon chips (horizontal scroll on mobile)
- * ✅ Inline header: Badge + Reference + Actions in one row
- * ✅ Grid 3-column layout for floor/door/surface (compact)
- * ✅ Snap scroll for better mobile UX
- * ✅ Height: ~170px (compact but visual)
- * ✅ Accessible: RadioGroup semantics + keyboard navigation
- *
- * UX Advantages:
- * - Immediate visual feedback (chip selection)
- * - Natural horizontal scan pattern
- * - Familiar mobile interface (iOS segmented control)
- * - No dropdown clicks required (faster selection)
- *
- * Best For:
- * - Mobile users (touch-optimized)
- * - Users switching categories frequently
- * - Visual learners (icon + label together)
- *
- * Material Design References:
- * - Chips: https://m3.material.io/components/chips
- * - Segmented buttons: https://m3.material.io/components/segmented-buttons
- * - Motion: 200ms ease-in-out for smooth transitions
+ * - Address section: bg-blue-50/30 to distinguish from lot details
+ * - Grid responsive layout: 3 cols (postal/city/country) → 1 col mobile
+ * - Same segmented control for category selection
+ * - Maintains 44x44px touch targets for mobile
  */
-export function LotInputCardV2({
+export function IndependentLotInputCardV2({
   lot,
   lotNumber,
   isExpanded,
@@ -96,7 +93,7 @@ export function LotInputCardV2({
   onDuplicate,
   onRemove,
   onToggleExpand
-}: LotInputCardV2Props) {
+}: IndependentLotInputCardV2Props) {
   const categories = getAllLotCategories()
   const categoryConfig = getLotCategoryConfig(lot.category)
 
@@ -113,7 +110,7 @@ export function LotInputCardV2({
         <div className="flex items-start justify-between gap-3 overflow-hidden min-w-0">
           {/* Left: Badge Number + Reference + Category */}
           <div className="flex items-start gap-2 flex-1 min-w-0">
-            {/* Badge Number */}
+            {/* Badge Number with "Lot indépendant" indicator */}
             <Badge
               variant="default"
               className="px-2.5 py-1 bg-blue-600 text-white text-xs font-medium flex-shrink-0"
@@ -121,7 +118,7 @@ export function LotInputCardV2({
               #{lotNumber}
             </Badge>
 
-            {/* Reference + Category stacked */}
+            {/* Reference + Category + Address Preview stacked */}
             <div className="flex flex-col gap-1 flex-1 min-w-0 overflow-hidden">
               <span
                 className="font-medium text-sm truncate text-slate-900 cursor-default block"
@@ -130,12 +127,21 @@ export function LotInputCardV2({
                 {lot.reference}
               </span>
               {!isExpanded && (
-                <Badge
-                  variant="outline"
-                  className={`text-xs self-start flex-shrink-0 ${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color}`}
-                >
-                  {categoryConfig.label}
-                </Badge>
+                <>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs self-start flex-shrink-0 ${categoryConfig.bgColor} ${categoryConfig.borderColor} ${categoryConfig.color}`}
+                  >
+                    {categoryConfig.label}
+                  </Badge>
+                  {/* Address preview when collapsed */}
+                  {lot.street && (
+                    <span className="text-xs text-gray-600 truncate flex items-center gap-1">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {lot.street}, {lot.postalCode} {lot.city}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -185,7 +191,6 @@ export function LotInputCardV2({
       {isExpanded && (
         <CardContent className="p-3 pt-0 space-y-3">
           {/* Segmented Control - Horizontal Scrollable Chips */}
-          {/* Material Design: Chips with snap scroll for mobile UX */}
           <div>
             <Label className="text-xs font-medium text-slate-700 mb-2 block">
               Catégorie
@@ -242,8 +247,105 @@ export function LotInputCardV2({
             </RadioGroup>
           </div>
 
+          {/* ADDRESS SECTION - New for Independent Lots */}
+          <div className="bg-blue-50/30 border border-blue-200 rounded-lg p-3 space-y-2">
+            <Label className="text-xs font-medium text-slate-700 flex items-center gap-1.5 mb-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              Adresse du lot
+            </Label>
+
+            {/* Street - Full Width */}
+            <div>
+              <Label
+                htmlFor={`street-${lot.id}`}
+                className="text-xs font-medium text-slate-700 mb-1 block"
+              >
+                Rue et numéro
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Input
+                id={`street-${lot.id}`}
+                value={lot.street || ""}
+                onChange={(e) => onUpdate("street", e.target.value)}
+                placeholder="Ex: 123 Rue de la Paix"
+                className="h-9 text-sm"
+                required
+                aria-required="true"
+              />
+            </div>
+
+            {/* Grid 3-Column: Postal Code + City + Country */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {/* Postal Code */}
+              <div>
+                <Label
+                  htmlFor={`postalCode-${lot.id}`}
+                  className="text-xs font-medium text-slate-700 mb-1 block"
+                >
+                  Code postal
+                  <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  id={`postalCode-${lot.id}`}
+                  value={lot.postalCode || ""}
+                  onChange={(e) => onUpdate("postalCode", e.target.value)}
+                  placeholder="Ex: 1000"
+                  className="h-9 text-sm"
+                  required
+                  aria-required="true"
+                />
+              </div>
+
+              {/* City */}
+              <div>
+                <Label
+                  htmlFor={`city-${lot.id}`}
+                  className="text-xs font-medium text-slate-700 mb-1 block"
+                >
+                  Ville
+                  <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  id={`city-${lot.id}`}
+                  value={lot.city || ""}
+                  onChange={(e) => onUpdate("city", e.target.value)}
+                  placeholder="Ex: Bruxelles"
+                  className="h-9 text-sm"
+                  required
+                  aria-required="true"
+                />
+              </div>
+
+              {/* Country */}
+              <div>
+                <Label
+                  htmlFor={`country-${lot.id}`}
+                  className="text-xs font-medium text-slate-700 mb-1 block"
+                >
+                  Pays
+                  <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Select
+                  value={lot.country || "Belgique"}
+                  onValueChange={(value) => onUpdate("country", value)}
+                >
+                  <SelectTrigger id={`country-${lot.id}`} className="h-9 text-sm">
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Belgique">Belgique</SelectItem>
+                    <SelectItem value="France">France</SelectItem>
+                    <SelectItem value="Luxembourg">Luxembourg</SelectItem>
+                    <SelectItem value="Pays-Bas">Pays-Bas</SelectItem>
+                    <SelectItem value="Allemagne">Allemagne</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* LOT DETAILS SECTION */}
           {/* Grid 3-Column: Reference + Floor + Door */}
-          {/* Material Design: 8dp grid with responsive collapse */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* Reference */}
             <div>
@@ -329,4 +431,4 @@ export function LotInputCardV2({
   )
 }
 
-export default LotInputCardV2
+export default IndependentLotInputCardV2

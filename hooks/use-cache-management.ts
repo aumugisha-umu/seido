@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { logger, logError } from '@/lib/logger'
 // Types pour la gestion du cache
@@ -312,17 +312,25 @@ export function useCacheManagement() {
 export function useDataRefresh(key: string, refreshCallback: () => void) {
   const cacheManager = EnhancedCacheManager.getInstance()
 
-  const memoizedCallback = useCallback(refreshCallback, [refreshCallback])
+  // ✅ FIX: Use useRef instead of useCallback to avoid infinite re-render loop
+  // Store callback in ref so it can be updated without triggering effect cleanup/register cycle
+  const callbackRef = useRef(refreshCallback)
+
+  // Update ref on every render without triggering effects
+  useEffect(() => {
+    callbackRef.current = refreshCallback
+  })
 
   useEffect(() => {
-    // Enregistrer le callback
-    cacheManager.registerRefreshCallback(key, memoizedCallback)
+    // Enregistrer le callback (wrapped to always use latest ref value)
+    const wrappedCallback = () => callbackRef.current()
+    cacheManager.registerRefreshCallback(key, wrappedCallback)
 
     // Cleanup lors du démontage
     return () => {
       cacheManager.unregisterRefreshCallback(key)
     }
-  }, [key, memoizedCallback])
+  }, [key]) // ✅ FIX: Removed memoizedCallback from dependencies - no more loop!
 
   // Fonctions utilitaires
   const setCacheValid = useCallback((ttl?: number) => {
@@ -337,11 +345,16 @@ export function useDataRefresh(key: string, refreshCallback: () => void) {
     cacheManager.invalidateCache([key])
   }, [key])
 
+  // Wrapper function to always call the latest callback
+  const forceRefresh = useCallback(() => {
+    callbackRef.current()
+  }, [])
+
   return {
     setCacheValid,
     isCacheValid,
     invalidateCache,
-    forceRefresh: memoizedCallback
+    forceRefresh
   }
 }
 

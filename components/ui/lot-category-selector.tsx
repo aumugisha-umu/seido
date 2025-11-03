@@ -37,7 +37,6 @@ export function LotCategorySelector({
   value,
   onChange,
   label = "Catégorie du lot",
-  description = "Sélectionnez le type de bien",
   required = false,
   displayMode = "grid",
   className = ""

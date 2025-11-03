@@ -1335,6 +1335,14 @@ export default function NewLotPage() {
   // 🆕 Helper functions for BuildingContactsStepV3
   const [currentLotIdForModal, setCurrentLotIdForModal] = useState<string | null>(null)
   const [buildingManagers, setBuildingManagers] = useState<UserType[]>([])
+  const [existingBuildingLots, setExistingBuildingLots] = useState<Array<{
+    id: string
+    reference: string
+    floor: string
+    door_number: string
+    description: string
+    category: LotCategory
+  }>>([])
   const [isLoadingBuildingData, setIsLoadingBuildingData] = useState(false)
   // buildingContacts est déjà déclaré plus haut, on l'utilise directement
 
@@ -1350,6 +1358,7 @@ export default function NewLotPage() {
           owner: [],
           other: [],
         })
+        setExistingBuildingLots([])
         return
       }
 
@@ -1361,18 +1370,42 @@ export default function NewLotPage() {
         }
 
         const building = result.building
-        
+
+        logger.info('🏢 [BUILDING-DATA] Building loaded:', {
+          buildingId: building.id,
+          buildingName: building.name,
+          buildingContactsType: typeof building.building_contacts,
+          buildingContactsIsArray: Array.isArray(building.building_contacts),
+          buildingContactsLength: (building.building_contacts as any)?.length,
+          buildingContactsRaw: building.building_contacts
+        })
+
         // ✅ Extract building managers (type='gestionnaire' in building_contacts)
         // S'assurer que building_contacts est un tableau
-        const buildingContactsArray = Array.isArray(building.building_contacts) 
-          ? building.building_contacts 
+        const buildingContactsArray = Array.isArray(building.building_contacts)
+          ? building.building_contacts
           : []
+
+        logger.info('🏢 [BUILDING-DATA] Building contacts array:', {
+          length: buildingContactsArray.length,
+          contacts: buildingContactsArray
+        })
         
         const rawManagers = buildingContactsArray.filter((bc: any) => {
           if (!bc || typeof bc !== 'object') return false
           if (!bc.user || typeof bc.user !== 'object') return false
           const role = bc.user?.role
+          logger.info('🔍 [BUILDING-DATA] Checking contact role:', {
+            contactId: bc.user?.id,
+            role: role,
+            isManager: role === 'gestionnaire' || role === 'admin'
+          })
           return role === 'gestionnaire' || role === 'admin'
+        })
+
+        logger.info('👥 [BUILDING-DATA] Raw managers filtered:', {
+          count: rawManagers.length,
+          managers: rawManagers
         })
         
         // ✅ Normalize managers to ensure all required properties exist
@@ -1411,8 +1444,15 @@ export default function NewLotPage() {
             return normalizedManager
           })
           .filter((m): m is UserType => m !== null && m.id && m.id.trim() !== '')
-        
+
+        logger.info('✅ [BUILDING-DATA] Normalized managers ready to set:', {
+          count: managers.length,
+          managers: managers
+        })
+
         setBuildingManagers(managers)
+
+        logger.info('✅ [BUILDING-DATA] Building managers state updated via setBuildingManagers')
 
         // ✅ Extract building contacts grouped by type (tenant, provider, owner, other)
         // Format identique à la création d'immeuble pour compatibilité
@@ -1459,6 +1499,24 @@ export default function NewLotPage() {
         })
 
         setBuildingContacts(contacts)
+
+        // ✅ Extract existing lots from building
+        const existingLots = Array.isArray(building.lots) ? building.lots : []
+        const normalizedExistingLots = existingLots.map((lot: any) => ({
+          id: lot.id,
+          reference: lot.reference || '',
+          floor: lot.floor || '',
+          door_number: lot.door_number || '',
+          description: lot.description || '',
+          category: (lot.category as LotCategory) || 'appartement'
+        }))
+
+        logger.info('🏢 [BUILDING-DATA] Existing lots loaded:', {
+          count: normalizedExistingLots.length,
+          lots: normalizedExistingLots
+        })
+
+        setExistingBuildingLots(normalizedExistingLots)
       } catch (error) {
         logger.error("❌ [LOT-CREATION] Error loading building data:", error)
         toast({
@@ -1474,6 +1532,7 @@ export default function NewLotPage() {
           owner: [],
           other: [],
         })
+        setExistingBuildingLots([])
       } finally {
         setIsLoadingBuildingData(false)
       }
@@ -1806,15 +1865,17 @@ export default function NewLotPage() {
         description: "" // Not available in building data
       }
 
-      // Préparer buildingManagers (vide car on ne gère pas les managers de l'immeuble existant)
-      const buildingManagers: any[] = []
+      // ✅ Use the same buildingManagers state that was populated at step 3
+      // (Retrieved via useEffect when building is selected)
+      const safeBuildingManagers = Array.isArray(buildingManagers) ? buildingManagers : []
 
       return (
         <BuildingConfirmationStep
           buildingInfo={buildingInfo}
-          buildingManagers={buildingManagers}
+          buildingManagers={safeBuildingManagers}
           buildingContacts={buildingContacts}
           lots={lots}
+          existingLots={existingBuildingLots}
           lotContactAssignments={lotContactAssignments}
           assignedManagers={assignedManagersByLot}
         />

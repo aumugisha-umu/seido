@@ -203,7 +203,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
             ),
             building_contacts(
               is_primary,
-              user:user_id(id, name, email, phone, role, provider_category)
+              user:user_id(id, name, email, phone, role, provider_category, speciality)
             )
           `)
           .eq('team_id', teamId)
@@ -301,7 +301,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
             ),
             building_contacts(
               is_primary,
-              user:user_id(id, name, email, phone, role, provider_category)
+              user:user_id(id, name, email, phone, role, provider_category, speciality)
             )
           `)
           .eq('id', _id)

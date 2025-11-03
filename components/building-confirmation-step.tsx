@@ -31,6 +31,14 @@ interface BuildingConfirmationStepProps {
   buildingManagers: UserType[]
   buildingContacts: { [contactType: string]: Contact[] }
   lots: Lot[]
+  existingLots?: Array<{
+    id: string
+    reference: string
+    floor: string
+    door_number: string
+    description: string
+    category: LotCategory
+  }>
   lotContactAssignments: { [lotId: string]: { [contactType: string]: Contact[] } }
   assignedManagers: { [lotId: string]: UserType[] }
 }
@@ -57,12 +65,18 @@ export function BuildingConfirmationStep({
   buildingManagers,
   buildingContacts,
   lots,
+  existingLots = [],
   lotContactAssignments,
   assignedManagers
 }: BuildingConfirmationStepProps) {
   // State to manage lot expansion (collapsed by default in confirmation)
+  // Include both new lots and existing lots
   const [expandedLots, setExpandedLots] = React.useState<{ [key: string]: boolean }>(
-    () => Object.fromEntries(lots.map(lot => [lot.id, false]))
+    () => {
+      const newLotsEntries = lots.map(lot => [lot.id, false])
+      const existingLotsEntries = existingLots.map(lot => [lot.id, false])
+      return Object.fromEntries([...newLotsEntries, ...existingLotsEntries])
+    }
   )
 
   // Toggle lot expansion
@@ -108,54 +122,106 @@ export function BuildingConfirmationStep({
         readOnly={true}
       />
 
-      {/* Lots Section */}
-      {lots.length > 0 && (
+      {/* Lots Section - Show both existing and new lots */}
+      {(existingLots.length > 0 || lots.length > 0) && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Lots
-            </h3>
-            <Badge variant="secondary" className="text-xs px-1.5 py-0">
-              {lots.length}
-            </Badge>
-          </div>
+          {/* Existing Lots */}
+          {existingLots.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Lots existants dans l'immeuble
+                </h3>
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-gray-100 text-gray-700">
+                  {existingLots.length}
+                </Badge>
+              </div>
 
-          {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {lots.map((lot, index) => {
-              const isExpanded = expandedLots[lot.id] || false
-              const lotNumber = index + 1 // Order of creation: first created = #1
-              const lotManagers = getAssignedManagers(lot.id)
-              const tenants = getLotContactsByType(lot.id, 'tenant')
-              const lotProviders = getLotContactsByType(lot.id, 'provider')
-              const lotOwners = getLotContactsByType(lot.id, 'owner')
-              const lotOthers = getLotContactsByType(lot.id, 'other')
+              {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {existingLots.map((lot, index) => {
+                  const isExpanded = expandedLots[lot.id] || false
 
-              return (
-                <div
-                  key={lot.id}
-                  className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
-                >
-                  <LotContactCardV4
-                    lotNumber={lotNumber}
-                    lotReference={lot.reference}
-                    lotCategory={lot.category}
-                    isExpanded={isExpanded}
-                    onToggleExpand={() => toggleLotExpansion(lot.id)}
-                    lotManagers={lotManagers}
-                    tenants={tenants}
-                    providers={lotProviders}
-                    owners={lotOwners}
-                    others={lotOthers}
-                    readOnly={true} // No actions, no inherited contacts
-                    floor={lot.floor}
-                    doorNumber={lot.doorNumber}
-                    description={lot.description}
-                  />
-                </div>
-              )
-            })}
-          </div>
+                  return (
+                    <div
+                      key={lot.id}
+                      className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
+                    >
+                      <LotContactCardV4
+                        lotNumber={index + 1}
+                        lotReference={lot.reference}
+                        lotCategory={lot.category}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() => toggleLotExpansion(lot.id)}
+                        lotManagers={[]} // Existing lots don't have managers in this context
+                        tenants={[]}
+                        providers={[]}
+                        owners={[]}
+                        others={[]}
+                        readOnly={true}
+                        isExisting={true} // NEW: Mark as existing lot
+                        floor={lot.floor}
+                        doorNumber={lot.door_number}
+                        description={lot.description}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* New Lots being created */}
+          {lots.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  {existingLots.length > 0 ? "Nouveaux lots ajoutés" : "Lots"}
+                </h3>
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-green-100 text-green-700">
+                  {lots.length}
+                </Badge>
+              </div>
+
+              {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {lots.map((lot, index) => {
+                  const isExpanded = expandedLots[lot.id] || false
+                  const lotNumber = index + 1 // Order of creation: first created = #1
+                  const lotManagers = getAssignedManagers(lot.id)
+                  const tenants = getLotContactsByType(lot.id, 'tenant')
+                  const lotProviders = getLotContactsByType(lot.id, 'provider')
+                  const lotOwners = getLotContactsByType(lot.id, 'owner')
+                  const lotOthers = getLotContactsByType(lot.id, 'other')
+
+                  return (
+                    <div
+                      key={lot.id}
+                      className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
+                    >
+                      <LotContactCardV4
+                        lotNumber={lotNumber}
+                        lotReference={lot.reference}
+                        lotCategory={lot.category}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() => toggleLotExpansion(lot.id)}
+                        lotManagers={lotManagers}
+                        tenants={tenants}
+                        providers={lotProviders}
+                        owners={lotOwners}
+                        others={lotOthers}
+                        readOnly={true} // No actions, no inherited contacts
+                        isExisting={false} // NEW: Mark as new lot
+                        floor={lot.floor}
+                        doorNumber={lot.doorNumber}
+                        description={lot.description}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

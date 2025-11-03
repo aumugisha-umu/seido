@@ -206,7 +206,8 @@ export async function getBuildingWithRelations(buildingId: string): Promise<{
     logger.info('✅ [SERVER-ACTION] Building loaded with relations:', {
       buildingId: result.data.id,
       buildingName: result.data.name,
-      contactsCount: (result.data as any).building_contacts?.length || 0
+      contactsCount: (result.data as any).building_contacts?.length || 0,
+      buildingContacts: (result.data as any).building_contacts
     })
 
     return {

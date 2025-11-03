@@ -78,6 +78,8 @@ interface LotContactCardV4Props {
   buildingOthers?: Contact[]
   // Read-only mode (for confirmation view)
   readOnly?: boolean
+  // Existing lot indicator (for confirmation view)
+  isExisting?: boolean
   // Lot details (for confirmation view)
   floor?: string
   doorNumber?: string
@@ -104,6 +106,7 @@ export function LotContactCardV4({
   buildingOwners = [],
   buildingOthers = [],
   readOnly = false,
+  isExisting = false,
   floor,
   doorNumber,
   description
@@ -113,7 +116,11 @@ export function LotContactCardV4({
   return (
     <Card
       className={`transition-all duration-200 gap-0 py-0 ${
-        isExpanded ? "border-blue-300 shadow-md" : "border-slate-200 hover:border-slate-300 hover:shadow-sm"
+        isExisting
+          ? "border-gray-300 bg-gray-50/30" // Existing lot: gray border + gray background
+          : isExpanded
+            ? "border-blue-300 shadow-md"
+            : "border-slate-200 hover:border-slate-300 hover:shadow-sm"
       }`}
     >
       {/* Header - Ultra Compact avec Badges Colorés */}
@@ -128,15 +135,24 @@ export function LotContactCardV4({
 
             {/* Reference + Badges - Structure verticale */}
             <div className="flex flex-col gap-1 flex-1 min-w-0">
-              {/* Ligne 1: Nom du lot */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="font-semibold text-base truncate text-slate-900 cursor-default block" title={lotReference}>
-                    {lotReference}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top"><p className="text-xs">{lotReference}</p></TooltipContent>
-              </Tooltip>
+              {/* Ligne 1: Nom du lot + Badge "Lot existant" si applicable */}
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="font-semibold text-base truncate text-slate-900 cursor-default block" title={lotReference}>
+                      {lotReference}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p className="text-xs">{lotReference}</p></TooltipContent>
+                </Tooltip>
+
+                {/* Badge "Lot existant" pour les lots déjà présents dans l'immeuble */}
+                {isExisting && (
+                  <Badge variant="outline" className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 border-gray-300 font-medium flex-shrink-0">
+                    Lot existant
+                  </Badge>
+                )}
+              </div>
 
               {/* Ligne 2: Étage + Porte + Tous les badges (catégorie + compteurs) */}
               <div className="flex items-center gap-1.5 flex-wrap">

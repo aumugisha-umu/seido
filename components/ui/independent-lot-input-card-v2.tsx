@@ -222,7 +222,7 @@ export function IndependentLotInputCardV2({
               <RadioGroup
                 value={lot.category}
                 onValueChange={(value) => onUpdate("category", value)}
-                className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100"
+                className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory"
                 aria-label="Sélectionner une catégorie de lot"
               >
                 {categories.map((category) => {

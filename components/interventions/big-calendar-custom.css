@@ -26,58 +26,9 @@
 }
 
 /* ========================================
-   SCROLLBAR - Modern Design
+   SCROLLBAR
+   Now using global styles from app/globals.css
    ======================================== */
-
-/* Week/Day time grid scrollbar */
-.rbc-time-content {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(203 213 225) rgb(248 250 252); /* slate-300 on slate-50 */
-}
-
-/* Webkit browsers (Chrome, Safari, Edge) */
-.rbc-time-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.rbc-time-content::-webkit-scrollbar-track {
-  background: rgb(248 250 252); /* slate-50 */
-  border-radius: 4px;
-}
-
-.rbc-time-content::-webkit-scrollbar-thumb {
-  background: rgb(203 213 225); /* slate-300 */
-  border-radius: 4px;
-  transition: background 0.2s ease;
-}
-
-.rbc-time-content::-webkit-scrollbar-thumb:hover {
-  background: rgb(148 163 184); /* slate-400 */
-}
-
-/* Agenda view scrollbar */
-.rbc-agenda-view {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(203 213 225) rgb(248 250 252);
-}
-
-.rbc-agenda-view::-webkit-scrollbar {
-  width: 8px;
-}
-
-.rbc-agenda-view::-webkit-scrollbar-track {
-  background: rgb(248 250 252);
-  border-radius: 4px;
-}
-
-.rbc-agenda-view::-webkit-scrollbar-thumb {
-  background: rgb(203 213 225);
-  border-radius: 4px;
-}
-
-.rbc-agenda-view::-webkit-scrollbar-thumb:hover {
-  background: rgb(148 163 184);
-}
 
 /* ========================================
    TOOLBAR

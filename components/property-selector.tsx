@@ -490,7 +490,7 @@ function PropertySelectorView({
 
                       {isExpanded && (building.lots || []).length > 0 && (
                         <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
-                          <div className="max-h-64 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 rounded-md">
+                          <div className="max-h-64 overflow-y-auto overflow-x-hidden rounded-md">
                             <div className="space-y-2 pr-2">
                               {(building.lots || []).map((lot: Lot) => {
                                 const isLotSelected = selectedLotId === lot.id.toString()

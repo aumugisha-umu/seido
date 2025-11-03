@@ -15,6 +15,7 @@ import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
+import { IndependentLotInputCardV2, type IndependentLot } from "@/components/ui/independent-lot-input-card-v2"
 import type { LotInfo, ContactsByType, BuildingInfo } from "@/lib/utils/lot-transform"
 import type { User } from "@/lib/services/core/service-types"
 import { updateCompleteLot } from "@/app/actions/lot-actions"
@@ -100,6 +101,21 @@ export default function LotEditClient({
         if (!lotInfo.category) {
           setError("La catégorie du lot est requise")
           return false
+        }
+        // Additional validation for independent lots (no building)
+        if (!building) {
+          if (!lotInfo.street?.trim()) {
+            setError("L'adresse est requise pour un lot indépendant")
+            return false
+          }
+          if (!lotInfo.postalCode?.trim()) {
+            setError("Le code postal est requis pour un lot indépendant")
+            return false
+          }
+          if (!lotInfo.city?.trim()) {
+            setError("La ville est requise pour un lot indépendant")
+            return false
+          }
         }
         return true
 
@@ -210,12 +226,20 @@ export default function LotEditClient({
       })
 
       // Prepare lot data
-      const lotData = {
+      const lotData: any = {
         reference: lotInfo.reference.trim(),
         floor: lotInfo.floor ? parseInt(lotInfo.floor) : undefined,
         apartment_number: lotInfo.doorNumber?.trim() || undefined,
         category: lotInfo.category,
         description: lotInfo.description?.trim() || undefined
+      }
+
+      // Add address fields for independent lots
+      if (!building) {
+        lotData.street = lotInfo.street?.trim() || undefined
+        lotData.postal_code = lotInfo.postalCode?.trim() || undefined
+        lotData.city = lotInfo.city?.trim() || undefined
+        lotData.country = lotInfo.country || "Belgique"
       }
 
       // Prepare contacts data (flatten ContactsByType to array)
@@ -350,38 +374,77 @@ export default function LotEditClient({
 
         {/* Step 2: Lot Details */}
         {currentStep === 2 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <BuildingInfoForm
-              buildingInfo={{
-                name: lotInfo.reference,
-                address: "",
-                postalCode: "",
-                city: "",
-                country: "Belgique",
-                description: lotInfo.description,
-                floor: lotInfo.floor,
-                doorNumber: lotInfo.doorNumber,
-                category: lotInfo.category
-              }}
-              setBuildingInfo={(info) => {
-                setLotInfo({
-                  reference: info.name,
-                  floor: info.floor || "",
-                  doorNumber: info.doorNumber || "",
-                  description: info.description,
-                  category: info.category || "appartement"
-                })
-              }}
-              selectedManagerId=""
-              setSelectedManagerId={() => {}}
-              teamManagers={[]}
-              userTeam={userTeam}
-              isLoading={false}
-              showManagerSection={false}
-              showAddressSection={false}
-              entityType="lot"
-              showTitle={false}
-            />
+          <div className="space-y-4">
+            {/* Conditional rendering based on lot type */}
+            {building ? (
+              // Building-associated lot - Use BuildingInfoForm (no address section)
+              <div className="bg-white rounded-lg shadow p-6">
+                <BuildingInfoForm
+                  buildingInfo={{
+                    name: lotInfo.reference,
+                    address: "",
+                    postalCode: "",
+                    city: "",
+                    country: "Belgique",
+                    description: lotInfo.description,
+                    floor: lotInfo.floor,
+                    doorNumber: lotInfo.doorNumber,
+                    category: lotInfo.category
+                  }}
+                  setBuildingInfo={(info) => {
+                    setLotInfo({
+                      reference: info.name,
+                      floor: info.floor || "",
+                      doorNumber: info.doorNumber || "",
+                      description: info.description,
+                      category: info.category || "appartement"
+                    })
+                  }}
+                  selectedManagerId=""
+                  setSelectedManagerId={() => {}}
+                  teamManagers={[]}
+                  userTeam={userTeam}
+                  isLoading={false}
+                  showManagerSection={false}
+                  showAddressSection={false}
+                  entityType="lot"
+                  showTitle={false}
+                />
+              </div>
+            ) : (
+              // Independent lot - Use IndependentLotInputCardV2 (with full address)
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Informations du lot indépendant
+                </h2>
+                <IndependentLotInputCardV2
+                  lot={{
+                    id: lotId,
+                    reference: lotInfo.reference,
+                    category: lotInfo.category,
+                    street: lotInfo.street || "",
+                    postalCode: lotInfo.postalCode || "",
+                    city: lotInfo.city || "",
+                    country: lotInfo.country || "Belgique",
+                    floor: lotInfo.floor,
+                    doorNumber: lotInfo.doorNumber,
+                    description: lotInfo.description
+                  }}
+                  lotNumber={1}
+                  isExpanded={true}
+                  onUpdate={(field, value) => {
+                    setLotInfo((prev) => ({
+                      ...prev,
+                      [field]: value
+                    }))
+                  }}
+                  onDuplicate={() => {}} // Not used in edit mode
+                  onRemove={() => {}} // Not used in edit mode
+                  onToggleExpand={() => {}} // Always expanded in edit mode
+                  hideActions={true} // Hide duplicate/remove/expand buttons in edit mode
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -438,12 +501,13 @@ export default function LotEditClient({
           <div className="space-y-4">
             <BuildingConfirmationStep
               buildingInfo={{
-                name: lotInfo.reference,
-                address: building?.address || "",
-                postalCode: "",
-                city: building?.city || "",
-                country: "Belgique",
-                description: lotInfo.description
+                name: building?.name || lotInfo.reference,
+                // For independent lots, use lot address; for building lots, use building address
+                address: building?.address || lotInfo.street || "",
+                postalCode: building ? "" : (lotInfo.postalCode || ""),
+                city: building?.city || lotInfo.city || "",
+                country: building ? "Belgique" : (lotInfo.country || "Belgique"),
+                description: building ? "" : lotInfo.description
               }}
               lots={[{
                 id: lotId,

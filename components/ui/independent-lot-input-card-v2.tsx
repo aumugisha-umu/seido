@@ -66,6 +66,8 @@ interface IndependentLotInputCardV2Props {
   onDuplicate: () => void
   onRemove: () => void
   onToggleExpand: () => void
+  // Optional: hide action buttons (for edit mode where only one lot is edited)
+  hideActions?: boolean
 }
 
 /**
@@ -92,7 +94,8 @@ export function IndependentLotInputCardV2({
   onUpdate,
   onDuplicate,
   onRemove,
-  onToggleExpand
+  onToggleExpand,
+  hideActions = false
 }: IndependentLotInputCardV2Props) {
   const categories = getAllLotCategories()
   const categoryConfig = getLotCategoryConfig(lot.category)
@@ -147,43 +150,45 @@ export function IndependentLotInputCardV2({
           </div>
 
           {/* Right: Actions - 44x44px touch targets */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDuplicate}
-              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-              title="Dupliquer ce lot"
-              aria-label="Dupliquer ce lot"
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRemove}
-              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-              title="Supprimer ce lot"
-              aria-label="Supprimer ce lot"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggleExpand}
-              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              title={isExpanded ? "Réduire" : "Développer"}
-              aria-label={isExpanded ? "Réduire les détails" : "Développer les détails"}
-              aria-expanded={isExpanded}
-            >
-              {isExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
+          {!hideActions && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDuplicate}
+                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                title="Dupliquer ce lot"
+                aria-label="Dupliquer ce lot"
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRemove}
+                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                title="Supprimer ce lot"
+                aria-label="Supprimer ce lot"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleExpand}
+                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                title={isExpanded ? "Réduire" : "Développer"}
+                aria-label={isExpanded ? "Réduire les détails" : "Développer les détails"}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
 

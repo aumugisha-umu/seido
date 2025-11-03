@@ -146,19 +146,10 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                Mon Patrimoine
+                Patrimoine
               </h1>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span>{isRefreshing ? 'Actualisation...' : 'Actualiser'}</span>
-              </Button>
               <Button
                 variant="outline"
                 className="flex items-center space-x-2"

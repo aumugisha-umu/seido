@@ -490,11 +490,8 @@ export function ContactsPageClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                Gestion des Contacts
+                 Contacts
               </h1>
-              <p className="text-slate-600">
-                Gérez vos locataires, prestataires et autres contacts
-              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button

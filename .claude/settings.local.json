@@ -7,7 +7,10 @@
       "Bash(git commit -m \"$(cat <<''EOF''\n🎨 Fix: Ajout padding-top uniforme (40px) aux formulaires de création\n\nProblème résolu:\n- Le contenu était collé au stepper sans espacement vertical\n- Expérience utilisateur désagréable sur les 3 formulaires multi-étapes\n\nSolution appliquée:\n- Ajout de `pt-10` (40px) à la zone de contenu scrollable\n- Pattern uniforme: `px-5 sm:px-6 lg:px-10 pt-10 pb-20`\n\nFichiers modifiés:\n• app/gestionnaire/biens/lots/nouveau/page.tsx (ligne 1900)\n• app/gestionnaire/biens/immeubles/nouveau/building-creation-form.tsx (ligne 857)\n• app/gestionnaire/interventions/nouvelle-intervention/nouvelle-intervention-client.tsx (ligne 964)\n\nEspacement final: 40px tout autour (top, right, bottom, left)\nCohérent avec les pages de détails et modification\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx next lint:*)"
+      "Bash(npx next lint:*)",
+      "Bash(findstr:*)",
+      "Bash(cat:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

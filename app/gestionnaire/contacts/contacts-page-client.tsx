@@ -552,7 +552,7 @@ export function ContactsPageClient({
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 className="flex items-center space-x-2"
-                onClick={() => setIsContactModalOpen(true)}
+                onClick={() => router.push('/gestionnaire/contacts/nouveau')}
               >
                 <UserPlus className="h-4 w-4" />
                 <span>Ajouter un contact</span>
@@ -603,7 +603,7 @@ export function ContactsPageClient({
                           : "Essayez de modifier votre recherche."}
                       </p>
                       {contacts.length === 0 && (
-                        <Button onClick={() => setIsContactModalOpen(true)} className="mt-2">
+                        <Button onClick={() => router.push('/gestionnaire/contacts/nouveau')} className="mt-2">
                           <UserPlus className="h-4 w-4 mr-2" />
                           Ajouter un contact
                         </Button>

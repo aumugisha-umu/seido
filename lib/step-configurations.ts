@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, UserCircle } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [
@@ -70,6 +70,26 @@ export const tenantInterventionSteps: StepConfig[] = [
   },
   {
     icon: CheckCircle,
+    label: "Confirmation"
+  }
+]
+
+// Steps pour la création de contact
+export const contactSteps: StepConfig[] = [
+  {
+    icon: UserCircle,
+    label: "Type"
+  },
+  {
+    icon: Building2,
+    label: "Société"
+  },
+  {
+    icon: Users,
+    label: "Contact"
+  },
+  {
+    icon: Check,
     label: "Confirmation"
   }
 ]

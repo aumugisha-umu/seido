@@ -46,11 +46,8 @@ export const StepProgressHeader = ({
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
 
   return (
-    <div className="sticky top-16 z-40 bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-
-        {/* Single Line Layout: Title + Tabs + Back Button */}
-        <div className="relative flex items-center gap-3 sm:gap-6 py-2.5 border-b border-gray-200">
+    <div className="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-6 relative">
 
           {/* Left: Title + Badge */}
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -76,7 +73,7 @@ export const StepProgressHeader = ({
                 <div
                   key={index}
                   className={`
-                    relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2
+                    relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3
                     transition-all duration-300 cursor-default flex-shrink-0
                     ${isPending && "opacity-50"}
                   `}
@@ -131,13 +128,11 @@ export const StepProgressHeader = ({
             <span className="hidden sm:inline">{backButtonText}</span>
           </Button>
 
-          {/* Progress Bar - at bottom border level */}
-          <div
-            className="absolute bottom-0 left-0 h-0.5 bg-blue-600 transition-all duration-500 ease-out z-10"
-            style={{ width: `${progressPercentage}%` }}
-          />
-
-        </div>
+        {/* Progress Bar - at bottom border level */}
+        <div
+          className="absolute bottom-0 left-0 h-0.5 bg-blue-600 transition-all duration-500 ease-out z-10"
+          style={{ width: `${progressPercentage}%` }}
+        />
       </div>
 
       <style jsx>{`

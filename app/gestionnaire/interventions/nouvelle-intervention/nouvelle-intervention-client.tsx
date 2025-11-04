@@ -949,7 +949,7 @@ export default function NouvelleInterventionClient({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <>
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Créer une intervention"
@@ -961,9 +961,9 @@ export default function NouvelleInterventionClient({
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 py-10">
-        <div className="min-h-full flex items-center justify-center pb-20">
-          <main className="max-w-6xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-10 bg-gray-50">
+        <div className="min-h-full flex items-center justify-center">
+          <main className="max-w-6xl mx-auto w-full pt-6">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -984,16 +984,14 @@ export default function NouvelleInterventionClient({
         {/* Step 2: Formulaire de description */}
         {currentStep === 2 && selectedLogement && (
           <Card>
-            <CardContent className="space-y-6">
-              <div className="flex items-center space-x-2 mb-4">
+            <CardContent className="flex flex-col gap-6">
+              <div className="flex items-center space-x-2">
                 <Building2 className="h-5 w-5 text-orange-500" />
                 <h3 className="text-lg font-medium">Détails de l'intervention</h3>
               </div>
 
-              <div>
-                <h4 className="font-medium mb-4">Décrire l'intervention</h4>
-
-                <div className="space-y-4">
+              <div className="flex flex-col gap-4 flex-1">
+                <h4 className="font-medium">Décrire l'intervention</h4>
                   {/* Titre (2/3) + Type & Urgence (1/3) - Aligné avec Description/File uploader */}
                   <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                     {/* Titre - Même largeur que Description */}
@@ -1060,26 +1058,24 @@ export default function NouvelleInterventionClient({
                         placeholder="Décrivez le problème en détail : où, quand, comment..."
                         value={formData.description}
                         onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                        className="min-h-[180px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
+                        className="min-h-[280px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
                       />
                     </div>
 
-                    {/* File Uploader - 1/3 largeur (aligné avec Type+Urgence) + hauteur verticale */}
-                    <div className="flex flex-col">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</p>
-                      <div className="flex-1 min-h-[180px]">
-                        <InterventionFileAttachment
-                          files={fileUpload.files}
-                          onAddFiles={fileUpload.addFiles}
-                          onRemoveFile={fileUpload.removeFile}
-                          onUpdateFileType={fileUpload.updateFileDocumentType}
-                          isUploading={fileUpload.isUploading}
-                          maxFiles={10}
-                        />
-                      </div>
+                    {/* File Uploader - 1/3 largeur (aligné avec Type+Urgence) */}
+                    <div className="h-[280px]">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</label>
+                      <InterventionFileAttachment
+                        files={fileUpload.files}
+                        onAddFiles={fileUpload.addFiles}
+                        onRemoveFile={fileUpload.removeFile}
+                        onUpdateFileType={fileUpload.updateFileDocumentType}
+                        isUploading={fileUpload.isUploading}
+                        maxFiles={10}
+                        className="h-[252px]"
+                      />
                     </div>
                   </div>
-                </div>
               </div>
 
               {/* Disponibilités */}
@@ -1644,7 +1640,7 @@ export default function NouvelleInterventionClient({
             </div>
           </DialogContent>
         </Dialog>
-    </div>
+    </>
   )
 }
 

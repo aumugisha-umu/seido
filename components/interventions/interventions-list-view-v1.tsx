@@ -237,14 +237,6 @@ export function InterventionsListViewV1({
     )
   }
 
-  if (sortedInterventions.length === 0) {
-    return (
-      <div className="text-center py-12 text-slate-500">
-        <p>Aucune intervention à afficher</p>
-      </div>
-    )
-  }
-
   return (
     <div className={`rounded-md border ${className}`}>
       <div className="overflow-x-auto">

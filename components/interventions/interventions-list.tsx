@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
+import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 interface EmptyStateConfig {
@@ -98,23 +99,7 @@ export function InterventionsList({
 
       const config = { ...defaultEmptyConfig, ...emptyStateConfig }
 
-      return (
-        <div className={`text-center py-8 ${className}`}>
-          <Wrench className="h-8 w-8 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-sm font-medium text-slate-900 mb-1">
-            {config.title}
-          </h3>
-          <p className="text-slate-500 text-sm mb-4">
-            {config.description}
-          </p>
-          {config.showCreateButton && (
-            <Button onClick={config.createButtonAction} size="sm" className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              {config.createButtonText}
-            </Button>
-          )}
-        </div>
-      )
+      return <InterventionsEmptyState {...config} />
     }
 
     return (
@@ -213,23 +198,7 @@ export function InterventionsList({
 
     const config = { ...defaultEmptyConfig, ...emptyStateConfig }
 
-    return (
-      <div className={`text-center py-12 ${className}`}>
-        <Wrench className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-slate-900 mb-2">
-          {config.title}
-        </h3>
-        <p className="text-slate-500 mb-6">
-          {config.description}
-        </p>
-        {config.showCreateButton && (
-          <Button onClick={config.createButtonAction} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            {config.createButtonText}
-          </Button>
-        )}
-      </div>
-    )
+    return <InterventionsEmptyState {...config} />
   }
 
   // Horizontal scroll layout

@@ -296,24 +296,10 @@ export function BigCalendarWrapper({
   }
 
   /**
-   * 🎨 Custom Empty State - Matching cards view design
+   * 🎨 Empty state handling - Let parent container handle empty state
    */
   if (events.length === 0) {
-    return (
-      <div className={`rbc-calendar-container ${className}`}>
-        <div className="flex-1 flex items-center justify-center bg-white rounded-lg border border-slate-200">
-          <div className="text-center py-12 px-6">
-            <Wrench className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">
-              Aucune intervention
-            </h3>
-            <p className="text-slate-500">
-              Aucune intervention dans cette période
-            </p>
-          </div>
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (

@@ -17,6 +17,9 @@ import { InterventionsCalendarView } from './interventions-calendar-view'
 // Card View (Existing)
 import { InterventionsList } from './interventions-list'
 
+// Empty State
+import { InterventionsEmptyState } from './interventions-empty-state'
+
 /**
  * 🎨 INTERVENTIONS VIEW CONTAINER
  *
@@ -179,6 +182,11 @@ export function InterventionsViewContainer({
    * 🎯 Render current view based on mode
    */
   const renderCurrentView = () => {
+    // Check for empty state first
+    if (!loading && interventions.length === 0) {
+      return <InterventionsEmptyState {...emptyStateConfig} />
+    }
+
     switch (viewMode) {
       case 'list':
         return renderListView()

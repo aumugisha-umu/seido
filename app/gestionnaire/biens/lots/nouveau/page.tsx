@@ -2380,7 +2380,7 @@ export default function NewLotPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="flex flex-col flex-1 min-h-0 bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Ajouter un nouveau lot"
@@ -2392,7 +2392,7 @@ export default function NewLotPage() {
       />
 
       {/* Main Content with uniform padding (responsive) and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-5 sm:pt-6 lg:pt-10 pb-20">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-6 pb-20">
           <main className="max-w-6xl mx-auto pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}

@@ -861,7 +861,7 @@ export default function NewImmeubleePage({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="flex flex-col flex-1 min-h-0 bg-gray-50">
       {/* Header */}
       <StepProgressHeader
         title="Ajouter un immeuble"
@@ -872,7 +872,7 @@ export default function NewImmeubleePage({
       />
 
       {/* Main content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-10 pb-20">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-6 pb-20">
 
         {/* Error Alert */}
         {error && (

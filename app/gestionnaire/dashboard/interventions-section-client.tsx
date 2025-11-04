@@ -153,7 +153,7 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
       {/* ContentNavigator avec header personnalisé via wrapper - Material Design compact */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Header avec titre et boutons - Material Design: padding 8dp */}
-        <div className="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 flex-shrink-0 border-b border-gray-100">
+        <div className="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-600" />
             <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Interventions</h2>

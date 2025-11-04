@@ -105,11 +105,20 @@ export default function ContentNavigator({
 
   // Détecter si c'est un usage compact (dashboard) via className
   const isCompact = className.includes('flex-1') || className.includes('min-h-0')
+  
+  // Détecter si c'est le contexte dashboard (embedded sans bordure)
+  const isDashboardEmbedded = className.includes('bg-transparent') || className.includes('border-0')
 
   return (
-    <div className={`flex-1 min-h-0 flex flex-col border border-slate-200 rounded-lg shadow-sm bg-white ${className}`}>
-      {/* Padding container to replace CardContent */}
-      <div className={`${isCompact ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0' : 'p-6 space-y-2 flex-1 flex flex-col min-h-0'}`}>
+    <div className={`flex-1 min-h-0 flex flex-col ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>
+      {/* Padding container - pas de padding sur dashboard embedded */}
+      <div className={`${
+        isDashboardEmbedded 
+          ? 'space-y-1 flex-1 flex flex-col min-h-0'
+          : isCompact 
+            ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0' 
+            : 'p-6 space-y-2 flex-1 flex flex-col min-h-0'
+      }`}>
         {/* Navigation Controls */}
         <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2 flex-shrink-0'}`}>
           {/* Mobile Layout - Single Row */}

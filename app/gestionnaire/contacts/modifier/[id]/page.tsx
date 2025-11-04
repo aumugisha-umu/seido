@@ -611,7 +611,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
                   <Alert className="bg-amber-50 border-amber-200">
                     <AlertCircle className="h-4 w-4 text-amber-600" />
                     <AlertDescription className="text-sm text-amber-800">
-                      Cet email est lié à un compte utilisateur et ne peut pas être modifié. Pour changer l'email, vous devez révoquer l'accès du contact puis créer un nouveau contact.
+                      Cet email est lié à un compte utilisateur et ne peut pas être modifié. Pour changer l'email, vous devez d'abord  révoquer l'accès du contact.
                     </AlertDescription>
                   </Alert>
                 )}

@@ -161,6 +161,68 @@ export function ContactCreationClient({
     }
   }
 
+  // Helper pour formater la spécialité
+  const getSpecialtyLabel = (value: string): string => {
+    const labels: Record<string, string> = {
+      plomberie: 'Plomberie',
+      electricite: 'Électricité',
+      chauffage: 'Chauffage',
+      serrurerie: 'Serrurerie',
+      peinture: 'Peinture et revêtements',
+      menage: 'Ménage et nettoyage',
+      jardinage: 'Jardinage et espaces verts',
+      autre: 'Autre'
+    }
+    return labels[value] || value
+  }
+
+  // Générer le message de succès contextuel
+  const getSuccessMessage = (): string => {
+    const contactName = formData.firstName && formData.lastName
+      ? `${formData.firstName} ${formData.lastName}`
+      : formData.firstName || formData.lastName || formData.email
+
+    const specialtyText = formData.contactType === 'prestataire' && formData.specialty
+      ? ` (${getSpecialtyLabel(formData.specialty)})`
+      : ''
+
+    // A. Personne physique seule
+    if (formData.personOrCompany === 'person') {
+      if (formData.inviteToApp) {
+        return `${contactName}${specialtyText} ajouté et invité avec succès !`
+      }
+      return `${contactName}${specialtyText} ajouté avec succès !`
+    }
+
+    // B. Nouvelle société
+    if (formData.companyMode === 'new') {
+      const hasContactPerson = formData.firstName || formData.lastName
+
+      if (hasContactPerson) {
+        if (formData.inviteToApp) {
+          return `${contactName}${specialtyText} et la société ${formData.companyName} créés et invitation envoyée !`
+        }
+        return `${contactName}${specialtyText} et la société ${formData.companyName} créés avec succès !`
+      } else {
+        if (formData.inviteToApp) {
+          return `Société ${formData.companyName} créée et invitation envoyée à ${formData.email} !`
+        }
+        return `Société ${formData.companyName} créée avec succès !`
+      }
+    }
+
+    // C. Société existante
+    const selectedCompany = formData.companyId
+      ? initialCompanies.find(c => c.id === formData.companyId)
+      : null
+    const companyDisplayName = selectedCompany?.name || formData.companyName || 'la société'
+
+    if (formData.inviteToApp) {
+      return `${contactName}${specialtyText} ajouté à ${companyDisplayName} et invité !`
+    }
+    return `${contactName}${specialtyText} ajouté à ${companyDisplayName} avec succès !`
+  }
+
   // Création du contact
   const handleCreate = async () => {
     setIsCreating(true)
@@ -173,9 +235,9 @@ export function ContactCreationClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teamId,
-          type: formData.contactType,
+          role: formData.contactType,
           contactType: formData.personOrCompany,
-          specialty: formData.specialty,
+          speciality: formData.specialty,
           companyMode: formData.companyMode,
           companyId: formData.companyId,
           companyName: formData.companyName,
@@ -190,7 +252,7 @@ export function ContactCreationClient({
           email: formData.email,
           phone: formData.phone,
           notes: formData.notes,
-          inviteToApp: formData.inviteToApp
+          shouldInviteToApp: formData.inviteToApp
         })
       })
 
@@ -200,7 +262,7 @@ export function ContactCreationClient({
       }
 
       logger.info("✅ [CREATE-CONTACT] Contact created successfully")
-      toast.success("Contact créé avec succès !")
+      toast.success(getSuccessMessage())
 
       // Redirection vers la liste des contacts
       router.push('/gestionnaire/contacts')

@@ -133,11 +133,14 @@ export const updateUserProfileSchema = z.object({
 /**
  * POST /api/invite-user
  * Creates contact + optionally sends invitation
+ * Supports company contacts (person or company)
  */
 export const inviteUserSchema = z.object({
   email: emailSchema,
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().min(1).max(100).trim(),
+  // ✅ firstName/lastName optionnels pour supporter les contacts société
+  // La validation métier (required pour 'person') est faite dans ContactFormModal
+  firstName: z.string().max(100).trim().optional().nullable(),
+  lastName: z.string().max(100).trim().optional().nullable(),
   role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire'], {
     errorMap: () => ({ message: 'Invalid role' })
   }),
@@ -147,6 +150,17 @@ export const inviteUserSchema = z.object({
   notes: z.string().max(2000).trim().optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
   shouldInviteToApp: z.boolean().optional().default(false),
+  // Champs société
+  contactType: z.enum(['person', 'company']).optional().nullable(),
+  companyMode: z.enum(['new', 'existing']).optional().nullable(),
+  companyId: uuidSchema.optional().nullable(),
+  companyName: z.string().min(2).max(255).trim().optional().nullable(),
+  vatNumber: z.string().max(50).trim().optional().nullable(),
+  street: z.string().max(255).trim().optional().nullable(),
+  streetNumber: z.string().max(20).trim().optional().nullable(),
+  postalCode: z.string().max(20).trim().optional().nullable(),
+  city: z.string().max(100).trim().optional().nullable(),
+  country: z.string().max(100).trim().optional().nullable(),
 })
 
 // ============================================================================

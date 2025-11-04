@@ -30,7 +30,7 @@ export async function getTeamContactsAction(teamId: string) {
     // Create server-side Supabase client (faster RLS evaluation)
     const supabase = await createServerActionSupabaseClient()
 
-    // Optimized query: only essential columns (7 vs 14)
+    // Optimized query: essential columns + company data
     const { data, error } = await supabase
       .from('team_members')
       .select(`
@@ -41,7 +41,14 @@ export async function getTeamContactsAction(teamId: string) {
           phone,
           role,
           provider_category,
-          speciality
+          speciality,
+          is_company,
+          company_id,
+          company:company_id (
+            id,
+            name,
+            vat_number
+          )
         )
       `)
       .eq('team_id', teamId)
@@ -98,7 +105,14 @@ export async function getTeamContactsByRoleAction(teamId: string, role?: string)
           phone,
           role,
           provider_category,
-          speciality
+          speciality,
+          is_company,
+          company_id,
+          company:company_id (
+            id,
+            name,
+            vat_number
+          )
         )
       `)
       .eq('team_id', teamId)

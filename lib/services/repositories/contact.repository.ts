@@ -168,6 +168,18 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
           notes,
           first_name,
           last_name,
+          is_company,
+          company_id,
+          company:company_id (
+            id,
+            name,
+            vat_number,
+            street,
+            street_number,
+            postal_code,
+            city,
+            country
+          ),
           created_at,
           updated_at
         )

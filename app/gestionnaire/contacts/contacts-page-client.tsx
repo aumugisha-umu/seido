@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Users, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive } from "lucide-react"
+import { Users, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive, Building2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import ContentNavigator from "@/components/content-navigator"
@@ -32,6 +32,19 @@ interface Contact {
   role?: string
   provider_category?: string
   speciality?: string
+  // Champs société
+  is_company?: boolean
+  company_id?: string | null
+  company?: {
+    id: string
+    name: string
+    vat_number?: string | null
+    street?: string | null
+    street_number?: string | null
+    postal_code?: string | null
+    city?: string | null
+    country?: string | null
+  } | null
 }
 
 interface Invitation {
@@ -187,7 +200,11 @@ export function ContactsPageClient({
         contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         contact.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         contact.company?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        contact.speciality?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+        contact.speciality?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        // Recherche dans le nom de la société
+        (contact.is_company && contact.company?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        // Recherche dans le numéro de TVA
+        (contact.is_company && contact.company?.vat_number?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
       )
     }
 
@@ -577,9 +594,23 @@ export function ContactsPageClient({
                                     {getContactTypeLabel(contact)}
                                   </Badge>
                                 )}
+                                {/* Badge Entreprise */}
+                                {contact.is_company && (
+                                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
+                                    <Building2 className="h-3 w-3" />
+                                    Entreprise
+                                  </Badge>
+                                )}
                                 {getCurrentUserBadge(contact.email)}
                                 {getContactInvitationBadge(contact.email)}
-                                {contact.company && (
+                                {/* Afficher nom de la société si contact société */}
+                                {contact.is_company && contact.company && (
+                                  <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
+                                    {contact.company.name}
+                                  </Badge>
+                                )}
+                                {/* Legacy company field (pour contacts sans is_company) */}
+                                {!contact.is_company && contact.company && (
                                   <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
                                     {contact.company}
                                   </Badge>
@@ -601,8 +632,30 @@ export function ContactsPageClient({
                                     <span>{contact.phone}</span>
                                   </div>
                                 )}
+                                {/* Numéro de TVA pour les sociétés */}
+                                {contact.is_company && contact.company?.vat_number && (
+                                  <div className="flex items-center space-x-1">
+                                    <Building2 className="h-3 w-3" />
+                                    <span className="font-mono text-xs">TVA: {contact.company.vat_number}</span>
+                                  </div>
+                                )}
                               </div>
-                              {contact.address && (
+                              {/* Adresse de la société */}
+                              {contact.is_company && contact.company && contact.company.city && (
+                                <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
+                                  <MapPin className="h-3 w-3" />
+                                  <span>
+                                    {contact.company.street && `${contact.company.street}`}
+                                    {contact.company.street_number && ` ${contact.company.street_number}`}
+                                    {(contact.company.street || contact.company.street_number) && ', '}
+                                    {contact.company.postal_code && `${contact.company.postal_code} `}
+                                    {contact.company.city}
+                                    {contact.company.country && `, ${contact.company.country}`}
+                                  </span>
+                                </div>
+                              )}
+                              {/* Adresse legacy */}
+                              {!contact.is_company && contact.address && (
                                 <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
                                   <MapPin className="h-3 w-3" />
                                   <span>{contact.address}</span>

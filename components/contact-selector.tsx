@@ -19,7 +19,8 @@ import {
   Loader2,
   Users,
   Home,
-  Building
+  Building,
+  Building2
 } from "lucide-react"
 import ContactFormModal from "@/components/contact-form-modal"
 
@@ -47,6 +48,14 @@ interface Contact {
   type: string
   phone?: string
   speciality?: string
+  // Champs société
+  is_company?: boolean
+  company_id?: string | null
+  company?: {
+    id: string
+    name: string
+    vat_number?: string | null
+  } | null
 }
 
 // Props du composant principal (interface simplifiée et centralisée)
@@ -328,7 +337,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     return contactsByType.filter(contact =>
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contact.phone && contact.phone.includes(searchTerm))
+      (contact.phone && contact.phone.includes(searchTerm)) ||
+      // Recherche dans le nom de la société
+      (contact.is_company && contact.company?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      // Recherche dans le numéro de TVA
+      (contact.is_company && contact.company?.vat_number?.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   }
 
@@ -621,8 +634,15 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                           }`}
                         >
                           <div className="flex-1">
-                            <div className="font-medium flex items-center gap-2">
+                            <div className="font-medium flex items-center gap-2 flex-wrap">
                               {contact.name}
+                              {/* Badge Entreprise */}
+                              {contact.is_company && (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
+                                  <Building2 className="h-3 w-3" />
+                                  Entreprise
+                                </Badge>
+                              )}
                               {isInherited ? (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-700 border border-blue-300 text-xs flex items-center gap-1">
                                   <Building className="w-3 h-3" />
@@ -634,6 +654,15 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                                 </Badge>
                               )}
                             </div>
+                            {/* Nom de la société */}
+                            {contact.is_company && contact.company && (
+                              <div className="text-sm text-purple-700 font-medium mt-1">
+                                {contact.company.name}
+                                {contact.company.vat_number && (
+                                  <span className="text-xs text-purple-600 ml-2">TVA: {contact.company.vat_number}</span>
+                                )}
+                              </div>
+                            )}
                             <div className="text-sm text-gray-500">{contact.email}</div>
                             {contact.phone && (
                               <div className="text-xs text-gray-400">{contact.phone}</div>

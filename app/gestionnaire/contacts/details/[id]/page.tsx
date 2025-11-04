@@ -49,7 +49,22 @@ export default async function ContactDetailsPage({ params }: PageProps) {
   // ============================================================================
   const { data: contact, error: contactError } = await supabase
     .from('users')
-    .select('*')
+    .select(`
+      *,
+      company:company_id(
+        id,
+        name,
+        vat_number,
+        street,
+        street_number,
+        postal_code,
+        city,
+        country,
+        email,
+        phone,
+        is_active
+      )
+    `)
     .eq('id', resolvedParams.id)
     .single()
 

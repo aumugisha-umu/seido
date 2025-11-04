@@ -1,9 +1,10 @@
-# Guide d'Implémentation - Intégration Email SEIDO
+# Guide d'Implémentation - Intégration Email SEIDO (IMAP/SMTP)
 
-**Version**: 1.1
+**Version**: 2.0
 **Date**: 2025-11-04
 **Statut**: 📋 Documentation Technique
-**Complexité**: 🔴 Élevée (8 semaines)
+**Approche**: IMAP/SMTP Multi-Comptes (Self-Service)
+**Complexité**: 🟢 Moyenne (4 semaines)
 
 ---
 
@@ -15,10 +16,10 @@
 |-----------|--------|
 | **Nombre d'équipes** | 10 équipes |
 | **Volume emails** | 200 emails/jour (20/équipe/jour) |
-| **Timeline** | 8 semaines (implémentation complète) |
-| **Priorité #1** | Réception emails dans l'app |
-| **Google Workspace** | ⚠️ À créer (pas encore de compte) |
-| **Accès Admin** | ⚠️ À obtenir (super admin requis) |
+| **Timeline** | **4 semaines** (implémentation complète) ✅ |
+| **Priorité #1** | Réception + Envoi emails dans l'app |
+| **Approche** | IMAP/SMTP Self-Service |
+| **Prérequis** | ✅ Aucun (pas de souscription externe requise) |
 
 ### Coûts Estimés (Votre Configuration)
 
@@ -26,41 +27,44 @@
 
 | Service | Usage Mensuel | Coût |
 |---------|---------------|------|
-| **Google Workspace** | 1 compte Business Standard | **$12/mois** |
-| Gmail API | Gratuit | $0 |
-| Pub/Sub | 6K messages | $0 (sous limite gratuite) |
+| **Supabase Database** | Credentials encrypted + emails | $0 (inclus Pro) |
 | **Supabase Storage** | ~15GB attachments | **$0.32/mois** |
-| **TOTAL** | | **~$12.32/mois** |
+| Vercel Cron | Polling IMAP every 5 min | $0 (inclus) |
+| **TOTAL INFRASTRUCTURE** | | **$0.32/mois** ✅ |
 
-**Note**: Le coût principal est Google Workspace Business Standard ($12/utilisateur/mois), obligatoire pour les alias email.
+**💰 Économie vs Google Workspace**: $144/an (pas de souscription $12/mois requise)
 
-### Étapes Préliminaires CRITIQUES
+**Note**: Chaque équipe connecte sa propre boîte email (Gmail, Outlook, etc.) avec username/password. Aucun service externe payant requis.
 
-Avant de commencer l'implémentation technique, vous DEVEZ:
+### Avantages Approche IMAP/SMTP
 
-1. ✅ **Souscrire à Google Workspace Business Standard**
-   - URL: https://workspace.google.com/
-   - Plan requis: Business Standard minimum (support alias)
-   - Domaine: seido.pm
-   - Durée setup: 1-2 jours (vérification domaine)
+✅ **Coût ultra-faible**: $0.32/mois (vs $12.32 avec Google Workspace)
+✅ **Universel**: Fonctionne avec Gmail, Outlook, Yahoo, OVH, tout provider IMAP/SMTP
+✅ **Self-service**: User configure lui-même sa boîte email (2 minutes)
+✅ **Bi-directionnel**: Réception (IMAP) + Envoi (SMTP)
+✅ **Simplicité**: Pas de Google Cloud, pas d'OAuth complexe, pas de webhooks
+✅ **Rapide**: 4 semaines vs 8 semaines (architecture plus simple)
 
-2. ✅ **Créer compte principal** `gestionnaires@seido.pm`
-   - Via Google Admin Console
-   - Rôle: Super Admin (requis pour API)
+⚠️ **Seul compromis**: Latence 2-5 minutes réception (polling vs push temps-réel)
+→ Acceptable pour gestion immobilière (emails urgents = téléphone)
 
-3. ✅ **Obtenir accès Super Admin**
-   - Nécessaire pour créer aliases programmatiquement
-   - Nécessaire pour domain-wide delegation OAuth
+### Aucun Prérequis Externe
 
-**⏱️ Timeline Prérequis**: Prévoir 3-5 jours avant Phase 1 technique
+**vs Approche Google Workspace**:
+- ❌ Pas de souscription Google Workspace Business Standard
+- ❌ Pas de configuration Google Cloud Project
+- ❌ Pas de Google Admin Console
+- ❌ Pas de domain-wide delegation OAuth
+
+**Démarrage immédiat**: Implémentation peut commencer dès aujourd'hui ✅
 
 ---
 
 ## 📖 Table des Matières
 
 1. [Vue d'Ensemble](#vue-densemble)
-2. [Architecture Technique](#architecture-technique)
-3. [Configuration Google Cloud](#configuration-google-cloud)
+2. [Architecture Technique IMAP/SMTP](#architecture-technique)
+3. [Configuration Providers Email](#configuration-providers-email)
 4. [Schéma Base de Données](#schéma-base-de-données)
 5. [Implémentation Backend](#implémentation-backend)
 6. [Intégration Frontend](#intégration-frontend)
@@ -69,6 +73,8 @@ Avant de commencer l'implémentation technique, vous DEVEZ:
 9. [Gestion des Blockers](#gestion-des-blockers)
 10. [Coûts & Scalabilité](#coûts--scalabilité)
 11. [Checklist Pré-Production](#checklist-pré-production)
+12. [Ressources & Documentation](#ressources--documentation)
+13. [Support & Maintenance](#support--maintenance)
 
 ---
 
@@ -76,128 +82,193 @@ Avant de commencer l'implémentation technique, vous DEVEZ:
 
 ### 1.1 Objectif
 
-Permettre aux gestionnaires SEIDO de centraliser leurs emails de gestion immobilière dans l'application via un système d'alias email par équipe.
+Permettre aux gestionnaires SEIDO de centraliser leurs emails de gestion immobilière dans l'application en connectant directement leur boîte email personnelle (Gmail, Outlook, etc.) via protocoles IMAP/SMTP.
 
 ### 1.2 Fonctionnalités Principales
 
 #### Pour les Utilisateurs
-- 📧 **Réception centralisée**: Tous les emails transférés vers l'alias d'équipe arrivent dans SEIDO
+
+**Réception Emails (IMAP)**:
+- 📧 **Connexion directe**: Connecter Gmail, Outlook, Yahoo, OVH, ou tout provider IMAP
 - 🔍 **Recherche full-text**: Recherche instantanée dans sujet + corps des emails
 - 🏢 **Liaison bien**: Archiver un email en le liant à un immeuble/lot
 - 🔧 **Création intervention**: Transformer un email en intervention (pré-rempli)
 - ❌ **Filtrage**: Marquer les emails non pertinents au patrimoine
 - 📎 **Pièces jointes**: Visualisation et téléchargement sécurisés
 
+**Envoi Emails (SMTP)**:
+- ✉️ **Répondre depuis SEIDO**: Répondre aux emails directement dans l'app
+- 📤 **Envoi contextualisé**: Emails envoyés depuis compte user (authentification)
+- 🔗 **Thread preservation**: Réponses liées au fil de conversation original
+- 📝 **Templates**: Modèles pré-remplis (interventions, devis, etc.)
+
 #### Architecture
+
 ```
-┌─────────────────┐
-│  Client Email   │
-│  (Outlook/...)  │
-└────────┬────────┘
-         │ Forward email
-         ▼
-┌─────────────────┐
-│ team1@seido.pm  │ ◄── Alias Google Workspace
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Gmail API     │ ◄── Push Notification (Pub/Sub)
-│  + Pub/Sub      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ /api/webhooks/  │ ◄── Next.js Route Handler
-│     gmail       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  EmailService   │ ◄── Parse + Store
-│  + Repository   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   PostgreSQL    │ ◄── Supabase Database
-│  + S3 Storage   │
-└─────────────────┘
+┌──────────────────────┐
+│ User Email Account   │
+│ (Gmail/Outlook/...)  │
+│ user@gmail.com       │
+└──────┬───────────┬───┘
+       │           │
+       │ IMAP      │ SMTP
+       │ (receive) │ (send)
+       ▼           ▼
+┌──────────────────────┐
+│  SEIDO Backend       │
+│                      │
+│  ┌───────────────┐   │
+│  │ Cron Job      │   │ ◄── Poll IMAP every 5 min
+│  │ (Vercel)      │   │
+│  └───────┬───────┘   │
+│          │           │
+│  ┌───────▼───────┐   │
+│  │ IMAP Service  │   │ ◄── Fetch new emails
+│  │ + Parser      │   │
+│  └───────┬───────┘   │
+│          │           │
+│  ┌───────▼───────┐   │
+│  │ Email Repo    │   │ ◄── Store in DB
+│  └───────────────┘   │
+│                      │
+│  ┌───────────────┐   │
+│  │ SMTP Service  │   │ ◄── Send replies
+│  └───────────────┘   │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│   PostgreSQL         │ ◄── Supabase Database
+│   + S3 Storage       │     (emails + attachments)
+└──────────────────────┘
 ```
 
 ### 1.3 Workflow Utilisateur
 
-1. **Configuration initiale** (Admin SEIDO):
-   - Créer alias `team-abc@seido.pm` pour Team ABC
-   - Communiquer l'alias au gestionnaire
+#### Configuration Initiale (Self-Service - 2 minutes)
 
-2. **Utilisation quotidienne** (Gestionnaire):
-   - Transférer emails pertinents → `team-abc@seido.pm`
-   - Email apparaît dans SEIDO sous 2-5 secondes
-   - Actions possibles:
-     - Lire email
-     - Marquer comme "Non pertinent"
-     - Lier à un bien
-     - Créer intervention
+1. **User va dans Paramètres → Emails**
+2. **Sélectionne provider** (Gmail, Outlook, ou Autre)
+3. **Entre credentials IMAP/SMTP**:
+   ```
+   Gmail Example:
+   - Email: gestionnaire@gmail.com
+   - IMAP: imap.gmail.com:993 (auto-rempli)
+   - SMTP: smtp.gmail.com:587 (auto-rempli)
+   - Password: [Mot de passe d'application Gmail]
+   ```
+4. **Test connexion automatique** → ✅ Connecté
+5. **Emails synchronisés** toutes les 5 minutes
 
-3. **Traçabilité**:
-   - Email archivé dans base de données
-   - Accessible depuis fiche bien
-   - Retrouvable via recherche full-text
+#### Utilisation Quotidienne
+
+**Réception**:
+1. User reçoit email dans sa boîte Gmail/Outlook normale
+2. Après 2-5 minutes, email apparaît dans SEIDO
+3. Actions possibles:
+   - Lire email
+   - Répondre depuis SEIDO
+   - Marquer comme "Non pertinent"
+   - Lier à un bien
+   - Créer intervention
+
+**Envoi**:
+1. Depuis détail email, cliquer "Répondre"
+2. Composer réponse dans SEIDO
+3. Email envoyé via SMTP depuis compte user
+4. Destinataire reçoit email comme si envoyé depuis Gmail/Outlook
+
+#### Traçabilité
+- Email archivé dans base de données SEIDO
+- Historique réponses conservé
+- Accessible depuis fiche bien
+- Retrouvable via recherche full-text
 
 ---
 
-## 2. Architecture Technique
+## 2. Architecture Technique IMAP/SMTP
 
 ### 2.1 Stack Technologique
 
 | Composant | Technologie | Justification |
 |-----------|-------------|---------------|
-| **Email Reception** | Gmail API + Pub/Sub | Push notifications temps réel (< 1s latency) |
-| **Email Parsing** | `mailparser` (10M+ DL/week) | RFC 2822 compliant, battle-tested |
-| **Database** | PostgreSQL (Supabase) | Full-text search, RLS policies |
+| **Email Reception** | IMAP (Polling) | Universel (Gmail, Outlook, Yahoo, OVH...) |
+| **Email Sending** | SMTP | Standard envoi emails avec authentification |
+| **Email Parsing** | `mailparser` + `imap` (npm) | RFC 2822 compliant, battle-tested |
+| **Polling** | Vercel Cron (every 5 min) | Serverless, gratuit, reliable |
+| **Database** | PostgreSQL (Supabase) | Full-text search, RLS policies, encrypted credentials |
 | **File Storage** | Supabase Storage (S3) | Attachments scalables, CDN-ready |
 | **Backend** | Repository Pattern + Services | Cohérent avec architecture SEIDO |
 | **Frontend** | Server Components + shadcn/ui | Performance, SEO-friendly |
 
 ### 2.2 Choix Architecturaux
 
-#### Push Notifications vs Polling
+#### IMAP Polling vs Push Notifications
 
-**✅ Choix: Push Notifications (Gmail API + Pub/Sub)**
+**✅ Choix: IMAP Polling (Cron every 5 min)**
 
-| Critère | Push (Pub/Sub) | Polling |
-|---------|----------------|---------|
-| Latence | < 1 seconde | 1-5 minutes |
-| Coût API | Gratuit | Quotas élevés |
-| Scalabilité | ✅ 10,000+ équipes | ❌ Max 500 équipes |
-| Complexité | Moyenne | Faible |
-| Serverless | ✅ Compatible | ⚠️ Nécessite cron |
+| Critère | IMAP Polling (Choisi) | Push (Gmail API) |
+|---------|----------------------|------------------|
+| **Latence** | 2-5 minutes 🟡 | < 5 secondes |
+| **Complexité** | 🟢 Simple | 🔴 Élevée |
+| **Universalité** | ✅ Tous providers | ❌ Gmail uniquement |
+| **Coût infra** | 🟢 $0.32/mois | 🔴 $12/mois (Workspace) |
+| **Dev time** | 🟢 4 semaines | 🔴 8 semaines |
+| **Scalabilité** | 🟡 50-100 équipes | ✅ 1000+ équipes |
+| **Self-service** | ✅ User configure | ❌ Admin crée alias |
 
-**Configuration Pub/Sub**:
+**Justification pour SEIDO**:
+- 🟢 **Latence acceptable**: Gestion immobilière n'est pas temps-réel
+- 🟢 **Coût ultra-faible**: Économie $144/an vs Google Workspace
+- 🟢 **Simplicité**: Pas de Google Cloud, OAuth, webhooks
+- 🟢 **Universel**: Outlook, Gmail, Yahoo, OVH, tout IMAP fonctionne
+
+**Configuration Cron** (vercel.json):
+```json
+{
+  "crons": [{
+    "path": "/api/cron/sync-emails",
+    "schedule": "*/5 * * * *"  // Every 5 minutes
+  }]
+}
+```
+
+#### Stockage Credentials
+
+**⚠️ SÉCURITÉ CRITIQUE**: Encryption AES-256 obligatoire
+
 ```typescript
-// Topic: projects/seido-production/topics/gmail-notifications
-// Subscription: seido-gmail-webhook (push to https://seido.pm/api/webhooks/gmail)
+// lib/services/encryption.service.ts
+import crypto from 'crypto';
 
-const subscription = {
-  topic: 'projects/seido-production/topics/gmail-notifications',
-  pushConfig: {
-    pushEndpoint: 'https://seido.pm/api/webhooks/gmail',
-    oidcToken: {
-      serviceAccountEmail: 'gmail-push@seido-production.iam.gserviceaccount.com'
-    }
-  },
-  ackDeadlineSeconds: 600, // 10 minutes max processing
-  retryPolicy: {
-    minimumBackoff: '10s',
-    maximumBackoff: '600s'
-  }
-};
+const ENCRYPTION_KEY = process.env.EMAIL_ENCRYPTION_KEY; // 32 bytes (256 bits)
+const IV_LENGTH = 16;
+
+export function encryptPassword(password: string): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+
+  let encrypted = cipher.update(password, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+export function decryptPassword(encrypted: string): string {
+  const [ivHex, encryptedHex] = encrypted.split(':');
+  const iv = Buffer.from(ivHex, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+
+  let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+
+  return decrypted;
+}
 ```
 
 #### Stockage Attachments
 
-**✅ Choix: Supabase Storage (S3-backed)**
+**✅ Choix: Supabase Storage (S3-backed)** (inchangé)
 
 ```
 Structure:
@@ -208,8 +279,8 @@ email-attachments/
 
 Exemple:
 email-attachments/
-  a1b2c3d4-5678-90ab-cdef-1234567890ab/
-    e5f6g7h8-90ab-cdef-1234-567890abcdef/
+  abc-123-team/
+    e5f6g7h8-email-id/
       photo-fuite.jpg
       devis-plomberie.pdf
 ```
@@ -222,206 +293,384 @@ email-attachments/
 
 ### 2.3 Flux de Données Détaillé
 
+#### Flux Réception (IMAP)
+
 ```typescript
-// STEP 1: User forwards email to team1@seido.pm
-// ↓
+// ======================================
+// CRON JOB - Every 5 minutes
+// ======================================
 
-// STEP 2: Gmail receives email, triggers Pub/Sub notification
+// STEP 1: Get all active email connections
+const { data: connections } = await supabase
+  .from('team_email_connections')
+  .select('*')
+  .eq('is_active', true);
+
+// STEP 2: For each connection, poll IMAP
+for (const connection of connections) {
+  // Decrypt password
+  const password = decryptPassword(connection.imap_password_encrypted);
+
+  // Connect IMAP
+  const imap = new Imap({
+    user: connection.imap_username,
+    password,
+    host: connection.imap_host,
+    port: connection.imap_port,
+    tls: connection.imap_use_ssl
+  });
+
+  imap.connect();
+
+  // STEP 3: Search new emails (UID > last_uid)
+  imap.openBox('INBOX', false, () => {
+    const searchCriteria = [['UID', `${connection.last_uid + 1}:*`]];
+
+    imap.search(searchCriteria, (err, uids) => {
+      const fetch = imap.fetch(uids, { bodies: '', struct: true });
+
+      // STEP 4: Parse each email
+      fetch.on('message', async (msg) => {
+        msg.on('body', async (stream) => {
+          const parsed = await simpleParser(stream);
+
+          // STEP 5: Store in database
+          await emailRepo.create({
+            team_id: connection.team_id,
+            email_connection_id: connection.id,
+            from_address: parsed.from.value[0].address,
+            from_name: parsed.from.value[0].name,
+            to_addresses: parsed.to.value.map(t => t.address),
+            subject: parsed.subject,
+            body_text: parsed.text,
+            body_html: parsed.html,
+            received_at: parsed.date || new Date()
+          });
+
+          // STEP 6: Store attachments
+          for (const attachment of parsed.attachments || []) {
+            await storeAttachment(emailId, attachment);
+          }
+        });
+      });
+
+      // STEP 7: Update last_uid
+      await supabase
+        .from('team_email_connections')
+        .update({ last_uid: Math.max(...uids), last_sync_at: new Date() })
+        .eq('id', connection.id);
+    });
+  });
+}
+```
+
+#### Flux Envoi (SMTP)
+
+```typescript
+// ======================================
+// USER CLIQUE "RÉPONDRE" DANS SEIDO
+// ======================================
+
+// STEP 1: User compose réponse
+POST /api/emails/send
 {
-  "emailAddress": "gestionnaires@seido.pm",
-  "historyId": "1234567890"
+  "team_id": "abc-123",
+  "reply_to_email_id": "original-email-id",
+  "to": ["client@example.com"],
+  "subject": "Re: Fuite plomberie",
+  "body_html": "<p>Bonjour,...</p>",
+  "body_text": "Bonjour,..."
 }
 
-// STEP 3: Webhook receives notification
-// POST /api/webhooks/gmail
-async function POST(request: NextRequest) {
-  const { message } = await request.json();
-  const decoded = JSON.parse(Buffer.from(message.data, 'base64'));
+// STEP 2: Get team SMTP config
+const { data: connection } = await supabase
+  .from('team_email_connections')
+  .select('*')
+  .eq('team_id', teamId)
+  .single();
 
-  // Process historyId
-  await emailService.processEmailNotification(decoded.historyId);
-}
+// Decrypt SMTP password
+const smtpPassword = decryptPassword(connection.smtp_password_encrypted);
 
-// STEP 4: Fetch Gmail history changes
-const history = await gmail.users.history.list({
-  userId: 'gestionnaires@seido.pm',
-  startHistoryId: lastProcessedHistoryId,
-  historyTypes: ['messageAdded']
+// STEP 3: Send email via SMTP
+const transporter = nodemailer.createTransport({
+  host: connection.smtp_host,         // smtp.gmail.com
+  port: connection.smtp_port,         // 587
+  secure: connection.smtp_use_tls,    // true
+  auth: {
+    user: connection.smtp_username,   // gestionnaire@gmail.com
+    pass: smtpPassword                 // Decrypted password
+  }
 });
 
-// STEP 5: For each new message, fetch full details
-const message = await gmail.users.messages.get({
-  userId: 'gestionnaires@seido.pm',
-  id: messageId,
-  format: 'raw' // RFC 2822 format
+await transporter.sendMail({
+  from: connection.email_address,     // gestionnaire@gmail.com
+  to: ['client@example.com'],
+  subject: 'Re: Fuite plomberie',
+  text: body_text,
+  html: body_html,
+  inReplyTo: originalEmail.message_id, // Thread preservation
+  references: originalEmail.references
 });
 
-// STEP 6: Parse email with mailparser
-const rawEmail = Buffer.from(message.data.raw, 'base64').toString();
-const parsed = await simpleParser(rawEmail);
-
-// STEP 7: Detect team from recipient alias
-const teamId = await detectTeamFromEmail(parsed.to); // team1@seido.pm → team_id
-
-// STEP 8: Store in database
+// STEP 4: Store sent email in database
 await emailRepo.create({
   team_id: teamId,
-  gmail_message_id: messageId,
-  from_address: parsed.from.value[0].address,
-  subject: parsed.subject,
-  body_text: parsed.text,
-  body_html: parsed.html,
-  received_at: parsed.date
+  direction: 'sent',                   // vs 'received'
+  from_address: connection.email_address,
+  to_addresses: ['client@example.com'],
+  subject: 'Re: Fuite plomberie',
+  body_text,
+  body_html,
+  in_reply_to: originalEmail.id,
+  sent_at: new Date()
 });
-
-// STEP 9: Store attachments in Supabase Storage
-for (const attachment of parsed.attachments) {
-  await supabase.storage.from('email-attachments').upload(
-    `${teamId}/${emailId}/${attachment.filename}`,
-    attachment.content
-  );
-}
-
-// STEP 10: Notify team managers via real-time subscription
-await supabase.from('emails').insert({ /* ... */ }); // Triggers real-time event
 ```
 
 ---
 
-## 3. Configuration Google Cloud
+## 3. Configuration Providers Email
 
-### 3.1 Prérequis
+### 3.1 Vue d'Ensemble
 
-- ✅ Compte Google Workspace (Business Standard ou supérieur)
-- ✅ Domaine vérifié: `seido.pm`
-- ✅ Accès Super Admin Google Workspace
-- ✅ Compte Google Cloud Platform
+**Aucune souscription externe requise** ✅
 
-### 3.2 Étape 1: Créer Google Cloud Project
+Contrairement à l'approche Google Workspace, l'approche IMAP/SMTP permet aux users de connecter directement leur boîte email existante (Gmail personnelle, Outlook, etc.) sans frais supplémentaires.
 
-```bash
-# Via gcloud CLI
-gcloud projects create seido-production \
-  --name="SEIDO Email Integration" \
-  --organization=YOUR_ORG_ID
+**Providers supportés** (tout provider IMAP/SMTP):
+- ✅ **Gmail** (gratuit, personnel ou professionnel)
+- ✅ **Outlook/Office 365** (gratuit ou Business)
+- ✅ **Yahoo Mail**
+- ✅ **OVH Mail**
+- ✅ **Custom IMAP/SMTP** (tout serveur compatible)
 
-# Activer APIs
-gcloud services enable gmail.googleapis.com --project=seido-production
-gcloud services enable admin.googleapis.com --project=seido-production
-gcloud services enable pubsub.googleapis.com --project=seido-production
-```
+---
 
-**Via Console Google Cloud**:
-1. Aller sur https://console.cloud.google.com
-2. Créer nouveau projet "seido-production"
-3. APIs & Services → Library
-4. Activer:
-   - Gmail API
-   - Admin SDK API
-   - Cloud Pub/Sub API
+### 3.2 Configuration Gmail (Recommandé)
 
-### 3.3 Étape 2: Configurer OAuth 2.0
+#### Étape 1: Générer Mot de Passe d'Application
 
-**Créer OAuth Client ID**:
+**⚠️ Important**: Gmail ne permet plus les connexions avec mot de passe principal. Vous DEVEZ utiliser un "App Password".
 
-1. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-2. Type: **Web application**
-3. Authorized redirect URIs:
-   ```
-   https://seido.pm/api/auth/google/callback
-   http://localhost:3000/api/auth/google/callback (dev)
-   ```
-4. Sauvegarder:
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
+**Procédure**:
 
-**Scopes Requis**:
+1. **Activer 2FA sur compte Gmail** (prérequis):
+   - Aller sur https://myaccount.google.com/security
+   - Section "Se connecter à Google"
+   - Activer "Validation en deux étapes"
+
+2. **Générer App Password**:
+   - Aller sur https://myaccount.google.com/apppasswords
+   - Sélectionner app: **Mail**
+   - Sélectionner appareil: **Autre (nom personnalisé)** → "SEIDO"
+   - Cliquer "Générer"
+   - **Copier le password** (16 caractères sans espaces)
+   - Exemple: `abcd efgh ijkl mnop` → Copier `abcdefghijklmnop`
+
+#### Étape 2: Configuration IMAP/SMTP
+
+**Paramètres Gmail**:
+
+| Paramètre | Valeur |
+|-----------|--------|
+| **Email Address** | votre.email@gmail.com |
+| **IMAP Host** | imap.gmail.com |
+| **IMAP Port** | 993 |
+| **IMAP Encryption** | SSL/TLS ✅ |
+| **SMTP Host** | smtp.gmail.com |
+| **SMTP Port** | 587 |
+| **SMTP Encryption** | STARTTLS ✅ |
+| **Username** | votre.email@gmail.com |
+| **Password** | [App Password généré] |
+
+**Exemple Configuration UI SEIDO**:
 ```typescript
-const REQUIRED_SCOPES = [
-  'https://www.googleapis.com/auth/gmail.readonly',      // Lire emails
-  'https://www.googleapis.com/auth/gmail.modify',        // Marquer lu/non-lu
-  'https://www.googleapis.com/auth/admin.directory.user' // Gérer aliases
-];
+// Auto-rempli si user sélectionne "Gmail"
+{
+  email_address: "gestionnaire@gmail.com",
+  provider: "gmail",
+  imap_host: "imap.gmail.com",
+  imap_port: 993,
+  imap_use_ssl: true,
+  smtp_host: "smtp.gmail.com",
+  smtp_port: 587,
+  smtp_use_tls: true,
+  imap_username: "gestionnaire@gmail.com",
+  smtp_username: "gestionnaire@gmail.com",
+  password: "abcdefghijklmnop" // App Password
+}
 ```
 
-**Configuration OAuth Consent Screen**:
-- User Type: **Internal** (si Google Workspace uniquement)
-- App name: **SEIDO Email Integration**
-- User support email: `support@seido.pm`
-- Scopes: Ajouter les 3 scopes ci-dessus
+**Documentation officielle**: https://support.google.com/mail/answer/7126229
 
-### 3.4 Étape 3: Créer Pub/Sub Topic & Subscription
+---
 
-```bash
-# Créer topic
-gcloud pubsub topics create gmail-notifications \
-  --project=seido-production
+### 3.3 Configuration Outlook/Office 365
 
-# Donner permission à Gmail de publier
-gcloud pubsub topics add-iam-policy-binding gmail-notifications \
-  --member=serviceAccount:gmail-api-push@system.gserviceaccount.com \
-  --role=roles/pubsub.publisher \
-  --project=seido-production
+#### Outlook.com (Gratuit)
 
-# Créer push subscription
-gcloud pubsub subscriptions create seido-gmail-webhook \
-  --topic=gmail-notifications \
-  --push-endpoint=https://seido.pm/api/webhooks/gmail \
-  --ack-deadline=600 \
-  --project=seido-production
+**Paramètres Outlook.com**:
+
+| Paramètre | Valeur |
+|-----------|--------|
+| **Email Address** | votre.email@outlook.com |
+| **IMAP Host** | outlook.office365.com |
+| **IMAP Port** | 993 |
+| **IMAP Encryption** | SSL/TLS ✅ |
+| **SMTP Host** | smtp.office365.com |
+| **SMTP Port** | 587 |
+| **SMTP Encryption** | STARTTLS ✅ |
+| **Username** | votre.email@outlook.com |
+| **Password** | [Mot de passe Outlook] |
+
+**⚠️ Note**: Outlook.com autorise connexion avec password principal (pas d'app password requis).
+
+#### Office 365 Business
+
+**Paramètres identiques** mais avec adresse email entreprise:
+- Email: `prenom.nom@entreprise.com`
+- Serveurs: Identiques (outlook.office365.com / smtp.office365.com)
+
+**Documentation officielle**: https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings-8361e398-8af4-4e97-b147-6c6c4ac95353
+
+---
+
+### 3.4 Configuration Yahoo Mail
+
+**Étape 1: Générer App Password** (similaire Gmail):
+1. Aller sur https://login.yahoo.com/account/security
+2. Activer "Two-Step Verification"
+3. Section "App passwords" → Generate
+4. Sélectionner "Other App" → "SEIDO"
+5. Copier password généré
+
+**Paramètres Yahoo**:
+
+| Paramètre | Valeur |
+|-----------|--------|
+| **Email Address** | votre.email@yahoo.com |
+| **IMAP Host** | imap.mail.yahoo.com |
+| **IMAP Port** | 993 |
+| **IMAP Encryption** | SSL/TLS ✅ |
+| **SMTP Host** | smtp.mail.yahoo.com |
+| **SMTP Port** | 587 |
+| **SMTP Encryption** | STARTTLS ✅ |
+| **Username** | votre.email@yahoo.com |
+| **Password** | [App Password] |
+
+---
+
+### 3.5 Configuration OVH Mail
+
+**Paramètres OVH**:
+
+| Paramètre | Valeur |
+|-----------|--------|
+| **Email Address** | contact@votredomaine.com |
+| **IMAP Host** | ssl0.ovh.net |
+| **IMAP Port** | 993 |
+| **IMAP Encryption** | SSL/TLS ✅ |
+| **SMTP Host** | ssl0.ovh.net |
+| **SMTP Port** | 587 |
+| **SMTP Encryption** | STARTTLS ✅ |
+| **Username** | contact@votredomaine.com |
+| **Password** | [Mot de passe email OVH] |
+
+**Documentation OVH**: https://docs.ovh.com/fr/emails/generalites-sur-les-emails-mutualises/
+
+---
+
+### 3.6 Configuration Custom IMAP/SMTP
+
+Pour tout autre provider, user doit connaître:
+
+1. **Serveur IMAP**:
+   - Hostname (ex: `mail.provider.com`)
+   - Port (généralement 993 ou 143)
+   - Encryption (SSL/TLS recommandé)
+
+2. **Serveur SMTP**:
+   - Hostname (ex: `smtp.provider.com`)
+   - Port (généralement 587, 465, ou 25)
+   - Encryption (STARTTLS ou SSL/TLS)
+
+3. **Credentials**:
+   - Username (souvent = adresse email)
+   - Password
+
+**Où trouver ces infos ?**
+- Documentation provider email
+- Support technique provider
+- Google: "provider name IMAP SMTP settings"
+
+---
+
+### 3.7 Test Connexion Automatique
+
+**Lors de la configuration dans SEIDO**, backend teste automatiquement la connexion:
+
+```typescript
+// app/api/team/email-connection/test/route.ts
+export async function POST(request: Request) {
+  const { imap_host, imap_port, imap_username, imap_password, smtp_host, smtp_port } = await request.json();
+
+  try {
+    // Test IMAP
+    const imapTest = await testImapConnection({
+      host: imap_host,
+      port: imap_port,
+      user: imap_username,
+      password: imap_password
+    });
+
+    // Test SMTP
+    const smtpTest = await testSmtpConnection({
+      host: smtp_host,
+      port: smtp_port,
+      auth: { user: imap_username, pass: imap_password }
+    });
+
+    return Response.json({
+      success: true,
+      imap: imapTest,
+      smtp: smtpTest
+    });
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: error.message
+    }, { status: 400 });
+  }
+}
 ```
 
-**Vérification**:
-```bash
-# Tester manuellement
-gcloud pubsub topics publish gmail-notifications \
-  --message='{"emailAddress":"gestionnaires@seido.pm","historyId":"123"}' \
-  --project=seido-production
+**Feedback user**:
+- ✅ **Connexion réussie**: "Votre email a été connecté avec succès !"
+- ❌ **Échec IMAP**: "Impossible de se connecter au serveur IMAP. Vérifiez vos paramètres."
+- ❌ **Échec SMTP**: "Impossible de se connecter au serveur SMTP. Vérifiez vos paramètres."
 
-# Vérifier logs webhook
-# → Doit apparaître dans logs Vercel/Next.js
-```
+---
 
-### 3.5 Étape 4: Configurer Google Workspace
-
-**Créer compte principal**:
-1. Admin Console → Users → Add new user
-2. Email: `gestionnaires@seido.pm`
-3. Mot de passe: Générer aléatoire (stocker dans 1Password)
-
-**Activer API Access**:
-1. Admin Console → Security → API Controls
-2. Manage Domain Wide Delegation
-3. Add new:
-   - Client ID: (OAuth Client ID créé précédemment)
-   - Scopes:
-     ```
-     https://www.googleapis.com/auth/gmail.readonly
-     https://www.googleapis.com/auth/gmail.modify
-     https://www.googleapis.com/auth/admin.directory.user
-     ```
-
-### 3.6 Étape 5: Variables d'Environnement
+### 3.8 Variables d'Environnement
 
 **Fichier `.env.local`**:
 ```bash
-# Google OAuth
-GOOGLE_CLIENT_ID=123456789-abcdefghijklmnop.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxxxxxxxxx
-GOOGLE_REDIRECT_URI=https://seido.pm/api/auth/google/callback
+# Encryption Key (GÉNÉRER avec: openssl rand -hex 32)
+EMAIL_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
-# Google Cloud
-GOOGLE_CLOUD_PROJECT_ID=seido-production
-GOOGLE_PUBSUB_TOPIC=projects/seido-production/topics/gmail-notifications
+# Vercel Cron Secret (pour sécuriser /api/cron/sync-emails)
+CRON_SECRET=votre_secret_aleatoire_genere
 
-# Gmail
-GMAIL_MAIN_ACCOUNT=gestionnaires@seido.pm
-
-# Refresh Token (généré après OAuth flow)
-GOOGLE_REFRESH_TOKEN=1//xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Supabase (déjà existant)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
 ```
 
-**⚠️ CRITIQUE**: Stocker `GOOGLE_REFRESH_TOKEN` dans variables Vercel (encrypted at rest)
+**⚠️ CRITIQUE**:
+- `EMAIL_ENCRYPTION_KEY` doit être généré aléatoirement (32 bytes = 64 caractères hex)
+- Ne JAMAIS commit ces clés dans Git
+- Stocker dans Vercel Environment Variables (production)
 
 ---
 

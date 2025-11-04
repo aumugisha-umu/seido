@@ -241,15 +241,18 @@ export type Database = {
           deleted_by: string | null
           email: string | null
           id: string
+          is_active: boolean | null
           legal_name: string | null
           logo_url: string | null
           name: string
           notes: string | null
           phone: string | null
           postal_code: string | null
-          registration_number: string | null
+          street: string | null
+          street_number: string | null
           team_id: string
           updated_at: string | null
+          vat_number: string | null
           website: string | null
         }
         Insert: {
@@ -261,15 +264,18 @@ export type Database = {
           deleted_by?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           legal_name?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
-          registration_number?: string | null
+          street?: string | null
+          street_number?: string | null
           team_id: string
           updated_at?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Update: {
@@ -281,15 +287,18 @@ export type Database = {
           deleted_by?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           legal_name?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
-          registration_number?: string | null
+          street?: string | null
+          street_number?: string | null
           team_id?: string
           updated_at?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Relationships: [
@@ -305,6 +314,64 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_members: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          joined_at: string | null
+          left_at: string | null
+          role: string | null
+          team_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          left_at?: string | null
+          role?: string | null
+          team_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          left_at?: string | null
+          role?: string | null
+          team_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1675,6 +1742,7 @@ export type Database = {
           first_name: string | null
           id: string
           is_active: boolean | null
+          is_company: boolean | null
           last_name: string | null
           name: string
           notes: string | null
@@ -1703,6 +1771,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_company?: boolean | null
           last_name?: string | null
           name: string
           notes?: string | null
@@ -1731,6 +1800,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_company?: boolean | null
           last_name?: string | null
           name?: string
           notes?: string | null

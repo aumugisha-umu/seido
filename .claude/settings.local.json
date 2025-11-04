@@ -10,7 +10,9 @@
       "Bash(npx next lint:*)",
       "Bash(findstr:*)",
       "Bash(cat:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(npx supabase db push:*)",
+      "Bash(npm run supabase:types:*)"
     ],
     "deny": [],
     "ask": []

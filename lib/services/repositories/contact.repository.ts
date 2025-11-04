@@ -63,7 +63,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select(`
         *,
         team:team_id(id, name, description),
-        company:company_id(id, name, address, city)
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('id', _id)
       .eq('deleted_at', null)  // Exclude soft-deleted users
@@ -84,12 +84,12 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
    * NEW SCHEMA: Returns user record directly
    */
   async findByUser(userId: string) {
-    const { data, error } = await this.supabase
+    const { data, error} = await this.supabase
       .from(this.tableName)
       .select(`
         *,
         team:team_id(id, name, description),
-        company:company_id(id, name, address, city)
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('id', userId)
       .eq('deleted_at', null)
@@ -201,7 +201,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select(`
         *,
         team:team_id(id, name, description),
-        company:company_id(id, name, address, city)
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('role', role)
       .eq('deleted_at', null)

@@ -26,7 +26,7 @@ interface Contact {
   name: string
   email: string
   phone?: string
-  company?: string
+  companyLegacy?: string  // Legacy company field (string only, for backward compatibility)
   address?: string
   notes?: string
   role?: string
@@ -59,6 +59,25 @@ interface Invitation {
   created_at: string
 }
 
+interface Company {
+  id: string
+  name: string
+  legal_name?: string | null
+  vat_number?: string | null
+  email?: string | null
+  phone?: string | null
+  street?: string | null
+  street_number?: string | null
+  postal_code?: string | null
+  city?: string | null
+  country?: string | null
+  notes?: string | null
+  website?: string | null
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
 interface UserTeam {
   id: string
   name?: string
@@ -72,6 +91,7 @@ interface User {
 interface ContactsPageClientProps {
   initialContacts: Contact[]
   initialInvitations: Invitation[]
+  initialCompanies: Company[]
   initialContactsInvitationStatus: Record<string, string>
   userTeam: UserTeam
   user: User
@@ -80,6 +100,7 @@ interface ContactsPageClientProps {
 export function ContactsPageClient({
   initialContacts,
   initialInvitations,
+  initialCompanies,
   initialContactsInvitationStatus,
   userTeam,
   user
@@ -89,6 +110,7 @@ export function ContactsPageClient({
   // ✅ État local initialisé avec les props (pas de hooks de fetch)
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>(initialInvitations)
+  const [companies, setCompanies] = useState<Company[]>(initialCompanies)
   const [contactsInvitationStatus, setContactsInvitationStatus] = useState<Record<string, string>>(initialContactsInvitationStatus)
   const [loading, setLoading] = useState(false)
 
@@ -96,8 +118,9 @@ export function ContactsPageClient({
   useEffect(() => {
     setContacts(initialContacts)
     setPendingInvitations(initialInvitations)
+    setCompanies(initialCompanies)
     setContactsInvitationStatus(initialContactsInvitationStatus)
-  }, [initialContacts, initialInvitations, initialContactsInvitationStatus])
+  }, [initialContacts, initialInvitations, initialCompanies, initialContactsInvitationStatus])
 
   // ✅ Instancier les services nécessaires
   const contactService = createContactService()
@@ -107,6 +130,7 @@ export function ContactsPageClient({
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([])
   const [filteredInvitations, setFilteredInvitations] = useState<Invitation[]>([])
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -199,7 +223,7 @@ export function ContactsPageClient({
       filteredContactsResult = filteredContactsResult.filter(contact =>
         contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         contact.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        contact.company?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        contact.companyLegacy?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         contact.speciality?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         // Recherche dans le nom de la société
         (contact.is_company && contact.company?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
@@ -271,7 +295,22 @@ export function ContactsPageClient({
     }
 
     setFilteredInvitations(filteredInvitationsResult)
-  }, [contacts, pendingInvitations, debouncedSearchTerm, filters, contactsInvitationStatus])
+
+    // Filtrage des sociétés
+    let filteredCompaniesResult = companies
+
+    if (debouncedSearchTerm.trim() !== "") {
+      filteredCompaniesResult = filteredCompaniesResult.filter(company =>
+        company.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        company.legal_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        company.vat_number?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        company.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        company.city?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      )
+    }
+
+    setFilteredCompanies(filteredCompaniesResult)
+  }, [contacts, pendingInvitations, companies, debouncedSearchTerm, filters, contactsInvitationStatus])
 
   // ✅ Refetch via router.refresh() pour déclencher le re-render du Server Component
   const refetchContacts = async () => {
@@ -594,25 +633,19 @@ export function ContactsPageClient({
                                     {getContactTypeLabel(contact)}
                                   </Badge>
                                 )}
-                                {/* Badge Entreprise */}
-                                {contact.is_company && (
+                                {/* Badge Société avec nom */}
+                                {contact.is_company && contact.company && (
                                   <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
                                     <Building2 className="h-3 w-3" />
-                                    Entreprise
+                                    {contact.company.name}
                                   </Badge>
                                 )}
                                 {getCurrentUserBadge(contact.email)}
                                 {getContactInvitationBadge(contact.email)}
-                                {/* Afficher nom de la société si contact société */}
-                                {contact.is_company && contact.company && (
-                                  <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
-                                    {contact.company.name}
-                                  </Badge>
-                                )}
                                 {/* Legacy company field (pour contacts sans is_company) */}
-                                {!contact.is_company && contact.company && (
+                                {!contact.is_company && contact.companyLegacy && (
                                   <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
-                                    {contact.company}
+                                    {contact.companyLegacy}
                                   </Badge>
                                 )}
                                 {contact.speciality && (
@@ -632,28 +665,7 @@ export function ContactsPageClient({
                                     <span>{contact.phone}</span>
                                   </div>
                                 )}
-                                {/* Numéro de TVA pour les sociétés */}
-                                {contact.is_company && contact.company?.vat_number && (
-                                  <div className="flex items-center space-x-1">
-                                    <Building2 className="h-3 w-3" />
-                                    <span className="font-mono text-xs">TVA: {contact.company.vat_number}</span>
-                                  </div>
-                                )}
                               </div>
-                              {/* Adresse de la société */}
-                              {contact.is_company && contact.company && contact.company.city && (
-                                <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>
-                                    {contact.company.street && `${contact.company.street}`}
-                                    {contact.company.street_number && ` ${contact.company.street_number}`}
-                                    {(contact.company.street || contact.company.street_number) && ', '}
-                                    {contact.company.postal_code && `${contact.company.postal_code} `}
-                                    {contact.company.city}
-                                    {contact.company.country && `, ${contact.company.country}`}
-                                  </span>
-                                </div>
-                              )}
                               {/* Adresse legacy */}
                               {!contact.is_company && contact.address && (
                                 <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
@@ -900,6 +912,173 @@ export function ContactsPageClient({
                             </div>
                           </div>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              )
+            },
+            {
+              id: "companies",
+              label: "Sociétés",
+              icon: Building2,
+              count: loading ? "..." : filteredCompanies.length,
+              content: (
+                filteredCompanies.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">
+                      {companies.length === 0 ? "Aucune société" : "Aucune société trouvée"}
+                    </h3>
+                    <p className="text-slate-500 mb-6">
+                      {companies.length === 0
+                        ? "Les sociétés que vous créez apparaîtront ici"
+                        : "Essayez de modifier votre recherche."
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredCompanies.map((company) => (
+                      <div
+                        key={company.id}
+                        className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Building2 className="h-6 w-6 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-1">
+                              <h3 className="font-medium text-slate-900">{company.name}</h3>
+                              {company.is_active ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
+                                  Inactive
+                                </Badge>
+                              )}
+                              {company.legal_name && company.legal_name !== company.name && (
+                                <span className="text-xs text-gray-500 italic">
+                                  ({company.legal_name})
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-slate-600">
+                              {company.vat_number && (
+                                <div className="flex items-center space-x-1">
+                                  <Building2 className="h-3 w-3" />
+                                  <span className="font-mono text-xs">TVA: {company.vat_number}</span>
+                                </div>
+                              )}
+                              {company.email && (
+                                <div className="flex items-center space-x-1">
+                                  <Mail className="h-3 w-3" />
+                                  <span>{company.email}</span>
+                                </div>
+                              )}
+                              {company.phone && (
+                                <div className="flex items-center space-x-1">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{company.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Adresse de la société */}
+                            {company.city && (
+                              <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>
+                                  {company.street && `${company.street}`}
+                                  {company.street_number && ` ${company.street_number}`}
+                                  {(company.street || company.street_number) && ', '}
+                                  {company.postal_code && `${company.postal_code} `}
+                                  {company.city}
+                                  {company.country && `, ${company.country}`}
+                                </span>
+                              </div>
+                            )}
+                            {company.notes && (
+                              <div className="text-sm text-slate-500 mt-1">
+                                <span>{company.notes}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
+                            onClick={() => {
+                              logger.info(`Voir détails société: ${company.id}`)
+                              setError("Page de détails société bientôt disponible")
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Détails
+                          </Button>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-slate-600 hover:text-slate-700"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  logger.info(`Modifier société: ${company.id}`)
+                                  setError("Page de modification société bientôt disponible")
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Modifier
+                              </DropdownMenuItem>
+                              {company.email && (
+                                <DropdownMenuItem
+                                  onClick={() => window.open(`mailto:${company.email}`, '_blank')}
+                                  className="cursor-pointer"
+                                >
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Contacter
+                                </DropdownMenuItem>
+                              )}
+                              {company.website && (
+                                <DropdownMenuItem
+                                  onClick={() => window.open(company.website!, '_blank')}
+                                  className="cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Voir le site web
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  logger.info(`${company.is_active ? 'Désactiver' : 'Réactiver'} société: ${company.id}`)
+                                  setError(`Fonctionnalité de ${company.is_active ? 'désactivation' : 'réactivation'} bientôt disponible`)
+                                }}
+                                className={`cursor-pointer ${
+                                  company.is_active
+                                    ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                }`}
+                              >
+                                <Archive className="h-4 w-4 mr-2" />
+                                {company.is_active ? 'Désactiver' : 'Réactiver'}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     ))}
                   </div>

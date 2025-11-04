@@ -3,6 +3,7 @@ import {
   createServerContactService,
   createServerSupabaseClient
 } from '@/lib/services'
+import { createServerCompanyRepository } from '@/lib/services/repositories/company.repository'
 import { logger } from '@/lib/logger'
 import { getServerAuthContext } from '@/lib/server-context'
 
@@ -22,6 +23,7 @@ export default async function ContactsPage() {
         <ContactsPageClient
           initialContacts={[]}
           initialInvitations={[]}
+          initialCompanies={[]}
           initialContactsInvitationStatus={{}}
           userTeam={{ id: '', name: '' }}
           user={{ id: user?.id ?? '', email: user?.email ?? '' }}
@@ -31,21 +33,24 @@ export default async function ContactsPage() {
 
     // ✅ Create services
     const contactService = await createServerContactService()
+    const companyRepository = await createServerCompanyRepository()
 
     // ✅ Parallel data fetching (Dashboard pattern)
     let contacts: any[] = []
     let pendingInvitations: any[] = []
+    let companies: any[] = []
 
     const supabase = await createServerSupabaseClient()
 
-    const [contactsResult, invitationsResult] = await Promise.allSettled([
+    const [contactsResult, invitationsResult, companiesResult] = await Promise.allSettled([
       contactService.getContactsByTeam(team.id),
       supabase
         .from('user_invitations')
         .select('*')
         .eq('team_id', team.id)
         .eq('status', 'pending')
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }),
+      companyRepository.findByTeam(team.id)
     ])
 
     // Process contacts result
@@ -75,6 +80,15 @@ export default async function ContactsPage() {
       })
     }
 
+    // Process companies result
+    if (companiesResult.status === 'fulfilled' && companiesResult.value.success && companiesResult.value.data) {
+      companies = companiesResult.value.data
+      logger.info(`✅ [CONTACTS-PAGE] Loaded ${companies.length} companies`)
+    } else {
+      logger.error('❌ [CONTACTS-PAGE] Failed to load companies:',
+        companiesResult.status === 'rejected' ? companiesResult.reason : 'No data')
+    }
+
     // ✅ Build invitation status map
     const contactsInvitationStatus: Record<string, string> = {}
 
@@ -93,13 +107,14 @@ export default async function ContactsPage() {
       }
     }
 
-    logger.info(`📊 [CONTACTS-PAGE] Server data ready - Contacts: ${contacts.length}, Invitations: ${pendingInvitations.length}`)
+    logger.info(`📊 [CONTACTS-PAGE] Server data ready - Contacts: ${contacts.length}, Invitations: ${pendingInvitations.length}, Companies: ${companies.length}`)
 
     // ✅ Pass data to Client Component
     return (
       <ContactsPageClient
         initialContacts={contacts}
         initialInvitations={pendingInvitations}
+        initialCompanies={companies}
         initialContactsInvitationStatus={contactsInvitationStatus}
         userTeam={{
           id: team.id,
@@ -129,6 +144,7 @@ export default async function ContactsPage() {
       <ContactsPageClient
         initialContacts={[]}
         initialInvitations={[]}
+        initialCompanies={[]}
         initialContactsInvitationStatus={{}}
         userTeam={{ id: '' }}
         user={{ id: '' }}

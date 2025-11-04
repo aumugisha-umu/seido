@@ -961,8 +961,9 @@ export default function NouvelleInterventionClient({
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-10 pb-20">
-          <main className="max-w-6xl mx-auto pb-3">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 py-10">
+        <div className="min-h-full flex items-center justify-center pb-20">
+          <main className="max-w-6xl mx-auto w-full">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -1050,9 +1051,9 @@ export default function NouvelleInterventionClient({
                     </div>
                   </div>
 
-                  {/* Description pleine largeur + File Uploader en dessous */}
-                  <div className="space-y-4">
-                    {/* Description - Pleine largeur */}
+                  {/* Description + File Uploader - Même ratio que Titre/Type+Urgence */}
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+                    {/* Description - 2/3 largeur (aligné avec Titre) */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Description détaillée *</label>
                       <Textarea
@@ -1063,17 +1064,19 @@ export default function NouvelleInterventionClient({
                       />
                     </div>
 
-                    {/* File Uploader - En dessous */}
-                    <div>
+                    {/* File Uploader - 1/3 largeur (aligné avec Type+Urgence) + hauteur verticale */}
+                    <div className="flex flex-col">
                       <p className="text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</p>
-                      <InterventionFileAttachment
-                        files={fileUpload.files}
-                        onAddFiles={fileUpload.addFiles}
-                        onRemoveFile={fileUpload.removeFile}
-                        onUpdateFileType={fileUpload.updateFileDocumentType}
-                        isUploading={fileUpload.isUploading}
-                        maxFiles={10}
-                      />
+                      <div className="flex-1 min-h-[180px]">
+                        <InterventionFileAttachment
+                          files={fileUpload.files}
+                          onAddFiles={fileUpload.addFiles}
+                          onRemoveFile={fileUpload.removeFile}
+                          onUpdateFileType={fileUpload.updateFileDocumentType}
+                          isUploading={fileUpload.isUploading}
+                          maxFiles={10}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1549,6 +1552,7 @@ export default function NouvelleInterventionClient({
           })()}
           </main>
         </div>
+      </div>
 
         {/* Footer Navigation - Always visible at bottom */}
         <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">

@@ -94,7 +94,7 @@ export function InterventionFileAttachment({
   }
 
   return (
-    <div className={className}>
+    <div className={`flex flex-col h-full ${className}`}>
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -120,7 +120,7 @@ export function InterventionFileAttachment({
       {/* Files list */}
       {files.length > 0 && (
         <Card
-          className="mt-4 p-4"
+          className="mt-4 p-4 flex-1 overflow-y-auto"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
         >

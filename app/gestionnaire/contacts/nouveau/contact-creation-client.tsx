@@ -76,7 +76,70 @@ export function ContactCreationClient({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  // Validation par étape
+  // Validation par étape (pour vérifier si le bouton doit être désactivé)
+  const isCurrentStepValid = (): boolean => {
+    switch (currentStep) {
+      case 1: // Type de contact
+        if (!formData.contactType) return false
+        if (!formData.personOrCompany) return false
+        if (formData.contactType === 'prestataire' && !formData.specialty) return false
+        return true
+
+      case 2: // Informations société (seulement si company)
+        if (formData.personOrCompany === 'company') {
+          if (formData.companyMode === 'existing') {
+            if (!formData.companyId) return false
+          } else {
+            // Nouvelle société
+            if (!formData.companyName?.trim()) return false
+            if (!formData.vatNumber?.trim()) return false
+            if (!formData.street?.trim()) return false
+            if (!formData.streetNumber?.trim()) return false
+            if (!formData.postalCode?.trim()) return false
+            if (!formData.city?.trim()) return false
+            if (!formData.country?.trim()) return false
+          }
+        }
+        return true
+
+      case 3: // Informations contact
+        // Validation email conditionnelle selon inviteToApp
+        if (formData.inviteToApp) {
+          // Email obligatoire si invitation activée
+          if (!formData.email?.trim()) return false
+          // Validation basique email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+          if (!emailRegex.test(formData.email)) return false
+        } else {
+          // Email optionnel - valider format seulement si fourni
+          if (formData.email?.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email)) return false
+          }
+
+          // Pour les contacts société sans invitation : au moins email OU téléphone requis
+          if (formData.personOrCompany === 'company') {
+            const hasEmail = formData.email?.trim()
+            const hasPhone = formData.phone?.trim()
+            if (!hasEmail && !hasPhone) return false
+          }
+        }
+
+        // Si personne physique, prénom OU nom requis
+        if (formData.personOrCompany === 'person') {
+          if (!formData.firstName?.trim() && !formData.lastName?.trim()) return false
+        }
+        return true
+
+      case 4: // Confirmation - toujours valide
+        return true
+
+      default:
+        return true
+    }
+  }
+
+  // Validation par étape (pour afficher les erreurs)
   const validateCurrentStep = (): { valid: boolean; errors: string[] } => {
     const errors: string[] = []
 
@@ -107,13 +170,34 @@ export function ContactCreationClient({
         break
 
       case 3: // Informations contact
-        if (!formData.email?.trim()) {
-          errors.push("Email requis")
+        // Validation email conditionnelle selon inviteToApp
+        if (formData.inviteToApp) {
+          // Email obligatoire si invitation activée
+          if (!formData.email?.trim()) {
+            errors.push("Email requis")
+          } else {
+            // Validation basique email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email)) {
+              errors.push("Email invalide")
+            }
+          }
         } else {
-          // Validation basique email
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-          if (!emailRegex.test(formData.email)) {
-            errors.push("Email invalide")
+          // Email optionnel - valider format seulement si fourni
+          if (formData.email?.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email)) {
+              errors.push("Email invalide")
+            }
+          }
+
+          // Pour les contacts société sans invitation : au moins email OU téléphone requis
+          if (formData.personOrCompany === 'company') {
+            const hasEmail = formData.email?.trim()
+            const hasPhone = formData.phone?.trim()
+            if (!hasEmail && !hasPhone) {
+              errors.push("Au moins un email ou un numéro de téléphone est requis pour un contact société")
+            }
           }
         }
 
@@ -401,7 +485,7 @@ export function ContactCreationClient({
                 handleNext()
               }
             }}
-            disabled={isCreating}
+            disabled={isCreating || !isCurrentStepValid()}
             className={currentStep === contactSteps.length ? 'bg-green-600 hover:bg-green-700' : ''}
           >
             {isCreating ? (

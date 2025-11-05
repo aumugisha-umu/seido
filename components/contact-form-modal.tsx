@@ -395,19 +395,38 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
 
     // ===== Validation commune (email et téléphone) =====
 
-    // Validation de l'email (toujours obligatoire)
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est obligatoire"
-    } else if (!isValidEmail(formData.email)) {
-      newErrors.email = "Le format de l'email n'est pas valide"
+    // Validation de l'email conditionnelle selon inviteToApp
+    if (formData.inviteToApp) {
+      // Email obligatoire si invitation activée
+      if (!formData.email.trim()) {
+        newErrors.email = "L'email est obligatoire"
+      } else if (!isValidEmail(formData.email)) {
+        newErrors.email = "Le format de l'email n'est pas valide"
+      } else {
+        // ✅ Vérifier si l'email existe dans l'équipe courante (support multi-équipes)
+        const emailCheck = await checkEmailAndTeam(formData.email)
+        if (emailCheck.existsInCurrentTeam) {
+          newErrors.email = "Un contact avec cet email existe déjà dans votre équipe"
+        } else if (emailCheck.existsInOtherTeams) {
+          // ℹ️ Email existe dans autre équipe → permis mais on informe l'utilisateur
+          logger.info({ email: formData.email }, '📝 [CONTACT-FORM] Email exists in other team, creation allowed')
+        }
+      }
     } else {
-      // ✅ Vérifier si l'email existe dans l'équipe courante (support multi-équipes)
-      const emailCheck = await checkEmailAndTeam(formData.email)
-      if (emailCheck.existsInCurrentTeam) {
-        newErrors.email = "Un contact avec cet email existe déjà dans votre équipe"
-      } else if (emailCheck.existsInOtherTeams) {
-        // ℹ️ Email existe dans autre équipe → permis mais on informe l'utilisateur
-        logger.info({ email: formData.email }, '📝 [CONTACT-FORM] Email exists in other team, creation allowed')
+      // Email optionnel - valider format et unicité seulement si fourni
+      if (formData.email.trim()) {
+        if (!isValidEmail(formData.email)) {
+          newErrors.email = "Le format de l'email n'est pas valide"
+        } else {
+          // ✅ Vérifier si l'email existe dans l'équipe courante (support multi-équipes)
+          const emailCheck = await checkEmailAndTeam(formData.email)
+          if (emailCheck.existsInCurrentTeam) {
+            newErrors.email = "Un contact avec cet email existe déjà dans votre équipe"
+          } else if (emailCheck.existsInOtherTeams) {
+            // ℹ️ Email existe dans autre équipe → permis mais on informe l'utilisateur
+            logger.info({ email: formData.email }, '📝 [CONTACT-FORM] Email exists in other team, creation allowed')
+          }
+        }
       }
     }
 
@@ -638,7 +657,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
             {formData.type === "provider" && (
               <div className="space-y-2">
                 <Label htmlFor="speciality" className="text-sm font-medium text-gray-700">
-                  Spécialité
+                  Spécialité <span className="text-red-500">*</span>
                 </Label>
                 <Select
                   value={formData.speciality || ""}
@@ -708,7 +727,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
           {formData.contactType === 'company' && (
             <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
               <Label className="text-sm font-medium text-gray-700">
-                Mode de création
+                Mode de création <span className="text-red-500">*</span>
               </Label>
               <RadioGroup
                 value={formData.companyMode || 'new'}
@@ -937,8 +956,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">
-                Prénom {formData.contactType === 'person' && <span className="text-red-500">*</span>}
-                {formData.contactType === 'company' && <span className="text-xs text-gray-500 ml-1">(optionnel)</span>}
+                Prénom
+                {formData.contactType === 'person' ? (
+                  <span className="text-red-500">*</span>
+                ) : (
+                  <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                )}
               </Label>
               <Input
                 id="firstName"
@@ -960,8 +983,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">
-                Nom {formData.contactType === 'person' && <span className="text-red-500">*</span>}
-                {formData.contactType === 'company' && <span className="text-xs text-gray-500 ml-1">(optionnel)</span>}
+                Nom
+                {formData.contactType === 'person' ? (
+                  <span className="text-red-500">*</span>
+                ) : (
+                  <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                )}
               </Label>
               <Input
                 id="lastName"
@@ -985,7 +1012,12 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
 
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Email <span className="text-red-500">*</span>
+              Email
+              {formData.inviteToApp ? (
+                <span className="text-red-500">*</span>
+              ) : (
+                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+              )}
             </Label>
             <Input
               id="email"
@@ -995,7 +1027,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               onBlur={(e) => handleBlur('email', e)}
-              required
+              required={formData.inviteToApp}
               className={`w-full ${errors.email ? 'border-red-500 focus:border-red-500' : ''}`}
             />
             {errors.email && (
@@ -1008,7 +1040,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
 
           <div className="space-y-2">
             <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
-              Téléphone
+              Téléphone <span className="text-sm text-gray-500">(optionnel)</span>
             </Label>
             <Input
               id="phone"
@@ -1030,7 +1062,7 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
 
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
-              Notes
+              Notes <span className="text-sm text-gray-500">(optionnel)</span>
             </Label>
             <Textarea
               id="notes"

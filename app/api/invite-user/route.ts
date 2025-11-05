@@ -196,7 +196,7 @@ export async function POST(request: Request) {
           const companyResult = await companyRepository.createWithAddress({
             name: companyName,
             vat_number: vatNumber,
-            email: email, // Email du contact
+            email: normalizedEmail, // Email du contact (peut être null)
             team_id: teamId,
             street,
             street_number: streetNumber,
@@ -227,24 +227,34 @@ export async function POST(request: Request) {
       }
     }
 
+    // ✅ Normaliser l'email : convertir chaînes vides en null (pour usage dans toutes les étapes)
+    const normalizedEmail = email?.trim() || null
+
     // ============================================================================
     // ÉTAPE 1 (COMMUNE): Créer le profil utilisateur SANS auth (SUPPORT MULTI-ÉQUIPES)
     // ============================================================================
     logger.info({}, '👤 [STEP-1] Creating user profile (multi-team support)...')
 
     try {
-      // ✅ MULTI-ÉQUIPES: Vérifier si l'utilisateur existe dans L'ÉQUIPE COURANTE uniquement
-      const { data: existingUserInCurrentTeam, error: checkError } = await supabaseAdmin
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('team_id', teamId) // ✅ Vérifier dans l'équipe courante uniquement
-        .is('deleted_at', null) // ✅ FIX: Utiliser .is() pour vérifier NULL sur colonne timestamp
-        .maybeSingle()
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user in current team:')
-        throw new Error('Failed to check existing user: ' + checkError?.message)
+      // ✅ MULTI-ÉQUIPES: Vérifier si l'utilisateur existe dans L'ÉQUIPE COURANTE uniquement
+      // Ne vérifier que si email est fourni (pas de vérification d'unicité si email est null)
+      let existingUserInCurrentTeam = null
+      if (normalizedEmail) {
+        const { data: existingUser, error: checkError } = await supabaseAdmin
+          .from('users')
+          .select('*')
+          .eq('email', normalizedEmail)
+          .eq('team_id', teamId) // ✅ Vérifier dans l'équipe courante uniquement
+          .is('deleted_at', null) // ✅ FIX: Utiliser .is() pour vérifier NULL sur colonne timestamp
+          .maybeSingle()
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user in current team:')
+          throw new Error('Failed to check existing user: ' + checkError?.message)
+        }
+
+        existingUserInCurrentTeam = existingUser
       }
 
       // ✅ CAS 1: Utilisateur existe déjà dans l'équipe courante → ERREUR
@@ -264,7 +274,7 @@ export async function POST(request: Request) {
         .from('users')
         .insert({
           auth_user_id: null, // Sera lié après si invitation
-          email: email,
+          email: normalizedEmail, // Peut être null si invitation désactivée
           name: contactName,
           first_name: firstName || null,
           last_name: lastName || null,
@@ -345,10 +355,11 @@ export async function POST(request: Request) {
 
       try {
         // SOUS-ÉTAPE 1: Générer le lien d'invitation officiel Supabase (crée auth automatiquement)
+        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
         logger.info({}, '🔗 [STEP-3-INVITE-1] Generating official Supabase invite link (auto-creates auth user)...')
         const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'invite',
-          email: email,
+          email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
           options: {
             redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
             data: {
@@ -396,11 +407,12 @@ export async function POST(request: Request) {
         logger.info({}, '✅ [STEP-3-INVITE-2] Auth linked to profile via Service Role')
 
         // SOUS-ÉTAPE 3: Créer l'enregistrement d'invitation dans user_invitations
+        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
         logger.info({}, '📋 [STEP-3-INVITE-3] Creating invitation record in user_invitations...')
         const { data: invitationRecord, error: invitationError } = await supabaseAdmin
           .from('user_invitations')
           .insert({
-            email: email,
+            email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
             first_name: firstName,
             last_name: lastName,
             role: validUserRole,
@@ -423,8 +435,9 @@ export async function POST(request: Request) {
         }
 
         // SOUS-ÉTAPE 4: Envoyer l'email via Resend
+        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
         logger.info({}, '📨 [STEP-3-INVITE-4] Sending invitation email via Resend...')
-        const emailResult = await emailService.sendInvitationEmail(email, {
+        const emailResult = await emailService.sendInvitationEmail(normalizedEmail!, {
           firstName,
           inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
           teamName: teamId,

@@ -7,7 +7,7 @@ export type { Database } from '../../database.types'
 export interface User {
   id: string
   auth_user_id: string | null
-  email: string
+  email: string | null
   name: string
   first_name?: string | null
   last_name?: string | null
@@ -29,7 +29,7 @@ export interface User {
 
 export interface UserInsert {
   auth_user_id?: string | null
-  email: string
+  email?: string | null
   name: string
   first_name?: string | null
   last_name?: string | null
@@ -51,7 +51,7 @@ export interface UserInsert {
 
 export interface UserUpdate {
   auth_user_id?: string | null
-  email?: string
+  email?: string | null
   name?: string
   first_name?: string | null
   last_name?: string | null
@@ -369,7 +369,7 @@ export interface ValidationResult {
 
 // Common DTOs
 export interface CreateUserDTO {
-  email: string
+  email?: string | null
   name: string
   role: User['role']
   phone?: string

@@ -441,7 +441,7 @@ export const BuildingInfoForm = ({
             <div>
               <Label htmlFor="floor" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Building className="w-4 h-4" />
-                Étage
+                Étage <span className="text-sm text-gray-500">(optionnel)</span>
               </Label>
               <Input
                 id="floor"
@@ -454,7 +454,7 @@ export const BuildingInfoForm = ({
             <div>
               <Label htmlFor="doorNumber" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Hash className="w-4 h-4" />
-                Numéro de porte/boîte
+                Numéro de porte/boîte <span className="text-sm text-gray-500">(optionnel)</span>
               </Label>
               <Input
                 id="doorNumber"
@@ -470,7 +470,7 @@ export const BuildingInfoForm = ({
       <div>
         <Label htmlFor="description" className="flex items-center gap-2 text-sm font-medium text-gray-700">
           <FileText className="w-4 h-4" />
-          Description <span className="text-gray-400">(optionnel)</span>
+          Description <span className="text-sm text-gray-500">(optionnel)</span>
         </Label>
         <Textarea
           id="description"

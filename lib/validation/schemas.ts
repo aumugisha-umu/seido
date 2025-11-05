@@ -136,7 +136,15 @@ export const updateUserProfileSchema = z.object({
  * Supports company contacts (person or company)
  */
 export const inviteUserSchema = z.object({
-  email: emailSchema,
+  email: z.preprocess(
+    (val) => {
+      // Convertir les chaînes vides ou undefined en null
+      if (val === undefined || val === null) return null
+      if (typeof val === 'string' && val.trim() === '') return null
+      return val
+    },
+    z.union([emailSchema, z.null()]).nullable()
+  ),
   // ✅ firstName/lastName optionnels pour supporter les contacts société
   // La validation métier (required pour 'person') est faite dans ContactFormModal
   firstName: z.string().max(100).trim().optional().nullable(),
@@ -161,6 +169,38 @@ export const inviteUserSchema = z.object({
   postalCode: z.string().max(20).trim().optional().nullable(),
   city: z.string().max(100).trim().optional().nullable(),
   country: z.string().max(100).trim().optional().nullable(),
+}).superRefine((data, ctx) => {
+  // Email obligatoire si shouldInviteToApp === true
+  if (data.shouldInviteToApp) {
+    const emailValue = data.email?.trim()
+    if (!emailValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "L'email est obligatoire pour envoyer une invitation",
+        path: ['email']
+      })
+    } else {
+      // Valider le format de l'email s'il est fourni
+      const emailValidation = emailSchema.safeParse(emailValue)
+      if (!emailValidation.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Format d'email invalide",
+          path: ['email']
+        })
+      }
+    }
+  } else if (data.email && data.email.trim()) {
+    // Si email fourni mais shouldInviteToApp === false, valider le format
+    const emailValidation = emailSchema.safeParse(data.email.trim())
+    if (!emailValidation.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Format d'email invalide",
+        path: ['email']
+      })
+    }
+  }
 })
 
 // ============================================================================

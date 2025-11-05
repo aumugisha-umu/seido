@@ -88,6 +88,11 @@ export function AddressInput({
         <div className="space-y-1">
           <Label htmlFor="postalCode" className="text-sm font-medium text-gray-700">
             Code postal
+            {required ? (
+              <span className="text-red-500">*</span>
+            ) : (
+              <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+            )}
           </Label>
           <Input
             id="postalCode"
@@ -112,6 +117,11 @@ export function AddressInput({
         <div className="space-y-1">
           <Label htmlFor="city" className="text-sm font-medium text-gray-700">
             Ville
+            {required ? (
+              <span className="text-red-500">*</span>
+            ) : (
+              <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+            )}
           </Label>
           <Input
             id="city"
@@ -137,6 +147,11 @@ export function AddressInput({
           <div className="space-y-1">
             <Label htmlFor="country" className="text-sm font-medium text-gray-700">
               Pays
+              {required ? (
+                <span className="text-red-500">*</span>
+              ) : (
+                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+              )}
             </Label>
             <Select
               value={value.country}

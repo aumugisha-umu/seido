@@ -273,7 +273,7 @@ export function LotInputCardV2({
                 className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
               >
                 <Building className="w-3 h-3" />
-                Étage
+                Étage <span className="text-xs text-gray-500">(optionnel)</span>
               </Label>
               <Input
                 id={`floor-${lot.id}`}
@@ -292,7 +292,7 @@ export function LotInputCardV2({
                 className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
               >
                 <Hash className="w-3 h-3" />
-                Porte
+                Porte <span className="text-xs text-gray-500">(optionnel)</span>
               </Label>
               <Input
                 id={`door-${lot.id}`}
@@ -311,7 +311,7 @@ export function LotInputCardV2({
               htmlFor={`description-${lot.id}`}
               className="text-xs font-medium text-slate-700 mb-1 block"
             >
-              Description
+              Description <span className="text-xs text-gray-500">(optionnel)</span>
             </Label>
             <Textarea
               id={`description-${lot.id}`}

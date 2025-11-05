@@ -67,7 +67,7 @@ export function PropertyNameInput({
     }
   }, [placeholder, entityType, buildingsCount])
 
-  const handleSuggestionClick = (_suggestion: string) => {
+  const handleSuggestionClick = (suggestion: string) => {
     onChange(suggestion)
   }
 
@@ -77,7 +77,11 @@ export function PropertyNameInput({
         <Label htmlFor="propertyName" className="text-sm font-medium text-gray-700 flex items-center gap-1">
           <Icon className="w-4 h-4" />
           Nom {entityType === 'building' ? "de l'immeuble" : "du lot"}
-          {required && <span className="text-red-500">*</span>}
+          {required ? (
+            <span className="text-red-500">*</span>
+          ) : (
+            <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+          )}
         </Label>
         <Input
           id="propertyName"

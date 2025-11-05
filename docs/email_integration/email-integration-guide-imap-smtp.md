@@ -826,9 +826,138 @@ CREATE POLICY "Team members can view attachments of their emails"
   );
 ```
 
-### 4.4 Migrations TypeScript Types
+### 4.4 Table `email_blacklist`
 
-Après application de la migration, générer les types TypeScript :
+**Gère les expéditeurs blacklistés par équipe**
+
+**Fonctionnalité** : Permet aux équipes de marquer des emails comme "non pertinents" avec deux options :
+1. **Soft delete** : Masquer cet email uniquement (champ `deleted_at` dans `emails`)
+2. **Blacklist** : Bloquer tous les futurs emails de cet expéditeur (table `email_blacklist`)
+
+```sql
+-- Migration: 20251105000002_create_email_blacklist.sql
+
+-- Ajouter le champ deleted_at à la table emails pour soft delete
+ALTER TABLE emails ADD COLUMN deleted_at TIMESTAMPTZ;
+
+-- Index pour filtrer les emails non supprimés
+CREATE INDEX idx_emails_deleted_at ON emails(deleted_at) WHERE deleted_at IS NULL;
+
+-- Table de blacklist des expéditeurs
+CREATE TABLE email_blacklist (
+  -- Identifiants
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Expéditeur blacklisté
+  sender_email VARCHAR(500) NOT NULL,  -- Email exact à bloquer
+  sender_domain VARCHAR(255),          -- Domaine à bloquer (optionnel, pour bloquer @example.com)
+
+  -- Métadonnées
+  reason TEXT,                         -- Raison du blocage (optionnel)
+  blocked_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,  -- Qui a bloqué
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  -- Contraintes
+  CONSTRAINT unique_blacklist_per_team UNIQUE (team_id, sender_email)
+);
+
+-- Index pour performances (vérification rapide lors de la synchronisation IMAP)
+CREATE INDEX idx_email_blacklist_team_id ON email_blacklist(team_id);
+CREATE INDEX idx_email_blacklist_sender_email ON email_blacklist(sender_email);
+CREATE INDEX idx_email_blacklist_sender_domain ON email_blacklist(sender_domain) WHERE sender_domain IS NOT NULL;
+
+-- RLS Policies
+ALTER TABLE email_blacklist ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Team members can view their blacklist"
+  ON email_blacklist FOR SELECT
+  USING (is_team_manager(team_id));
+
+CREATE POLICY "Team managers can insert blacklist entries"
+  ON email_blacklist FOR INSERT
+  WITH CHECK (is_team_manager(team_id));
+
+CREATE POLICY "Team managers can delete blacklist entries"
+  ON email_blacklist FOR DELETE
+  USING (is_team_manager(team_id));
+
+-- Fonction pour vérifier si un expéditeur est blacklisté
+CREATE OR REPLACE FUNCTION is_sender_blacklisted(
+  p_team_id UUID,
+  p_sender_email VARCHAR
+) RETURNS BOOLEAN AS $$
+DECLARE
+  v_sender_domain VARCHAR;
+BEGIN
+  -- Extraire le domaine de l'email (tout après @)
+  v_sender_domain := SUBSTRING(p_sender_email FROM '@(.*)$');
+
+  -- Vérifier si l'email exact est blacklisté
+  IF EXISTS (
+    SELECT 1 FROM email_blacklist
+    WHERE team_id = p_team_id
+      AND sender_email = p_sender_email
+  ) THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Vérifier si le domaine est blacklisté
+  IF EXISTS (
+    SELECT 1 FROM email_blacklist
+    WHERE team_id = p_team_id
+      AND sender_domain = v_sender_domain
+  ) THEN
+    RETURN TRUE;
+  END IF;
+
+  RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**Workflow Blacklist** :
+
+1. **Marquer un email comme non pertinent (Soft Delete)** :
+   ```sql
+   UPDATE emails
+   SET deleted_at = NOW()
+   WHERE id = '...';
+   ```
+
+2. **Blacklister un expéditeur (Hard Block)** :
+   ```sql
+   -- Soft delete l'email actuel
+   UPDATE emails SET deleted_at = NOW() WHERE id = '...';
+
+   -- Ajouter à la blacklist
+   INSERT INTO email_blacklist (team_id, sender_email, reason, blocked_by_user_id)
+   VALUES (
+     'team_uuid',
+     'spam@example.com',
+     'Emails promotionnels non sollicités',
+     'user_uuid'
+   );
+   ```
+
+3. **Lors de la synchronisation IMAP, ignorer les emails blacklistés** :
+   ```typescript
+   // Dans ImapService.fetchNewEmails()
+   const isBlacklisted = await supabase
+     .rpc('is_sender_blacklisted', {
+       p_team_id: connection.team_id,
+       p_sender_email: parsed.from
+     })
+
+   if (isBlacklisted) {
+     // Ne pas insérer cet email en base de données
+     continue;
+   }
+   ```
+
+### 4.5 Migrations TypeScript Types
+
+Après application des migrations (tables + blacklist), générer les types TypeScript :
 
 ```bash
 npm run supabase:types
@@ -906,7 +1035,19 @@ export interface EmailAttachment {
   storage_path: string;
   created_at: string;
 }
+
+export interface EmailBlacklist {
+  id: string;
+  team_id: string;
+  sender_email: string;
+  sender_domain: string | null;
+  reason: string | null;
+  blocked_by_user_id: string | null;
+  created_at: string;
+}
 ```
+
+**Note**: Le champ `deleted_at` est ajouté à l'interface `Email` existante après génération des types.
 
 ---
 
@@ -1168,6 +1309,119 @@ export class EmailRepository extends BaseRepository<Email> {
 
     if (error) throw error;
     return data || [];
+  }
+
+  /**
+   * Soft delete un email (marqué comme supprimé mais reste en DB)
+   */
+  async softDeleteEmail(emailId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.tableName)
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', emailId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Restaurer un email soft-deleted
+   */
+  async restoreEmail(emailId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.tableName)
+      .update({ deleted_at: null })
+      .eq('id', emailId);
+
+    if (error) throw error;
+  }
+}
+```
+
+#### EmailBlacklistRepository
+
+```typescript
+// lib/services/repositories/email-blacklist.repository.ts
+import { BaseRepository } from '../core/base-repository';
+import { EmailBlacklist } from '@/lib/database.types';
+
+export interface CreateBlacklistEntryDTO {
+  team_id: string;
+  sender_email: string;
+  sender_domain?: string;
+  reason?: string;
+  blocked_by_user_id: string;
+}
+
+export class EmailBlacklistRepository extends BaseRepository<EmailBlacklist> {
+  constructor(supabaseClient: SupabaseClient) {
+    super(supabaseClient, 'email_blacklist');
+  }
+
+  /**
+   * Ajoute un expéditeur à la blacklist
+   */
+  async addToBlacklist(dto: CreateBlacklistEntryDTO): Promise<EmailBlacklist> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .insert(dto)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Vérifie si un expéditeur est blacklisté
+   */
+  async isBlacklisted(teamId: string, senderEmail: string): Promise<boolean> {
+    const { data, error } = await this.supabase
+      .rpc('is_sender_blacklisted', {
+        p_team_id: teamId,
+        p_sender_email: senderEmail
+      });
+
+    if (error) throw error;
+    return data || false;
+  }
+
+  /**
+   * Récupère toute la blacklist d'une équipe
+   */
+  async getTeamBlacklist(teamId: string): Promise<EmailBlacklist[]> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  /**
+   * Retire un expéditeur de la blacklist
+   */
+  async removeFromBlacklist(blacklistId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.tableName)
+      .delete()
+      .eq('id', blacklistId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Retire un expéditeur de la blacklist par email
+   */
+  async removeByEmail(teamId: string, senderEmail: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.tableName)
+      .delete()
+      .eq('team_id', teamId)
+      .eq('sender_email', senderEmail);
+
+    if (error) throw error;
   }
 }
 ```
@@ -1592,6 +1846,170 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+```
+
+#### API Routes Blacklist
+
+```typescript
+// app/api/emails/blacklist/route.ts
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client';
+import { EmailBlacklistRepository } from '@/lib/services/repositories/email-blacklist.repository';
+import { EmailRepository } from '@/lib/services/repositories/email.repository';
+import { getServerAuthContext } from '@/lib/server-context';
+
+/**
+ * GET /api/emails/blacklist - Récupère la blacklist de l'équipe
+ */
+export async function GET(request: Request) {
+  try {
+    const { team, supabase } = await getServerAuthContext('gestionnaire');
+    const blacklistRepo = new EmailBlacklistRepository(supabase);
+
+    const blacklist = await blacklistRepo.getTeamBlacklist(team.id);
+
+    return Response.json({ blacklist });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/emails/blacklist - Ajoute un expéditeur à la blacklist
+ */
+export async function POST(request: Request) {
+  try {
+    const { team, profile, supabase } = await getServerAuthContext('gestionnaire');
+    const body = await request.json();
+    const { emailId, senderEmail, reason, blockDomain } = body;
+
+    const blacklistRepo = new EmailBlacklistRepository(supabase);
+    const emailRepo = new EmailRepository(supabase);
+
+    // Soft delete l'email actuel
+    await emailRepo.softDeleteEmail(emailId);
+
+    // Extraire le domaine si demandé
+    let senderDomain: string | undefined;
+    if (blockDomain) {
+      const domainMatch = senderEmail.match(/@(.+)$/);
+      senderDomain = domainMatch ? domainMatch[1] : undefined;
+    }
+
+    // Ajouter à la blacklist
+    const blacklistEntry = await blacklistRepo.addToBlacklist({
+      team_id: team.id,
+      sender_email: senderEmail,
+      sender_domain: senderDomain,
+      reason,
+      blocked_by_user_id: profile.id
+    });
+
+    return Response.json({
+      success: true,
+      blacklistEntry
+    });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+```
+
+```typescript
+// app/api/emails/blacklist/[id]/route.ts
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client';
+import { EmailBlacklistRepository } from '@/lib/services/repositories/email-blacklist.repository';
+import { getServerAuthContext } from '@/lib/server-context';
+
+/**
+ * DELETE /api/emails/blacklist/[id] - Retire un expéditeur de la blacklist
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { supabase } = await getServerAuthContext('gestionnaire');
+    const blacklistRepo = new EmailBlacklistRepository(supabase);
+
+    await blacklistRepo.removeFromBlacklist(params.id);
+
+    return Response.json({ success: true });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+```
+
+```typescript
+// app/api/emails/[id]/soft-delete/route.ts
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client';
+import { EmailRepository } from '@/lib/services/repositories/email.repository';
+import { getServerAuthContext } from '@/lib/server-context';
+
+/**
+ * POST /api/emails/[id]/soft-delete - Soft delete un email
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { supabase } = await getServerAuthContext('gestionnaire');
+    const emailRepo = new EmailRepository(supabase);
+
+    await emailRepo.softDeleteEmail(params.id);
+
+    return Response.json({ success: true });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/emails/[id]/soft-delete - Restaure un email soft-deleted
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { supabase } = await getServerAuthContext('gestionnaire');
+    const emailRepo = new EmailRepository(supabase);
+
+    await emailRepo.restoreEmail(params.id);
+
+    return Response.json({ success: true });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+```
+
+#### Modification du Cron IMAP pour blacklist
+
+Mettre à jour le cron job pour ignorer les emails blacklistés :
+
+```typescript
+// app/api/cron/sync-emails/route.ts (ajout de la vérification blacklist)
+
+// Dans la boucle de traitement des emails
+for (const parsed of parsedEmails) {
+  // Vérifier si l'expéditeur est blacklisté
+  const isBlacklisted = await blacklistRepo.isBlacklisted(
+    connection.team_id,
+    parsed.from
+  );
+
+  if (isBlacklisted) {
+    console.log(`Skipping blacklisted sender: ${parsed.from}`);
+    continue; // Ne pas enregistrer cet email
+  }
+
+  // Insérer l'email en base (code existant)
+  const email = await emailRepo.createEmail({
+    // ... (code existant)
+  });
 }
 ```
 

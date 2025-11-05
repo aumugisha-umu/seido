@@ -155,7 +155,7 @@ export const BuildingInfoForm = ({
 
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6 sm:space-y-8 min-w-0">
 
       {entityType === "lot" ? (
         // Layout flex sur desktop, référence puis catégorie
@@ -195,7 +195,7 @@ export const BuildingInfoForm = ({
           </div>
 
           {/* Catégorie du lot - SECOND (plus large sur desktop) */}
-          <div className="lg:flex-1 lg:max-w-2xl">
+          <div className="lg:flex-1 lg:max-w-2xl min-w-0">
             <Label className="text-sm font-medium text-gray-700 mb-2 block">
               Catégorie du lot
               <span className="text-red-500 ml-1">*</span>
@@ -367,8 +367,8 @@ export const BuildingInfoForm = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
+            <div className="min-w-0">
               <Label htmlFor="postalCode" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Hash className="w-4 h-4" />
                 Code postal*
@@ -389,7 +389,7 @@ export const BuildingInfoForm = ({
                 required
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="city" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <MapPin className="w-4 h-4" />
                 Ville*
@@ -410,7 +410,7 @@ export const BuildingInfoForm = ({
                 required
               />
             </div>
-            <div className="sm:col-span-2 lg:col-span-1">
+            <div className="sm:col-span-2 lg:col-span-1 min-w-0">
               <Label htmlFor="country" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <MapPin className="w-4 h-4" />
                 Pays*
@@ -437,8 +437,8 @@ export const BuildingInfoForm = ({
 
       {entityType === "lot" && (
         // Champs spécifiques aux lots (étage et numéro de porte)
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+            <div className="min-w-0">
               <Label htmlFor="floor" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Building className="w-4 h-4" />
                 Étage <span className="text-sm text-gray-500">(optionnel)</span>
@@ -451,7 +451,7 @@ export const BuildingInfoForm = ({
                 className="mt-1 h-10 sm:h-11"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="doorNumber" className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Hash className="w-4 h-4" />
                 Numéro de porte/boîte <span className="text-sm text-gray-500">(optionnel)</span>

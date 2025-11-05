@@ -872,7 +872,7 @@ export default function NewImmeubleePage({
       />
 
       {/* Main content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-6 pb-20">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
 
         {/* Error Alert */}
         {error && (
@@ -884,7 +884,7 @@ export default function NewImmeubleePage({
 
         {/* Step 1: Building Information */}
         {currentStep === 1 && (
-          <Card className="shadow-sm max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
+          <Card className="shadow-sm max-w-7xl mx-auto min-w-0">
             <CardContent className="px-6 py-6 space-y-6">
               <BuildingInfoForm
                 buildingInfo={buildingInfo}

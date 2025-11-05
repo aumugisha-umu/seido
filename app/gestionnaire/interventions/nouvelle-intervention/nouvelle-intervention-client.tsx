@@ -961,7 +961,7 @@ export default function NouvelleInterventionClient({
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pb-10 bg-gray-50">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 bg-gray-50">
         <div className="min-h-full flex items-center justify-center">
           <main className="max-w-6xl mx-auto w-full pt-6">
         {/* Step 1: Sélection du logement avec PropertySelector */}

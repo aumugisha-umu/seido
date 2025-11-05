@@ -597,7 +597,7 @@ export default function EditBuildingClient({
 
       {/* Step 1: Building Information */}
       {currentStep === 1 && (
-        <Card className="shadow-sm max-w-7xl mx-4 sm:mx-6 xl:mx-auto">
+        <Card className="shadow-sm max-w-7xl mx-auto">
           <CardContent className="p-6 space-y-6">
             <BuildingInfoForm
               buildingInfo={buildingInfo}

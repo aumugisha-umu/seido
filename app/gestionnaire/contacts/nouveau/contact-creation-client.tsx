@@ -388,7 +388,7 @@ export function ContactCreationClient({
       />
 
       {/* Contenu principal (scrollable) */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-10 pb-20">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-10 pb-20">
         <div className="max-w-6xl mx-auto">
           {/* Step content will be rendered here */}
           <div className="bg-white rounded-lg border shadow-sm p-6 transition-all duration-500">

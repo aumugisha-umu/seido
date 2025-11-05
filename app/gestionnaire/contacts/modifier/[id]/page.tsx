@@ -476,7 +476,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   if (loading) {
     return (
       <div className="layout-padding min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto">
+        <div className="content-max-width">
           <div className="mb-8">
             <Skeleton className="h-8 w-64 mb-2" />
             <Skeleton className="h-4 w-96" />
@@ -504,7 +504,7 @@ export default function EditContactPage({ params }: { params: Promise<{ id: stri
   if (!contact) {
     return (
       <div className="layout-padding min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto">
+        <div className="content-max-width">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>

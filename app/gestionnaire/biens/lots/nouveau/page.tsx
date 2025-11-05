@@ -2393,7 +2393,7 @@ export default function NewLotPage() {
 
       {/* Main Content with uniform padding (responsive) and bottom space for footer */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
-          <main className="max-w-6xl mx-auto pb-8">
+          <main className="content-max-width pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
@@ -2403,7 +2403,7 @@ export default function NewLotPage() {
 
       {/* Footer Navigation */}
       <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
-        <div className="flex justify-between w-full max-w-6xl mx-auto">
+        <div className="flex justify-between w-full content-max-width">
           <Button
             variant="outline"
             onClick={handlePrevious}

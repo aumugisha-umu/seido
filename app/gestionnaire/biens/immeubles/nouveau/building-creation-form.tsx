@@ -884,7 +884,7 @@ export default function NewImmeubleePage({
 
         {/* Step 1: Building Information */}
         {currentStep === 1 && (
-          <Card className="shadow-sm max-w-7xl mx-auto min-w-0">
+          <Card className="shadow-sm content-max-width min-w-0">
             <CardContent className="px-6 py-6 space-y-6">
               <BuildingInfoForm
                 buildingInfo={buildingInfo}
@@ -968,7 +968,7 @@ export default function NewImmeubleePage({
 
         {/* Footer Navigation - Always visible at bottom */}
         <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
-          <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
               {/* Back Button - Only show from step 2 onwards */}
               {currentStep > 1 && (
                 <Button

@@ -47,7 +47,7 @@ export const StepProgressHeader = ({
 
   return (
     <div className="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-6 relative">
+      <div className="content-max-width px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-6 relative">
 
           {/* Left: Title + Badge */}
           <div className="flex items-center gap-2 flex-shrink-0">

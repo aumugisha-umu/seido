@@ -589,7 +589,7 @@ export default function EditBuildingClient({
 
       {/* Error Alert */}
       {error && (
-        <Alert variant="destructive" className="mb-4 mx-4 sm:mx-6 max-w-7xl xl:mx-auto">
+        <Alert variant="destructive" className="mb-4 mx-4 sm:mx-6 content-max-width xl:mx-auto">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -597,7 +597,7 @@ export default function EditBuildingClient({
 
       {/* Step 1: Building Information */}
       {currentStep === 1 && (
-        <Card className="shadow-sm max-w-7xl mx-auto">
+        <Card className="shadow-sm content-max-width">
           <CardContent className="p-6 space-y-6">
             <BuildingInfoForm
               buildingInfo={buildingInfo}
@@ -675,7 +675,7 @@ export default function EditBuildingClient({
 
       {/* Sticky Navigation */}
       <div className="sticky-footer mt-6">
-        <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
           {currentStep > 1 && (
             <Button
               variant="outline"

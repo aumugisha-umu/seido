@@ -963,7 +963,7 @@ export default function NouvelleInterventionClient({
       {/* Main Content with horizontal padding and bottom space for footer */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 bg-gray-50">
         <div className="min-h-full flex items-center justify-center">
-          <main className="max-w-6xl mx-auto w-full pt-6">
+          <main className="content-max-width w-full pt-6">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -1552,7 +1552,7 @@ export default function NouvelleInterventionClient({
 
         {/* Footer Navigation - Always visible at bottom */}
         <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
-        <div className="flex flex-col sm:flex-row justify-between gap-2 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
             {/* Back Button - Show from step 2 onwards */}
             {currentStep > 1 && (
               <Button

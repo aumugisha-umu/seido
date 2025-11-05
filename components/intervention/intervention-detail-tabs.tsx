@@ -797,7 +797,7 @@ export function InterventionDetailTabs({
   )
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="content-max-width px-4 sm:px-6 lg:px-8">
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full grid-cols-${availableTabs.length} bg-slate-100`}>

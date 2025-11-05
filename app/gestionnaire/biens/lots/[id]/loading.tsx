@@ -5,7 +5,7 @@ export default function LotDetailsLoading() {
     <>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 -mx-5 sm:-mx-6 lg:-mx-10 -mt-6 mb-4">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-4">
+        <div className="content-max-width px-5 sm:px-6 lg:px-10 py-4">
           <div className="flex items-center justify-between">
             <Skeleton className="h-10 w-24" />
             <div className="flex items-center space-x-2">
@@ -17,7 +17,7 @@ export default function LotDetailsLoading() {
       </header>
 
       {/* Lot Info */}
-      <div className="max-w-7xl mx-auto py-4">
+      <div className="content-max-width py-4">
         <div className="flex items-center space-x-4 mb-2">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-6 w-16" />
@@ -30,7 +30,7 @@ export default function LotDetailsLoading() {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto">
+      <div className="content-max-width">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             {[1, 2, 3, 4].map((i) => (
@@ -41,7 +41,7 @@ export default function LotDetailsLoading() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto py-8">
+      <div className="content-max-width py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {[1, 2, 3].map((i) => (
             <div key={i} className="border rounded-lg p-6 bg-white">

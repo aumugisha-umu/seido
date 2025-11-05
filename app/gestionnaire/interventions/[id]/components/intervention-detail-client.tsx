@@ -174,7 +174,7 @@ export function InterventionDetailClient({
   }
 
   return (
-    <div className="layout-padding container max-w-7xl mx-auto py-6 space-y-6">
+    <div className="layout-padding container content-max-width py-6 space-y-6">
       {/* Intervention Detail Header with Action Panel */}
       <InterventionDetailHeader
         intervention={{

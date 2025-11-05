@@ -208,7 +208,7 @@ export default function DashboardHeader({
   return (
     <>
       <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10">
+        <div className="content-max-width px-5 sm:px-6 lg:px-10">
           <nav className="flex items-center justify-between h-16">
             {/* Logo à gauche */}
             <div className="flex items-center gap-4">
@@ -338,7 +338,7 @@ export default function DashboardHeader({
 
           {/* Menu panel */}
           <div className="fixed top-16 inset-x-0 bottom-0 bg-white border-b border-slate-200 shadow-lg">
-            <div className="flex flex-col h-full max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-4">
+            <div className="flex flex-col h-full content-max-width px-5 sm:px-6 lg:px-10 py-4">
               
               {/* Navigation principale - affichée seulement si navigation existe */}
               {config.navigation.length > 0 && (

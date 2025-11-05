@@ -164,6 +164,9 @@
   --scrollbar-track: rgb(243 244 246); /* gray-100 - gris clair */
   --scrollbar-thumb: rgb(59 130 246);  /* blue-500 - primary color */
   --scrollbar-thumb-hover: rgb(37 99 235); /* blue-600 - hover plus foncé */
+
+  /* Content Max Width - Centralized for consistent alignment across all sections */
+  --content-max-width: 96rem; /* 1280px - equivalent to Tailwind's max-w-7xl */
 }
 
 .dark {
@@ -393,14 +396,23 @@
     @apply px-5 sm:px-6 lg:px-10 py-4;
   }
 
+  /* Content max width - Centralized utility class for consistent content width */
+  .content-max-width {
+    max-width: var(--content-max-width);
+    @apply mx-auto w-full;
+  }
+
   /* Content wrapper with max-width - for page content centering */
   .layout-content-wrapper {
-    @apply max-w-7xl mx-auto w-full;
+    max-width: var(--content-max-width);
+    @apply mx-auto w-full;
   }
 
   /* Combined layout padding + content wrapper */
   .layout-container {
-    @apply px-5 sm:px-6 lg:px-10 py-4 max-w-7xl mx-auto w-full;
+    @apply px-5 sm:px-6 lg:px-10 py-4;
+    max-width: var(--content-max-width);
+    @apply mx-auto w-full;
   }
 
   /* Sticky footer base styles (without negative margins) */

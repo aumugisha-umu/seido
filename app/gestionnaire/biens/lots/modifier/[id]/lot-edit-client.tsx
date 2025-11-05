@@ -322,7 +322,7 @@ export default function LotEditClient({
 
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto px-5 sm:px-6 lg:px-10 pt-5 sm:pt-6 lg:pt-10 pb-20">
-        <main className="max-w-6xl mx-auto pb-8">
+        <main className="content-max-width pb-8">
         {/* Success/Error Alerts */}
         {success && (
           <Alert className="mb-6 border-green-200 bg-green-50">
@@ -533,7 +533,7 @@ export default function LotEditClient({
 
       {/* Sticky Footer Navigation - Outside all steps */}
       <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
-        <div className="flex justify-between w-full max-w-6xl mx-auto">
+        <div className="flex justify-between w-full content-max-width">
           <Button
             variant="outline"
             onClick={handlePrevious}

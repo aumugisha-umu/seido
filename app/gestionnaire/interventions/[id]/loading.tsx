@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 export default function InterventionDetailLoading() {
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="content-max-width">
       {/* Header Skeleton */}
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center space-x-4">

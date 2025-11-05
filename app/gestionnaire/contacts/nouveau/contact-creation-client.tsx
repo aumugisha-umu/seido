@@ -389,7 +389,7 @@ export function ContactCreationClient({
 
       {/* Contenu principal (scrollable) */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-10 pb-20">
-        <div className="max-w-6xl mx-auto">
+        <div className="content-max-width">
           {/* Step content will be rendered here */}
           <div className="bg-white rounded-lg border shadow-sm p-6 transition-all duration-500">
             {currentStep === 1 && (
@@ -463,7 +463,7 @@ export function ContactCreationClient({
 
       {/* Footer avec navigation */}
       <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
-        <div className={`flex flex-col sm:flex-row gap-2 max-w-7xl mx-auto ${currentStep === 1 ? 'justify-end' : 'justify-between'}`}>
+        <div className={`flex flex-col sm:flex-row gap-2 content-max-width ${currentStep === 1 ? 'justify-end' : 'justify-between'}`}>
           {/* Bouton Retour - Affiché seulement à partir de step 2 */}
           {currentStep > 1 && (
             <Button

@@ -20,7 +20,7 @@ export default function EmailSettingsPage() {
   }
 
   return (
-    <div className="container max-w-4xl py-8">
+    <div className="container content-max-width py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Email Settings</h1>
         <p className="text-muted-foreground mt-2">

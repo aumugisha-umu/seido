@@ -18,7 +18,7 @@ function LotDetailsLoading() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
           <Button variant="ghost" disabled className="flex items-center space-x-2">
             <ArrowLeft className="h-4 w-4" />
             <span>Retour</span>
@@ -26,12 +26,12 @@ function LotDetailsLoading() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
         <Skeleton className="h-8 w-32 mb-2" />
         <Skeleton className="h-4 w-64" />
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {[1, 2, 3].map((i) => (
             <Card key={i}>

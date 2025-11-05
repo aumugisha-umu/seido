@@ -256,7 +256,7 @@ export default function LotDetailsClient({
       />
 
       {error && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
@@ -265,7 +265,7 @@ export default function LotDetailsClient({
 
       {/* Surface and rooms info */}
       {(lot.surface_area || lot.rooms) && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+        <div className="content-max-width px-4 sm:px-6 lg:px-8 pb-4">
           <div className="flex items-center justify-center space-x-6 text-sm text-slate-600">
             {lot.surface_area && (
               <div className="flex items-center space-x-1">
@@ -282,7 +282,7 @@ export default function LotDetailsClient({
       )}
 
       {/* Tabs Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="content-max-width px-4 sm:px-6 lg:px-8">
         <div className="border-b border-slate-200">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => {
@@ -312,7 +312,7 @@ export default function LotDetailsClient({
       </div>
 
       {/* Tab Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "overview" && (
           <div className="space-y-6">
             {/* Lot Information */}

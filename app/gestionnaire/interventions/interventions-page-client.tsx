@@ -61,9 +61,9 @@ export function InterventionsPageClient({
   }
 
   return (
-    <div className="layout-padding flex flex-col flex-1 min-h-0">
+    <div className="layout-container flex flex-col flex-1 min-h-0">
       <InterventionCancellationProvider>
-        <div className="max-w-7xl mx-auto flex flex-col h-full min-h-0">
+        <div className="content-max-width flex flex-col h-full min-h-0">
         {/* Page Header */}
         <div className="mb-4 lg:mb-6 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
